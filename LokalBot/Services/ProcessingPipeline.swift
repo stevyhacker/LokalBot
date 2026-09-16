@@ -587,7 +587,7 @@ final class ProcessingPipeline: ObservableObject {
                             + "\(sanitization.removedWords) removedCharacters="
                             + "\(sanitization.removedCharacters)")
                 }
-                let budget = MeetingGenerationBudget()
+                let budget = MeetingGenerationBudget(limits: config.generationBudgetPreset.limits)
                 await budget.recordPhase("queue", seconds: queueSeconds)
                 do {
                     let generated = try await budget.run {

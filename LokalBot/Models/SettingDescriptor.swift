@@ -9,6 +9,7 @@ struct SettingDescriptor: Identifiable {
     func currentValue(in settings: AppSettings) -> String {
         if id == "settings.models" { return InferencePresentation(settings: settings).label }
         if id == "settings.effectiveScreenContextCaptureMode" { return settings.effectiveScreenContextCaptureMode.rawValue }
+        if id == "settings.generationBudgetPreset" { return settings.generationBudgetPreset.displayName }
         guard let data = try? JSONEncoder().encode(settings),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let value = object[String(id.dropFirst("settings.".count))] else { return "Open details" }
@@ -63,6 +64,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.openAIBaseURL", title: "OpenAI-compatible server URL", category: .models, aliases: "remote processing endpoint host base URL"),
         .init(id: "settings.openAIModel", title: "OpenAI-compatible model", category: .models, aliases: "remote inference model name"),
         .init(id: "settings.ollamaBaseURL", title: "Ollama server URL", category: .models, aliases: "local remote endpoint host"),
+        .init(id: "settings.generationBudgetPreset", title: "Notes processing budget", category: .models,
+              aliases: "generation budget limit tokens time requests unlimited conservative generous summary meeting notes"),
         .init(id: "settings.transcriptionModel", title: "Transcription model", category: .models, aliases: "ASR speech whisper qwen"),
         .init(id: "settings.transcriptionLanguage", title: "Transcription language", category: .models, aliases: "ASR spoken language"),
         .init(id: "settings.transcriptionPrompt", title: "Transcription vocabulary", category: .models, aliases: "names acronyms spelling"),

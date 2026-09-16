@@ -297,6 +297,9 @@ struct AppSettings: Codable, Equatable {
     /// Origins the user explicitly approved for sending transcript, OCR, and
     /// agent context off this Mac. Loopback endpoints never need approval.
     var approvedRemoteInferenceOrigins: [String] = []
+    /// Processing budget for meeting-notes generation. Applies to every Think
+    /// backend, not only the connection it is edited alongside.
+    var generationBudgetPreset: GenerationBudgetPreset = .standard
 
     /// True only when the selected Think backend may actually send meeting or
     /// workday text to an approved remote server. Configured-but-unapproved,
@@ -670,6 +673,7 @@ struct AppSettings: Codable, Equatable {
         case openAIModel
         case openRouterDataPolicy
         case approvedRemoteInferenceOrigins
+        case generationBudgetPreset
         case noteTemplate
         case summaryLanguage
         case identifySpeakersFromVisuals
@@ -829,6 +833,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(openAIModel, forKey: .openAIModel)
         try c.encode(openRouterDataPolicy, forKey: .openRouterDataPolicy)
         try c.encode(approvedRemoteInferenceOrigins, forKey: .approvedRemoteInferenceOrigins)
+        try c.encode(generationBudgetPreset, forKey: .generationBudgetPreset)
         try c.encode(noteTemplate, forKey: .noteTemplate)
         try c.encode(summaryLanguage, forKey: .summaryLanguage)
         try c.encode(multiSpeakerDiarization, forKey: .multiSpeakerDiarization)
@@ -970,6 +975,8 @@ struct AppSettings: Codable, Equatable {
             .openRouterDataPolicy, defaults.openRouterDataPolicy)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
+        generationBudgetPreset = decode(
+            .generationBudgetPreset, defaults.generationBudgetPreset)
         noteTemplate = decode(.noteTemplate, defaults.noteTemplate)
         summaryLanguage = decode(.summaryLanguage, defaults.summaryLanguage)
         multiSpeakerDiarization = decode(.multiSpeakerDiarization, defaults.multiSpeakerDiarization)

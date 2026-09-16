@@ -697,6 +697,29 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(parsed.generationSeconds, 0.456)
     }
 
+    func testGenerationBudgetPresetLimits() {
+        let standard = GenerationBudgetPreset.standard.limits
+        let shipped = MeetingGenerationBudget.Limits()
+        XCTAssertEqual(standard.seconds, shipped.seconds)
+        XCTAssertEqual(standard.requests, shipped.requests)
+        XCTAssertEqual(standard.inputTokens, shipped.inputTokens)
+        XCTAssertEqual(standard.outputTokens, shipped.outputTokens)
+
+        let ordered = GenerationBudgetPreset.allCases.map(\.limits)
+        for (smaller, larger) in zip(ordered, ordered.dropFirst()) {
+            XCTAssertLessThan(smaller.seconds, larger.seconds)
+            XCTAssertLessThan(smaller.requests, larger.requests)
+            XCTAssertLessThan(smaller.inputTokens, larger.inputTokens)
+            XCTAssertLessThan(smaller.outputTokens, larger.outputTokens)
+        }
+
+        // run() races a Task.sleep deadline and allowance() converts
+        // seconds * 35 to Int — even Unlimited must stay finite and Int-safe.
+        let unlimited = GenerationBudgetPreset.unlimited.limits
+        XCTAssertTrue(unlimited.seconds.isFinite)
+        XCTAssertLessThan(unlimited.seconds * 35, Double(Int.max))
+    }
+
     private func longTranscript() -> Transcript {
         Transcript(segments: (0..<60).map { index in
             .init(start: Double(index * 5), end: Double(index * 5 + 5), speaker: "them",

@@ -93,7 +93,8 @@ struct ModelsView: View {
         case "settings.transcriptionLanguage", "settings.transcriptionPrompt": sheet = .transcriptionOptions
         case "settings.cotypingBuiltInModelID": sheet = .autocomplete
         case "settings.dictationCompositionBuiltInModelID": sheet = .dictation
-        case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":
+        case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey",
+             "settings.generationBudgetPreset":
             page.wrappedValue = .connections
         default: sheet = .assistant
         }

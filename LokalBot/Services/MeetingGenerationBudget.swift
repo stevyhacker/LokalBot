@@ -1,5 +1,51 @@
 import Foundation
 
+/// How much time and compute one summary + outcomes job may spend before it
+/// checkpoints and asks the user to summarize again. Applies to every Think
+/// backend (built-in, Apple Intelligence, Ollama, OpenAI-compatible).
+enum GenerationBudgetPreset: String, Codable, CaseIterable, Identifiable, Sendable {
+    case conservative
+    case standard
+    case generous
+    case unlimited
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .conservative: "Conservative"
+        case .standard: "Default"
+        case .generous: "Generous"
+        case .unlimited: "Unlimited"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .conservative: "Half the normal time and tokens. Long meetings may need a second pass."
+        case .standard: "Balanced limits that fit most meetings in one pass."
+        case .generous: "Three times the normal limits for very long meetings or slower servers."
+        case .unlimited: "Runs until finished, with a 6-hour safety stop."
+        }
+    }
+
+    var limits: MeetingGenerationBudget.Limits {
+        switch self {
+        case .conservative:
+            .init(seconds: 300, requests: 6, inputTokens: 125_000, outputTokens: 12_288)
+        case .standard:
+            .init()
+        case .generous:
+            .init(seconds: 1_800, requests: 36, inputTokens: 750_000, outputTokens: 73_728)
+        case .unlimited:
+            // Finite on purpose: run() races a Task.sleep deadline and
+            // allowance() converts seconds * 35 to Int, and a stalled server
+            // must not wedge the serialized job queue forever.
+            .init(seconds: 21_600, requests: 10_000, inputTokens: 100_000_000, outputTokens: 10_000_000)
+        }
+    }
+}
+
 /// One allowance for the entire summary + outcomes job, including transport
 /// replays. Task-local propagation keeps provider and runtime retries inside it.
 actor MeetingGenerationBudget {

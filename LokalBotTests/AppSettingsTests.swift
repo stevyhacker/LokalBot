@@ -314,6 +314,24 @@ final class AppSettingsTests: XCTestCase {
                        ["https://inference.example.com"])
     }
 
+    func testGenerationBudgetPresetRoundTrips() throws {
+        var settings = AppSettings()
+        settings.generationBudgetPreset = .generous
+
+        let decoded = try JSONDecoder().decode(
+            AppSettings.self, from: JSONEncoder().encode(settings))
+
+        XCTAssertEqual(decoded.generationBudgetPreset, .generous)
+    }
+
+    func testLegacySettingsDefaultToStandardGenerationBudget() throws {
+        let settings = try JSONDecoder().decode(
+            AppSettings.self, from: Data(#"{"autoTranscribe":true}"#.utf8))
+
+        XCTAssertEqual(settings.generationBudgetPreset, .standard)
+        XCTAssertTrue(settings.corruptedSettingsKeys.isEmpty)
+    }
+
     func testLegacySettingsHaveNoApprovedRemoteInferenceOrigins() throws {
         let settings = try JSONDecoder().decode(
             AppSettings.self, from: Data(#"{"autoTranscribe":false}"#.utf8))
