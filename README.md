@@ -94,8 +94,7 @@ You'll need an **Apple Silicon Mac with macOS 15 or later**, plus disk space for
 
 Supported backends include the built-in llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Non-loopback servers require approval before receiving context.
 
-<details>
-<summary>See an example local model stack</summary>
+### Example local model stack
 
 This higher-capacity example uses about **12.4 GB** after the models are downloaded. It was measured on a **48 GB M4 Max MacBook Pro** with LokalBot's bundled llama.cpp runtime and full Metal offload. It is an example for comparing storage and speed, not the default preset; the current Recommended preset uses the smaller LFM2.5 1.2B for Autocomplete.
 
@@ -108,8 +107,6 @@ This higher-capacity example uses about **12.4 GB** after the models are downloa
 | Speaker diarization | pyannote-community-1 via FluidAudio | Core ML | ~0.10 GB | Diarization; not generative |
 
 The measurements come from one M4 Max machine; generation speed varies with context length, thermals, and other workloads. See the [benchmark summary](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) for the supporting details.
-
-</details>
 
 For model options, benchmarks, storage, and architecture, see [DEVELOPMENT.md](DEVELOPMENT.md) and the [model benchmark results](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks).
 
