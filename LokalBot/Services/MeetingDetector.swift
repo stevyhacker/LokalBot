@@ -585,9 +585,11 @@ final class MeetingDetector {
                               requireCalendarForBrowser: requireCalendarForBrowser)
     }
 
-    private func scheduleStopIfNeeded(now: Date,
-                                     immediately: Bool = false,
-                                     reason: String? = nil) {
+    private func scheduleStopIfNeeded(
+        now: Date,
+        immediately: Bool = false,
+        reason: String? = nil
+    ) {
         guard activeApp != nil, pendingStop == nil else { return }
         // Native app audio gaps may use calendar grace. A browser call uses
         // only its bound document state and never receives that extension.
