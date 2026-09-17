@@ -30,6 +30,54 @@ enum BrowserMeetingSession {
         }
     }
 
+    /// Lifecycle observations are allowed to be temporarily unavailable. A
+    /// missing Accessibility snapshot is not the same evidence as a call that
+    /// explicitly ended or a browser process that disappeared.
+    enum LifecycleDecision: Equatable {
+        case inCall
+        case waitForObservation
+        case endImmediately
+        case endAfterGrace
+    }
+
+    static func lifecycleDecision(
+        snapshotState: State?,
+        hostPresent: Bool,
+        observationLostAt: Date?,
+        now: Date,
+        grace: TimeInterval,
+        hostReconnectGrace: TimeInterval? = nil
+    ) -> LifecycleDecision {
+        // A Chromium host can be replaced while its Meet tab and helper audio
+        // continue (for example during a renderer/browser restart). Treat that
+        // absence as a bounded reconnect window; an explicit ended snapshot is
+        // still authoritative and stops immediately.
+        if !hostPresent {
+            let effectiveGrace = hostReconnectGrace ?? grace
+            guard let observationLostAt,
+                  effectiveGrace.isFinite,
+                  effectiveGrace >= 0,
+                  now.timeIntervalSince(observationLostAt) >= effectiveGrace else {
+                return .waitForObservation
+            }
+            return .endAfterGrace
+        }
+        switch snapshotState {
+        case .some(.inCall):
+            return .inCall
+        case .some(.ended):
+            return .endImmediately
+        case .some(.unavailable), .none:
+            guard let observationLostAt,
+                  grace.isFinite,
+                  grace >= 0,
+                  now.timeIntervalSince(observationLostAt) >= grace else {
+                return .waitForObservation
+            }
+            return .endAfterGrace
+        }
+    }
+
     static func state(buttons: [String], messages: [String]) -> State {
         let buttons = buttons.map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
         let ended = messages.contains {
@@ -37,7 +85,12 @@ enum BrowserMeetingSession {
              "you were removed from the meeting", "the meeting has ended"].contains($0.lowercased())
         }
         if ended { return .ended }
-        let leave = buttons.contains { $0 == "leave call" || $0 == "leave meeting" || $0 == "hang up" }
+        let leaveLabels = ["leave call", "leave meeting", "hang up"]
+        let leave = buttons.contains { label in
+            leaveLabels.contains { action in
+                label == action || label.hasPrefix("\(action) ") || label.hasPrefix("\(action)(")
+            }
+        }
         let microphone = buttons.contains { $0.hasPrefix("turn off microphone") || $0.hasPrefix("turn on microphone") }
         return leave && microphone ? .inCall : .unavailable
     }

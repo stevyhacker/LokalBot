@@ -43,7 +43,7 @@ struct MeetingContinuationLease: Equatable {
 ///
 /// Reacts instantly via Core Audio property listeners (mic in use, default
 /// device change) and NSWorkspace launch/quit notifications; a slow safety
-/// poll (10 s) covers what has no notification — browser tab titles.
+/// poll covers what has no notification — browser call state.
 final class MeetingDetector {
 
     struct DetectedApp: Equatable {
@@ -168,6 +168,16 @@ final class MeetingDetector {
     /// Extra grace before stopping while a calendar-backed meeting is still in
     /// its scheduled window — brief audio drops mid-meeting shouldn't end it.
     static let calendarBackedGrace: TimeInterval = 180
+    /// Accessibility can briefly fail while Chrome rebuilds its WebArea or
+    /// another bounded reader is using the same tree. Keep the recording alive
+    /// through that uncertainty. This is separate from the user's short audio
+    /// debounce because it protects the lifecycle signal itself.
+    static let browserObservationGrace: TimeInterval = 120
+    /// A browser host can disappear for a few seconds while Chrome replaces
+    /// the application process even though the Meet tab and helper audio stay
+    /// alive. This shorter window avoids splitting one call while bounding the
+    /// raw tail when the browser really did quit.
+    static let browserHostReconnectGrace: TimeInterval = 15
     /// Teams keeps `modulehost` open while idle, so it can bridge a pause only
     /// while backed by recent audio from a process whose signal can disappear.
     /// With the default 15-second stop debounce, the detector remains tolerant
@@ -190,13 +200,14 @@ final class MeetingDetector {
     private(set) var detectedContentEnd: Date?
     private(set) var endedMeetingURL: URL?
     private var lastBrowserEvidenceAt: Date?
+    private var browserObservationLostAt: Date?
     /// The start candidate still waiting out
     /// `nativeAudioMinimumConfirmationDuration`: when its audio was first seen,
     /// and when it was last seen — the second lets a normal conversational gap
     /// (the remote side listening rather than talking) survive without
     /// restarting the window. See `nativeAudioConfirmationGapTolerance`.
     private var startConfirmation = MeetingMatcher.StartConfirmationState()
-    /// Last logged start-decision state, so the 10 s safety poll does not
+    /// Last logged start-decision state, so the safety poll does not
     /// repeat the same line forever. Diagnostics only.
     private var lastLoggedStartState: String?
     private var pendingStartRecheck: DispatchWorkItem?
@@ -218,7 +229,7 @@ final class MeetingDetector {
 
     func start() {
         guard timer == nil else { return }
-        // Safety-net poll (browser titles have no change notification).
+        // Safety-net poll (browser call state has no change notification).
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             self?.tick()
         }
@@ -243,6 +254,9 @@ final class MeetingDetector {
         pendingStop = nil
         clearPendingStart()
         continuationLease.reset()
+        browserObservationLostAt = nil
+        detectedContentEnd = nil
+        endedMeetingURL = nil
         let center = NSWorkspace.shared.notificationCenter
         for observer in workspaceObservers { center.removeObserver(observer) }
         workspaceObservers.removeAll()
@@ -459,6 +473,8 @@ final class MeetingDetector {
 
     private func beginMeeting(app: DetectedApp, calendarEvent: CalendarMeetingCandidate?, now: Date) {
         detectedContentEnd = nil
+        endedMeetingURL = nil
+        browserObservationLostAt = nil
         lastBrowserEvidenceAt = app.meetingURL == nil ? nil : now
         browserStart = .init()
         clearPendingStart(loggingLoss: false)
@@ -569,7 +585,9 @@ final class MeetingDetector {
                               requireCalendarForBrowser: requireCalendarForBrowser)
     }
 
-    private func scheduleStopIfNeeded(now: Date, immediately: Bool = false) {
+    private func scheduleStopIfNeeded(now: Date,
+                                     immediately: Bool = false,
+                                     reason: String? = nil) {
         guard activeApp != nil, pendingStop == nil else { return }
         // Native app audio gaps may use calendar grace. A browser call uses
         // only its bound document state and never receives that extension.
@@ -578,6 +596,7 @@ final class MeetingDetector {
         let debounce = immediately ? 0 : calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            if let reason { lokalbotLog("detector ending meeting reason=\(reason)") }
             self.endedMeetingURL = self.activeApp?.meetingURL
             self.activeApp = nil
             self.activeCalendarEvent = nil
@@ -590,21 +609,63 @@ final class MeetingDetector {
     }
 
     /// A browser-wide audio stream is never evidence that the bound call is
-    /// still running. Loss of observation starts a bounded stop; explicit leave
-    /// ends immediately. Preserve the first missing boundary for post-processing.
+    /// still running. A missing Accessibility snapshot is kept as uncertainty
+    /// for a bounded grace period; an explicit ended state ends immediately.
+    /// A missing host gets a shorter reconnect grace so a browser restart does
+    /// not split the call. Preserve the last verified boundary for processing.
     private func tickBrowser(_ app: DetectedApp, now: Date) {
         let host = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).first
         let snapshot = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier, expectedURL: app.meetingURL) }
-        if let snapshot, snapshot.state == .inCall, snapshot.url == app.meetingURL {
+        let observedState: BrowserMeetingSession.State? = snapshot.map {
+            $0.url == app.meetingURL ? $0.state : .unavailable
+        }
+        let decision = BrowserMeetingSession.lifecycleDecision(
+            snapshotState: observedState,
+            hostPresent: host != nil,
+            observationLostAt: browserObservationLostAt ?? now,
+            now: now,
+            grace: max(Self.browserObservationGrace, max(0, stopDebounce)),
+            hostReconnectGrace: Self.browserHostReconnectGrace)
+        switch decision {
+        case .inCall:
+            if let lostAt = browserObservationLostAt {
+                lokalbotLog(
+                    "browser lifecycle observation recovered after="
+                        + String(format: "%.1fs", now.timeIntervalSince(lostAt)))
+            }
+            browserObservationLostAt = nil
             pendingStop?.cancel()
             pendingStop = nil
             detectedContentEnd = nil
             lastBrowserEvidenceAt = now
-            return
+        case .waitForObservation:
+            if browserObservationLostAt == nil {
+                browserObservationLostAt = now
+                let state = observedState.map(String.init(describing:)) ?? "missing"
+                lokalbotLog("browser lifecycle observation lost state=\(state)")
+            }
+        case .endImmediately:
+            browserObservationLostAt = nil
+            detectedContentEnd = lastBrowserEvidenceAt ?? now
+            pendingStop?.cancel()
+            pendingStop = nil
+            scheduleStopIfNeeded(
+                now: now,
+                immediately: true,
+                reason: host == nil ? "browser-host-missing" : "browser-ended")
+        case .endAfterGrace:
+            detectedContentEnd = lastBrowserEvidenceAt ?? browserObservationLostAt ?? now
+            let reason = host == nil
+                ? "browser-host-reconnect-grace-expired"
+                : "browser-observation-grace-expired"
+            lokalbotLog(
+                "browser lifecycle observation grace expired reason=\(reason) after="
+                    + String(format: "%.1fs", now.timeIntervalSince(browserObservationLostAt ?? now)))
+            scheduleStopIfNeeded(
+                now: now,
+                immediately: true,
+                reason: reason)
         }
-        if detectedContentEnd == nil { detectedContentEnd = lastBrowserEvidenceAt ?? now }
-        if snapshot?.state == .ended { pendingStop?.cancel(); pendingStop = nil }
-        scheduleStopIfNeeded(now: now, immediately: snapshot?.state == .ended || host == nil)
     }
 
     /// Audio-monitor events must pass the same sustained call-state gate.
@@ -868,16 +929,52 @@ final class MeetingDetector {
         processSnapshotLock.unlock()
     }
 
-    /// A running native meeting app to capture from when nothing was detected.
+    /// A running meeting app to capture from when nothing was detected.
     /// Deliberately does *not* require current output: a recording started by
     /// hand routinely begins before the remote side says anything, and a tap on
     /// a silent process records nothing until audio arrives rather than
-    /// failing. Without this the manual path creates no system target at all,
-    /// so remote speech arriving later cannot trigger watchdog recovery either.
+    /// failing. A browser is eligible only when its Accessibility tree proves
+    /// one unambiguous in-call Meet document, so a manual recording does not
+    /// silently widen its capture scope to arbitrary browser media.
     static func captureCandidateApp(
-        in running: [NSRunningApplication] = NSWorkspace.shared.runningApplications
+        in running: [NSRunningApplication] = NSWorkspace.shared.runningApplications,
+        expectedMeetingURL: URL? = nil
     ) -> DetectedApp? {
-        nativeMeetingApp(in: running, requireAudio: false)
+        // Prefer native apps that are actually emitting, then a verified
+        // browser call. An idle Teams/Zoom process must not shadow the Chrome
+        // call the user is recording just because it happens to be open.
+        if let native = nativeMeetingApp(in: running, requireAudio: true) { return native }
+        for app in running {
+            guard let bundleID = app.bundleIdentifier, browsers.contains(bundleID),
+                  let snapshot = BrowserMeetingSession.snapshot(
+                    processID: app.processIdentifier,
+                    expectedURL: expectedMeetingURL),
+                  snapshot.state == .inCall else { continue }
+            let target = DetectedApp(
+                name: app.localizedName ?? "Browser",
+                bundleID: bundleID,
+                pid: app.processIdentifier,
+                meetingURL: snapshot.url)
+            let audioProcess = currentOutputAudioProcess(for: target)
+            return DetectedApp(
+                name: target.name,
+                bundleID: target.bundleID,
+                pid: audioProcess?.id ?? target.pid,
+                meetingURL: target.meetingURL)
+        }
+        // A single idle native app is still a useful silent tap target: it may
+        // begin emitting after the user presses Record. When several are open,
+        // choose only a frontmost one; otherwise abstain rather than mixing an
+        // unrelated app into the meeting.
+        let nativeCandidates = meetingAppCandidates(bundleIDs: running.compactMap { app in
+            guard let bundleID = app.bundleIdentifier else { return nil }
+            return (bundleID: bundleID, pid: app.processIdentifier)
+        })
+        if nativeCandidates.count == 1 { return nativeCandidates[0] }
+        if let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier {
+            return nativeCandidates.first { $0.pid == frontmostPID }
+        }
+        return nil
     }
 
     static func currentCaptureTargetProcess(

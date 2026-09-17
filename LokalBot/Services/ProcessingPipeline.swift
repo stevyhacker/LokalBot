@@ -576,7 +576,19 @@ final class ProcessingPipeline: ObservableObject {
                 var transcript = try loadTranscript(from: folder)
                 if let speakerIdentity,
                    FileManager.default.fileExists(atPath: folder.appendingPathComponent("speaker-evidence/identity.sealed").path) {
-                    transcript = try await speakerIdentity.recover(meeting: meeting, transcript: transcript)
+                    do {
+                        // Speaker identity is optional enrichment. The sealed
+                        // sidecar uses complete-file protection and can be
+                        // unreadable while the Mac is locked; that must not
+                        // block summary recovery from an already saved
+                        // transcript or burn an automatic retry.
+                        transcript = try await speakerIdentity.recover(meeting: meeting, transcript: transcript)
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        lokalbotLog(
+                            "speaker identity recovery skipped meeting=\(meeting.id): \(error.localizedDescription)")
+                    }
                     transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
                     try write(transcript, to: folder)
                 }

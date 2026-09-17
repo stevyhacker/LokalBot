@@ -176,7 +176,8 @@ enum MeetingNotesGenerator {
 
     static func request(engine: TextEngine, system: String, prompt: String, context: [String],
                         schema: [String: Any], tokens: Int, stage: String,
-                        budget: MeetingGenerationBudget, attempt: Int = 0) async throws -> (content: String, truncated: Bool) {
+                        budget: MeetingGenerationBudget, attempt: Int = 0,
+                        truncationRetry: Int = 0) async throws -> (content: String, truncated: Bool) {
         let input = try await tokenCount(([system] + context + [prompt]).joined(separator: "\n\n"), engine: engine) + 1_536
         return try await MeetingGenerationBudget.$stage.withValue(stage) {
             try await MeetingGenerationBudget.$promptTokens.withValue(input) {
@@ -197,8 +198,63 @@ enum MeetingNotesGenerator {
                             outcome: error is TruncatedStructuredResponse ? "truncated" : "failed",
                             wallSeconds: ProcessInfo.processInfo.systemUptime - started))
                     }
-                    if let partial = error as? TruncatedStructuredResponse { return (partial.content, true) }
-                    if case TextEngineError.outputTruncated = error { return ("", true) }
+                    if let partial = error as? TruncatedStructuredResponse {
+                        // Reasoning providers count hidden tokens against the
+                        // same completion ceiling as the JSON envelope. A
+                        // 4K request can therefore spend the whole response on
+                        // thinking and return no usable records. Give every
+                        // structured call one larger, budgeted retry before
+                        // handing partial content to the evidence validator.
+                        // The retry is deliberately bounded: a genuinely huge
+                        // response still falls through to checkpointed recovery
+                        // instead of consuming the job indefinitely.
+                        if !stage.localizedCaseInsensitiveContains("repair"),
+                           truncationRetry == 0,
+                           let expanded = expandedStructuredOutputTokens(from: tokens),
+                           expanded > tokens {
+                            let expandedResult: (content: String, truncated: Bool)
+                            do {
+                                expandedResult = try await request(
+                                    engine: engine, system: system, prompt: prompt, context: context,
+                                    schema: schema, tokens: expanded, stage: "expanded-" + stage,
+                                    budget: budget, attempt: attempt, truncationRetry: 1)
+                            } catch is MeetingGenerationBudget.Exhausted {
+                                // The first call may have consumed the last
+                                // shared allowance. Preserve its usable prefix
+                                // and let checkpointed recovery report the
+                                // incomplete part instead of replacing progress
+                                // with a budget error.
+                                return (partial.content, true)
+                            }
+                            // A provider may return a useful prefix on the
+                            // first call and an empty truncated body on the
+                            // larger retry. Preserve that prefix for the
+                            // validator instead of discarding it.
+                            if expandedResult.truncated,
+                               expandedResult.content.isEmpty,
+                               !partial.content.isEmpty {
+                                return (partial.content, true)
+                            }
+                            return expandedResult
+                        }
+                        return (partial.content, true)
+                    }
+                    if case TextEngineError.outputTruncated = error {
+                        if !stage.localizedCaseInsensitiveContains("repair"),
+                           truncationRetry == 0,
+                           let expanded = expandedStructuredOutputTokens(from: tokens),
+                           expanded > tokens {
+                            do {
+                                return try await request(
+                                    engine: engine, system: system, prompt: prompt, context: context,
+                                    schema: schema, tokens: expanded, stage: "expanded-" + stage,
+                                    budget: budget, attempt: attempt, truncationRetry: 1)
+                            } catch is MeetingGenerationBudget.Exhausted {
+                                return ("", true)
+                            }
+                        }
+                        return ("", true)
+                    }
                     // Managed local engines already reacquire once. External
                     // transient failures get one replay charged to this job.
                     if !(engine is LeasedTextEngine),
@@ -213,6 +269,14 @@ enum MeetingNotesGenerator {
                 }
             }
         }
+    }
+
+    /// One retry gives an always-reasoning provider room for visible JSON. The
+    /// cap keeps a standard job bounded while still covering the common 4K
+    /// reasoning + 4K visible-token split observed with GLM-5.3.
+    private static func expandedStructuredOutputTokens(from tokens: Int) -> Int? {
+        guard tokens > 0 else { return nil }
+        return min(16_384, max(tokens * 2, 8_192))
     }
 
     static func distinctClaims(_ claims: [SummaryClaimEvidence.Claim]) -> [SummaryClaimEvidence.Claim] {

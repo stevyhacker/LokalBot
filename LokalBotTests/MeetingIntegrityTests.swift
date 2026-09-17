@@ -5,6 +5,7 @@ final class MeetingIntegrityTests: XCTestCase {
     func testBrowserRequiresCallControlsAndSustainedSameDocument() {
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Join now", "Turn off microphone"], messages: []), .unavailable)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone (⌘D)"], messages: []), .inCall)
+        XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call (⌘⇧H)", "Turn on microphone"], messages: []), .inCall)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone"], messages: ["You left the meeting"]), .ended)
         let first = URL(string: "https://meet.google.com/abc-defg-hij")!
         let second = URL(string: "https://meet.google.com/klm-nopq-rst")!
@@ -17,6 +18,68 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertFalse(gate.observe(nil, at: now.addingTimeInterval(4)))
         XCTAssertFalse(gate.observe(.init(url: second, state: .inCall), at: now.addingTimeInterval(6)))
         XCTAssertFalse(gate.observe(.init(url: second, state: .inCall), at: now.addingTimeInterval(20)))
+    }
+
+    func testBrowserLifecycleDoesNotEndOnOneMissingAccessibilitySnapshot() {
+        let now = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: nil,
+                hostPresent: true,
+                observationLostAt: nil,
+                now: now,
+                grace: 45),
+            .waitForObservation)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: .unavailable,
+                hostPresent: true,
+                observationLostAt: now,
+                now: now.addingTimeInterval(44.9),
+                grace: 45),
+            .waitForObservation)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: .unavailable,
+                hostPresent: true,
+                observationLostAt: now,
+                now: now.addingTimeInterval(45),
+                grace: 45),
+            .endAfterGrace)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: .ended,
+                hostPresent: true,
+                observationLostAt: now,
+                now: now,
+                grace: 45),
+            .endImmediately)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: .inCall,
+                hostPresent: true,
+                observationLostAt: now,
+                now: now.addingTimeInterval(1),
+                grace: 45),
+            .inCall)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: nil,
+                hostPresent: false,
+                observationLostAt: now,
+                now: now.addingTimeInterval(14.9),
+                grace: 120,
+                hostReconnectGrace: 15),
+            .waitForObservation)
+        XCTAssertEqual(
+            BrowserMeetingSession.lifecycleDecision(
+                snapshotState: nil,
+                hostPresent: false,
+                observationLostAt: now,
+                now: now.addingTimeInterval(15),
+                grace: 120,
+                hostReconnectGrace: 15),
+            .endAfterGrace)
     }
 
     func testVideoAndCalendarNeverProveBrowserSession() {
@@ -175,10 +238,12 @@ final class MeetingIntegrityTests: XCTestCase {
     func testLegacySourceLessCheckpointGetsOneFreshScanAndCanComplete() async throws {
         let replies = Responses(#"{"notes":[{"section":"Key points","text":"Release remains Friday.","source":"s1"}],"actions":[],"has_more":false}"#)
         var part = MeetingNotesGenerator.Part(recovery: .init(nextPage: 5, scanComplete: true,
-            pending: [.init(sources: [], kind: "notes", reason: "unknown_source")]))
+            pending: [.init(sources: [], kind: "notes", reason: "unknown_source")],
+            terminalFailure: "The summary provider returned missing or invalid evidence IDs."))
         try await MeetingNotesGenerator.generatePart(part, job: recoveryJob(replies)) { part = $0 }
         XCTAssertTrue(part.complete)
         XCTAssertTrue(part.recovery?.pending.isEmpty == true)
+        XCTAssertNil(part.recovery?.terminalFailure)
         let count = await replies.calls
         XCTAssertEqual(count, 1)
     }

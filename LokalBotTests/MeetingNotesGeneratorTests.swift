@@ -148,14 +148,50 @@ final class MeetingNotesGeneratorTests: XCTestCase {
 
     func testTruncationSalvagesOnlyCompleteRecordsAndCannotReportSuccess() async throws {
         let complete = String(decoding: try JSONSerialization.data(withJSONObject: note()), as: UTF8.self)
-        let script = Script([.truncated("{\"notes\":[" + complete + ",{\"text\":\"unfinished"), .truncated("")])
+        let script = Script([
+            .truncated("{\"notes\":[" + complete + ",{\"text\":\"unfinished"),
+            .truncated(""),
+            .truncated(""),
+            .truncated(""),
+        ])
         let output = try folder()
         do { _ = try await generate(script, folder: output); XCTFail("truncated scan must remain partial") } catch is MeetingNotesGenerator.Incomplete {} catch { XCTFail("unexpected error \(error)") }
         let artifact = try JSONDecoder().decode(SummaryClaimEvidence.Artifact.self,
             from: Data(contentsOf: output.appendingPathComponent("summary.claims.partial.json")))
         XCTAssertEqual(artifact.claims.count, 1)
         let observed3 = await script.recorded().count
-        XCTAssertEqual(observed3, 2, "continue accepted records once, then stop on a page with no progress")
+        XCTAssertEqual(observed3, 4, "the initial and continuation pages each get one bounded expansion retry")
+    }
+
+    func testTruncatedStructuredResponseGetsOneExpandedRetry() async throws {
+        let script = Script([
+            .truncated(""),
+            .text(try response(notes: [note()], actions: [action()])),
+        ])
+
+        let result = try await generate(script)
+        let calls = await script.recorded()
+
+        XCTAssertEqual(calls.map { $0.options.maxTokens }, [4_096, 8_192])
+        XCTAssertEqual(result.claims.count, 1)
+        XCTAssertTrue(result.body.contains("Will ship the update on Friday."))
+    }
+
+    func testMalformedProviderShapeGetsOneBoundedRecoveryRetry() async throws {
+        // A provider can return a successful JSON response with an optional
+        // action that has no source (or even omit the notes array). That shape
+        // must trigger one focused re-read, not fail the whole meeting.
+        let script = Script([
+            .text(#"{"actions":[{"text":"Use the plan"}],"has_more":false}"#),
+            .text(try response(notes: [note()], actions: [action()])),
+        ])
+
+        let result = try await generate(script)
+        let calls = await script.recorded()
+
+        XCTAssertEqual(calls.count, 2)
+        XCTAssertTrue(calls[1].prompt.contains("previous extraction was not fully verifiable"))
+        XCTAssertEqual(result.claims.count, 1)
     }
 
     func testRepeatedInvalidRecordIsOmittedAfterOneRepairAndValidRecordsSurvive() async throws {

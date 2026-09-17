@@ -31,16 +31,20 @@ extension MeetingNotesGenerator {
     static func generatePart(_ initial: Part, job: PartJob, save: (Part) throws -> Void) async throws {
         var part = initial
         var recovery = part.recovery ?? legacyRecovery(part, transcript: job.evidence.transcript)
-        if let failure = recovery.terminalFailure { throw TextEngineError.badResponse(failure) }
         // Older checkpoints retained source-less rejections forever. Start one
         // fresh scan, preserving accepted evidence, instead of an impossible repair.
         let knownSources = Set(job.units.map(\.source))
-        if recovery.pending.contains(where: { knownSources.isDisjoint(with: $0.sources) }) {
-            recovery.pending.removeAll { knownSources.isDisjoint(with: $0.sources) }
+        if recovery.pending.contains(where: { $0.sources.isEmpty }) {
+            recovery.pending.removeAll { $0.sources.isEmpty }
             recovery.scanComplete = false
             recovery.nextPage = 0
             recovery.noProgressAttempts = nil
+            // Pre-recovery builds persisted this source-less state as a
+            // terminal provider failure. Clear that marker before the guard
+            // below so the fresh scan can actually run.
+            recovery.terminalFailure = nil
         }
+        if let failure = recovery.terminalFailure { throw TextEngineError.badResponse(failure) }
         let minimum = job.engine.minimumStructuredOutputTokens
         func checkpoint() throws {
             part.recovery = recovery
@@ -53,14 +57,24 @@ extension MeetingNotesGenerator {
             recovery.records += value.records.filter { seen.insert($0.key).inserted }
         }
 
+        var extractionRecoveryRetryUsed = false
+        var extractionRecoveryRetryPending = false
         for _ in 0..<3 where !recovery.scanComplete {
             try Task.checkCancellation()
             let allowance = try await job.budget.allowance(remainingParts: job.remainingParts, minimum: minimum)
             let maximumNotes = min(12, max(3, allowance / 200))
             let maximumActions = min(10, max(2, allowance / 250))
             let stage = recovery.nextPage == 0 ? "extract-\(job.number)" : "continue-\(job.number)-\(recovery.nextPage)"
-            let userPrompt = prompt(units: job.units, roster: job.evidence.roster)
+            var userPrompt = prompt(units: job.units, roster: job.evidence.roster)
                 + (recovery.nextPage == 0 ? "" : try continuation(recovery.records))
+            if extractionRecoveryRetryPending {
+                userPrompt += "\nThe previous extraction was not fully verifiable. Re-read only these supplied evidence rows. "
+                    + "Return the exact top-level keys notes, actions, and has_more. Every note and action must "
+                    + "copy one source ID from these rows and include all required fields. Omit an optional record "
+                    + "rather than guessing or emitting a source-less object. If no grounded record remains, return "
+                    + "empty arrays with has_more=false."
+                extractionRecoveryRetryPending = false
+            }
             let system = systemPrompt(template: job.template, language: job.language)
             try await requireInputRoom(system: system, prompt: userPrompt, context: job.context, tokens: allowance, job: job)
             let raw = try await request(engine: job.engine, system: system, prompt: userPrompt, context: job.context,
@@ -78,15 +92,40 @@ extension MeetingNotesGenerator {
                job.units.reduce(0, { $0 + $1.text.split(whereSeparator: \.isWhitespace).count }) > 500 {
                 validated.complete = false
             }
-            for rejection in validated.rejected where !recovery.pending.contains(rejection) {
+            // A malformed optional record may have no usable source at all
+            // (for example an action omitted `source`). It cannot be repaired
+            // without evidence, but it must not poison otherwise valid notes
+            // or turn a provider-shape error into an evidence-ID failure. Keep
+            // the rejection in validation telemetry and only queue source-bound
+            // records for targeted repair.
+            for rejection in validated.rejected
+                where !rejection.sources.isEmpty && !recovery.pending.contains(rejection) {
                 recovery.pending.append(rejection)
+            }
+            // Some OpenAI-compatible providers occasionally return an
+            // incomplete envelope or a source-less optional action even though
+            // the request itself succeeded. One bounded, explicit re-read can
+            // recover a useful summary; without it the no-progress guard would
+            // turn a provider shape glitch into a failed meeting.
+            let hasSourceLessShapeError = validated.rejected.contains {
+                $0.sources.isEmpty && ["invalid_action", "invalid_note"].contains($0.reason)
+            }
+            if !extractionRecoveryRetryUsed,
+               !raw.truncated,
+               recovery.pending.isEmpty,
+               !validated.complete,
+               hasSourceLessShapeError {
+                extractionRecoveryRetryUsed = true
+                extractionRecoveryRetryPending = true
             }
             recovery.scanComplete = validated.complete && !raw.truncated
             recovery.nextPage += 1
             await recordValidation(validated, stage: stage, truncated: raw.truncated, budget: job.budget)
             try checkpoint()
             await job.budget.recordPhase("validation", seconds: ProcessInfo.processInfo.systemUptime - started)
-            if validated.rejected.contains(where: { knownSources.isDisjoint(with: $0.sources) }) {
+            if validated.rejected.contains(where: {
+                !$0.sources.isEmpty && knownSources.isDisjoint(with: $0.sources)
+            }) {
                 recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs. Verified partial notes were saved. Choose a different summary model or provider before retrying."
                 try checkpoint()
                 throw TextEngineError.badResponse(recovery.terminalFailure!)
@@ -94,6 +133,10 @@ extension MeetingNotesGenerator {
             // A provider repeating a full page must not spend the entire job
             // cycling. Keep its accepted facts and resume explicitly later.
             if recovery.records.count == previousCount && !recovery.scanComplete {
+                if extractionRecoveryRetryPending {
+                    try checkpoint()
+                    continue
+                }
                 if !raw.truncated && recovery.pending.isEmpty {
                     recovery.noProgressAttempts = (recovery.noProgressAttempts ?? 0) + 1
                     if recovery.noProgressAttempts! >= 2 {

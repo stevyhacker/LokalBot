@@ -285,6 +285,14 @@ final class RecordingController: ObservableObject {
     private var diarizationPrewarmTask: Task<Void, Never>?
     private var startTask: Task<Void, Never>?
     private var systemAudioHandoffTask: Task<Void, Never>?
+    /// Manual capture can begin during a transient Accessibility gap. Keep a
+    /// bounded retry alive until the browser's verified meeting document is
+    /// visible, then attach the system tap to the same meeting folder.
+    private var pendingSystemAudioCaptureTask: Task<Void, Never>?
+    private var activeSystemAudioPolicy: RecordingSystemAudioPolicy?
+    private static let lateSystemAudioCaptureRetryDelays: [TimeInterval] = [
+        0.5, 1, 2, 4, 8, 15, 30, 30, 30,
+    ]
 
     init(storage: StorageManager,
          settingsStore: SettingsStore,
@@ -363,6 +371,8 @@ final class RecordingController: ObservableObject {
         summaryPrewarmTask = nil
         diarizationPrewarmTask?.cancel()
         diarizationPrewarmTask = nil
+        pendingSystemAudioCaptureTask?.cancel()
+        pendingSystemAudioCaptureTask = nil
         if isRecording || isStarting { stop(process: false) }
     }
 
@@ -393,6 +403,7 @@ final class RecordingController: ObservableObject {
             return
         }
         status = .starting
+        activeSystemAudioPolicy = systemAudioPolicy
         audioMonitor.isRecordingActive = true
         audioMonitor.accept()
         lokalbotLog("startRecording source=\(source) app=\(detectedApp?.name ?? "manual") calendar=\(calendarEvent?.title ?? "none")")
@@ -401,7 +412,10 @@ final class RecordingController: ObservableObject {
             var created: Meeting?
             defer {
                 self.startTask = nil
-                if case .starting = self.status { self.status = .idle }
+                if case .starting = self.status {
+                    self.status = .idle
+                    self.activeSystemAudioPolicy = nil
+                }
             }
             guard await MicRecorder.requestPermission() else {
                 guard !Task.isCancelled else { return }
@@ -463,51 +477,32 @@ final class RecordingController: ObservableObject {
                 startRecordingHealthWatchdog()
                 try Task.checkCancellation()
 
-                // Meeting-intent callers may fall back to a running native app
+                // Meeting-intent callers may fall back to a running meeting app
                 // before it emits audio, giving the watchdog a target to repair.
-                // Mic-only callers never evaluate that fallback, so headless
-                // voice recording cannot silently widen its capture scope.
-                if let captureApp = systemAudioPolicy.captureApp(
+                // The fallback verifies a browser's in-call document first, so
+                // manual recovery can capture Chrome without widening scope to
+                // an arbitrary browser tab. Mic-only callers never evaluate it.
+                let captureApp = systemAudioPolicy.captureApp(
                     detectedApp: detectedApp,
-                    fallback: { MeetingDetector.captureCandidateApp() }
-                ) {
-                    let captureProcess = MeetingDetector.currentCaptureTargetProcess(for: captureApp)
-                    let pid = captureProcess?.id ?? captureApp.pid
-                    do {
-                        try systemRecorder.start(
-                            capturingPID: pid,
-                            writingTo: meeting.folderURL(in: storage).appendingPathComponent("system.m4a"),
-                            previewTee: meeting.folderURL(in: storage)
-                                .appendingPathComponent(AudioPreviewTee.systemFileName))
-                        meeting.hasSystemTrack = true
-                        systemAudioTarget = SystemAudioTarget(
-                            bundleID: captureApp.bundleID,
-                            pid: pid)
-                        systemAudioTapLedger.attached(to: pid, audibleDuration: 0)
-                        if pid != captureApp.pid || captureProcess?.bundleID != captureApp.bundleID {
-                            lokalbotLog(
-                                "system audio capture resolved detectedPID=\(captureApp.pid) capturePID=\(pid) captureBundle=\(captureProcess?.bundleID ?? "unknown") hostBundle=\(captureApp.bundleID)")
-                        }
-                        lokalbotLog(
-                            "system audio tap started pid=\(pid) bundle=\(captureApp.bundleID) detected=\(detectedApp != nil)")
-                    } catch {
-                        // Degrade gracefully: mic-only recording. Only worth
-                        // telling the user about when a meeting was actually
-                        // detected — on a hand-started voice memo the app was
-                        // merely running nearby and no system track was asked
-                        // for, so a banner would be noise.
-                        if detectedApp != nil {
-                            onError("System audio tap failed (\(error.localizedDescription)) — recording mic only.")
-                        }
-                        lokalbotLog(
-                            "system audio tap FAILED detected=\(detectedApp != nil): \(error.localizedDescription)")
-                    }
+                    fallback: {
+                        MeetingDetector.captureCandidateApp(
+                            expectedMeetingURL: calendarEvent?.meetingURL)
+                    })
+                if let captureApp {
+                    _ = startSystemAudioCapture(captureApp, meeting: &meeting, detectedApp: detectedApp)
+                } else {
+                    lokalbotLog(
+                        "system audio capture pending detected=\(detectedApp != nil) "
+                            + "expectedURL=\(calendarEvent?.meetingURL?.absoluteString ?? "none")")
                 }
                 try Task.checkCancellation()
                 currentMeeting = meeting
                 status = .recording(meetingID: meeting.id)
                 if let speakerAudioClock, let target = systemAudioTarget {
                     speakerObserver?.start(meeting: meeting, clock: speakerAudioClock, capturedBundleID: target.bundleID)
+                }
+                if systemAudioPolicy == .meetingAppWhenAvailable, systemAudioTarget == nil {
+                    scheduleLateSystemAudioCapture(expectedMeetingURL: meeting.meetingURL)
                 }
                 startRecordingTick()
                 if isInteractive() {
@@ -537,6 +532,9 @@ final class RecordingController: ObservableObject {
     func stop(process: Bool = true, contentEndedAt: Date? = nil) {
         if isStarting {
             startTask?.cancel()
+            pendingSystemAudioCaptureTask?.cancel()
+            pendingSystemAudioCaptureTask = nil
+            activeSystemAudioPolicy = nil
             status = .idle
             audioMonitor.isRecordingActive = false
             audioMonitor.reseed()
@@ -544,6 +542,8 @@ final class RecordingController: ObservableObject {
         }
         guard isRecording, var meeting = currentMeeting else { return }
         speakerObserver?.stop()
+        pendingSystemAudioCaptureTask?.cancel()
+        pendingSystemAudioCaptureTask = nil
         systemAudioHandoffTask?.cancel()
         systemAudioHandoffTask = nil
         // Before the watchdog goes away: it is the only thing that notices
@@ -562,6 +562,7 @@ final class RecordingController: ObservableObject {
         } catch { lokalbotLog("Recording timing could not be saved: \(error.localizedDescription)") }
         resetAudioClocks()
         systemAudioTarget = nil
+        activeSystemAudioPolicy = nil
         audioMonitor.isRecordingActive = false
         audioMonitor.reseed()
         stopRecordingTick()
@@ -636,6 +637,106 @@ final class RecordingController: ObservableObject {
             systemAudioPolicy: .meetingAppWhenAvailable)
     }
 
+    /// Starts the system tap and records the target in the same place for both
+    /// the normal start path and a late manual attachment. Keeping this update
+    /// atomic prevents metadata from claiming a system track when Core Audio
+    /// never accepted the tap.
+    @discardableResult
+    private func startSystemAudioCapture(
+        _ captureApp: MeetingDetector.DetectedApp,
+        meeting: inout Meeting,
+        detectedApp: MeetingDetector.DetectedApp?
+    ) -> Bool {
+        let captureProcess = MeetingDetector.currentCaptureTargetProcess(for: captureApp)
+        let pid = captureProcess?.id ?? captureApp.pid
+        do {
+            try systemRecorder.start(
+                capturingPID: pid,
+                writingTo: meeting.folderURL(in: storage).appendingPathComponent("system.m4a"),
+                previewTee: meeting.folderURL(in: storage)
+                    .appendingPathComponent(AudioPreviewTee.systemFileName))
+            meeting.hasSystemTrack = true
+            systemAudioTarget = SystemAudioTarget(bundleID: captureApp.bundleID, pid: pid)
+            systemAudioTapLedger.attached(to: pid, audibleDuration: 0)
+            if pid != captureApp.pid || captureProcess?.bundleID != captureApp.bundleID {
+                lokalbotLog(
+                    "system audio capture resolved detectedPID=\(captureApp.pid) capturePID=\(pid) "
+                        + "captureBundle=\(captureProcess?.bundleID ?? "unknown") "
+                        + "hostBundle=\(captureApp.bundleID)")
+            }
+            lokalbotLog(
+                "system audio tap started pid=\(pid) bundle=\(captureApp.bundleID) "
+                    + "detected=\(detectedApp != nil) fallback=\(detectedApp == nil)")
+            if detectedApp == nil, let url = captureApp.meetingURL {
+                meeting.meetingURL = url
+                try? storage.saveMeta(meeting)
+            }
+            return true
+        } catch {
+            // Degrade gracefully: the microphone remains authoritative. A
+            // meeting that began during an AX gap gets a bounded late retry;
+            // a detected start still receives the existing actionable error.
+            if detectedApp != nil {
+                onError("System audio tap failed (\(error.localizedDescription)) — recording mic only.")
+            }
+            lokalbotLog(
+                "system audio tap FAILED detected=\(detectedApp != nil): \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Accessibility snapshots are occasionally unavailable exactly when the
+    /// user presses Record. Do not freeze that first miss into a mic-only
+    /// meeting: look again for a verified browser call while the recording is
+    /// already active, with a finite retry budget and no broader browser tabs.
+    private func scheduleLateSystemAudioCapture(expectedMeetingURL: URL?) {
+        guard activeSystemAudioPolicy == .meetingAppWhenAvailable,
+              isRecording,
+              systemAudioTarget == nil,
+              pendingSystemAudioCaptureTask == nil else { return }
+        pendingSystemAudioCaptureTask = Task { [weak self] in
+            for (index, delay) in Self.lateSystemAudioCaptureRetryDelays.enumerated() {
+                do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+                guard let self,
+                      !Task.isCancelled,
+                      self.isRecording,
+                      self.activeSystemAudioPolicy == .meetingAppWhenAvailable,
+                      self.systemAudioTarget == nil else { return }
+                MeetingDetector.invalidateAudioProcessSnapshot()
+                guard let captureApp = MeetingDetector.captureCandidateApp(
+                    expectedMeetingURL: expectedMeetingURL) else {
+                    lokalbotLog(
+                        "system audio late attach retry=\(index + 1) unavailable "
+                            + "expectedURL=\(expectedMeetingURL?.absoluteString ?? "none")")
+                    continue
+                }
+                if self.attachLateSystemAudio(captureApp) {
+                    lokalbotLog(
+                        "system audio late attach succeeded retry=\(index + 1) "
+                            + "bundle=\(captureApp.bundleID) pid=\(captureApp.pid)")
+                    self.pendingSystemAudioCaptureTask = nil
+                    return
+                }
+            }
+            guard let self else { return }
+            if self.isRecording, self.systemAudioTarget == nil {
+                lokalbotLog("system audio late attach exhausted; continuing microphone capture")
+            }
+            self.pendingSystemAudioCaptureTask = nil
+        }
+    }
+
+    @discardableResult
+    private func attachLateSystemAudio(_ captureApp: MeetingDetector.DetectedApp) -> Bool {
+        guard isRecording, systemAudioTarget == nil, var meeting = currentMeeting else { return false }
+        guard startSystemAudioCapture(captureApp, meeting: &meeting, detectedApp: nil) else { return false }
+        currentMeeting = meeting
+        if let speakerAudioClock, let target = systemAudioTarget {
+            speakerObserver?.start(meeting: meeting, clock: speakerAudioClock, capturedBundleID: target.bundleID)
+        }
+        return true
+    }
+
     private func resetAudioClocks() {
         speakerAudioClock?.invalidate()
         microphoneAudioClock?.invalidate()
@@ -647,11 +748,14 @@ final class RecordingController: ObservableObject {
 
     private func cleanupCancelledStart(created: Meeting?) {
         speakerObserver?.stop()
+        pendingSystemAudioCaptureTask?.cancel()
+        pendingSystemAudioCaptureTask = nil
         stopRecordingHealthWatchdog()
         micRecorder.stop()
         systemRecorder.stop()
         resetAudioClocks()
         systemAudioTarget = nil
+        activeSystemAudioPolicy = nil
         audioMonitor.isRecordingActive = false
         audioMonitor.reseed()
         if let created { try? storage.deleteMeeting(created) }
