@@ -1,0 +1,99 @@
+{
+  "captured_on": "2026-09-17",
+  "source_release": "v0.8.2",
+  "source_commit": "540d183d403fa7a4d42b8b3b559f946b1aeac207",
+  "capture_method": "Scripts/capture-screenshots.sh --stills-only in an isolated archive of the release source",
+  "scheme": "LokalBot UI Test Host",
+  "appearance": "dark",
+  "scale": 2,
+  "window_points": {
+    "main": [
+      1400,
+      880
+    ],
+    "quick_recall": [
+      660,
+      480
+    ]
+  },
+  "synthetic_data_only": true,
+  "library_seed": "Scripts/seed_demo_library.py",
+  "capture_only": true,
+  "ui_tests_run": false,
+  "production_recording_or_model_inference_verified": false,
+  "isolation": "Separate storage root, UserDefaults suite and DerivedData; only the capture processes were stopped. Installed app and user library were not used.",
+  "capture_script_adjustments": [
+    "Use checkout-local fixture library and DerivedData",
+    "Run fixture seeding with uv",
+    "Remove global pkill; stop only the process launched for each capture"
+  ],
+  "visually_reviewed": true,
+  "captures": [
+    {
+      "path": "quick-recall.png",
+      "width": 1320,
+      "height": 1024,
+      "bytes": 199554,
+      "sha256": "4edc41dd7d1e4557c6004809dc7b3414d8bd7bc49b6e8cd1dcb05038dfe66547",
+      "image_edits": "none"
+    },
+    {
+      "path": "meetings-summary.png",
+      "width": 2800,
+      "height": 1760,
+      "bytes": 632710,
+      "sha256": "069e90b26af52b0059b9cf07e70399f9ddcca09b037046d380a46b2681211df0",
+      "image_edits": "none"
+    },
+    {
+      "path": "today.png",
+      "width": 2800,
+      "height": 1760,
+      "bytes": 566436,
+      "sha256": "15ce3ad63eac2a076aa958bd7500cf2d75cb7c08892b1f263e0d3f0b11c03456",
+      "image_edits": "none"
+    },
+    {
+      "path": "timeline.png",
+      "width": 2800,
+      "height": 1760,
+      "bytes": 635615,
+      "sha256": "41c69a3afd29ea6a608be83c08977a96572d1f84e541bdc3275a05c0e8ed0b5d",
+      "image_edits": "none"
+    },
+    {
+      "path": "cotyping.png",
+      "width": 2800,
+      "height": 1760,
+      "bytes": 464683,
+      "sha256": "ac3ad37628328b5fbfe16179d46c48c6be8887a2366f9f384ac2808b5ec93200",
+      "image_edits": "none"
+    },
+    {
+      "path": "models.png",
+      "width": 2800,
+      "height": 1760,
+      "bytes": 592239,
+      "sha256": "84e872451df317cab7df2c89837da42e3d5bbe137404bb78051068ab88e7247b",
+      "image_edits": "none"
+    }
+  ],
+  "demo": {
+    "path": "demo-poster.png",
+    "width": 1920,
+    "height": 1080,
+    "bytes": 450211,
+    "sha256": "498798c46dc011d0e28246dd68821ca3f425f0da5709dbcade2b4b71f14dc60f",
+    "source": "Video/lokalbot-product-demo/v4-real-app/renders/lokalbot-real-app-poster.png",
+    "video_url": "https://www.youtube.com/watch?v=gjfINF9Z-dA",
+    "embedded_video": {
+      "path": "../videos/lokalbot-database-demo.mp4",
+      "bytes": 3643455,
+      "sha256": "961a6be1c64bd7b1dabea3f5c767827dccd22171dd2b6948b39bf8de5711084b",
+      "mime_type": "video/mp4"
+    },
+    "recorded_on": "2026-09-15",
+    "duration_seconds": 42.5,
+    "context": "Poster from the real-app demo with fictional Northstar meeting data; unchanged from the published video poster."
+  }
+}

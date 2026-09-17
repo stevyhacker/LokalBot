@@ -1,14 +1,14 @@
 {
-  "release": "v0.8.1",
-  "source_commit": "1ec4d28c321b3f06f99b82cd9a8f5e2667aeee16",
-  "workflow_run": "https://github.com/stevyhacker/lokalbot/actions/runs/34614921774",
-  "job": "UI visual-1440x900",
-  "test": "RedesignUITests/testWorkspaceVisualMatrix()",
-  "capture": "1440x900-dark-models",
-  "captured_on": "2026-09-11",
-  "width": 1440,
-  "height": 900,
-  "sha256": "6ea909e9eeca123e9ce59afd32977d031fb3037a65203e347ceaa1dc4f755c68",
+  "release": "v0.8.2",
+  "source_commit": "540d183d403fa7a4d42b8b3b559f946b1aeac207",
+  "captured_on": "2026-09-17",
+  "capture_method": "Scripts/capture-screenshots.sh --stills-only in an isolated archive of the release source",
+  "path": "models.png",
+  "width": 2800,
+  "height": 1760,
+  "bytes": 592239,
+  "sha256": "84e872451df317cab7df2c89837da42e3d5bbe137404bb78051068ab88e7247b",
   "image_edits": "none",
-  "context": "Hosted macOS UI-test host with synthetic fixtures; selected models have not been downloaded. This is UI appearance evidence, not a production model-download or inference result."
+  "context": "Isolated native UI capture with synthetic fixtures; readiness reflects the capture setup. This image does not verify production downloads or inference.",
+  "full_provenance": "readme.source.json"
 }

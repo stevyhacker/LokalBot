@@ -79,5 +79,9 @@ frame.
    unrelated worktree files out unless they were explicitly part of the refresh.
 
 The README uses `today.png`, `meetings-summary.png`, `quick-recall.png`,
-`timeline.png`, `cotyping.png`, and `models.png`. The remaining stills support
-the website, release notes, and future documentation updates.
+`timeline.png`, `cotyping.png`, and `models.png`, plus the separately produced
+real-app video poster. [Capture notes](../Assets/screenshots/README.md) and
+[the source manifest](../Assets/screenshots/readme.source.json) record the
+release revision, date, dimensions, and hashes for the published set. Update
+those records when replacing an image. The remaining stills support the
+website, release notes, and future documentation updates.
