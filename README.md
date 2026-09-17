@@ -29,7 +29,9 @@ Free and open source. Runs locally by default. No account required.
 
 **Watch the 43-second demo.** Search an engineering discussion, find the database decision, and recover the follow-up to draft the schema.
 
-<div align="center"><video src="Assets/videos/lokalbot-database-demo.mp4" controls playsinline preload="metadata" poster="Assets/screenshots/demo-poster.png" width="920" aria-label="LokalBot demo: search a PostgreSQL versus MongoDB discussion in the real Mac app"></video></div>
+<div align="center">
+<video src="https://raw.githubusercontent.com/stevyhacker/lokalbot/master/Assets/videos/lokalbot-database-demo.mp4" controls playsinline preload="metadata" poster="https://raw.githubusercontent.com/stevyhacker/lokalbot/master/Assets/screenshots/demo-poster.png" width="920" aria-label="LokalBot demo: search a PostgreSQL versus MongoDB discussion in the real Mac app"></video>
+</div>
 
 <sub>The video shows the real app with a prepared fictional meeting. It demonstrates search and source navigation; live recording and transcription are not shown.</sub>
 
