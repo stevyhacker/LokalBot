@@ -14,7 +14,7 @@ enum SpeakerObservationIssue: String, Codable, Sendable {
         case .accessibilityPermission: "Accessibility permission is needed to read participant names"
         case .accessibilityBusy, .accessibilityTimeout: "Chrome participant information is taking too long to respond"
         case .accessibilityBudget: "Chrome participant layout exceeded the observation budget"
-        case .sourceUnavailable: "The selected Chrome window is not a readable Google Meet call"
+        case .sourceUnavailable: "The recorded Meet document is not readable in the available Chrome windows"
         case .sourceRejected: "Meet source does not match the recording or its privacy settings"
         case .layoutUnavailable: "Participant names are unavailable in this Meet layout"
         case .screenPermission: "Screen Recording permission is needed for visual indicators"

@@ -46,6 +46,26 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// what `durationLabel` reports. Optional so older `meta.json` still decodes.
     var recordedDuration: TimeInterval?
 
+    /// Seconds on the original audio timeline. Raw tracks stay intact; all
+    /// derived meeting evidence is limited to this reviewable range.
+    var contentRange: ContentRange?
+
+    struct ContentRange: Codable, Equatable, Sendable {
+        var start: TimeInterval
+        var end: TimeInterval
+        var isValid: Bool { start.isFinite && end.isFinite && start >= 0 && end > start }
+
+        func applying(to transcript: Transcript) -> Transcript {
+            var result = transcript
+            // Without word alignment, a crossing segment cannot be safely
+            // clipped as text. Retranscription partitions audio at the boundary.
+            result.segments = transcript.segments.filter {
+                isValid && $0.start >= start && $0.end <= end
+            }
+            return result
+        }
+    }
+
     var duration: TimeInterval? {
         endedAt.map { $0.timeIntervalSince(startedAt) }
     }

@@ -63,6 +63,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var speakerNameHints: [String] = []
     @State private var calendarSpeakerCandidates: [CalendarParticipantIdentity] = []
     @State private var exportError: String?
+    @State private var editingBoundaries = false
     @State private var speechError: String?
     @State private var isExportingAudio = false
     @State private var isExportingSpeech = false
@@ -276,6 +277,8 @@ private struct MeetingWorkspaceDetail: View {
                     }
                     .disabled(isExportingSpeech || summary?.isEmpty != false)
                     Divider()
+                    Button("Meeting boundaries…") { editingBoundaries = true }
+                        .disabled(transcript == nil)
                     Button("Transcribe & Summarize") { app.reprocess(meeting, transcribe: true, summarize: true) }
                         .accessibilityIdentifier("toolbar.transcribeAndSummarize")
                     Button("Transcribe only") { app.reprocess(meeting, transcribe: true, summarize: false) }
@@ -298,6 +301,9 @@ private struct MeetingWorkspaceDetail: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meeting.detail.workspace")
+        .sheet(isPresented: $editingBoundaries) {
+            MeetingBoundaryEditor(meeting: meeting) { try app.setMeetingBoundaries($0, for: meeting) }
+        }
     }
 
     @ViewBuilder private var meetingOverviewContent: some View {

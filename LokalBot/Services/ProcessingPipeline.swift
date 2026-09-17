@@ -509,11 +509,14 @@ final class ProcessingPipeline: ObservableObject {
 
                 stages[meeting.id] = .transcribing
                 let batch = try await transcribeTracks(meeting: meeting, folder: folder, engine: engine, config: config)
-                var transcript = batch.transcript
+                var transcript = meeting.contentRange?.applying(to: batch.transcript) ?? batch.transcript
                 // Lexical similarity only marks uncertainty. Removing a full
                 // duplicate additionally requires matching waveform evidence.
-                let echoEvidence = try await EchoWaveformEvidence.verified(in: transcript, folder: folder)
-                let bleed = SpeakerBleedFilter.filter(transcript, acousticallyVerifiedIndices: echoEvidence)
+                let echoEvidence = try await EchoWaveformEvidence.analyze(in: transcript, folder: folder)
+                for index in echoEvidence.suspected {
+                    transcript.segments[index].attribution = .init(source: .microphone, identity: .unresolved, method: .suspectedEcho)
+                }
+                let bleed = SpeakerBleedFilter.filter(transcript, acousticallyVerifiedIndices: echoEvidence.verified)
                 transcript = bleed.transcript
                 if bleed.changed {
                     lokalbotLog(
@@ -577,6 +580,12 @@ final class ProcessingPipeline: ObservableObject {
                     transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
                     try write(transcript, to: folder)
                 }
+                if let range = meeting.contentRange { transcript = range.applying(to: transcript) }
+                // Persist normalized provenance even on summary-only retries.
+                for index in transcript.segments.indices {
+                    transcript.segments[index].attribution = transcript.segments[index].resolvedAttribution
+                }
+                try write(transcript, to: folder)
                 let sanitization = TranscriptSanitizer.sanitize(transcript)
                 if sanitization.changed {
                     transcript = sanitization.transcript
@@ -726,7 +735,8 @@ final class ProcessingPipeline: ObservableObject {
             do {
                 let checkpointInput = try JSONEncoder().encode([audioRevision, name, engine.displayName,
                     language ?? "", config.transcriptionPrompt,
-                    String(config.multiSpeakerDiarization), String(config.echoCancellation)])
+                    String(config.multiSpeakerDiarization), String(config.echoCancellation),
+                    meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"])
                 let prepared = track == .mic
                     ? try await Self.echoCancelledMicrophone(in: folder, microphone: url, config: config)
                     : (nil, TranscriptEchoReport(status: .noReference))
@@ -745,7 +755,7 @@ final class ProcessingPipeline: ObservableObject {
                 } else {
                     result = try await transcribeTrack(name: name, url: audio, speaker: speaker, engine: engine,
                         language: language, prompt: config.transcriptionPrompt,
-                        diarization: diarization.segments, source: source)
+                        diarization: diarization.segments, source: source, contentRange: meeting.contentRange)
                 }
                 if var transcript = result {
                     if track == .mic { transcript.echoReport = prepared.1 }
@@ -789,7 +799,7 @@ final class ProcessingPipeline: ObservableObject {
                                  engine: TranscriptionEngine,
                                  language: String?,
                                  prompt: String?, diarization: [DiarizedSegment],
-                                 source: SpeakerAttribution.Source) async throws -> Transcript? {
+                                 source: SpeakerAttribution.Source, contentRange: Meeting.ContentRange? = nil) async throws -> Transcript? {
         guard let duration = AudioFileInspector.duration(at: url),
               duration >= AudioFileInspector.minimumTranscribableDuration else {
             lokalbotLog("transcription track skipped track=\(name) reason=no-audio")
@@ -808,7 +818,7 @@ final class ProcessingPipeline: ObservableObject {
         lokalbotLog(
             "transcription track start track=\(name) engine=\(engine.displayName) duration=\(Self.formatSeconds(duration)) language=\(language ?? "auto")")
         var transcript = try await AttributedTrackTranscriber.transcribe(url: url, duration: duration,
-            diarization: diarization, source: source, engine: engine, language: language, prompt: prompt)
+            diarization: diarization, source: source, engine: engine, language: language, prompt: prompt, contentRange: contentRange)
         let sanitization = TranscriptSanitizer.sanitize(transcript)
         transcript = sanitization.transcript
         if sanitization.changed {
@@ -866,7 +876,7 @@ final class ProcessingPipeline: ObservableObject {
     }
 
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
-        try write(transcript, to: meeting.folderURL(in: storage))
+        try write(meeting.contentRange?.applying(to: transcript) ?? transcript, to: meeting.folderURL(in: storage))
     }
 
     // MARK: - Summarization

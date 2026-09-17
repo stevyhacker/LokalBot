@@ -129,7 +129,7 @@ struct SpeakerObservationAccumulator {
             await provider.stop()
             let reasons = diagnostics.issues.keys.sorted().map { "\($0)=\(diagnostics.issues[$0, default: 0])" }.joined(separator: ",")
             lokalbotLog("speaker observation finished batches=\(diagnostics.observations) intervals=\(diagnostics.intervals) "
-                + "coverage=\(Int(diagnostics.coveredSeconds))s failed=\(failed) reasons=\(reasons)")
+                + "coverage=\(Int(diagnostics.coveredSeconds))s failed=\(failed) usableEvidence=\(diagnostics.intervals > 0) reasons=\(reasons)")
             rejectedGenerations.remove(token)
             if generation == token {
                 state = failed ? .unavailable("Speaker evidence unavailable; audio recording continues") : .off

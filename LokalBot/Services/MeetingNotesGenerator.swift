@@ -132,7 +132,7 @@ enum MeetingNotesGenerator {
         let chunks = try await makeChunks(evidence: evidence, engine: engine, system: system,
                                           context: context, contextTokens: contextTokens)
         await budget.recordPlan(model: engine.displayName, transcriptRevision: transcript.evidenceRevision, parts: chunks.count)
-        let fingerprintText = (["notes-v1", transcript.evidenceRevision, engine.displayName, system,
+        let fingerprintText = (["notes-v1", transcript.evidenceRevision, engine.checkpointIdentity, system,
                                 PromptTemplates.meetingNotesRepairSystem(language: language)]
             + context + chunks.map { prompt(units: $0, roster: evidence.roster) }).joined(separator: "\n\n")
         let fingerprint = SHA256.hash(data: Data(fingerprintText.utf8)).map { String(format: "%02x", $0) }.joined()

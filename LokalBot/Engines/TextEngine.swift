@@ -6,6 +6,7 @@ import Foundation
 /// user points us at.
 protocol TextEngine {
     var displayName: String { get }
+    var checkpointIdentity: String { get }
     var accountsForGenerationRequests: Bool { get }
     /// Output space required by a provider whose reasoning cannot be disabled.
     /// Callers reserve it inside their existing job/context limits.
@@ -335,6 +336,7 @@ func cotypingParseSSEDelta(_ line: String) -> String? {
 }
 
 extension TextEngine {
+    var checkpointIdentity: String { displayName }
     var accountsForGenerationRequests: Bool { false }
     var minimumStructuredOutputTokens: Int { 512 }
     func tokenCount(_ text: String) async throws -> Int? { nil }
@@ -384,6 +386,7 @@ struct OllamaEngine: TextEngine {
     var model: String
 
     var displayName: String { "Ollama — \(model)" }
+    var checkpointIdentity: String { "\(displayName)|\(baseURL.scheme ?? "")|\(baseURL.host ?? "")|\(baseURL.port ?? 0)|\(baseURL.path)" }
 
     func generate(system: String, prompt: String, context: [String]) async throws -> String {
         try await chat(system: system, prompt: prompt, context: context, schema: nil, options: nil)
@@ -477,6 +480,7 @@ struct OpenAICompatibleEngine: TextEngine {
     var displayNameOverride: String?
 
     var displayName: String { displayNameOverride ?? "OpenAI-compatible — \(model)" }
+    var checkpointIdentity: String { "\(displayName)|\(baseURL.scheme ?? "")|\(baseURL.host ?? "")|\(baseURL.port ?? 0)|\(baseURL.path)|\(chatDialect)" }
     var accountsForGenerationRequests: Bool { true }
     var minimumStructuredOutputTokens: Int {
         reasoningCompatibility(options: .init(reasoningBudgetTokens: 0)) == .effort ? 2_048 : 512

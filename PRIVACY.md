@@ -33,8 +33,10 @@ it. Saved moments remain until you unsave or delete them. Dictation scratch
 audio is deleted after transcription by default. You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
+Browser meeting detection checks the Meet document URL and call controls through Accessibility. These transient lifecycle checks do not retain page text, participant names, or pixels. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
+
 **Meeting speaker identification** is a separate, off-by-default setting. It
-observes the foreground Google Meet tab in Chrome during recording, at most
+locates the recording-bound Google Meet document across Chrome windows during recording, at most
 twice per second. Accessibility associates participant names with tiles; when
 needed, ScreenCaptureKit and on-device Vision process transient window frames.
 Those frames are not saved in the screenshot archive. Private windows, excluded

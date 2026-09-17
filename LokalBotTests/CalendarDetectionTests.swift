@@ -133,10 +133,9 @@ final class CalendarDetectionTests: XCTestCase {
 
     // MARK: - Browser-meeting decision (the reliability fix)
 
-    /// A window-title match alone records — current behavior, preserved when
-    /// calendar is disabled/denied.
-    func testTitleMatchAloneRecords() {
-        XCTAssertTrue(MeetingMatcher.browserCountsAsMeeting(
+    /// A tab title cannot establish that the user joined the call.
+    func testTitleMatchAloneDoesNotRecord() {
+        XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: true, hasOutputAudio: false,
             calendarBacked: false, requireCalendarForBrowser: false))
     }
@@ -149,10 +148,9 @@ final class CalendarDetectionTests: XCTestCase {
             calendarBacked: false, requireCalendarForBrowser: false))
     }
 
-    /// Chrome producing audio during an active Meet event records even with no
-    /// window-title match — the Google Meet case.
-    func testCalendarBackedBrowserAudioRecords() {
-        XCTAssertTrue(MeetingMatcher.browserCountsAsMeeting(
+    /// Calendar plus unrelated video output must never establish a call.
+    func testCalendarBackedBrowserAudioDoesNotRecord() {
+        XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: true,
             calendarBacked: true, requireCalendarForBrowser: false))
     }
@@ -169,10 +167,10 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: true, hasOutputAudio: true,
             calendarBacked: false, requireCalendarForBrowser: true))
-        // ...but a calendar-confirmed event with audio is accepted.
+        // ...but a verified in-call session with calendar support is accepted.
         XCTAssertTrue(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: true,
-            calendarBacked: true, requireCalendarForBrowser: true))
+            calendarBacked: true, requireCalendarForBrowser: true, verifiedSession: true))
     }
 
     // MARK: - Repeat-suppression cooldown

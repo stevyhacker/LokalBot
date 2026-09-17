@@ -82,16 +82,16 @@ enum SpeakerBleedFilter {
                 kept.append(segment)
                 continue
             }
-            if !segment.resolvedAttribution.isConfirmedUser {
+            if !segment.resolvedAttribution.hasIdentityDecision {
                 acousticCandidateIndices.insert(index)
             }
             // A genuine repetition can have identical words and timing.
             // Preserve it unless the waveform independently supports removal.
             // A microphone default is not an explicit speaker confirmation
             // and must not prevent independently proven echo removal.
-            if !acousticallyVerifiedIndices.contains(index) || segment.resolvedAttribution.isConfirmedUser {
+            if !acousticallyVerifiedIndices.contains(index) || segment.resolvedAttribution.hasIdentityDecision {
                 var retained = segment
-                if segment.resolvedAttribution.identity != .user {
+                if !segment.resolvedAttribution.hasIdentityDecision {
                     retained.attribution = .init(source: .microphone, identity: .unresolved, method: .suspectedEcho)
                     suspectedIndices.insert(index)
                 }

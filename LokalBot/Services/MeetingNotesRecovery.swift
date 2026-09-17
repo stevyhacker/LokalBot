@@ -7,6 +7,8 @@ extension MeetingNotesGenerator {
         var records: [MeetingNotesEvidence.Record] = []
         var pending: [MeetingNotesEvidence.Rejection] = []
         var repairTokenFloor: Int?
+        var terminalFailure: String?
+        var noProgressAttempts: Int?
     }
 
     struct PartJob {
@@ -29,6 +31,16 @@ extension MeetingNotesGenerator {
     static func generatePart(_ initial: Part, job: PartJob, save: (Part) throws -> Void) async throws {
         var part = initial
         var recovery = part.recovery ?? legacyRecovery(part, transcript: job.evidence.transcript)
+        if let failure = recovery.terminalFailure { throw TextEngineError.badResponse(failure) }
+        // Older checkpoints retained source-less rejections forever. Start one
+        // fresh scan, preserving accepted evidence, instead of an impossible repair.
+        let knownSources = Set(job.units.map(\.source))
+        if recovery.pending.contains(where: { knownSources.isDisjoint(with: $0.sources) }) {
+            recovery.pending.removeAll { knownSources.isDisjoint(with: $0.sources) }
+            recovery.scanComplete = false
+            recovery.nextPage = 0
+            recovery.noProgressAttempts = nil
+        }
         let minimum = job.engine.minimumStructuredOutputTokens
         func checkpoint() throws {
             part.recovery = recovery
@@ -74,9 +86,26 @@ extension MeetingNotesGenerator {
             await recordValidation(validated, stage: stage, truncated: raw.truncated, budget: job.budget)
             try checkpoint()
             await job.budget.recordPhase("validation", seconds: ProcessInfo.processInfo.systemUptime - started)
+            if validated.rejected.contains(where: { knownSources.isDisjoint(with: $0.sources) }) {
+                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs. Verified partial notes were saved. Choose a different summary model or provider before retrying."
+                try checkpoint()
+                throw TextEngineError.badResponse(recovery.terminalFailure!)
+            }
             // A provider repeating a full page must not spend the entire job
             // cycling. Keep its accepted facts and resume explicitly later.
-            if recovery.records.count == previousCount { break }
+            if recovery.records.count == previousCount && !recovery.scanComplete {
+                if !raw.truncated && recovery.pending.isEmpty {
+                    recovery.noProgressAttempts = (recovery.noProgressAttempts ?? 0) + 1
+                    if recovery.noProgressAttempts! >= 2 {
+                        recovery.terminalFailure = "The summary provider made no further verifiable progress. Partial notes were saved. Choose a different summary model or provider before retrying."
+                        try checkpoint()
+                        throw TextEngineError.badResponse(recovery.terminalFailure!)
+                    }
+                }
+                try checkpoint()
+                break
+            }
+            recovery.noProgressAttempts = nil
         }
 
         let terminalReasons: Set<String> = ["unsupported_commitment", "conversation_management", "status_not_task", "empty_outcome"]
@@ -115,6 +144,12 @@ extension MeetingNotesGenerator {
                 meetingID: job.meetingID, maximumNotes: noteLimit, maximumActions: actionLimit)
             accept(fixed)
             await recordValidation(fixed, stage: stage, truncated: raw.truncated, budget: job.budget)
+            let repairSources = Set(repairUnits.map(\.source))
+            if fixed.rejected.contains(where: { repairSources.isDisjoint(with: $0.sources) }) {
+                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs during repair. Verified partial notes were saved. Choose a different summary model or provider before retrying."
+                try checkpoint()
+                throw TextEngineError.badResponse(recovery.terminalFailure!)
+            }
             if fixed.complete && !raw.truncated {
                 // Unsupported records may be omitted after a complete repair;
                 // independently validated facts never depend on their survival.

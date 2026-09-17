@@ -890,7 +890,10 @@ final class AppState: ObservableObject {
         }
         detector.onMeetingEnded = { [weak self] in
             RecordingNotifier.shared.invalidateMeetingDetections()
-            self?.stopRecording()
+            guard let self else { return }
+            if self.detector.endedMeetingURL != nil,
+               self.recording.currentMeeting?.meetingURL != self.detector.endedMeetingURL { return }
+            self.recording.stop(contentEndedAt: self.detector.detectedContentEnd)
         }
         detector.stopDebounce = settings.stopDebounceSeconds
         detector.calendar = calendar
@@ -1198,20 +1201,8 @@ final class AppState: ObservableObject {
             startRecording(context: detectionContext(detected, calendarEvent), source: "audio-monitor")
             return
         }
-        guard let hostBundleID = MeetingDetector.hostBrowserBundleID(forAudioBundleID: bundleID) else { return }
-        // The browser is already producing output (the monitor fired on it), so a
-        // window-title match OR an active calendar meeting link is enough — the
-        // latter catches a generic-title Google Meet the title check misses.
-        let titleMatches = MeetingDetector.visibleBrowserMeeting()?.bundleID == hostBundleID
-        let calendarBacked = calendarEvent?.meetingURL != nil
-        guard MeetingMatcher.browserCountsAsMeeting(
-            titleMatchesMarker: titleMatches, hasOutputAudio: true,
-            calendarBacked: calendarBacked, requireCalendarForBrowser: settings.requireCalendarForBrowser)
-        else { return }
-        let name = NSRunningApplication.runningApplications(withBundleIdentifier: hostBundleID)
-            .first?.localizedName ?? "Browser"
-        let detected = MeetingDetector.DetectedApp(name: name, bundleID: hostBundleID, pid: process.id)
-        startRecording(context: detectionContext(detected, calendarEvent), source: "audio-monitor")
+        guard MeetingDetector.hostBrowserBundleID(forAudioBundleID: bundleID) != nil else { return }
+        detector.checkNow()
     }
 
     private func detectionContext(_ app: MeetingDetector.DetectedApp,
@@ -1238,6 +1229,31 @@ final class AppState: ObservableObject {
     }
 
     // MARK: - Library operations
+
+    func setMeetingBoundaries(_ range: Meeting.ContentRange, for meeting: Meeting) throws {
+        if let stage = pipeline.stages[meeting.id], !stage.isFailure {
+            throw TextEngineError.badResponse("Wait for meeting processing to finish before changing its boundaries.")
+        }
+        guard range.isValid, let duration = meeting.recordedDuration ?? meeting.duration,
+              range.end <= duration else {
+            throw TextEngineError.badResponse("Choose a start and end within the recorded audio, with the end after the start.")
+        }
+        var updated = meeting
+        updated.contentRange = range
+        let folder = updated.folderURL(in: storage)
+        let existing = try pipeline.loadTranscript(from: folder)
+        // Invalidate derived claims even when no complete segment survives.
+        try MeetingAttributionArtifacts.invalidate(in: folder)
+        try pipeline.saveTranscript(range.applying(to: existing), for: updated)
+        try storage.saveMeta(updated)
+        if let index = meetings.firstIndex(where: { $0.id == updated.id }) { meetings[index] = updated }
+        outcomeIndex.refresh(meeting: updated)
+        primaryEvidenceDidChange(for: updated)
+        searchIndex.reindex(updated, storage: storage)
+        embeddingIndexTasks.removeValue(forKey: updated.id)?.task.cancel()
+        _ = embeddingIndex.remove(updated.id)
+        reprocess(updated, transcribe: true, summarize: true)
+    }
 
     func reprocess(_ meeting: Meeting, transcribe: Bool, summarize: Bool) {
         lastError = nil

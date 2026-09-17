@@ -235,6 +235,10 @@ struct MeetingNotesEvidence {
 
     private func prose(_ text: String, expectedSpeaker: String?) -> String? {
         var value = normalized(text)
+        if let expectedSpeaker, speakers[expectedSpeaker]?.identity != .user,
+           value.range(of: #"\b(?:you|your|yours|yourself)\b"#, options: [.regularExpression, .caseInsensitive]) != nil {
+            return nil
+        }
         // A redundant leading ID can be removed only when it exactly matches
         // the independently resolved speaker. A conflicting ID is rejected.
         if let expectedSpeaker,

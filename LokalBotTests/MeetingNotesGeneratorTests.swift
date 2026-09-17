@@ -50,11 +50,13 @@ final class MeetingNotesGeneratorTests: XCTestCase {
     }
 
     private var transcript: Transcript {
-        Transcript(segments: [
+        var result = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "me", text: "I will ship the update on Friday."),
             .init(start: 5, end: 10, speaker: "them", text: "I will review the documentation. We agreed to keep the release date."),
             .init(start: 10, end: 15, speaker: "them", text: "What happens if the dependency is delayed?"),
         ], engine: "fixture")
+        result.confirmSpeaker("me", isUser: true)
+        return result
     }
 
     private func note(_ source: String = "s1", _ text: String = "Will ship the update on Friday.",
@@ -168,7 +170,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
 
     func testMissingUserCommitmentGetsOneRepairWithoutRescanningTheMeeting() async throws {
         var transcript = longTranscript()
-        transcript.segments[20] = .init(start: 100, end: 105, speaker: "me", text: "I will send the draft.")
+        transcript.segments[20] = .init(start: 100, end: 105, speaker: "me", text: "I will send the draft.", attribution: .init(source: .microphone, identity: .user, method: .confirmation))
         let script = Script([
             .text(try response(notes: [note("s1", "The dependency needs review.")])),
             .text(try response(actions: [action("s21", owner: "source")])),
@@ -401,7 +403,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
     func testSeparateTaskAndAcceptanceKeepBothCitationsAndTheAcceptingSpeaker() throws {
         let transcript = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "them", text: "Could you send the draft?"),
-            .init(start: 5, end: 10, speaker: "me", text: "Yes, I can do that."),
+            .init(start: 5, end: 10, speaker: "me", text: "Yes, I can do that.", attribution: .init(source: .microphone, identity: .user, method: .confirmation)),
         ], engine: "fixture")
         let evidence = MeetingNotesEvidence(transcript: transcript)
         var raw = action("s2", owner: "source")
@@ -483,7 +485,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         var transcript = longTranscript()
         transcript.segments[0].text = "Could you review the older policy?"
         transcript.segments[18].text = "Could you stack the storage PR ahead of this one?"
-        transcript.segments[20] = .init(start: 100, end: 105, speaker: "me", text: "Yeah, I can do that.")
+        transcript.segments[20] = .init(start: 100, end: 105, speaker: "me", text: "Yeah, I can do that.", attribution: .init(source: .microphone, identity: .user, method: .confirmation))
         var rejected = action("s21", owner: "source")
         rejected["context"] = ["s1"]
         var repaired = action("s21", owner: "source")

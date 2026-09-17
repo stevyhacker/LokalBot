@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Combine
 
 struct SystemAudioSamePIDRetryBudget: Equatable {
@@ -411,6 +412,18 @@ final class RecordingController: ObservableObject {
             }
             do {
                 try Task.checkCancellation()
+                if ["detector", "audio-monitor", "notification"].contains(source),
+                   let detectedApp, MeetingDetector.browsers.contains(detectedApp.bundleID) {
+                    let host = NSRunningApplication.runningApplications(withBundleIdentifier: detectedApp.bundleID).first
+                    let session = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier,
+                        expectedURL: detectedApp.meetingURL) }
+                    guard session?.state == .inCall, session?.url == detectedApp.meetingURL else {
+                        audioMonitor.isRecordingActive = false
+                        audioMonitor.reseed()
+                        onError("The detected Meet call is no longer available. Start recording manually if needed.")
+                        return
+                    }
+                }
                 let title = MeetingMatcher.recordingTitle(
                     calendarTitle: calendarEvent?.title,
                     useCalendarTitles: settings.useCalendarTitles,
@@ -432,6 +445,10 @@ final class RecordingController: ObservableObject {
                         ? nil
                         : participants
                     try? storage.saveMeta(meeting)
+                }
+                if let url = detectedApp?.meetingURL {
+                    meeting.meetingURL = url
+                    try storage.saveMeta(meeting)
                 }
                 created = meeting
                 speakerAudioClock = RecordingAudioClock()
@@ -517,7 +534,7 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    func stop(process: Bool = true) {
+    func stop(process: Bool = true, contentEndedAt: Date? = nil) {
         if isStarting {
             startTask?.cancel()
             status = .idle
@@ -561,6 +578,10 @@ final class RecordingController: ObservableObject {
         // disruption truncates the tracks while the session stays live), so
         // store the actual playable length — the longest track — for the UI.
         meeting.recordedDuration = [micDuration, systemDuration].compactMap { $0 }.max()
+        if let contentEndedAt, let duration = meeting.recordedDuration {
+            let end = min(duration, max(0, contentEndedAt.timeIntervalSince(meeting.startedAt)))
+            if end > 0 { meeting.contentRange = .init(start: 0, end: end) }
+        }
         let wallDuration = endedAt.timeIntervalSince(meeting.startedAt)
         lokalbotLog(
             "recording stopped wall=\(String(format: "%.2fs", wallDuration)) recorded=\(String(format: "%.2fs", meeting.recordedDuration ?? 0)) mic=\(Self.formatAudioDuration(micDuration)) system=\(Self.formatAudioDuration(systemDuration)) hasSystem=\(meeting.hasSystemTrack)")

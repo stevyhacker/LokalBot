@@ -29,8 +29,8 @@ enum AttributedTrackTranscriber {
             let overlapping = speakers.count > 1
             let label = speakers.count == 1 ? labels[speakers.first!]! : overlapping ? "\(prefix) unclear" : prefix
             let method: SpeakerAttribution.Method = overlapping ? .overlappingSpeech : speakers.isEmpty ? .track : .diarization
-            // Preserve unclassified audio as well. The personal microphone
-            // defaults to the user; overlapping voices remain unresolved.
+            // Preserve unclassified audio as well. Microphone speech
+            // remains unidentified; overlapping voices remain unresolved.
             let attribution = SpeakerAttribution(source: source,
                 identity: source == .system && !overlapping ? .other : .unresolved, method: method).applyingMicrophoneDefault
             if let last = regions.last, last.speaker == label, last.attribution == attribution {
@@ -49,11 +49,18 @@ enum AttributedTrackTranscriber {
     @MainActor
     static func transcribe(url: URL, duration: Double, diarization: [DiarizedSegment],
                            source: SpeakerAttribution.Source, engine: TranscriptionEngine,
-                           language: String?, prompt: String?) async throws -> Transcript {
-        let regions = regions(duration: duration, turns: diarization, source: source)
-        // The microphone default also applies without speaker separation or
+                           language: String?, prompt: String?, contentRange: Meeting.ContentRange? = nil) async throws -> Transcript {
+        let regions = regions(duration: duration, turns: diarization, source: source).compactMap { region -> Region? in
+            guard let contentRange else { return region }
+            guard contentRange.isValid else { return nil }
+            var clipped = region
+            clipped.start = max(region.start, contentRange.start)
+            clipped.end = min(region.end, contentRange.end)
+            return clipped.end > clipped.start ? clipped : nil
+        }
+        // Unconfirmed microphone identity also applies without speaker separation or
         // remembered voice profiles, using the optimized whole-file VAD path.
-        if diarization.isEmpty {
+        if diarization.isEmpty && contentRange == nil {
             var transcript = try await engine.transcribe(audio: url, language: language, prompt: prompt)
             for index in transcript.segments.indices {
                 transcript.segments[index].speaker = source == .microphone ? "local" : "them"

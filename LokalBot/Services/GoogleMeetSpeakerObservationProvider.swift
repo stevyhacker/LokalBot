@@ -101,7 +101,7 @@ struct MeetingSpeakerObservationBatch: Sendable {
         }
         monitor.start(processID: app.processIdentifier)
         let sourceRevision = monitor.revision
-        let captured = await reader.capture(processID: app.processIdentifier)
+        let captured = await reader.capture(processID: app.processIdentifier, expectedURL: expectedURL.flatMap(URL.init(string:)))
         guard let before = captured.snapshot else {
             return await unavailable(captured.issue ?? .sourceUnavailable)
         }
@@ -156,7 +156,7 @@ struct MeetingSpeakerObservationBatch: Sendable {
         }
         // The selected tab must remain the same recorded Meet document, even
         // when another app is foreground. Activity changes are not layout changes.
-        let revalidated = await reader.capture(processID: app.processIdentifier)
+        let revalidated = await reader.capture(processID: app.processIdentifier, expectedURL: expectedURL.flatMap(URL.init(string:)))
         guard let after = revalidated.snapshot else { return await unavailable(revalidated.issue ?? .sourceUnavailable) }
         guard screenAvailable else { return await unavailable(.screenUnavailable) }
         guard monitor.revision == sourceRevision,

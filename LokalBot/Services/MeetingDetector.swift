@@ -50,6 +50,7 @@ final class MeetingDetector {
         let name: String
         let bundleID: String
         let pid: pid_t
+        var meetingURL: URL?
     }
 
     /// Known native meeting apps.
@@ -153,13 +154,12 @@ final class MeetingDetector {
         return !shouldAutoRecordNativeAudioMonitor(bundleID: bundleID, calendarBacked: calendarBacked)
     }
 
-    /// Browsers whose focused-window title we inspect for web meetings
-    /// (needs Accessibility; silently skipped without it).
+    /// Browsers whose supported meeting documents can be verified through
+    /// Accessibility. Unsupported or unreadable call controls abstain.
     static let browsers: Set<String> = [
         "com.google.Chrome", "com.apple.Safari", "company.thebrowser.Browser",
         "com.microsoft.edgemac", "com.brave.Browser", "org.mozilla.firefox",
     ]
-    private static let webMeetingMarkers = ["Meet – ", "Meet - ", "meet.google.com", "Jitsi", "Whereby"]
 
     var onMeetingStarted: ((MeetingDetectionContext) -> Void)?
     var onMeetingSwitched: ((MeetingDetectionContext) -> Void)?
@@ -186,6 +186,10 @@ final class MeetingDetector {
     private var continuationLease = MeetingContinuationLease()
     private var timer: Timer?
     private var pendingStop: DispatchWorkItem?
+    private var browserStart = BrowserMeetingSession.StartGate()
+    private(set) var detectedContentEnd: Date?
+    private(set) var endedMeetingURL: URL?
+    private var lastBrowserEvidenceAt: Date?
     /// The start candidate still waiting out
     /// `nativeAudioMinimumConfirmationDuration`: when its audio was first seen,
     /// and when it was last seen — the second lets a normal conversational gap
@@ -215,7 +219,7 @@ final class MeetingDetector {
     func start() {
         guard timer == nil else { return }
         // Safety-net poll (browser titles have no change notification).
-        timer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             self?.tick()
         }
         // Instant signals: mic state, default-device change, app launch/quit.
@@ -315,6 +319,10 @@ final class MeetingDetector {
         let calendarEvent = calendarEnabled ? calendar?.activeCandidate(now: now) : nil
 
         if let currentApp = activeApp {
+            if Self.browsers.contains(currentApp.bundleID) {
+                tickBrowser(currentApp, now: now)
+                return
+            }
             let continuingApp = Self.continuingApp(currentApp, in: running)
             let appAudioActive = continuingApp.map {
                 hasContinuingAudio(for: $0, now: now)
@@ -337,11 +345,14 @@ final class MeetingDetector {
                     in: running,
                     calendarEvent: calendarEvent,
                     calendarEnabled: calendarEnabled,
-                    requireCalendarForBrowser: requireCalendarForBrowser) {
+                    requireCalendarForBrowser: requireCalendarForBrowser),
+                   !Self.browsers.contains(replacementApp.bundleID)
+                    || startConfirmed(app: replacementApp, calendarBacked: calendarEvent != nil, now: now) {
                     pendingStop?.cancel()
                     pendingStop = nil
                     let previousApp = activeApp
                     activeApp = replacementApp
+                    lastBrowserEvidenceAt = replacementApp.meetingURL == nil ? nil : now
                     activeCalendarEvent = calendarEvent
                     continuationLease.recordReliableAudio(at: now)
                     if previousApp != replacementApp {
@@ -388,7 +399,7 @@ final class MeetingDetector {
         // (input or output), not the global mic flag. A global mic check can
         // belong to Dictation/QuickTime/another meeting app while a known meeting
         // app is merely idle in the background.
-        let startAudioActive = runningMeetingApp.map { Self.hasAudio(for: $0) } ?? false
+        let startAudioActive = runningMeetingApp.map { $0.meetingURL != nil || Self.hasAudio(for: $0) } ?? false
         let calendarBackedBrowserWithAudio = calendarBackedBrowser
             && (runningMeetingApp.map { Self.hasOutputAudio(for: $0) } ?? false)
         let inMeeting = MeetingMatcher.isMeetingOngoing(
@@ -447,6 +458,9 @@ final class MeetingDetector {
     }
 
     private func beginMeeting(app: DetectedApp, calendarEvent: CalendarMeetingCandidate?, now: Date) {
+        detectedContentEnd = nil
+        lastBrowserEvidenceAt = app.meetingURL == nil ? nil : now
+        browserStart = .init()
         clearPendingStart(loggingLoss: false)
         pendingStop?.cancel()
         pendingStop = nil
@@ -467,6 +481,10 @@ final class MeetingDetector {
     /// window's evidence clock; `tick()` separately decides whether a gap
     /// since the last call may still keep this same window alive.
     private func startConfirmed(app: DetectedApp, calendarBacked: Bool, now: Date) -> Bool {
+        if Self.browsers.contains(app.bundleID) {
+            guard let url = app.meetingURL else { browserStart = .init(); return false }
+            return browserStart.observe(.init(url: url, state: .inCall), at: now)
+        }
         guard Self.requiresSustainedAudioForStart(
             bundleID: app.bundleID, calendarBacked: calendarBacked) else { return true }
         let startedNewWindow = startConfirmation.observeAudio(
@@ -523,6 +541,7 @@ final class MeetingDetector {
     /// just started a meeting — that clears the same state but is a success,
     /// not a loss, and must not log as one.
     private func clearPendingStart(loggingLoss: Bool = true) {
+        browserStart = .init()
         if loggingLoss, let pendingStart = startConfirmation.window {
             lokalbotLog(
                 "detector lost the audio it was waiting on app=\(pendingStart.bundleID) "
@@ -550,15 +569,16 @@ final class MeetingDetector {
                               requireCalendarForBrowser: requireCalendarForBrowser)
     }
 
-    private func scheduleStopIfNeeded(now: Date) {
+    private func scheduleStopIfNeeded(now: Date, immediately: Bool = false) {
         guard activeApp != nil, pendingStop == nil else { return }
-        // Never stop because calendar time ended — only audio does. While the
-        // matched event is still in its window, extend the debounce so brief
-        // drops don't split a scheduled meeting.
-        let calendarStillActive = activeCalendarEvent?.isActive(at: now) ?? false
-        let debounce = calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
+        // Native app audio gaps may use calendar grace. A browser call uses
+        // only its bound document state and never receives that extension.
+        let isBrowser = activeApp.map { Self.browsers.contains($0.bundleID) } ?? false
+        let calendarStillActive = !isBrowser && (activeCalendarEvent?.isActive(at: now) ?? false)
+        let debounce = immediately ? 0 : calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            self.endedMeetingURL = self.activeApp?.meetingURL
             self.activeApp = nil
             self.activeCalendarEvent = nil
             self.continuationLease.reset()
@@ -568,6 +588,27 @@ final class MeetingDetector {
         pendingStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + debounce, execute: work)
     }
+
+    /// A browser-wide audio stream is never evidence that the bound call is
+    /// still running. Loss of observation starts a bounded stop; explicit leave
+    /// ends immediately. Preserve the first missing boundary for post-processing.
+    private func tickBrowser(_ app: DetectedApp, now: Date) {
+        let host = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).first
+        let snapshot = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier, expectedURL: app.meetingURL) }
+        if let snapshot, snapshot.state == .inCall, snapshot.url == app.meetingURL {
+            pendingStop?.cancel()
+            pendingStop = nil
+            detectedContentEnd = nil
+            lastBrowserEvidenceAt = now
+            return
+        }
+        if detectedContentEnd == nil { detectedContentEnd = lastBrowserEvidenceAt ?? now }
+        if snapshot?.state == .ended { pendingStop?.cancel(); pendingStop = nil }
+        scheduleStopIfNeeded(now: now, immediately: snapshot?.state == .ended || host == nil)
+    }
+
+    /// Audio-monitor events must pass the same sustained call-state gate.
+    func checkNow() { tick() }
 
     /// Which running bundles count as native meeting apps, in priority order.
     /// Split out from `NSRunningApplication` so the choice is testable.
@@ -605,47 +646,32 @@ final class MeetingDetector {
         return active.first
     }
 
-    /// Web meetings by window title only (no calendar) — used by the audio
-    /// monitor to confirm a browser tab is a meeting. The system-audio tap then
-    /// captures the browser.
+    /// A verified supported browser call without calendar requirements.
+    /// Audio capture remains a process tap; call evidence supplies lifecycle.
     static func visibleBrowserMeeting(in running: [NSRunningApplication] = NSWorkspace.shared.runningApplications) -> DetectedApp? {
         browserMeeting(in: running, calendarEvent: nil, calendarEnabled: false, requireCalendarForBrowser: false)
     }
 
-    /// A browser that should be recorded as a meeting: window title matches a
-    /// web-meeting marker, or — when calendar detection is on — an active event
-    /// with a conferencing link is in progress and the browser is producing
-    /// audio. The latter is what makes Google Meet reliable when Accessibility
-    /// misses the title or the tab name is generic.
+    /// A browser with a verified in-call document, optionally restricted to
+    /// the calendar event URL. Unrelated browser output never starts a call.
     private static func browserMeeting(in running: [NSRunningApplication],
                                        calendarEvent: CalendarMeetingCandidate?,
                                        calendarEnabled: Bool,
                                        requireCalendarForBrowser: Bool) -> DetectedApp? {
         let calendarBacked = calendarEnabled && calendarEvent?.meetingURL != nil
+        guard !requireCalendarForBrowser || calendarBacked else { return nil }
         for app in running {
-            guard let bid = app.bundleIdentifier, browsers.contains(bid) else { continue }
-            let titleMatches = ActivitySampler.focusedWindowTitle(pid: app.processIdentifier).map { title in
-                webMeetingMarkers.contains { title.localizedCaseInsensitiveContains($0) }
-            } ?? false
-            // Skip the audio probe when no signal can apply.
-            if requireCalendarForBrowser {
-                guard calendarBacked else { continue }
-            } else if !titleMatches && !calendarBacked {
-                continue
-            }
-            let audioProcess = currentOutputAudioProcess(for: DetectedApp(
-                name: app.localizedName ?? "Browser",
-                bundleID: bid,
-                pid: app.processIdentifier))
-            guard MeetingMatcher.browserCountsAsMeeting(
-                    titleMatchesMarker: titleMatches,
-                    hasOutputAudio: audioProcess != nil,
-                    calendarBacked: calendarBacked,
-                    requireCalendarForBrowser: requireCalendarForBrowser)
-            else { continue }
-            return DetectedApp(name: app.localizedName ?? "Browser",
-                               bundleID: bid,
-                               pid: audioProcess?.id ?? app.processIdentifier)
+            guard let bid = app.bundleIdentifier, browsers.contains(bid),
+                  let snapshot = BrowserMeetingSession.snapshot(processID: app.processIdentifier,
+                    expectedURL: calendarBacked ? calendarEvent?.meetingURL : nil),
+                  MeetingMatcher.browserCountsAsMeeting(titleMatchesMarker: false, hasOutputAudio: false,
+                    calendarBacked: calendarBacked, requireCalendarForBrowser: requireCalendarForBrowser,
+                    verifiedSession: snapshot.state == .inCall) else { continue }
+            let target = DetectedApp(name: app.localizedName ?? "Browser", bundleID: bid,
+                                     pid: app.processIdentifier, meetingURL: snapshot.url)
+            let audioProcess = currentOutputAudioProcess(for: target)
+            return DetectedApp(name: target.name, bundleID: bid,
+                               pid: audioProcess?.id ?? target.pid, meetingURL: snapshot.url)
         }
         return nil
     }

@@ -44,17 +44,17 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
     }
     private func release() { lock.lock(); busy = false; lock.unlock() }
 
-    func capture(processID: pid_t) async -> MeetingParticipantCaptureResult {
+    func capture(processID: pid_t, expectedURL: URL? = nil) async -> MeetingParticipantCaptureResult {
         guard AXIsProcessTrusted() else { return .unavailable(.accessibilityPermission) }
         guard claim() else { return .unavailable(.accessibilityBusy) }
         return await withCheckedContinuation { continuation in
             let delivery = Delivery(continuation)
             queue.async { [self] in
-                let result = Self.resolve(processID)
+                let result = Self.resolve(processID, expectedURL: expectedURL)
                 release()
                 delivery.finish(result)
             }
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.35) {
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.65) {
                 delivery.finish(.unavailable(.accessibilityTimeout))
             }
         }
@@ -124,14 +124,16 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
         return nil
     }
 
-    private static func resolve(_ processID: pid_t) -> MeetingParticipantCaptureResult {
-        let start = RecordingAudioClock.now
+    private static func resolve(_ processID: pid_t, expectedURL: URL?) -> MeetingParticipantCaptureResult {
         let application = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(application, 0.012)
         // Chromium may expose only its browser chrome until an AX client asks
         // for the web tree. This does not grant or prompt for TCC permission.
         AXUIElementSetAttributeValue(application, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
-        guard let window = element(application, kAXFocusedWindowAttribute),
+        guard let boundWindow = BrowserMeetingSession.window(processID: processID, expectedURL: expectedURL) else { return .unavailable(.sourceUnavailable) }
+        let window = boundWindow.element
+        let start = RecordingAudioClock.now
+        guard
               (value(window, kAXMinimizedAttribute) as? Bool) != true,
               let windowFields = fields(window, depth: 0), let frame = windowFields.frame else { return .unavailable(.sourceUnavailable) }
         let title = windowFields.string(kAXTitleAttribute)
@@ -167,7 +169,7 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
             stack += children.reversed().map { ($0, depth + 1, inDocument) }
         }
         guard let url = selectedURL,
-              let stillFocused = element(application, kAXFocusedWindowAttribute), CFEqual(window, stillFocused) else { return .unavailable(.sourceChanged) }
+              let windows = value(application, kAXWindowsAttribute) as? [AXUIElement], windows.contains(where: { CFEqual(window, $0) }) else { return .unavailable(.sourceChanged) }
         var tiles: [MeetingParticipantTile] = []
         for (index, item) in records.enumerated() {
             guard ["AXGroup", "AXImage", "AXUnknown"].contains(item.string(kAXRoleAttribute)),

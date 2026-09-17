@@ -19,18 +19,14 @@ struct MeetingDetectionContext: Equatable {
 /// The matching layer between detection and recording. Pure policy — no
 /// EventKit, AppKit, or Core Audio — so every rule here is unit-testable.
 enum MeetingMatcher {
-    /// Whether a browser that is producing meeting-like signal should count as a
-    /// meeting. `calendarBacked` already folds in "calendar enabled AND an active
-    /// event with a conferencing URL". This is the crux of reliable browser
-    /// detection: a generic/empty window title (or missing Accessibility) no
-    /// longer hides a Google Meet when the calendar confirms it — and the
-    /// stricter mode refuses browser auto-recording without that confirmation.
+    /// Calendar, titles and output are supporting metadata, never proof of a
+    /// call. The caller must verify the actual meeting document's in-call state.
     static func browserCountsAsMeeting(titleMatchesMarker: Bool,
                                        hasOutputAudio: Bool,
                                        calendarBacked: Bool,
-                                       requireCalendarForBrowser: Bool) -> Bool {
-        if requireCalendarForBrowser { return calendarBacked && hasOutputAudio }
-        return titleMatchesMarker || (calendarBacked && hasOutputAudio)
+                                       requireCalendarForBrowser: Bool,
+                                       verifiedSession: Bool = false) -> Bool {
+        verifiedSession && (!requireCalendarForBrowser || calendarBacked)
     }
 
     /// Whether a start candidate has produced audio for at least the required
