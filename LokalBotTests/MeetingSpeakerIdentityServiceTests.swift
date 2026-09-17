@@ -201,7 +201,8 @@ import XCTest
         let turns = transcript.segments.map { SpeakerAudioTurn(speaker: $0.speaker,
             range: .init(start: $0.start, end: $0.end), source: .microphone) }
         var initial = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: [], audioURL: audio)
-        XCTAssertEqual(initial.confirmedUserSpeakerIDs, ["local 1", "local 2"])
+        XCTAssertTrue(initial.confirmedUserSpeakerIDs.isEmpty,
+                      "A microphone track identifies an input, not a person")
         initial = try await service.choose(.init(label: "local 2", name: "Alex", action: .confirmOther),
                                            meeting: meeting, transcript: initial)
         let chosen = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser),
@@ -261,16 +262,16 @@ import XCTest
         for index in transcript.segments.indices { transcript.segments[index].attribution?.method = .track }
         let initial = await service.process(transcript: transcript, meeting: meeting, turns: [], samples: [], audioURL: audio)
         XCTAssertEqual(initial.echoReport?.status, .disabled)
-        XCTAssertEqual(initial.confirmedUserSpeakerIDs, ["local 1"])
-        XCTAssertEqual(initial.displaySpeaker(for: "local 1"), "Me")
+        XCTAssertTrue(initial.confirmedUserSpeakerIDs.isEmpty)
+        XCTAssertEqual(initial.displaySpeaker(for: "local 1"), "Local 1")
         let corrected = try await service.choose(.init(label: "local 1", name: "Alex", action: .confirmOther),
                                                 meeting: meeting, transcript: initial)
         XCTAssertTrue(corrected.confirmedUserSpeakerIDs.isEmpty)
         let reprocessed = await service.process(transcript: transcript, meeting: meeting, turns: [], samples: [], audioURL: audio)
         XCTAssertEqual(reprocessed.speakerRoster["local 1"]?.identity, .other)
         let reset = try await service.choose(.init(label: "local 1", action: .reset), meeting: meeting, transcript: reprocessed)
-        XCTAssertEqual(reset.confirmedUserSpeakerIDs, ["local 1"])
-        XCTAssertEqual(reset.displaySpeaker(for: "local 1"), "Me")
+        XCTAssertTrue(reset.confirmedUserSpeakerIDs.isEmpty)
+        XCTAssertEqual(reset.displaySpeaker(for: "local 1"), "Local 1")
         let profiles = try await service.profiles(managing: true)
         XCTAssertTrue(profiles.isEmpty)
     }
@@ -291,8 +292,9 @@ import XCTest
         let suggested = try await service.state(for: second)
         XCTAssertEqual(suggested.suggestions["local 1"]?.first?.name, "Stevan")
         XCTAssertEqual(suggested.suggestions["local 1"]?.first?.tier, .suggested)
-        XCTAssertEqual(proposed.confirmedUserSpeakerIDs, ["local 1"], "The microphone defaults to the user independently of a suggested profile name")
-        XCTAssertEqual(proposed.displaySpeaker(for: "local 1"), "Me")
+        XCTAssertTrue(proposed.confirmedUserSpeakerIDs.isEmpty,
+                      "A suggested profile name does not confirm local ownership")
+        XCTAssertEqual(proposed.displaySpeaker(for: "local 1"), "Local 1")
         let chosen = try await service.choose(.init(label: "local 1", name: "Stevan", profileID: profile.id), meeting: second, transcript: proposed)
         XCTAssertEqual(chosen.confirmedUserSpeakerIDs, ["local 1"])
         let remaining = try await service.profiles()
