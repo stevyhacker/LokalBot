@@ -14,6 +14,34 @@ enum BrowserMeetingSession {
         var snapshot: Snapshot
     }
 
+    /// AX is a best-effort source. A pathological background page must be
+    /// isolated to its own window so it cannot consume the budget for the
+    /// Meet document we are trying to verify.
+    struct TraversalBudget {
+        static let duration: TimeInterval = 0.25
+        static let maximumNodes = 3_000
+        static let maximumDepth = 30
+        static let maximumChildren = 500
+
+        private let deadline: TimeInterval
+        private(set) var visitedNodes = 0
+
+        init(startTime: TimeInterval) {
+            deadline = startTime + Self.duration
+        }
+
+        mutating func visit(depth: Int, at now: TimeInterval) -> Bool {
+            visitedNodes += 1
+            return visitedNodes <= Self.maximumNodes
+                && depth <= Self.maximumDepth
+                && now < deadline
+        }
+
+        func allowsChildren(_ count: Int) -> Bool {
+            count <= Self.maximumChildren
+        }
+    }
+
     struct StartGate {
         private var url: URL?
         private var since: Date?
@@ -107,15 +135,11 @@ enum BrowserMeetingSession {
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
         AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
-        let deadline = ProcessInfo.processInfo.systemUptime + 0.25
         let expected = expectedURL.flatMap { GoogleMeetSpeakerObservationProvider.meetURL($0.absoluteString) }
         guard expectedURL == nil || expected != nil,
               let windows = value(app, kAXWindowsAttribute) as? [AXUIElement], windows.count <= 32 else { return nil }
         var matches: [Window] = []
-        var count = 0
-        var conflictingAudio = false
-        for window in windows {
-            guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
+        windowLoop: for window in windows {
             let title = value(window, kAXTitleAttribute) as? String ?? ""
             if ScreenContextPrivacy.isPrivateWindow(title: title)
                 || value(window, kAXMinimizedAttribute) as? Bool == true { continue }
@@ -123,20 +147,12 @@ enum BrowserMeetingSession {
             var url: String?
             var buttons: [String] = []
             var messages: [String] = []
-            var audibleTabs: [Bool] = []
+            var budget = TraversalBudget(startTime: ProcessInfo.processInfo.systemUptime)
             while let (node, depth, inside) = stack.popLast() {
-                count += 1
-                guard count <= 3_000, depth <= 30, ProcessInfo.processInfo.systemUptime < deadline else { return nil }
-                guard let fields = fields(node) else { return nil }
+                guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else { continue windowLoop }
+                guard let fields = fields(node) else { continue windowLoop }
                 if fields["AXHidden"] as? Bool == true { continue }
                 let role = fields[kAXRoleAttribute] as? String ?? ""
-                if ["AXRadioButton", "AXTab"].contains(role) {
-                    let labels = [kAXTitleAttribute, kAXDescriptionAttribute, kAXHelpAttribute]
-                        .compactMap { fields[$0] as? String }
-                    if labels.contains(where: { $0.localizedCaseInsensitiveContains("audio playing") }) {
-                        audibleTabs.append(fields[kAXSelectedAttribute] as? Bool == true)
-                    }
-                }
                 var inDocument = inside
                 if role == "AXWebArea" {
                     if inside { continue }
@@ -144,7 +160,7 @@ enum BrowserMeetingSession {
                     let text = (raw as? URL)?.absoluteString ?? (raw as? String) ?? ""
                     guard let valid = GoogleMeetSpeakerObservationProvider.meetURL(text),
                           expected == nil || valid == expected else { continue }
-                    guard url == nil else { return nil }
+                    guard url == nil else { continue windowLoop }
                     url = valid
                     inDocument = true
                 }
@@ -154,16 +170,18 @@ enum BrowserMeetingSession {
                     if role == "AXButton" { buttons += labels } else { messages += labels }
                 }
                 let children = fields[kAXChildrenAttribute] as? [AXUIElement] ?? []
-                guard children.count <= 500 else { return nil }
+                guard budget.allowsChildren(children.count) else { continue windowLoop }
                 stack += children.reversed().map { ($0, depth + 1, inDocument) }
             }
             if let url, let parsed = URL(string: url) {
-                matches.append(Window(element: window, snapshot: Snapshot(url: parsed, state: state(buttons: buttons, messages: messages))))
+                let match = Window(element: window, snapshot: Snapshot(url: parsed, state: state(buttons: buttons, messages: messages)))
+                matches.append(match)
+                // An expected URL is already the caller's binding. Return a
+                // positive call-control match immediately so unrelated heavy
+                // windows later in the AX list cannot add latency or fail the
+                // bound meeting lookup.
+                if expected != nil, match.snapshot.state == .inCall { return match }
             }
-            conflictingAudio = conflictingAudio || hasConflictingAudio(selectedAudibleTabs: audibleTabs, hasBoundDocument: url != nil)
-        }
-        if conflictingAudio {
-            for index in matches.indices { matches[index].snapshot.state = .unavailable }
         }
         // Multiple unrelated Meet windows cannot silently pick the first call.
         if expected == nil {
@@ -171,10 +189,6 @@ enum BrowserMeetingSession {
             return calls.count == 1 ? calls.first : nil
         }
         return matches.count == 1 ? matches.first : nil
-    }
-
-    static func hasConflictingAudio(selectedAudibleTabs: [Bool], hasBoundDocument: Bool) -> Bool {
-        !selectedAudibleTabs.isEmpty && (!hasBoundDocument || selectedAudibleTabs.contains(false) || selectedAudibleTabs.count > 1)
     }
 
     private static func value(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
