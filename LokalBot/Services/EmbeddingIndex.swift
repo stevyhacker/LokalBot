@@ -427,6 +427,22 @@ final class EmbeddingIndex {
         locallyDeletedMeetingIDs.insert(meetingID)
     }
 
+    /// Reopens a meeting whose durable deletion marker was created by a
+    /// reversible merge fold. The caller reindexes the restored source after
+    /// this marker is removed.
+    @discardableResult
+    func restore(_ meetingID: UUID) -> Bool {
+        locallyDeletedMeetingIDs.remove(meetingID)
+        guard let database else { return false }
+        return Self.restore(meetingID, in: database)
+    }
+
+    @discardableResult
+    nonisolated static func restore(_ meetingID: UUID, databaseURL: URL) -> Bool {
+        guard let database = SQLiteDatabase(url: databaseURL) else { return false }
+        return restore(meetingID, in: database)
+    }
+
     /// Utility-worker entry point used by AppState deletion. It deliberately
     /// opens its own FULLMUTEX connection so SQLite's busy timeout can never
     /// stall the main actor.
@@ -945,6 +961,15 @@ final class EmbeddingIndex {
                     || database.run(
                         "DELETE FROM embedded_meetings WHERE meeting_id = ?1",
                         bind: [id]))
+        }
+    }
+
+    nonisolated private static func restore(_ meetingID: UUID,
+                                            in database: SQLiteDatabase) -> Bool {
+        database.transaction {
+            database.run(
+                "DELETE FROM deleted_meetings WHERE meeting_id = ?1",
+                bind: [meetingID.uuidString])
         }
     }
 

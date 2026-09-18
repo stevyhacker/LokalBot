@@ -181,6 +181,20 @@ final class SearchIndex {
         locallyDeletedMeetingIDs.insert(meetingID)
     }
 
+    /// Reopens a meeting whose durable deletion marker was created by a
+    /// reversible merge fold. The caller reindexes the restored source after
+    /// this marker is removed.
+    @discardableResult
+    func restore(_ meetingID: UUID) -> Bool {
+        locallyDeletedMeetingIDs.remove(meetingID)
+        guard let database else { return false }
+        return database.transaction {
+            database.run(
+                "DELETE FROM deleted_meetings WHERE meeting_id = ?1",
+                bind: [meetingID.uuidString])
+        }
+    }
+
     /// Finishes cleanup for durable tombstones left by a prior failed or
     /// interrupted deletion. Queries exclude tombstones even before this pass
     /// succeeds, so reconciliation can safely be retried at startup and in-app.

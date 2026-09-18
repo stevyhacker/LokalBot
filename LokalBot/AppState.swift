@@ -430,7 +430,7 @@ final class AppState: ObservableObject {
         if let cachedSearchIndex { return cachedSearchIndex }
         let created = SearchIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
-        for meetingID in deletedMeetingIDs { created.noteDeletion(meetingID) }
+        for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
         cachedSearchIndex = created
         return created
     }
@@ -443,7 +443,7 @@ final class AppState: ObservableObject {
         let created = EmbeddingIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
             storage: storage)
-        for meetingID in deletedMeetingIDs { created.noteDeletion(meetingID) }
+        for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
         cachedEmbeddingIndex = created
         return created
     }
@@ -683,7 +683,9 @@ final class AppState: ObservableObject {
     private var embeddingBackfillTask: (token: UUID, task: Task<Void, Never>)?
     private var embeddingIndexTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
     private var indexCleanupTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
-    private var deletedMeetingIDs: Set<Meeting.ID> = []
+    /// Meeting IDs excluded from search for this session. This includes
+    /// physically deleted meetings and source rows folded into a merge.
+    private var excludedMeetingIDs: Set<Meeting.ID> = []
     @Published private(set) var libraryReady = false
     private var pendingRecordingStart: (
         context: MeetingDetectionContext?,
@@ -1230,6 +1232,123 @@ final class AppState: ObservableObject {
 
     // MARK: - Library operations
 
+    /// Creates a new, provenance-linked meeting from completed sources. The
+    /// source folders remain untouched, but their rows are folded out of the
+    /// library after the merge succeeds.
+    func mergeMeetings(
+        _ sourceMeetings: [Meeting],
+        title: String,
+        generateSummary: Bool
+    ) async throws -> Meeting {
+        for meeting in sourceMeetings {
+            if let stage = pipeline.stages[meeting.id], !stage.isFailure {
+                throw MeetingMergeService.MergeError.processingInProgress(meeting.displayTitle)
+            }
+        }
+        let result = try await MeetingMergeService.merge(
+            meetings: sourceMeetings,
+            title: title,
+            storage: storage)
+
+        let sourceIDs = Set(result.sourceMeetings.map(\.id))
+        pipeline.forget(meetingIDs: sourceIDs)
+        for sourceID in sourceIDs {
+            embeddingIndexTasks.removeValue(forKey: sourceID)?.task.cancel()
+            excludedMeetingIDs.insert(sourceID)
+            cachedSearchIndex?.noteDeletion(sourceID)
+            cachedEmbeddingIndex?.noteDeletion(sourceID)
+            scheduleIndexCleanup(sourceID)
+        }
+        meetings.removeAll { sourceIDs.contains($0.id) }
+        selectedMeetingIDs.subtract(sourceIDs)
+        meetings.append(result.meeting)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        outcomeIndex.refresh(meetings: meetings)
+        primaryEvidenceDidChange(for: result.sourceMeetings + [result.meeting])
+        searchIndex.reindex(result.meeting, storage: storage)
+        reindexSearchInBackground(result.meeting)
+        if settings.semanticSearchEnabled {
+            reindexEmbeddingInBackground(result.meeting)
+        }
+        selectedMeetingIDs = [result.meeting.id]
+        navSection = .meetings
+        if generateSummary, result.transcriptSegmentCount > 0 {
+            reprocess(result.meeting, transcribe: false, summarize: true)
+        }
+        return result.meeting
+    }
+
+    /// Removes a generated merged record and restores its original source
+    /// rows. Source folders are retained; their durable merge markers and
+    /// search tombstones are cleared before the restored evidence is indexed.
+    func undoMerge(_ mergedMeeting: Meeting) {
+        guard let rawSourceIDs = mergedMeeting.mergedSourceMeetingIDs,
+              rawSourceIDs.count >= 2 else {
+            lastError = "This meeting does not contain a reversible merge."
+            return
+        }
+        if let stage = pipeline.stages[mergedMeeting.id], !stage.isFailure {
+            lastError = "Wait for the merged summary to finish before undoing the merge."
+            return
+        }
+
+        let sourceIDs = Set(rawSourceIDs)
+        let sources = storage.loadMeetings(includeMergedSources: true)
+            .filter { sourceIDs.contains($0.id) }
+        guard sources.count == sourceIDs.count,
+              sources.allSatisfy({ $0.mergedIntoMeetingID == mergedMeeting.id }) else {
+            lastError = "Some original meetings could not be found, so the merge was kept intact."
+            return
+        }
+
+        lastError = nil
+        let worker = searchIndexWorkQueue
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                pipeline.forget(meetingIDs: [mergedMeeting.id])
+                try await speakerIdentity.prepareDeletion(meeting: mergedMeeting)
+                try storage.deleteMeeting(mergedMeeting)
+
+                var restoredSources: [Meeting] = []
+                for source in sources {
+                    var restored = source
+                    restored.mergedIntoMeetingID = nil
+                    try storage.saveMeta(restored)
+                    restoredSources.append(restored)
+                }
+
+                embeddingIndexTasks.removeValue(forKey: mergedMeeting.id)?.task.cancel()
+                excludedMeetingIDs.insert(mergedMeeting.id)
+                cachedSearchIndex?.noteDeletion(mergedMeeting.id)
+                cachedEmbeddingIndex?.noteDeletion(mergedMeeting.id)
+                scheduleIndexCleanup(mergedMeeting.id)
+
+                meetings.removeAll { $0.id == mergedMeeting.id }
+                for source in restoredSources {
+                    indexCleanupTasks.removeValue(forKey: source.id)?.task.cancel()
+                    excludedMeetingIDs.remove(source.id)
+                    cachedSearchIndex?.restore(source.id)
+                    cachedEmbeddingIndex?.restore(source.id)
+                    await worker.restore(source)
+                    if settings.semanticSearchEnabled {
+                        reindexEmbeddingInBackground(source)
+                    }
+                }
+                meetings.append(contentsOf: restoredSources)
+                meetings.sort { $0.startedAt > $1.startedAt }
+                outcomeIndex.refresh(meetings: meetings)
+                primaryEvidenceDidChange(for: [mergedMeeting] + restoredSources)
+                selectedMeetingIDs = restoredSources
+                    .sorted { $0.startedAt < $1.startedAt }
+                    .first.map { [$0.id] } ?? []
+                navSection = .meetings
+            } catch {
+                lastError = "Could not undo the merge: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func setMeetingBoundaries(_ range: Meeting.ContentRange, for meeting: Meeting) throws {
         if let stage = pipeline.stages[meeting.id], !stage.isFailure {
             throw TextEngineError.badResponse("Wait for meeting processing to finish before changing its boundaries.")
@@ -1633,7 +1752,7 @@ final class AppState: ObservableObject {
                     try await speakerIdentity.prepareDeletion(meeting: meeting)
                     try storage.deleteMeeting(meeting)
                     embeddingIndexTasks.removeValue(forKey: meeting.id)?.task.cancel()
-                    deletedMeetingIDs.insert(meeting.id)
+                    excludedMeetingIDs.insert(meeting.id)
                     cachedSearchIndex?.noteDeletion(meeting.id)
                     cachedEmbeddingIndex?.noteDeletion(meeting.id)
                     scheduleIndexCleanup(meeting.id)

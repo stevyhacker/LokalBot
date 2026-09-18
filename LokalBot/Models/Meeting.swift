@@ -31,6 +31,20 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// metadata only; transcript aliases retain opaque participant IDs.
     var calendarParticipantIdentities: [CalendarParticipantIdentity]?
 
+    /// IDs of the source meetings when this record was created by the
+    /// non-destructive merge flow. Source folders are never removed or
+    /// rewritten, and speaker labels in the merged transcript stay scoped to
+    /// their source meeting so identities cannot silently bleed across calls.
+    var mergedSourceMeetingIDs: [UUID]?
+
+    /// The merged meeting that folded this source out of the main library.
+    /// Keeping this relationship in the source metadata lets the app hide the
+    /// old row across launches without deleting its original evidence.
+    var mergedIntoMeetingID: UUID?
+
+    var isMergedMeeting: Bool { !(mergedSourceMeetingIDs ?? []).isEmpty }
+    var isMergedSource: Bool { mergedIntoMeetingID != nil }
+
     var resolvedCalendarParticipantIdentities: [CalendarParticipantIdentity] {
         let structured = CalendarParticipantIdentity.normalized(
             calendarParticipantIdentities ?? [])

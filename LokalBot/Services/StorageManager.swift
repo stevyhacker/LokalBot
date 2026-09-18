@@ -56,8 +56,9 @@ final class StorageManager {
     }
 
     /// Scan the library for meta.json files. Fine for M1; replaced by the
-    /// SQLite index in M3.
-    func loadMeetings() -> [Meeting] {
+    /// SQLite index in M3. Source meetings folded into a merged record remain
+    /// on disk for provenance but are excluded from the normal library view.
+    func loadMeetings(includeMergedSources: Bool = false) -> [Meeting] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let meetingsRoot = rootURL.appendingPathComponent("meetings")
@@ -95,6 +96,32 @@ final class StorageManager {
                 }
                 result.append(meeting)
             }
+        }
+        // Merge records created before source folding was persisted still
+        // carry their source IDs. Backfill the durable relationship once so
+        // the new library projection does not show both sides of an old merge.
+        var foldedBySource: [UUID: UUID] = [:]
+        let mergedMeetingIDs = Set(result.filter(\.isMergedMeeting).map(\.id))
+        for meeting in result where meeting.isMergedMeeting {
+            for sourceID in meeting.mergedSourceMeetingIDs ?? [] {
+                foldedBySource[sourceID] = meeting.id
+            }
+        }
+        for index in result.indices {
+            if result[index].mergedIntoMeetingID != nil,
+               !mergedMeetingIDs.contains(result[index].mergedIntoMeetingID!) {
+                // The merged record was removed before its source metadata
+                // could be restored. Make the source visible again on reload.
+                result[index].mergedIntoMeetingID = nil
+                try? saveMeta(result[index])
+            }
+            guard result[index].mergedIntoMeetingID == nil,
+                  let mergedID = foldedBySource[result[index].id] else { continue }
+            result[index].mergedIntoMeetingID = mergedID
+            try? saveMeta(result[index])
+        }
+        if !includeMergedSources {
+            result.removeAll(where: \.isMergedSource)
         }
         return result.sorted { $0.startedAt > $1.startedAt }
     }
