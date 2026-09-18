@@ -9,6 +9,7 @@ struct SelectableDigestText: View {
     enum Style: Equatable {
         case standard
         case editorial
+        case agent
     }
 
     let text: String
@@ -38,10 +39,18 @@ struct SelectableDigestText: View {
             searchQuery: searchQuery,
             activeMatchIndex: activeMatchIndex,
             style: style))
-            .lineSpacing(style == .editorial ? 4 : 0)
+            .lineSpacing(lineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
             .help("Select any part and press ⌘C to copy")
+    }
+
+    private var lineSpacing: CGFloat {
+        switch style {
+        case .editorial: return 4
+        case .agent: return 2
+        case .standard: return 0
+        }
     }
 
     static func attributedText(
@@ -52,10 +61,37 @@ struct SelectableDigestText: View {
         style: Style = .standard
     ) -> AttributedString {
         let lines = markdown.components(separatedBy: "\n")
+        var renderedLines: [AttributedString] = []
+        renderedLines.reserveCapacity(lines.count)
+
+        var fence: Fence?
+        for line in lines {
+            if let activeFence = fence {
+                if let delimiter = fenceDelimiter(in: line),
+                   delimiter.marker == activeFence.marker,
+                   delimiter.length >= activeFence.length,
+                   delimiter.info.isEmpty {
+                    fence = nil
+                } else {
+                    renderedLines.append(styledCode(
+                        line,
+                        font: baseFont(for: style, fallback: font)))
+                }
+                continue
+            }
+
+            if let delimiter = fenceDelimiter(in: line) {
+                fence = Fence(marker: delimiter.marker, length: delimiter.length)
+                continue
+            }
+
+            renderedLines.append(attributedLine(line, font: font, style: style))
+        }
+
         var document = AttributedString()
-        for (index, line) in lines.enumerated() {
-            document.append(attributedLine(line, font: font, style: style))
-            if index < lines.count - 1 {
+        for (index, line) in renderedLines.enumerated() {
+            document.append(line)
+            if index < renderedLines.count - 1 {
                 document.append(AttributedString("\n"))
             }
         }
@@ -74,67 +110,153 @@ struct SelectableDigestText: View {
         font: Font,
         style: Style
     ) -> AttributedString {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        let baseFont = style == .editorial ? WorkspaceTypography.body : font
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        let content = String(line.dropFirst(leading.count))
+        let trimmed = content.trimmingCharacters(in: .whitespaces)
+        let baseFont = baseFont(for: style, fallback: font)
+        let listIndent = String(repeating: " ", count: min(indentationColumns(leading), 24))
         if trimmed.isEmpty { return AttributedString() }
         if trimmed == "---" || trimmed == "***" || trimmed == "___" {
             return styled("────────────────────", font: baseFont,
                           foreground: .secondary)
         }
-        if trimmed.hasPrefix("### ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.bodyEmphasis
-                : Font.headline
+        if let heading = heading(trimmed) {
+            let headingFont = headingFont(for: heading.level, style: style)
             return styledInline(
-                String(trimmed.dropFirst(4)),
+                heading.text,
                 font: headingFont,
                 style: style)
         }
-        if trimmed.hasPrefix("## ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.sectionTitle
-                : Font.title3.bold()
-            return styledInline(
-                String(trimmed.dropFirst(3)),
-                font: headingFont,
-                style: style)
-        }
-        if trimmed.hasPrefix("# ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.conversationTitle
-                : Font.title2.bold()
-            return styledInline(
-                String(trimmed.dropFirst(2)),
-                font: headingFont,
-                style: style)
-        }
-        if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") {
-            return prefixed(trimmed.hasPrefix("- [x] ") ? "☑ " : "☐ ",
-                            content: String(trimmed.dropFirst(6)),
+        if let checkbox = checkboxItem(trimmed) {
+            return prefixed(listIndent + (checkbox.checked ? "☑ " : "☐ "),
+                            content: checkbox.text,
                             font: baseFont,
                             style: style)
         }
-        if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
+        if let bullet = bulletItem(trimmed) {
             return prefixed(
-                "• ",
-                content: String(trimmed.dropFirst(2)),
+                listIndent + "• ",
+                content: bullet,
                 font: baseFont,
                 style: style)
         }
         if let ordered = orderedListItem(trimmed) {
             return prefixed(
-                "\(ordered.number). ",
+                listIndent + "\(ordered.number). ",
                 content: ordered.rest,
                 font: baseFont,
                 style: style)
         }
         if trimmed.hasPrefix("> ") {
-            return prefixed("▎ ", content: String(trimmed.dropFirst(2)),
+            return prefixed(listIndent + "▎ ", content: String(trimmed.dropFirst(2)),
                             font: baseFont.italic(),
                             foreground: .secondary,
                             style: style)
         }
         return styledInline(trimmed, font: baseFont, style: style)
+    }
+
+    private struct Heading {
+        let level: Int
+        let text: String
+    }
+
+    private struct Fence {
+        let marker: Character
+        let length: Int
+    }
+
+    private struct FenceDelimiter {
+        let marker: Character
+        let length: Int
+        let info: String
+    }
+
+    private static func baseFont(for style: Style, fallback: Font) -> Font {
+        switch style {
+        case .editorial: return WorkspaceTypography.body
+        case .agent: return WorkspaceTypography.body
+        case .standard: return fallback
+        }
+    }
+
+    private static func headingFont(for level: Int, style: Style) -> Font {
+        switch style {
+        case .editorial, .agent:
+            switch level {
+            case 1: return WorkspaceTypography.conversationTitle
+            case 2: return WorkspaceTypography.sectionTitle
+            default: return WorkspaceTypography.bodyEmphasis
+            }
+        case .standard:
+            switch level {
+            case 1: return Font.title2.bold()
+            case 2: return Font.title3.bold()
+            default: return Font.headline
+            }
+        }
+    }
+
+    private static func heading(_ line: String) -> Heading? {
+        let hashes = line.prefix(while: { $0 == "#" })
+        let level = hashes.count
+        guard (1...6).contains(level),
+              line.dropFirst(level).first == " " else { return nil }
+        return Heading(level: level,
+                       text: String(line.dropFirst(level + 1)))
+    }
+
+    private static func checkboxItem(_ line: String) -> (checked: Bool, text: String)? {
+        for marker in ["-", "*", "+"] {
+            let unchecked = "\(marker) [ ] "
+            let checked = "\(marker) [x] "
+            let checkedUppercase = "\(marker) [X] "
+            if line.hasPrefix(unchecked) {
+                return (false, String(line.dropFirst(unchecked.count)))
+            }
+            if line.hasPrefix(checked) {
+                return (true, String(line.dropFirst(checked.count)))
+            }
+            if line.hasPrefix(checkedUppercase) {
+                return (true, String(line.dropFirst(checkedUppercase.count)))
+            }
+        }
+        return nil
+    }
+
+    private static func bulletItem(_ line: String) -> String? {
+        for marker in ["- ", "* ", "+ "] where line.hasPrefix(marker) {
+            return String(line.dropFirst(marker.count))
+        }
+        return nil
+    }
+
+    private static func indentationColumns(_ leading: Substring) -> Int {
+        leading.reduce(into: 0) { columns, character in
+            columns += character == "\t" ? 4 : 1
+        }
+    }
+
+    private static func fenceDelimiter(in line: String) -> FenceDelimiter? {
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        guard leading.count <= 3 else { return nil }
+        let content = String(line.dropFirst(leading.count))
+        guard let marker = content.first, marker == "`" || marker == "~" else {
+            return nil
+        }
+        let length = content.prefix(while: { $0 == marker }).count
+        guard length >= 3 else { return nil }
+        return FenceDelimiter(
+            marker: marker,
+            length: length,
+            info: String(content.dropFirst(length)).trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func styledCode(_ source: String, font: Font) -> AttributedString {
+        var result = AttributedString(source)
+        result.font = font.monospaced()
+        result.backgroundColor = Color.secondary.opacity(0.12)
+        return result
     }
 
     private static func prefixed(_ prefix: String, content: String,
@@ -248,9 +370,9 @@ private enum MeetingSearchHighlighting {
     }
 }
 
-/// Minimal line-based Markdown renderer — headings, bullets, checkboxes,
-/// ordered lists, blockquotes, and horizontal rules, with inline
-/// bold/italic/code via AttributedString. Enough for summary.md.
+/// Compatibility wrapper for older call sites. All Markdown now goes through
+/// the same continuous AttributedString renderer so selection and supported
+/// syntax do not drift between surfaces.
 struct MarkdownText: View {
     enum Style {
         case standard
@@ -266,104 +388,8 @@ struct MarkdownText: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: style == .editorial ? 8 : 7) {
-            ForEach(Array(text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
-                render(line)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder private func render(_ line: String) -> some View {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
-            Spacer().frame(height: 2)
-        } else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
-            Divider().padding(.vertical, 4)
-        } else if trimmed.hasPrefix("### ") {
-            inline(String(trimmed.dropFirst(4)))
-                .font(style == .editorial ? WorkspaceTypography.editorialBodyEmphasis : .headline)
-                .padding(.top, 4)
-        } else if trimmed.hasPrefix("## ") {
-            inline(String(trimmed.dropFirst(3)))
-                .font(style == .editorial ? WorkspaceTypography.editorialSectionTitle : .title3.bold())
-                .padding(.top, 8)
-        } else if trimmed.hasPrefix("# ") {
-            inline(String(trimmed.dropFirst(2)))
-                .font(style == .editorial ? WorkspaceTypography.conversationTitle : .title2.bold())
-        } else if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") {
-            HStack(alignment: .top, spacing: style == .editorial ? 8 : 6) {
-                Image(systemName: trimmed.hasPrefix("- [x]") ? "checkmark.square" : "square")
-                    .font(.system(size: style == .editorial ? 13 : 12)).padding(.top, 2)
-                inline(String(trimmed.dropFirst(6)))
-            }
-            .font(baseFont)
-        } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
-            HStack(alignment: .top, spacing: style == .editorial ? 8 : 6) {
-                Text("•")
-                inline(String(trimmed.dropFirst(2)))
-            }
-            .font(baseFont)
-        } else if let ordered = Self.orderedListItem(trimmed) {
-            HStack(alignment: .top, spacing: 6) {
-                Text("\(ordered.number).").font(baseFont.monospacedDigit())
-                inline(ordered.rest)
-            }
-            .font(baseFont)
-        } else if trimmed.hasPrefix("> ") {
-            HStack(alignment: .top, spacing: 8) {
-                // A thin accent rule reads as a quote bar without a custom shape.
-                Rectangle().fill(.tint.opacity(0.6)).frame(width: 2)
-                inline(String(trimmed.dropFirst(2)))
-                    .italic().foregroundStyle(.secondary)
-            }
-            .font(baseFont)
-        } else {
-            inline(trimmed)
-                .font(baseFont)
-                .lineSpacing(style == .editorial ? 3 : 0)
-        }
-    }
-
-    private var baseFont: Font {
-        style == .editorial ? WorkspaceTypography.editorialBody : .body
-    }
-
-    /// Matches "1. text", "12. text" — returns the number and the remainder.
-    private static func orderedListItem(_ trimmed: String) -> (number: Int, rest: String)? {
-        guard let dot = trimmed.firstIndex(of: "."), trimmed[..<dot].allSatisfy(\.isNumber),
-              let number = Int(trimmed[..<dot]),
-              trimmed.index(after: dot) < trimmed.endIndex,
-              trimmed[trimmed.index(after: dot)] == " " else { return nil }
-        let rest = String(trimmed[trimmed.index(dot, offsetBy: 2)...])
-        return (number, rest)
-    }
-
-    private func inline(_ s: String) -> Text {
-        var remainder = s[...]
-        var rendered = Text("")
-
-        while let open = remainder.firstIndex(of: "[") {
-            let afterOpen = remainder.index(after: open)
-            guard let close = remainder[afterOpen...].firstIndex(of: "]"),
-                  Int(remainder[afterOpen..<close]) != nil else { break }
-
-            rendered = rendered + inlineMarkdown(String(remainder[..<open]))
-            rendered = rendered + Text(String(remainder[open...close]))
-                .font(WorkspaceTypography.metadataEmphasis)
-                .foregroundColor(Brand.teal)
-            remainder = remainder[remainder.index(after: close)...]
-        }
-
-        return rendered + inlineMarkdown(String(remainder))
-    }
-
-    private func inlineMarkdown(_ source: String) -> Text {
-        if let attributed = try? AttributedString(
-            markdown: source,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return Text(attributed)
-        }
-        return Text(source)
+        SelectableDigestText(
+            text,
+            style: style == .editorial ? .editorial : .standard)
     }
 }

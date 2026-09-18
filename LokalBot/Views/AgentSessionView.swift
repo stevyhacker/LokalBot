@@ -337,8 +337,16 @@ struct AgentSessionView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         case .assistant(_, let text, let isStreaming):
             VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(text))
-                    .textSelection(.enabled)
+                if isStreaming {
+                    // Keep partial deltas cheap to lay out, and treat model
+                    // output as literal text until the turn is complete.
+                    Text(verbatim: text)
+                        .textSelection(.enabled)
+                        .accessibilityIdentifier("agent.assistant")
+                } else {
+                    SelectableDigestText(text, style: .agent)
+                        .accessibilityIdentifier("agent.assistant")
+                }
                 if isStreaming {
                     ProgressView().controlSize(.mini)
                 }
