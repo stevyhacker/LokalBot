@@ -1,4 +1,5 @@
 import Combine
+import Foundation
 import XCTest
 @testable import LokalBot
 
@@ -6,6 +7,15 @@ import XCTest
 final class AgentSessionControllerTests: XCTestCase {
 
     private var transport: FakeTransport!
+
+    private func makeApprovalModeDefaults() -> UserDefaults {
+        let suiteName = "AgentApprovalModeTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        addTeardownBlock {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+        return defaults
+    }
 
     private actor BlockingBrokerEnsure {
         private var didStart = false
@@ -35,7 +45,10 @@ final class AgentSessionControllerTests: XCTestCase {
         }
     }
 
-    private func makeController(backend: AppSettings.SummarizerBackend = .openAICompatible) -> AgentSessionController {
+    private func makeController(
+        backend: AppSettings.SummarizerBackend = .openAICompatible,
+        approvalModeDefaults: UserDefaults? = nil
+    ) -> AgentSessionController {
         transport = FakeTransport()
         var settings = AppSettings()
         settings.summarizerBackend = backend
@@ -45,7 +58,8 @@ final class AgentSessionControllerTests: XCTestCase {
         return AgentSessionController(
             settings: { settings },
             storage: StorageManager(),
-            makeTransport: { _ in captured })
+            makeTransport: { _ in captured },
+            approvalModeDefaults: approvalModeDefaults ?? makeApprovalModeDefaults())
     }
 
     private func pump() async throws {
@@ -390,15 +404,44 @@ final class AgentSessionControllerTests: XCTestCase {
         })
     }
 
-    func testApprovalModeResetsWhenSessionCloses() async throws {
-        let controller = makeController()
+    func testApprovalModeSurvivesSessionClose() async throws {
+        let defaults = makeApprovalModeDefaults()
+        let controller = makeController(approvalModeDefaults: defaults)
         await controller.setApprovalMode(.fullAccess)
         await controller.start()
         XCTAssertEqual(controller.approvalMode, .fullAccess)
 
         await controller.shutdown()
 
-        XCTAssertEqual(controller.approvalMode, .askBeforeChanges)
+        XCTAssertEqual(controller.approvalMode, .fullAccess)
+        XCTAssertEqual(
+            defaults.integer(forKey: AgentSessionController.approvalModeDefaultsKey),
+            AgentApprovalMode.fullAccess.rawValue)
+    }
+
+    func testApprovalModeRestoresForAnotherController() async {
+        let defaults = makeApprovalModeDefaults()
+        let first = makeController(approvalModeDefaults: defaults)
+        XCTAssertEqual(first.approvalMode, .askBeforeChanges)
+
+        await first.setApprovalMode(.approveReadsAndEdits)
+
+        let second = makeController(approvalModeDefaults: defaults)
+        XCTAssertEqual(second.approvalMode, .approveReadsAndEdits)
+    }
+
+    func testApprovalModeDowngradeOverwritesRememberedMode() async {
+        let defaults = makeApprovalModeDefaults()
+        let controller = makeController(approvalModeDefaults: defaults)
+
+        await controller.setApprovalMode(.fullAccess)
+        await controller.setApprovalMode(.approveReads)
+
+        XCTAssertEqual(
+            defaults.integer(forKey: AgentSessionController.approvalModeDefaultsKey),
+            AgentApprovalMode.approveReads.rawValue)
+        let restored = makeController(approvalModeDefaults: defaults)
+        XCTAssertEqual(restored.approvalMode, .approveReads)
     }
 
     func testOutsideAndMissingWritePathsNeverInheritAutomationApproval() async throws {

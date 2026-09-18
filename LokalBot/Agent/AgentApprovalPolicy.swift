@@ -5,8 +5,9 @@ enum ApprovalScope: Equatable {
     case once, session
 }
 
-/// Session-only approval levels exposed by Agent Mode. Raw values are ordered
-/// from least to most permissive so the UI can confirm only escalations.
+/// Approval levels exposed by Agent Mode. Raw values are ordered from least to
+/// most permissive so the UI can confirm only escalations. The selected level
+/// is remembered app-wide; individual tool exceptions remain session-only.
 enum AgentApprovalMode: Int, CaseIterable, Identifiable, Equatable {
     case askBeforeChanges
     case approveReads

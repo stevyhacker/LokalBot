@@ -223,7 +223,7 @@ struct AgentSessionView: View {
                     Label(controller.approvalMode.title,
                           systemImage: controller.approvalMode.systemImage)
                     Text(controller.approvalMode.detail)
-                    Text("Change this beside the composer. It resets when the session closes.")
+                    Text("Change this beside the composer. Your choice is remembered for future sessions.")
                 }
                 .workspaceTextRole(.trust)
                 .padding(.top, 8)
@@ -639,11 +639,11 @@ private extension AgentApprovalMode {
         case .askBeforeChanges:
             "Outside reads, file changes, and shell commands will ask first."
         case .approveReads:
-            "The agent can read any file this Mac account can access, including files outside the working folder, without showing each request. File changes and shell commands will still ask. This resets when the session closes."
+            "The agent can read any file this Mac account can access, including files outside the working folder, without showing each request. File changes and shell commands will still ask. This choice is remembered for future sessions."
         case .approveReadsAndEdits:
-            "The agent can read, create, overwrite, and edit files anywhere this Mac account can access without showing each request. Shell commands will still ask. This resets when the session closes."
+            "The agent can read, create, overwrite, and edit files anywhere this Mac account can access without showing each request. Shell commands will still ask. This choice is remembered for future sessions."
         case .fullAccess:
-            "The agent can read and change files anywhere and run shell commands without asking. Commands may delete data, access secrets, or connect to the network. This resets when the session closes."
+            "The agent can read and change files anywhere and run shell commands without asking. Commands may delete data, access secrets, or connect to the network. This choice is remembered for future sessions."
         }
     }
 
