@@ -276,6 +276,9 @@ final class RecordingController: ObservableObject {
     private var lastCalendarEventID: String?
     private var lastCalendarEventEndedAt: Date?
     private static let calendarRepeatCooldown: TimeInterval = 5 * 60
+    private static let automaticStartSources: Set<String> = [
+        "detector", "audio-monitor",
+    ]
 
     /// Ticks once a second while recording so the menu bar timer (and popover)
     /// stay live even with no window open. Nil when idle.
@@ -378,6 +381,26 @@ final class RecordingController: ObservableObject {
 
     // MARK: - Start / stop
 
+    /// Only automatic detector starts are protected from immediately
+    /// re-recording the same calendar event. Explicit user actions such as
+    /// Record now must always honor the user's request.
+    static func shouldSuppressCalendarRepeat(
+        source: String,
+        eventID: String?,
+        lastEventID: String?,
+        lastEndedAt: Date?,
+        now: Date,
+        cooldown: TimeInterval
+    ) -> Bool {
+        automaticStartSources.contains(source)
+            && MeetingMatcher.shouldSuppressRepeat(
+                eventID: eventID,
+                lastEventID: lastEventID,
+                lastEndedAt: lastEndedAt,
+                now: now,
+                cooldown: cooldown)
+    }
+
     func start(
         context: MeetingDetectionContext? = nil,
         source: String = "ui",
@@ -386,10 +409,14 @@ final class RecordingController: ObservableObject {
         guard case .idle = status, startTask == nil else { return }
         let detectedApp = context?.detectedApp
         let calendarEvent = context?.calendarEvent
-        // Don't immediately re-record the same scheduled event after one ended.
-        if MeetingMatcher.shouldSuppressRepeat(
-            eventID: calendarEvent?.externalID, lastEventID: lastCalendarEventID,
-            lastEndedAt: lastCalendarEventEndedAt, now: Date(),
+        // Automatic detector retries must not immediately re-record the same
+        // scheduled event after one ended; explicit user starts bypass this.
+        if Self.shouldSuppressCalendarRepeat(
+            source: source,
+            eventID: calendarEvent?.externalID,
+            lastEventID: lastCalendarEventID,
+            lastEndedAt: lastCalendarEventEndedAt,
+            now: Date(),
             cooldown: Self.calendarRepeatCooldown) {
             lokalbotLog("startRecording suppressed: calendar event \(calendarEvent?.externalID ?? "?") within cooldown")
             return
