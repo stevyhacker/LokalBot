@@ -13,8 +13,6 @@ enum MeetingMergeService {
         let meeting: Meeting
         let sourceMeetings: [Meeting]
         let transcriptSegmentCount: Int
-        let duration: TimeInterval
-        let sourceSummaryCount: Int
     }
 
     enum MergeError: LocalizedError {
@@ -112,7 +110,7 @@ enum MeetingMergeService {
             }
             merged.hasSystemTrack = audio.system
 
-            let summaries = writeSourceSummary(
+            writeSourceSummary(
                 title: sourceTitle,
                 meeting: merged,
                 sources: sources,
@@ -131,9 +129,7 @@ enum MeetingMergeService {
             return Result(
                 meeting: merged,
                 sourceMeetings: foldedSources,
-                transcriptSegmentCount: mergedTranscript?.segments.count ?? 0,
-                duration: totalDuration,
-                sourceSummaryCount: summaries)
+                transcriptSegmentCount: mergedTranscript?.segments.count ?? 0)
         } catch {
             for source in foldedSources {
                 var restored = source
@@ -365,27 +361,24 @@ enum MeetingMergeService {
         meeting: Meeting,
         sources: [Source],
         to folder: URL
-    ) -> Int {
+    ) {
         let date = meeting.startedAt.formatted(date: .long, time: .shortened)
         var body = "# \(title) — \(date)\n"
         body += "**Duration:** \(meeting.durationLabel) · **Sources:** \(sources.count)\n\n"
         body += "This is a non-destructive merge. Source evidence remains on disk for provenance, "
         body += "while the source rows are folded into this merged meeting. Speaker names stay "
         body += "scoped to their source meeting until you confirm a name.\n\n"
-        var count = 0
         for source in sources {
             body += "## \(source.meeting.displayTitle)\n\n"
             if let summary = try? String(
                 contentsOf: source.folder.appendingPathComponent("summary.md"), encoding: .utf8),
                !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 body += summary.trimmingCharacters(in: .whitespacesAndNewlines) + "\n\n"
-                count += 1
             } else {
                 body += "No saved summary was available for this source meeting.\n\n"
             }
         }
         try? Data(body.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
-        return count
     }
 
     private static func writeSourceNotes(_ sources: [Source], to folder: URL) throws {

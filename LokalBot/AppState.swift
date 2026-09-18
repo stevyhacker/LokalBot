@@ -1252,12 +1252,20 @@ final class AppState: ObservableObject {
 
         let sourceIDs = Set(result.sourceMeetings.map(\.id))
         pipeline.forget(meetingIDs: sourceIDs)
+        let worker = searchIndexWorkQueue
         for sourceID in sourceIDs {
             embeddingIndexTasks.removeValue(forKey: sourceID)?.task.cancel()
             excludedMeetingIDs.insert(sourceID)
             cachedSearchIndex?.noteDeletion(sourceID)
             cachedEmbeddingIndex?.noteDeletion(sourceID)
-            scheduleIndexCleanup(sourceID)
+            // Tombstone both indexes before publishing the folded library
+            // projection. The retry loop remains available for a transient
+            // SQLite failure, but a normal merge cannot leave searchable
+            // source rows behind if the app exits immediately afterward.
+            let cleanup = await worker.remove(sourceID)
+            if !cleanup.search || !cleanup.embedding {
+                scheduleIndexCleanup(sourceID)
+            }
         }
         meetings.removeAll { sourceIDs.contains($0.id) }
         selectedMeetingIDs.subtract(sourceIDs)
@@ -1265,7 +1273,6 @@ final class AppState: ObservableObject {
         meetings.sort { $0.startedAt > $1.startedAt }
         outcomeIndex.refresh(meetings: meetings)
         primaryEvidenceDidChange(for: result.sourceMeetings + [result.meeting])
-        searchIndex.reindex(result.meeting, storage: storage)
         reindexSearchInBackground(result.meeting)
         if settings.semanticSearchEnabled {
             reindexEmbeddingInBackground(result.meeting)
@@ -1309,6 +1316,9 @@ final class AppState: ObservableObject {
                 pipeline.forget(meetingIDs: [mergedMeeting.id])
                 try await speakerIdentity.prepareDeletion(meeting: mergedMeeting)
                 try storage.deleteMeeting(mergedMeeting)
+                meetings.removeAll { $0.id == mergedMeeting.id }
+                selectedMeetingIDs.remove(mergedMeeting.id)
+                outcomeIndex.refresh(meetings: meetings)
 
                 var restoredSources: [Meeting] = []
                 for source in sources {
@@ -1324,7 +1334,6 @@ final class AppState: ObservableObject {
                 cachedEmbeddingIndex?.noteDeletion(mergedMeeting.id)
                 scheduleIndexCleanup(mergedMeeting.id)
 
-                meetings.removeAll { $0.id == mergedMeeting.id }
                 for source in restoredSources {
                     indexCleanupTasks.removeValue(forKey: source.id)?.task.cancel()
                     excludedMeetingIDs.remove(source.id)

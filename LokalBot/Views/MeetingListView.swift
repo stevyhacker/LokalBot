@@ -92,7 +92,7 @@ struct MeetingListView: View {
         .onChange(of: filter) { app.evidenceMeetingID = nil; searchContent() }
         .onDisappear { searchTask?.cancel() }
         .sheet(item: $mergeDraft) { draft in
-            MeetingMergeSheet(meetings: draft.meetings)
+            MeetingMergeSheet(meetings: draft.meetings, storage: app.storage)
                 .environmentObject(app)
         }
         .onChange(of: app.libraryReady) { _, ready in

@@ -13,14 +13,32 @@ struct MeetingMergeSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let meetings: [Meeting]
+    private let sourceDurations: [Meeting.ID: TimeInterval]
+    private let totalDuration: TimeInterval
+    private let hasTranscript: Bool
     @State private var title: String
     @State private var generateSummary: Bool
     @State private var isMerging = false
     @State private var errorMessage: String?
 
-    init(meetings: [Meeting]) {
+    init(meetings: [Meeting], storage: StorageManager) {
         let ordered = meetings.sorted { $0.startedAt < $1.startedAt }
         self.meetings = ordered
+        var durations: [Meeting.ID: TimeInterval] = [:]
+        var total: TimeInterval = 0
+        var transcriptAvailable = false
+        for meeting in ordered {
+            let folder = meeting.folderURL(in: storage)
+            transcriptAvailable = transcriptAvailable || FileManager.default.fileExists(
+                atPath: folder.appendingPathComponent("transcript.json").path)
+            if let duration = Self.sourceDuration(meeting, storage: storage) {
+                durations[meeting.id] = duration
+                total += duration
+            }
+        }
+        self.sourceDurations = durations
+        self.totalDuration = total
+        self.hasTranscript = transcriptAvailable
         _title = State(initialValue: Self.suggestedTitle(for: ordered))
         _generateSummary = State(initialValue: true)
     }
@@ -141,7 +159,7 @@ struct MeetingMergeSheet: View {
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Text(sourceDuration(meeting).map(formattedDuration) ?? "—")
+            Text(sourceDurations[meeting.id].map(formattedDuration) ?? "—")
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
@@ -207,20 +225,8 @@ struct MeetingMergeSheet: View {
         .padding(18)
     }
 
-    private var hasTranscript: Bool {
-        meetings.contains { meeting in
-            FileManager.default.fileExists(
-                atPath: meeting.folderURL(in: app.storage)
-                    .appendingPathComponent("transcript.json").path)
-        }
-    }
-
-    private var totalDuration: TimeInterval {
-        meetings.reduce(0) { total, meeting in total + (sourceDuration(meeting) ?? 0) }
-    }
-
-    private func sourceDuration(_ meeting: Meeting) -> TimeInterval? {
-        let folder = meeting.folderURL(in: app.storage)
+    private static func sourceDuration(_ meeting: Meeting, storage: StorageManager) -> TimeInterval? {
+        let folder = meeting.folderURL(in: storage)
         let raw = meeting.recordedDuration
             ?? MeetingAudioFiles.longestDuration(in: folder)
             ?? meeting.duration

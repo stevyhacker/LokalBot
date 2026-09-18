@@ -28,7 +28,7 @@ final class MeetingMergeServiceTests: XCTestCase {
         XCTAssertEqual(result.meeting.mergedSourceMeetingIDs, sources.map(\.id))
         XCTAssertTrue(result.sourceMeetings.allSatisfy(\.isMergedSource))
         XCTAssertEqual(result.transcriptSegmentCount, 4)
-        XCTAssertEqual(result.duration, 3_600, accuracy: 0.01)
+        XCTAssertEqual(result.meeting.recordedDuration ?? 0, 3_600, accuracy: 0.01)
 
         let folder = result.meeting.folderURL(in: storage)
         let transcript = try JSONDecoder().decode(
@@ -56,6 +56,32 @@ final class MeetingMergeServiceTests: XCTestCase {
         }
     }
 
+    func testLoadMeetingsRepairsOrphanedMergeSources() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MeetingMergeOrphan-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let start = Date(timeIntervalSince1970: 1_752_050_000)
+        try MeetingFixture.write([
+            .init(title: "First part", startedAt: start,
+                  transcriptLines: ["First source."]),
+            .init(title: "Second part", startedAt: start.addingTimeInterval(300),
+                  transcriptLines: ["Second source."])
+        ], under: root)
+        let storage = StorageManager(rootURL: root)
+        let sources = storage.loadMeetings().sorted { $0.startedAt < $1.startedAt }
+        let result = try await MeetingMergeService.merge(
+            meetings: sources,
+            title: "Temporary merged meeting",
+            storage: storage)
+
+        try storage.deleteMeeting(result.meeting)
+
+        let repaired = storage.loadMeetings()
+        XCTAssertEqual(Set(repaired.map(\.id)), Set(sources.map(\.id)))
+        XCTAssertTrue(repaired.allSatisfy { $0.mergedIntoMeetingID == nil })
+    }
+
     func testMergeHonorsSourceContentRanges() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("MeetingMergeRange-\(UUID().uuidString)", isDirectory: true)
@@ -80,7 +106,7 @@ final class MeetingMergeServiceTests: XCTestCase {
             meetings: sources,
             title: "Bounded merge",
             storage: storage)
-        XCTAssertEqual(result.duration, 1_820, accuracy: 0.01)
+        XCTAssertEqual(result.meeting.recordedDuration ?? 0, 1_820, accuracy: 0.01)
 
         let transcript = try JSONDecoder().decode(
             Transcript.self,
