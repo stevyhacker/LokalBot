@@ -570,6 +570,37 @@ final class ChatViewModelStateTests: XCTestCase {
     private var root: URL!
     private let encryptionKey = SymmetricKey(data: Data(repeating: 0xC7, count: 32))
 
+    func testDeferredHistoryRestoresEncryptedConversation() async {
+        let store = makeStore()
+        let saved = Conversation(title: "Saved", messages: [ChatMessage(
+            role: .user, text: "Private question", createdAt: Date(timeIntervalSince1970: 1_700_000_000))])
+        store.save(saved)
+        let model = ChatViewModel(makeEngine: { SequencedChatEngine([]) }, tools: BlockingChatRunner(),
+                                  store: store, deferHistoryLoading: true)
+        XCTAssertTrue(model.isLoadingHistory)
+        XCTAssertTrue(model.messages.isEmpty)
+        await model.waitForHistory()
+        XCTAssertFalse(model.isLoadingHistory)
+        XCTAssertEqual(model.currentID, saved.id)
+        XCTAssertEqual(model.messages, saved.messages)
+    }
+
+    func testDeferredHistoryPreservesInteractionAndDeletion() async {
+        let store = makeStore()
+        let saved = Conversation(title: "Saved", messages: [ChatMessage(role: .user, text: "Old question")])
+        store.save(saved)
+        let model = ChatViewModel(makeEngine: { SequencedChatEngine([]) }, tools: BlockingChatRunner(),
+                                  store: store, deferHistoryLoading: true)
+        let initialID = model.currentID
+        model.draft = "New question being typed"
+        model.delete(saved.id)
+        await model.waitForHistory()
+        XCTAssertEqual(model.currentID, initialID)
+        XCTAssertEqual(model.draft, "New question being typed")
+        XCTAssertFalse(model.conversations.contains { $0.id == saved.id })
+        XCTAssertTrue(store.loadAll().isEmpty)
+    }
+
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ChatViewModelStateTests-\(UUID().uuidString)",

@@ -16,6 +16,9 @@ protocol TextEngine {
     func generate(system: String, prompt: String, context: [String]) async throws -> String
     func generate(system: String, prompt: String, context: [String],
                   options: TextGenerationOptions) async throws -> String
+    func generateStreaming(system: String, prompt: String, context: [String],
+                           options: TextGenerationOptions,
+                           onPartial: @escaping @MainActor (String) -> Void) async throws -> String
 
     /// JSON-schema-constrained generation. Backends with decode-time
     /// constraints guarantee the reply parses against `schema` (llama-server
@@ -336,6 +339,13 @@ func cotypingParseSSEDelta(_ line: String) -> String? {
 }
 
 extension TextEngine {
+    func generateStreaming(system: String, prompt: String, context: [String],
+                           options: TextGenerationOptions,
+                           onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
+        let result = try await generate(system: system, prompt: prompt, context: context, options: options)
+        await onPartial(result)
+        return result
+    }
     var checkpointIdentity: String { displayName }
     var accountsForGenerationRequests: Bool { false }
     var minimumStructuredOutputTokens: Int { 512 }
@@ -567,6 +577,73 @@ struct OpenAICompatibleEngine: TextEngine {
                 system: system, prompt: prompt, context: context,
                 schema: schema, options: options, openRouterReasoning: .effort)
         }
+    }
+
+    /// Stream chat content (never reasoning/tool deltas). Structured generation
+    /// keeps its existing accounting/repair path; interactive Ask has no budget.
+    func generateStreaming(system: String, prompt: String, context: [String],
+                           options: TextGenerationOptions,
+                           onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
+        guard MeetingGenerationBudget.current == nil else {
+            let result = try await generate(system: system, prompt: prompt, context: context, options: options)
+            await onPartial(result)
+            return result
+        }
+        var request = try makeChatRequest(system: system, prompt: prompt, context: context,
+                                          schema: nil, options: options)
+        var body = try JSONSerialization.jsonObject(with: request.httpBody ?? Data()) as? [String: Any] ?? [:]
+        body["stream"] = true
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (bytes, response) = try await llmSession.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            // A rejected stream did not generate output. Preserve compatibility
+            // with servers that only support whole chat responses.
+            if let http = response as? HTTPURLResponse, [400, 404, 405, 422, 501].contains(http.statusCode) {
+                let result = try await generate(system: system, prompt: prompt, context: context, options: options)
+                await onPartial(result)
+                return result
+            }
+            throw TextEngineError.fromHTTPResponse(response as? HTTPURLResponse, data: Data())
+        }
+        var content = "", nonStreaming = ""
+        var terminal = false
+        var lastEmission = -Double.infinity
+        for try await line in bytes.lines {
+            try Task.checkCancellation()
+            guard line.hasPrefix("data:") else {
+                if nonStreaming.utf8.count < 1_048_576 { nonStreaming += line }
+                continue
+            }
+            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
+            if payload == "[DONE]" { terminal = true; break }
+            guard let data = payload.data(using: .utf8),
+                  let event = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { continue }
+            if event["error"] != nil { throw TextEngineError.badResponse("chat stream reported an error") }
+            guard let choice = (event["choices"] as? [[String: Any]])?.first else { continue }
+            if let delta = choice["delta"] as? [String: Any], let text = delta["content"] as? String {
+                content += text
+                let now = ProcessInfo.processInfo.systemUptime
+                if now - lastEmission >= 0.033 {
+                    await onPartial(content)
+                    lastEmission = now
+                }
+            }
+            if let reason = choice["finish_reason"] as? String {
+                if reason == "length" { throw TextEngineError.outputTruncated }
+                terminal = true
+                break
+            }
+        }
+        if !terminal, content.isEmpty, let data = nonStreaming.data(using: .utf8), !data.isEmpty {
+            // Some servers ignore stream=true. Consume that single response;
+            // never issue a duplicate paid generation for a successful reply.
+            let parsed = try Self.parseChatCompletion(data, allowTruncation: false)
+            content = parsed.content
+            terminal = true
+        }
+        guard terminal else { throw TextEngineError.badResponse("chat stream ended before completion") }
+        await onPartial(content)
+        return strippingReasoning(content)
     }
 
     private func completeChat(_ request: URLRequest, options: TextGenerationOptions?) async throws -> String {

@@ -647,7 +647,7 @@ final class AppState: ObservableObject {
             return ChatPrompt.workMemoryContext(
                 memory: (try? self.dreamStore.loadMemory()) ?? nil,
                 dreamingEnabled: self.settings.dreamingEnabled)
-        })
+        }, deferHistoryLoading: true)
 
     // Agent Mode (pi). Installer and tab manager are cheap; each tab lazily
     // spawns its own controller/process when AgentView mounts it.
@@ -968,7 +968,7 @@ final class AppState: ObservableObject {
             self.meetings = merged
             self.libraryReady = true
             self.speakerIdentity.maintainRetention(meetings: { [weak self] in self?.meetings ?? [] })
-            self.outcomeIndex.refresh(meetings: merged)
+            Task { await self.outcomeIndex.refreshInBackground(meetings: merged) }
             self.pipeline.resumePending(meetings: merged)
             // Dreaming was deliberately gated while launch recovery rebuilt
             // the library and durable processing queue. Re-check immediately;

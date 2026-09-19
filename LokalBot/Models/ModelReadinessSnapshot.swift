@@ -4,6 +4,26 @@ import Foundation
 /// limited to Transcribe, Think, and Autocomplete; optional Voice/Embeddings
 /// never make the main stack fail.
 struct ModelReadinessSnapshot: Equatable, Sendable {
+    struct DiskState: Sendable {
+        var downloadedTranscriptionIDs: Set<String> = []
+        var thinkReady = false
+        var autocompleteReady = false
+        var storedBytes: Int64 = 0
+        var availableBytes: Int64?
+
+        static func load(settings: AppSettings, root: URL) -> Self {
+            let storage = StorageManager(rootURL: root)
+            let models = root.appendingPathComponent("models", isDirectory: true)
+            return Self(
+                downloadedTranscriptionIDs: TranscriptionModelStore.downloadedChoices(
+                    graniteConfiguration: settings.graniteSpeechModel),
+                thinkReady: ModelCatalog.entry(id: settings.builtInModelID, custom: settings.customBuiltInModels)
+                    .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil,
+                autocompleteReady: ModelReadinessSnapshot.autocompleteReady(settings, storage: storage),
+                storedBytes: ModelReadinessSnapshot.directoryBytes(models),
+                availableBytes: DiskSpacePrecheck.availableBytes(at: models))
+        }
+    }
     enum Provenance: Equatable, Sendable {
         case local
         case externalThink(String)
@@ -117,11 +137,15 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         storage: StorageManager,
         activeDownloads: Int,
         failedDownloads: Int,
-        storageInfo: (storedBytes: Int64, availableBytes: Int64?)? = nil
+        storageInfo: (storedBytes: Int64, availableBytes: Int64?)? = nil,
+        diskState: DiskState? = nil
     ) -> Self {
-        let transcriptionReady = transcriptionReady(settings)
-        let thinkReady = thinkReady(settings, storage: storage)
-        let autocompleteReady = autocompleteReady(settings, storage: storage)
+        let transcriptionReady = diskState.map { $0.downloadedTranscriptionIDs.contains(settings.transcriptionModel.id) }
+            ?? transcriptionReady(settings)
+        let thinkReady = settings.summarizerBackend == .builtIn
+            ? (diskState?.thinkReady ?? thinkReady(settings, storage: storage))
+            : thinkReady(settings, storage: storage)
+        let autocompleteReady = diskState?.autocompleteReady ?? autocompleteReady(settings, storage: storage)
         var provenance: Provenance
         switch InferencePresentation(settings: settings) {
         case .onDevice: provenance = .local
@@ -137,8 +161,8 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
             thinkReady: thinkReady,
             autocompleteReady: autocompleteReady,
             provenance: provenance,
-            storedBytes: storageInfo?.storedBytes ?? directoryBytes(modelsFolder),
-            availableBytes: storageInfo?.availableBytes ?? DiskSpacePrecheck.availableBytes(at: modelsFolder),
+            storedBytes: diskState?.storedBytes ?? storageInfo?.storedBytes ?? directoryBytes(modelsFolder),
+            availableBytes: diskState.map(\.availableBytes) ?? storageInfo?.availableBytes ?? DiskSpacePrecheck.availableBytes(at: modelsFolder),
             activeDownloads: activeDownloads,
             failedDownloads: failedDownloads)
     }

@@ -108,6 +108,8 @@ struct OutcomeActionReference: Identifiable, Equatable, Sendable {
 /// published projection is replaced.
 @MainActor
 final class OutcomeIndex: ObservableObject {
+    private var loadGeneration = 0
+    private var projectionRevisions: [UUID: Int] = [:]
     @Published private(set) var projections: [Meeting.ID: MeetingOutcomeProjection] = [:]
     @Published private(set) var userActionThreads: [ActionThread] = []
 
@@ -153,6 +155,7 @@ final class OutcomeIndex: ObservableObject {
     }
 
     func refresh(meetings: [Meeting]) {
+        loadGeneration &+= 1
         var next: [Meeting.ID: MeetingOutcomeProjection] = [:]
         for meeting in meetings {
             if let projection = loadProjection(for: meeting) {
@@ -164,11 +167,42 @@ final class OutcomeIndex: ObservableObject {
     }
 
     func refresh(meeting: Meeting) {
-        if let projection = loadProjection(for: meeting) {
-            projections[meeting.id] = projection
-        } else {
-            projections.removeValue(forKey: meeting.id)
+        replaceProjection(loadProjection(for: meeting), for: meeting.id)
+    }
+
+    func refreshInBackground(meetings: [Meeting]) async {
+        loadGeneration &+= 1
+        let generation = loadGeneration, revisions = projectionRevisions, root = storage.rootURL
+        let loaded = await Task.detached(priority: .utility) {
+            meetings.compactMap { MeetingOutcomeProjection.load(for: $0, root: root) }
+        }.value
+        guard !Task.isCancelled, generation == loadGeneration else { return }
+        var next = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
+        // Preserve edits/refreshes made while file validation was running.
+        for id in Set(projectionRevisions.keys).union(revisions.keys)
+            where projectionRevisions[id] != revisions[id] {
+            next[id] = projections[id]
         }
+        guard next != projections else { return }
+        projections = next
+        rebuildActionThreads()
+    }
+
+    func refreshInBackground(meeting: Meeting) async {
+        projectionRevisions[meeting.id, default: 0] &+= 1
+        let generation = loadGeneration, revision = projectionRevisions[meeting.id], root = storage.rootURL
+        let loaded = await Task.detached(priority: .userInitiated) {
+            MeetingOutcomeProjection.load(for: meeting, root: root)
+        }.value
+        guard !Task.isCancelled, generation == loadGeneration,
+              revision == projectionRevisions[meeting.id] else { return }
+        replaceProjection(loaded, for: meeting.id)
+    }
+
+    private func replaceProjection(_ projection: MeetingOutcomeProjection?, for id: UUID) {
+        projectionRevisions[id, default: 0] &+= 1
+        guard projections[id] != projection else { return }
+        projections[id] = projection
         rebuildActionThreads()
     }
 
@@ -301,6 +335,7 @@ final class OutcomeIndex: ObservableObject {
                 next, to: projection.meeting.folderURL(in: storage))
             projection.followUp = next
             projections[meetingID] = projection
+            projectionRevisions[meetingID, default: 0] &+= 1
             lastError = nil
             return true
         } catch {
@@ -331,6 +366,7 @@ final class OutcomeIndex: ObservableObject {
                 try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
             }
             projections[meetingID] = projection
+            projectionRevisions[meetingID, default: 0] &+= 1
             if rebuildThreads { rebuildActionThreads() }
             lastError = nil
             if notify { onEvidenceChanged([projection.meeting]) }

@@ -9,11 +9,11 @@ final class SearchIndex {
 
     private static let documentRowsMigration = "search-document-rows-v1"
 
-    enum Kind: String {
+    enum Kind: String, Sendable {
         case title, segment, summary
     }
 
-    struct Hit: Identifiable {
+    struct Hit: Identifiable, Sendable {
         let id = UUID()
         let meetingID: UUID
         let kind: Kind
@@ -27,13 +27,14 @@ final class SearchIndex {
     private let database: SQLiteDatabase?
     private var locallyDeletedMeetingIDs: Set<UUID> = []
 
-    init(databaseURL: URL) {
-        guard let database = SQLiteDatabase(url: databaseURL) else {
+    init(databaseURL: URL, readOnly: Bool = false) {
+        guard let database = SQLiteDatabase(url: databaseURL, readOnly: readOnly) else {
             assertionFailure("SearchIndex: cannot open \(databaseURL.path)")
             self.database = nil
             return
         }
         self.database = database
+        guard !readOnly else { return }
         database.exec("""
             CREATE TABLE IF NOT EXISTS indexed_meetings (
                 meeting_id TEXT PRIMARY KEY,

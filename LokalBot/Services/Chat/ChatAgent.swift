@@ -82,6 +82,7 @@ struct ChatToolResult: Sendable {
 enum ChatAgentEvent: Sendable {
     case toolStarted(ChatToolCall)
     case toolFinished(name: String, summary: String)
+    case answerPartial(String)
 }
 
 /// Executes tools and supplies their catalogue + ambient library context.
@@ -196,7 +197,7 @@ enum ChatPrompt {
         if let call = pythonicCall(in: cleaned, tools: tools) {
             return .call(call)
         }
-        return .answer(stripToolTokens(cleaned))
+        return .answer(removingAnswerMarker(stripToolTokens(cleaned)))
     }
 
     /// Forced final pass: take whatever the model wrote as the answer. If it is
@@ -205,7 +206,35 @@ enum ChatPrompt {
         let cleaned = stripToolTokens(strippingReasoning(output))
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty || looksLikeBareToolCall(cleaned) { return fallbackAnswer }
-        return cleaned
+        return removingAnswerMarker(cleaned)
+    }
+
+    static let answerMarker = "FINAL_ANSWER:"
+
+    static func removingAnswerMarker(_ text: String) -> String {
+        guard text.hasPrefix(answerMarker) else { return text }
+        return String(text.dropFirst(answerMarker.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Only an explicit final-answer prefix commits the stream to prose. An
+    /// incomplete reasoning block, tool JSON, or wrapper stays completely hidden.
+    static func streamingAnswer(_ text: String) -> String? {
+        var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        while cleaned.hasPrefix("<think>") {
+            guard let end = cleaned.range(of: "</think>") else { return nil }
+            cleaned = String(cleaned[end.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        guard cleaned.hasPrefix(answerMarker) else { return nil }
+        var answer = removingAnswerMarker(cleaned)
+        // Hold an incomplete tag/tool payload rather than painting it and then
+        // retracting it. The final parser still validates the complete response.
+        if let boundary = answer.firstIndex(where: { $0 == "<" || $0 == "{" || $0 == "`" }) {
+            answer = String(answer[..<boundary])
+        }
+        guard answer.contains(where: \.isWhitespace),
+              answer.range(of: #"^\[?\s*[A-Za-z_][A-Za-z0-9_]*\s*\("#, options: .regularExpression) == nil,
+              !looksLikeBareToolCall(answer), !looksLikeToolAttempt(answer) else { return nil }
+        return answer
     }
 
     static let fallbackAnswer =
@@ -484,7 +513,7 @@ struct ChatAgent {
     /// Produce the assistant's answer to `latest`, given prior `history`.
     /// `onEvent` fires on the main actor as tools start and finish.
     func respond(history: [Turn], latest: String,
-                 onEvent: (ChatAgentEvent) -> Void) async throws -> String {
+                 onEvent: @escaping @MainActor (ChatAgentEvent) -> Void) async throws -> String {
         let toolNames = Set(runner.specs.map(\.name))
         let system = ChatPrompt.systemPrompt(tools: runner.specs,
                                              libraryOverview: runner.libraryOverview(),
@@ -498,11 +527,13 @@ struct ChatAgent {
             let directive = step == 0
                 ? "Decide how to respond to the user's last message. If you need meeting data, reply with a single tool-call JSON object; otherwise reply with your final answer."
                 : "Continue. Call another tool (one JSON object) if you still need data, or give your final answer in plain language."
-            let output = try await engine.generate(
+            let output = try await engine.generateStreaming(
                 system: system,
-                prompt: directive,
+                prompt: directive + " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.",
                 context: transcript,
-                options: TextGenerationOptions(maxTokens: 2_048))
+                options: TextGenerationOptions(maxTokens: 2_048)) { partial in
+                    if let answer = ChatPrompt.streamingAnswer(partial) { onEvent(.answerPartial(answer)) }
+                }
             try Task.checkCancellation()
 
             var action = ChatPrompt.parse(output, tools: toolNames)
@@ -529,6 +560,7 @@ struct ChatAgent {
             case .answer(let text):
                 return text
             case .call(let call):
+                onEvent(.answerPartial(""))
                 onEvent(.toolStarted(call))
                 let result = await runner.run(call)
                 try Task.checkCancellation()
@@ -539,11 +571,13 @@ struct ChatAgent {
         }
 
         // Out of tool budget — force a final answer from what we gathered.
-        let forced = try await engine.generate(
+        let forced = try await engine.generateStreaming(
             system: system,
-            prompt: "Give your final answer now in plain language using the observations above. Do not call any more tools.",
+            prompt: "Give your final answer now in plain language using the observations above. Begin with FINAL_ANSWER: on its own line. Do not call any more tools.",
             context: transcript,
-            options: TextGenerationOptions(maxTokens: 2_048))
+            options: TextGenerationOptions(maxTokens: 2_048)) { partial in
+                if let answer = ChatPrompt.streamingAnswer(partial) { onEvent(.answerPartial(answer)) }
+            }
         return ChatPrompt.finalText(forced)
     }
 }

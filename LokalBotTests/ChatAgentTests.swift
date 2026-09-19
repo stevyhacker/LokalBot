@@ -7,6 +7,31 @@ import XCTest
 /// against a planted on-disk library.
 @MainActor
 final class ChatAgentTests: XCTestCase {
+    func testFinalAnswerAppearsBeforeGenerationCompletes() async throws {
+        let engine = StreamingAnswerEngine()
+        let agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "", results: [:]))
+        var partials: [String] = []
+        let answer = try await agent.respond(history: [], latest: "What was decided?") { event in
+            if case .answerPartial(let text) = event {
+                XCTAssertFalse(engine.completed)
+                partials.append(text)
+            }
+        }
+        XCTAssertEqual(partials, ["The decision was Redis"])
+        XCTAssertEqual(answer, "The decision was Redis.")
+    }
+    func testStreamingRequiresFinalMarkerAndWithholdsReasoningAndTools() {
+        XCTAssertNil(ChatPrompt.streamingAnswer("<think>FINAL_ANSWER: hidden reasoning"))
+        XCTAssertNil(ChatPrompt.streamingAnswer("{\"tool\":\"search_meetings\""))
+        XCTAssertNil(ChatPrompt.streamingAnswer("FINAL_ANSWER:\n{\"tool\":"))
+        XCTAssertNil(ChatPrompt.streamingAnswer("FINAL_ANSWER:\nsearch_meetings(query=\"private data"))
+        XCTAssertNil(ChatPrompt.streamingAnswer("FINAL_ANS"))
+        XCTAssertEqual(ChatPrompt.streamingAnswer("<think>secret</think>\nFINAL_ANSWER:\nThe decision was Redis"),
+                       "The decision was Redis")
+        XCTAssertEqual(ChatPrompt.streamingAnswer("FINAL_ANSWER:\nThe decision was Redis <thi"),
+                       "The decision was Redis ")
+        XCTAssertEqual(ChatPrompt.finalText("FINAL_ANSWER:\nThe decision was Redis"), "The decision was Redis")
+    }
 
     // MARK: - Protocol parsing
 
@@ -251,6 +276,7 @@ final class ChatAgentTests: XCTestCase {
         var events: [String] = []
         let answer = try await agent.respond(history: [], latest: "what did we decide?") { event in
             switch event {
+            case .answerPartial: break
             case .toolStarted(let call): events.append("start:\(call.name)")
             case .toolFinished(let name, _): events.append("finish:\(name)")
             }
@@ -707,6 +733,22 @@ final class ChatAgentTests: XCTestCase {
 }
 
 // MARK: - Test doubles
+
+@MainActor
+private final class StreamingAnswerEngine: TextEngine {
+    nonisolated var displayName: String { "Streaming test" }
+    var completed = false
+    func generate(system: String, prompt: String, context: [String]) async throws -> String { "" }
+    func generateStreaming(system: String, prompt: String, context: [String],
+                           options: TextGenerationOptions,
+                           onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
+        onPartial("<think>private reasoning")
+        onPartial("<think>private reasoning</think>FINAL_ANS")
+        onPartial("<think>private reasoning</think>FINAL_ANSWER:\nThe decision was Redis")
+        completed = true
+        return "FINAL_ANSWER:\nThe decision was Redis."
+    }
+}
 
 /// A `TextEngine` that returns canned outputs in order and records every call,
 /// so the agent loop can be exercised deterministically with no model.

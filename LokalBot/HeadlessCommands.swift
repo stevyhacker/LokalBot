@@ -309,6 +309,7 @@ struct HeadlessCommandRunner {
                     dreamingEnabled: app.settings.dreamingEnabled)
                 let answer = try await agent.respond(history: [], latest: question) { event in
                     switch event {
+                    case .answerPartial: break
                     case .toolStarted(let call):
                         print("LokalBot --chat: tool \(call.name)(\(call.arguments))")
                     case .toolFinished(let name, let summary):

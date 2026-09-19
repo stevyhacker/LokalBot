@@ -44,6 +44,8 @@ private struct MeetingWorkspaceDetail: View {
     let meeting: Meeting
 
     @StateObject private var player = MeetingPlayer()
+    @State private var loadRevision = 0
+    @State private var documentLoading = true
     @State private var summary: String?
     @State private var partialNotes: MeetingNotesPartial?
     @State private var partialProjection: MeetingOutcomeProjection?
@@ -165,8 +167,9 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         .navigationTitle(meeting.displayTitle)
-        .task(id: meeting.id) {
-            load()
+        .task(id: loadRevision) {
+            await load()
+            guard !Task.isCancelled else { return }
             await refreshSpeakerIdentity(recover: true)
 #if LOKALBOT_UI_TEST_HOST
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
@@ -177,8 +180,7 @@ private struct MeetingWorkspaceDetail: View {
         }
         .onChange(of: app.pipeline.stages[meeting.id]) { _, stage in
             if stage == nil || stage == .summarizing || stage == .waitingForModels || stage?.isFailure == true {
-                load()
-                Task { await refreshSpeakerIdentity() }
+                loadRevision &+= 1
             }
         }
         .onChange(of: app.navigationHandoff.revision) { consumeMeetingSeek() }
@@ -785,33 +787,37 @@ private struct MeetingWorkspaceDetail: View {
         return sources
     }
 
-    private func load() {
-        notes = MeetingNotes.load(from: folder)
-        transcript = try? app.pipeline.loadTranscript(from: folder)
-        partialNotes = transcript.flatMap { MeetingNotesPartial.load(in: folder, transcript: $0, template: app.settings.noteTemplate) }
-        partialProjection = partialNotes?.projection(for: meeting, in: folder)
-        if let partialNotes, let partialProjection {
-            summary = MeetingSummaryOutcomeSynchronizer.synchronize(partialNotes.summary,
-                outcomes: partialProjection.correctedOutcomes, template: partialNotes.template)
-        } else {
-            summary = try? String(contentsOf: folder.appendingPathComponent("summary.md"), encoding: .utf8)
+    private func load() async {
+        documentLoading = true
+        let meeting = meeting, root = app.storage.rootURL, template = app.settings.noteTemplate
+        let databaseURL = app.activityStore.databaseURL
+        let worker = Task.detached(priority: .userInitiated) {
+            MeetingDocumentSnapshot.load(meeting: meeting, root: root, template: template, databaseURL: databaseURL)
         }
-        speakerNameHints = app.speakerNameHints(for: meeting)
+        let document = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+        guard !Task.isCancelled else { return }
+        notes = document.notes
+        transcript = document.transcript
+        partialNotes = document.partialNotes
+        partialProjection = document.partialProjection
+        summary = document.summary
+        speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
-        uiTestDiagnosticLog(
-            "meeting.load id=\(meeting.id) "
-                + "calendarCandidates=\(calendarSpeakerCandidates.count)")
-        let position = player.isLoaded ? player.currentTime : app.meetingPlaybackPositions[meeting.id] ?? 0
-        let speed = player.isLoaded ? player.speed : app.meetingPlaybackSpeeds[meeting.id] ?? 1
-        player.load(folder: folder, hasSystemTrack: meeting.hasSystemTrack)
-        player.speed = speed
-        player.seek(to: position)
-        app.outcomeIndex.refresh(meeting: meeting)
-        consumeMeetingSeek()
         searchContentRevision += 1
+        // A pipeline artifact refresh must not reset or re-prepare active audio.
+        if !player.isLoaded {
+            await player.loadInBackground(folder: folder, hasSystemTrack: meeting.hasSystemTrack)
+            guard !Task.isCancelled else { return }
+            player.speed = app.meetingPlaybackSpeeds[meeting.id] ?? 1
+            player.seek(to: app.meetingPlaybackPositions[meeting.id] ?? 0)
+        }
+        documentLoading = false
+        consumeMeetingSeek()
+        await app.outcomeIndex.refreshInBackground(meeting: meeting)
     }
 
     private func consumeMeetingSeek() {
+        guard !documentLoading else { return }
         guard let request = app.navigationHandoff.consumeMeetingEvidence(for: meeting.id) else { return }
         revealEvidence(at: request.seconds)
         if request.intent == .play { player.play(at: request.seconds) }

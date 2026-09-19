@@ -8,7 +8,7 @@ import SwiftUI
 /// compact type hierarchy and citation treatment without splitting the answer
 /// into selection islands.
 struct SelectableDigestText: View {
-    enum Style: Equatable {
+    enum Style: Hashable {
         case standard
         case editorial
         case agent
@@ -62,6 +62,11 @@ struct SelectableDigestText: View {
         activeMatchIndex: Int? = nil,
         style: Style = .standard
     ) -> AttributedString {
+        let key = RenderKey(markdown: markdown, font: font, style: style)
+        if let cached = renderCache.object(forKey: key) {
+            return MeetingSearchHighlighting.apply(
+                to: cached.value, query: searchQuery, activeMatchIndex: activeMatchIndex)
+        }
         let lines = markdown.components(separatedBy: "\n")
         var renderedLines: [AttributedString] = []
         renderedLines.reserveCapacity(lines.count)
@@ -112,11 +117,44 @@ struct SelectableDigestText: View {
                 document.append(AttributedString("\n"))
             }
         }
+        if markdown.utf8.count <= 512_000 {
+            renderCache.setObject(RenderedText(document), forKey: key, cost: markdown.utf8.count * 8)
+        }
         return MeetingSearchHighlighting.apply(
             to: document,
             query: searchQuery,
             activeMatchIndex: activeMatchIndex)
     }
+
+    private final class RenderKey: NSObject {
+        let markdown: String
+        let font: Font
+        let style: Style
+        init(markdown: String, font: Font, style: Style) {
+            self.markdown = markdown; self.font = font; self.style = style
+        }
+        override var hash: Int {
+            var hasher = Hasher()
+            hasher.combine(markdown); hasher.combine(font); hasher.combine(style)
+            return hasher.finalize()
+        }
+        override func isEqual(_ object: Any?) -> Bool {
+            guard let other = object as? RenderKey else { return false }
+            return markdown == other.markdown && font == other.font && style == other.style
+        }
+    }
+
+    private final class RenderedText {
+        let value: AttributedString
+        init(_ value: AttributedString) { self.value = value }
+    }
+
+    private static let renderCache: NSCache<RenderKey, RenderedText> = {
+        let cache = NSCache<RenderKey, RenderedText>()
+        cache.countLimit = 64
+        cache.totalCostLimit = 8 * 1_024 * 1_024
+        return cache
+    }()
 
     static func searchableText(from markdown: String) -> String {
         String(attributedText(from: markdown).characters)

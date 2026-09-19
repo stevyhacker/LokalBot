@@ -51,9 +51,10 @@ final class SQLiteDatabase {
     private(set) var lastError: DatabaseError?
     private var errorGeneration: UInt64 = 0
 
-    init?(url: URL) {
+    init?(url: URL, readOnly: Bool = false) {
         var opened: OpaquePointer?
-        let flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX
+        let flags = (readOnly ? SQLITE_OPEN_READONLY : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE)
+            | SQLITE_OPEN_FULLMUTEX
         let result = sqlite3_open_v2(url.path, &opened, flags, nil)
         guard result == SQLITE_OK, let opened else {
             let message = opened.map { String(cString: sqlite3_errmsg($0)) }
@@ -81,11 +82,11 @@ final class SQLiteDatabase {
         // locally reconstructible indexes and queues. Configure the raw handle
         // before assigning `db`, so a failed failable initializer owns exactly
         // one close path.
-        for (operation, sql) in [
+        for (operation, sql) in (readOnly ? [] : [
             ("journal_mode", "PRAGMA journal_mode=WAL;"),
             ("synchronous", "PRAGMA synchronous=NORMAL;"),
             ("foreign_keys", "PRAGMA foreign_keys=ON;"),
-        ] {
+        ]) {
             var errorMessage: UnsafeMutablePointer<CChar>?
             let configureResult = sqlite3_exec(opened, sql, nil, nil, &errorMessage)
             guard configureResult == SQLITE_OK else {

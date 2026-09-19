@@ -33,16 +33,17 @@ struct ScreenSearchFilter: Equatable, Sendable {
     }
 }
 
-/// Storage for activity blocks (own connection to lokalbotv3.sqlite).
-@MainActor
+/// One connection per executor. The app owns its writer on the main actor;
+/// background reads construct a separate read-only instance and never share it.
 final class ActivityStore {
     private let database: SQLiteDatabase?
-    private let databaseURL: URL
+    let databaseURL: URL
 
-    init(databaseURL: URL) {
+    init(databaseURL: URL, readOnly: Bool = false) {
         self.databaseURL = databaseURL
-        database = SQLiteDatabase(url: databaseURL)
+        database = SQLiteDatabase(url: databaseURL, readOnly: readOnly)
         guard let database else { return }
+        guard !readOnly else { return }
         do {
             try database.execute("""
                 CREATE TABLE IF NOT EXISTS activity_blocks (
@@ -73,6 +74,7 @@ final class ActivityStore {
                 """)
             try migrateScreenshotColumns()
             try migrateOCRTable()
+            try OCRMetadataIndex.migrate(database)
         } catch {
             lokalbotLog("activity store initialization failed: \(error.localizedDescription)")
         }
@@ -192,6 +194,10 @@ final class ActivityStore {
                 try database.runChecked(
                     "UPDATE ocr_fts SET snapshot_id = ?1 WHERE rowid = ?2",
                     bind: [snapshotID, row.rowID])
+                if database.hasRow("SELECT 1 FROM sqlite_master WHERE name = 'ocr_metadata'") {
+                    try database.runChecked("UPDATE ocr_metadata SET snapshot_id = ?1 WHERE rowid = ?2",
+                                            bind: [snapshotID, row.rowID])
+                }
             }
         }
     }
@@ -217,6 +223,14 @@ final class ActivityStore {
             throw SQLiteDatabase.DatabaseError.unavailable(path: databaseURL.path)
         }
         return database
+    }
+
+    /// A day loader's metadata, text, and watermark share one WAL read snapshot.
+    /// This is a deferred read transaction, so capture writers remain unblocked.
+    func withReadSnapshot<Value>(_ read: () -> Value) -> Value {
+        let began = database?.exec("BEGIN DEFERRED TRANSACTION") == true
+        defer { if began { database?.exec("ROLLBACK") } }
+        return read()
     }
 
     nonisolated static func dayInterval(containing day: Date, calendar: Calendar = .current) -> DateInterval {
@@ -323,6 +337,10 @@ final class ActivityStore {
                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
                     """, bind: [ocr, windowTitle, ts.timeIntervalSince1970, app,
                                  textSource, snapshotID])
+                try database.runChecked("""
+                    INSERT OR REPLACE INTO ocr_metadata (rowid, snapshot_id, ts)
+                    VALUES (?1, ?2, ?3)
+                    """, bind: [database.lastInsertRowID(), snapshotID, ts.timeIntervalSince1970])
             }
             if let perceptualHash {
                 let previous: (id: Int64, hash: UInt64, groupID: Int64)? = try database
@@ -465,6 +483,25 @@ final class ActivityStore {
             conditions: &conditions,
             bindings: &bindings)
         do {
+            if !groupResults {
+                return try requiredDatabase().queryChecked("""
+                    SELECT CAST(ocr_fts.snapshot_id AS INTEGER), CAST(ocr_fts.ts AS REAL),
+                           ocr_fts.app, ocr_fts.window_title, snippet(ocr_fts, 0, '«', '»', '…', 14),
+                           shot.similarity_group
+                    FROM ocr_fts JOIN screenshots AS shot ON shot.id = CAST(ocr_fts.snapshot_id AS INTEGER)
+                    WHERE \(conditions.joined(separator: " AND "))
+                    ORDER BY ocr_fts.rank, CAST(ocr_fts.ts AS REAL) DESC, shot.id
+                    LIMIT \(limit)
+                    """, bind: bindings) { statement in
+                    OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
+                           ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                           app: String(cString: sqlite3_column_text(statement, 2)),
+                           windowTitle: String(cString: sqlite3_column_text(statement, 3)),
+                           snippet: String(cString: sqlite3_column_text(statement, 4)),
+                           similarityGroupID: sqlite3_column_int64(statement, 5) > 0
+                               ? sqlite3_column_int64(statement, 5) : nil)
+                }
+            }
             return try requiredDatabase().queryChecked("""
                 WITH candidates AS (
                     SELECT CAST(ocr_fts.snapshot_id AS INTEGER) AS snapshot_id,
@@ -547,7 +584,7 @@ final class ActivityStore {
         do {
             return try requiredDatabase().queryChecked("""
                 SELECT text FROM ocr_fts
-                WHERE CAST(snapshot_id AS INTEGER) = ?1 LIMIT 1
+                WHERE rowid = (SELECT rowid FROM ocr_metadata WHERE snapshot_id = ?1 ORDER BY rowid LIMIT 1)
                 """, bind: [snapshotID]) { statement in
                 guard let rawText = sqlite3_column_text(statement, 0) else { return nil }
                 return String(String(cString: rawText).prefix(maxChars))
@@ -639,7 +676,7 @@ final class ActivityStore {
                 let bindings: [Any] = chunk
                 try database.runChecked("""
                     DELETE FROM ocr_fts
-                    WHERE CAST(snapshot_id AS INTEGER) IN (\(placeholders))
+                    WHERE rowid IN (SELECT rowid FROM ocr_metadata WHERE snapshot_id IN (\(placeholders)))
                     """, bind: bindings)
                 try database.runChecked("""
                     DELETE FROM screen_bookmarks
@@ -655,7 +692,9 @@ final class ActivityStore {
                     DELETE FROM screenshots WHERE id IN (\(placeholders))
                     """, bind: bindings)
             }
+            try OCRMetadataIndex.removeDeletedRows(database)
         }
+        NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
 
     /// Every retained screen-text record for one local day, oldest first.
@@ -668,11 +707,11 @@ final class ActivityStore {
         let interval = Self.dayInterval(containing: day)
         do {
             return try requiredDatabase().queryChecked("""
-                SELECT CAST(snapshot_id AS INTEGER), CAST(ts AS REAL), app,
+                SELECT meta.snapshot_id, meta.ts, app,
                        window_title, text
-                FROM ocr_fts
-                WHERE CAST(ts AS REAL) >= ?1 AND CAST(ts AS REAL) < ?2
-                ORDER BY CAST(ts AS REAL), CAST(snapshot_id AS INTEGER), rowid
+                FROM ocr_metadata AS meta JOIN ocr_fts ON ocr_fts.rowid = meta.rowid
+                WHERE meta.ts >= ?1 AND meta.ts < ?2
+                ORDER BY meta.ts, meta.snapshot_id, meta.rowid
                 """, bind: [interval.start.timeIntervalSince1970,
                              interval.end.timeIntervalSince1970]) { statement in
                 DayScreenContext(
@@ -699,7 +738,8 @@ final class ActivityStore {
         do {
             var out = ""
             try requiredDatabase().forEachRowChecked("""
-                SELECT app, text FROM ocr_fts WHERE ts >= ?1 AND ts < ?2 ORDER BY ts
+                SELECT app, text FROM ocr_metadata AS meta JOIN ocr_fts ON ocr_fts.rowid = meta.rowid
+                WHERE meta.ts >= ?1 AND meta.ts < ?2 ORDER BY meta.ts, meta.rowid
                 """, bind: [start.timeIntervalSince1970, end.timeIntervalSince1970]) { statement in
                 let app = String(cString: sqlite3_column_text(statement, 0))
                 let text = String(cString: sqlite3_column_text(statement, 1))
@@ -724,7 +764,7 @@ final class ActivityStore {
             ? "EXISTS(SELECT 1 FROM screen_embeddings WHERE snapshot_id = shot.id)" : "0"
         let candidates = try database.queryChecked("""
             SELECT shot.id, shot.ts, shot.path,
-                   EXISTS(SELECT 1 FROM ocr_fts WHERE CAST(snapshot_id AS INTEGER) = shot.id),
+                   EXISTS(SELECT 1 FROM ocr_metadata WHERE snapshot_id = shot.id),
                    \(vectorQuery)
             FROM screenshots AS shot
             WHERE shot.ts < ?1 AND shot.id NOT IN (SELECT snapshot_id FROM screen_bookmarks)
@@ -760,7 +800,9 @@ final class ActivityStore {
                     try database.runChecked("DELETE FROM screen_embeddings WHERE \(condition)", bind: [id])
                 }
             }
+            try OCRMetadataIndex.removeDeletedRows(database)
         }
+        NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
 
     func screenshotPaths(olderThan cutoff: Date) -> [String] {
@@ -813,7 +855,9 @@ final class ActivityStore {
                         SELECT snapshot_id FROM screen_bookmarks
                     )
                     """, bind: [cutoff.timeIntervalSince1970])
+                try OCRMetadataIndex.removeDeletedRows(database)
             }
+            NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
             return true
         } catch {
             lokalbotLog("OCR retention cleanup failed: \(error.localizedDescription)")
@@ -867,8 +911,8 @@ final class ActivityStore {
                     SELECT MIN(end, ?2) AS value FROM activity_blocks
                     WHERE end > ?1 AND start < ?2
                     UNION ALL
-                    SELECT CAST(ts AS REAL) AS value FROM ocr_fts
-                    WHERE CAST(ts AS REAL) >= ?1 AND CAST(ts AS REAL) < ?2
+                    SELECT ts AS value FROM ocr_metadata
+                    WHERE ts >= ?1 AND ts < ?2
                 )
                 """, bind: [interval.start.timeIntervalSince1970,
                              interval.end.timeIntervalSince1970]) { statement in

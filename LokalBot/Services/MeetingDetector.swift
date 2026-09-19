@@ -212,6 +212,9 @@ final class MeetingDetector {
     private var lastLoggedStartState: String?
     private var pendingStartRecheck: DispatchWorkItem?
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var browserPollGeneration = 0
+    private var browserPollTask: Task<Void, Never>?
+    private var browserSnapshots: [pid_t: BrowserMeetingSession.Snapshot] = [:]
 
     private var micListener: AudioObjectPropertyListenerBlock?
     private var listenedDevice = AudioObjectID(kAudioObjectUnknown)
@@ -248,6 +251,10 @@ final class MeetingDetector {
     }
 
     func stop() {
+        browserPollGeneration &+= 1
+        browserPollTask?.cancel()
+        browserPollTask = nil
+        browserSnapshots = [:]
         timer?.invalidate()
         timer = nil
         pendingStop?.cancel()
@@ -328,6 +335,39 @@ final class MeetingDetector {
     }
 
     private func tick() {
+        // Coalesce mic/device/timer bursts while cross-process AX is running.
+        guard browserPollTask == nil else { return }
+        let generation = browserPollGeneration
+        let boundApp = activeApp
+        let eventURL = calendarEnabled ? calendar?.activeCandidate(now: Date())?.meetingURL : nil
+        let expectedURL = boundApp?.meetingURL ?? eventURL
+        let pids = NSWorkspace.shared.runningApplications.filter {
+            guard let bundleID = $0.bundleIdentifier, Self.browsers.contains(bundleID) else { return false }
+            // Once bound, unrelated browsers cannot delay the call's evidence
+            // or make a valid observation expire before it reaches the detector.
+            if let boundApp, Self.browsers.contains(boundApp.bundleID) {
+                return bundleID == boundApp.bundleID
+            }
+            return true
+        }.map(\.processIdentifier)
+        guard !pids.isEmpty else { browserSnapshots = [:]; applyTick(); return }
+        browserPollTask = Task { @MainActor [weak self] in
+            let started = Date()
+            let observations = await BrowserMeetingSession.observe(processIDs: pids, expectedURL: expectedURL)
+            guard let self, !Task.isCancelled, generation == self.browserPollGeneration else { return }
+            self.browserPollTask = nil
+            guard self.activeApp == boundApp,
+                  eventURL == (self.calendarEnabled ? self.calendar?.activeCandidate(now: Date())?.meetingURL : nil) else {
+                self.tick()
+                return
+            }
+            // A slow/unresponsive browser is uncertainty, never fresh call evidence.
+            self.browserSnapshots = Date().timeIntervalSince(started) < 2 ? observations : [:]
+            self.applyTick()
+        }
+    }
+
+    private func applyTick() {
         let now = Date()
         let running = NSWorkspace.shared.runningApplications
         let calendarEvent = calendarEnabled ? calendar?.activeCandidate(now: now) : nil
@@ -359,7 +399,7 @@ final class MeetingDetector {
                     in: running,
                     calendarEvent: calendarEvent,
                     calendarEnabled: calendarEnabled,
-                    requireCalendarForBrowser: requireCalendarForBrowser),
+                    requireCalendarForBrowser: requireCalendarForBrowser, snapshots: browserSnapshots),
                    !Self.browsers.contains(replacementApp.bundleID)
                     || startConfirmed(app: replacementApp, calendarBacked: calendarEvent != nil, now: now) {
                     pendingStop?.cancel()
@@ -406,7 +446,7 @@ final class MeetingDetector {
             in: running,
             calendarEvent: calendarEvent,
             calendarEnabled: calendarEnabled,
-            requireCalendarForBrowser: requireCalendarForBrowser)
+            requireCalendarForBrowser: requireCalendarForBrowser, snapshots: browserSnapshots)
         let isBrowserApp = runningMeetingApp.map { Self.browsers.contains($0.bundleID) } ?? false
         let calendarBackedBrowser = isBrowserApp && calendarEnabled && calendarEvent?.meetingURL != nil
         // Both start and continuation hinge on the selected app's OWN audio
@@ -576,13 +616,15 @@ final class MeetingDetector {
         in running: [NSRunningApplication],
         calendarEvent: CalendarMeetingCandidate?,
         calendarEnabled: Bool,
-        requireCalendarForBrowser: Bool
+        requireCalendarForBrowser: Bool,
+        snapshots: [pid_t: BrowserMeetingSession.Snapshot]
     ) -> DetectedApp? {
         nativeMeetingApp(in: running, requireAudio: true)
             ?? browserMeeting(in: running,
                               calendarEvent: calendarEvent,
                               calendarEnabled: calendarEnabled,
-                              requireCalendarForBrowser: requireCalendarForBrowser)
+                              requireCalendarForBrowser: requireCalendarForBrowser,
+                              snapshots: snapshots)
     }
 
     private func scheduleStopIfNeeded(
@@ -617,7 +659,7 @@ final class MeetingDetector {
     /// not split the call. Preserve the last verified boundary for processing.
     private func tickBrowser(_ app: DetectedApp, now: Date) {
         let host = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).first
-        let snapshot = host.flatMap { BrowserMeetingSession.snapshot(processID: $0.processIdentifier, expectedURL: app.meetingURL) }
+        let snapshot = host.flatMap { browserSnapshots[$0.processIdentifier] }
         let observedState: BrowserMeetingSession.State? = snapshot.map {
             $0.url == app.meetingURL ? $0.state : .unavailable
         }
@@ -720,13 +762,15 @@ final class MeetingDetector {
     private static func browserMeeting(in running: [NSRunningApplication],
                                        calendarEvent: CalendarMeetingCandidate?,
                                        calendarEnabled: Bool,
-                                       requireCalendarForBrowser: Bool) -> DetectedApp? {
+                                       requireCalendarForBrowser: Bool,
+                                       snapshots: [pid_t: BrowserMeetingSession.Snapshot]? = nil) -> DetectedApp? {
         let calendarBacked = calendarEnabled && calendarEvent?.meetingURL != nil
         guard !requireCalendarForBrowser || calendarBacked else { return nil }
         for app in running {
             guard let bid = app.bundleIdentifier, browsers.contains(bid),
-                  let snapshot = BrowserMeetingSession.snapshot(processID: app.processIdentifier,
-                    expectedURL: calendarBacked ? calendarEvent?.meetingURL : nil),
+                  let snapshot = snapshots.map({ $0[app.processIdentifier] })
+                    ?? BrowserMeetingSession.snapshot(processID: app.processIdentifier,
+                        expectedURL: calendarBacked ? calendarEvent?.meetingURL : nil),
                   MeetingMatcher.browserCountsAsMeeting(titleMatchesMarker: false, hasOutputAudio: false,
                     calendarBacked: calendarBacked, requireCalendarForBrowser: requireCalendarForBrowser,
                     verifiedSession: snapshot.state == .inCall) else { continue }

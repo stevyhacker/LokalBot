@@ -32,6 +32,9 @@ struct TodayView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .navigationTitle("Today")
+        .overlay(alignment: .topTrailing) {
+            if model.overviewLoading { ProgressView().controlSize(.small).padding(12) }
+        }
         .task(id: app.navSection) {
             guard app.navSection == .today else { return }
             reloadCurrentDay(at: Date())

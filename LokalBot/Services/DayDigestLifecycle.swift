@@ -91,7 +91,7 @@ final class DayDigestLifecycle {
         let url = journalURL(for: day)
         let text = try? String(contentsOf: url, encoding: .utf8)
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-        let signature = try? evidenceInput(for: day).digestEvidence(calendar: calendar).contentSignature
+        let signature = text == nil ? nil : try? evidenceInput(for: day).digestEvidence(calendar: calendar).contentSignature
         return Snapshot(
             text: text,
             modifiedAt: attributes?[.modificationDate] as? Date,
@@ -99,6 +99,32 @@ final class DayDigestLifecycle {
             evidenceMatches: text == nil || signature.map {
                 DayDigestGenerationMetadataStore.isCurrent(for: url, evidenceSignature: $0)
             } == true)
+    }
+
+    /// Capture the meeting list on its owner, then validate files and complete
+    /// evidence fingerprints on the worker that owns the day read connection.
+    func backgroundSnapshotLoader(for day: Date) -> @Sendable (ActivityStore) -> Snapshot {
+        let root = storageRoot, calendar = calendar
+        let finished = meetings(for: day, includeInProgress: false)
+        return { store in
+            let url = root.appendingPathComponent("journal/\(DreamDay.key(for: day, calendar: calendar)).md")
+            let text = try? String(contentsOf: url, encoding: .utf8)
+            let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
+            let signature = text == nil ? nil : try? FileDailyEvidenceSource(root: root, calendar: calendar)
+                .snapshot(for: day, meetings: finished, activityBlocks: store.blocks(on: day),
+                          screenContexts: store.screenContexts(on: day), includeScreenSummary: false)
+                .digestEvidence(calendar: calendar).contentSignature
+            let latestArtifact = finished.compactMap {
+                DayDigestMeetingArtifacts.latestModifiedAt(in: root.appendingPathComponent($0.relativePath))
+            }.max()
+            return Snapshot(
+                text: text, modifiedAt: attributes?[.modificationDate] as? Date,
+                latestEvidenceAt: [store.latestEvidenceAt(on: day), finished.compactMap(\.endedAt).max(), latestArtifact]
+                    .compactMap { $0 }.max(),
+                evidenceMatches: text == nil || signature.map {
+                    DayDigestGenerationMetadataStore.isCurrent(for: url, evidenceSignature: $0)
+                } == true)
+        }
     }
 
     func meetings(for day: Date, includeInProgress: Bool = true) -> [Meeting] {

@@ -269,6 +269,41 @@ final class ChatStore {
         return result.sorted { $0.updatedAt > $1.updatedAt }
     }
 
+    func loadAllInBackground() async -> [Conversation] {
+        let dir = dir, key = try? encryptionKey()
+        let loaded = await Task.detached(priority: .userInitiated) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
+            var conversations: [UUID: Conversation] = [:]
+            var legacy: [UUID: URL] = [:]
+            // Encrypted copies win if an earlier migration left both files.
+            for file in files.sorted(by: { $0.pathExtension == "json" && $1.pathExtension != "json" }) {
+                guard let data = try? Data(contentsOf: file) else { continue }
+                let plain: Data
+                if file.pathExtension == "enc", let key,
+                   let box = try? AES.GCM.SealedBox(combined: data),
+                   let decrypted = try? AES.GCM.open(box, using: key) {
+                    plain = decrypted
+                } else if file.pathExtension == "json" {
+                    plain = data
+                } else { continue }
+                guard let conversation = try? decoder.decode(Conversation.self, from: plain) else { continue }
+                conversations[conversation.id] = conversation
+                if file.pathExtension == "json" { legacy[conversation.id] = file }
+            }
+            return (conversations, legacy)
+        }.value
+        // Legacy writes remain on the store owner so they cannot race save/delete.
+        // Verify the plaintext still exists: deletion during hydration wins.
+        for (id, file) in loaded.1 where FileManager.default.fileExists(atPath: file.path) {
+            if let conversation = loaded.0[id], save(conversation) {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+        return loaded.0.values.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
     /// Encode → AES-GCM seal (per-install Keychain key) → atomic write. Returns
     /// whether the sealed file landed, so the migration above never discards
     /// plaintext before its encrypted replacement exists.
@@ -318,6 +353,10 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var conversations: [Conversation] = []
     /// The conversation currently shown in the transcript.
     @Published private(set) var currentID: UUID
+    @Published private(set) var isLoadingHistory = false
+    private var historyTask: Task<Void, Never>?
+    private var historyTouched = false
+    private var deletedDuringHydration: Set<UUID> = []
     var readingOffsets: [UUID: CGFloat] = [:]
 
     var currentQuestionScope: QuestionScope? {
@@ -364,12 +403,13 @@ final class ChatViewModel: ObservableObject {
 #endif
 
     init(makeEngine: @escaping () async throws -> TextEngine, tools: ChatToolRunner,
-         store: ChatStore, workMemory: @escaping () -> String = { "" }) {
+         store: ChatStore, workMemory: @escaping () -> String = { "" },
+         deferHistoryLoading: Bool = false) {
         self.makeEngine = makeEngine
         self.tools = tools
         self.store = store
         self.workMemory = workMemory
-        let saved = store.loadAll()
+        let saved = deferHistoryLoading ? [] : store.loadAll()
         if let latest = saved.first {
             conversations = saved
             currentID = latest.id
@@ -379,7 +419,29 @@ final class ChatViewModel: ObservableObject {
             conversations = [fresh]
             currentID = fresh.id
         }
+        if deferHistoryLoading {
+            isLoadingHistory = true
+            historyTask = Task { @MainActor [weak self, store] in
+                let saved = await store.loadAllInBackground()
+                guard let self else { return }
+                let retained = saved.filter { !self.deletedDuringHydration.contains($0.id) }
+                if !self.historyTouched, self.messages.isEmpty, self.draft.isEmpty, let latest = retained.first {
+                    self.conversations = retained
+                    self.currentID = latest.id
+                    self.messages = latest.messages
+                } else {
+                    let existing = Set(self.conversations.map(\.id))
+                    self.conversations += retained.filter { !existing.contains($0.id) }
+                    self.conversations.sort { $0.updatedAt > $1.updatedAt }
+                }
+                self.isLoadingHistory = false
+                self.deletedDuringHydration = []
+            }
+        }
     }
+
+    func waitForHistory() async { await historyTask?.value }
+    func preserveSelectionDuringHistoryLoad() { historyTouched = true }
 
     /// Send the current draft (or an explicit `prompt`, e.g. a suggestion chip).
     /// `displayText` keeps model-only context such as attached OCR excerpts out
@@ -409,6 +471,7 @@ final class ChatViewModel: ObservableObject {
     ) {
         let text = (prompt ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isResponding else { return }
+        historyTouched = true
         let trimmedDisplay = displayText?.trimmingCharacters(in: .whitespacesAndNewlines)
         let visibleText = trimmedDisplay.flatMap { $0.isEmpty ? nil : $0 } ?? text
         draft = ""
@@ -527,6 +590,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Start a new, empty conversation (persisting the current one first).
     func newConversation() {
+        historyTouched = true
         stop()
         persist(touchUpdatedAt: false)
         // Already on an empty conversation? Stay put rather than pile up blanks.
@@ -539,6 +603,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Switch the transcript to a previously-saved conversation.
     func select(_ id: UUID) {
+        historyTouched = true
         guard id != currentID else { return }
         stop()
         persist(touchUpdatedAt: false)
@@ -548,6 +613,8 @@ final class ChatViewModel: ObservableObject {
 
     /// Delete a conversation from disk and the list.
     func delete(_ id: UUID) {
+        historyTouched = true
+        if isLoadingHistory { deletedDuringHydration.insert(id) }
         let deletingCurrent = id == currentID
         if deletingCurrent { stop() }
         let deletedMessages = deletingCurrent
@@ -825,6 +892,8 @@ final class ChatViewModel: ObservableObject {
     private func apply(_ event: ChatAgentEvent, to id: UUID) {
         guard messages.first(where: { $0.id == id })?.isPending == true else { return }
         switch event {
+        case .answerPartial(let text):
+            update(id) { $0.text = text }
         case .toolStarted(let call):
             update(id) {
                 $0.activity.append(.init(tool: call.name, icon: Self.icon(for: call.name),
