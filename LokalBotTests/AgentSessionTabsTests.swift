@@ -193,6 +193,7 @@ final class AgentSessionTabsTests: XCTestCase {
         XCTAssertTrue(started)
         XCTAssertEqual(sessions.tabs.filter { $0.controller.hasLiveRuntime }.count, 4)
         XCTAssertEqual(sessions.tabs.first?.controller.state, .idle)
+        XCTAssertNil(sessions.tabs.first?.controller.modelContext, "a parked task must show the destination for its next connection")
         await sessions.shutdownAll()
     }
 

@@ -459,9 +459,7 @@ final class AgentSessionController: ObservableObject {
             (try? AgentSessionHistory.load(from: sessionsDirectory))?.first { $0.fileURL == file }
         }
         guard !hasLiveRuntime || items.isEmpty || saved != nil else { return false }
-        let model = modelContext
         await shutdown()
-        modelContext = model
         if let saved { activeSessionFile = saved.fileURL; launchMode = .saved(saved) }
         return true
     }
