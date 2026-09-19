@@ -175,13 +175,14 @@ actor SearchIndexWorkQueue {
     /// Reopens a source folded into a merged meeting and queues its existing
     /// evidence for indexing again. The actor serializes this with any late
     /// cleanup request from the original merge.
-    func restore(_ meeting: Meeting) {
-        guard !stopped else { return }
+    func restore(_ meeting: Meeting) throws -> Meeting {
+        guard !stopped else { throw CancellationError() }
+        let restored = try workerStorage.restoreMergedSource(meeting)
         deleted.remove(meeting.id)
-        _ = searchIndex.restore(meeting.id)
-        _ = EmbeddingIndex.restore(meeting.id, databaseURL: databaseURL)
-        pending[meeting.id] = meeting
+        searchIndex.noteRestoration(meeting.id)
+        pending[meeting.id] = restored
         startDrainIfNeeded()
+        return restored
     }
 
     @discardableResult

@@ -97,33 +97,67 @@ final class StorageManager {
                 result.append(meeting)
             }
         }
-        // Merge records created before source folding was persisted still
-        // carry their source IDs. Backfill the durable relationship once so
-        // the new library projection does not show both sides of an old merge.
-        var foldedBySource: [UUID: UUID] = [:]
-        let mergedMeetingIDs = Set(result.filter(\.isMergedMeeting).map(\.id))
-        for meeting in result where meeting.isMergedMeeting {
-            for sourceID in meeting.mergedSourceMeetingIDs ?? [] {
-                foldedBySource[sourceID] = meeting.id
-            }
-        }
+        let resolved = Meeting.resolvingMergeRelationships(in: result)
         for index in result.indices {
-            if result[index].mergedIntoMeetingID != nil,
-               !mergedMeetingIDs.contains(result[index].mergedIntoMeetingID!) {
-                // The merged record was removed before its source metadata
-                // could be restored. Make the source visible again on reload.
-                result[index].mergedIntoMeetingID = nil
-                try? saveMeta(result[index])
+            guard result[index].mergedIntoMeetingID != resolved[index].mergedIntoMeetingID else { continue }
+            do {
+                if result[index].isMergedSource, !resolved[index].isMergedSource {
+                    result[index] = try restoreMergedSource(result[index])
+                } else {
+                    result[index] = resolved[index]
+                    try saveMeta(resolved[index])
+                }
+            } catch {
+                // Keep the old marker if either SQLite or metadata repair
+                // failed. A later load retries instead of losing the journal.
+                AppLog.line("Meeting merge recovery failed: \(error.localizedDescription)")
             }
-            guard result[index].mergedIntoMeetingID == nil,
-                  let mergedID = foldedBySource[result[index].id] else { continue }
-            result[index].mergedIntoMeetingID = mergedID
-            try? saveMeta(result[index])
         }
         if !includeMergedSources {
             result.removeAll(where: \.isMergedSource)
         }
         return result.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    /// Only call after removing the generated parent. The on-disk source
+    /// marker is the recovery journal until both indexes have been reopened.
+    func restoreMergedSource(_ source: Meeting) throws -> Meeting {
+        guard let mergedID = source.mergedIntoMeetingID else { return source }
+        try SearchIndex.restoreMergedSource(source.id, from: mergedID,
+            databaseURL: rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        var restored = source
+        restored.mergedIntoMeetingID = nil
+        try saveMeta(restored)
+        return restored
+    }
+
+    /// Permanent deletion is different from Undo: remove every retained
+    /// descendant before its parent. A failed/interrupted delete therefore
+    /// leaves surviving sources folded, and retries skip already removed ones.
+    func deletionOrder(for meeting: Meeting) throws -> [Meeting] {
+        let all = try SessionLookup.loadAllMeetings(root: rootURL, includeMergedSources: true)
+        let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        var visiting: Set<UUID> = []
+        var visited: Set<UUID> = []
+        var ordered: [Meeting] = []
+        func visit(_ current: Meeting) throws {
+            guard !visited.contains(current.id) else { return }
+            guard visiting.insert(current.id).inserted else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            for id in current.mergedSourceMeetingIDs ?? [] {
+                guard let source = byID[id] else { continue }
+                guard source.mergedIntoMeetingID == current.id else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                try visit(source)
+            }
+            visiting.remove(current.id)
+            visited.insert(current.id)
+            ordered.append(current)
+        }
+        try visit(byID[meeting.id] ?? meeting)
+        return ordered
     }
 
     /// Delete the durable meeting folder. Callers must only remove the meeting

@@ -195,6 +195,37 @@ final class FileLibraryToolProviderTests: XCTestCase {
         XCTAssertLessThan(cache.lowerBound, old.lowerBound)
     }
 
+    func testMeetingToolsHideMergedSourcesAndRestoreThemAfterUndo() async throws {
+        let storage = StorageManager(rootURL: root)
+        let sources = storage.loadMeetings()
+        let merged = try await MeetingMergeService.merge(
+            meetings: sources, title: "Combined planning", storage: storage)
+        let list = await provider.call(name: "list_meetings", arguments: nil)
+        XCTAssertFalse(list.isError)
+        let rows = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(list.text.utf8)) as? [[String: Any]])
+        XCTAssertEqual(rows.compactMap { $0["uuid"] as? String }, [merged.meeting.id.uuidString.lowercased()])
+        let search = await provider.call(name: "search_meetings", arguments: ["query": "Redis"])
+        XCTAssertFalse(search.isError)
+        let hits = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(search.text.utf8)) as? [[String: Any]])
+        XCTAssertFalse(hits.isEmpty)
+        XCTAssertEqual(Set(hits.compactMap { $0["meeting_id"] as? String }), [SessionLookup.shortID(merged.meeting.id)])
+        for source in sources {
+            let hidden = await provider.call(name: "get_meeting", arguments: ["id": .string(source.id.uuidString)])
+            XCTAssertTrue(hidden.isError)
+        }
+
+        // Read-only CLI/MCP projection also works before the app repairs an
+        // interrupted undo on its next launch.
+        try storage.deleteMeeting(merged.meeting)
+        for source in sources {
+            let restored = await provider.call(name: "get_meeting", arguments: ["id": .string(source.id.uuidString)])
+            XCTAssertFalse(restored.isError)
+        }
+        let restoredList = await provider.call(name: "list_meetings", arguments: nil)
+        let restoredRows = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(restoredList.text.utf8)) as? [[String: Any]])
+        XCTAssertEqual(restoredRows.count, 2)
+    }
+
     func testListMeetingsFiltersByQuerySinceAndLimit() async {
         let byQuery = await provider.call(
             name: "list_meetings",

@@ -1320,28 +1320,29 @@ final class AppState: ObservableObject {
                 selectedMeetingIDs.remove(mergedMeeting.id)
                 outcomeIndex.refresh(meetings: meetings)
 
-                var restoredSources: [Meeting] = []
-                for source in sources {
-                    var restored = source
-                    restored.mergedIntoMeetingID = nil
-                    try storage.saveMeta(restored)
-                    restoredSources.append(restored)
-                }
-
                 embeddingIndexTasks.removeValue(forKey: mergedMeeting.id)?.task.cancel()
                 excludedMeetingIDs.insert(mergedMeeting.id)
                 cachedSearchIndex?.noteDeletion(mergedMeeting.id)
                 cachedEmbeddingIndex?.noteDeletion(mergedMeeting.id)
                 scheduleIndexCleanup(mergedMeeting.id)
 
-                for source in restoredSources {
+                var restoredSources: [Meeting] = []
+                var restorationErrors: [String] = []
+                for source in sources {
                     indexCleanupTasks.removeValue(forKey: source.id)?.task.cancel()
-                    excludedMeetingIDs.remove(source.id)
-                    cachedSearchIndex?.restore(source.id)
-                    cachedEmbeddingIndex?.restore(source.id)
-                    await worker.restore(source)
-                    if settings.semanticSearchEnabled {
-                        reindexEmbeddingInBackground(source)
+                    do {
+                        let restored = try await worker.restore(source)
+                        restoredSources.append(restored)
+                        excludedMeetingIDs.remove(source.id)
+                        cachedSearchIndex?.noteRestoration(source.id)
+                        cachedEmbeddingIndex?.noteRestoration(source.id)
+                        if settings.semanticSearchEnabled {
+                            reindexEmbeddingInBackground(restored)
+                        }
+                    } catch {
+                        // Other sources can still recover. Failed ones retain
+                        // their on-disk marker and are retried at next launch.
+                        restorationErrors.append(error.localizedDescription)
                     }
                 }
                 meetings.append(contentsOf: restoredSources)
@@ -1352,6 +1353,10 @@ final class AppState: ObservableObject {
                     .sorted { $0.startedAt < $1.startedAt }
                     .first.map { [$0.id] } ?? []
                 navSection = .meetings
+                if !restorationErrors.isEmpty {
+                    lastError = "Some original meetings could not be restored; restart to retry: "
+                        + restorationErrors.joined(separator: "; ")
+                }
             } catch {
                 lastError = "Could not undo the merge: \(error.localizedDescription)"
             }
@@ -1754,18 +1759,25 @@ final class AppState: ObservableObject {
         pipeline.forget(meetingIDs: ids)
         Task {
             var deletedIDs: Set<Meeting.ID> = []
+            var deletedMeetings: [Meeting] = []
             for meeting in candidates {
                 do {
-                    // Persist revocation before removing its source. Interrupted
-                    // deletions can retry; no late enrollment can resurrect it.
-                    try await speakerIdentity.prepareDeletion(meeting: meeting)
-                    try storage.deleteMeeting(meeting)
-                    embeddingIndexTasks.removeValue(forKey: meeting.id)?.task.cancel()
-                    excludedMeetingIDs.insert(meeting.id)
-                    cachedSearchIndex?.noteDeletion(meeting.id)
-                    cachedEmbeddingIndex?.noteDeletion(meeting.id)
-                    scheduleIndexCleanup(meeting.id)
-                    deletedIDs.insert(meeting.id)
+                    let ordered = try storage.deletionOrder(for: meeting)
+                    pipeline.forget(meetingIDs: Set(ordered.map(\.id)))
+                    for item in ordered where !deletedIDs.contains(item.id) {
+                        // Revoke every retained source's profile contributions,
+                        // not just those of the generated parent. Delete the
+                        // parent last so partial failure cannot restore sources.
+                        try await speakerIdentity.prepareDeletion(meeting: item)
+                        try storage.deleteMeeting(item)
+                        embeddingIndexTasks.removeValue(forKey: item.id)?.task.cancel()
+                        excludedMeetingIDs.insert(item.id)
+                        cachedSearchIndex?.noteDeletion(item.id)
+                        cachedEmbeddingIndex?.noteDeletion(item.id)
+                        scheduleIndexCleanup(item.id)
+                        deletedIDs.insert(item.id)
+                        deletedMeetings.append(item)
+                    }
                 } catch {
                     lastError = "Could not delete \(meeting.title); cleanup pending: \(error.localizedDescription)"
                 }
@@ -1773,7 +1785,7 @@ final class AppState: ObservableObject {
             meetings.removeAll { deletedIDs.contains($0.id) }
             selectedMeetingIDs.subtract(deletedIDs)
             outcomeIndex.refresh(meetings: meetings)
-            primaryEvidenceDidChange(for: candidates.filter { deletedIDs.contains($0.id) })
+            primaryEvidenceDidChange(for: deletedMeetings)
         }
     }
 }

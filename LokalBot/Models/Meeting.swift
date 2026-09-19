@@ -45,6 +45,30 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     var isMergedMeeting: Bool { !(mergedSourceMeetingIDs ?? []).isEmpty }
     var isMergedSource: Bool { mergedIntoMeetingID != nil }
 
+    /// Shared, read-only library projection for the app and CLI/MCP. Parent
+    /// manifests cover interrupted source-marker writes; missing parents make
+    /// their originals visible again. StorageManager persists these repairs.
+    static func resolvingMergeRelationships(in meetings: [Meeting]) -> [Meeting] {
+        var parents: [UUID: UUID] = [:]
+        var sourceIDsByParent: [UUID: Set<UUID>] = [:]
+        for parent in meetings.sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
+            sourceIDsByParent[parent.id] = Set(parent.mergedSourceMeetingIDs ?? [])
+            for sourceID in parent.mergedSourceMeetingIDs ?? [] where sourceID != parent.id {
+                parents[sourceID] = parent.id
+            }
+        }
+        return meetings.map { meeting in
+            var resolved = meeting
+            if let parentID = meeting.mergedIntoMeetingID,
+               parentID != meeting.id,
+               sourceIDsByParent[parentID]?.contains(meeting.id) == true {
+                return resolved
+            }
+            resolved.mergedIntoMeetingID = parents[meeting.id]
+            return resolved
+        }
+    }
+
     var resolvedCalendarParticipantIdentities: [CalendarParticipantIdentity] {
         let structured = CalendarParticipantIdentity.normalized(
             calendarParticipantIdentities ?? [])
