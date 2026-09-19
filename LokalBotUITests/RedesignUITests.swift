@@ -190,6 +190,15 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_CAPTURE_APPEARANCE": "contrast-dark", "LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.timeline", in: app)
         XCTAssertTrue(element("timeline.workSessions").waitForExistence(timeout: 5))
+        UITestHarness.clickSidebar("sidebar.meetings", in: app)
+        for meeting in [fixture.designReview, fixture.standup] {
+            element("meeting.row.\(meeting.id.uuidString)").click()
+            XCTAssertTrue(UITestHarness.waitUntil {
+                let title = self.element("detail.title")
+                return title.exists && (title.value as? String ?? title.label) == meeting.title
+            })
+            XCTAssertTrue(element("meeting.contentTabs").isHittable)
+        }
         UITestHarness.clickSidebar("sidebar.ask", in: app)
         UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         app.textFields["search.field"].click()

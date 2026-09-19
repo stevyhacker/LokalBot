@@ -144,6 +144,7 @@ struct InferenceDisclosure: View {
 // MARK: - Motion policy
 
 enum WorkspaceMotionKind {
+    case selection
     case disclosure
     case drawer
     case autoScroll
@@ -153,6 +154,7 @@ enum WorkspaceMotion {
     static func animation(_ kind: WorkspaceMotionKind, reduceMotion: Bool) -> Animation? {
         guard !reduceMotion else { return nil }
         switch kind {
+        case .selection: return .easeOut(duration: 0.14)
         case .disclosure: return .easeInOut(duration: 0.16)
         case .drawer: return .easeOut(duration: 0.18)
         case .autoScroll: return .easeOut(duration: 0.15)

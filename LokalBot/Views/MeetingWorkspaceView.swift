@@ -7,9 +7,63 @@ import UniformTypeIdentifiers
 /// an active recording keeps its dedicated live surface.
 struct MeetingLibraryDetailView: View {
     @EnvironmentObject var app: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var pendingDelete: Set<Meeting.ID>?
+    @State private var prepared: PreparedMeeting?
+    @State private var animateSelection = false
 
-    @ViewBuilder var body: some View {
+    private struct PreparedMeeting {
+        let meeting: Meeting
+        let document: MeetingDocumentSnapshot
+    }
+
+    private var completedMeetingID: Meeting.ID? {
+        guard let meeting = app.selectedMeeting, meeting.endedAt != nil else { return nil }
+        return meeting.id
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                selectionContent
+            }
+            .frame(width: geometry.size.width, height: geometry.size.height)
+            .clipped()
+        }
+        .onChange(of: completedMeetingID) {
+            // Keep keyboard navigation immediate; pointer selection gets a
+            // short dissolve once its document is ready, never a layout tween.
+            let event = NSApp.currentEvent?.type
+            animateSelection = prepared != nil && (event == .leftMouseDown || event == .leftMouseUp)
+        }
+        .task(id: completedMeetingID) {
+            guard let meeting = app.selectedMeeting, meeting.endedAt != nil else {
+                prepared = nil
+                return
+            }
+            guard prepared?.meeting.id != meeting.id else { return }
+#if LOKALBOT_UI_TEST_HOST
+            if ProcessInfo.processInfo.environment["LOKALBOT_SLOW_MEETING_LOAD"] == "1" {
+                try? await Task.sleep(for: .milliseconds(1500))
+                guard !Task.isCancelled else { return }
+            }
+#endif
+            let root = app.storage.rootURL, template = app.settings.noteTemplate
+            let databaseURL = app.activityStore.databaseURL
+            let worker = Task.detached(priority: .userInitiated) {
+                MeetingDocumentSnapshot.load(meeting: meeting, root: root, template: template, databaseURL: databaseURL)
+            }
+            let document = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+            guard !Task.isCancelled else { return }
+            await app.outcomeIndex.refreshInBackground(meeting: meeting)
+            guard !Task.isCancelled, completedMeetingID == meeting.id else { return }
+            withAnimation(animateSelection ? WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion) : nil) {
+                prepared = PreparedMeeting(meeting: meeting, document: document)
+            }
+        }
+    }
+
+    @ViewBuilder private var selectionContent: some View {
         if app.selectedMeetingIDs.count > 1 {
             ContentUnavailableView {
                 Label("\(app.selectedMeetingIDs.count) meetings selected", systemImage: "checklist")
@@ -24,8 +78,22 @@ struct MeetingLibraryDetailView: View {
         } else if let meeting = app.selectedMeeting {
             if meeting.endedAt == nil {
                 LiveMeetingDetailView(meeting: meeting, transcriber: app.liveTranscriber).id(meeting.id)
+            } else if let prepared {
+                let changing = prepared.meeting.id != meeting.id
+                MeetingWorkspaceDetail(meeting: changing ? prepared.meeting : meeting, document: prepared.document)
+                    .id(prepared.meeting.id)
+                    .transition(.opacity)
+                    .disabled(changing)
+                    .overlay(alignment: .topTrailing) {
+                        if changing {
+                            ProgressView().controlSize(.small).padding(16)
+                                .accessibilityLabel("Loading selected meeting")
+                                .accessibilityIdentifier("meeting.selection.loading")
+                        }
+                    }
             } else {
-                MeetingWorkspaceDetail(meeting: meeting).id(meeting.id)
+                ProgressView("Loading meeting…")
+                    .accessibilityIdentifier("meeting.selection.loading")
             }
         } else if !app.libraryReady {
             ProgressView("Loading your meeting library...")
@@ -82,6 +150,17 @@ private struct MeetingWorkspaceDetail: View {
     @State private var selectedSearchMatchIndex = 0
     @State private var searchContentRevision = 0
 
+    init(meeting: Meeting, document: MeetingDocumentSnapshot) {
+        self.meeting = meeting
+        _notes = State(initialValue: document.notes)
+        _transcript = State(initialValue: document.transcript)
+        _summary = State(initialValue: document.summary)
+        _partialNotes = State(initialValue: document.partialNotes)
+        _partialProjection = State(initialValue: document.partialProjection)
+        _speakerNameHints = State(initialValue: document.speakerNameHints)
+        _calendarSpeakerCandidates = State(initialValue: meeting.resolvedCalendarParticipantIdentities)
+    }
+
     private var folder: URL { meeting.folderURL(in: app.storage) }
     private var speakerPresentation: MeetingSpeakerPresentation {
         MeetingSpeakerPresentation(transcript: transcript)
@@ -124,11 +203,13 @@ private struct MeetingWorkspaceDetail: View {
                     .labelsHidden()
                     .accessibilityIdentifier("meeting.contentTabs")
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WorkspaceMetric.pagePadding)
                 .padding(.vertical, 12)
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
+                        meetingStatusContent
                         switch tab {
                         case .overview: overviewContent
                         case .summary: summarySection
@@ -184,6 +265,12 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         .onChange(of: app.navigationHandoff.revision) { consumeMeetingSeek() }
+        .onChange(of: app.selectedMeetingIDs) {
+            if app.selectedMeeting?.id != meeting.id {
+                player.pause()
+                stopSpeech(clearError: false)
+            }
+        }
         .onChange(of: app.meetingPageSearchRequestRevision) {
             guard app.presentedMeetingSearchID == meeting.id else { return }
             uiTestDiagnosticLog(
@@ -339,7 +426,21 @@ private struct MeetingWorkspaceDetail: View {
 
         if player.isLoaded {
             MeetingAudioBar(player: player, folder: folder)
+        } else {
+            HStack(spacing: 12) {
+                Image(systemName: "play.circle.fill").font(.system(size: 28))
+                Text(documentLoading ? "Loading recording…" : "No recording available")
+                    .font(WorkspaceTypography.metadata)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(.secondary)
+            .frame(height: 40)
+            .padding(12).workspaceControl()
+            .accessibilityIdentifier("meeting.audioPlaceholder")
         }
+    }
+
+    @ViewBuilder private var meetingStatusContent: some View {
         if let stage = app.pipeline.stages[meeting.id] {
             processingStageContent(stage)
         }
@@ -789,6 +890,24 @@ private struct MeetingWorkspaceDetail: View {
 
     private func load() async {
         documentLoading = true
+        // The first document was prepared before this pane became visible.
+        // Only pipeline updates need to read it again.
+        if loadRevision > 0 {
+            await reloadDocument()
+            guard !Task.isCancelled else { return }
+        }
+        // A pipeline artifact refresh must not reset or re-prepare active audio.
+        if !player.isLoaded {
+            await player.loadInBackground(folder: folder, hasSystemTrack: meeting.hasSystemTrack)
+            guard !Task.isCancelled else { return }
+            player.speed = app.meetingPlaybackSpeeds[meeting.id] ?? 1
+            player.seek(to: app.meetingPlaybackPositions[meeting.id] ?? 0)
+        }
+        documentLoading = false
+        consumeMeetingSeek()
+    }
+
+    private func reloadDocument() async {
         let meeting = meeting, root = app.storage.rootURL, template = app.settings.noteTemplate
         let databaseURL = app.activityStore.databaseURL
         let worker = Task.detached(priority: .userInitiated) {
@@ -804,20 +923,11 @@ private struct MeetingWorkspaceDetail: View {
         speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
         searchContentRevision += 1
-        // A pipeline artifact refresh must not reset or re-prepare active audio.
-        if !player.isLoaded {
-            await player.loadInBackground(folder: folder, hasSystemTrack: meeting.hasSystemTrack)
-            guard !Task.isCancelled else { return }
-            player.speed = app.meetingPlaybackSpeeds[meeting.id] ?? 1
-            player.seek(to: app.meetingPlaybackPositions[meeting.id] ?? 0)
-        }
-        documentLoading = false
-        consumeMeetingSeek()
         await app.outcomeIndex.refreshInBackground(meeting: meeting)
     }
 
     private func consumeMeetingSeek() {
-        guard !documentLoading else { return }
+        guard !documentLoading, app.selectedMeeting?.id == meeting.id else { return }
         guard let request = app.navigationHandoff.consumeMeetingEvidence(for: meeting.id) else { return }
         revealEvidence(at: request.seconds)
         if request.intent == .play { player.play(at: request.seconds) }

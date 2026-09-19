@@ -3,11 +3,13 @@ import XCTest
 
 final class WorkspacePresentationTests: XCTestCase {
     func testReducedMotionDisablesEverySharedWorkspaceAnimation() {
+        XCTAssertNil(WorkspaceMotion.animation(.selection, reduceMotion: true))
         XCTAssertNil(WorkspaceMotion.animation(.disclosure, reduceMotion: true))
         XCTAssertNil(WorkspaceMotion.animation(.drawer, reduceMotion: true))
         XCTAssertNil(WorkspaceMotion.animation(.autoScroll, reduceMotion: true))
 
         XCTAssertNotNil(WorkspaceMotion.animation(.disclosure, reduceMotion: false))
+        XCTAssertNotNil(WorkspaceMotion.animation(.selection, reduceMotion: false))
         XCTAssertNotNil(WorkspaceMotion.animation(.drawer, reduceMotion: false))
         XCTAssertNotNil(WorkspaceMotion.animation(.autoScroll, reduceMotion: false))
     }
