@@ -51,7 +51,7 @@ struct AgentSessionView: View {
         VStack(spacing: 0) {
             taskHeader
             if findVisible { findBar }
-            transcript(width: width)
+            transcript
             if let request = controller.pendingApprovals.first {
                 VStack(alignment: .leading, spacing: 4) {
                     if controller.pendingApprovals.count > 1 {
@@ -101,7 +101,7 @@ struct AgentSessionView: View {
         }.padding(.horizontal, 20).padding(.bottom, 8)
     }
 
-    private func transcript(width: CGFloat) -> some View {
+    private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
@@ -116,9 +116,9 @@ struct AgentSessionView: View {
                     Color.clear.frame(height: 1).id("agent.transcript.end")
                 }
                 .scrollTargetLayout()
-                .frame(width: readingWidth(width), alignment: .leading)
-                .padding(.vertical, 24)
-                .frame(width: width, alignment: .center)
+                .frame(minWidth: 0, maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 20).padding(.vertical, 24)
             }
             .scrollPosition(id: $controller.visibleTranscriptID)
             .onScrollGeometryChange(for: Bool.self) {

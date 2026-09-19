@@ -163,18 +163,23 @@ final class AgentModeUITests: XCTestCase {
 
             resizeWindow(to: 760)
             let retry = app.buttons["Retry response"].firstMatch
-            UITestHarness.scrollTo(retry, in: app)
+            let openResult = app.buttons["Open in results"].firstMatch
+            let transcript = app.scrollViews["agent.transcript"]
+            UITestHarness.scrollTo(openResult, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
-            XCTAssertTrue(app.buttons["Open in results"].firstMatch.isHittable)
-            XCTAssertLessThanOrEqual(answer.frame.width, composer.frame.width + 4)
+            XCTAssertTrue(openResult.isHittable)
+            XCTAssertTrue(transcript.frame.contains(openResult.frame))
+            let composerSurface = app.descendants(matching: .any)["agent.composerSurface"]
+            XCTAssertLessThanOrEqual(answer.frame.width, composerSurface.frame.width + 4)
             let branch = try XCTUnwrap(app.buttons.matching(NSPredicate(format: "label == 'Branch from here'")).allElementsBoundByIndex.last)
             XCTAssertLessThanOrEqual(branch.frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-760-\(appearance)")
 
             app.buttons["toolbar.sidebarToggle"].click()
             resizeWindow(to: 600)
-            UITestHarness.scrollTo(retry, in: app)
+            UITestHarness.scrollTo(openResult, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
+            XCTAssertTrue(transcript.frame.contains(openResult.frame))
             XCTAssertTrue(composer.isHittable)
             XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-600-\(appearance)")
