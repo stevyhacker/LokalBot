@@ -4,7 +4,8 @@ This directory contains the Homebrew cask for [LokalBot](https://www.lokalbot.co
 (`lokalbot.rb`) and notes on validating it and shipping it to users.
 
 - Cask token: `lokalbot`
-- Current version packaged here: **0.8.1**
+- Cask snapshot packaged here: **0.8.3**. The live tap is authoritative for
+  installation and follows stable releases automatically (see below).
 - Requirements enforced by the cask: Apple Silicon (M1+), macOS 15.0+
 - Style verified against `Homebrew/homebrew-cask` `CONTRIBUTING.md`, the
   [Cask Cookbook stanza order](https://docs.brew.sh/Cask-Cookbook#stanza-order),
@@ -160,17 +161,20 @@ brew install --cask lokalbot
 (Once the tap exists under your account, the short form
 `brew tap stevyhacker/tap` also works.)
 
-Bump routine for future releases:
+Release synchronization:
 
-1. New release is cut on GitHub (tag `vX.Y.Z`, asset `LokalBot.dmg`).
-2. Compute the new sha256 of the DMG: `shasum -a 256 LokalBot.dmg`.
-3. In the upstream checkout update `Casks/l/lokalbot.rb`; in the own tap update
-   `Casks/lokalbot.rb`. Change `version` and `sha256`; the URL already
-   interpolates `v#{version}`.
-4. Livecheck keeps working across both distributions: the app's Sparkle
-   `appcast.xml` is attached to every GitHub release, and the cask's
-   `strategy :github_releases` reads the repo's releases API directly, so
-   `brew livecheck lokalbot` sees new versions immediately.
-5. Upstream path: if the cask was accepted, run
-   `brew bump --open-pr lokalbot`; tap path: commit as `"lokalbot X.Y.Z"` and
-   push to `main`.
+1. Publish the stable GitHub release with both `LokalBot.dmg` and `appcast.xml`.
+2. The tap's [Sync LokalBot release workflow](https://github.com/stevyhacker/homebrew-tap/actions/workflows/sync-lokalbot.yml)
+   checks hourly. It downloads new assets, verifies their release SHA-256 digests
+   and sizes, checks appcast/DMG consistency, and updates the tap cask. It refuses
+   prereleases, incomplete releases, downgrades, and same-version checksum changes.
+3. For immediate synchronization after publication, dispatch it explicitly:
+   `gh workflow run sync-lokalbot.yml --repo stevyhacker/homebrew-tap --ref main`.
+   Verify the run succeeds and the live cask matches the release before promoting
+   Homebrew. Scheduled runs may be delayed or disabled after 60 days of repository
+   inactivity; the release check must not assume the schedule has run.
+4. No cross-repository secret is needed: the tap workflow uses its own
+   `GITHUB_TOKEN`. This repository's cask is a reference snapshot, not the package
+   Homebrew installs. Refresh it from the verified tap when updating these docs.
+5. `brew livecheck` discovers available versions; it does **not** update the
+   cask. Upstream Homebrew remains a separate submission, if accepted later.

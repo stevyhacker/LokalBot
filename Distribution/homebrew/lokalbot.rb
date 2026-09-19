@@ -1,6 +1,6 @@
 cask "lokalbot" do
-  version "0.8.1"
-  sha256 "0bdf9bf6a57d88288521346f47b52c41e283b5c98ceb6ee37593875dfa491399"
+  version "0.8.3"
+  sha256 "3a29c58349af219ac55c9659d6a4a7585a08b1603841d2633ab50719ca98cdf2"
 
   url "https://github.com/stevyhacker/lokalbot/releases/download/v#{version}/LokalBot.dmg"
   name "LokalBot"
