@@ -24,7 +24,7 @@ struct AgentComposer: View {
                     Spacer()
                     Button { controller.composerError = nil } label: { Image(systemName: "xmark") }
                         .buttonStyle(.borderless).accessibilityLabel("Dismiss message")
-                }.accessibilityIdentifier("agent.composerError")
+                }.accessibilityElement(children: .contain).accessibilityIdentifier("agent.composerError")
             }
             if sessions.selectedTab?.record.isArchived == true {
                 Button("Restore task to continue") { Task { await sessions.setArchived(taskID, false) } }
@@ -52,6 +52,7 @@ struct AgentComposer: View {
                     for url in urls where url.isFileURL { controller.addAttachment(.file(url)) }
                     return urls.contains(where: \.isFileURL)
                 }
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("agent.composerSurface")
             }
             HStack(spacing: 5) {
@@ -62,7 +63,8 @@ struct AgentComposer: View {
                 Button { showingAccess.toggle() } label: { Image(systemName: "info.circle").frame(width: 24, height: 24) }
                     .buttonStyle(.borderless).accessibilityLabel("Task access details")
                     .popover(isPresented: $showingAccess) { accessDetails }
-            }.font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("agent.model")
+            }.font(.caption).foregroundStyle(.secondary)
+                .accessibilityElement(children: .contain).accessibilityIdentifier("agent.model")
         }
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.text, .sourceCode, .json, .pdf], allowsMultipleSelection: true) { result in
             switch result {

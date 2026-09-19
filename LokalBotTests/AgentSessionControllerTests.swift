@@ -182,6 +182,32 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
+    func testStopDuringQueuedAcknowledgementDoesNotFailOrDuplicatePrompt() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Already delivered"
+        controller.queueDraft()
+        controller.draft = "Stay paused"
+        controller.queueDraft()
+        transport.inject(#"{"type":"agent_end"}"#)
+        try await pump()
+        XCTAssertTrue(controller.isSending)
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"a2","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        transport.inject(#"{"type":"agent_end"}"#)
+        await stopping.value
+        try await pump()
+        XCTAssertEqual(controller.state, .ready)
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["Stay paused"])
+        XCTAssertEqual(transport.sentLines.filter { $0.contains(#""type":"prompt""#) }.count, 1)
+        await controller.shutdown()
+    }
+
     func testDuplicateSubmissionWhileAwaitingAcknowledgementIsNotSent() async throws {
         let controller = makeController()
         await controller.start()
@@ -192,6 +218,26 @@ final class AgentSessionControllerTests: XCTestCase {
         transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
         _ = await first.value
         XCTAssertEqual(transport.sentLines.count, 1)
+        await controller.shutdown()
+    }
+
+    func testUnsavedConversationCannotBeParkedOrSilentlyReplaced() async throws {
+        let controller = makeController()
+        controller.attachments = [.file(URL(fileURLWithPath: "/tmp/unsent-notes.txt"))]
+        XCTAssertFalse(controller.canReplaceWithSavedSession)
+        controller.attachments = []
+        await controller.start()
+        XCTAssertFalse(controller.canReplaceWithSavedSession, "a live runtime cannot be replaced by a read-only preview")
+        let send = Task { await controller.send(prompt: "Keep this context") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await send.value
+        transport.inject(#"{"type":"agent_end"}"#)
+        try await pump()
+        let parked = await controller.park()
+        XCTAssertFalse(parked)
+        XCTAssertEqual(controller.state, .ready)
+        XCTAssertTrue(controller.items.contains { $0.searchableText == "Keep this context" })
         await controller.shutdown()
     }
 

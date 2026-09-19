@@ -72,6 +72,7 @@ struct AgentResultsPanel: View {
                                        description: Text("Open a response, activity, or attached source to inspect it beside your task."))
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("agent.resultsPanel")
         .fileExporter(isPresented: $exporting, document: AgentPreviewDocument(text: selected?.text ?? ""),
                       contentType: .plainText, defaultFilename: "agent-result.txt") { result in

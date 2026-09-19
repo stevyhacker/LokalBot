@@ -408,7 +408,7 @@ final class AgentSessionController: ObservableObject {
     }
 
     func deliverNextQueued() async {
-        guard state == .ready, !isSending, !queuedPrompts.isEmpty else { return }
+        guard !Task.isCancelled, state == .ready, !isSending, !queuedPrompts.isEmpty else { return }
         let next = queuedPrompts.removeFirst()
         if !(await send(prompt: next.text, attachments: next.attachments)) {
             queuedPrompts.insert(next, at: 0)
@@ -427,6 +427,7 @@ final class AgentSessionController: ObservableObject {
                 try? await Task.sleep(for: .milliseconds(20))
             }
             guard !Task.isCancelled else { return }
+            guard !self.queueIsPaused else { self.queueDispatchTask = nil; return }
             await self.deliverNextQueued()
             self.queueDispatchTask = nil
             if self.state == .ready { self.scheduleQueuedDelivery() }
@@ -435,7 +436,10 @@ final class AgentSessionController: ObservableObject {
 
     func abort() async {
         queueIsPaused = true
-        queueDispatchTask?.cancel(); queueDispatchTask = nil
+        // Once an RPC is sent, canceling its acknowledgement would report a
+        // transport failure and requeue an already-delivered prompt. Let that
+        // acknowledgement settle while abort independently stops the turn.
+        if !isSending { queueDispatchTask?.cancel(); queueDispatchTask = nil }
         guard let client else { return }
         _ = try? await client.request(.abort(id: freshID("a")))
     }
@@ -906,9 +910,11 @@ final class AgentSessionController: ObservableObject {
     }
 
     var canReplaceWithSavedSession: Bool {
-        (state == .idle || state == .ready)
+        state == .idle
             && sessionTitle == nil
             && draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && attachments.isEmpty
+            && queuedPrompts.isEmpty
             && items.isEmpty
     }
 

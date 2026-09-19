@@ -14,6 +14,27 @@ struct AgentTaskRecord: Codable, Equatable, Identifiable {
     var isPinned = false
     var isArchived = false
     var modifiedAt = Date()
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, workspace, sessionFile, draft, attachments, queuedPrompts, sources, isPinned, isArchived, modifiedAt
+    }
+}
+
+extension AgentTaskRecord {
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        workspace = try values.decode(URL.self, forKey: .workspace)
+        title = try values.decodeIfPresent(String.self, forKey: .title)
+        sessionFile = try values.decodeIfPresent(URL.self, forKey: .sessionFile)
+        draft = try values.decodeIfPresent(String.self, forKey: .draft) ?? ""
+        attachments = try values.decodeIfPresent([AgentAttachment].self, forKey: .attachments) ?? []
+        queuedPrompts = try values.decodeIfPresent([AgentQueuedPrompt].self, forKey: .queuedPrompts) ?? []
+        sources = try values.decodeIfPresent([AgentAttachment].self, forKey: .sources) ?? []
+        isPinned = try values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+        isArchived = try values.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
+        modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
+    }
 }
 
 struct AgentTaskStore {

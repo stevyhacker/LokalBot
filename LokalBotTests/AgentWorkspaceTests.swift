@@ -126,6 +126,11 @@ final class AgentWorkspaceTests: XCTestCase {
         XCTAssertEqual(try store.load(), [record])
         let permissions = try FileManager.default.attributesOfItem(atPath: store.file.path)[.posixPermissions] as? NSNumber
         XCTAssertEqual(permissions?.intValue, 0o600)
+        let minimal: [String: Any] = ["id": record.id.uuidString, "workspace": root.absoluteString]
+        let restored = try JSONDecoder().decode(AgentTaskRecord.self, from: JSONSerialization.data(withJSONObject: minimal))
+        XCTAssertEqual(restored.draft, "")
+        XCTAssertTrue(restored.attachments.isEmpty)
+        XCTAssertFalse(restored.isArchived)
     }
 
     func testActivityGroupingPreservesMessageOrderAndKeepsApprovalsOutOfTranscript() {

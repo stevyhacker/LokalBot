@@ -78,6 +78,7 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Restore task to continue"].waitForExistence(timeout: 4))
         app.buttons["Restore task to continue"].click()
         XCTAssertTrue(UITestHarness.waitUntil { self.composer.value as? String == "Keep my archived draft" })
+        snapshot("agent-restored-task")
     }
 
     func testAtMentionAttachesMeetingWithoutSendingIt() {
@@ -90,6 +91,7 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["agent.attachments"].waitForExistence(timeout: 4))
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Remove '")).firstMatch.exists)
         XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+        snapshot("agent-attached-context")
     }
 
     func testFindAndResultsKeyboardCommands() throws {
@@ -106,6 +108,7 @@ final class AgentModeUITests: XCTestCase {
         app.buttons["Open in results"].firstMatch.click()
         XCTAssertTrue(app.descendants(matching: .any)["agent.resultsPanel"].waitForExistence(timeout: 4))
         XCTAssertTrue(app.buttons["Copy result"].exists)
+        snapshot("agent-results-inspector")
         app.typeKey("b", modifierFlags: [.command, .option])
         XCTAssertTrue(UITestHarness.waitUntil { !self.app.descendants(matching: .any)["agent.resultsPanel"].exists })
     }
@@ -124,12 +127,19 @@ final class AgentModeUITests: XCTestCase {
         let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3)); cancel.click()
         XCTAssertTrue(deny.exists)
+        snapshot("agent-docked-approval")
         let log = try String(contentsOf: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl"), encoding: .utf8)
         XCTAssertFalse(log.contains("Then make it shorter"))
         deny.click(); app.buttons["agent.stop"].click()
     }
 
     private var composer: XCUIElement { app.textFields["agent.composer"] }
+    private func snapshot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
     private var taskRow: XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'agent.task.'")).firstMatch
     }
