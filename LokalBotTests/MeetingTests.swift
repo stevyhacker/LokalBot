@@ -2,6 +2,20 @@ import XCTest
 @testable import LokalBot
 
 final class MeetingTests: XCTestCase {
+    func testMergedDisplayTitleHidesLegacyBookkeepingWithoutChangingStoredTitle() {
+        var meeting = Meeting(id: UUID(), title: "Merged: Demo Day + 1 more",
+                              appName: "Merged meetings", startedAt: .now,
+                              relativePath: "meetings/demo")
+        meeting.mergedSourceMeetingIDs = [UUID(), UUID()]
+        XCTAssertEqual(meeting.displayTitle, "Demo Day")
+        XCTAssertEqual(meeting.title, "Merged: Demo Day + 1 more")
+        meeting.title = "Release working session"
+        XCTAssertEqual(meeting.displayTitle, "Release working session")
+        meeting.title = "Merged: Demo Day + 1 more"
+        meeting.mergedSourceMeetingIDs = nil
+        XCTAssertEqual(meeting.displayTitle, meeting.title)
+    }
+
     func testDurationLabelForInProgressMeeting() {
         let meeting = Meeting(
             id: UUID(),

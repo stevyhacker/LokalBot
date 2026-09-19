@@ -254,9 +254,7 @@ struct MeetingMergeSheet: View {
     }
 
     private static func suggestedTitle(for meetings: [Meeting]) -> String {
-        guard let first = meetings.first else { return "Merged meeting" }
-        let suffix = meetings.count == 2 ? " + 1 more" : " + \(meetings.count - 1) more"
-        return "Merged: \(first.displayTitle)\(suffix)"
+        meetings.first?.displayTitle ?? "Meeting"
     }
 
     private func formattedDuration(_ value: TimeInterval) -> String {

@@ -29,11 +29,29 @@ enum SummaryPresentation {
             guard let items = parseMetadataLine(trimmed), items.count >= 2 else { break }
             lines.remove(at: index)
             return Parts(
-                metadata: items,
+                metadata: items.filter {
+                    $0.label != "Sources" && !($0.label == "App" && $0.value == "Merged meetings")
+                },
                 body: lines.joined(separator: "\n")
                     .trimmingCharacters(in: .whitespacesAndNewlines))
         }
         return Parts(metadata: [], body: markdown)
+    }
+
+    static func meetingBody(_ markdown: String, meeting: Meeting) -> String {
+        guard meeting.isMergedMeeting else { return markdown }
+        return markdown.components(separatedBy: "\n").enumerated().compactMap { index, line in
+            // Older merge drafts start with implementation details instead of
+            // meeting content. They remain available in the saved Markdown.
+            if line.hasPrefix("This is a non-destructive merge. Source evidence remains on disk for provenance,") {
+                return nil
+            }
+            let heading = "# \(meeting.title)"
+            if index == 0, line == heading || line.hasPrefix(heading + " — ") {
+                return "# \(meeting.displayTitle)" + line.dropFirst(heading.count)
+            }
+            return line
+        }.joined(separator: "\n")
     }
 
     /// Extract a reading preview without changing the stored/exported Markdown.
@@ -44,7 +62,7 @@ enum SummaryPresentation {
         if let heading = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).lowercased() == "## tl;dr" }) {
             let section = lines.dropFirst(heading + 1).prefix { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
                 .joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-            if !section.isEmpty && section.lowercased() != "none" { return section }
+            if !section.isEmpty && section.lowercased() != "none" { return recapText(section) }
         }
         return body.components(separatedBy: "\n\n").lazy.compactMap { paragraph -> String? in
             let content = paragraph.components(separatedBy: "\n")
@@ -52,8 +70,23 @@ enum SummaryPresentation {
                 .joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
             guard !content.isEmpty, content.lowercased() != "none",
                   !content.hasPrefix("- "), !content.hasPrefix("* "), !content.hasPrefix("|") else { return nil }
-            return content
+            return recapText(content)
         }.first
+    }
+
+    /// The recap is reading copy. Speaker attribution and playback citations
+    /// remain in Full Summary and the transcript, not in this compact preview.
+    private static func recapText(_ section: String) -> String? {
+        let text = section.components(separatedBy: "\n").map { line in
+            line
+                .replacingOccurrences(of: #"^\s*[-*•]\s+(?:\*\*[^*\n]+:\*\*\s*)?"#,
+                                      with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"\s*[—–-]\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*$"#,
+                                      with: "", options: .regularExpression)
+        }.joined(separator: " ")
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
     }
 
     private static func parseMetadataLine(_ line: String) -> [MetadataItem]? {
@@ -70,6 +103,49 @@ enum SummaryPresentation {
             items.append(MetadataItem(label: label, value: value))
         }
         return items.isEmpty ? nil : items
+    }
+}
+
+/// State belongs to the selected meeting's view, so every meeting opens compact.
+struct MeetingRecapView: View {
+    let text: String
+    @State private var isExpanded = false
+    @State private var fullHeight: CGFloat = 0
+    @State private var collapsedHeight: CGFloat = 0
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SelectableDigestText(text, font: WorkspaceTypography.body)
+                .lineLimit(isExpanded ? nil : 3)
+                .truncationMode(.tail)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                    if !isExpanded { collapsedHeight = height }
+                }
+                .background(alignment: .topLeading) {
+                    SelectableDigestText(text, font: WorkspaceTypography.body)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .hidden()
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                            fullHeight = $0
+                        }
+                }
+                .accessibilityIdentifier("meeting.recap.text")
+            if isExpanded || fullHeight > collapsedHeight + 1 {
+                Button {
+                    isExpanded.toggle()
+                } label: {
+                    Label(isExpanded ? "Show less" : "Show more",
+                          systemImage: isExpanded ? "chevron.up" : "chevron.down")
+                }
+                .buttonStyle(.plain)
+                .font(WorkspaceTypography.metadataEmphasis)
+                .foregroundStyle(Brand.teal)
+                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                .accessibilityIdentifier("meeting.recap.expand")
+            }
+        }
     }
 }
 

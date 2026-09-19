@@ -253,19 +253,13 @@ struct MeetingRowView: View {
                 HStack(spacing: 6) {
                     if live { StatusDot(color: Brand.recording, size: 9) }
                     Text(meeting.displayTitle).font(WorkspaceTypography.rowTitle)
-                    if meeting.isMergedMeeting {
-                        Label("Merged", systemImage: "rectangle.3.group")
-                            .font(WorkspaceTypography.overline)
-                            .foregroundStyle(Brand.teal)
-                            .labelStyle(.titleAndIcon)
-                            .accessibilityLabel("Merged meeting")
-                    }
                     if live {
                         Spacer(minLength: 6)
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
                     }
                 }
-                Text("\(meeting.appName) · \(time) · \(duration)")
+                Text(meeting.isMergedMeeting ? "\(time) · \(duration)"
+                     : "\(meeting.appName) · \(time) · \(duration)")
                     .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

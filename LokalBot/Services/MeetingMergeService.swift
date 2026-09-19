@@ -72,8 +72,7 @@ enum MeetingMergeService {
     }
 
     /// Merge source records in chronological order. A caller can pass a
-    /// custom title; otherwise a readable title is generated from the first
-    /// source and the number of additional meetings.
+    /// custom title; otherwise the first meeting's title is retained.
     static func merge(
         meetings: [Meeting],
         title: String,
@@ -200,7 +199,7 @@ enum MeetingMergeService {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if !cleaned.isEmpty { return cleaned }
         let first = sources.first?.meeting.displayTitle ?? "Meeting"
-        return "Merged: \(first) + \(max(0, sources.count - 1)) more"
+        return first
     }
 
     private static func makeTranscript(from sources: [Source]) throws -> Transcript? {

@@ -119,7 +119,14 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// and Agent surfaces. Calendar provenance beats generic recorder labels;
     /// otherwise preserve the original title and fall back to app + time.
     var displayTitle: String {
-        let cleanedTitle = Self.cleanedTitle(title)
+        var cleanedTitle = Self.cleanedTitle(title)
+        // Older merges embedded bookkeeping in the title. Keep the stored
+        // title intact while presenting the meeting by its actual name.
+        while isMergedMeeting, cleanedTitle.hasPrefix("Merged: "),
+              cleanedTitle.range(of: #" \+ \d+ more$"#, options: .regularExpression) != nil {
+            cleanedTitle = String(cleanedTitle.dropFirst("Merged: ".count))
+                .replacingOccurrences(of: #" \+ \d+ more$"#, with: "", options: .regularExpression)
+        }
         if !Self.isGenericTitle(cleanedTitle) { return cleanedTitle }
         let cleanedCalendar = Self.cleanedTitle(calendarTitle ?? "")
         if !cleanedCalendar.isEmpty { return cleanedCalendar }

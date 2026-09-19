@@ -81,6 +81,12 @@ private struct MeetingWorkspaceDetail: View {
     @State private var searchContentRevision = 0
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
+    private var speakerPresentation: MeetingSpeakerPresentation {
+        MeetingSpeakerPresentation(transcript: transcript)
+    }
+    private var presentedSummary: String? {
+        summary.map { speakerPresentation.text(SummaryPresentation.meetingBody($0, meeting: meeting)) }
+    }
     private var projection: MeetingOutcomeProjection? { partialProjection ?? app.outcomeIndex.projection(for: meeting.id) }
     private var captureTranscriptOnly: Bool {
 #if LOKALBOT_UI_TEST_HOST
@@ -324,18 +330,6 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     @ViewBuilder private var meetingOverviewContent: some View {
-        if let sourceCount = meeting.mergedSourceMeetingIDs?.count, sourceCount > 0 {
-            HStack(spacing: 8) {
-                Label("Merged from \(sourceCount) source meetings", systemImage: "rectangle.3.group")
-                    .font(WorkspaceTypography.metadataEmphasis)
-                    .foregroundStyle(Brand.teal)
-                Text("Source rows are folded into this meeting; evidence remains preserved.")
-                    .font(WorkspaceTypography.metadata)
-                    .foregroundStyle(.secondary)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("meeting.mergedProvenance")
-        }
         MeetingWorkspaceHeader(
             meeting: meeting,
             searchQuery: visibleSearchQuery,
@@ -472,9 +466,9 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     @ViewBuilder private var overviewContent: some View {
-        if let summary, let recap = SummaryPresentation.recap(summary) {
+        if let summary = presentedSummary, let recap = SummaryPresentation.recap(summary) {
             WorkspaceSection(title: "Recap", icon: "text.alignleft") {
-                SelectableDigestText(recap)
+                MeetingRecapView(text: recap)
             }
         }
         actionItemsSection
@@ -483,7 +477,7 @@ private struct MeetingWorkspaceDetail: View {
             if !projection.outcomes.openQuestions.isEmpty {
                 WorkspaceSection(title: "Open questions", icon: "questionmark.bubble") {
                     ForEach(Array(projection.outcomes.openQuestions.enumerated()), id: \.offset) { _, question in
-                        Text(question).textSelection(.enabled)
+                        Text(speakerPresentation.text(question)).textSelection(.enabled)
                     }
                 }
             }
@@ -492,6 +486,7 @@ private struct MeetingWorkspaceDetail: View {
 
     private var actionItemsSection: some View {
         let actions = projection?.actionReferences ?? []
+        let speakerNames = speakerPresentation
         return WorkspaceSection(
             title: "Action items",
             icon: "checklist",
@@ -509,6 +504,7 @@ private struct MeetingWorkspaceDetail: View {
                     ForEach(actions) { reference in
                         OutcomeActionRow(
                             reference: reference,
+                            displayOwner: reference.owner.map { speakerNames.text($0) },
                             searchQuery: visibleSearchQuery,
                             activeMatch: activeSearchMatch,
                             onStatus: { status in
@@ -532,6 +528,7 @@ private struct MeetingWorkspaceDetail: View {
 
     private var decisionsSection: some View {
         let decisions = projection?.outcomes.decisionRecords ?? []
+        let speakerNames = speakerPresentation
         return WorkspaceSection(
             title: "Decisions",
             icon: "checkmark.seal",
@@ -549,6 +546,7 @@ private struct MeetingWorkspaceDetail: View {
                     ForEach(decisions) { decision in
                         OutcomeDecisionRow(
                             decision: decision,
+                            displayText: speakerNames.text(decision.displayText),
                             searchQuery: visibleSearchQuery,
                             activeMatch: activeSearchMatch) { citation in
                             revealEvidence(at: citation.start)
@@ -568,7 +566,7 @@ private struct MeetingWorkspaceDetail: View {
             searchLocation: .sectionHeader(.summary)) {
             MeetingSummaryWorkspaceContent(
                 notes: nil,
-                summary: summary,
+                summary: presentedSummary,
                 searchQuery: visibleSearchQuery,
                 activeMatch: activeSearchMatch)
         }
@@ -578,6 +576,7 @@ private struct MeetingWorkspaceDetail: View {
     private var transcriptSection: some View {
         TranscriptEvidenceList(
             transcript: transcript, player: player,
+            speakerPresentation: speakerPresentation,
             searchQuery: visibleSearchQuery, activeMatch: activeSearchMatch,
             evidenceSegment: evidenceSegment,
             onRenameSpeaker: { beginRenameSpeaker($0) })
@@ -676,6 +675,7 @@ private struct MeetingWorkspaceDetail: View {
 
     private var searchSources: [MeetingPageSearchSource] {
         var sources: [MeetingPageSearchSource] = []
+        let speakerNames = speakerPresentation
         func append(
             _ text: String?,
             at location: MeetingPageSearchMatch.Location
@@ -706,7 +706,7 @@ private struct MeetingWorkspaceDetail: View {
                     let id = reference.action.id
                     append(reference.text, at: .action(id: id, field: .text))
                     append(
-                        reference.owner ?? "Unassigned",
+                        reference.owner.map { speakerNames.text($0) } ?? "Owner unclear",
                         at: .action(id: id, field: .owner))
                     append(reference.due, at: .action(id: id, field: .due))
                     if let citation = reference.action.citations.first {
@@ -726,7 +726,7 @@ private struct MeetingWorkspaceDetail: View {
             } else {
                 for decision in decisions {
                     append(
-                        decision.displayText,
+                        speakerNames.text(decision.displayText),
                         at: .decision(id: decision.id, field: .text))
                     if let citation = decision.citations.first {
                         append(
@@ -744,7 +744,7 @@ private struct MeetingWorkspaceDetail: View {
                         notes,
                         at: .notes)
                 }
-                if let summary, !summary.isEmpty {
+                if let summary = presentedSummary, !summary.isEmpty {
                     let parts = SummaryPresentation.split(summary)
                     if !parts.metadata.isEmpty {
                         append(
@@ -762,7 +762,7 @@ private struct MeetingWorkspaceDetail: View {
 
         append("Transcript", at: .sectionHeader(.transcript))
         if let transcript, !transcript.segments.isEmpty {
-            if !transcript.engine.isEmpty {
+            if !transcript.engine.isEmpty && transcript.engine != "merged" {
                 append(
                     transcriptEngineDescription(transcript.engine),
                     at: .transcriptEngine)
@@ -772,7 +772,7 @@ private struct MeetingWorkspaceDetail: View {
                     Transcript.stamp(segment.start),
                     at: .transcript(segmentIndex: index, field: .timestamp))
                 append(
-                    transcript.displaySpeaker(for: segment.speaker),
+                    speakerNames.speaker(segment.speaker, in: transcript),
                     at: .transcript(segmentIndex: index, field: .speaker))
                 append(
                     segment.displayText,
@@ -1190,7 +1190,7 @@ private struct MeetingWorkspaceMetadataItem {
 private func meetingWorkspaceMetadataItems(
     for meeting: Meeting
 ) -> [MeetingWorkspaceMetadataItem] {
-    [
+    let items: [MeetingWorkspaceMetadataItem] = [
         .init(
             field: .date,
             icon: "calendar",
@@ -1202,6 +1202,7 @@ private func meetingWorkspaceMetadataItems(
             icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "mic.fill",
             text: meeting.hasSystemTrack ? "Mic + system" : "Mic only"),
     ]
+    return items.filter { !meeting.isMergedMeeting || $0.field != .app }
 }
 
 private func transcriptEngineDescription(_ engine: String) -> String {
@@ -1319,6 +1320,7 @@ private struct MeetingAudioBar: View {
 private struct OutcomeActionRow: View {
     @EnvironmentObject var app: AppState
     let reference: OutcomeActionReference
+    let displayOwner: String?
     let searchQuery: String
     let activeMatch: MeetingPageSearchMatch?
     let onStatus: (OutcomeStatus) -> Void
@@ -1350,7 +1352,7 @@ private struct OutcomeActionRow: View {
                 HStack(spacing: 7) {
                     Button(action: onCorrect) {
                         SearchHighlightedText(
-                            reference.owner ?? "Owner unclear",
+                            displayOwner ?? "Owner unclear",
                             query: searchQuery,
                             activeMatchIndex: activeOccurrence(for: .owner))
                             .id(MeetingPageSearchMatch.Location.action(
@@ -1423,6 +1425,7 @@ private struct OutcomeActionRow: View {
 
 private struct OutcomeDecisionRow: View {
     let decision: MeetingOutcomes.Decision
+    let displayText: String
     let searchQuery: String
     let activeMatch: MeetingPageSearchMatch?
     let onEvidence: (OutcomeSourceCitation) -> Void
@@ -1432,7 +1435,7 @@ private struct OutcomeDecisionRow: View {
             Image(systemName: "checkmark")
                 .foregroundStyle(Brand.teal)
             SearchHighlightedText(
-                decision.displayText,
+                displayText,
                 query: searchQuery,
                 activeMatchIndex: activeOccurrence(for: .text))
                 .id(MeetingPageSearchMatch.Location.decision(
@@ -1520,6 +1523,7 @@ private struct ActionCorrectionSheet: View {
 private struct TranscriptEvidenceList: View {
     let transcript: Transcript?
     @ObservedObject var player: MeetingPlayer
+    let speakerPresentation: MeetingSpeakerPresentation
     let searchQuery: String
     let activeMatch: MeetingPageSearchMatch?
     let evidenceSegment: Int?
@@ -1528,7 +1532,7 @@ private struct TranscriptEvidenceList: View {
     var body: some View {
         if let transcript, !transcript.segments.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                if !transcript.engine.isEmpty {
+                if !transcript.engine.isEmpty && transcript.engine != "merged" {
                     HStack(spacing: 6) {
                         Image(systemName: "waveform.badge.magnifyingglass")
                             .foregroundStyle(.tint)
@@ -1577,7 +1581,7 @@ private struct TranscriptEvidenceList: View {
                             .help("Play from \(Transcript.stamp(segment.start))")
                             .accessibilityIdentifier("transcript.segment.\(index).play")
                             TranscriptSpeakerButton(
-                                title: transcript.displaySpeaker(for: segment.speaker),
+                                title: speakerPresentation.speaker(segment.speaker, in: transcript),
                                 query: searchQuery,
                                 activeMatchIndex: activeOccurrence(
                                     at: .transcript(
