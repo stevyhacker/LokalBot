@@ -123,9 +123,10 @@ final class AgentModeUITests: XCTestCase {
         composer.click(); composer.typeText("Then make it shorter")
         app.buttons["agent.send"].click()
         let queue = app.descendants(matching: .any)["agent.queue"]
-        XCTAssertTrue(queue.waitForExistence(timeout: 4)); queue.click()
+        XCTAssertTrue(queue.waitForExistence(timeout: 4))
         let cancel = app.buttons["Cancel"]
         XCTAssertTrue(cancel.waitForExistence(timeout: 3)); cancel.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !queue.exists })
         XCTAssertTrue(deny.exists)
         snapshot("agent-docked-approval")
         let log = try String(contentsOf: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl"), encoding: .utf8)

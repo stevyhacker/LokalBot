@@ -17,7 +17,8 @@ struct AgentResultsPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Results & sources").font(.headline).padding(16)
-            ScrollView {
+            if !controller.sourceAttachments.isEmpty || !results.isEmpty {
+                ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if !controller.sourceAttachments.isEmpty {
                         Text("Sources used").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
@@ -42,8 +43,9 @@ struct AgentResultsPanel: View {
                         }
                     }
                 }.padding(.horizontal, 16).padding(.bottom, 12)
-            }.frame(maxHeight: 200)
-            Divider()
+                }.frame(maxHeight: 200)
+                Divider()
+            }
             if let previewError { Text(previewError).font(.callout).foregroundStyle(.orange).padding(16) }
             if let selected {
                 HStack {
@@ -54,7 +56,7 @@ struct AgentResultsPanel: View {
                     Button { exporting = true } label: { Image(systemName: "square.and.arrow.up") }
                         .accessibilityLabel("Export result")
                 }.buttonStyle(.borderless).padding(16)
-                ScrollView([.vertical, .horizontal]) {
+                ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 14) {
                         Text(selected.detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
                         if let original = selected.original, let proposed = selected.proposed {
@@ -65,6 +67,7 @@ struct AgentResultsPanel: View {
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
                         Text("Preview of recorded output or selected source. Opening a preview does not run a tool.")
                             .font(.caption).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }.padding(.horizontal, 16).padding(.bottom, 16)
                 }
             } else {

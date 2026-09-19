@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AgentTaskSidebar: View {
     @ObservedObject var sessions: AgentSessionTabs
+    let verifyRuntime: () -> Void
     @State private var query = ""
     @State private var showArchived = false
     @State private var renaming: UUID?
@@ -20,6 +21,10 @@ struct AgentTaskSidebar: View {
                 Menu {
                     Button("Refresh tasks") { Task { await sessions.refreshHistory() } }
                     Toggle("Show archived tasks", isOn: $showArchived)
+                    Divider()
+                    Button("Verify Agent runtime…", action: verifyRuntime)
+                        .disabled(sessions.tabs.contains { $0.controller.state == .running || $0.controller.state == .starting })
+                        .accessibilityIdentifier("agent.verifyRuntime")
                     Divider()
                     Button("Clear saved Agent history…", role: .destructive) { confirmingClear = true }
                 } label: { Image(systemName: "ellipsis").frame(width: 28, height: 28) }

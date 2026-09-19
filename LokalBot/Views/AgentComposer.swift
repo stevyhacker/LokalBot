@@ -13,6 +13,7 @@ struct AgentComposer: View {
     @State private var showingAccess = false
     @State private var pendingMode: AgentApprovalMode?
     @State private var submitting = false
+    @State private var queueExpanded = true
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -165,7 +166,7 @@ struct AgentComposer: View {
     }
 
     private var queue: some View {
-        DisclosureGroup("\(controller.queuedPrompts.count) queued follow-ups\(controller.queueIsPaused ? " · paused" : "")") {
+        DisclosureGroup("\(controller.queuedPrompts.count) queued follow-ups\(controller.queueIsPaused ? " · paused" : "")", isExpanded: $queueExpanded) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(controller.queuedPrompts) { prompt in
@@ -174,7 +175,8 @@ struct AgentComposer: View {
                             Spacer()
                             Button("Edit") { controller.editQueued(prompt.id); focused = true }
                             Button("Cancel") { controller.cancelQueued(prompt.id) }
-                        }.buttonStyle(.borderless).accessibilityIdentifier("agent.queue.\(prompt.id)")
+                        }.buttonStyle(.borderless).accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("agent.queue.\(prompt.id)")
                     }
                 }.padding(.top, 6)
             }.frame(maxHeight: 120)

@@ -199,7 +199,8 @@ struct AgentSessionView: View {
     }
     private func branchButton(_ item: AgentTranscriptItem) -> some View {
         Button("Branch from here") { Task { await sessions.fork(taskID, through: item) } }
-            .disabled(controller.state == .running || controller.activeSessionFile == nil)
+            .disabled(controller.state == .running || controller.state == .starting || controller.isSending
+                      || (controller.activeSessionFile == nil && sessions.selectedTab?.record.sessionFile == nil))
             .help("Create an independent task through this message. Existing files and actions are unchanged.")
     }
     private func recovery(_ message: String) -> some View {

@@ -66,34 +66,34 @@ struct AgentApprovalDock: View {
     }
 
     @ViewBuilder private var approvalButtons: some View {
-                Button("Deny") {
-                    Task {
-                        await controller.respondToApproval(
-                            id: request.id, approved: false, scope: .once)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.cancelAction)
-                .accessibilityIdentifier("agent.approve.deny")
+        Button("Deny") {
+            Task {
+                await controller.respondToApproval(
+                    id: request.id, approved: false, scope: .once)
+            }
+        }
+        .buttonStyle(.borderedProminent)
+        .keyboardShortcut(.cancelAction)
+        .accessibilityIdentifier("agent.approve.deny")
 
-                if controller.canAllowForSession(request) {
-                    Button("Allow \(request.tool) for Session") {
-                        Task {
-                            await controller.respondToApproval(
-                                id: request.id, approved: true, scope: .session)
-                        }
-                    }
-                    .help("Automatically allow future \(request.tool) requests until this session closes")
-                    .accessibilityIdentifier("agent.approve.session")
+        if controller.canAllowForSession(request) {
+            Button("Allow \(request.tool) for Session") {
+                Task {
+                    await controller.respondToApproval(
+                        id: request.id, approved: true, scope: .session)
                 }
+            }
+            .help("Automatically allow future \(request.tool) requests until this session closes")
+            .accessibilityIdentifier("agent.approve.session")
+        }
 
-                Button("Allow Once") {
-                    Task {
-                        await controller.respondToApproval(
-                            id: request.id, approved: true, scope: .once)
-                    }
-                }
-                .accessibilityIdentifier("agent.approve.once")
+        Button("Allow Once") {
+            Task {
+                await controller.respondToApproval(
+                    id: request.id, approved: true, scope: .once)
+            }
+        }
+        .accessibilityIdentifier("agent.approve.once")
     }
 
     private func approvalEffect(_ tool: String) -> String {

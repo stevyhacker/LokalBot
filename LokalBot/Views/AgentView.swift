@@ -9,7 +9,7 @@ struct AgentView: View {
         Group {
             if installer.phase == .installed {
                 NavigationSplitView {
-                    AgentTaskSidebar(sessions: sessions)
+                    AgentTaskSidebar(sessions: sessions, verifyRuntime: verifyRuntime)
                         .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 320)
                 } detail: {
                     if let tab = sessions.selectedTab {
@@ -24,6 +24,16 @@ struct AgentView: View {
         .alert("Agent tasks", isPresented: Binding(get: { sessions.error != nil }, set: { if !$0 { sessions.error = nil } })) {
             Button("OK") { sessions.error = nil }
         } message: { Text(sessions.error ?? "") }
+    }
+
+    private func verifyRuntime() {
+        Task {
+            guard !(await installer.verifyInstalledState()) else { return }
+            sessions.persist()
+            for tab in sessions.tabs {
+                if !(await tab.controller.park()) { await tab.controller.shutdown() }
+            }
+        }
     }
     // MARK: - Install card
 

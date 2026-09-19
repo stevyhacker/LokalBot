@@ -269,6 +269,7 @@ final class AgentSessionTabs: ObservableObject {
 
     func fork(_ id: UUID, through item: AgentTranscriptItem) async {
         guard let tab = tabs.first(where: { $0.id == id }), tab.controller.state != .running,
+              tab.controller.state != .starting, !tab.controller.isSending,
               let file = tab.controller.activeSessionFile ?? tab.record.sessionFile else {
             error = "Wait for this task to finish and save before branching."
             return
