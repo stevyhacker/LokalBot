@@ -12,6 +12,7 @@ struct MeetingListView: View {
     @State private var contentMatches: Set<UUID> = []
     @State private var searchTask: Task<Void, Never>?
     @State private var filter: StatusFilter = .all
+    @State private var mergeDraft: MeetingMergeDraft?
 
     private enum StatusFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -38,6 +39,10 @@ struct MeetingListView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
                 .accessibilityIdentifier("meeting.statusFilter")
+
+                if app.selectedMeetingIDs.count > 1 {
+                    mergeSelectionBar
+                }
             }
             .padding(WorkspaceMetric.cardPadding)
             .background(.bar)
@@ -68,6 +73,12 @@ struct MeetingListView: View {
             }
         }
         .contextMenu(forSelectionType: Meeting.ID.self) { ids in
+            Button("Merge \(ids.count) meetings…", systemImage: "rectangle.3.group") {
+                let meetings = app.meetings.filter { ids.contains($0.id) }
+                guard canMerge(meetings) else { return }
+                mergeDraft = MeetingMergeDraft(meetings: meetings)
+            }
+            .disabled(ids.count < 2 || !canMerge(app.meetings.filter { ids.contains($0.id) }))
             Button("Delete \(ids.count > 1 ? "\(ids.count) meetings" : "meeting")…",
                    role: .destructive) {
                 pendingDelete = ids
@@ -80,9 +91,47 @@ struct MeetingListView: View {
         .onChange(of: query) { app.evidenceMeetingID = nil; searchContent() }
         .onChange(of: filter) { app.evidenceMeetingID = nil; searchContent() }
         .onDisappear { searchTask?.cancel() }
+        .sheet(item: $mergeDraft) { draft in
+            MeetingMergeSheet(meetings: draft.meetings, storage: app.storage)
+                .environmentObject(app)
+        }
         .onChange(of: app.libraryReady) { _, ready in
             if ready { app.selectDefaultMeetingIfNeeded() }
         }
+    }
+
+    private var mergeSelectionBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "rectangle.3.group")
+                .foregroundStyle(Brand.teal)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(app.selectedMeetingIDs.count) meetings selected")
+                    .font(WorkspaceTypography.control.weight(.semibold))
+                Text(canMergeSelected
+                     ? "Create one timeline and fold the originals into it"
+                     : "Select completed meetings that are not processing")
+                    .font(WorkspaceTypography.metadata)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 6)
+            Button("Merge…", systemImage: "rectangle.3.group") {
+                mergeDraft = MeetingMergeDraft(meetings: selectedMeetings)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!canMergeSelected)
+            .accessibilityIdentifier("meeting.merge")
+        }
+        .padding(.horizontal, WorkspaceMetric.cardPadding)
+        .padding(.vertical, 9)
+        .background(.quaternary.opacity(0.22), in: RoundedRectangle(cornerRadius: Brand.Radius.row))
+        .overlay {
+            RoundedRectangle(cornerRadius: Brand.Radius.row)
+                .strokeBorder(Brand.teal.opacity(0.22))
+        }
+        .padding(.horizontal, WorkspaceMetric.cardPadding)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("meeting.mergeSelectionBar")
     }
 
     @ViewBuilder private var meetingEmptyState: some View {
@@ -111,10 +160,24 @@ struct MeetingListView: View {
         app.currentMeeting == nil && app.meetings.isEmpty
     }
 
+    private var selectedMeetings: [Meeting] {
+        app.meetings.filter { app.selectedMeetingIDs.contains($0.id) }
+    }
+
+    private var canMergeSelected: Bool { canMerge(selectedMeetings) }
+
+    private func canMerge(_ meetings: [Meeting]) -> Bool {
+        meetings.count >= 2 && meetings.allSatisfy { meeting in
+            meeting.endedAt != nil
+                && !(app.pipeline.stages[meeting.id].map { !$0.isFailure } ?? false)
+        }
+    }
+
     /// Live recording first, then finished meetings, grouped by day.
     private var groupedMeetings: [(label: String, items: [Meeting])] {
         let calendar = Calendar.current
         let all = ((app.currentMeeting.map { [$0] } ?? []) + app.meetings)
+            .filter { !$0.isMergedSource }
             .filter { (matchesQuery($0) && matchesFilter($0)) || $0.id == app.evidenceMeetingID }
         let groups = Dictionary(grouping: all) { calendar.startOfDay(for: $0.startedAt) }
         return groups.keys.sorted(by: >).map { day in
@@ -190,6 +253,13 @@ struct MeetingRowView: View {
                 HStack(spacing: 6) {
                     if live { StatusDot(color: Brand.recording, size: 9) }
                     Text(meeting.displayTitle).font(WorkspaceTypography.rowTitle)
+                    if meeting.isMergedMeeting {
+                        Label("Merged", systemImage: "rectangle.3.group")
+                            .font(WorkspaceTypography.overline)
+                            .foregroundStyle(Brand.teal)
+                            .labelStyle(.titleAndIcon)
+                            .accessibilityLabel("Merged meeting")
+                    }
                     if live {
                         Spacer(minLength: 6)
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)

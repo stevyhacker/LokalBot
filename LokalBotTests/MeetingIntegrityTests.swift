@@ -82,16 +82,34 @@ final class MeetingIntegrityTests: XCTestCase {
             .endAfterGrace)
     }
 
-    func testVideoAndCalendarNeverProveBrowserSession() {
-        XCTAssertTrue(BrowserMeetingSession.hasConflictingAudio(selectedAudibleTabs: [false], hasBoundDocument: true))
-        XCTAssertTrue(BrowserMeetingSession.hasConflictingAudio(selectedAudibleTabs: [true], hasBoundDocument: false))
-        XCTAssertFalse(BrowserMeetingSession.hasConflictingAudio(selectedAudibleTabs: [true], hasBoundDocument: true))
+    func testUnrelatedSignalsNeverProveOrInvalidateBrowserSession() {
+        XCTAssertEqual(BrowserMeetingSession.state(
+            buttons: ["Leave call", "Turn on microphone"], messages: []), .inCall,
+            "Unrelated browser audio must not change lifecycle evidence from the call controls")
         for strict in [true, false] {
             XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(titleMatchesMarker: true, hasOutputAudio: true,
                 calendarBacked: true, requireCalendarForBrowser: strict))
             XCTAssertTrue(MeetingMatcher.browserCountsAsMeeting(titleMatchesMarker: false, hasOutputAudio: false,
                 calendarBacked: true, requireCalendarForBrowser: strict, verifiedSession: true))
         }
+    }
+
+    func testBrowserTraversalBudgetResetsForEachWindow() {
+        var first = BrowserMeetingSession.TraversalBudget(startTime: 100)
+        for _ in 0..<BrowserMeetingSession.TraversalBudget.maximumNodes {
+            XCTAssertTrue(first.visit(depth: 0, at: 100))
+        }
+        XCTAssertFalse(first.visit(depth: 0, at: 100))
+        XCTAssertFalse(first.allowsChildren(BrowserMeetingSession.TraversalBudget.maximumChildren + 1))
+
+        var second = BrowserMeetingSession.TraversalBudget(startTime: 100)
+        XCTAssertTrue(second.visit(depth: 0, at: 100),
+            "A heavy page must not carry its node count into the next browser window")
+        XCTAssertTrue(second.allowsChildren(BrowserMeetingSession.TraversalBudget.maximumChildren))
+        var depthLimited = BrowserMeetingSession.TraversalBudget(startTime: 100)
+        XCTAssertFalse(depthLimited.visit(depth: BrowserMeetingSession.TraversalBudget.maximumDepth + 1, at: 100))
+        var expired = BrowserMeetingSession.TraversalBudget(startTime: 100)
+        XCTAssertFalse(expired.visit(depth: 0, at: 100.25))
     }
 
     func testOldMicrophoneDefaultsCannotCreateUserSummaryEvidence() throws {

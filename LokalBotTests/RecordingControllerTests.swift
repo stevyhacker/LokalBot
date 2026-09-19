@@ -135,6 +135,42 @@ final class RecordingControllerTests: XCTestCase {
         XCTAssertNil(controller.currentMeeting)
     }
 
+    func testExplicitRecordNowBypassesCalendarRepeatCooldown() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        XCTAssertFalse(RecordingController.shouldSuppressCalendarRepeat(
+            source: "ui",
+            eventID: "event-1",
+            lastEventID: "event-1",
+            lastEndedAt: now.addingTimeInterval(-1),
+            now: now,
+            cooldown: 300))
+        XCTAssertFalse(RecordingController.shouldSuppressCalendarRepeat(
+            source: "menubar",
+            eventID: "event-1",
+            lastEventID: "event-1",
+            lastEndedAt: now.addingTimeInterval(-1),
+            now: now,
+            cooldown: 300))
+    }
+
+    func testAutomaticCalendarRepeatStillRespectsCooldown() {
+        let now = Date(timeIntervalSince1970: 10_000)
+        XCTAssertTrue(RecordingController.shouldSuppressCalendarRepeat(
+            source: "detector",
+            eventID: "event-1",
+            lastEventID: "event-1",
+            lastEndedAt: now.addingTimeInterval(-1),
+            now: now,
+            cooldown: 300))
+        XCTAssertTrue(RecordingController.shouldSuppressCalendarRepeat(
+            source: "audio-monitor",
+            eventID: "event-1",
+            lastEventID: "event-1",
+            lastEndedAt: now.addingTimeInterval(-1),
+            now: now,
+            cooldown: 300))
+    }
+
     func testMicrophoneOnlyPolicyNeverResolvesASystemAudioApp() {
         var fallbackWasCalled = false
 

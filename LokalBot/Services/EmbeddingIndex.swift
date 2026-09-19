@@ -427,6 +427,10 @@ final class EmbeddingIndex {
         locallyDeletedMeetingIDs.insert(meetingID)
     }
 
+    func noteRestoration(_ meetingID: UUID) {
+        locallyDeletedMeetingIDs.remove(meetingID)
+    }
+
     /// Utility-worker entry point used by AppState deletion. It deliberately
     /// opens its own FULLMUTEX connection so SQLite's busy timeout can never
     /// stall the main actor.

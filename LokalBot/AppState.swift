@@ -430,7 +430,7 @@ final class AppState: ObservableObject {
         if let cachedSearchIndex { return cachedSearchIndex }
         let created = SearchIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
-        for meetingID in deletedMeetingIDs { created.noteDeletion(meetingID) }
+        for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
         cachedSearchIndex = created
         return created
     }
@@ -443,7 +443,7 @@ final class AppState: ObservableObject {
         let created = EmbeddingIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
             storage: storage)
-        for meetingID in deletedMeetingIDs { created.noteDeletion(meetingID) }
+        for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
         cachedEmbeddingIndex = created
         return created
     }
@@ -683,7 +683,9 @@ final class AppState: ObservableObject {
     private var embeddingBackfillTask: (token: UUID, task: Task<Void, Never>)?
     private var embeddingIndexTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
     private var indexCleanupTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
-    private var deletedMeetingIDs: Set<Meeting.ID> = []
+    /// Meeting IDs excluded from search for this session. This includes
+    /// physically deleted meetings and source rows folded into a merge.
+    private var excludedMeetingIDs: Set<Meeting.ID> = []
     @Published private(set) var libraryReady = false
     private var pendingRecordingStart: (
         context: MeetingDetectionContext?,
@@ -1230,6 +1232,137 @@ final class AppState: ObservableObject {
 
     // MARK: - Library operations
 
+    /// Creates a new, provenance-linked meeting from completed sources. The
+    /// source folders remain untouched, but their rows are folded out of the
+    /// library after the merge succeeds.
+    func mergeMeetings(
+        _ sourceMeetings: [Meeting],
+        title: String,
+        generateSummary: Bool
+    ) async throws -> Meeting {
+        for meeting in sourceMeetings {
+            if let stage = pipeline.stages[meeting.id], !stage.isFailure {
+                throw MeetingMergeService.MergeError.processingInProgress(meeting.displayTitle)
+            }
+        }
+        let result = try await MeetingMergeService.merge(
+            meetings: sourceMeetings,
+            title: title,
+            storage: storage)
+
+        let sourceIDs = Set(result.sourceMeetings.map(\.id))
+        pipeline.forget(meetingIDs: sourceIDs)
+        let worker = searchIndexWorkQueue
+        for sourceID in sourceIDs {
+            embeddingIndexTasks.removeValue(forKey: sourceID)?.task.cancel()
+            excludedMeetingIDs.insert(sourceID)
+            cachedSearchIndex?.noteDeletion(sourceID)
+            cachedEmbeddingIndex?.noteDeletion(sourceID)
+            // Tombstone both indexes before publishing the folded library
+            // projection. The retry loop remains available for a transient
+            // SQLite failure, but a normal merge cannot leave searchable
+            // source rows behind if the app exits immediately afterward.
+            let cleanup = await worker.remove(sourceID)
+            if !cleanup.search || !cleanup.embedding {
+                scheduleIndexCleanup(sourceID)
+            }
+        }
+        meetings.removeAll { sourceIDs.contains($0.id) }
+        selectedMeetingIDs.subtract(sourceIDs)
+        meetings.append(result.meeting)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        outcomeIndex.refresh(meetings: meetings)
+        primaryEvidenceDidChange(for: result.sourceMeetings + [result.meeting])
+        reindexSearchInBackground(result.meeting)
+        if settings.semanticSearchEnabled {
+            reindexEmbeddingInBackground(result.meeting)
+        }
+        selectedMeetingIDs = [result.meeting.id]
+        navSection = .meetings
+        if generateSummary, result.transcriptSegmentCount > 0 {
+            reprocess(result.meeting, transcribe: false, summarize: true)
+        }
+        return result.meeting
+    }
+
+    /// Removes a generated merged record and restores its original source
+    /// rows. Source folders are retained; their durable merge markers and
+    /// search tombstones are cleared before the restored evidence is indexed.
+    func undoMerge(_ mergedMeeting: Meeting) {
+        guard let rawSourceIDs = mergedMeeting.mergedSourceMeetingIDs,
+              rawSourceIDs.count >= 2 else {
+            lastError = "This meeting does not contain a reversible merge."
+            return
+        }
+        if let stage = pipeline.stages[mergedMeeting.id], !stage.isFailure {
+            lastError = "Wait for the merged summary to finish before undoing the merge."
+            return
+        }
+
+        let sourceIDs = Set(rawSourceIDs)
+        let sources = storage.loadMeetings(includeMergedSources: true)
+            .filter { sourceIDs.contains($0.id) }
+        guard sources.count == sourceIDs.count,
+              sources.allSatisfy({ $0.mergedIntoMeetingID == mergedMeeting.id }) else {
+            lastError = "Some original meetings could not be found, so the merge was kept intact."
+            return
+        }
+
+        lastError = nil
+        let worker = searchIndexWorkQueue
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                pipeline.forget(meetingIDs: [mergedMeeting.id])
+                try await speakerIdentity.prepareDeletion(meeting: mergedMeeting)
+                try storage.deleteMeeting(mergedMeeting)
+                meetings.removeAll { $0.id == mergedMeeting.id }
+                selectedMeetingIDs.remove(mergedMeeting.id)
+                outcomeIndex.refresh(meetings: meetings)
+
+                embeddingIndexTasks.removeValue(forKey: mergedMeeting.id)?.task.cancel()
+                excludedMeetingIDs.insert(mergedMeeting.id)
+                cachedSearchIndex?.noteDeletion(mergedMeeting.id)
+                cachedEmbeddingIndex?.noteDeletion(mergedMeeting.id)
+                scheduleIndexCleanup(mergedMeeting.id)
+
+                var restoredSources: [Meeting] = []
+                var restorationErrors: [String] = []
+                for source in sources {
+                    indexCleanupTasks.removeValue(forKey: source.id)?.task.cancel()
+                    do {
+                        let restored = try await worker.restore(source)
+                        restoredSources.append(restored)
+                        excludedMeetingIDs.remove(source.id)
+                        cachedSearchIndex?.noteRestoration(source.id)
+                        cachedEmbeddingIndex?.noteRestoration(source.id)
+                        if settings.semanticSearchEnabled {
+                            reindexEmbeddingInBackground(restored)
+                        }
+                    } catch {
+                        // Other sources can still recover. Failed ones retain
+                        // their on-disk marker and are retried at next launch.
+                        restorationErrors.append(error.localizedDescription)
+                    }
+                }
+                meetings.append(contentsOf: restoredSources)
+                meetings.sort { $0.startedAt > $1.startedAt }
+                outcomeIndex.refresh(meetings: meetings)
+                primaryEvidenceDidChange(for: [mergedMeeting] + restoredSources)
+                selectedMeetingIDs = restoredSources
+                    .sorted { $0.startedAt < $1.startedAt }
+                    .first.map { [$0.id] } ?? []
+                navSection = .meetings
+                if !restorationErrors.isEmpty {
+                    lastError = "Some original meetings could not be restored; restart to retry: "
+                        + restorationErrors.joined(separator: "; ")
+                }
+            } catch {
+                lastError = "Could not undo the merge: \(error.localizedDescription)"
+            }
+        }
+    }
+
     func setMeetingBoundaries(_ range: Meeting.ContentRange, for meeting: Meeting) throws {
         if let stage = pipeline.stages[meeting.id], !stage.isFailure {
             throw TextEngineError.badResponse("Wait for meeting processing to finish before changing its boundaries.")
@@ -1626,18 +1759,25 @@ final class AppState: ObservableObject {
         pipeline.forget(meetingIDs: ids)
         Task {
             var deletedIDs: Set<Meeting.ID> = []
+            var deletedMeetings: [Meeting] = []
             for meeting in candidates {
                 do {
-                    // Persist revocation before removing its source. Interrupted
-                    // deletions can retry; no late enrollment can resurrect it.
-                    try await speakerIdentity.prepareDeletion(meeting: meeting)
-                    try storage.deleteMeeting(meeting)
-                    embeddingIndexTasks.removeValue(forKey: meeting.id)?.task.cancel()
-                    deletedMeetingIDs.insert(meeting.id)
-                    cachedSearchIndex?.noteDeletion(meeting.id)
-                    cachedEmbeddingIndex?.noteDeletion(meeting.id)
-                    scheduleIndexCleanup(meeting.id)
-                    deletedIDs.insert(meeting.id)
+                    let ordered = try storage.deletionOrder(for: meeting)
+                    pipeline.forget(meetingIDs: Set(ordered.map(\.id)))
+                    for item in ordered where !deletedIDs.contains(item.id) {
+                        // Revoke every retained source's profile contributions,
+                        // not just those of the generated parent. Delete the
+                        // parent last so partial failure cannot restore sources.
+                        try await speakerIdentity.prepareDeletion(meeting: item)
+                        try storage.deleteMeeting(item)
+                        embeddingIndexTasks.removeValue(forKey: item.id)?.task.cancel()
+                        excludedMeetingIDs.insert(item.id)
+                        cachedSearchIndex?.noteDeletion(item.id)
+                        cachedEmbeddingIndex?.noteDeletion(item.id)
+                        scheduleIndexCleanup(item.id)
+                        deletedIDs.insert(item.id)
+                        deletedMeetings.append(item)
+                    }
                 } catch {
                     lastError = "Could not delete \(meeting.title); cleanup pending: \(error.localizedDescription)"
                 }
@@ -1645,7 +1785,7 @@ final class AppState: ObservableObject {
             meetings.removeAll { deletedIDs.contains($0.id) }
             selectedMeetingIDs.subtract(deletedIDs)
             outcomeIndex.refresh(meetings: meetings)
-            primaryEvidenceDidChange(for: candidates.filter { deletedIDs.contains($0.id) })
+            primaryEvidenceDidChange(for: deletedMeetings)
         }
     }
 }

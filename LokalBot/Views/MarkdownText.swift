@@ -3,12 +3,15 @@ import SwiftUI
 /// A selectable Markdown renderer backed by one SwiftUI `Text`. Keeping the
 /// whole document in one attributed string gives macOS one continuous
 /// selection range, so users can drag across lines and copy only the portion
-/// they need. Editorial mode preserves Ask's compact type hierarchy and
-/// citation treatment without splitting the answer into selection islands.
+/// they need. It supports headings, lists, quotes, fenced code, and GitHub
+/// tables while preserving inline formatting. Editorial mode preserves Ask's
+/// compact type hierarchy and citation treatment without splitting the answer
+/// into selection islands.
 struct SelectableDigestText: View {
     enum Style: Equatable {
         case standard
         case editorial
+        case agent
     }
 
     let text: String
@@ -38,10 +41,18 @@ struct SelectableDigestText: View {
             searchQuery: searchQuery,
             activeMatchIndex: activeMatchIndex,
             style: style))
-            .lineSpacing(style == .editorial ? 4 : 0)
+            .lineSpacing(lineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
             .help("Select any part and press ⌘C to copy")
+    }
+
+    private var lineSpacing: CGFloat {
+        switch style {
+        case .editorial: return 4
+        case .agent: return 2
+        case .standard: return 0
+        }
     }
 
     static func attributedText(
@@ -52,10 +63,52 @@ struct SelectableDigestText: View {
         style: Style = .standard
     ) -> AttributedString {
         let lines = markdown.components(separatedBy: "\n")
+        var renderedLines: [AttributedString] = []
+        renderedLines.reserveCapacity(lines.count)
+
+        var fence: Fence?
+        var lineIndex = 0
+        while lineIndex < lines.count {
+            let line = lines[lineIndex]
+            if let activeFence = fence {
+                if let delimiter = fenceDelimiter(in: line),
+                   delimiter.marker == activeFence.marker,
+                   delimiter.length >= activeFence.length,
+                   delimiter.info.isEmpty {
+                    fence = nil
+                } else {
+                    renderedLines.append(styledCode(
+                        line,
+                        font: baseFont(for: style, fallback: font)))
+                }
+                lineIndex += 1
+                continue
+            }
+
+            if let delimiter = fenceDelimiter(in: line) {
+                fence = Fence(marker: delimiter.marker, length: delimiter.length)
+                lineIndex += 1
+                continue
+            }
+
+            if let table = table(
+                startingAt: lineIndex,
+                lines: lines,
+                font: font,
+                style: style) {
+                renderedLines.append(contentsOf: table.lines)
+                lineIndex = table.nextIndex
+                continue
+            }
+
+            renderedLines.append(attributedLine(line, font: font, style: style))
+            lineIndex += 1
+        }
+
         var document = AttributedString()
-        for (index, line) in lines.enumerated() {
-            document.append(attributedLine(line, font: font, style: style))
-            if index < lines.count - 1 {
+        for (index, line) in renderedLines.enumerated() {
+            document.append(line)
+            if index < renderedLines.count - 1 {
                 document.append(AttributedString("\n"))
             }
         }
@@ -74,67 +127,375 @@ struct SelectableDigestText: View {
         font: Font,
         style: Style
     ) -> AttributedString {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        let baseFont = style == .editorial ? WorkspaceTypography.body : font
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        let content = String(line.dropFirst(leading.count))
+        let trimmed = content.trimmingCharacters(in: .whitespaces)
+        let baseFont = baseFont(for: style, fallback: font)
+        let listIndent = String(repeating: " ", count: min(indentationColumns(leading), 24))
         if trimmed.isEmpty { return AttributedString() }
         if trimmed == "---" || trimmed == "***" || trimmed == "___" {
             return styled("────────────────────", font: baseFont,
                           foreground: .secondary)
         }
-        if trimmed.hasPrefix("### ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.bodyEmphasis
-                : Font.headline
+        if let heading = heading(trimmed) {
+            let headingFont = headingFont(for: heading.level, style: style)
             return styledInline(
-                String(trimmed.dropFirst(4)),
+                heading.text,
                 font: headingFont,
                 style: style)
         }
-        if trimmed.hasPrefix("## ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.sectionTitle
-                : Font.title3.bold()
-            return styledInline(
-                String(trimmed.dropFirst(3)),
-                font: headingFont,
-                style: style)
-        }
-        if trimmed.hasPrefix("# ") {
-            let headingFont = style == .editorial
-                ? WorkspaceTypography.conversationTitle
-                : Font.title2.bold()
-            return styledInline(
-                String(trimmed.dropFirst(2)),
-                font: headingFont,
-                style: style)
-        }
-        if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") {
-            return prefixed(trimmed.hasPrefix("- [x] ") ? "☑ " : "☐ ",
-                            content: String(trimmed.dropFirst(6)),
+        if let checkbox = checkboxItem(trimmed) {
+            return prefixed(listIndent + (checkbox.checked ? "☑ " : "☐ "),
+                            content: checkbox.text,
                             font: baseFont,
                             style: style)
         }
-        if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
+        if let bullet = bulletItem(trimmed) {
             return prefixed(
-                "• ",
-                content: String(trimmed.dropFirst(2)),
+                listIndent + "• ",
+                content: bullet,
                 font: baseFont,
                 style: style)
         }
         if let ordered = orderedListItem(trimmed) {
             return prefixed(
-                "\(ordered.number). ",
+                listIndent + "\(ordered.number). ",
                 content: ordered.rest,
                 font: baseFont,
                 style: style)
         }
         if trimmed.hasPrefix("> ") {
-            return prefixed("▎ ", content: String(trimmed.dropFirst(2)),
+            return prefixed(listIndent + "▎ ", content: String(trimmed.dropFirst(2)),
                             font: baseFont.italic(),
                             foreground: .secondary,
                             style: style)
         }
         return styledInline(trimmed, font: baseFont, style: style)
+    }
+
+    private struct Heading {
+        let level: Int
+        let text: String
+    }
+
+    private struct Fence {
+        let marker: Character
+        let length: Int
+    }
+
+    private struct FenceDelimiter {
+        let marker: Character
+        let length: Int
+        let info: String
+    }
+
+    private struct Table {
+        let lines: [AttributedString]
+        let nextIndex: Int
+    }
+
+    private struct TableRow {
+        let cells: [String]
+        let indentation: String
+    }
+
+    private struct TableColumn {
+        let alignment: TableAlignment
+        let width: Int
+    }
+
+    private enum TableAlignment {
+        case left
+        case center
+        case right
+    }
+
+    private static func baseFont(for style: Style, fallback: Font) -> Font {
+        switch style {
+        case .editorial: return WorkspaceTypography.body
+        case .agent: return WorkspaceTypography.body
+        case .standard: return fallback
+        }
+    }
+
+    private static func table(
+        startingAt index: Int,
+        lines: [String],
+        font: Font,
+        style: Style
+    ) -> Table? {
+        guard index + 1 < lines.count,
+              let header = tableRow(in: lines[index]),
+              let alignments = tableAlignments(in: lines[index + 1]),
+              header.cells.count == alignments.count,
+              header.cells.count >= 2 else { return nil }
+
+        var rows = [header.cells]
+        var nextIndex = index + 2
+        while nextIndex < lines.count,
+              let row = tableRow(in: lines[nextIndex]),
+              row.cells.count == header.cells.count {
+            rows.append(row.cells)
+            nextIndex += 1
+        }
+
+        let tableFont = baseFont(for: style, fallback: font).monospaced()
+        let widths = zip(alignments.indices, alignments).map { columnIndex, alignment in
+            let width = rows.map { row in
+                String(styledInline(
+                    row[columnIndex],
+                    font: tableFont,
+                    style: style).characters).count
+            }.max() ?? 1
+            return TableColumn(alignment: alignment, width: max(width, 1))
+        }
+        let indentation = header.indentation
+        var rendered: [AttributedString] = []
+        rendered.append(tableRow(
+            rows[0],
+            columns: widths,
+            indentation: indentation,
+            font: tableFont,
+            style: style,
+            isHeader: true))
+        rendered.append(tableSeparator(
+            columns: widths,
+            indentation: indentation,
+            font: tableFont))
+        for row in rows.dropFirst() {
+            rendered.append(tableRow(
+                row,
+                columns: widths,
+                indentation: indentation,
+                font: tableFont,
+                style: style,
+                isHeader: false))
+        }
+        return Table(lines: rendered, nextIndex: nextIndex)
+    }
+
+    private static func tableRow(in line: String) -> TableRow? {
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        guard leading.count <= 3 else { return nil }
+        let content = String(line.dropFirst(leading.count))
+            .trimmingCharacters(in: .whitespaces)
+        guard let cells = splitTableCells(content), cells.count >= 2 else { return nil }
+        return TableRow(
+            cells: cells.map { $0.trimmingCharacters(in: .whitespaces) },
+            indentation: String(leading))
+    }
+
+    private static func tableAlignments(in line: String) -> [TableAlignment]? {
+        guard let row = tableRow(in: line) else { return nil }
+        var alignments: [TableAlignment] = []
+        alignments.reserveCapacity(row.cells.count)
+        for cell in row.cells {
+            let value = cell.trimmingCharacters(in: .whitespaces)
+            guard !value.isEmpty else { return nil }
+            let leftColon = value.first == ":"
+            let rightColon = value.last == ":"
+            let start = leftColon ? value.index(after: value.startIndex) : value.startIndex
+            let end = rightColon ? value.index(before: value.endIndex) : value.endIndex
+            guard start < end,
+                  value[start..<end].allSatisfy({ $0 == "-" }) else { return nil }
+            if leftColon && rightColon {
+                alignments.append(.center)
+            } else if rightColon {
+                alignments.append(.right)
+            } else {
+                alignments.append(.left)
+            }
+        }
+        return alignments
+    }
+
+    private static func splitTableCells(_ source: String) -> [String]? {
+        var characters = Array(source)
+        if characters.first == "|" { characters.removeFirst() }
+
+        var cells: [String] = []
+        var current = ""
+        var codeTicks = 0
+        var endedWithPipe = false
+        var index = 0
+
+        while index < characters.count {
+            let character = characters[index]
+            if character == "\\", index + 1 < characters.count {
+                current.append(character)
+                index += 1
+                current.append(characters[index])
+                index += 1
+                endedWithPipe = false
+                continue
+            }
+            if character == "`" {
+                var runLength = 0
+                while index + runLength < characters.count,
+                      characters[index + runLength] == "`" {
+                    runLength += 1
+                }
+                current.append(String(repeating: "`", count: runLength))
+                if codeTicks == 0 {
+                    codeTicks = runLength
+                } else if codeTicks == runLength {
+                    codeTicks = 0
+                }
+                index += runLength
+                endedWithPipe = false
+                continue
+            }
+            if character == "|" && codeTicks == 0 {
+                cells.append(current)
+                current = ""
+                endedWithPipe = true
+            } else {
+                current.append(character)
+                endedWithPipe = false
+            }
+            index += 1
+        }
+        cells.append(current)
+        if endedWithPipe { _ = cells.popLast() }
+        return cells
+    }
+
+    private static func tableRow(
+        _ cells: [String],
+        columns: [TableColumn],
+        indentation: String,
+        font: Font,
+        style: Style,
+        isHeader: Bool
+    ) -> AttributedString {
+        let rowFont = isHeader ? font.bold() : font
+        var result = styled(indentation, font: rowFont)
+        for index in cells.indices {
+            if index > 0 {
+                result.append(styled(" │ ", font: rowFont))
+            }
+            let cell = styledInline(cells[index], font: rowFont, style: style)
+            let visibleWidth = String(cell.characters).count
+            let padding = max(0, columns[index].width - visibleWidth)
+            let leftPadding: Int
+            let rightPadding: Int
+            switch columns[index].alignment {
+            case .left:
+                leftPadding = 0
+                rightPadding = padding
+            case .center:
+                leftPadding = padding / 2
+                rightPadding = padding - leftPadding
+            case .right:
+                leftPadding = padding
+                rightPadding = 0
+            }
+            result.append(styled(
+                String(repeating: " ", count: leftPadding),
+                font: rowFont))
+            result.append(cell)
+            result.append(styled(
+                String(repeating: " ", count: rightPadding),
+                font: rowFont))
+        }
+        return result
+    }
+
+    private static func tableSeparator(
+        columns: [TableColumn],
+        indentation: String,
+        font: Font
+    ) -> AttributedString {
+        var result = styled(indentation, font: font, foreground: .secondary)
+        for index in columns.indices {
+            if index > 0 {
+                result.append(styled("─┼─", font: font, foreground: .secondary))
+            }
+            result.append(styled(
+                String(repeating: "─", count: columns[index].width),
+                font: font,
+                foreground: .secondary))
+        }
+        return result
+    }
+
+    private static func headingFont(for level: Int, style: Style) -> Font {
+        switch style {
+        case .editorial, .agent:
+            switch level {
+            case 1: return WorkspaceTypography.conversationTitle
+            case 2: return WorkspaceTypography.sectionTitle
+            default: return WorkspaceTypography.bodyEmphasis
+            }
+        case .standard:
+            switch level {
+            case 1: return Font.title2.bold()
+            case 2: return Font.title3.bold()
+            default: return Font.headline
+            }
+        }
+    }
+
+    private static func heading(_ line: String) -> Heading? {
+        let hashes = line.prefix(while: { $0 == "#" })
+        let level = hashes.count
+        guard (1...6).contains(level),
+              line.dropFirst(level).first == " " else { return nil }
+        return Heading(level: level,
+                       text: String(line.dropFirst(level + 1)))
+    }
+
+    private static func checkboxItem(_ line: String) -> (checked: Bool, text: String)? {
+        for marker in ["-", "*", "+"] {
+            let unchecked = "\(marker) [ ] "
+            let checked = "\(marker) [x] "
+            let checkedUppercase = "\(marker) [X] "
+            if line.hasPrefix(unchecked) {
+                return (false, String(line.dropFirst(unchecked.count)))
+            }
+            if line.hasPrefix(checked) {
+                return (true, String(line.dropFirst(checked.count)))
+            }
+            if line.hasPrefix(checkedUppercase) {
+                return (true, String(line.dropFirst(checkedUppercase.count)))
+            }
+        }
+        return nil
+    }
+
+    private static func bulletItem(_ line: String) -> String? {
+        for marker in ["- ", "* ", "+ "] where line.hasPrefix(marker) {
+            return String(line.dropFirst(marker.count))
+        }
+        return nil
+    }
+
+    private static func indentationColumns(_ leading: Substring) -> Int {
+        leading.reduce(into: 0) { columns, character in
+            columns += character == "\t" ? 4 : 1
+        }
+    }
+
+    private static func fenceDelimiter(in line: String) -> FenceDelimiter? {
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        guard leading.count <= 3 else { return nil }
+        let content = String(line.dropFirst(leading.count))
+        guard let marker = content.first, marker == "`" || marker == "~" else {
+            return nil
+        }
+        let length = content.prefix(while: { $0 == marker }).count
+        guard length >= 3 else { return nil }
+        return FenceDelimiter(
+            marker: marker,
+            length: length,
+            info: String(content.dropFirst(length)).trimmingCharacters(in: .whitespaces))
+    }
+
+    private static func styledCode(_ source: String, font: Font) -> AttributedString {
+        var result = AttributedString(source)
+        result.font = font.monospaced()
+        result.backgroundColor = Color.secondary.opacity(0.12)
+        return result
     }
 
     private static func prefixed(_ prefix: String, content: String,
@@ -248,9 +609,9 @@ private enum MeetingSearchHighlighting {
     }
 }
 
-/// Minimal line-based Markdown renderer — headings, bullets, checkboxes,
-/// ordered lists, blockquotes, and horizontal rules, with inline
-/// bold/italic/code via AttributedString. Enough for summary.md.
+/// Compatibility wrapper for older call sites. All Markdown now goes through
+/// the same continuous AttributedString renderer so selection and supported
+/// syntax do not drift between surfaces.
 struct MarkdownText: View {
     enum Style {
         case standard
@@ -266,104 +627,8 @@ struct MarkdownText: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: style == .editorial ? 8 : 7) {
-            ForEach(Array(text.components(separatedBy: "\n").enumerated()), id: \.offset) { _, line in
-                render(line)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    @ViewBuilder private func render(_ line: String) -> some View {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
-        if trimmed.isEmpty {
-            Spacer().frame(height: 2)
-        } else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
-            Divider().padding(.vertical, 4)
-        } else if trimmed.hasPrefix("### ") {
-            inline(String(trimmed.dropFirst(4)))
-                .font(style == .editorial ? WorkspaceTypography.editorialBodyEmphasis : .headline)
-                .padding(.top, 4)
-        } else if trimmed.hasPrefix("## ") {
-            inline(String(trimmed.dropFirst(3)))
-                .font(style == .editorial ? WorkspaceTypography.editorialSectionTitle : .title3.bold())
-                .padding(.top, 8)
-        } else if trimmed.hasPrefix("# ") {
-            inline(String(trimmed.dropFirst(2)))
-                .font(style == .editorial ? WorkspaceTypography.conversationTitle : .title2.bold())
-        } else if trimmed.hasPrefix("- [ ] ") || trimmed.hasPrefix("- [x] ") {
-            HStack(alignment: .top, spacing: style == .editorial ? 8 : 6) {
-                Image(systemName: trimmed.hasPrefix("- [x]") ? "checkmark.square" : "square")
-                    .font(.system(size: style == .editorial ? 13 : 12)).padding(.top, 2)
-                inline(String(trimmed.dropFirst(6)))
-            }
-            .font(baseFont)
-        } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
-            HStack(alignment: .top, spacing: style == .editorial ? 8 : 6) {
-                Text("•")
-                inline(String(trimmed.dropFirst(2)))
-            }
-            .font(baseFont)
-        } else if let ordered = Self.orderedListItem(trimmed) {
-            HStack(alignment: .top, spacing: 6) {
-                Text("\(ordered.number).").font(baseFont.monospacedDigit())
-                inline(ordered.rest)
-            }
-            .font(baseFont)
-        } else if trimmed.hasPrefix("> ") {
-            HStack(alignment: .top, spacing: 8) {
-                // A thin accent rule reads as a quote bar without a custom shape.
-                Rectangle().fill(.tint.opacity(0.6)).frame(width: 2)
-                inline(String(trimmed.dropFirst(2)))
-                    .italic().foregroundStyle(.secondary)
-            }
-            .font(baseFont)
-        } else {
-            inline(trimmed)
-                .font(baseFont)
-                .lineSpacing(style == .editorial ? 3 : 0)
-        }
-    }
-
-    private var baseFont: Font {
-        style == .editorial ? WorkspaceTypography.editorialBody : .body
-    }
-
-    /// Matches "1. text", "12. text" — returns the number and the remainder.
-    private static func orderedListItem(_ trimmed: String) -> (number: Int, rest: String)? {
-        guard let dot = trimmed.firstIndex(of: "."), trimmed[..<dot].allSatisfy(\.isNumber),
-              let number = Int(trimmed[..<dot]),
-              trimmed.index(after: dot) < trimmed.endIndex,
-              trimmed[trimmed.index(after: dot)] == " " else { return nil }
-        let rest = String(trimmed[trimmed.index(dot, offsetBy: 2)...])
-        return (number, rest)
-    }
-
-    private func inline(_ s: String) -> Text {
-        var remainder = s[...]
-        var rendered = Text("")
-
-        while let open = remainder.firstIndex(of: "[") {
-            let afterOpen = remainder.index(after: open)
-            guard let close = remainder[afterOpen...].firstIndex(of: "]"),
-                  Int(remainder[afterOpen..<close]) != nil else { break }
-
-            rendered = rendered + inlineMarkdown(String(remainder[..<open]))
-            rendered = rendered + Text(String(remainder[open...close]))
-                .font(WorkspaceTypography.metadataEmphasis)
-                .foregroundColor(Brand.teal)
-            remainder = remainder[remainder.index(after: close)...]
-        }
-
-        return rendered + inlineMarkdown(String(remainder))
-    }
-
-    private func inlineMarkdown(_ source: String) -> Text {
-        if let attributed = try? AttributedString(
-            markdown: source,
-            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-            return Text(attributed)
-        }
-        return Text(source)
+        SelectableDigestText(
+            text,
+            style: style == .editorial ? .editorial : .standard)
     }
 }

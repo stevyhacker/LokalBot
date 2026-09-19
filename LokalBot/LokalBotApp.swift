@@ -172,6 +172,19 @@ actor SearchIndexWorkQueue {
         return (searchClean, embeddingClean)
     }
 
+    /// Reopens a source folded into a merged meeting and queues its existing
+    /// evidence for indexing again. The actor serializes this with any late
+    /// cleanup request from the original merge.
+    func restore(_ meeting: Meeting) throws -> Meeting {
+        guard !stopped else { throw CancellationError() }
+        let restored = try workerStorage.restoreMergedSource(meeting)
+        deleted.remove(meeting.id)
+        searchIndex.noteRestoration(meeting.id)
+        pending[meeting.id] = restored
+        startDrainIfNeeded()
+        return restored
+    }
+
     @discardableResult
     func reconcileDeletedMeetings() -> (search: Bool, embedding: Bool) {
         let searchClean = searchIndex.reconcileDeletedMeetings()

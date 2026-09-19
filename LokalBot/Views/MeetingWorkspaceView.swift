@@ -64,6 +64,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var calendarSpeakerCandidates: [CalendarParticipantIdentity] = []
     @State private var exportError: String?
     @State private var editingBoundaries = false
+    @State private var undoMergeConfirmation = false
     @State private var speechError: String?
     @State private var isExportingAudio = false
     @State private var isExportingSpeech = false
@@ -293,6 +294,13 @@ private struct MeetingWorkspaceDetail: View {
                     Button("Show in Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting([folder])
                     }
+                    if meeting.isMergedMeeting {
+                        Divider()
+                        Button("Undo merge…", systemImage: "arrow.uturn.backward") {
+                            undoMergeConfirmation = true
+                        }
+                        .accessibilityIdentifier("toolbar.undoMerge")
+                    }
                 } label: {
                     Label("More Meeting Actions", systemImage: "ellipsis.circle")
                 }
@@ -304,9 +312,30 @@ private struct MeetingWorkspaceDetail: View {
         .sheet(isPresented: $editingBoundaries) {
             MeetingBoundaryEditor(meeting: meeting) { try app.setMeetingBoundaries($0, for: meeting) }
         }
+        .alert("Undo this merge?", isPresented: $undoMergeConfirmation) {
+            Button("Undo merge", role: .destructive) {
+                app.undoMerge(meeting)
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            let count = meeting.mergedSourceMeetingIDs?.count ?? 0
+            Text("Remove this merged meeting and restore \(count) original meetings? Their source folders will stay intact.")
+        }
     }
 
     @ViewBuilder private var meetingOverviewContent: some View {
+        if let sourceCount = meeting.mergedSourceMeetingIDs?.count, sourceCount > 0 {
+            HStack(spacing: 8) {
+                Label("Merged from \(sourceCount) source meetings", systemImage: "rectangle.3.group")
+                    .font(WorkspaceTypography.metadataEmphasis)
+                    .foregroundStyle(Brand.teal)
+                Text("Source rows are folded into this meeting; evidence remains preserved.")
+                    .font(WorkspaceTypography.metadata)
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("meeting.mergedProvenance")
+        }
         MeetingWorkspaceHeader(
             meeting: meeting,
             searchQuery: visibleSearchQuery,

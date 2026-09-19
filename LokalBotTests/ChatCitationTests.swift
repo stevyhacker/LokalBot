@@ -105,4 +105,32 @@ final class ChatCitationTests: XCTestCase {
         XCTAssertEqual(citationRun.font, WorkspaceTypography.metadataEmphasis)
         XCTAssertEqual(citationRun.foregroundColor, Brand.teal)
     }
+
+    func testAgentMarkdownRendersNestedListsAndFencedCode() {
+        let rendered = SelectableDigestText.attributedText(
+            from: "## Agent output\n\n- Parent\n  - Child\n+ [X] Done\n```swift\nlet value = 1\n    print(value)\n```\n",
+            style: .agent)
+
+        XCTAssertEqual(String(rendered.characters),
+                       "Agent output\n\n• Parent\n  • Child\n☑ Done\nlet value = 1\n    print(value)\n")
+    }
+
+    func testMarkdownRendersGitHubTableAsSelectableRows() {
+        let rendered = SelectableDigestText.attributedText(
+            from: "| Name | State |\n| --- | --- |\n| Agent | Ready |",
+            style: .agent)
+
+        XCTAssertEqual(String(rendered.characters),
+                       "Name  │ State\n──────┼──────\nAgent │ Ready")
+        XCTAssertFalse(String(rendered.characters).contains("| --- | --- |"))
+    }
+
+    func testMarkdownTablePreservesInlinePipesAndAlignment() {
+        let rendered = SelectableDigestText.attributedText(
+            from: "Name | Notes\n:--- | ---:\nAgent | `a | b`",
+            style: .agent)
+
+        XCTAssertEqual(String(rendered.characters),
+                       "Name  │ Notes\n──────┼──────\nAgent │ a | b")
+    }
 }

@@ -181,6 +181,36 @@ final class SearchIndex {
         locallyDeletedMeetingIDs.insert(meetingID)
     }
 
+    func noteRestoration(_ meetingID: UUID) {
+        locallyDeletedMeetingIDs.remove(meetingID)
+    }
+
+    /// Both FTS and embeddings consult this shared tombstone table. Commit
+    /// recovery before clearing the source's merge marker in meta.json so an
+    /// interrupted/failed repair always retains enough information to retry.
+    static func restoreMergedSource(_ meetingID: UUID, from mergedID: UUID,
+                                    databaseURL: URL) throws {
+        guard let database = SQLiteDatabase(url: databaseURL) else {
+            throw SQLiteDatabase.DatabaseError.unavailable(path: databaseURL.path)
+        }
+        let restored = database.transaction {
+            database.exec("""
+                CREATE TABLE IF NOT EXISTS deleted_meetings (
+                    meeting_id TEXT PRIMARY KEY,
+                    deleted_at REAL NOT NULL
+                );
+                """)
+                && database.run(
+                    "INSERT OR IGNORE INTO deleted_meetings (meeting_id, deleted_at) VALUES (?1, ?2)",
+                    bind: [mergedID.uuidString, Date().timeIntervalSince1970])
+                && database.run("DELETE FROM deleted_meetings WHERE meeting_id = ?1",
+                                bind: [meetingID.uuidString])
+        }
+        guard restored else {
+            throw database.lastError ?? SQLiteDatabase.DatabaseError.unavailable(path: databaseURL.path)
+        }
+    }
+
     /// Finishes cleanup for durable tombstones left by a prior failed or
     /// interrupted deletion. Queries exclude tombstones even before this pass
     /// succeeds, so reconciliation can safely be retried at startup and in-app.

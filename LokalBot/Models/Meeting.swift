@@ -31,6 +31,44 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// metadata only; transcript aliases retain opaque participant IDs.
     var calendarParticipantIdentities: [CalendarParticipantIdentity]?
 
+    /// IDs of the source meetings when this record was created by the
+    /// non-destructive merge flow. Source folders are never removed or
+    /// rewritten, and speaker labels in the merged transcript stay scoped to
+    /// their source meeting so identities cannot silently bleed across calls.
+    var mergedSourceMeetingIDs: [UUID]?
+
+    /// The merged meeting that folded this source out of the main library.
+    /// Keeping this relationship in the source metadata lets the app hide the
+    /// old row across launches without deleting its original evidence.
+    var mergedIntoMeetingID: UUID?
+
+    var isMergedMeeting: Bool { !(mergedSourceMeetingIDs ?? []).isEmpty }
+    var isMergedSource: Bool { mergedIntoMeetingID != nil }
+
+    /// Shared, read-only library projection for the app and CLI/MCP. Parent
+    /// manifests cover interrupted source-marker writes; missing parents make
+    /// their originals visible again. StorageManager persists these repairs.
+    static func resolvingMergeRelationships(in meetings: [Meeting]) -> [Meeting] {
+        var parents: [UUID: UUID] = [:]
+        var sourceIDsByParent: [UUID: Set<UUID>] = [:]
+        for parent in meetings.sorted(by: { $0.id.uuidString < $1.id.uuidString }) {
+            sourceIDsByParent[parent.id] = Set(parent.mergedSourceMeetingIDs ?? [])
+            for sourceID in parent.mergedSourceMeetingIDs ?? [] where sourceID != parent.id {
+                parents[sourceID] = parent.id
+            }
+        }
+        return meetings.map { meeting in
+            var resolved = meeting
+            if let parentID = meeting.mergedIntoMeetingID,
+               parentID != meeting.id,
+               sourceIDsByParent[parentID]?.contains(meeting.id) == true {
+                return resolved
+            }
+            resolved.mergedIntoMeetingID = parents[meeting.id]
+            return resolved
+        }
+    }
+
     var resolvedCalendarParticipantIdentities: [CalendarParticipantIdentity] {
         let structured = CalendarParticipantIdentity.normalized(
             calendarParticipantIdentities ?? [])

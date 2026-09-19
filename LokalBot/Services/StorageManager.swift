@@ -56,8 +56,9 @@ final class StorageManager {
     }
 
     /// Scan the library for meta.json files. Fine for M1; replaced by the
-    /// SQLite index in M3.
-    func loadMeetings() -> [Meeting] {
+    /// SQLite index in M3. Source meetings folded into a merged record remain
+    /// on disk for provenance but are excluded from the normal library view.
+    func loadMeetings(includeMergedSources: Bool = false) -> [Meeting] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let meetingsRoot = rootURL.appendingPathComponent("meetings")
@@ -96,7 +97,67 @@ final class StorageManager {
                 result.append(meeting)
             }
         }
+        let resolved = Meeting.resolvingMergeRelationships(in: result)
+        for index in result.indices {
+            guard result[index].mergedIntoMeetingID != resolved[index].mergedIntoMeetingID else { continue }
+            do {
+                if result[index].isMergedSource, !resolved[index].isMergedSource {
+                    result[index] = try restoreMergedSource(result[index])
+                } else {
+                    result[index] = resolved[index]
+                    try saveMeta(resolved[index])
+                }
+            } catch {
+                // Keep the old marker if either SQLite or metadata repair
+                // failed. A later load retries instead of losing the journal.
+                AppLog.line("Meeting merge recovery failed: \(error.localizedDescription)")
+            }
+        }
+        if !includeMergedSources {
+            result.removeAll(where: \.isMergedSource)
+        }
         return result.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    /// Only call after removing the generated parent. The on-disk source
+    /// marker is the recovery journal until both indexes have been reopened.
+    func restoreMergedSource(_ source: Meeting) throws -> Meeting {
+        guard let mergedID = source.mergedIntoMeetingID else { return source }
+        try SearchIndex.restoreMergedSource(source.id, from: mergedID,
+            databaseURL: rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        var restored = source
+        restored.mergedIntoMeetingID = nil
+        try saveMeta(restored)
+        return restored
+    }
+
+    /// Permanent deletion is different from Undo: remove every retained
+    /// descendant before its parent. A failed/interrupted delete therefore
+    /// leaves surviving sources folded, and retries skip already removed ones.
+    func deletionOrder(for meeting: Meeting) throws -> [Meeting] {
+        let all = try SessionLookup.loadAllMeetings(root: rootURL, includeMergedSources: true)
+        let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        var visiting: Set<UUID> = []
+        var visited: Set<UUID> = []
+        var ordered: [Meeting] = []
+        func visit(_ current: Meeting) throws {
+            guard !visited.contains(current.id) else { return }
+            guard visiting.insert(current.id).inserted else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            for id in current.mergedSourceMeetingIDs ?? [] {
+                guard let source = byID[id] else { continue }
+                guard source.mergedIntoMeetingID == current.id else {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
+                try visit(source)
+            }
+            visiting.remove(current.id)
+            visited.insert(current.id)
+            ordered.append(current)
+        }
+        try visit(byID[meeting.id] ?? meeting)
+        return ordered
     }
 
     /// Delete the durable meeting folder. Callers must only remove the meeting

@@ -62,6 +62,9 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         XCTAssertFalse(GoogleMeetSpeakerObservationProvider.sourceAllowed(snapshot: snapshot, config: config, expectedURL: nil))
         snapshot.title = "Meet"; snapshot.hostEnd = 101
         XCTAssertFalse(GoogleMeetSpeakerObservationProvider.sourceAllowed(snapshot: snapshot, config: config, expectedURL: nil))
+        snapshot.hostEnd = 100.1; snapshot.otherAudibleTabs = true
+        XCTAssertFalse(GoogleMeetSpeakerObservationProvider.sourceAllowed(snapshot: snapshot, config: config, expectedURL: nil),
+            "Speaker safety remains scoped to the bound Meet window")
     }
     func testOnlyNamedParticipantContainersAreAcceptedByTheAdapterContract() {
         XCTAssertEqual(MeetingParticipantAccessibilityReader.tileName(description: "Alex's tile"), "Alex")

@@ -54,9 +54,14 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var modelContext: ModelContext?
     @Published var workspace: URL
     @Published var draft = ""
-    @Published private(set) var approvalMode: AgentApprovalMode = .askBeforeChanges {
+    @Published private(set) var approvalMode: AgentApprovalMode {
         didSet { policy.mode = approvalMode }
     }
+
+    /// The approval mode is an app preference, unlike per-tool "Allow for
+    /// Session" exceptions. Keep the key separate from the encoded meeting
+    /// settings blob so changing it never rewrites unrelated settings.
+    static let approvalModeDefaultsKey = "lokalbotv3.agent.approvalMode"
 
     private let settings: () -> AppSettings
     private let storage: StorageManager
@@ -66,6 +71,7 @@ final class AgentSessionController: ObservableObject {
     private let thinkExecution: ThinkExecution
     private let makeTransport: ((PiLaunchPlan) async throws -> PiLineTransport)?
     private let accessGate: AgentAccessGate
+    private let approvalModeDefaults: UserDefaults
 
     private var policy = AgentApprovalPolicy()
     private var folder = AgentTranscriptFolder()
@@ -97,7 +103,11 @@ final class AgentSessionController: ObservableObject {
          broker: InferenceBroker = .shared,
          thinkExecution: ThinkExecution? = nil,
          accessGate: AgentAccessGate? = nil,
-         makeTransport: ((PiLaunchPlan) async throws -> PiLineTransport)? = nil) {
+         makeTransport: ((PiLaunchPlan) async throws -> PiLineTransport)? = nil,
+         approvalModeDefaults: UserDefaults? = nil) {
+        let defaults = approvalModeDefaults ?? Self.defaultApprovalModeDefaults
+        let restoredMode = (defaults.object(forKey: Self.approvalModeDefaultsKey) as? Int)
+            .flatMap(AgentApprovalMode.init(rawValue:)) ?? .askBeforeChanges
         self.settings = settings
         self.storage = storage
         self.runtimeRoot = runtimeRoot
@@ -106,7 +116,18 @@ final class AgentSessionController: ObservableObject {
         self.thinkExecution = thinkExecution ?? ThinkExecution(storage: storage)
         self.accessGate = accessGate ?? AgentAccessGate(root: storage.rootURL)
         self.makeTransport = makeTransport
+        self.approvalModeDefaults = defaults
+        self.approvalMode = restoredMode
+        self.policy = AgentApprovalPolicy(mode: restoredMode)
         self.workspace = storage.rootURL
+    }
+
+    private static var defaultApprovalModeDefaults: UserDefaults {
+        if let suite = UITestRuntime.defaultsSuiteName,
+           let defaults = UserDefaults(suiteName: suite) {
+            return defaults
+        }
+        return .standard
     }
 
     // MARK: - Lifecycle
@@ -280,13 +301,14 @@ final class AgentSessionController: ObservableObject {
 
     // MARK: - Approvals
 
-    /// Applies one of the user-visible session modes and immediately answers
-    /// any already-visible cards that the new mode now permits. Changing modes
+    /// Applies the remembered app-level mode and immediately answers any
+    /// already-visible cards that the new mode now permits. Changing modes
     /// clears narrower per-tool session exceptions so downgrades take effect.
     func setApprovalMode(_ mode: AgentApprovalMode) async {
         guard approvalMode != mode else { return }
         policy.resetSession()
         approvalMode = mode
+        approvalModeDefaults.set(mode.rawValue, forKey: Self.approvalModeDefaultsKey)
 
         let pendingRequests = folder.items.compactMap { item -> AgentApprovalRequest? in
             if case .approval(let request) = item { return request }
@@ -620,8 +642,10 @@ final class AgentSessionController: ObservableObject {
     }
 
     private func resetApprovalPolicy() {
-        policy = AgentApprovalPolicy()
-        approvalMode = .askBeforeChanges
+        // Session allowances are intentionally cleared at lifecycle
+        // boundaries. The approval mode itself is an app-level preference and
+        // must survive closing or resuming a session.
+        policy = AgentApprovalPolicy(mode: approvalMode)
     }
 
     /// Our extension sends title "lokalbot_tool_approval" with exact structured

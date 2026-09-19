@@ -31,7 +31,7 @@ enum SessionLookup {
     /// Root-explicit variant for exporters and isolated-library callers. This
     /// avoids accidentally mixing the default production library into output
     /// generated for a caller-supplied storage root.
-    static func loadAllMeetings(root: URL) throws -> [Meeting] {
+    static func loadAllMeetings(root: URL, includeMergedSources: Bool = false) throws -> [Meeting] {
         let fm = FileManager.default
         let meetingsRoot = root.appendingPathComponent("meetings", isDirectory: true)
         guard fm.fileExists(atPath: meetingsRoot.path) else { return [] }
@@ -45,7 +45,9 @@ enum SessionLookup {
                   let meeting = try? decoder.decode(Meeting.self, from: data) else { continue }
             meetings.append(meeting)
         }
-        return meetings.sorted { $0.startedAt > $1.startedAt }
+        let resolved = Meeting.resolvingMergeRelationships(in: meetings)
+        return resolved.filter { includeMergedSources || !$0.isMergedSource }
+            .sorted { $0.startedAt > $1.startedAt }
     }
 
     /// Find by short ID (8-char prefix), full UUID string, or the literal `"latest"`.
