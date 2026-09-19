@@ -10,7 +10,12 @@ struct MeetingLibraryDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var pendingDelete: Set<Meeting.ID>?
     @State private var prepared: PreparedMeeting?
-    @State private var animateSelection = false
+    @State private var selectionRequest: SelectionRequest?
+
+    private struct SelectionRequest: Equatable {
+        let meetingID: Meeting.ID?
+        let animate: Bool
+    }
 
     private struct PreparedMeeting {
         let meeting: Meeting
@@ -30,22 +35,24 @@ struct MeetingLibraryDetailView: View {
             .frame(width: geometry.size.width, height: geometry.size.height)
             .clipped()
         }
-        .onChange(of: completedMeetingID) {
-            // Keep keyboard navigation immediate; pointer selection gets a
-            // short dissolve once its document is ready, never a layout tween.
+        .onChange(of: completedMeetingID, initial: true) {
+            // Bind input intent to the load request so the async task cannot
+            // capture the previous selection's animation policy.
             let event = NSApp.currentEvent?.type
-            animateSelection = prepared != nil && (event == .leftMouseDown || event == .leftMouseUp)
-            uiTestDiagnosticLog("Meeting selection: event=\(String(describing: event)), animate=\(animateSelection)")
+            selectionRequest = SelectionRequest(meetingID: completedMeetingID,
+                animate: prepared != nil && (event == .leftMouseDown || event == .leftMouseUp))
         }
-        .task(id: completedMeetingID) {
-            guard let meeting = app.selectedMeeting, meeting.endedAt != nil else {
+        .task(id: selectionRequest) {
+            guard let selectionRequest else { return }
+            guard let meeting = app.selectedMeeting, meeting.endedAt != nil,
+                  selectionRequest.meetingID == meeting.id else {
                 prepared = nil
                 return
             }
             guard prepared?.meeting.id != meeting.id else { return }
 #if LOKALBOT_UI_TEST_HOST
             if ProcessInfo.processInfo.environment["LOKALBOT_SLOW_MEETING_LOAD"] == "1" {
-                try? await Task.sleep(for: .milliseconds(1500))
+                try? await Task.sleep(for: .seconds(3))
                 guard !Task.isCancelled else { return }
             }
 #endif
@@ -58,8 +65,8 @@ struct MeetingLibraryDetailView: View {
             guard !Task.isCancelled else { return }
             await app.outcomeIndex.refreshInBackground(meeting: meeting)
             guard !Task.isCancelled, completedMeetingID == meeting.id else { return }
-            uiTestDiagnosticLog("Prepared meeting presentation: animate=\(animateSelection && !reduceMotion)")
-            withAnimation(animateSelection ? WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion) : nil) {
+            uiTestDiagnosticLog("Prepared meeting presentation: pointer=\(selectionRequest.animate), reduceMotion=\(reduceMotion)")
+            withAnimation(selectionRequest.animate ? WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion) : nil) {
                 prepared = PreparedMeeting(meeting: meeting, document: document)
             }
         }

@@ -978,7 +978,9 @@ final class MainWindowUITests: XCTestCase {
         let firstRowTop = meetingRow(for: fixture.designReview).frame.minY
 
         meetingRow(for: fixture.standup).click()
-        XCTAssertTrue(identified("meeting.selection.loading").waitForExistence(timeout: 2))
+        XCTAssertTrue(UITestHarness.waitUntil(timeout: 2) { self.identified("meeting.selection.loading").exists })
+        XCTAssertEqual(identified("detail.title").value as? String ?? identified("detail.title").label,
+                       fixture.designReview.title)
         XCTAssertEqual(identified("detail.title").frame.minX, titleFrame.minX, accuracy: 1)
         XCTAssertFalse(identified("meeting.ask").isEnabled, "Outgoing meeting actions must not target a stale selection")
         // Supersede the in-flight selection. Its completion must not replace
