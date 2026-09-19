@@ -198,9 +198,15 @@ final class AgentSessionControllerTests: XCTestCase {
         try await pump()
         XCTAssertTrue(controller.pendingApprovals.isEmpty)
         XCTAssertTrue(transport.sentLines.contains { $0.contains(#""cancelled":true"#) })
+        // The RPC acknowledgement and settled event are consumed separately.
+        // Await the published state instead of racing the event-consumption task.
+        let settled = expectation(description: "Controller consumes the settled event")
+        let observation = controller.$state.filter { $0 == .ready }.first().sink { _ in settled.fulfill() }
+        defer { observation.cancel() }
         transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
         transport.inject(#"{"type":"agent_settled"}"#)
         await stopping.value
+        await fulfillment(of: [settled], timeout: 2)
         XCTAssertEqual(controller.state, .ready)
         await controller.shutdown()
     }
