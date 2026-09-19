@@ -16,9 +16,8 @@ struct ScreenMomentDetailView: View {
     @State private var fullTextExpanded = false
     @State private var showingImage = false
 
-    private var capturedText: String {
-        app.activityStore.ocrText(snapshotID: screenshot.id, maxChars: Int.max) ?? ""
-    }
+    @State private var capturedText = ""
+    @State private var textRevision = 0
 
     var body: some View {
         ScrollView {
@@ -67,6 +66,19 @@ struct ScreenMomentDetailView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .onAppear(perform: loadNote)
+        .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
+            capturedText = ""
+            textRevision &+= 1
+        }
+        .task(id: "\(screenshot.id)|\(textRevision)") {
+            capturedText = ""
+            let id = screenshot.id
+            let text = await ActivityStore.readInBackground(at: app.activityStore.databaseURL) {
+                $0.ocrText(snapshotID: id, maxChars: Int.max) ?? ""
+            }
+            guard !Task.isCancelled else { return }
+            capturedText = text
+        }
         .sheet(isPresented: $showingImage) { ScreenImageViewer(screenshot: screenshot) }
         .confirmationDialog("Delete this context moment?", isPresented: $confirmingDeletion) {
             Button("Delete context moment", role: .destructive, action: deleteCapture)

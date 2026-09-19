@@ -56,6 +56,17 @@ struct LeasedTextEngine: TextEngine {
         }
     }
 
+    func generateStreaming(system: String, prompt: String, context: [String],
+                           options: TextGenerationOptions,
+                           onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
+        // Streaming remains single-shot: a recovery replay could duplicate text
+        // the user has already seen. Keep the model leased through the stream.
+        try await withLease {
+            try await base.generateStreaming(system: system, prompt: prompt, context: context,
+                                             options: options, onPartial: onPartial)
+        }
+    }
+
     func completeStreaming(_ request: CompletionRequest,
                            onPartial: @escaping @Sendable (String) -> Void) async throws -> String {
         try await broker.withLease(role, model: modelURL, priority: priority, purpose: purpose) {

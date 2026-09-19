@@ -4,11 +4,29 @@ import ApplicationServices
 /// Call lifecycle evidence is independent of audio and experimental speaker
 /// observation. Only a supported meeting document and its call controls count.
 enum BrowserMeetingSession {
-    enum State: Equatable { case inCall, ended, unavailable }
-    struct Snapshot: Equatable {
+    enum State: Equatable, Sendable { case inCall, ended, unavailable }
+    struct Snapshot: Equatable, Sendable {
         var url: URL
         var state: State
     }
+    private static let observationQueue = DispatchQueue(
+        label: "me.dotenv.LokalBot.browser-observation", qos: .utility)
+
+    static func observe(processIDs: [pid_t], expectedURL: URL?,
+                        resolve: @escaping @Sendable (pid_t, URL?) -> Snapshot? = {
+                            snapshot(processID: $0, expectedURL: $1)
+                        }) async -> [pid_t: Snapshot] {
+        await withCheckedContinuation { continuation in
+            observationQueue.async {
+                var snapshots: [pid_t: Snapshot] = [:]
+                for pid in processIDs {
+                    snapshots[pid] = resolve(pid, expectedURL)
+                }
+                continuation.resume(returning: snapshots)
+            }
+        }
+    }
+
     struct Window {
         var element: AXUIElement
         var snapshot: Snapshot
@@ -139,7 +157,9 @@ enum BrowserMeetingSession {
         guard expectedURL == nil || expected != nil,
               let windows = value(app, kAXWindowsAttribute) as? [AXUIElement], windows.count <= 32 else { return nil }
         var matches: [Window] = []
+        let deadline = ProcessInfo.processInfo.systemUptime + 1
         windowLoop: for window in windows {
+            guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
             let title = value(window, kAXTitleAttribute) as? String ?? ""
             if ScreenContextPrivacy.isPrivateWindow(title: title)
                 || value(window, kAXMinimizedAttribute) as? Bool == true { continue }
@@ -149,6 +169,7 @@ enum BrowserMeetingSession {
             var messages: [String] = []
             var budget = TraversalBudget(startTime: ProcessInfo.processInfo.systemUptime)
             while let (node, depth, inside) = stack.popLast() {
+                guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
                 guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else { continue windowLoop }
                 guard let fields = fields(node) else { continue windowLoop }
                 if fields["AXHidden"] as? Bool == true { continue }

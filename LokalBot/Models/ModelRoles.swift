@@ -123,6 +123,10 @@ final class ModelRoles: ObservableObject {
         id: String, token: UUID, granite: GraniteSpeechModelConfiguration, task: Task<Void, Never>
     )?
     private var storageInfo: (date: Date, storedBytes: Int64, availableBytes: Int64?)?
+    @Published private var diskState = ModelReadinessSnapshot.DiskState()
+    private var diskTask: Task<Void, Never>?
+    private var diskGeneration = 0
+    private let usesInjectedDiscovery: Bool
 
     init(
         settings: @escaping () -> AppSettings,
@@ -138,6 +142,7 @@ final class ModelRoles: ObservableObject {
         self.downloads = downloads
         self.downloadProgress = downloads.progress
         self.downloadErrors = downloads.errors
+        usesInjectedDiscovery = downloadedTranscriptionModels != nil
         self.prepareTranscription = prepareTranscription ?? { settings, choice, progress in
             try await settings.transcriptionEngine(for: choice).prepare(progress: progress)
         }
@@ -155,20 +160,25 @@ final class ModelRoles: ObservableObject {
                 self.downloadProgress = progress
                 self.downloadErrors = errors
                 self.revision &+= 1
-                if completedDownloads { self.onReadinessChanged() }
+                if completedDownloads {
+                    self.refreshDiskState()
+                    self.onReadinessChanged()
+                }
             }
+        refreshDiskState()
     }
 
     var snapshot: ModelRolesSnapshot {
         let settings = settings()
-        let downloadedTranscriptionModelIDs = downloadedTranscriptionModels(settings)
+        let downloadedTranscriptionModelIDs = downloadedTranscriptionModelIDs
         let cachedStorage = storageInfo.flatMap { Date().timeIntervalSince($0.date) < 30 ? ($0.storedBytes, $0.availableBytes) : nil }
         var readiness = ModelReadinessSnapshot.make(
             settings: settings,
             storage: storage,
             activeDownloads: downloadProgress.count,
             failedDownloads: downloadErrors.values.filter { !$0.isEmpty }.count,
-            storageInfo: cachedStorage)
+            storageInfo: cachedStorage,
+            diskState: usesInjectedDiscovery ? nil : diskState)
         if cachedStorage == nil { storageInfo = (Date(), readiness.storedBytes, readiness.availableBytes) }
         readiness.transcriptionReady = downloadedTranscriptionModelIDs.contains(
             settings.transcriptionModel.id)
@@ -189,7 +199,24 @@ final class ModelRoles: ObservableObject {
     }
 
     var downloadedTranscriptionModelIDs: Set<String> {
-        downloadedTranscriptionModels(settings())
+        usesInjectedDiscovery ? downloadedTranscriptionModels(settings()) : diskState.downloadedTranscriptionIDs
+    }
+
+    private func refreshDiskState() {
+        guard !usesInjectedDiscovery else { return }
+        diskTask?.cancel()
+        diskGeneration &+= 1
+        let generation = diskGeneration, configuration = settings(), root = storage.rootURL
+        diskState = .init()
+        diskTask = Task { @MainActor [weak self] in
+            let loaded = await Task.detached(priority: .utility) {
+                ModelReadinessSnapshot.DiskState.load(settings: configuration, root: root)
+            }.value
+            guard let self, !Task.isCancelled, generation == self.diskGeneration else { return }
+            self.diskState = loaded
+            self.revision &+= 1
+            self.onReadinessChanged()
+        }
     }
 
     var isPreparingTranscription: Bool { preparationTask != nil }
@@ -227,11 +254,13 @@ final class ModelRoles: ObservableObject {
         if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation {
             cancelPreparation()
         }
+        refreshDiskState()
         revision &+= 1
         onReadinessChanged()
     }
 
     func readinessDidChange() {
+        refreshDiskState()
         storageInfo = nil
         revision &+= 1
         onReadinessChanged()

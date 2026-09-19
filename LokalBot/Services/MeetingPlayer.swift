@@ -25,6 +25,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
 
     private var players: [AVAudioPlayer] = []
     private var ticker: Timer?
+    private var loadGeneration = 0
 
     /// Use exactly the tracks and gains that loaded successfully for playback.
     var waveformSources: [WaveformAnalysis.Source] {
@@ -53,6 +54,32 @@ final class MeetingPlayer: NSObject, ObservableObject {
                 player.prepareToPlay()
                 return player
             }
+        applySpeed()
+        duration = players.map(\.duration).max() ?? 0
+        currentTime = 0
+        isLoaded = !players.isEmpty
+    }
+
+    /// The worker exclusively owns these players until it returns. Main-actor
+    /// playback takes ownership only after the generation/cancellation check.
+    private struct PreparedPlayers: @unchecked Sendable { let values: [AVAudioPlayer] }
+
+    func loadInBackground(folder: URL, hasSystemTrack: Bool) async {
+        stop()
+        let generation = loadGeneration
+        let prepared = await Task.detached(priority: .userInitiated) {
+            PreparedPlayers(values: MeetingAudioAsset.playbackSources(folder: folder, hasSystemTrack: hasSystemTrack)
+                .compactMap { source in
+                    guard let player = try? AVAudioPlayer(contentsOf: source.url) else { return nil }
+                    player.enableRate = true
+                    player.volume = source.gain
+                    player.prepareToPlay()
+                    return player
+                })
+        }.value
+        guard !Task.isCancelled, generation == loadGeneration else { return }
+        players = prepared.values
+        for player in players { player.delegate = self }
         applySpeed()
         duration = players.map(\.duration).max() ?? 0
         currentTime = 0
@@ -105,6 +132,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
     }
 
     func stop() {
+        loadGeneration &+= 1
         for player in players { player.stop() }
         players = []
         isPlaying = false

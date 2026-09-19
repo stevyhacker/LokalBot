@@ -72,8 +72,9 @@ private struct AskContent: View {
         nonmutating set { app.recallState.sources = newValue }
     }
 
-    var body: some View {
+    private var layout: some View {
         VStack(spacing: 0) {
+            if model.isLoadingHistory { LoadingStateLabel("Loading conversations…") }
             if mode == .keyword { header }
             if mode == .ask && model.messages.isEmpty {
                 Spacer(minLength: 20)
@@ -88,8 +89,23 @@ private struct AskContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(nil, value: mode)
         .animation(nil, value: matchByMeaning)
-        .onChange(of: query) { selectedResult = 0; if mode == .keyword { runSearch() } }
-        .onChange(of: mode) { if mode == .keyword { runSearch() } }
+    }
+
+    private var searchContent: some View {
+        layout
+        .onChange(of: query) {
+            model.preserveSelectionDuringHistoryLoad()
+            selectedResult = 0
+            if mode == .keyword { runSearch() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
+            if mode == .keyword { runSearch() }
+        }
+        .onDisappear { searchTask?.cancel() }
+        .onChange(of: mode) {
+            model.preserveSelectionDuringHistoryLoad()
+            if mode == .keyword { runSearch() }
+        }
         .onChange(of: facet) { runSearch() }
         .onChange(of: screenDateScope) { runSearch() }
         .onChange(of: app.askDayScope) {
@@ -97,6 +113,10 @@ private struct AskContent: View {
             if mode == .keyword { runSearch() }
         }
         .onChange(of: selectedScreenApp) { runSearch() }
+    }
+
+    var body: some View {
+        searchContent
         .onKeyPress(.downArrow) {
             guard mode == .keyword, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
@@ -120,6 +140,7 @@ private struct AskContent: View {
             }
         }
         .onAppear {
+            if mode == .keyword || !query.isEmpty { model.preserveSelectionDuringHistoryLoad() }
             _ = consumeNavigationHandoff()
             if mode == .keyword { runSearch() }
             inputFocused = true
@@ -878,14 +899,21 @@ private struct AskContent: View {
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
-            let result = await RecallSearch.search(q, state: request, day: day, app: app)
+            let result = await RecallSearch.search(q, state: request, day: day, app: app) { lexical in
+                guard !Task.isCancelled, q == query else { return }
+                publishSearch(lexical)
+            }
             guard !Task.isCancelled, q == query else { return }
-            hits = result.meetings.flatMap(\.matches)
-            screenGroups = result.screens
-            ocrHits = result.screens.flatMap(\.matches)
-            screenApps = Array(Set(ocrHits.map(\.app))).sorted()
-            selectedResult = min(selectedResult, max(0, resultCount - 1))
+            publishSearch(result)
         }
+    }
+
+    private func publishSearch(_ result: RecallSearch.Result) {
+        hits = result.meetings.flatMap(\.matches)
+        screenGroups = result.screens
+        ocrHits = result.screens.flatMap(\.matches)
+        screenApps = Array(Set(ocrHits.map(\.app))).sorted()
+        selectedResult = min(selectedResult, max(0, resultCount - 1))
     }
 
     private func togglePinned(_ hit: ActivityStore.OCRHit) {

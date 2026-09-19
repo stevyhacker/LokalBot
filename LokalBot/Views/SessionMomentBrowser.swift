@@ -8,6 +8,7 @@ struct SessionMomentBrowser: View {
     @State private var application = ""
     @State private var textMatches: Set<Int64> = []
     @State private var searching = false
+    @State private var textRevision = 0
 
     private var moments: [ActivityStore.Screenshot] {
         model.shots.filter { $0.ts >= session.start && $0.ts <= session.end }
@@ -48,18 +49,19 @@ struct SessionMomentBrowser: View {
                 }
             }
         }.accessibilityIdentifier("timeline.session.allMoments")
-        .task(id: "\(session.id)|\(query)|\(moments.count)") {
+        .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
+            textMatches = []
+            textRevision &+= 1
+        }
+        .task(id: "\(session.id)|\(query)|\(moments.map(\.id))|\(textRevision)") {
             textMatches = []
             guard !query.isEmpty else { searching = false; return }
             searching = true
             let needle = query, captures = moments
             try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
-            var matches: Set<Int64> = []
-            for (index, shot) in captures.enumerated() {
-                guard !Task.isCancelled else { return }
-                if app.activityStore.ocrText(snapshotID: shot.id, maxChars: 100_000)?.localizedCaseInsensitiveContains(needle) == true { matches.insert(shot.id) }
-                if index.isMultiple(of: 40) { await Task.yield() }
+            let matches = await ActivityStore.readInBackground(at: app.activityStore.databaseURL) { store in
+                store.matchingSnapshotIDs(captures.map(\.id), query: needle)
             }
             guard !Task.isCancelled else { return }
             textMatches = matches

@@ -1,6 +1,7 @@
 import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
+import Combine
 
 /// The Timeline section groups low-level capture blocks into human-scale Work
 /// sessions and interleaves meetings as first-class events. The lossless raw
@@ -8,7 +9,9 @@ import UniformTypeIdentifiers
 @MainActor
 final class CaptureModel: ObservableObject {
     @Published private(set) var day = Date()
-    @Published var blocks: [ActivityBlock] = []
+    @Published var blocks: [ActivityBlock] = [] {
+        didSet { workSessions = DayActivityProjection(blocks: blocks, day: day).sessions }
+    }
     @Published var shots: [ActivityStore.Screenshot] = []
     @Published private(set) var rewindFrames: [ScreenRewindFrame] = []
     @Published var selection: ActivityBlock.ID?
@@ -20,15 +23,18 @@ final class CaptureModel: ObservableObject {
     @Published var generating = false
     @Published var digestError: String?
     private var digestGeneration = 0
+    private var overviewGeneration = 0
+    private var overviewTask: Task<Void, Never>?
+    private var retentionObserver: AnyCancellable?
+    @Published private(set) var overviewLoading = false
+    private var digestEvidenceMatches = true
 
     var selectedBlock: ActivityBlock? {
         guard let selection else { return nil }
         return blocks.first { $0.id == selection }
     }
 
-    var workSessions: [TimelineWorkSession] {
-        DayActivityProjection(blocks: blocks, day: day).sessions
-    }
+    @Published private(set) var workSessions: [TimelineWorkSession] = []
 
     var selectedSession: TimelineWorkSession? {
         guard let selectedSessionID else { return nil }
@@ -58,17 +64,19 @@ final class CaptureModel: ObservableObject {
         DayDigestLifecycle.Snapshot(
             text: digest,
             modifiedAt: digestUpdatedAt,
-            latestEvidenceAt: latestDigestEvidenceAt).isStale
+            latestEvidenceAt: latestDigestEvidenceAt,
+            evidenceMatches: digestEvidenceMatches).isStale
     }
 
-    /// Change the selected day and synchronously replace every day-scoped
-    /// cache. Keeping this as one action prevents split-view columns from
-    /// observing a new date alongside the previous date's overview data.
+    /// Clear the previous day immediately, then publish only the latest load.
     func selectDay(_ value: Date, app: AppState) {
         digestGeneration &+= 1
         generating = false
         selectedSnapshotID = nil
         day = value
+        blocks = []; shots = []; rewindFrames = []
+        digest = nil; digestUpdatedAt = nil; latestDigestEvidenceAt = nil
+        selection = nil; selectedSessionID = nil
         reload(app: app)
     }
 
@@ -79,32 +87,47 @@ final class CaptureModel: ObservableObject {
     }
 
     func reload(app: AppState) {
-        let retainedSnapshotID = selectedSnapshotID
-        let retainedBlockID = selection
-        let retainedSessionID = selectedSessionID
         refreshOverview(app: app)
         digestError = nil
-        selection = blocks.contains { $0.id == retainedBlockID } ? retainedBlockID : nil
-        selectedSessionID = workSessions.contains { $0.id == retainedSessionID } ? retainedSessionID : nil
-        selectedSnapshotID = shots.contains { $0.id == retainedSnapshotID }
-            ? retainedSnapshotID : nil
     }
 
     /// Updates a mounted overview without resetting its generation state or
     /// hiding an error from the last explicit generation attempt.
     func refreshOverview(app: AppState) {
-        blocks = app.activityStore.blocks(on: day)
-        // The Timeline is the canonical home for both visual captures and
-        // accessibility-only moments. Other callers keep the historical
-        // pixels-present default unless they opt in explicitly.
-        let reloadedShots = app.activityStore.screenshots(on: day, includingTextOnly: true)
-        shots = reloadedShots
-        rewindFrames = ScreenRewindSequence.frames(from: reloadedShots)
-        let digestSnapshot = app.dayDigest.snapshot(for: day)
-        digest = digestSnapshot.text
-        digestUpdatedAt = digestSnapshot.modifiedAt
-        latestDigestEvidenceAt = digestSnapshot.latestEvidenceAt
+        if retentionObserver == nil {
+            retentionObserver = NotificationCenter.default.publisher(for: .retainedScreenTextChanged)
+                .sink { [weak self, weak app] _ in
+                    guard let self, let app else { return }
+                    self.refreshOverview(app: app)
+                }
+        }
+        overviewTask?.cancel()
+        overviewGeneration &+= 1
+        let generation = overviewGeneration, requestedDay = day
+        let url = app.activityStore.databaseURL
+        let loadDigest = app.dayDigest.backgroundSnapshotLoader(for: requestedDay)
+        overviewLoading = true
+        overviewTask = Task { @MainActor in
+            let snapshot = await ActivityStore.readInBackground(at: url) { store in
+                let shots = store.screenshots(on: requestedDay, includingTextOnly: true)
+                return (store.blocks(on: requestedDay), shots, loadDigest(store))
+            }
+            guard !Task.isCancelled, generation == overviewGeneration else { return }
+            blocks = snapshot.0
+            shots = snapshot.1
+            rewindFrames = ScreenRewindSequence.frames(from: snapshot.1)
+            digest = snapshot.2.text
+            digestUpdatedAt = snapshot.2.modifiedAt
+            latestDigestEvidenceAt = snapshot.2.latestEvidenceAt
+            digestEvidenceMatches = snapshot.2.evidenceMatches
+            selection = blocks.contains { $0.id == selection } ? selection : nil
+            selectedSessionID = workSessions.contains { $0.id == selectedSessionID } ? selectedSessionID : nil
+            selectedSnapshotID = shots.contains { $0.id == selectedSnapshotID } ? selectedSnapshotID : nil
+            overviewLoading = false
+        }
     }
+
+    func waitForOverview() async { await overviewTask?.value }
 
     /// The selected day's meetings, live recording included, for the track
     /// and the overview stats.
@@ -126,11 +149,15 @@ final class CaptureModel: ObservableObject {
             let result = try await app.dayDigest.generate(for: requestedDay)
             guard digestGeneration == generation,
                   Calendar.current.isDate(day, inSameDayAs: requestedDay) else { return }
+            overviewGeneration &+= 1
+            overviewTask?.cancel()
+            overviewLoading = false
             blocks = freshBlocks
             digest = result.text
             let snapshot = app.dayDigest.snapshot(for: requestedDay)
             digestUpdatedAt = snapshot.modifiedAt
             latestDigestEvidenceAt = snapshot.latestEvidenceAt
+            digestEvidenceMatches = snapshot.evidenceMatches
             digestError = nil
         } catch {
             guard digestGeneration == generation else { return }
@@ -303,6 +330,9 @@ struct TimelineContentView: View {
             }
         }
         .navigationTitle("Timeline")
+        .overlay(alignment: .topTrailing) {
+            if model.overviewLoading { ProgressView().controlSize(.small).padding(12) }
+        }
         .task {
             model.reload(app: app)
             clearMeetingSelectionOutsideSelectedDay()

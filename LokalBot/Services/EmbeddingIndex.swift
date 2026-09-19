@@ -191,7 +191,10 @@ final class EmbeddingIndex {
     private var locallyDeletedMeetingIDs: Set<UUID> = []
     private var screenReindexFlight: (id: UUID, task: Task<Void, Never>)?
 
+    private let databaseURL: URL
+
     init(databaseURL: URL, storage: StorageManager) {
+        self.databaseURL = databaseURL
         self.storage = storage
         database = SQLiteDatabase(url: databaseURL)
         database?.exec("""
@@ -488,8 +491,8 @@ final class EmbeddingIndex {
             JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
             WHERE embedded.model_id = ?1
               AND EXISTS (
-                  SELECT 1 FROM ocr_fts AS ocr
-                  WHERE CAST(ocr.snapshot_id AS INTEGER) = embedded.snapshot_id
+                  SELECT 1 FROM ocr_metadata AS ocr
+                  WHERE ocr.snapshot_id = embedded.snapshot_id
               )
             LIMIT 1
             """, bind: [Self.indexVersion])
@@ -618,109 +621,131 @@ final class EmbeddingIndex {
     ) async -> [ScreenHit] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard limit > 0, !trimmed.isEmpty, let database else { return [] }
-        await reindexScreenText()
+        // Backfill is single-flight and independent of this interactive query.
+        if screenReindexFlight == nil {
+            Task { [weak self] in await self?.reindexScreenText() }
+        }
         guard !Task.isCancelled, hasScreenEmbeddings,
               let queryVector = try? await Self.embed(
                 [trimmed], prefix: Self.screenQueryPrefix, storage: storage).first
         else { return [] }
 
-        var conditions = ["embedded.model_id = ?1"]
-        var bindings: [Any] = [Self.indexVersion]
-        if let ids = filter.snapshotIDs {
-            guard !ids.isEmpty else { return [] }
-            let placeholders = ids.sorted().map { id -> String in
-                bindings.append(id)
-                return "?\(bindings.count)"
+        let url = databaseURL
+        let worker = Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return [ScreenHit]() }
+            var conditions = ["embedded.model_id = ?1"]
+            var bindings: [Any] = [Self.indexVersion]
+            if let ids = filter.snapshotIDs {
+                guard !ids.isEmpty else { return [] }
+                let placeholders = ids.sorted().map { id -> String in
+                    bindings.append(id)
+                    return "?\(bindings.count)"
+                }
+                conditions.append("embedded.snapshot_id IN (\(placeholders.joined(separator: ",")))")
             }
-            conditions.append("embedded.snapshot_id IN (\(placeholders.joined(separator: ",")))")
-        }
-        if let interval = filter.interval {
-            let startParameter = bindings.count + 1
-            bindings.append(interval.start.timeIntervalSince1970)
-            let endParameter = bindings.count + 1
-            bindings.append(interval.end.timeIntervalSince1970)
-            conditions.append(
-                "embedded.ts >= ?\(startParameter) AND embedded.ts < ?\(endParameter)")
-        }
-        if let app = filter.app {
-            let parameter = bindings.count + 1
-            bindings.append(app)
-            conditions.append("embedded.app = ?\(parameter) COLLATE NOCASE")
-        }
+            if let interval = filter.interval {
+                let startParameter = bindings.count + 1
+                bindings.append(interval.start.timeIntervalSince1970)
+                let endParameter = bindings.count + 1
+                bindings.append(interval.end.timeIntervalSince1970)
+                conditions.append(
+                    "embedded.ts >= ?\(startParameter) AND embedded.ts < ?\(endParameter)")
+            }
+            if let app = filter.app {
+                let parameter = bindings.count + 1
+                bindings.append(app)
+                conditions.append("embedded.app = ?\(parameter) COLLATE NOCASE")
+            }
 
-        let candidates: [ScreenCandidate] = database.query("""
-            SELECT embedded.snapshot_id, embedded.ts, embedded.app,
-                   embedded.text, embedded.vec
-            FROM screen_embeddings AS embedded
-            JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
-            WHERE \(conditions.joined(separator: " AND "))
-              AND EXISTS (
-                  SELECT 1 FROM ocr_fts AS ocr
-                  WHERE CAST(ocr.snapshot_id AS INTEGER) = embedded.snapshot_id
-              )
-            ORDER BY embedded.snapshot_id
-            """, bind: bindings) { statement in
-            guard let app = sqlite3_column_text(statement, 2),
-                  let text = sqlite3_column_text(statement, 3),
-                  let blob = sqlite3_column_blob(statement, 4) else { return nil }
-            let byteCount = Int(sqlite3_column_bytes(statement, 4))
-            guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
-            return ScreenCandidate(
-                snapshotID: sqlite3_column_int64(statement, 0),
-                ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
-                app: String(cString: app),
-                text: String(cString: text),
-                vector: Data(bytes: blob, count: byteCount))
+            let candidates: [ScreenCandidate] = database.query("""
+                SELECT embedded.snapshot_id, embedded.ts, embedded.app,
+                       embedded.text, embedded.vec
+                FROM screen_embeddings AS embedded
+                JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
+                WHERE \(conditions.joined(separator: " AND "))
+                  AND EXISTS (
+                      SELECT 1 FROM ocr_metadata AS ocr
+                      WHERE ocr.snapshot_id = embedded.snapshot_id
+                  )
+                ORDER BY embedded.snapshot_id
+                """, bind: bindings) { statement in
+                guard let app = sqlite3_column_text(statement, 2),
+                      let text = sqlite3_column_text(statement, 3),
+                      let blob = sqlite3_column_blob(statement, 4) else { return nil }
+                let byteCount = Int(sqlite3_column_bytes(statement, 4))
+                guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
+                return ScreenCandidate(
+                    snapshotID: sqlite3_column_int64(statement, 0),
+                    ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                    app: String(cString: app),
+                    text: String(cString: text),
+                    vector: Data(bytes: blob, count: byteCount))
+            }
+            return Self.rankScreen(candidates, against: queryVector, limit: limit)
         }
-        let ranked = await Task.detached(priority: .userInitiated) {
-            Self.rankScreen(candidates, against: queryVector, limit: limit)
-        }.value
+        let ranked = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
         return ranked.filter { hit in
             database.hasRow(
-                "SELECT 1 FROM screenshots WHERE id = ?1",
+                """
+                SELECT 1 FROM screenshots AS shot JOIN ocr_metadata AS meta ON meta.snapshot_id = shot.id
+                JOIN ocr_fts AS ocr ON ocr.rowid = meta.rowid
+                WHERE shot.id = ?1
+                """,
                 bind: [hit.snapshotID])
         }
     }
 
     func search(_ query: String, limit: Int = 10,
                 meetingIDs: Set<UUID>? = nil) async -> [Hit] {
-        guard limit > 0, let database, hasEmbeddings else { return [] }
+        guard limit > 0, database != nil, hasEmbeddings else { return [] }
         if let meetingIDs, meetingIDs.isEmpty { return [] }
         guard let queryVector = try? await Self.embed([query], prefix: Self.queryPrefix,
                                                       storage: storage).first else { return [] }
-        let candidates: [Candidate] = database.query(
-            """
-            SELECT embedded.meeting_id, embedded.start, embedded.text, embedded.vec
-            FROM embeddings AS embedded
-            WHERE EXISTS (
-                SELECT 1 FROM embedded_meetings AS indexed
-                WHERE indexed.meeting_id = embedded.meeting_id
-                  AND indexed.model_id = ?1
-            )
-              AND NOT EXISTS (
-                SELECT 1 FROM deleted_meetings AS deleted
-                WHERE deleted.meeting_id = embedded.meeting_id
-            )
-            """, bind: [Self.indexVersion]
-        ) { statement in
-            guard let idText = sqlite3_column_text(statement, 0),
-                  let meetingID = UUID(uuidString: String(cString: idText)),
-                  let text = sqlite3_column_text(statement, 2),
-                  let blob = sqlite3_column_blob(statement, 3) else { return nil }
-            let byteCount = Int(sqlite3_column_bytes(statement, 3))
-            guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
-            let candidate = Candidate(
-                meetingID: meetingID,
-                start: sqlite3_column_double(statement, 1),
-                text: String(cString: text),
-                vector: Data(bytes: blob, count: byteCount))
-            guard meetingIDs?.contains(candidate.meetingID) ?? true else { return nil }
-            return candidate
+        let url = databaseURL
+        let worker = Task.detached(priority: .userInitiated) {
+            guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return [Hit]() }
+            var bindings: [Any] = [Self.indexVersion]
+            let scope: String
+            if let meetingIDs {
+                let parameters = meetingIDs.sorted { $0.uuidString < $1.uuidString }.map { id -> String in
+                    bindings.append(id.uuidString)
+                    return "?\(bindings.count)"
+                }
+                scope = "embedded.meeting_id IN (\(parameters.joined(separator: ",")))"
+            } else { scope = "1 = 1" }
+            let candidates: [Candidate] = database.query(
+                """
+                SELECT embedded.meeting_id, embedded.start, embedded.text, embedded.vec
+                FROM embeddings AS embedded
+                WHERE \(scope) AND EXISTS (
+                    SELECT 1 FROM embedded_meetings AS indexed
+                    WHERE indexed.meeting_id = embedded.meeting_id
+                      AND indexed.model_id = ?1
+                )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM deleted_meetings AS deleted
+                    WHERE deleted.meeting_id = embedded.meeting_id
+                )
+                """, bind: bindings
+            ) { statement in
+                guard let idText = sqlite3_column_text(statement, 0),
+                      let meetingID = UUID(uuidString: String(cString: idText)),
+                      let text = sqlite3_column_text(statement, 2),
+                      let blob = sqlite3_column_blob(statement, 3) else { return nil }
+                let byteCount = Int(sqlite3_column_bytes(statement, 3))
+                guard byteCount == queryVector.count * MemoryLayout<Float>.stride else { return nil }
+                let candidate = Candidate(
+                    meetingID: meetingID,
+                    start: sqlite3_column_double(statement, 1),
+                    text: String(cString: text),
+                    vector: Data(bytes: blob, count: byteCount))
+                guard meetingIDs?.contains(candidate.meetingID) ?? true else { return nil }
+                return candidate
+            }
+            return Self.rank(candidates, against: queryVector, limit: limit)
         }
-        let ranked = await Task.detached(priority: .userInitiated) {
-            Self.rank(candidates, against: queryVector, limit: limit)
-        }.value
+        let ranked = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
         // Ranking yields the main actor. A meeting can be deleted after the
         // candidate snapshot but before ranking completes, so validate again

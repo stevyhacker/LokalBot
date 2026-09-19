@@ -1,6 +1,6 @@
 import Foundation
 
-struct MeetingRecallGroup: Identifiable {
+struct MeetingRecallGroup: Identifiable, Sendable {
     let id: UUID
     let matches: [SearchIndex.Hit]
     var primary: SearchIndex.Hit { matches.first(where: { $0.kind == .segment }) ?? matches[0] }

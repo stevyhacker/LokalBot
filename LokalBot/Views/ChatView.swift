@@ -320,7 +320,13 @@ private struct EditorialTurn: View {
                 answerActions(copyText: "", allowsSpeech: false)
             } else if !message.isError && !isStoppedTurn {
                 if !parsed.display.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    SelectableDigestText(parsed.display, style: .editorial)
+                    Group {
+                        if message.isPending {
+                            Text(verbatim: parsed.display).textSelection(.enabled)
+                        } else {
+                            SelectableDigestText(parsed.display, style: .editorial)
+                        }
+                    }
                         .foregroundStyle(message.isError ? AnyShapeStyle(.red)
                                                          : AnyShapeStyle(.primary))
                         .contextMenu {
