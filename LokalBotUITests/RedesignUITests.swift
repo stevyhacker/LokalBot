@@ -294,8 +294,12 @@ final class RedesignUITests: XCTestCase {
                       "Agent Markdown list was not rendered")
         XCTAssertTrue(UITestHarness.staticText(containing: "let value = 1", in: app).exists,
                       "Agent fenced code was not rendered")
+        XCTAssertTrue(UITestHarness.staticText(containing: "Agent │ Ready", in: app).exists,
+                      "Agent Markdown table was not rendered")
         XCTAssertFalse(UITestHarness.staticText(containing: "## Agent result", in: app).exists,
                        "Agent Markdown syntax leaked into the visible response")
+        XCTAssertFalse(UITestHarness.staticText(containing: "| --- | --- |", in: app).exists,
+                       "Agent Markdown table syntax leaked into the visible response")
         let deny = app.buttons["agent.approve.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
         XCTAssertTrue(UITestHarness.staticText(containing: "Create or replace the file", in: app).exists)

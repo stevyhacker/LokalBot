@@ -25,7 +25,7 @@ actor AgentUITestTransport: PiLineTransport {
         try emit(["type": "response", "id": id, "command": type, "success": true])
         if type == "prompt" {
             try emit(["type": "agent_start"])
-            let markdown = "## Agent result\n\n- Parent\n  - Child\n```swift\nlet value = 1\n```\n"
+            let markdown = "## Agent result\n\n- Parent\n  - Child\n```swift\nlet value = 1\n```\n\n| Name | State |\n| --- | --- |\n| Agent | Ready |\n"
             try emit(["type": "message_start", "message": ["role": "assistant"]])
             try emit(["type": "message_update", "assistantMessageEvent": [
                 "type": "text_delta", "delta": markdown,

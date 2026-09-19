@@ -3,8 +3,10 @@ import SwiftUI
 /// A selectable Markdown renderer backed by one SwiftUI `Text`. Keeping the
 /// whole document in one attributed string gives macOS one continuous
 /// selection range, so users can drag across lines and copy only the portion
-/// they need. Editorial mode preserves Ask's compact type hierarchy and
-/// citation treatment without splitting the answer into selection islands.
+/// they need. It supports headings, lists, quotes, fenced code, and GitHub
+/// tables while preserving inline formatting. Editorial mode preserves Ask's
+/// compact type hierarchy and citation treatment without splitting the answer
+/// into selection islands.
 struct SelectableDigestText: View {
     enum Style: Equatable {
         case standard
@@ -65,7 +67,9 @@ struct SelectableDigestText: View {
         renderedLines.reserveCapacity(lines.count)
 
         var fence: Fence?
-        for line in lines {
+        var lineIndex = 0
+        while lineIndex < lines.count {
+            let line = lines[lineIndex]
             if let activeFence = fence {
                 if let delimiter = fenceDelimiter(in: line),
                    delimiter.marker == activeFence.marker,
@@ -77,15 +81,28 @@ struct SelectableDigestText: View {
                         line,
                         font: baseFont(for: style, fallback: font)))
                 }
+                lineIndex += 1
                 continue
             }
 
             if let delimiter = fenceDelimiter(in: line) {
                 fence = Fence(marker: delimiter.marker, length: delimiter.length)
+                lineIndex += 1
+                continue
+            }
+
+            if let table = table(
+                startingAt: lineIndex,
+                lines: lines,
+                font: font,
+                style: style) {
+                renderedLines.append(contentsOf: table.lines)
+                lineIndex = table.nextIndex
                 continue
             }
 
             renderedLines.append(attributedLine(line, font: font, style: style))
+            lineIndex += 1
         }
 
         var document = AttributedString()
@@ -172,12 +189,234 @@ struct SelectableDigestText: View {
         let info: String
     }
 
+    private struct Table {
+        let lines: [AttributedString]
+        let nextIndex: Int
+    }
+
+    private struct TableRow {
+        let cells: [String]
+        let indentation: String
+    }
+
+    private struct TableColumn {
+        let alignment: TableAlignment
+        let width: Int
+    }
+
+    private enum TableAlignment {
+        case left
+        case center
+        case right
+    }
+
     private static func baseFont(for style: Style, fallback: Font) -> Font {
         switch style {
         case .editorial: return WorkspaceTypography.body
         case .agent: return WorkspaceTypography.body
         case .standard: return fallback
         }
+    }
+
+    private static func table(
+        startingAt index: Int,
+        lines: [String],
+        font: Font,
+        style: Style
+    ) -> Table? {
+        guard index + 1 < lines.count,
+              let header = tableRow(in: lines[index]),
+              let alignments = tableAlignments(in: lines[index + 1]),
+              header.cells.count == alignments.count,
+              header.cells.count >= 2 else { return nil }
+
+        var rows = [header.cells]
+        var nextIndex = index + 2
+        while nextIndex < lines.count,
+              let row = tableRow(in: lines[nextIndex]),
+              row.cells.count == header.cells.count {
+            rows.append(row.cells)
+            nextIndex += 1
+        }
+
+        let tableFont = baseFont(for: style, fallback: font).monospaced()
+        let widths = zip(alignments.indices, alignments).map { columnIndex, alignment in
+            let width = rows.map { row in
+                String(styledInline(
+                    row[columnIndex],
+                    font: tableFont,
+                    style: style).characters).count
+            }.max() ?? 1
+            return TableColumn(alignment: alignment, width: max(width, 1))
+        }
+        let indentation = header.indentation
+        var rendered: [AttributedString] = []
+        rendered.append(tableRow(
+            rows[0],
+            columns: widths,
+            indentation: indentation,
+            font: tableFont,
+            style: style,
+            isHeader: true))
+        rendered.append(tableSeparator(
+            columns: widths,
+            indentation: indentation,
+            font: tableFont))
+        for row in rows.dropFirst() {
+            rendered.append(tableRow(
+                row,
+                columns: widths,
+                indentation: indentation,
+                font: tableFont,
+                style: style,
+                isHeader: false))
+        }
+        return Table(lines: rendered, nextIndex: nextIndex)
+    }
+
+    private static func tableRow(in line: String) -> TableRow? {
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        guard leading.count <= 3 else { return nil }
+        let content = String(line.dropFirst(leading.count))
+            .trimmingCharacters(in: .whitespaces)
+        guard let cells = splitTableCells(content), cells.count >= 2 else { return nil }
+        return TableRow(
+            cells: cells.map { $0.trimmingCharacters(in: .whitespaces) },
+            indentation: String(leading))
+    }
+
+    private static func tableAlignments(in line: String) -> [TableAlignment]? {
+        guard let row = tableRow(in: line) else { return nil }
+        var alignments: [TableAlignment] = []
+        alignments.reserveCapacity(row.cells.count)
+        for cell in row.cells {
+            let value = cell.trimmingCharacters(in: .whitespaces)
+            guard !value.isEmpty else { return nil }
+            let leftColon = value.first == ":"
+            let rightColon = value.last == ":"
+            let start = leftColon ? value.index(after: value.startIndex) : value.startIndex
+            let end = rightColon ? value.index(before: value.endIndex) : value.endIndex
+            guard start < end,
+                  value[start..<end].allSatisfy({ $0 == "-" }) else { return nil }
+            if leftColon && rightColon {
+                alignments.append(.center)
+            } else if rightColon {
+                alignments.append(.right)
+            } else {
+                alignments.append(.left)
+            }
+        }
+        return alignments
+    }
+
+    private static func splitTableCells(_ source: String) -> [String]? {
+        var characters = Array(source)
+        if characters.first == "|" { characters.removeFirst() }
+
+        var cells: [String] = []
+        var current = ""
+        var codeTicks = 0
+        var endedWithPipe = false
+        var index = 0
+
+        while index < characters.count {
+            let character = characters[index]
+            if character == "\\", index + 1 < characters.count {
+                current.append(character)
+                index += 1
+                current.append(characters[index])
+                index += 1
+                endedWithPipe = false
+                continue
+            }
+            if character == "`" {
+                var runLength = 0
+                while index + runLength < characters.count,
+                      characters[index + runLength] == "`" {
+                    runLength += 1
+                }
+                current.append(String(repeating: "`", count: runLength))
+                if codeTicks == 0 {
+                    codeTicks = runLength
+                } else if codeTicks == runLength {
+                    codeTicks = 0
+                }
+                index += runLength
+                endedWithPipe = false
+                continue
+            }
+            if character == "|" && codeTicks == 0 {
+                cells.append(current)
+                current = ""
+                endedWithPipe = true
+            } else {
+                current.append(character)
+                endedWithPipe = false
+            }
+            index += 1
+        }
+        cells.append(current)
+        if endedWithPipe { _ = cells.popLast() }
+        return cells
+    }
+
+    private static func tableRow(
+        _ cells: [String],
+        columns: [TableColumn],
+        indentation: String,
+        font: Font,
+        style: Style,
+        isHeader: Bool
+    ) -> AttributedString {
+        let rowFont = isHeader ? font.bold() : font
+        var result = styled(indentation, font: rowFont)
+        for index in cells.indices {
+            if index > 0 {
+                result.append(styled(" │ ", font: rowFont))
+            }
+            let cell = styledInline(cells[index], font: rowFont, style: style)
+            let visibleWidth = String(cell.characters).count
+            let padding = max(0, columns[index].width - visibleWidth)
+            let leftPadding: Int
+            let rightPadding: Int
+            switch columns[index].alignment {
+            case .left:
+                leftPadding = 0
+                rightPadding = padding
+            case .center:
+                leftPadding = padding / 2
+                rightPadding = padding - leftPadding
+            case .right:
+                leftPadding = padding
+                rightPadding = 0
+            }
+            result.append(styled(
+                String(repeating: " ", count: leftPadding),
+                font: rowFont))
+            result.append(cell)
+            result.append(styled(
+                String(repeating: " ", count: rightPadding),
+                font: rowFont))
+        }
+        return result
+    }
+
+    private static func tableSeparator(
+        columns: [TableColumn],
+        indentation: String,
+        font: Font
+    ) -> AttributedString {
+        var result = styled(indentation, font: font, foreground: .secondary)
+        for index in columns.indices {
+            if index > 0 {
+                result.append(styled("─┼─", font: font, foreground: .secondary))
+            }
+            result.append(styled(
+                String(repeating: "─", count: columns[index].width),
+                font: font,
+                foreground: .secondary))
+        }
+        return result
     }
 
     private static func headingFont(for level: Int, style: Style) -> Font {
