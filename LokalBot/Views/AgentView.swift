@@ -4,17 +4,24 @@ struct AgentView: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var sessions: AgentSessionTabs
     @ObservedObject var installer: AgentRuntimeInstaller
+    @SceneStorage("agent.tasks.width") private var taskColumnWidth = 230.0
 
     var body: some View {
         Group {
             if installer.phase == .installed {
-                NavigationSplitView {
+                // The main window already owns navigation. A second nested
+                // NavigationSplitView lets its inferred detail minimum grow
+                // with the transcript and can prevent the window shrinking.
+                HSplitView {
                     AgentTaskSidebar(sessions: sessions, verifyRuntime: verifyRuntime)
-                        .navigationSplitViewColumnWidth(min: 190, ideal: 230, max: 320)
-                } detail: {
+                        .frame(minWidth: 190, idealWidth: taskColumnWidth, maxWidth: 280)
+                        .onGeometryChange(for: Double.self) { Double($0.size.width) } action: { taskColumnWidth = $0 }
+                        .splitPaneAccessibilityLabel("Agent tasks")
                     if let tab = sessions.selectedTab {
                         AgentSessionView(controller: tab.controller, sessions: sessions, taskID: tab.id)
                             .id(tab.id)
+                            .frame(minWidth: 360, maxWidth: .infinity, maxHeight: .infinity)
+                            .splitPaneAccessibilityLabel("Agent conversation")
                     }
                 }
                 .task { await sessions.refreshHistory() }

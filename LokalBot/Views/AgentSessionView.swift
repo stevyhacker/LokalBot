@@ -15,23 +15,12 @@ struct AgentSessionView: View {
     @FocusState private var findFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            taskHeader
-            if findVisible { findBar }
-            transcript
-            if let request = controller.pendingApprovals.first {
-                VStack(alignment: .leading, spacing: 4) {
-                    if controller.pendingApprovals.count > 1 {
-                        Text("\(controller.pendingApprovals.count) approvals waiting").font(.caption)
-                    }
-                    AgentApprovalDock(controller: controller, request: request).id(request.id)
-                }
-                .frame(maxWidth: WorkspaceMetric.readingMaxWidth)
-                .padding(.horizontal, 20).padding(.bottom, 8)
-            }
-            AgentComposer(controller: controller, sessions: sessions, taskID: taskID, showPreview: show)
-                .frame(maxWidth: WorkspaceMetric.readingMaxWidth)
-                .padding(.horizontal, 20).padding(.bottom, 14)
+        // Resolve the reading width from the pane, rather than allowing a
+        // long response or an action row to contribute its ideal width to
+        // the native window's minimum size.
+        GeometryReader { geometry in
+            conversation(width: geometry.size.width)
+                .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .inspector(isPresented: $showingResults) {
             AgentResultsPanel(controller: controller, selection: $preview)
@@ -54,13 +43,37 @@ struct AgentSessionView: View {
         })
     }
 
+    private func readingWidth(_ width: CGFloat) -> CGFloat {
+        max(0, min(WorkspaceMetric.readingMaxWidth, width - 40))
+    }
+
+    private func conversation(width: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            taskHeader
+            if findVisible { findBar }
+            transcript(width: width)
+            if let request = controller.pendingApprovals.first {
+                VStack(alignment: .leading, spacing: 4) {
+                    if controller.pendingApprovals.count > 1 {
+                        Text("\(controller.pendingApprovals.count) approvals waiting").font(.caption)
+                    }
+                    AgentApprovalDock(controller: controller, request: request).id(request.id)
+                }
+                .frame(width: readingWidth(width))
+                .padding(.bottom, 8)
+            }
+            AgentComposer(controller: controller, sessions: sessions, taskID: taskID, showPreview: show)
+                .frame(width: readingWidth(width))
+                .padding(.bottom, 14)
+        }
+    }
+
     private var taskHeader: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(sessions.selectedTab?.title ?? "New task").font(.headline).lineLimit(1)
                 Text(controller.taskStatus).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
+            }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             Button { sessions.findRequest += 1 } label: { Image(systemName: "magnifyingglass").frame(width: 28, height: 28) }
                 .help("Find in task (⌘F)").accessibilityLabel("Find in task")
                 .accessibilityIdentifier("agent.find")
@@ -88,7 +101,7 @@ struct AgentSessionView: View {
         }.padding(.horizontal, 20).padding(.bottom, 8)
     }
 
-    private var transcript: some View {
+    private func transcript(width: CGFloat) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
@@ -103,9 +116,9 @@ struct AgentSessionView: View {
                     Color.clear.frame(height: 1).id("agent.transcript.end")
                 }
                 .scrollTargetLayout()
-                .frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, 20).padding(.vertical, 24)
+                .frame(width: readingWidth(width), alignment: .leading)
+                .padding(.vertical, 24)
+                .frame(width: width, alignment: .center)
             }
             .scrollPosition(id: $controller.visibleTranscriptID)
             .onScrollGeometryChange(for: Bool.self) {
@@ -162,13 +175,13 @@ struct AgentSessionView: View {
             VStack(alignment: .trailing, spacing: 6) {
                 Text(text).font(.system(size: sessions.textSize)).textSelection(.enabled)
                     .padding(12).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 14))
-                HStack(spacing: 12) {
-                    copyButton(text)
-                    Button("Edit as follow-up") {
-                        controller.editAsFollowUp(item); sessions.composerFocusRequest += 1
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) { userActions(item, text: text); branchButton(item) }
+                    VStack(alignment: .trailing, spacing: 4) {
+                        HStack(spacing: 14) { userActions(item, text: text) }
+                        branchButton(item)
                     }
-                    branchButton(item)
-                }.font(.caption).buttonStyle(.borderless)
+                }.buttonStyle(AgentMessageActionStyle())
             }.frame(maxWidth: .infinity, alignment: .trailing)
         case .assistant(_, let text, let streaming):
             VStack(alignment: .leading, spacing: 12) {
@@ -178,12 +191,13 @@ struct AgentSessionView: View {
                 } else {
                     SelectableDigestText(text, font: .system(size: sessions.textSize), searchQuery: findQuery, style: .agent)
                         .accessibilityIdentifier("agent.assistant")
-                    HStack(spacing: 12) {
-                        copyButton(text)
-                        Button("Retry response") { controller.reviewResponseRetry(item); sessions.composerFocusRequest += 1 }
-                        Button("Open in results") { show(.init(id: item.id, title: "Agent response", detail: "Conversation result", text: text)) }
-                        branchButton(item)
-                    }.font(.caption).buttonStyle(.borderless)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 14) { responseActions(item, text: text); resultActions(item, text: text) }
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 14) { responseActions(item, text: text) }
+                            HStack(spacing: 14) { resultActions(item, text: text) }
+                        }
+                    }.buttonStyle(AgentMessageActionStyle())
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         case .notice(_, let text, let error):
@@ -191,6 +205,21 @@ struct AgentSessionView: View {
                 .font(.callout).foregroundStyle(error ? Color.orange : Color.secondary).textSelection(.enabled)
         default: EmptyView()
         }
+    }
+
+    @ViewBuilder private func userActions(_ item: AgentTranscriptItem, text: String) -> some View {
+        copyButton(text)
+        Button("Edit as follow-up") {
+            controller.editAsFollowUp(item); sessions.composerFocusRequest += 1
+        }
+    }
+    @ViewBuilder private func responseActions(_ item: AgentTranscriptItem, text: String) -> some View {
+        copyButton(text)
+        Button("Retry response") { controller.reviewResponseRetry(item); sessions.composerFocusRequest += 1 }
+    }
+    @ViewBuilder private func resultActions(_ item: AgentTranscriptItem, text: String) -> some View {
+        Button("Open in results") { show(.init(id: item.id, title: "Agent response", detail: "Conversation result", text: text)) }
+        branchButton(item)
     }
 
     private func copyButton(_ text: String) -> some View {
@@ -221,5 +250,20 @@ struct AgentSessionView: View {
     private func nextMatch(_ offset: Int) {
         guard !matches.isEmpty else { return }
         matchIndex = (matchIndex + offset + matches.count) % matches.count
+    }
+}
+
+/// Message actions need label contrast, including in dark mode and Increase
+/// Contrast, rather than the brand tint used for decorative accents.
+private struct AgentMessageActionStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(enabled ? Color.primary : Color.secondary)
+            .opacity(configuration.isPressed ? 0.65 : 1)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
     }
 }

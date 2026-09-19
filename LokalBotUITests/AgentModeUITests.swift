@@ -17,10 +17,12 @@ final class AgentModeUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    private func launch(approval: Bool = false) throws {
+    private func launch(approval: Bool = false, appearance: String? = nil) throws {
+        var environment = ["LOKALBOT_AGENT_UI_TEST_READY": "1"]
+        if approval { environment["LOKALBOT_AGENT_UI_TEST_APPROVAL"] = "1" }
+        if let appearance { environment["LOKALBOT_CAPTURE_APPEARANCE"] = appearance }
         let launch = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "AgentMode",
-            environment: approval ? ["LOKALBOT_AGENT_UI_TEST_READY": "1", "LOKALBOT_AGENT_UI_TEST_APPROVAL": "1"]
-                : ["LOKALBOT_AGENT_UI_TEST_READY": "1"])
+            environment: environment)
         app = launch.app; defaultsSuiteName = launch.defaultsSuiteName
         XCTAssertTrue(app.descendants(matching: .any)["today.header"].waitForExistence(timeout: 10))
         UITestHarness.clickSidebar("sidebar.agent", in: app)
@@ -133,6 +135,64 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertFalse(log.contains("Then make it shorter"))
         app.buttons["agent.stop"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !deny.exists && !self.app.buttons["agent.stop"].exists })
+    }
+
+    /// Exercise an actual edge drag after opening long history. A startup
+    /// capture at a small size misses content-driven native window minimums.
+    func testLongSavedConversationCanShrinkWithoutClippingActions() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        let directory = fixture.root.appendingPathComponent("agent/sessions")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let paragraph = "A compact window should wrap this saved response while keeping its message actions and composer reachable. "
+        let response = "## Compact reading\n\n" + String(repeating: paragraph, count: 8)
+        let records: [[String: Any]] = [
+            ["type": "session", "version": 3, "id": "compact", "cwd": fixture.root.path],
+            ["type": "message", "id": "user", "message": ["role": "user", "content": "Compact conversation with a long saved response"]],
+            ["type": "message", "id": "answer", "parentId": "user", "message": ["role": "assistant", "content": response]],
+        ]
+        let lines = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: directory.appendingPathComponent("compact.jsonl"))
+
+        for appearance in ["light", "dark"] {
+            try launch(appearance: appearance)
+            let search = app.textFields["agent.taskSearch"]
+            search.click(); search.typeText("Compact conversation")
+            XCTAssertTrue(taskRow.waitForExistence(timeout: 4)); taskRow.click()
+            let answer = app.descendants(matching: .any)["agent.assistant"]
+            XCTAssertTrue(answer.waitForExistence(timeout: 4))
+
+            resizeWindow(to: 760)
+            let retry = app.buttons["Retry response"].firstMatch
+            UITestHarness.scrollTo(retry, in: app)
+            XCTAssertTrue(retry.isHittable)
+            XCTAssertTrue(app.buttons["Open in results"].firstMatch.isHittable)
+            XCTAssertLessThanOrEqual(answer.frame.width, composer.frame.width + 4)
+            let branch = try XCTUnwrap(app.buttons.matching(NSPredicate(format: "label == 'Branch from here'")).allElementsBoundByIndex.last)
+            XCTAssertLessThanOrEqual(branch.frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            snapshot("agent-compact-760-\(appearance)")
+
+            app.buttons["toolbar.sidebarToggle"].click()
+            resizeWindow(to: 600)
+            UITestHarness.scrollTo(retry, in: app)
+            XCTAssertTrue(retry.isHittable)
+            XCTAssertTrue(composer.isHittable)
+            XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            snapshot("agent-compact-600-\(appearance)")
+            retry.click()
+            XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Compact conversation") == true })
+            app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        }
+    }
+
+    private func resizeWindow(to width: CGFloat) {
+        let window = app.windows["main.window"]
+        let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.75))
+            .withOffset(CGVector(dx: -1, dy: 0))
+        let target = window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.75))
+            .withOffset(CGVector(dx: width - 1, dy: 0))
+        edge.press(forDuration: 0.1, thenDragTo: target)
+        XCTAssertTrue(UITestHarness.waitUntil { abs(window.frame.width - width) <= 4 },
+                      "Window could not shrink to \(width) points; actual width: \(window.frame.width)")
     }
 
     private var composer: XCUIElement { app.textFields["agent.composer"] }
