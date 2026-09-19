@@ -132,17 +132,17 @@ struct AgentComposer: View {
         HStack(spacing: 8) {
             if controller.state == .running {
                 Button("Stop", systemImage: "stop.fill") { Task { await controller.abort() } }
-                    .accessibilityIdentifier("agent.stop")
+                    .disabled(controller.isStopping).accessibilityIdentifier("agent.stop")
                 Button("Send now") { submit(steer: true) }
                     .help("Steer the current task at its next opportunity")
-                    .disabled(!hasPrompt || controller.isSending || submitting)
+                    .disabled(!hasPrompt || controller.isSending || controller.isStopping || submitting)
                     .accessibilityIdentifier("agent.steer")
             }
             Button(controller.state == .running ? "Queue follow-up" : "Send", systemImage: controller.state == .running ? "text.badge.plus" : "arrow.up") {
                 submit(steer: false)
             }
             .buttonStyle(.borderedProminent).controlSize(.regular)
-            .disabled(!hasPrompt || submitting || controller.state == .starting)
+            .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
             .accessibilityIdentifier("agent.send")
         }.font(.callout)
     }

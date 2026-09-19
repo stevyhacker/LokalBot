@@ -107,7 +107,7 @@ final class AgentSessionControllerTests: XCTestCase {
         controller.draft = "Edited follow-up"
         controller.queueDraft()
         controller.cancelQueued(try XCTUnwrap(controller.queuedPrompts.first).id)
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
         try await pump()
         XCTAssertTrue(transport.sentLines.isEmpty, "a canceled follow-up must never reach Pi")
         await controller.shutdown()
@@ -121,7 +121,11 @@ final class AgentSessionControllerTests: XCTestCase {
         controller.draft = "Next task"
         controller.queueDraft()
         XCTAssertTrue(transport.sentLines.isEmpty)
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_end","willRetry":true}"#)
+        try await pump()
+        XCTAssertTrue(transport.sentLines.isEmpty, "agent_end must not race Pi retry or compaction")
+        XCTAssertEqual(controller.state, .running)
+        transport.inject(#"{"type":"agent_settled"}"#)
         try await pump()
         let line = try XCTUnwrap(transport.sentLines.first)
         let command = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
@@ -158,7 +162,7 @@ final class AgentSessionControllerTests: XCTestCase {
         let stopping = Task { await controller.abort() }
         try await pump()
         transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
         await stopping.value
         try await pump()
         XCTAssertTrue(controller.queueIsPaused)
@@ -182,6 +186,25 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
+    func testStopCancelsPendingApprovalBeforeAwaitingIdle() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        transport.inject(try approvalEvent(id: "pending", tool: "write", workspace: controller.workspace.path,
+                                          path: controller.workspace.appendingPathComponent("draft.md").path, content: "Draft"))
+        try await pump()
+        XCTAssertEqual(controller.pendingApprovals.count, 1)
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        XCTAssertTrue(controller.pendingApprovals.isEmpty)
+        XCTAssertTrue(transport.sentLines.contains { $0.contains(#""cancelled":true"#) })
+        transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        await stopping.value
+        XCTAssertEqual(controller.state, .ready)
+        await controller.shutdown()
+    }
+
     func testStopDuringQueuedAcknowledgementDoesNotFailOrDuplicatePrompt() async throws {
         let controller = makeController()
         await controller.start()
@@ -191,14 +214,14 @@ final class AgentSessionControllerTests: XCTestCase {
         controller.queueDraft()
         controller.draft = "Stay paused"
         controller.queueDraft()
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
         try await pump()
         XCTAssertTrue(controller.isSending)
         let stopping = Task { await controller.abort() }
         try await pump()
         transport.inject(#"{"type":"response","id":"a2","command":"abort","success":true}"#)
         transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
         await stopping.value
         try await pump()
         XCTAssertEqual(controller.state, .ready)
@@ -232,7 +255,7 @@ final class AgentSessionControllerTests: XCTestCase {
         try await pump()
         transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
         _ = await send.value
-        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
         try await pump()
         let parked = await controller.park()
         XCTAssertFalse(parked)

@@ -60,6 +60,7 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var queuedPrompts: [AgentQueuedPrompt] = []
     @Published private(set) var queueIsPaused = false
     @Published private(set) var isSending = false
+    @Published private(set) var isStopping = false
     @Published private(set) var failedPrompt: AgentQueuedPrompt?
     @Published var composerError: String?
     private var lastSubmittedPrompt: AgentQueuedPrompt?
@@ -262,6 +263,7 @@ final class AgentSessionController: ObservableObject {
         queueDispatchTask?.cancel()
         queueDispatchTask = nil
         isSending = false
+        isStopping = false
         await cancelPendingApprovals()
         eventTask?.cancel()
         eventTask = nil
@@ -292,7 +294,7 @@ final class AgentSessionController: ObservableObject {
         }
         queuedPrompts.append(.init(text: text, attachments: attachments))
         draft = ""; attachments = []
-        queueIsPaused = false
+        queueIsPaused = isStopping
     }
 
     func restoreSources(_ sources: [AgentAttachment]) { sourceAttachments = sources }
@@ -353,7 +355,7 @@ final class AgentSessionController: ObservableObject {
 
     @discardableResult
     func send(prompt: String, attachments sources: [AgentAttachment] = [], steer: Bool = false) async -> Bool {
-        guard let client, !isSending, state == .ready || state == .running else { return false }
+        guard let client, !isSending, !isStopping, state == .ready || state == .running else { return false }
         let generation = lifecycleGeneration
         let wasRunning = state == .running
         let pending = AgentQueuedPrompt(text: prompt, attachments: sources)
@@ -440,7 +442,13 @@ final class AgentSessionController: ObservableObject {
         // transport failure and requeue an already-delivered prompt. Let that
         // acknowledgement settle while abort independently stops the turn.
         if !isSending { queueDispatchTask?.cancel(); queueDispatchTask = nil }
-        guard let client else { return }
+        guard let client, !isStopping else { return }
+        let generation = lifecycleGeneration
+        isStopping = true
+        defer { if generation == lifecycleGeneration { isStopping = false } }
+        // Pi's confirmation promise has no abort signal. Resolve it as a
+        // cancellation first or Pi's abort RPC can wait forever for idle.
+        await cancelPendingApprovals()
         _ = try? await client.request(.abort(id: freshID("a")))
     }
 
@@ -595,7 +603,7 @@ final class AgentSessionController: ObservableObject {
         switch event {
         case .agentStart:
             state = .running
-        case .agentSettled, .agentEnd:
+        case .agentSettled:
             state = .ready
         case .extensionUIRequest(let request):
             await handleUIRequest(request)
@@ -604,11 +612,17 @@ final class AgentSessionController: ObservableObject {
         }
         folder.fold(event)
         publish()
-        if event == .agentEnd || event == .agentSettled { scheduleQueuedDelivery() }
+        // agent_end can precede automatic retry/compaction. The pinned Pi
+        // runtime emits agent_settled only after the complete run is idle.
+        if event == .agentSettled { scheduleQueuedDelivery() }
     }
 
     private func handleUIRequest(_ request: PiUIRequest) async {
         guard let client else { return }
+        if isStopping {
+            try? await client.sendResponse(.uiCancelResponse(requestID: request.id))
+            return
+        }
         guard request.method == "confirm" else {
             folder.appendNotice("The agent asked for an unsupported interaction (\(request.method)); declined.", isError: false)
             try? await client.sendResponse(.uiCancelResponse(requestID: request.id))
@@ -825,6 +839,7 @@ final class AgentSessionController: ObservableObject {
         modelContext = nil
         queueIsPaused = true
         isSending = false
+        isStopping = false
         folder.resolveAllApprovals()
         resetApprovalPolicy()
         revokeAccessCapability()
@@ -840,6 +855,7 @@ final class AgentSessionController: ObservableObject {
     }
 
     private func setFailure(_ error: Error) {
+        isStopping = false
         folder.resolveAllApprovals()
         activeSessionFile = nil
         modelContext = nil

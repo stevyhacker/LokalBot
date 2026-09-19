@@ -131,7 +131,8 @@ final class AgentModeUITests: XCTestCase {
         snapshot("agent-docked-approval")
         let log = try String(contentsOf: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl"), encoding: .utf8)
         XCTAssertFalse(log.contains("Then make it shorter"))
-        deny.click(); app.buttons["agent.stop"].click()
+        app.buttons["agent.stop"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !deny.exists && !self.app.buttons["agent.stop"].exists })
     }
 
     private var composer: XCUIElement { app.textFields["agent.composer"] }
