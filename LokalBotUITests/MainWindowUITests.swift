@@ -968,7 +968,7 @@ final class MainWindowUITests: XCTestCase {
         }
         app.terminate()
         app = try UITestHarness.relaunch(storageRoot: fixture.root, defaultsSuiteName: defaultsSuiteName!,
-            environment: ["LOKALBOT_SLOW_MEETING_LOAD": "1"])
+            environment: ["LOKALBOT_SLOW_MEETING_LOAD": "1", "LOKALBOT_UI_TEST_DIAGNOSTICS": "1"])
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("meeting.audioPlayer").waitForExistence(timeout: 5))
@@ -980,14 +980,14 @@ final class MainWindowUITests: XCTestCase {
         meetingRow(for: fixture.standup).click()
         XCTAssertTrue(identified("meeting.selection.loading").waitForExistence(timeout: 2))
         XCTAssertEqual(identified("detail.title").frame.minX, titleFrame.minX, accuracy: 1)
-        XCTAssertFalse(app.buttons["meeting.ask"].isEnabled, "Outgoing meeting actions must not target a stale selection")
+        XCTAssertFalse(identified("meeting.ask").isEnabled, "Outgoing meeting actions must not target a stale selection")
         // Supersede the in-flight selection. Its completion must not replace
         // the final meeting, or flash its unloaded content in the meantime.
         meetingRow(for: fixture.planning).click()
         waitForMeetingTitle(fixture.planning.title)
         XCTAssertFalse(identified("meeting.selection.loading").exists)
         XCTAssertEqual(identified("meeting.contentTabs").frame.minY, tabsFrame.minY, accuracy: 1)
-        XCTAssertTrue(app.buttons["meeting.ask"].isEnabled)
+        XCTAssertTrue(identified("meeting.ask").isEnabled)
 
         selectMeeting(fixture.standup)
         XCTAssertTrue(textWithContent("No recording available").firstMatch.waitForExistence(timeout: 5))

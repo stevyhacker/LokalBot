@@ -35,6 +35,7 @@ struct MeetingLibraryDetailView: View {
             // short dissolve once its document is ready, never a layout tween.
             let event = NSApp.currentEvent?.type
             animateSelection = prepared != nil && (event == .leftMouseDown || event == .leftMouseUp)
+            uiTestDiagnosticLog("Meeting selection: event=\(String(describing: event)), animate=\(animateSelection)")
         }
         .task(id: completedMeetingID) {
             guard let meeting = app.selectedMeeting, meeting.endedAt != nil else {
@@ -57,6 +58,7 @@ struct MeetingLibraryDetailView: View {
             guard !Task.isCancelled else { return }
             await app.outcomeIndex.refreshInBackground(meeting: meeting)
             guard !Task.isCancelled, completedMeetingID == meeting.id else { return }
+            uiTestDiagnosticLog("Prepared meeting presentation: animate=\(animateSelection && !reduceMotion)")
             withAnimation(animateSelection ? WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion) : nil) {
                 prepared = PreparedMeeting(meeting: meeting, document: document)
             }
