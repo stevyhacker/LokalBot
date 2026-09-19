@@ -72,7 +72,7 @@ private struct AskContent: View {
         nonmutating set { app.recallState.sources = newValue }
     }
 
-    var body: some View {
+    private var layout: some View {
         VStack(spacing: 0) {
             if model.isLoadingHistory { LoadingStateLabel("Loading conversations…") }
             if mode == .keyword { header }
@@ -89,6 +89,10 @@ private struct AskContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(nil, value: mode)
         .animation(nil, value: matchByMeaning)
+    }
+
+    private var searchContent: some View {
+        layout
         .onChange(of: query) {
             model.preserveSelectionDuringHistoryLoad()
             selectedResult = 0
@@ -109,6 +113,10 @@ private struct AskContent: View {
             if mode == .keyword { runSearch() }
         }
         .onChange(of: selectedScreenApp) { runSearch() }
+    }
+
+    var body: some View {
+        searchContent
         .onKeyPress(.downArrow) {
             guard mode == .keyword, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
