@@ -54,6 +54,33 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var modelContext: ModelContext?
     @Published var workspace: URL
     @Published var draft = ""
+    @Published var attachments: [AgentAttachment] = []
+    @Published private(set) var sourceAttachments: [AgentAttachment] = []
+    @Published private(set) var messageAttachments: [String: [AgentAttachment]] = [:]
+    @Published private(set) var queuedPrompts: [AgentQueuedPrompt] = []
+    @Published private(set) var queueIsPaused = false
+    @Published private(set) var isSending = false
+    @Published private(set) var failedPrompt: AgentQueuedPrompt?
+    @Published var composerError: String?
+    private var lastSubmittedPrompt: AgentQueuedPrompt?
+    private var connectedEndpoint: URL?
+    private var queueDispatchTask: Task<Void, Never>?
+    @Published var visibleTranscriptID: String?
+    var contextResolver: AgentContextResolver { .init(root: storage.rootURL) }
+    var pendingApprovals: [AgentApprovalRequest] {
+        items.compactMap { if case .approval(let request) = $0 { request } else { nil } }
+    }
+    var hasLiveRuntime: Bool { state == .starting || state == .ready || state == .running }
+    var taskStatus: String {
+        if !pendingApprovals.isEmpty { return "Needs approval" }
+        switch state {
+        case .idle: return items.isEmpty ? "Ready to start" : "Saved"
+        case .starting: return "Starting…"
+        case .ready: return "Ready"
+        case .running: return "Working…"
+        case .failed: return "Needs attention"
+        }
+    }
     @Published private(set) var approvalMode: AgentApprovalMode {
         didSet { policy.mode = approvalMode }
     }
@@ -170,6 +197,7 @@ final class AgentSessionController: ObservableObject {
                 return
             }
             modelContext = ModelContext(endpoint: endpoint, settings: configuration)
+            connectedEndpoint = endpoint.baseURL
             var capabilityToken: String?
             if makeTransport == nil {
                 accessGate.removeExpiredCapabilities()
@@ -210,10 +238,13 @@ final class AgentSessionController: ObservableObject {
                     using: rpc,
                     resumedNotice: "Resumed the most recent session for this working folder.")
             case .saved(let session):
-                await restorePreviousMessages(
+                if items.isEmpty {
+                    await restorePreviousMessages(
                     using: rpc,
                     resumedNotice: "Resumed \"\(session.title)\".")
+                }
             }
+            guard generation == lifecycleGeneration else { return }
             state = .ready
         } catch {
             guard generation == lifecycleGeneration else { return }
@@ -227,6 +258,10 @@ final class AgentSessionController: ObservableObject {
             try? await Task.sleep(for: .milliseconds(10))
         }
         lifecycleGeneration += 1
+        queueIsPaused = true
+        queueDispatchTask?.cancel()
+        queueDispatchTask = nil
+        isSending = false
         await cancelPendingApprovals()
         eventTask?.cancel()
         eventTask = nil
@@ -247,29 +282,196 @@ final class AgentSessionController: ObservableObject {
 
     // MARK: - Prompting
 
-    func send(prompt: String) async {
-        guard let client, state == .ready || state == .running else { return }
-        if sessionTitle == nil {
-            sessionTitle = Self.makeSessionTitle(from: prompt)
+    /// Called only after the user submits. Follow-ups stay in the host queue
+    /// until delivery, making cancellation and editing real operations.
+    func queueDraft() {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, queuedPrompts.count < 20 else {
+            composerError = "Keep up to 20 follow-ups in the queue."
+            return
         }
-        folder.noteUserPrompt(prompt)
-        publish()
-        let behavior = state == .running ? "followUp" : nil
+        queuedPrompts.append(.init(text: text, attachments: attachments))
+        draft = ""; attachments = []
+        queueIsPaused = false
+    }
+
+    func restoreSources(_ sources: [AgentAttachment]) { sourceAttachments = sources }
+
+    func restoreQueue(_ prompts: [AgentQueuedPrompt]) {
+        queuedPrompts = prompts; queueIsPaused = true
+    }
+
+    func cancelQueued(_ id: UUID) { queuedPrompts.removeAll { $0.id == id } }
+
+    func editQueued(_ id: UUID) {
+        guard draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, attachments.isEmpty else {
+            composerError = "Send or clear the current draft before editing a queued message."
+            return
+        }
+        guard let queued = queuedPrompts.first(where: { $0.id == id }) else { return }
+        draft = queued.text; attachments = queued.attachments
+        cancelQueued(id)
+    }
+
+    func addAttachment(_ attachment: AgentAttachment) {
+        guard !attachments.contains(where: { $0.id == attachment.id }) else { return }
+        guard attachments.count < AgentContextResolver.maximumAttachments else {
+            composerError = AgentContextResolver.ContextError.tooMany.localizedDescription
+            return
+        }
+        attachments.append(attachment)
+    }
+
+    func reviewRetry() {
+        guard let failedPrompt else { return }
+        guard draft.isEmpty, attachments.isEmpty else {
+            composerError = "Send or clear the current draft before restoring the failed prompt."
+            return
+        }
+        draft = failedPrompt.text; attachments = failedPrompt.attachments
+        composerError = "Review before sending again. Earlier completed actions are not undone and may be repeated."
+    }
+
+    func editAsFollowUp(_ item: AgentTranscriptItem) {
+        guard case .user(_, let text) = item else { return }
+        guard draft.isEmpty, attachments.isEmpty else {
+            composerError = "Send or clear the current draft first."
+            return
+        }
+        draft = text
+        attachments = messageAttachments[item.id] ?? []
+    }
+
+    func reviewResponseRetry(_ item: AgentTranscriptItem) {
+        guard let index = items.firstIndex(where: { $0.id == item.id }),
+              let prompt = items[..<index].last(where: { if case .user = $0 { true } else { false } }) else { return }
+        editAsFollowUp(prompt)
+        if draft == prompt.searchableText {
+            composerError = "Review before sending again. Earlier completed actions are not undone and may be repeated."
+        }
+    }
+
+    @discardableResult
+    func send(prompt: String, attachments sources: [AgentAttachment] = [], steer: Bool = false) async -> Bool {
+        guard let client, !isSending, state == .ready || state == .running else { return false }
+        let generation = lifecycleGeneration
+        let wasRunning = state == .running
+        let pending = AgentQueuedPrompt(text: prompt, attachments: sources)
+        let wirePrompt: String
         do {
-            let response = try await client.request(
-                .prompt(id: freshID("p"), message: prompt, streamingBehavior: behavior))
-            if !response.success {
-                folder.appendNotice(response.error ?? "pi rejected the prompt", isError: true)
-                publish()
+            if let connectedEndpoint {
+                try InferenceEndpointPolicy.validate(connectedEndpoint,
+                    approvedOrigins: settings().approvedRemoteInferenceOrigins)
             }
+            wirePrompt = try contextResolver.prompt(prompt, attachments: sources)
         } catch {
+            composerError = error.localizedDescription
+            return false
+        }
+        isSending = true
+        lastSubmittedPrompt = pending
+        composerError = nil
+        queueIsPaused = false
+        if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: prompt) }
+        folder.noteUserPrompt(prompt)
+        if let item = folder.items.last { messageAttachments[item.id] = sources }
+        publish()
+        for source in sources where !sourceAttachments.contains(where: { $0.id == source.id }) {
+            sourceAttachments.append(source)
+        }
+        state = .running
+        defer { if generation == lifecycleGeneration { isSending = false } }
+        do {
+            let command: PiCommand = steer && wasRunning
+                ? .steer(id: freshID("steer"), message: wirePrompt)
+                : .prompt(id: freshID("p"), message: wirePrompt, streamingBehavior: wasRunning ? "followUp" : nil)
+            let response = try await client.request(command)
+            guard generation == lifecycleGeneration else { return false }
+            if !response.success {
+                failedPrompt = pending
+                queueIsPaused = true
+                if !wasRunning { state = .ready }
+                composerError = response.error ?? "The agent rejected this message. Review it before retrying."
+                folder.appendNotice(composerError!, isError: true)
+                publish()
+                return false
+            }
+            failedPrompt = nil
+            return true
+        } catch {
+            guard generation == lifecycleGeneration else { return false }
+            failedPrompt = pending
+            queueIsPaused = true
             await fail(with: error)
+            return false
+        }
+    }
+
+    func deliverNextQueued() async {
+        guard state == .ready, !isSending, !queuedPrompts.isEmpty else { return }
+        let next = queuedPrompts.removeFirst()
+        if !(await send(prompt: next.text, attachments: next.attachments)) {
+            queuedPrompts.insert(next, at: 0)
+            queueIsPaused = true
+        }
+    }
+
+    private func scheduleQueuedDelivery() {
+        guard !queueIsPaused, !queuedPrompts.isEmpty, queueDispatchTask == nil else { return }
+        queueDispatchTask = Task { [weak self] in
+            await Task.yield()
+            guard !Task.isCancelled, let self else { return }
+            // A prompt ack can arrive just after agent_end. Never overlap two
+            // sends or lose the queued message to that ordering.
+            while self.isSending && !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(20))
+            }
+            guard !Task.isCancelled else { return }
+            await self.deliverNextQueued()
+            self.queueDispatchTask = nil
+            if self.state == .ready { self.scheduleQueuedDelivery() }
         }
     }
 
     func abort() async {
+        queueIsPaused = true
+        queueDispatchTask?.cancel(); queueDispatchTask = nil
         guard let client else { return }
         _ = try? await client.request(.abort(id: freshID("a")))
+    }
+
+    /// Pause an idle runtime without losing the saved task, draft, or preview.
+    @discardableResult func park() async -> Bool {
+        guard state != .running, state != .starting, !isSending else { return false }
+        let saved = activeSessionFile.flatMap { file in
+            (try? AgentSessionHistory.load(from: sessionsDirectory))?.first { $0.fileURL == file }
+        }
+        guard !hasLiveRuntime || items.isEmpty || saved != nil else { return false }
+        let model = modelContext
+        await shutdown()
+        modelContext = model
+        if let saved { activeSessionFile = saved.fileURL; launchMode = .saved(saved) }
+        return true
+    }
+
+    func loadSavedPreview(_ session: AgentSavedSession) async throws {
+        guard !hasLiveRuntime else { return }
+        let generation = lifecycleGeneration
+        let directory = sessionsDirectory
+        let restored = try await Task.detached(priority: .userInitiated) {
+            try AgentConversationArchive.preview(for: session, directory: directory)
+        }.value
+        guard generation == lifecycleGeneration, !hasLiveRuntime else { return }
+        folder = restored.folder
+        messageAttachments = restored.attachments
+        for source in restored.attachments.values.flatMap({ $0 }) where !sourceAttachments.contains(where: { $0.id == source.id }) {
+            sourceAttachments.append(source)
+        }
+        workspace = session.workspace
+        sessionTitle = session.title
+        activeSessionFile = session.fileURL
+        launchMode = .saved(session)
+        publish()
     }
 
     func resumePreviousSession() async {
@@ -398,6 +600,7 @@ final class AgentSessionController: ObservableObject {
         }
         folder.fold(event)
         publish()
+        if event == .agentEnd || event == .agentSettled { scheduleQueuedDelivery() }
     }
 
     private func handleUIRequest(_ request: PiUIRequest) async {
@@ -611,11 +814,17 @@ final class AgentSessionController: ObservableObject {
         let oldProcess = process
         process = nil
         client = nil
-        activeSessionFile = nil
+        if let file = activeSessionFile,
+           let saved = (try? AgentSessionHistory.load(from: sessionsDirectory))?.first(where: { $0.fileURL == file }) {
+            launchMode = .saved(saved)
+        }
         modelContext = nil
+        queueIsPaused = true
+        isSending = false
         folder.resolveAllApprovals()
         resetApprovalPolicy()
         revokeAccessCapability()
+        if failedPrompt == nil { failedPrompt = lastSubmittedPrompt }
         folder.appendNotice(message, isError: true)
         publish()
         releaseLLMLease()
@@ -793,7 +1002,7 @@ final class AgentSessionController: ObservableObject {
                 switch message.role {
                 case "user":
                     if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: message.text) }
-                    folder.noteUserPrompt(message.text)
+                    folder.noteUserPrompt(AgentContextResolver.displayPrompt(message.text))
                 case "assistant":
                     folder.appendAssistantMessage(message.text)
                 default:

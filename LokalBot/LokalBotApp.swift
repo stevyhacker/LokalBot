@@ -40,6 +40,7 @@ struct LokalBotApp: App {
         }
         .defaultSize(width: 1180, height: 740)
         .commands {
+            AgentCommands(app: app)
             CommandMenu("Recording") {
                 Button(app.isRecording ? "Stop Recording" : "Start Recording") {
                     app.isRecording
@@ -72,11 +73,11 @@ struct LokalBotApp: App {
                 }
             }
             CommandGroup(before: .textEditing) {
-                Button("Find in Meeting…") {
-                    app.requestSelectedMeetingSearch()
+                Button(app.navSection == .agent ? "Find in Task…" : "Find in Meeting…") {
+                    if app.navSection == .agent { app.agentSessions.findRequest += 1 } else { app.requestSelectedMeetingSearch() }
                 }
                 .keyboardShortcut("f", modifiers: .command)
-                .disabled(!app.canSearchSelectedMeeting)
+                .disabled(app.navSection != .agent && !app.canSearchSelectedMeeting)
             }
             // Keep the standard Settings shortcut inside the main workspace.
             CommandGroup(replacing: .appSettings) {

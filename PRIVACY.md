@@ -85,7 +85,13 @@ The app may make these outbound connections:
 - **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
-  LokalBot's control.
+  LokalBot's control. Files and meetings you explicitly attach are read locally
+  and included when you send; saved screen moments additionally require the
+  current screen-memory grant and include retained text and notes, never pixels.
+  Attached context goes to the task's displayed inference destination and is
+  retained in its local conversation history. Drafts, queued messages, and
+  attachment references are also saved locally. Archiving preserves this data;
+  **Clear saved Agent history** deletes conversations and task metadata.
 
 Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not

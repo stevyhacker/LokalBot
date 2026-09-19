@@ -79,7 +79,7 @@ struct CommandPaletteView: View {
                 dictationIcon = "xmark.circle"
             }
         }
-        let actions: [PaletteItem] = [
+        var actions: [PaletteItem] = [
             .init(id: "record", icon: app.isRecording ? "stop.circle.fill" : "record.circle",
                   title: app.isRecording ? "Stop recording" : "Record now",
                   subtitle: "Recording", action: {
@@ -112,6 +112,18 @@ struct CommandPaletteView: View {
             .init(id: "nav.settings", icon: "gearshape", title: "Go to Settings",
                   subtitle: "Settings", action: { app.openSettings() })
         ]
+        if app.navSection == .agent {
+            actions += [
+                .init(id: "agent.new", icon: "square.and.pencil", title: "New Agent task", subtitle: "⌘N", action: { app.agentSessions.addSession() }),
+                .init(id: "agent.search", icon: "magnifyingglass", title: "Search Agent tasks", subtitle: "⌘⇧F", action: { app.agentSessions.searchRequest += 1 }),
+                .init(id: "agent.find", icon: "text.magnifyingglass", title: "Find in this task", subtitle: "⌘F", action: { app.agentSessions.findRequest += 1 }),
+                .init(id: "agent.results", icon: "sidebar.right", title: "Toggle results and sources", subtitle: "⌘⌥B", action: { app.agentSessions.resultsRequest += 1 })
+            ]
+            actions += app.agentSessions.orderedTasks.filter { !$0.record.isArchived }.prefix(30).map { task in
+                PaletteItem(id: "agent.task.\(task.id)", icon: "text.bubble", title: task.title,
+                            subtitle: "Agent task · \(task.controller.workspaceDisplayName)", action: { app.agentSessions.select(task.id) })
+            }
+        }
         let q = query.trimmingCharacters(in: .whitespaces).lowercased()
         // Empty query: commands + recent meetings (quick navigation).
         guard !q.isEmpty else {

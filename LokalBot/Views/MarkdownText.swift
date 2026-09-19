@@ -50,7 +50,7 @@ struct SelectableDigestText: View {
     private var lineSpacing: CGFloat {
         switch style {
         case .editorial: return 4
-        case .agent: return 2
+        case .agent: return 5
         case .standard: return 0
         }
     }
@@ -251,7 +251,7 @@ struct SelectableDigestText: View {
     private static func baseFont(for style: Style, fallback: Font) -> Font {
         switch style {
         case .editorial: return WorkspaceTypography.body
-        case .agent: return WorkspaceTypography.body
+        case .agent: return fallback
         case .standard: return fallback
         }
     }

@@ -92,6 +92,109 @@ final class AgentSessionControllerTests: XCTestCase {
         return String(decoding: try JSONSerialization.data(withJSONObject: event), as: UTF8.self)
     }
 
+    func testHostQueueCanBeEditedAndCanceledBeforeAnythingIsSent() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "First follow-up"
+        controller.queueDraft()
+        let first = try XCTUnwrap(controller.queuedPrompts.first)
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        controller.editQueued(first.id)
+        XCTAssertEqual(controller.draft, "First follow-up")
+        XCTAssertTrue(controller.queuedPrompts.isEmpty)
+        controller.draft = "Edited follow-up"
+        controller.queueDraft()
+        controller.cancelQueued(try XCTUnwrap(controller.queuedPrompts.first).id)
+        transport.inject(#"{"type":"agent_end"}"#)
+        try await pump()
+        XCTAssertTrue(transport.sentLines.isEmpty, "a canceled follow-up must never reach Pi")
+        await controller.shutdown()
+    }
+
+    func testQueuedPromptWaitsUntilTurnEndsThenUsesOrdinaryPrompt() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Next task"
+        controller.queueDraft()
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        transport.inject(#"{"type":"agent_end"}"#)
+        try await pump()
+        let line = try XCTUnwrap(transport.sentLines.first)
+        let command = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+        XCTAssertEqual(command["type"] as? String, "prompt")
+        XCTAssertEqual(command["message"] as? String, "Next task")
+        XCTAssertNil(command["streamingBehavior"], "the editable host queue must not also use Pi's hidden queue")
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        try await pump()
+        XCTAssertTrue(controller.queuedPrompts.isEmpty)
+        await controller.shutdown()
+    }
+
+    func testSteeringUsesNativeSteerCommand() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        let send = Task { await controller.send(prompt: "Use the shorter version", steer: true) }
+        try await pump()
+        XCTAssertTrue(transport.sentLines.contains { $0.contains(#""type":"steer""#) })
+        transport.inject(#"{"type":"response","id":"steer1","command":"steer","success":true}"#)
+        let accepted = await send.value
+        XCTAssertTrue(accepted)
+        await controller.shutdown()
+    }
+
+    func testStopKeepsFollowUpsPausedAndUnsent() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Do not run after stop"
+        controller.queueDraft()
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"agent_end"}"#)
+        await stopping.value
+        try await pump()
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.count, 1)
+        XCTAssertFalse(transport.sentLines.contains { $0.contains(#""type":"prompt""#) })
+        await controller.shutdown()
+    }
+
+    func testRejectedPromptRemainsAvailableForExplicitRetry() async throws {
+        let controller = makeController()
+        await controller.start()
+        let send = Task { await controller.send(prompt: "Original prompt") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":false,"error":"Model unavailable"}"#)
+        let accepted = await send.value
+        XCTAssertFalse(accepted)
+        controller.reviewRetry()
+        XCTAssertEqual(controller.draft, "Original prompt")
+        XCTAssertTrue(controller.composerError?.contains("may be repeated") == true)
+        XCTAssertEqual(transport.sentLines.count, 1, "reviewing a retry never resends on its own")
+        await controller.shutdown()
+    }
+
+    func testDuplicateSubmissionWhileAwaitingAcknowledgementIsNotSent() async throws {
+        let controller = makeController()
+        await controller.start()
+        let first = Task { await controller.send(prompt: "Once") }
+        try await pump()
+        let duplicate = await controller.send(prompt: "Twice")
+        XCTAssertFalse(duplicate)
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await first.value
+        XCTAssertEqual(transport.sentLines.count, 1)
+        await controller.shutdown()
+    }
+
     func testStartReachesReady() async throws {
         let controller = makeController()
         await controller.start()
