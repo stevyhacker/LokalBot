@@ -84,7 +84,7 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testAtMentionAttachesMeetingWithoutSendingIt() {
-        composer.click(); composer.typeText("@");
+        composer.click(); composer.typeText("@")
         let search = app.textFields["agent.contextSearch"]
         XCTAssertTrue(search.waitForExistence(timeout: 4))
         let attach = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Attach '")).firstMatch
@@ -175,7 +175,12 @@ final class AgentModeUITests: XCTestCase {
             XCTAssertLessThanOrEqual(branch.frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-760-\(appearance)")
 
-            app.buttons["toolbar.sidebarToggle"].click()
+            // Query the toolbar's direct child to avoid its nested AX wrapper.
+            app.windows["main.window"].toolbars.firstMatch.children(matching: .button)
+                .matching(identifier: "toolbar.sidebarToggle").firstMatch.click()
+            XCTAssertTrue(UITestHarness.waitUntil {
+                !self.app.descendants(matching: .any)["sidebar.settings"].exists
+            })
             resizeWindow(to: 600)
             UITestHarness.scrollTo(openResult, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
