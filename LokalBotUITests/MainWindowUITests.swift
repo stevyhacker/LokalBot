@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 /// End-to-end UI tests that drive the dedicated `LokalBot UI Test Host`
@@ -960,6 +961,8 @@ final class MainWindowUITests: XCTestCase {
     // MARK: - Selection
 
     func testMeetingSwitchKeepsReadingAnchorsAndSelectionStable() throws {
+        XCTAssertFalse(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                       "This regression must exercise normal motion; Reduce Motion has its own hosted test")
         // Exercise the real loading path slowly enough to inspect the outgoing
         // document. No audio on the second meeting also checks player geometry.
         for name in ["mic.live.caf", "system.live.caf"] {
