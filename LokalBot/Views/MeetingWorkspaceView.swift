@@ -258,15 +258,17 @@ private struct MeetingWorkspaceDetail: View {
         }
         .navigationTitle(meeting.displayTitle)
         .task(id: loadRevision) {
-            await load()
-            guard !Task.isCancelled else { return }
-            await refreshSpeakerIdentity(recover: true)
 #if LOKALBOT_UI_TEST_HOST
+            // Establish the requested capture route before asynchronous document
+            // and speaker recovery; readiness must not race those operations.
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
                 transcriptExpanded = true
                 tab = .transcript
             }
 #endif
+            await load()
+            guard !Task.isCancelled else { return }
+            await refreshSpeakerIdentity(recover: true)
         }
         .onChange(of: app.pipeline.stages[meeting.id]) { _, stage in
             if stage == nil || stage == .summarizing || stage == .waitingForModels || stage?.isFailure == true {

@@ -2,11 +2,11 @@
   "name": "lokalbot-agent-runtime",
   "private": true,
   "dependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.3"
+    "@earendil-works/pi-coding-agent": "0.86.1"
   },
   "overrides": {
-    "@earendil-works/pi-agent-core": "0.84.3",
-    "@earendil-works/pi-ai": "0.84.3",
-    "@earendil-works/pi-tui": "0.84.3"
+    "@earendil-works/pi-agent-core": "0.86.1",
+    "@earendil-works/pi-ai": "0.86.1",
+    "@earendil-works/pi-tui": "0.86.1"
   }
 }

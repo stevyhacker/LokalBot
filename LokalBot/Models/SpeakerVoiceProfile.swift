@@ -1,7 +1,7 @@
 import Foundation
 
 struct SpeakerVoiceSample: Codable, Equatable, Sendable {
-    static let fingerprint = "FluidAudio-0.15.5-19600a4/pyannote-community-1/embedding256/16k-mono-v1"
+    static let fingerprint = "FluidAudio-0.15.8-87a39df/pyannote-community-1/embedding256/16k-mono-v1"
     var speaker: String
     var range: SpeakerTurnAnchor
     var vector: [Float]
