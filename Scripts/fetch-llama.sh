@@ -7,11 +7,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-TAG=b10173
-BUILD_NUMBER=10173
+TAG=v0.4.1
 DEPLOYMENT_TARGET=15.0
 SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
-SOURCE_SHA256=306867fcb72ab2e5791333d9df5d1170228d44143c34ce272a0c15967b3959a8
+SOURCE_SHA256=ef3d5b1907a391500ae11b5e61a8e2022e0deaac9790899cad9c4e02f03bfb9a
 SERVER_DIR=Vendor/llama-cpp
 BUILD_MARKER="$TAG-macos$DEPLOYMENT_TARGET-arm64-generic-loader-rpath"
 
@@ -54,7 +53,7 @@ cmake -S "$tmp/source" -B "$tmp/build" \
   -DBUILD_SHARED_LIBS=ON \
   -DGGML_NATIVE=OFF \
   -DGGML_CCACHE=OFF \
-  -DLLAMA_BUILD_NUMBER="$BUILD_NUMBER" \
+  -DLLAMA_BUILD_IS_DEV=OFF \
   -DLLAMA_BUILD_COMMIT="$TAG" \
   -DLLAMA_BUILD_TESTS=OFF \
   -DLLAMA_BUILD_EXAMPLES=OFF \

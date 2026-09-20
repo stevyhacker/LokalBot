@@ -323,14 +323,14 @@ jobs:
             --verbose=2 build/LokalBot.dmg
 
       # sign_update ships in Sparkle's release tarball; the SwiftPM checkout
-      # used for the app build doesn't expose it on PATH. Same 2.9.6 pin as
+      # used for the app build doesn't expose it on PATH. Same 2.10.0 pin as
       # project.yml so the signing tool matches the framework we embed.
       - name: Fetch Sparkle sign_update
         if: github.event_name == 'push'
         run: |
           curl -fsSL -o "$RUNNER_TEMP/Sparkle.tar.xz" \
-            https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-2.9.6.tar.xz
-          echo '52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192  '"$RUNNER_TEMP/Sparkle.tar.xz" \
+            https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+          echo 'c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  '"$RUNNER_TEMP/Sparkle.tar.xz" \
             | shasum -a 256 --check
           mkdir -p "$RUNNER_TEMP/sparkle"
           tar -xJf "$RUNNER_TEMP/Sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"

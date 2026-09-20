@@ -61,7 +61,7 @@ private func llamaCotypingAbortCallback(_ rawState: UnsafeMutableRawPointer?) ->
 /// surfaces the diverged-suffix length as the meaningful reuse signal either
 /// way. The capability is cached once at load (`supportsPartialReuse`).
 ///
-/// Pinned to llama.cpp `b10173`; symbols verified against the vendored dylib.
+/// Pinned to llama.cpp `v0.4.1`; symbols verified against the vendored dylib.
 actor LlamaCotypingRuntime {
     typealias PostLoadAdmissionHook = @Sendable () async -> Void
 
@@ -654,13 +654,14 @@ actor LlamaCotypingRuntime {
     }
 
     private func makeSampler(_ specs: [LlamaSamplerSpec]) -> UnsafeMutablePointer<llama_sampler>? {
+        guard let vocab else { return nil }
         let params = llama_sampler_chain_default_params()
         guard let chain = llama_sampler_chain_init(params) else { return nil }
         for spec in specs {
             let s: UnsafeMutablePointer<llama_sampler>?
             switch spec {
             case let .penalties(lastN, rep, freq, present):
-                s = llama_sampler_init_penalties(lastN, rep, freq, present)
+                s = llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), lastN, rep, freq, present)
             case let .topK(k):            s = llama_sampler_init_top_k(k)
             case let .topP(p, minKeep):   s = llama_sampler_init_top_p(p, minKeep)
             case let .minP(p, minKeep):   s = llama_sampler_init_min_p(p, minKeep)
