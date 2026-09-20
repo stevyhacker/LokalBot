@@ -74,6 +74,25 @@ enum WorkspaceMetric {
     static let timelineDrawerMaxWidth: CGFloat = 520
 }
 
+/// Agent's three working surfaces remain neutral; accent marks focus and
+/// available primary actions. All colors adapt to the system appearance.
+enum AgentPalette {
+    static let conversation = Color(nsColor: .textBackgroundColor)
+    static func tasks(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(white: 0.16) : Color(white: 0.96)
+    }
+
+    static func composer(for scheme: ColorScheme) -> Color {
+        scheme == .dark ? Color(white: 0.20) : Color(white: 0.975)
+    }
+
+    static func accent(for scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.34, green: 0.76, blue: 0.70)
+            : Color(red: 0.08, green: 0.39, blue: 0.35)
+    }
+}
+
 // MARK: - Semantic text and inference roles
 
 /// Text importance is independent from layout hierarchy. Metadata may be

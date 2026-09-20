@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AgentTaskSidebar: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var sessions: AgentSessionTabs
     let verifyRuntime: () -> Void
     @State private var query = ""
@@ -13,7 +14,7 @@ struct AgentTaskSidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Tasks").font(.headline)
+                Text("Tasks").font(WorkspaceTypography.sectionTitle)
                 Spacer()
                 Button { sessions.addSession() } label: { Image(systemName: "square.and.pencil").frame(width: 28, height: 28) }
                     .buttonStyle(.borderless).help("New task (⌘N)")
@@ -45,11 +46,13 @@ struct AgentTaskSidebar: View {
                 if !pinned.isEmpty { Section("Pinned") { taskRows(pinned) } }
                 Section(showArchived ? "Archived tasks" : "Recent") { taskRows(recent) }
             }
-            .listStyle(.sidebar).accessibilityIdentifier("agent.tasks")
+            .listStyle(.sidebar).scrollContentBackground(.hidden)
+            .accessibilityIdentifier("agent.tasks")
             .overlay {
                 if filtered.isEmpty { ContentUnavailableView.search(text: query) }
             }
         }
+        .background(AgentPalette.tasks(for: colorScheme))
         .onChange(of: sessions.searchRequest) { searchFocused = true }
         .alert("Rename task", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
             TextField("Task name", text: $name)
@@ -91,19 +94,33 @@ private struct AgentTaskRow: View {
     @ObservedObject private var controller: AgentSessionController
     init(task: AgentSessionTabs.Tab) { self.task = task; _controller = ObservedObject(wrappedValue: task.controller) }
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon).foregroundStyle(controller.pendingApprovals.isEmpty ? Color.secondary : Color.orange)
-                .frame(width: 16)
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: icon).foregroundStyle(needsAttention ? Color.orange : Color.secondary)
+                .frame(width: 16).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(task.title).lineLimit(1).font(.callout.weight(.medium))
-                Text("\(controller.workspaceDisplayName) · \(controller.taskStatus)")
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(task.title).lineLimit(2).font(.system(size: 13, weight: .semibold))
+                    .fixedSize(horizontal: false, vertical: true)
+                if let detail {
+                    Text(detail).font(WorkspaceTypography.metadata)
+                        .foregroundStyle(needsAttention ? Color.orange : Color.secondary).lineLimit(1)
+                }
             }
         }
         .padding(.vertical, 5)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(task.title), \(controller.taskStatus)")
+        .help("\(task.title)\n\(controller.workspaceDisplayName) · \(controller.taskStatus)")
         .accessibilityIdentifier("agent.task.\(task.id.uuidString)")
+    }
+    private var needsAttention: Bool {
+        if !controller.pendingApprovals.isEmpty { return true }
+        if case .failed = controller.state { return true }
+        return false
+    }
+    private var detail: String? {
+        if needsAttention || controller.state == .running || controller.state == .starting { return controller.taskStatus }
+        if task.record.isArchived { return "Archived" }
+        return controller.workspaceDisplayName == "Meeting Library" ? nil : controller.workspaceDisplayName
     }
     private var icon: String {
         if !controller.pendingApprovals.isEmpty { return "hand.raised" }

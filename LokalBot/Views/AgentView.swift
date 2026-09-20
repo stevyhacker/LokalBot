@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AgentView: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var sessions: AgentSessionTabs
     @ObservedObject var installer: AgentRuntimeInstaller
     @SceneStorage("agent.tasks.width") private var taskColumnWidth = 230.0
@@ -27,7 +28,8 @@ struct AgentView: View {
                 .task { await sessions.refreshHistory() }
             } else { installCard }
         }
-        .navigationTitle("Agent")
+        .navigationTitle(installer.phase == .installed ? "" : "Agent")
+        .tint(AgentPalette.accent(for: colorScheme))
         .alert("Agent tasks", isPresented: Binding(get: { sessions.error != nil }, set: { if !$0 { sessions.error = nil } })) {
             Button("OK") { sessions.error = nil }
         } message: { Text(sessions.error ?? "") }

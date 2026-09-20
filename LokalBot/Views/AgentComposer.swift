@@ -3,6 +3,8 @@ import UniformTypeIdentifiers
 
 struct AgentComposer: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
@@ -47,8 +49,11 @@ struct AgentComposer: View {
                     }
                 }
                 .padding(14)
-                .background(.quaternary.opacity(0.18), in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(focused ? Brand.teal.opacity(0.7) : Color.secondary.opacity(0.25)))
+                .background(AgentPalette.composer(for: colorScheme), in: RoundedRectangle(cornerRadius: 16))
+                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(
+                    focused ? AgentPalette.accent(for: colorScheme) : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
+                    lineWidth: focused || contrast == .increased ? 1.5 : 1))
+                .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
                 .dropDestination(for: URL.self) { urls, _ in
                     for url in urls where url.isFileURL { controller.addAttachment(.file(url)) }
                     return urls.contains(where: \.isFileURL)
@@ -64,7 +69,7 @@ struct AgentComposer: View {
                 Button { showingAccess.toggle() } label: { Image(systemName: "info.circle").frame(width: 24, height: 24) }
                     .buttonStyle(.borderless).accessibilityLabel("Task access details")
                     .popover(isPresented: $showingAccess) { accessDetails }
-            }.font(.caption).foregroundStyle(.secondary)
+            }.font(WorkspaceTypography.metadata).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("agent.model")
         }
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.text, .sourceCode, .json, .pdf], allowsMultipleSelection: true) { result in
@@ -125,7 +130,7 @@ struct AgentComposer: View {
                 .menuStyle(.borderlessButton).fixedSize()
                 .help(controller.approvalMode.detail).accessibilityLabel("Agent approval mode")
                 .accessibilityValue(controller.approvalMode.title).accessibilityIdentifier("agent.approvalMode")
-        }.font(.caption)
+        }.font(WorkspaceTypography.metadataEmphasis).foregroundStyle(.primary)
     }
 
     @ViewBuilder private var sendControls: some View {
@@ -141,7 +146,8 @@ struct AgentComposer: View {
             Button(controller.state == .running ? "Queue follow-up" : "Send", systemImage: controller.state == .running ? "text.badge.plus" : "arrow.up") {
                 submit(steer: false)
             }
-            .buttonStyle(.borderedProminent).controlSize(.regular)
+            .buttonStyle(.borderedProminent).controlSize(.large)
+            .font(.system(size: 13, weight: .semibold))
             .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
             .accessibilityIdentifier("agent.send")
         }.font(.callout)

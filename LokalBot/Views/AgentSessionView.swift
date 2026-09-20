@@ -22,6 +22,8 @@ struct AgentSessionView: View {
             conversation(width: geometry.size.width)
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
+        .background(AgentPalette.conversation)
+        .toolbar { ToolbarItemGroup(placement: .primaryAction) { taskActions } }
         .inspector(isPresented: $showingResults) {
             AgentResultsPanel(controller: controller, selection: $preview)
                 .inspectorColumnWidth(min: 270, ideal: 350, max: 500)
@@ -49,7 +51,8 @@ struct AgentSessionView: View {
 
     private func conversation(width: CGFloat) -> some View {
         VStack(spacing: 0) {
-            taskHeader
+            taskHeader.frame(width: readingWidth(width)).padding(.top, 20).padding(.bottom, 16)
+            Divider()
             if findVisible { findBar }
             transcript
             if let request = controller.pendingApprovals.first {
@@ -64,23 +67,28 @@ struct AgentSessionView: View {
             }
             AgentComposer(controller: controller, sessions: sessions, taskID: taskID, showPreview: show)
                 .frame(width: readingWidth(width))
+                .padding(.top, 12)
                 .padding(.bottom, 14)
         }
     }
 
     private var taskHeader: some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(sessions.selectedTab?.title ?? "New task").font(.headline).lineLimit(1)
-                Text(controller.taskStatus).font(.caption).foregroundStyle(.secondary)
-            }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
-            Button { sessions.findRequest += 1 } label: { Image(systemName: "magnifyingglass").frame(width: 28, height: 28) }
-                .help("Find in task (⌘F)").accessibilityLabel("Find in task")
-                .accessibilityIdentifier("agent.find")
-            Button { showingResults.toggle() } label: { Label("Results", systemImage: "sidebar.right") }
-                .help("Results and sources (⌘⌥B)").accessibilityIdentifier("agent.results")
-        }
-        .buttonStyle(.borderless).padding(.horizontal, 20).padding(.vertical, 12)
+        VStack(alignment: .leading, spacing: 6) {
+            Text(sessions.selectedTab?.title ?? "New task")
+                .font(.system(size: 22, weight: .semibold)).lineLimit(2)
+                .help(sessions.selectedTab?.title ?? "New task")
+                .accessibilityIdentifier("agent.taskTitle")
+            Text(controller.taskStatus).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+        }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private var taskActions: some View {
+        Button { sessions.findRequest += 1 } label: { Image(systemName: "magnifyingglass").frame(width: 28, height: 28) }
+            .help("Find in task (⌘F)").accessibilityLabel("Find in task")
+            .accessibilityIdentifier("agent.find")
+        Button { showingResults.toggle() } label: { Label("Results", systemImage: "sidebar.right") }
+            .labelStyle(.iconOnly)
+            .help("Results and sources (⌘⌥B)").accessibilityIdentifier("agent.results")
     }
 
     private var matches: [String] {
@@ -104,14 +112,16 @@ struct AgentSessionView: View {
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 24) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     if controller.items.isEmpty { emptyState }
                     if case .failed(let message) = controller.state { recovery(message) }
                     ForEach(AgentTranscriptGroup.make(controller.items)) { group in
                         if group.isActivity {
                             AgentActivityGroup(group: group, searchQuery: findQuery, showPreview: show)
                                 .id(group.id)
-                        } else if let item = group.items.first { messageRow(item).id(group.id) }
+                        } else if let item = group.items.first {
+                            messageRow(item).id(group.id)
+                        }
                     }
                     Color.clear.frame(height: 1).id("agent.transcript.end")
                 }
@@ -172,31 +182,38 @@ struct AgentSessionView: View {
     @ViewBuilder private func messageRow(_ item: AgentTranscriptItem) -> some View {
         switch item {
         case .user(_, let text):
-            VStack(alignment: .trailing, spacing: 6) {
+            VStack(alignment: .trailing, spacing: 8) {
+                if item.id != controller.items.first?.id {
+                    Divider().padding(.top, 16).padding(.bottom, 20)
+                }
                 Text(text).font(.system(size: sessions.textSize)).textSelection(.enabled)
                     .padding(12).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 14))
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 14) { userActions(item, text: text); branchButton(item) }
-                    VStack(alignment: .trailing, spacing: 4) {
-                        HStack(spacing: 14) { userActions(item, text: text) }
+                HStack(spacing: 16) {
+                    copyButton(text)
+                    Menu {
+                        Button("Edit as follow-up") {
+                            controller.editAsFollowUp(item); sessions.composerFocusRequest += 1
+                        }
                         branchButton(item)
-                    }
+                    } label: { Label("More", systemImage: "ellipsis") }
+                        .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                        .foregroundStyle(.primary).accessibilityLabel("More message actions")
                 }.buttonStyle(AgentMessageActionStyle())
-            }.frame(maxWidth: .infinity, alignment: .trailing)
+            }.frame(maxWidth: .infinity, alignment: .trailing).padding(.bottom, 16)
         case .assistant(_, let text, let streaming):
             VStack(alignment: .leading, spacing: 12) {
                 if streaming {
                     Text(verbatim: text).font(.system(size: sessions.textSize)).lineSpacing(5)
                         .textSelection(.enabled).accessibilityIdentifier("agent.assistant")
                 } else {
-                    SelectableDigestText(text, font: .system(size: sessions.textSize), searchQuery: findQuery, style: .agent)
+                    AgentResponseText(text: text, fontSize: sessions.textSize, searchQuery: findQuery)
                         .accessibilityIdentifier("agent.assistant")
-                    ViewThatFits(in: .horizontal) {
-                        HStack(spacing: 14) { responseActions(item, text: text); resultActions(item, text: text) }
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 14) { responseActions(item, text: text) }
-                            HStack(spacing: 14) { resultActions(item, text: text) }
-                        }
+                    HStack(spacing: 16) {
+                        responseActions(item, text: text)
+                        Menu { resultActions(item, text: text) } label: { Label("More", systemImage: "ellipsis") }
+                            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                            .foregroundStyle(.primary).accessibilityLabel("More response actions")
+                            .accessibilityIdentifier("agent.responseMore")
                     }.buttonStyle(AgentMessageActionStyle())
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
@@ -207,12 +224,6 @@ struct AgentSessionView: View {
         }
     }
 
-    @ViewBuilder private func userActions(_ item: AgentTranscriptItem, text: String) -> some View {
-        copyButton(text)
-        Button("Edit as follow-up") {
-            controller.editAsFollowUp(item); sessions.composerFocusRequest += 1
-        }
-    }
     @ViewBuilder private func responseActions(_ item: AgentTranscriptItem, text: String) -> some View {
         copyButton(text)
         Button("Retry response") { controller.reviewResponseRetry(item); sessions.composerFocusRequest += 1 }

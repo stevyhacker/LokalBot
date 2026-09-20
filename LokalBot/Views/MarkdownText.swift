@@ -67,8 +67,39 @@ struct SelectableDigestText: View {
             return MeetingSearchHighlighting.apply(
                 to: cached.value, query: searchQuery, activeMatchIndex: activeMatchIndex)
         }
+        let renderedLines = renderedLines(from: markdown, font: font, style: style)
+
+        var document = AttributedString()
+        for (index, line) in renderedLines.enumerated() {
+            document.append(line.content)
+            if index < renderedLines.count - 1 {
+                document.append(AttributedString("\n"))
+            }
+        }
+        if markdown.utf8.count <= 512_000 {
+            renderCache.setObject(RenderedText(document), forKey: key, cost: markdown.utf8.count * 8)
+        }
+        return MeetingSearchHighlighting.apply(
+            to: document,
+            query: searchQuery,
+            activeMatchIndex: activeMatchIndex)
+    }
+
+    /// Both native Agent text and SwiftUI summaries share exactly one parser.
+    struct RenderedLine {
+        let content: AttributedString
+        let kind: LineKind
+    }
+
+    enum LineKind {
+        case body, blank, code, table, tableHeader, quote, separator
+        case heading(Int)
+        case list(String)
+    }
+
+    static func renderedLines(from markdown: String, font: Font, style: Style) -> [RenderedLine] {
         let lines = markdown.components(separatedBy: "\n")
-        var renderedLines: [AttributedString] = []
+        var renderedLines: [RenderedLine] = []
         renderedLines.reserveCapacity(lines.count)
 
         var fence: Fence?
@@ -82,9 +113,8 @@ struct SelectableDigestText: View {
                    delimiter.info.isEmpty {
                     fence = nil
                 } else {
-                    renderedLines.append(styledCode(
-                        line,
-                        font: baseFont(for: style, fallback: font)))
+                    renderedLines.append(.init(content: styledCode(
+                        line, font: baseFont(for: style, fallback: font)), kind: .code))
                 }
                 lineIndex += 1
                 continue
@@ -101,29 +131,32 @@ struct SelectableDigestText: View {
                 lines: lines,
                 font: font,
                 style: style) {
-                renderedLines.append(contentsOf: table.lines)
+                renderedLines.append(contentsOf: table.lines.enumerated().map {
+                    .init(content: $0.element, kind: $0.offset == 0 ? .tableHeader : .table)
+                })
                 lineIndex = table.nextIndex
                 continue
             }
 
-            renderedLines.append(attributedLine(line, font: font, style: style))
+            renderedLines.append(.init(content: attributedLine(line, font: font, style: style), kind: lineKind(line)))
             lineIndex += 1
         }
 
-        var document = AttributedString()
-        for (index, line) in renderedLines.enumerated() {
-            document.append(line)
-            if index < renderedLines.count - 1 {
-                document.append(AttributedString("\n"))
-            }
-        }
-        if markdown.utf8.count <= 512_000 {
-            renderCache.setObject(RenderedText(document), forKey: key, cost: markdown.utf8.count * 8)
-        }
-        return MeetingSearchHighlighting.apply(
-            to: document,
-            query: searchQuery,
-            activeMatchIndex: activeMatchIndex)
+        return renderedLines
+    }
+
+    private static func lineKind(_ line: String) -> LineKind {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        let leading = line.prefix(while: { $0 == " " || $0 == "\t" })
+        let indent = String(repeating: " ", count: min(indentationColumns(leading), 24))
+        if trimmed.isEmpty { return .blank }
+        if ["---", "***", "___"].contains(trimmed) { return .separator }
+        if let heading = heading(trimmed) { return .heading(heading.level) }
+        if let checkbox = checkboxItem(trimmed) { return .list(indent + (checkbox.checked ? "☑ " : "☐ ")) }
+        if bulletItem(trimmed) != nil { return .list(indent + "• ") }
+        if let ordered = orderedListItem(trimmed) { return .list(indent + "\(ordered.number). ") }
+        if trimmed.hasPrefix("> ") { return .quote }
+        return .body
     }
 
     private final class RenderKey: NSObject {

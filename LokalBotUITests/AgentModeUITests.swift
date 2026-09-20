@@ -107,7 +107,8 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(find.waitForExistence(timeout: 4)); find.click(); find.typeText("Agent result")
         XCTAssertTrue(app.staticTexts["1 of 1"].waitForExistence(timeout: 3))
         app.buttons["Close find"].click()
-        app.buttons["Open in results"].firstMatch.click()
+        responseMore.click()
+        app.menuItems["Open in results"].click()
         XCTAssertTrue(app.descendants(matching: .any)["agent.resultsPanel"].waitForExistence(timeout: 4))
         XCTAssertTrue(app.buttons["Copy result"].exists)
         snapshot("agent-results-inspector")
@@ -137,6 +138,31 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { !deny.exists && !self.app.buttons["agent.stop"].exists })
     }
 
+    func testResponseSelectionCopiesAcrossHeadingsListsAndCode() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        try launch(approval: true)
+        composer.click(); composer.typeText("Draft a follow-up")
+        app.buttons["agent.send"].click()
+        let answer = app.textViews["agent.assistant"]
+        XCTAssertTrue(answer.waitForExistence(timeout: 6))
+        XCTAssertTrue(app.descendants(matching: .any)["agent.taskTitle"].exists)
+        XCTAssertFalse(app.buttons["Open in results"].exists)
+        answer.click()
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey("c", modifierFlags: .command)
+        composer.click()
+        app.typeKey("v", modifierFlags: .command)
+        XCTAssertTrue(UITestHarness.waitUntil {
+            let copied = self.composer.value as? String ?? ""
+            return copied.contains("Agent result\n") && copied.contains("• Parent\n")
+                && copied.contains("let value = 1") && copied.contains("Agent │ Ready")
+        }, "Selection must span the complete answer without separate selection islands")
+        // Clear the pasted draft so the capture shows the conversation hierarchy.
+        composer.typeKey("a", modifierFlags: .command)
+        composer.typeKey(.delete, modifierFlags: [])
+        snapshot("agent-response-hierarchy")
+    }
+
     /// Exercise an actual edge drag after opening long history. A startup
     /// capture at a small size misses content-driven native window minimums.
     func testLongSavedConversationCanShrinkWithoutClippingActions() throws {
@@ -144,7 +170,9 @@ final class AgentModeUITests: XCTestCase {
         let directory = fixture.root.appendingPathComponent("agent/sessions")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let paragraph = "A compact window should wrap this saved response while keeping its message actions and composer reachable. "
-        let response = "## Compact reading\n\n" + String(repeating: paragraph, count: 8)
+        let response = "## Compact reading\n\n" + String(repeating: paragraph, count: 3)
+            + "\n\n**Next steps**\n\n- " + String(repeating: paragraph, count: 2)
+            + "\n  - Keep nested items readable.\n- Review `notes/meeting-summary.md` before sending.\n\nThe response and its actions should stay connected."
         let records: [[String: Any]] = [
             ["type": "session", "version": 3, "id": "compact", "cwd": fixture.root.path],
             ["type": "message", "id": "user", "message": ["role": "user", "content": "Compact conversation with a long saved response"]],
@@ -163,16 +191,19 @@ final class AgentModeUITests: XCTestCase {
 
             resizeWindow(to: 760)
             let retry = app.buttons["Retry response"].firstMatch
-            let openResult = app.buttons["Open in results"].firstMatch
+            let more = responseMore
             let transcript = app.scrollViews["agent.transcript"]
-            UITestHarness.scrollTo(openResult, in: app, within: transcript)
+            UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
-            XCTAssertTrue(openResult.isHittable)
-            XCTAssertTrue(transcript.frame.contains(openResult.frame))
+            XCTAssertTrue(more.isHittable)
+            XCTAssertTrue(transcript.frame.contains(more.frame))
             let composerSurface = app.descendants(matching: .any)["agent.composerSurface"]
             XCTAssertLessThanOrEqual(answer.frame.width, composerSurface.frame.width + 4)
-            let branch = try XCTUnwrap(app.buttons.matching(NSPredicate(format: "label == 'Branch from here'")).allElementsBoundByIndex.last)
-            XCTAssertLessThanOrEqual(branch.frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            XCTAssertLessThanOrEqual(more.frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            more.click()
+            XCTAssertTrue(app.menuItems["Branch from here"].exists)
+            XCTAssertTrue(app.menuItems["Open in results"].isEnabled)
+            app.typeKey(.escape, modifierFlags: [])
             snapshot("agent-compact-760-\(appearance)")
 
             // Query the toolbar's direct child to avoid its nested AX wrapper.
@@ -182,9 +213,9 @@ final class AgentModeUITests: XCTestCase {
                 !self.app.descendants(matching: .any)["sidebar.settings"].exists
             })
             resizeWindow(to: 600)
-            UITestHarness.scrollTo(openResult, in: app, within: transcript)
+            UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
-            XCTAssertTrue(transcript.frame.contains(openResult.frame))
+            XCTAssertTrue(transcript.frame.contains(more.frame))
             XCTAssertTrue(composer.isHittable)
             XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-600-\(appearance)")
@@ -205,6 +236,9 @@ final class AgentModeUITests: XCTestCase {
                       "Window could not shrink to \(width) points; actual width: \(window.frame.width)")
     }
 
+    private var responseMore: XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "agent.responseMore").firstMatch
+    }
     private var composer: XCUIElement { app.textFields["agent.composer"] }
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot())
