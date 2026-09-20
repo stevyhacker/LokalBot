@@ -40,9 +40,6 @@ struct MeetingListView: View {
                 .labelsHidden()
                 .accessibilityIdentifier("meeting.statusFilter")
 
-                if app.selectedMeetingIDs.count > 1 {
-                    mergeSelectionBar
-                }
             }
             .padding(WorkspaceMetric.cardPadding)
             .background(.bar)
@@ -61,6 +58,14 @@ struct MeetingListView: View {
                 }
             }
             .accessibilityIdentifier("meeting.list")
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if app.selectedMeetingIDs.count > 1 {
+                    mergeSelectionBar
+                        .padding(WorkspaceMetric.cardPadding)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.bar)
+                }
+            }
             .overlay {
                 if !app.libraryReady {
                     LoadingStateLabel(

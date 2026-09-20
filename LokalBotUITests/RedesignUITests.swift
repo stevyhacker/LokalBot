@@ -190,6 +190,15 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_CAPTURE_APPEARANCE": "contrast-dark", "LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         UITestHarness.clickSidebar("sidebar.timeline", in: app)
         XCTAssertTrue(element("timeline.workSessions").waitForExistence(timeout: 5))
+        UITestHarness.clickSidebar("sidebar.meetings", in: app)
+        for meeting in [fixture.designReview, fixture.standup] {
+            element("meeting.row.\(meeting.id.uuidString)").click()
+            XCTAssertTrue(UITestHarness.waitUntil {
+                let title = self.element("detail.title")
+                return title.exists && (title.value as? String ?? title.label) == meeting.title
+            })
+            XCTAssertTrue(element("meeting.contentTabs").isHittable)
+        }
         UITestHarness.clickSidebar("sidebar.ask", in: app)
         UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         app.textFields["search.field"].click()
@@ -288,18 +297,13 @@ final class RedesignUITests: XCTestCase {
         let assistant = app.descendants(matching: .any)["agent.assistant"]
         XCTAssertTrue(assistant.waitForExistence(timeout: 6),
                       "Agent assistant response did not render")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Agent result", in: app).exists,
-                      "Agent Markdown heading was not rendered")
-        XCTAssertTrue(UITestHarness.staticText(containing: "• Parent", in: app).exists,
-                      "Agent Markdown list was not rendered")
-        XCTAssertTrue(UITestHarness.staticText(containing: "let value = 1", in: app).exists,
-                      "Agent fenced code was not rendered")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Agent │ Ready", in: app).exists,
-                      "Agent Markdown table was not rendered")
-        XCTAssertFalse(UITestHarness.staticText(containing: "## Agent result", in: app).exists,
-                       "Agent Markdown syntax leaked into the visible response")
-        XCTAssertFalse(UITestHarness.staticText(containing: "| --- | --- |", in: app).exists,
-                       "Agent Markdown table syntax leaked into the visible response")
+        let rendered = assistant.value as? String ?? ""
+        XCTAssertTrue(rendered.contains("Agent result"), "Agent Markdown heading was not rendered")
+        XCTAssertTrue(rendered.contains("• Parent"), "Agent Markdown list was not rendered")
+        XCTAssertTrue(rendered.contains("let value = 1"), "Agent fenced code was not rendered")
+        XCTAssertTrue(rendered.contains("Agent │ Ready"), "Agent Markdown table was not rendered")
+        XCTAssertFalse(rendered.contains("## Agent result"), "Markdown heading syntax leaked into the answer")
+        XCTAssertFalse(rendered.contains("| --- | --- |"), "Markdown table syntax leaked into the answer")
         let deny = app.buttons["agent.approve.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
         XCTAssertTrue(UITestHarness.staticText(containing: "Create or replace the file", in: app).exists)

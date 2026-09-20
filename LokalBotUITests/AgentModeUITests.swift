@@ -1,9 +1,7 @@
 import XCTest
 
-/// End-to-end coverage for Agent Mode's multi-session workspace. The host is
-/// explicitly launched in a UI-only ready state, so these tests exercise the
-/// real SwiftUI tab manager without warming a model, installing Pi, issuing a
-/// filesystem capability, or spawning a subprocess.
+/// Runs only on the hosted UI runner. The fixture opts out of model warm-up,
+/// subprocesses, capabilities, real tool execution, and network requests.
 final class AgentModeUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -12,143 +10,247 @@ final class AgentModeUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         fixture = try SyntheticFixture.plant()
-        let launch = try UITestHarness.launch(
-            storageRoot: fixture.root,
-            suitePrefix: "AgentMode",
-            environment: ["LOKALBOT_AGENT_UI_TEST_READY": "1"])
-        app = launch.app
-        defaultsSuiteName = launch.defaultsSuiteName
-
-        XCTAssertTrue(app.descendants(matching: .any)["today.header"]
-            .waitForExistence(timeout: 10), "main window never rendered its Today landing")
-        clickSidebarItem("sidebar.agent")
-        XCTAssertTrue(app.descendants(matching: .any)["agent.tabs"]
-            .waitForExistence(timeout: 8), "Agent session tabs did not render")
-        XCTAssertTrue(app.textFields["agent.composer"].waitForExistence(timeout: 6),
-                      "Agent composer did not render")
+        try launch()
     }
-
     override func tearDownWithError() throws {
-        app?.terminate()
-        fixture?.cleanUp()
+        app?.terminate(); fixture?.cleanUp()
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    func testAddingSessionsStopsAtFourAndKeepsOneWorkspaceVisible() {
-        XCTAssertEqual(openTabButtons.count, 1, "Agent Mode should start with one session")
-        XCTAssertTrue(openTab(named: "Session 1").exists, "initial session title missing")
-
-        let add = app.buttons["agent.newSession"]
-        XCTAssertTrue(add.waitForExistence(timeout: 4), "new-session control missing")
-
-        // Cmd-T is the standard macOS new-tab command and remains reachable on
-        // GitHub's 1024-point hosted desktop even when the trailing + button is
-        // outside the synthetic window's visible region.
-        for expectedCount in 2...4 {
-            app.typeKey("t", modifierFlags: .command)
-            XCTAssertTrue(UITestHarness.waitUntil {
-                self.openTabButtons.count == expectedCount
-            }, "Agent Mode did not create session \(expectedCount) via Cmd-T")
-        }
-
-        XCTAssertTrue(openTab(named: "Session 4").exists, "fourth session title missing")
-        XCTAssertEqual(app.textFields.matching(
-            NSPredicate(format: "identifier == 'agent.composer'")).count, 1,
-            "only the selected session should be exposed to accessibility")
-
-        app.typeKey("t", modifierFlags: .command)
-        XCTAssertFalse(UITestHarness.waitUntil(timeout: 1) { self.openTabButtons.count > 4 },
-                       "Agent Mode exceeded its four-session safety limit")
-        XCTAssertEqual(openTabButtons.count, 4)
+    private func launch(approval: Bool = false, appearance: String? = nil) throws {
+        var environment = ["LOKALBOT_AGENT_UI_TEST_READY": "1"]
+        if approval { environment["LOKALBOT_AGENT_UI_TEST_APPROVAL"] = "1" }
+        if let appearance { environment["LOKALBOT_CAPTURE_APPEARANCE"] = appearance }
+        let launch = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "AgentMode",
+            environment: environment)
+        app = launch.app; defaultsSuiteName = launch.defaultsSuiteName
+        XCTAssertTrue(app.descendants(matching: .any)["today.header"].waitForExistence(timeout: 10))
+        UITestHarness.clickSidebar("sidebar.agent", in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["agent.tasks"].waitForExistence(timeout: 8))
+        XCTAssertTrue(composer.waitForExistence(timeout: 6))
     }
 
-    func testClosingDraftSessionRequiresConfirmationAndFinalCloseReplacesIt() {
-        let composer = app.textFields["agent.composer"]
-        composer.click()
-        composer.typeText("Review the latest meeting notes")
-
-        closeTabButtons.firstMatch.click()
-        let sheet = app.sheets.firstMatch
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5),
-                      "closing a session with a draft should ask for confirmation")
-        XCTAssertTrue(sheet.buttons["Close Session"].exists,
-                      "destructive close action missing")
-        sheet.buttons["Cancel"].click()
-
-        XCTAssertTrue(openTab(named: "Session 1").waitForExistence(timeout: 3),
-                      "cancelled close removed the session")
-        XCTAssertEqual(composer.value as? String, "Review the latest meeting notes",
-                       "cancelled close discarded the unsent draft")
-
-        closeTabButtons.firstMatch.click()
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5),
-                      "close confirmation did not reappear")
-        sheet.buttons["Close Session"].click()
-
-        XCTAssertTrue(UITestHarness.waitUntil {
-            self.openTabButtons.count == 1 && self.openTab(named: "Session 2").exists
-        }, "closing the final tab did not create a fresh replacement session")
-        XCTAssertFalse(openTab(named: "Session 1").exists,
-                       "closed Agent session remained in the tab strip")
+    func testMoreThanFourTasksCanBeCreatedWithoutStartingRuntime() throws {
+        for _ in 0..<5 { app.typeKey("n", modifierFlags: .command) }
+        XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().count) == 6 })
+        XCTAssertEqual(app.textFields.matching(identifier: "agent.composer").count, 1)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+        XCTAssertTrue(app.staticTexts["Ready to start"].exists)
     }
 
-    func testReturningToAgentKeepsDraftWithoutRuntimeLoadingGate() {
-        let composer = app.textFields["agent.composer"]
-        composer.click()
-        composer.typeText("Keep this draft while I check Today")
-
-        clickSidebarItem("sidebar.today")
-        XCTAssertTrue(app.descendants(matching: .any)["today.header"]
-            .waitForExistence(timeout: 5), "Today did not render after leaving Agent Mode")
-
-        clickSidebarItem("sidebar.agent")
-        XCTAssertTrue(app.descendants(matching: .any)["agent.tabs"]
-            .waitForExistence(timeout: 2), "Agent tabs did not return immediately")
-        XCTAssertFalse(app.staticTexts["Checking Agent runtime…"].exists)
-        XCTAssertFalse(app.staticTexts["Verifying Agent runtime…"].exists)
-        XCTAssertTrue(composer.waitForExistence(timeout: 2), "Agent composer did not return")
-        XCTAssertEqual(composer.value as? String, "Keep this draft while I check Today",
-                       "Agent navigation discarded the session draft")
+    func testSwitchingTasksAndReturningToAgentKeepsDrafts() {
+        composer.click(); composer.typeText("First draft")
+        app.typeKey("n", modifierFlags: .command)
+        XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.isEmpty == true })
+        composer.click(); composer.typeText("Second draft")
+        app.typeKey(.leftArrow, modifierFlags: [.command, .option])
+        XCTAssertTrue(UITestHarness.waitUntil { self.composer.value as? String == "First draft" })
+        UITestHarness.clickSidebar("sidebar.today", in: app)
+        UITestHarness.clickSidebar("sidebar.agent", in: app)
+        XCTAssertEqual(composer.value as? String, "First draft")
     }
 
     func testStarterOnlyPrefillsAndRuntimeWaitsForExplicitSend() {
-        XCTAssertTrue(app.staticTexts["Ready to start"].waitForExistence(timeout: 4),
-                      "idle runtime status missing")
-        let starter = app.buttons["agent.starter.followUp"]
-        XCTAssertTrue(starter.waitForExistence(timeout: 4), "follow-up starter missing")
-        starter.click()
+        XCTAssertTrue(app.staticTexts["Ready to start"].waitForExistence(timeout: 4))
+        app.buttons["agent.starter.followUp"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Draft a follow-up") == true })
+        XCTAssertTrue(app.staticTexts["Ready to start"].exists)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+    }
 
-        let composer = app.textFields["agent.composer"]
+    func testTaskRenamePinArchiveAndRestoreAreDurable() throws {
+        composer.click(); composer.typeText("Keep my archived draft")
+        let row = taskRow
+        row.rightClick()
+        app.menuItems["Rename…"].click()
+        let alert = app.alerts.firstMatch.exists ? app.alerts.firstMatch : app.dialogs.firstMatch.exists ? app.dialogs.firstMatch : app.sheets.firstMatch
+        let nameField = alert.textFields.firstMatch
+        XCTAssertTrue(nameField.waitForExistence(timeout: 4))
+        nameField.click(); nameField.typeKey("a", modifierFlags: .command); nameField.typeText("Weekly follow-up")
+        alert.buttons["Save"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().first?["title"] as? String) == "Weekly follow-up" })
+        taskRow.rightClick(); app.menuItems["Pin"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().first?["isPinned"] as? Bool) == true })
+        taskRow.rightClick(); app.menuItems["Archive task"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (try? self.taskRecords().first?["isArchived"] as? Bool) == true })
+        XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.isEmpty == true })
+        app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Task options'")).firstMatch.click()
+        app.menuItems["Show archived tasks"].click()
+        taskRow.click()
+        XCTAssertTrue(app.buttons["Restore task to continue"].waitForExistence(timeout: 4))
+        app.buttons["Restore task to continue"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { self.composer.value as? String == "Keep my archived draft" })
+        snapshot("agent-restored-task")
+    }
+
+    func testAtMentionAttachesMeetingWithoutSendingIt() {
+        composer.click(); composer.typeText("@")
+        let search = app.textFields["agent.contextSearch"]
+        XCTAssertTrue(search.waitForExistence(timeout: 4))
+        let attach = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Attach '")).firstMatch
+        XCTAssertTrue(attach.waitForExistence(timeout: 4)); attach.click()
+        app.buttons["Done"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["agent.attachments"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Remove '")).firstMatch.exists)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+        snapshot("agent-attached-context")
+    }
+
+    func testFindAndResultsKeyboardCommands() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        try launch(approval: true)
+        composer.click(); composer.typeText("Draft a follow-up")
+        app.buttons["agent.send"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["agent.assistant"].waitForExistence(timeout: 6))
+        app.typeKey("f", modifierFlags: .command)
+        let find = app.textFields["agent.findField"]
+        XCTAssertTrue(find.waitForExistence(timeout: 4)); find.click(); find.typeText("Agent result")
+        XCTAssertTrue(app.staticTexts["1 of 1"].waitForExistence(timeout: 3))
+        app.buttons["Close find"].click()
+        responseMore.click()
+        app.menuItems["Open in results"].click()
+        XCTAssertTrue(app.descendants(matching: .any)["agent.resultsPanel"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.buttons["Copy result"].exists)
+        snapshot("agent-results-inspector")
+        app.typeKey("b", modifierFlags: [.command, .option])
+        XCTAssertTrue(UITestHarness.waitUntil { !self.app.descendants(matching: .any)["agent.resultsPanel"].exists })
+    }
+
+    func testQueuedFollowUpCanBeCanceledWhileApprovalRemainsDocked() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        try launch(approval: true)
+        composer.click(); composer.typeText("Draft a follow-up")
+        app.buttons["agent.send"].click()
+        let deny = app.buttons["agent.approve.deny"]
+        XCTAssertTrue(deny.waitForExistence(timeout: 6))
+        composer.click(); composer.typeText("Then make it shorter")
+        app.buttons["agent.send"].click()
+        let queue = app.descendants(matching: .any)["agent.queue"]
+        XCTAssertTrue(queue.waitForExistence(timeout: 4))
+        let cancel = app.buttons["Cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 3)); cancel.click()
+        XCTAssertTrue(UITestHarness.waitUntil { !queue.exists })
+        XCTAssertTrue(deny.exists)
+        snapshot("agent-docked-approval")
+        let log = try String(contentsOf: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl"), encoding: .utf8)
+        XCTAssertFalse(log.contains("Then make it shorter"))
+        app.buttons["agent.stop"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { !deny.exists && !self.app.buttons["agent.stop"].exists })
+    }
+
+    func testResponseSelectionCopiesAcrossHeadingsListsAndCode() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        try launch(approval: true)
+        composer.click(); composer.typeText("Draft a follow-up")
+        app.buttons["agent.send"].click()
+        let answer = app.textViews["agent.assistant"]
+        XCTAssertTrue(answer.waitForExistence(timeout: 6))
+        XCTAssertTrue(app.descendants(matching: .any)["agent.taskTitle"].exists)
+        XCTAssertFalse(app.buttons["Open in results"].exists)
+        answer.click()
+        app.typeKey("a", modifierFlags: .command)
+        app.typeKey("c", modifierFlags: .command)
+        composer.click()
+        app.typeKey("v", modifierFlags: .command)
         XCTAssertTrue(UITestHarness.waitUntil {
-            (composer.value as? String)?.contains("Draft a follow-up") == true
-        }, "starter did not prefill the reviewed prompt")
-        XCTAssertTrue(app.staticTexts["Ready to start"].exists,
-                      "prefill started the runtime before Send")
-        XCTAssertFalse(app.staticTexts["Starting..."].exists)
-        XCTAssertFalse(app.staticTexts["Ready"].exists)
+            let copied = self.composer.value as? String ?? ""
+            return copied.contains("Agent result\n") && copied.contains("• Parent\n")
+                && copied.contains("let value = 1") && copied.contains("Agent │ Ready")
+        }, "Selection must span the complete answer without separate selection islands")
+        // Clear the pasted draft so the capture shows the conversation hierarchy.
+        composer.typeKey("a", modifierFlags: .command)
+        composer.typeKey(.delete, modifierFlags: [])
+        snapshot("agent-response-hierarchy")
     }
 
-    private var openTabButtons: XCUIElementQuery {
-        app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH 'agent.tab.' AND NOT identifier CONTAINS '.close.'"))
+    /// Exercise an actual edge drag after opening long history. A startup
+    /// capture at a small size misses content-driven native window minimums.
+    func testLongSavedConversationCanShrinkWithoutClippingActions() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        let directory = fixture.root.appendingPathComponent("agent/sessions")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let paragraph = "A compact window should wrap this saved response while keeping its message actions and composer reachable. "
+        let response = "## Compact reading\n\n" + String(repeating: paragraph, count: 3)
+            + "\n\n**Next steps**\n\n- " + String(repeating: paragraph, count: 2)
+            + "\n  - Keep nested items readable.\n- Review `notes/meeting-summary.md` before sending.\n\nThe response and its actions should stay connected."
+        let records: [[String: Any]] = [
+            ["type": "session", "version": 3, "id": "compact", "cwd": fixture.root.path],
+            ["type": "message", "id": "user", "message": ["role": "user", "content": "Compact conversation with a long saved response"]],
+            ["type": "message", "id": "answer", "parentId": "user", "message": ["role": "assistant", "content": response]],
+        ]
+        let lines = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: directory.appendingPathComponent("compact.jsonl"))
+
+        for appearance in ["light", "dark"] {
+            try launch(appearance: appearance)
+            let search = app.textFields["agent.taskSearch"]
+            search.click(); search.typeText("Compact conversation")
+            XCTAssertTrue(taskRow.waitForExistence(timeout: 4)); taskRow.click()
+            let answer = app.descendants(matching: .any)["agent.assistant"]
+            XCTAssertTrue(answer.waitForExistence(timeout: 4))
+
+            resizeWindow(to: 760)
+            let retry = app.buttons["Retry response"].firstMatch
+            let more = responseMore
+            let transcript = app.scrollViews["agent.transcript"]
+            UITestHarness.scrollTo(more, in: app, within: transcript)
+            XCTAssertTrue(retry.isHittable)
+            XCTAssertTrue(more.isHittable)
+            XCTAssertTrue(transcript.frame.contains(more.frame))
+            let composerSurface = app.descendants(matching: .any)["agent.composerSurface"]
+            XCTAssertLessThanOrEqual(answer.frame.width, composerSurface.frame.width + 4)
+            XCTAssertLessThanOrEqual(more.frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            more.click()
+            XCTAssertTrue(app.menuItems["Branch from here"].exists)
+            XCTAssertTrue(app.menuItems["Open in results"].isEnabled)
+            app.typeKey(.escape, modifierFlags: [])
+            snapshot("agent-compact-760-\(appearance)")
+
+            // Query the toolbar's direct child to avoid its nested AX wrapper.
+            app.windows["main.window"].toolbars.firstMatch.children(matching: .button)
+                .matching(identifier: "toolbar.sidebarToggle").firstMatch.click()
+            XCTAssertTrue(UITestHarness.waitUntil {
+                !self.app.descendants(matching: .any)["sidebar.settings"].exists
+            })
+            resizeWindow(to: 600)
+            UITestHarness.scrollTo(more, in: app, within: transcript)
+            XCTAssertTrue(retry.isHittable)
+            XCTAssertTrue(transcript.frame.contains(more.frame))
+            XCTAssertTrue(composer.isHittable)
+            XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
+            snapshot("agent-compact-600-\(appearance)")
+            retry.click()
+            XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Compact conversation") == true })
+            app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        }
     }
 
-    private var closeTabButtons: XCUIElementQuery {
-        app.buttons.matching(NSPredicate(
-            format: "identifier BEGINSWITH 'agent.tab.close.'"))
+    private func resizeWindow(to width: CGFloat) {
+        let window = app.windows["main.window"]
+        let edge = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.75))
+            .withOffset(CGVector(dx: -1, dy: 0))
+        let target = window.coordinate(withNormalizedOffset: CGVector(dx: 0, dy: 0.75))
+            .withOffset(CGVector(dx: width - 1, dy: 0))
+        edge.press(forDuration: 0.1, thenDragTo: target)
+        XCTAssertTrue(UITestHarness.waitUntil { abs(window.frame.width - width) <= 4 },
+                      "Window could not shrink to \(width) points; actual width: \(window.frame.width)")
     }
 
-    private func openTab(named title: String) -> XCUIElement {
-        openTabButtons.matching(NSPredicate(
-            format: "label CONTAINS[c] %@", title)).firstMatch
+    private var responseMore: XCUIElement {
+        app.descendants(matching: .any).matching(identifier: "agent.responseMore").firstMatch
     }
-
-    /// SwiftUI propagates the row identifier to both its icon and label on
-    /// current macOS, while the actual List row remains the hit target. Clicking
-    /// the unique label coordinate reliably delivers the event to that row.
-    private func clickSidebarItem(_ identifier: String) {
-        let label = app.staticTexts[identifier]
-        XCTAssertTrue(label.waitForExistence(timeout: 4), "Missing sidebar item \(identifier)")
-        label.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).click()
+    private var composer: XCUIElement { app.textFields["agent.composer"] }
+    private func snapshot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+    private var taskRow: XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'agent.task.'")).firstMatch
+    }
+    private func taskRecords() throws -> [[String: Any]] {
+        let data = try Data(contentsOf: fixture.root.appendingPathComponent("agent/sessions/tasks.json"))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
     }
 }

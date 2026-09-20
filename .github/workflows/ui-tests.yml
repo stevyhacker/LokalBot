@@ -119,6 +119,11 @@ jobs:
           printf '| UI phase | Duration | Result |\n| --- | ---: | --- |\n' >> "$GITHUB_STEP_SUMMARY"
           Scripts/ui-tests.sh --build-only 2>&1 | tee .build/ui-results/build.log
 
+      # Hosted images can start with Reduce Motion enabled. Exercise normal
+      # transitions explicitly; the dedicated accessibility phase opts in below.
+      - name: Enable standard UI motion
+        run: defaults write com.apple.universalaccess reduceMotion -bool false
+
       # Stop before the visual matrix if a critical interaction fails. These
       # filters are reused as exclusions for the remainder, avoiding duplicates.
       - name: Verify critical interactions
@@ -194,6 +199,8 @@ jobs:
         env:
           CODE_SIGNING_ALLOWED: "NO"
         run: python3 Scripts/ci/test-products.py unpack ui
+      - name: Enable standard UI motion
+        run: defaults write com.apple.universalaccess reduceMotion -bool false
       - name: Run shard
         env:
           CODE_SIGNING_ALLOWED: "NO"

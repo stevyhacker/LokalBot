@@ -55,7 +55,7 @@ final class AgentSessionTabsTests: XCTestCase {
         })
     }
 
-    func testClosingTabStopsOnlyThatSessionAndKeepsNeighborSelected() async {
+    func testArchivingTaskPreservesItsHistoryAndStopsOnlyItsRuntime() async {
         let factory = Factory(root: root)
         let sessions = AgentSessionTabs { factory.makeController() }
         let first = sessions.tabs[0]
@@ -65,7 +65,8 @@ final class AgentSessionTabsTests: XCTestCase {
 
         await sessions.close(first.id)
 
-        XCTAssertEqual(sessions.tabs.map(\.id), [second.id])
+        XCTAssertEqual(sessions.tabs.map(\.id), [first.id, second.id])
+        XCTAssertTrue(sessions.tabs[0].record.isArchived)
         XCTAssertEqual(sessions.selectedID, second.id)
         XCTAssertEqual(first.controller.state, .idle)
         XCTAssertEqual(second.controller.state, .ready)
@@ -78,9 +79,9 @@ final class AgentSessionTabsTests: XCTestCase {
 
         await sessions.close(original.id)
 
-        XCTAssertEqual(sessions.tabs.count, 1)
-        XCTAssertNotEqual(sessions.tabs[0].id, original.id)
-        XCTAssertEqual(sessions.selectedID, sessions.tabs[0].id)
+        XCTAssertEqual(sessions.tabs.count, 2)
+        XCTAssertTrue(sessions.tabs[0].record.isArchived)
+        XCTAssertNotEqual(sessions.selectedID, original.id)
         XCTAssertEqual(original.controller.state, .idle)
     }
 
@@ -99,14 +100,14 @@ final class AgentSessionTabsTests: XCTestCase {
         XCTAssertEqual(second.controller.state, .idle)
     }
 
-    func testLiveSessionCountIsBounded() {
+    func testBrowsingTasksIsIndependentOfLiveProcessLimit() {
         let factory = Factory(root: root)
         let sessions = AgentSessionTabs { factory.makeController() }
         for _ in 0..<(AgentSessionTabs.maximumLiveSessions + 3) {
             _ = sessions.addSession()
         }
-        XCTAssertEqual(sessions.tabs.count, AgentSessionTabs.maximumLiveSessions)
-        XCTAssertEqual(factory.transports.count, AgentSessionTabs.maximumLiveSessions)
+        XCTAssertEqual(sessions.tabs.count, AgentSessionTabs.maximumLiveSessions + 4)
+        XCTAssertTrue(factory.plans.isEmpty, "adding or browsing tasks must not start Pi")
     }
 
     func testClearSavedHistoryStopsSessionsRemovesFilesAndCreatesFreshTab() async throws {
@@ -126,7 +127,8 @@ final class AgentSessionTabsTests: XCTestCase {
         XCTAssertNotEqual(sessions.tabs[0].id, original.id)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(
             at: factory.sessionsDirectory,
-            includingPropertiesForKeys: nil), [])
+            includingPropertiesForKeys: nil).map(\.lastPathComponent), ["tasks.json"])
+        XCTAssertTrue(try AgentTaskStore(directory: factory.sessionsDirectory).load().allSatisfy { $0.draft.isEmpty && $0.sessionFile == nil })
     }
 
     func testLoadsAndOpensExactSavedSessionInBlankTab() async throws {
@@ -146,32 +148,93 @@ final class AgentSessionTabsTests: XCTestCase {
 
         let loaded = try await sessions.loadSavedSessions()
         let saved = try XCTUnwrap(loaded.first)
-        let opening = Task { try await sessions.openSavedSession(saved) }
-        let transport = try XCTUnwrap(factory.transports.first)
-        for _ in 0..<20 where !transport.sentLines.contains(where: { $0.contains("get_messages") }) {
-            try await Task.sleep(for: .milliseconds(25))
-        }
-        transport.inject(#"{"type":"response","id":"history1","command":"get_messages","success":true,"data":{"messages":[{"role":"user","content":"Reopen this conversation"}]}}"#)
-        try await opening.value
+        try await sessions.openSavedSession(saved)
 
         XCTAssertEqual(sessions.tabs.count, 1, "a blank selected tab should be reused")
         XCTAssertEqual(sessions.selectedID, originalTab.id)
         XCTAssertEqual(originalTab.controller.activeSessionFile, savedFile)
         XCTAssertEqual(originalTab.controller.sessionTitle, "Reopen this conversation")
         XCTAssertTrue(sessions.isOpen(saved))
-        let plan = try XCTUnwrap(factory.plans.first)
-        let sessionIndex = try XCTUnwrap(plan.arguments.firstIndex(of: "--session"))
-        XCTAssertEqual(plan.arguments[sessionIndex + 1], savedFile.path)
-
-        do {
-            try await sessions.openSavedSession(saved)
-            XCTFail("expected the duplicate session to be rejected")
-        } catch AgentSavedSessionOpenError.alreadyOpen {
-            // Expected.
-        } catch {
-            XCTFail("unexpected error: \(error)")
-        }
+        XCTAssertTrue(factory.plans.isEmpty, "opening saved history is read-only")
+        XCTAssertEqual(originalTab.controller.state, .idle)
+        XCTAssertTrue(originalTab.controller.items.contains { $0.searchableText == "Reopen this conversation" })
+        try await sessions.openSavedSession(saved)
+        XCTAssertEqual(sessions.selectedID, originalTab.id, "reopening an open task should select it")
     }
+
+    func testRuntimeLimitRejectsFifthBusyAgentWithoutBlockingTaskCreation() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        for index in 0..<4 {
+            let tab = index == 0 ? sessions.tabs[0] : sessions.addSession()
+            let started = await sessions.start(tab.id)
+            XCTAssertTrue(started)
+            factory.transports[index].inject(#"{"type":"agent_start"}"#)
+            try await Task.sleep(for: .milliseconds(30))
+        }
+        let fifth = sessions.addSession()
+        let started = await sessions.start(fifth.id)
+        XCTAssertFalse(started)
+        XCTAssertEqual(fifth.controller.state, .idle)
+        XCTAssertEqual(factory.plans.count, 4)
+        XCTAssertEqual(sessions.tabs.count, 5)
+        await sessions.shutdownAll()
+    }
+
+    func testIdleRuntimeIsParkedWhenAnotherTaskStarts() async {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        for index in 0..<4 {
+            let tab = index == 0 ? sessions.tabs[0] : sessions.addSession()
+            _ = await sessions.start(tab.id)
+        }
+        let fifth = sessions.addSession()
+        let started = await sessions.start(fifth.id)
+        XCTAssertTrue(started)
+        XCTAssertEqual(sessions.tabs.filter { $0.controller.hasLiveRuntime }.count, 4)
+        XCTAssertEqual(sessions.tabs.first?.controller.state, .idle)
+        XCTAssertNil(sessions.tabs.first?.controller.modelContext, "a parked task must show the destination for its next connection")
+        await sessions.shutdownAll()
+    }
+
+    func testDraftTitlePinAndArchiveSurviveRelaunchWithoutSpawning() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        let first = try XCTUnwrap(sessions.selectedTab)
+        first.controller.draft = "A saved draft"
+        first.controller.attachments = [.file(root.appendingPathComponent("notes.md"))]
+        sessions.rename(first.id, to: "Project follow-up")
+        sessions.togglePin(first.id)
+        await sessions.setArchived(first.id, true)
+        await sessions.shutdownAll()
+
+        let restored = AgentSessionTabs { factory.makeController() }
+        let task = try XCTUnwrap(restored.tabs.first { $0.id == first.id })
+        XCTAssertEqual(task.title, "Project follow-up")
+        XCTAssertTrue(task.record.isPinned)
+        XCTAssertTrue(task.record.isArchived)
+        XCTAssertEqual(task.controller.draft, "A saved draft")
+        XCTAssertEqual(task.controller.attachments.count, 1)
+        XCTAssertTrue(factory.plans.isEmpty)
+        await restored.shutdownAll()
+    }
+
+    func testConcurrentStartsKeepRuntimeLimitAndArchivedTasksCannotRun() async {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        for _ in 0..<5 { sessions.addSession() }
+        let starts = sessions.tabs.map { tab in Task { await sessions.start(tab.id) } }
+        for start in starts { _ = await start.value }
+        XCTAssertLessThanOrEqual(sessions.tabs.filter { $0.controller.hasLiveRuntime }.count, 4)
+        let first = sessions.tabs[0]
+        await sessions.setArchived(first.id, true)
+        sessions.select(first.id)
+        let started = await sessions.start(first.id)
+        XCTAssertFalse(started)
+        XCTAssertFalse(sessions.ensureSelectedController() === first.controller)
+        await sessions.shutdownAll()
+    }
+
 
     private func writeSession(
         id: String,

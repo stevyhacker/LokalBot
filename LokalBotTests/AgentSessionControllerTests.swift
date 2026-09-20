@@ -92,6 +92,184 @@ final class AgentSessionControllerTests: XCTestCase {
         return String(decoding: try JSONSerialization.data(withJSONObject: event), as: UTF8.self)
     }
 
+    func testHostQueueCanBeEditedAndCanceledBeforeAnythingIsSent() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "First follow-up"
+        controller.queueDraft()
+        let first = try XCTUnwrap(controller.queuedPrompts.first)
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        controller.editQueued(first.id)
+        XCTAssertEqual(controller.draft, "First follow-up")
+        XCTAssertTrue(controller.queuedPrompts.isEmpty)
+        controller.draft = "Edited follow-up"
+        controller.queueDraft()
+        controller.cancelQueued(try XCTUnwrap(controller.queuedPrompts.first).id)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertTrue(transport.sentLines.isEmpty, "a canceled follow-up must never reach Pi")
+        await controller.shutdown()
+    }
+
+    func testQueuedPromptWaitsUntilTurnEndsThenUsesOrdinaryPrompt() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Next task"
+        controller.queueDraft()
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        transport.inject(#"{"type":"agent_end","willRetry":true}"#)
+        try await pump()
+        XCTAssertTrue(transport.sentLines.isEmpty, "agent_end must not race Pi retry or compaction")
+        XCTAssertEqual(controller.state, .running)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        let line = try XCTUnwrap(transport.sentLines.first)
+        let command = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any])
+        XCTAssertEqual(command["type"] as? String, "prompt")
+        XCTAssertEqual(command["message"] as? String, "Next task")
+        XCTAssertNil(command["streamingBehavior"], "the editable host queue must not also use Pi's hidden queue")
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        try await pump()
+        XCTAssertTrue(controller.queuedPrompts.isEmpty)
+        await controller.shutdown()
+    }
+
+    func testSteeringUsesNativeSteerCommand() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        let send = Task { await controller.send(prompt: "Use the shorter version", steer: true) }
+        try await pump()
+        XCTAssertTrue(transport.sentLines.contains { $0.contains(#""type":"steer""#) })
+        transport.inject(#"{"type":"response","id":"steer1","command":"steer","success":true}"#)
+        let accepted = await send.value
+        XCTAssertTrue(accepted)
+        await controller.shutdown()
+    }
+
+    func testStopKeepsFollowUpsPausedAndUnsent() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Do not run after stop"
+        controller.queueDraft()
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        await stopping.value
+        try await pump()
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.count, 1)
+        XCTAssertFalse(transport.sentLines.contains { $0.contains(#""type":"prompt""#) })
+        await controller.shutdown()
+    }
+
+    func testRejectedPromptRemainsAvailableForExplicitRetry() async throws {
+        let controller = makeController()
+        await controller.start()
+        let send = Task { await controller.send(prompt: "Original prompt") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":false,"error":"Model unavailable"}"#)
+        let accepted = await send.value
+        XCTAssertFalse(accepted)
+        controller.reviewRetry()
+        XCTAssertEqual(controller.draft, "Original prompt")
+        XCTAssertTrue(controller.composerError?.contains("may be repeated") == true)
+        XCTAssertEqual(transport.sentLines.count, 1, "reviewing a retry never resends on its own")
+        await controller.shutdown()
+    }
+
+    func testStopCancelsPendingApprovalBeforeAwaitingIdle() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        transport.inject(try approvalEvent(id: "pending", tool: "write", workspace: controller.workspace.path,
+                                          path: controller.workspace.appendingPathComponent("draft.md").path, content: "Draft"))
+        try await pump()
+        XCTAssertEqual(controller.pendingApprovals.count, 1)
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        XCTAssertTrue(controller.pendingApprovals.isEmpty)
+        XCTAssertTrue(transport.sentLines.contains { $0.contains(#""cancelled":true"#) })
+        // The RPC acknowledgement and settled event are consumed separately.
+        // Await the published state instead of racing the event-consumption task.
+        let settled = expectation(description: "Controller consumes the settled event")
+        let observation = controller.$state.filter { $0 == .ready }.first().sink { _ in settled.fulfill() }
+        defer { observation.cancel() }
+        transport.inject(#"{"type":"response","id":"a1","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        await stopping.value
+        await fulfillment(of: [settled], timeout: 2)
+        XCTAssertEqual(controller.state, .ready)
+        await controller.shutdown()
+    }
+
+    func testStopDuringQueuedAcknowledgementDoesNotFailOrDuplicatePrompt() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Already delivered"
+        controller.queueDraft()
+        controller.draft = "Stay paused"
+        controller.queueDraft()
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertTrue(controller.isSending)
+        let stopping = Task { await controller.abort() }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"a2","command":"abort","success":true}"#)
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        await stopping.value
+        try await pump()
+        XCTAssertEqual(controller.state, .ready)
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["Stay paused"])
+        XCTAssertEqual(transport.sentLines.filter { $0.contains(#""type":"prompt""#) }.count, 1)
+        await controller.shutdown()
+    }
+
+    func testDuplicateSubmissionWhileAwaitingAcknowledgementIsNotSent() async throws {
+        let controller = makeController()
+        await controller.start()
+        let first = Task { await controller.send(prompt: "Once") }
+        try await pump()
+        let duplicate = await controller.send(prompt: "Twice")
+        XCTAssertFalse(duplicate)
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await first.value
+        XCTAssertEqual(transport.sentLines.count, 1)
+        await controller.shutdown()
+    }
+
+    func testUnsavedConversationCannotBeParkedOrSilentlyReplaced() async throws {
+        let controller = makeController()
+        controller.attachments = [.file(URL(fileURLWithPath: "/tmp/unsent-notes.txt"))]
+        XCTAssertFalse(controller.canReplaceWithSavedSession)
+        controller.attachments = []
+        await controller.start()
+        XCTAssertFalse(controller.canReplaceWithSavedSession, "a live runtime cannot be replaced by a read-only preview")
+        let send = Task { await controller.send(prompt: "Keep this context") }
+        try await pump()
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        _ = await send.value
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        let parked = await controller.park()
+        XCTAssertFalse(parked)
+        XCTAssertEqual(controller.state, .ready)
+        XCTAssertTrue(controller.items.contains { $0.searchableText == "Keep this context" })
+        await controller.shutdown()
+    }
+
     func testStartReachesReady() async throws {
         let controller = makeController()
         await controller.start()

@@ -44,6 +44,7 @@ actor AgentUITestTransport: PiLineTransport {
                       "title": "lokalbot_tool_approval", "message": payload])
         } else if type == "abort" {
             try emit(["type": "agent_end"])
+            try emit(["type": "agent_settled"])
         }
     }
 

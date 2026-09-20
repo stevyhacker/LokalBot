@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 
 /// End-to-end UI tests that drive the dedicated `LokalBot UI Test Host`
@@ -959,6 +960,55 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Selection
 
+    func testMeetingSwitchKeepsReadingAnchorsAndSelectionStable() throws {
+        XCTAssertFalse(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+                       "This regression must exercise normal motion; Reduce Motion has its own hosted test")
+        // Exercise the real loading path slowly enough to inspect the outgoing
+        // document. No audio on the second meeting also checks player geometry.
+        for name in ["mic.live.caf", "system.live.caf"] {
+            let path = fixture.folder(for: fixture.standup).appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: path.path) { try FileManager.default.removeItem(at: path) }
+        }
+        app.terminate()
+        app = try UITestHarness.relaunch(storageRoot: fixture.root, defaultsSuiteName: defaultsSuiteName!,
+            environment: ["LOKALBOT_SLOW_MEETING_LOAD": "1", "LOKALBOT_UI_TEST_DIAGNOSTICS": "1"])
+        openLibrary()
+        selectMeeting(fixture.designReview)
+        XCTAssertTrue(identified("meeting.audioPlayer").waitForExistence(timeout: 5))
+        let titleFrame = identified("detail.title").frame
+        let tabsFrame = identified("meeting.contentTabs").frame
+        let listTop = app.outlines["meeting.list"].frame.minY
+        let firstRowTop = meetingRow(for: fixture.designReview).frame.minY
+
+        meetingRow(for: fixture.standup).click()
+        XCTAssertTrue(UITestHarness.waitUntil(timeout: 2) { self.identified("meeting.selection.loading").exists })
+        XCTAssertEqual(identified("detail.title").value as? String ?? identified("detail.title").label,
+                       fixture.designReview.title)
+        XCTAssertEqual(identified("detail.title").frame.minX, titleFrame.minX, accuracy: 1)
+        XCTAssertFalse(identified("meeting.ask").isEnabled, "Outgoing meeting actions must not target a stale selection")
+        // Supersede the in-flight selection. Its completion must not replace
+        // the final meeting, or flash its unloaded content in the meantime.
+        meetingRow(for: fixture.planning).click()
+        waitForMeetingTitle(fixture.planning.title)
+        XCTAssertFalse(identified("meeting.selection.loading").exists)
+        XCTAssertEqual(identified("meeting.contentTabs").frame.minY, tabsFrame.minY, accuracy: 1)
+        XCTAssertTrue(identified("meeting.ask").isEnabled)
+
+        selectMeeting(fixture.standup)
+        XCTAssertTrue(textWithContent("No recording available").firstMatch.waitForExistence(timeout: 5))
+        XCTAssertEqual(identified("detail.title").frame.minX, titleFrame.minX, accuracy: 1)
+        XCTAssertEqual(identified("meeting.contentTabs").frame.minY, tabsFrame.minY, accuracy: 1)
+        let compact = XCTAttachment(screenshot: app.screenshot())
+        compact.name = "meeting-switch-stable-without-audio"; compact.lifetime = .keepAlways; add(compact)
+
+        selectTwo(fixture.designReview, fixture.standup)
+        XCTAssertEqual(app.outlines["meeting.list"].frame.minY, listTop, accuracy: 1)
+        XCTAssertEqual(meetingRow(for: fixture.designReview).frame.minY, firstRowTop, accuracy: 1,
+                       "Multi-select controls must not push the meeting rows down")
+        let multi = XCTAttachment(screenshot: app.screenshot())
+        multi.name = "meeting-multiselect-stable-list"; multi.lifetime = .keepAlways; add(multi)
+    }
+
     /// Cmd-clicking a second row enters the multi-select state — the detail
     /// pane swaps to the "N meetings selected" affordance with the deletion
     /// button and the hint copy. Guards against `selectedMeeting` accidentally
@@ -1068,6 +1118,14 @@ final class MainWindowUITests: XCTestCase {
         row.click()
         XCTAssertTrue(app.descendants(matching: .any)["meeting.detail.workspace"]
             .waitForExistence(timeout: 5), "full meeting workspace did not render")
+        waitForMeetingTitle(meeting.title)
+    }
+
+    private func waitForMeetingTitle(_ title: String) {
+        XCTAssertTrue(UITestHarness.waitUntil(timeout: 5) {
+            let element = self.identified("detail.title")
+            return element.exists && (element.value as? String ?? element.label) == title
+        }, "Selected meeting title did not settle: \(title)")
     }
 
     /// Select two rows (click + ⌘-click) and wait until the multi-select
