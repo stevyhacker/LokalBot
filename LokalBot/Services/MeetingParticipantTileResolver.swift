@@ -3,6 +3,50 @@ import Foundation
 /// Read participant identity from the tile's own accessible label or from a
 /// matching name + participant control. Generic OCR/page text is insufficient.
 enum MeetingParticipantTileResolver {
+    struct VisibleLabel: Sendable {
+        var text: String
+        var frame: CGRect
+    }
+
+    /// Only the name strip of a leaf video-sized container is a candidate.
+    /// OCR must corroborate these candidates before they leave the provider.
+    static func nameStrip(frame: CGRect, labels: [VisibleLabel], controls: [String]) -> String? {
+        guard frame.width >= 120, frame.height >= 90,
+              !controls.contains(where: { label in
+                  let key = label.lowercased()
+                  return key.contains("presenting") || key.contains("presentation") || key == "call controls"
+                    || key == "side panel" || key == "participants" || key == "in the meeting"
+                    || key == "leave call" || key == "chat with everyone"
+              }) else { return nil }
+        let visible = labels.filter { frame.contains($0.frame) }
+        let names = Set(visible.compactMap { label -> String? in
+            guard label.frame.minY >= frame.minY + frame.height * 0.75,
+                  label.frame.minX <= frame.minX + min(80, frame.width * 0.25),
+                  label.frame.height <= 40, label.frame.width < frame.width * 0.85,
+                  let name = ParticipantObservation.safeName(label.text),
+                  name.rangeOfCharacter(from: .letters) != nil else { return nil }
+            return name
+        })
+        // Camera-off initials are allowed, but page/slide paragraphs are not.
+        let substantive = visible.filter { $0.text.count > 1 }
+        guard names.count == 1, substantive.count == 1 else { return nil }
+        return names.first
+    }
+
+    static func selfName(_ label: String) -> String? {
+        for suffix in [" (You)", " (you)"] where label.hasSuffix(suffix) {
+            return ParticipantObservation.safeName(String(label.dropLast(suffix.count)))
+        }
+        return nil
+    }
+
+    static func selfName(rowLabels: [String], descendantLabels: [String]) -> String? {
+        let labels = rowLabels + descendantLabels
+        if let combined = labels.compactMap(selfName).first { return combined }
+        guard labels.contains("(You)") || labels.contains("(you)") else { return nil }
+        let names = Set(rowLabels.compactMap(ParticipantObservation.safeName))
+        return names.count == 1 ? names.first : nil
+    }
     static func name(ownLabels: [String], descendantLabels: [String]) -> String? {
         let direct = Set(ownLabels.compactMap { MeetingParticipantAccessibilityReader.tileName(description: $0) })
         if direct.count == 1 { return direct.first }
@@ -34,7 +78,9 @@ enum MeetingParticipantTileResolver {
         return MeetingParticipantTile(name: name, frame: frame,
             speaking: speaking && !silent ? true : silent ? false : nil,
             muted: keys.contains("\(key)'s microphone is off") || keys.contains("microphone off") || keys.contains("microphone is off"),
-            isSelf: keys.contains("your tile") || keys.contains("you") || keys.contains("\(key) (you)"),
+            isSelf: keys.contains("your tile") || keys.contains("you") || keys.contains("\(key) (you)")
+                || keys.contains("reframe") || keys.contains("backgrounds and effects")
+                || keys.contains("others might see more of your background. click to view your full video."),
             sharedRoom: keys.contains(where: { $0.contains("paired") || $0.contains("conference room") || $0 == "meeting room" })
                 || key.range(of: #"\b(room|boardroom)\b| & | and "#, options: .regularExpression) != nil)
     }

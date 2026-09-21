@@ -1,6 +1,18 @@
 import Foundation
 import AVFoundation
 
+/// Only the audio bar and lightweight row highlights subscribe to timer ticks.
+/// Keeping this separate avoids invalidating the entire meeting workspace.
+@MainActor
+final class MeetingPlaybackClock: ObservableObject {
+    @Published private(set) var currentTime: TimeInterval = 0
+
+    func update(to time: TimeInterval) {
+        guard currentTime != time else { return }
+        currentTime = time
+    }
+}
+
 /// Plays a meeting's two source files (mic.m4a + system.m4a) together. They
 /// were recorded simultaneously, so playing both from the same offset
 /// reproduces the meeting; click-to-seek from the transcript lands here.
@@ -16,7 +28,11 @@ import AVFoundation
 final class MeetingPlayer: NSObject, ObservableObject {
 
     @Published private(set) var isPlaying = false
-    @Published private(set) var currentTime: TimeInterval = 0
+    let clock = MeetingPlaybackClock()
+    private(set) var currentTime: TimeInterval {
+        get { clock.currentTime }
+        set { clock.update(to: newValue) }
+    }
     @Published private(set) var duration: TimeInterval = 0
     @Published private(set) var isLoaded = false
     /// Playback rate (1.0 = normal). `AVAudioPlayer` honors `enableRate` + `rate`

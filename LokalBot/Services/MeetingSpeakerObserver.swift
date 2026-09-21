@@ -24,6 +24,8 @@ struct SpeakerObservationAccumulator {
 @MainActor final class MeetingSpeakerObserver: ObservableObject {
     enum State: Equatable { case off, observing, paused(String), unavailable(String) }
     @Published private(set) var state: State = .off
+    @Published private(set) var participantCount = 0
+    @Published private(set) var coveredSeconds: Double = 0
     @Published var isPaused = false { didSet { coverageRevision += 1 } }
     private let identity: MeetingSpeakerIdentityService
     private let settings: () -> AppSettings
@@ -49,6 +51,8 @@ struct SpeakerObservationAccumulator {
         let token = UUID()
         generation = token
         isPaused = false
+        participantCount = 0
+        coveredSeconds = 0
         let provider = providerFactory()
         task = Task { [weak self, identity] in
             guard let self else { return }
@@ -61,6 +65,7 @@ struct SpeakerObservationAccumulator {
             var diagnostics = SpeakerObservationDiagnostics()
             var lastDiagnosticsWrite: ContinuousClock.Instant?
             var lastSavedIssue: SpeakerObservationIssue?
+            var participants: [MeetingParticipantName] = []
             do {
                 let store = try identity.store()
                 try await store.begin(.init(meetingID: meeting.id, generation: token), meeting: meeting)
@@ -89,9 +94,20 @@ struct SpeakerObservationAccumulator {
                             try await store.verifyProvider(meeting: meeting, generation: token)
                             verified = true
                         }
+                        guard !Task.isCancelled, generation == token else { break }
+                        if config.identifySpeakersFromVisuals, !batch.sourceKey.isEmpty, !batch.participants.isEmpty {
+                            let merged = MeetingParticipantName.merging(participants, batch.participants)
+                            if merged != participants {
+                                try await store.recordParticipants(merged, meeting: meeting, generation: token)
+                                guard !Task.isCancelled, generation == token else { break }
+                                participants = merged
+                                participantCount = participants.count
+                            }
+                        }
                         if let reason = batch.reason { state = .paused(reason) } else { state = .observing }
                         let interval = config.identifySpeakersFromVisuals ? accumulator.consume(batch, clock: clock) : nil
                         diagnostics.record(batch, interval: interval, visual: config.identifySpeakersFromVisuals)
+                        coveredSeconds = diagnostics.coveredSeconds
                         if let interval {
                             if let last = buffer.last, last.participantReference == interval.participantReference,
                                last.layoutEpoch == interval.layoutEpoch, interval.range.start - last.range.end < 0.25 {
@@ -143,6 +159,8 @@ struct SpeakerObservationAccumulator {
         task?.cancel()
         task = nil
         state = .off
+        participantCount = 0
+        coveredSeconds = 0
     }
 
     func rejectChangedAudioSource() {

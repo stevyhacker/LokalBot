@@ -7,6 +7,7 @@ struct MeetingSpeakerObservationBatch: Sendable {
     var observations: [ParticipantObservation]
     var reason: String?
     var issue: SpeakerObservationIssue?
+    var participants: [MeetingParticipantName] = []
 }
 
 @MainActor protocol MeetingSpeakerObservationProvider: AnyObject {
@@ -123,36 +124,44 @@ struct MeetingSpeakerObservationBatch: Sendable {
         let duplicates = Dictionary(grouping: before.tiles, by: { ParticipantObservation.nameKey($0.name) })
         var tiles = before.tiles
         var frameTime: Double?
-        if tiles.contains(where: { $0.speaking == nil }) {
-            guard CGPreflightScreenCaptureAccess() else {
-                return await unavailable(.screenPermission, source: source)
-            }
+        var issue: SpeakerObservationIssue?
+        var verifiedTileNames = Set<String>()
+        if tiles.contains(where: { $0.speaking == nil || $0.requiresNameVerification }) {
+            if !CGPreflightScreenCaptureAccess() {
+                issue = .screenPermission
+            } else {
             do {
                 let content = try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: true)
                 let candidates = content.windows.map {
                     CaptureWindow(id: $0.windowID, processID: $0.owningApplication?.processID, frame: $0.frame)
                 }
-                guard let windowID = Self.captureWindowID(snapshot: before, windows: candidates),
-                      let window = content.windows.first(where: { $0.windowID == windowID }) else { return await unavailable(.windowChanged) }
-                try await frames.start(window: window)
-                guard let frame = frames.frame(), frame.hostTime > lastFrameTime,
-                      abs(RecordingAudioClock.now - frame.hostTime) < 0.75 else {
-                    return await unavailable(.waitingForFrame, source: source)
-                }
-                lastFrameTime = frame.hostTime
-                frameTime = frame.hostTime
-                for index in tiles.indices where tiles[index].speaking == nil {
-                    let tile = tiles[index]
-                    let cacheKey = epoch + "|" + tile.name
-                    let verify = (verifiedNames[cacheKey] ?? 0) < frame.hostTime - 5
-                    let active = await Task.detached(priority: .utility) { [frames] in
-                        frames.activeTile(tile, in: frame, window: before.windowFrame, verifyName: verify)
-                    }.value
-                    if active && verify { verifiedNames[cacheKey] = frame.hostTime }
-                    tiles[index].speaking = active
-                }
-                if verifiedNames.count > 120 { verifiedNames = verifiedNames.filter { $0.value > frame.hostTime - 5 } }
-            } catch { return await unavailable(.frameUnavailable) }
+                if let windowID = Self.captureWindowID(snapshot: before, windows: candidates),
+                   let window = content.windows.first(where: { $0.windowID == windowID }) {
+                    try await frames.start(window: window)
+                    if let frame = frames.frame(), frame.hostTime > lastFrameTime,
+                       abs(RecordingAudioClock.now - frame.hostTime) < 0.75 {
+                        lastFrameTime = frame.hostTime
+                        frameTime = frame.hostTime
+                        for index in tiles.indices {
+                            let tile = tiles[index]
+                            let cacheKey = source + "|" + epoch + "|" + tile.name
+                            let cached = (verifiedNames[cacheKey] ?? 0) >= frame.hostTime - 5
+                            let result = await Task.detached(priority: .utility) { [frames] in
+                                let named = cached || frames.verifiesName(tile, in: frame, window: before.windowFrame)
+                                let active = named && frames.activeTile(tile, in: frame, window: before.windowFrame, verifyName: false)
+                                return (named, active)
+                            }.value
+                            if result.0 {
+                                if !cached { verifiedNames[cacheKey] = frame.hostTime }
+                                verifiedTileNames.insert(tile.name)
+                            }
+                            if tile.speaking == nil { tiles[index].speaking = result.1 }
+                        }
+                        if verifiedNames.count > 120 { verifiedNames = verifiedNames.filter { $0.value > frame.hostTime - 5 } }
+                    } else { issue = .waitingForFrame }
+                } else { issue = .windowChanged }
+            } catch { issue = .frameUnavailable }
+            }
         }
         // The selected tab must remain the same recorded Meet document, even
         // when another app is foreground. Activity changes are not layout changes.
@@ -167,15 +176,23 @@ struct MeetingSpeakerObservationBatch: Sendable {
             guard let later = after.tiles.first(where: { $0.name == tiles[index].name && $0.frame == tiles[index].frame }) else { continue }
             if later.speaking == false || later.muted { tiles[index].speaking = false }
         }
+        tiles.removeAll { $0.requiresNameVerification && !verifiedTileNames.contains($0.name) }
+        let participants = MeetingParticipantName.merging([], tiles.map {
+            .init(name: $0.name, source: verifiedTileNames.contains($0.name) ? .ocr : .accessibility, isSelf: $0.isSelf)
+        })
+        // A remote audio track cannot establish who owns an unidentified self tile.
+        let selfKnown = !before.selfNames.isEmpty || before.tiles.contains(where: \.isSelf)
         let now = frameTime ?? (before.hostStart + before.hostEnd) / 2
         let uncertainty = frameTime == nil ? (before.hostEnd - before.hostStart) / 2 : 0.025
         let observations = tiles.map { tile in
             ParticipantObservation(reference: Self.digest(ParticipantObservation.nameKey(tile.name)), displayName: tile.name,
                 layoutEpoch: epoch, hostStart: now - uncertainty, hostEnd: now + max(uncertainty, 0.001),
-                active: tile.speaking == true, muted: tile.muted, isSelf: tile.isSelf,
+                active: issue == nil && selfKnown && tile.speaking == true, muted: tile.muted, isSelf: tile.isSelf,
                 unique: !tile.sharedRoom && duplicates[ParticipantObservation.nameKey(tile.name)]?.count == 1)
         }
-        return .init(sourceKey: source, observations: observations, reason: nil)
+        if issue == nil && tiles.isEmpty { issue = .layoutUnavailable }
+        if issue == nil && !selfKnown { issue = .selfIdentityUnavailable }
+        return .init(sourceKey: source, observations: observations, reason: issue?.explanation, issue: issue, participants: participants)
     }
 
     nonisolated private static func digest(_ string: String) -> String {

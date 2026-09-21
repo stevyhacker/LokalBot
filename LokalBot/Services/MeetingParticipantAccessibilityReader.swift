@@ -9,6 +9,8 @@ struct MeetingParticipantTile: Equatable, Sendable {
     var muted: Bool
     var isSelf: Bool
     var sharedRoom = false
+    var requiresNameVerification = false
+    var activityIndicatorFrame: CGRect?
 }
 
 struct MeetingParticipantSnapshot: Sendable {
@@ -20,6 +22,7 @@ struct MeetingParticipantSnapshot: Sendable {
     var hostStart: Double
     var hostEnd: Double
     var otherAudibleTabs = false
+    var selfNames: [String] = []
 }
 
 struct MeetingParticipantCaptureResult: Sendable {
@@ -36,6 +39,8 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
     private let queue = DispatchQueue(label: "lokalbot.meeting-speaker.ax", qos: .utility)
     private let lock = NSLock()
     private var busy = false
+    // Confined to queue. Losing this window must never bind a different profile.
+    private var boundWindow: AXUIElement?
     private func claim() -> Bool {
         lock.lock(); defer { lock.unlock() }
         guard !busy else { return false }
@@ -50,7 +55,7 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
         return await withCheckedContinuation { continuation in
             let delivery = Delivery(continuation)
             queue.async { [self] in
-                let result = Self.resolve(processID, expectedURL: expectedURL)
+                let result = Self.resolve(processID, expectedURL: expectedURL, boundWindow: &boundWindow)
                 release()
                 delivery.finish(result)
             }
@@ -124,14 +129,18 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
         return nil
     }
 
-    private static func resolve(_ processID: pid_t, expectedURL: URL?) -> MeetingParticipantCaptureResult {
+    private static func resolve(_ processID: pid_t, expectedURL: URL?, boundWindow: inout AXUIElement?) -> MeetingParticipantCaptureResult {
         let application = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(application, 0.012)
         // Chromium may expose only its browser chrome until an AX client asks
         // for the web tree. This does not grant or prompt for TCC permission.
         AXUIElementSetAttributeValue(application, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
-        guard let boundWindow = BrowserMeetingSession.window(processID: processID, expectedURL: expectedURL) else { return .unavailable(.sourceUnavailable) }
-        let window = boundWindow.element
+        if boundWindow == nil {
+            boundWindow = BrowserMeetingSession.window(processID: processID, expectedURL: expectedURL, preferFocused: true)?.element
+        }
+        guard let window = boundWindow,
+              let available = value(application, kAXWindowsAttribute) as? [AXUIElement],
+              available.contains(where: { CFEqual(window, $0) }) else { return .unavailable(.sourceUnavailable) }
         let start = RecordingAudioClock.now
         guard
               (value(window, kAXMinimizedAttribute) as? Bool) != true,
@@ -156,7 +165,9 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
                 if insideMeet { continue } // Never read an embedded presentation/third-party frame.
                 let raw = item.values[kAXURLAttribute]
                 let url = (raw as? URL)?.absoluteString ?? (raw as? String) ?? item.string(kAXDocumentAttribute)
-                guard selectedURL == nil, let valid = GoogleMeetSpeakerObservationProvider.meetURL(url) else { return .unavailable(.sourceUnavailable) }
+                guard selectedURL == nil, let valid = GoogleMeetSpeakerObservationProvider.meetURL(url),
+                      expectedURL == nil || GoogleMeetSpeakerObservationProvider.meetURL(expectedURL!.absoluteString) == valid
+                else { return .unavailable(.sourceUnavailable) }
                 selectedURL = valid
                 inDocument = true
             }
@@ -171,21 +182,68 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
         guard let url = selectedURL,
               let windows = value(application, kAXWindowsAttribute) as? [AXUIElement], windows.contains(where: { CFEqual(window, $0) }) else { return .unavailable(.sourceChanged) }
         var tiles: [MeetingParticipantTile] = []
+        var selfNames = Set<String>()
+        var indicators: [String: [CGRect]] = [:]
+        for (index, item) in records.enumerated() where item.labels.contains("Participants") {
+            for (offset, child) in records.dropFirst(index + 1).prefix(500).enumerated() {
+                if child.depth <= item.depth { break }
+                for label in child.labels {
+                    if let name = MeetingParticipantTileResolver.selfName(label) { selfNames.insert(name) }
+                }
+                guard child.string(kAXRoleAttribute) == "AXGroup" else { continue }
+                var rowLabels: [String] = []
+                for nested in records.dropFirst(index + offset + 2).prefix(30) {
+                    if nested.depth <= child.depth { break }
+                    rowLabels += nested.labels
+                }
+                if let name = MeetingParticipantTileResolver.selfName(rowLabels: child.labels, descendantLabels: rowLabels) {
+                    selfNames.insert(name)
+                }
+                let rowNames = Set(child.labels.compactMap(ParticipantObservation.safeName))
+                if rowNames.count == 1, let name = rowNames.first {
+                    for nested in records.dropFirst(index + offset + 2).prefix(30) {
+                        if nested.depth <= child.depth { break }
+                        if nested.labels.contains("Mute \(name)'s microphone"), let rect = nested.frame {
+                            indicators[ParticipantObservation.nameKey(name), default: []].append(rect)
+                        }
+                    }
+                }
+            }
+        }
+        let excludedRegions = records.filter {
+            $0.labels.contains { ["Side panel", "Left side panel", "Call controls"].contains($0) }
+        }.compactMap(\.frame)
         for (index, item) in records.enumerated() {
             guard ["AXGroup", "AXImage", "AXUnknown"].contains(item.string(kAXRoleAttribute)),
                   let tileFrame = item.frame, frame.contains(tileFrame),
-                  tileFrame.width >= 80, tileFrame.height >= 60 else { continue }
+                  tileFrame.width >= 80, tileFrame.height >= 60,
+                  !excludedRegions.contains(where: { $0.contains(tileFrame) }) else { continue }
             var labels: [String] = []
+            var visibleLabels: [MeetingParticipantTileResolver.VisibleLabel] = []
             for child in records.dropFirst(index + 1).prefix(100) {
                 if child.depth <= item.depth { break }
-                if child.depth <= item.depth + 6 { labels += child.labels }
+                if child.depth <= item.depth + 6 {
+                    labels += child.labels
+                    if child.string(kAXRoleAttribute) == "AXStaticText", let textFrame = child.frame,
+                       let text = child.labels.first {
+                        visibleLabels.append(.init(text: text, frame: textFrame))
+                    }
+                }
             }
-            guard let name = MeetingParticipantTileResolver.name(ownLabels: item.labels, descendantLabels: labels) else { continue }
-            tiles.append(MeetingParticipantTileResolver.tile(name: name, frame: tileFrame, labels: item.labels + labels))
+            let structured = MeetingParticipantTileResolver.name(ownLabels: item.labels, descendantLabels: labels)
+            guard let name = structured ?? MeetingParticipantTileResolver.nameStrip(frame: tileFrame,
+                labels: visibleLabels, controls: item.labels + labels) else { continue }
+            var tile = MeetingParticipantTileResolver.tile(name: name, frame: tileFrame, labels: item.labels + labels)
+            tile.requiresNameVerification = structured == nil
+            tile.isSelf = tile.isSelf || selfNames.contains { ParticipantObservation.nameKey($0) == ParticipantObservation.nameKey(name) }
+            if let matches = indicators[ParticipantObservation.nameKey(name)], matches.count == 1 {
+                tile.activityIndicatorFrame = matches.first
+            }
+            tiles.append(tile)
         }
         guard RecordingAudioClock.now - start <= observationBudget else { return .unavailable(.accessibilityBudget) }
         return .init(snapshot: MeetingParticipantSnapshot(processID: processID, title: title, url: url, windowFrame: frame,
             tiles: MeetingParticipantTileResolver.innermostTiles(tiles), hostStart: start,
-            hostEnd: RecordingAudioClock.now, otherAudibleTabs: otherAudibleTabs))
+            hostEnd: RecordingAudioClock.now, otherAudibleTabs: otherAudibleTabs, selfNames: selfNames.sorted()))
     }
 }

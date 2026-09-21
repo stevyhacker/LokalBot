@@ -103,8 +103,13 @@ struct MeetingSpeakerObserverStatus: View {
     @ObservedObject var observer: MeetingSpeakerObserver
     var body: some View {
         HStack(spacing: 8) {
-            Label(message, systemImage: "person.text.rectangle")
-                .font(.caption).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Label(message, systemImage: "person.text.rectangle")
+                if observer.participantCount > 0 {
+                    Text("\(observer.participantCount) names seen · \(Int(observer.coveredSeconds))s speaking evidence")
+                }
+            }
+            .font(.caption).foregroundStyle(.secondary)
             Spacer()
             if observer.state != .off {
                 Button(observer.isPaused ? "Resume" : "Pause") { observer.isPaused.toggle() }

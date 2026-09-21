@@ -19,7 +19,7 @@ import XCTest
     }
     override func tearDown() async throws { try? FileManager.default.removeItem(at: root) }
 
-    private func fixture(visual: Bool) async throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
+    private func fixture(visual: Bool, participants: [MeetingParticipantName] = []) async throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
         let meeting = try storage.createMeetingFolder(title: "Staged rule fixture", appName: "Google Chrome")
         let audioURL = meeting.folderURL(in: storage).appendingPathComponent("fixture-audio.bin")
         // Digest fixture only. No synthetic vector/byte fixture is presented as
@@ -37,6 +37,7 @@ import XCTest
         let generation = UUID()
         try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
         try await store.verifyProvider(meeting: meeting, generation: generation)
+        try await store.recordParticipants(participants, meeting: meeting, generation: generation)
         if visual {
             try await store.append(turns.map { .init(participantReference: "alex", displayName: "Alex",
                 range: $0.range, uncertainty: 0.1, layoutEpoch: "grid") }, meeting: meeting, generation: generation)
@@ -82,6 +83,26 @@ import XCTest
         XCTAssertEqual(reprocessed.speakerCalendarIdentityIDs["them"], guest.id)
         let profiles = try await service.profiles(managing: true)
         XCTAssertTrue(profiles.isEmpty)
+    }
+
+    func testOCRParticipantIsOnlyANameChoiceUntilTheUserSavesIt() async throws {
+        let (meeting, audio, transcript, turns, samples) = try await fixture(visual: false,
+            participants: [.init(name: "Jonathan", source: .ocr)])
+        let result = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
+        XCTAssertTrue(result.speakerAliases.isEmpty)
+        XCTAssertFalse(String(decoding: try JSONEncoder().encode(result), as: UTF8.self).contains("Jonathan"))
+        let names = try await service.participants(for: meeting)
+        XCTAssertEqual(names.map(\.name), ["Jonathan"])
+        let chosen = try await service.choose(.init(label: "them", name: names[0].name, remember: false),
+            meeting: meeting, transcript: result)
+        XCTAssertEqual(chosen.speakerAliases["them"], "Jonathan")
+        let profiles = try await service.profiles(managing: true)
+        XCTAssertTrue(profiles.isEmpty)
+        try await service.deleteEvidence(meeting: meeting)
+        let remaining = try await service.participants(for: meeting)
+        XCTAssertTrue(remaining.isEmpty)
+        let state = try await service.state(for: meeting)
+        XCTAssertEqual(state.assignments.first?.name, "Jonathan")
     }
 
     func testResetSuppressesReapplicationUntilExplicitResume() async throws {

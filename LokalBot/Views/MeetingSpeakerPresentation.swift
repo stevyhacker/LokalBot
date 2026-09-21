@@ -8,11 +8,12 @@ struct MeetingSpeakerPresentation {
 
     init(transcript: Transcript?) {
         guard let transcript else { return }
+        let roster = transcript.speakerRoster
         var nextSpeaker = 1
         for segment in transcript.segments {
             let key = Transcript.canonicalSpeakerKey(segment.speaker)
             guard names[key] == nil else { continue }
-            let original = transcript.displaySpeaker(for: key)
+            let original = roster[key]?.name ?? Transcript.defaultSpeakerName(for: key)
             guard key.hasPrefix("source"), key.contains(":"),
                   original.range(of: #"(?: · source \d+)+$"#, options: .regularExpression) != nil else {
                 names[key] = original

@@ -232,4 +232,21 @@ final class TranscriptTests: XCTestCase {
                        "Existing half-second minimum highlight remains intact")
         XCTAssertEqual(display.activeSegmentIDs(at: 11.5), [])
     }
+
+    func testDisplayRowsRefreshNamesAndGroupOnlyVisibleSpeakers() {
+        var transcript = Transcript(segments: [
+            .init(start: 0, end: 1, speaker: "them 1", text: "<|0.00|>...<|1.00|>"),
+            .init(start: 1, end: 2, speaker: "them 1", text: "First visible line"),
+            .init(start: 2, end: 3, speaker: " them 1 ", text: "Same voice"),
+            .init(start: 3, end: 4, speaker: "them 2", text: "Next voice")
+        ], engine: "test")
+        let original = Transcript.DisplayIndex(transcript: transcript)
+        XCTAssertEqual(original.segments.map(\.id), [1, 2, 3])
+        XCTAssertEqual(original.segments.map(\.beginsSpeakerTurn), [true, false, true])
+        transcript.speakerAliases["them 1"] = "Alexandria Montgomery-Wellington"
+        let updated = Transcript.DisplayIndex(transcript: transcript)
+        XCTAssertEqual(updated.segments[0].speakerLabel, "Alexandria Montgomery-Wellington")
+        XCTAssertEqual(original.segments[0].speakerLabel, "Them 1")
+        XCTAssertEqual(updated.segments.map(\.id), original.segments.map(\.id))
+    }
 }

@@ -5,6 +5,7 @@ enum SpeakerObservationIssue: String, Codable, Sendable {
     case accessibilityBusy, accessibilityTimeout, accessibilityBudget, sourceUnavailable, sourceRejected
     case layoutUnavailable, screenPermission, windowChanged, waitingForFrame, frameUnavailable, sourceChanged
     case paused, settingsChanged, noActiveSpeaker, ambiguousSpeaker, noClockCoverage, providerUnavailable, evidenceUnavailable
+    case selfIdentityUnavailable
 
     var explanation: String {
         switch self {
@@ -28,6 +29,7 @@ enum SpeakerObservationIssue: String, Codable, Sendable {
         case .noClockCoverage: "Waiting for consecutive observations aligned to recorded audio"
         case .providerUnavailable: "Speaker observation is unavailable"
         case .evidenceUnavailable: "Speaker evidence storage is unavailable"
+        case .selfIdentityUnavailable: "Names are available; your Meet tile must be identified before automatic naming"
         }
     }
 }
@@ -41,6 +43,7 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
     var intervals = 0
     var coveredSeconds: Double = 0
     var visualObservationAttempts: Int?
+    var maximumParticipantCount: Int?
     var issues: [String: Int] = [:]
     var lastIssue: SpeakerObservationIssue?
 
@@ -51,6 +54,9 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
                               .waitingForFrame, .frameUnavailable].reduce(0) { $0 + issues[$1.rawValue, default: 0] }
         guard (visualObservationAttempts ?? legacyAttempts) > 0, observations > 0,
               intervals == 0, coveredSeconds == 0 else { return nil }
+        if (maximumParticipantCount ?? 0) > 0 {
+            return "Participant names were captured, but speaking activity could not be matched to the audio. The names remain available for manual assignment."
+        }
         return "No usable speaker observations were captured. You can name voices in the transcript; processing this recording again cannot recover the missing visual evidence."
     }
 
@@ -63,6 +69,7 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
         observations += 1
         visualObservationAttempts = (visualObservationAttempts ?? 0) + (visual ? 1 : 0)
         maximumTileCount = max(maximumTileCount, batch.observations.count)
+        maximumParticipantCount = max(maximumParticipantCount ?? 0, batch.participants.count)
         if !batch.observations.isEmpty { batchesWithTiles += 1 }
         if let issue = batch.issue { record(issue) } else if batch.reason != nil { record(.providerUnavailable) } else if let interval {
             intervals += 1

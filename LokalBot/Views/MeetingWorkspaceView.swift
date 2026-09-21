@@ -128,12 +128,15 @@ private struct MeetingWorkspaceDetail: View {
     @State private var partialProjection: MeetingOutcomeProjection?
     @State private var notes: String?
     @State private var transcript: Transcript?
+    @State private var transcriptDisplay = Transcript.DisplayIndex()
+    @State private var speakerPresentation = MeetingSpeakerPresentation(transcript: nil)
     @State private var transcriptExpanded = false
     @State private var evidenceSegment: Int?
     @State private var evidenceRevision = 0
     @State private var correction: ActionCorrectionDraft?
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
+    @State private var observedParticipants: [MeetingParticipantName] = []
     @State private var speakerProfiles: [SpeakerVoiceProfile] = []
     @State private var speakerIdentityNotice: String?
     @State private var speakerObservationDiagnostics: SpeakerObservationDiagnostics?
@@ -163,6 +166,8 @@ private struct MeetingWorkspaceDetail: View {
         self.meeting = meeting
         _notes = State(initialValue: document.notes)
         _transcript = State(initialValue: document.transcript)
+        _transcriptDisplay = State(initialValue: document.transcriptDisplay)
+        _speakerPresentation = State(initialValue: document.speakerPresentation)
         _summary = State(initialValue: document.summary)
         _partialNotes = State(initialValue: document.partialNotes)
         _partialProjection = State(initialValue: document.partialProjection)
@@ -171,9 +176,6 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
-    private var speakerPresentation: MeetingSpeakerPresentation {
-        MeetingSpeakerPresentation(transcript: transcript)
-    }
     private var presentedSummary: String? {
         summary.map { speakerPresentation.text(SummaryPresentation.meetingBody($0, meeting: meeting)) }
     }
@@ -306,6 +308,7 @@ private struct MeetingWorkspaceDetail: View {
                 calendarCandidates: calendarCandidates(for: draft.speaker),
                 assignedCalendarIdentityIDs: assignedCalendarIdentityIDs,
                 identityState: speakerIdentityState,
+                observedParticipants: observedParticipants,
                 profiles: speakerProfiles,
                 rememberingEnabled: app.settings.rememberSpeakersOnMac,
                 notice: speakerIdentityNotice,
@@ -689,7 +692,7 @@ private struct MeetingWorkspaceDetail: View {
 
     private var transcriptSection: some View {
         TranscriptEvidenceList(
-            transcript: transcript, player: player,
+            transcript: transcript, display: transcriptDisplay, player: player,
             speakerPresentation: speakerPresentation,
             searchQuery: visibleSearchQuery, activeMatch: activeSearchMatch,
             evidenceSegment: evidenceSegment,
@@ -928,6 +931,8 @@ private struct MeetingWorkspaceDetail: View {
         guard !Task.isCancelled else { return }
         notes = document.notes
         transcript = document.transcript
+        transcriptDisplay = document.transcriptDisplay
+        speakerPresentation = document.speakerPresentation
         partialNotes = document.partialNotes
         partialProjection = document.partialProjection
         summary = document.summary
@@ -935,6 +940,12 @@ private struct MeetingWorkspaceDetail: View {
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
         searchContentRevision += 1
         await app.outcomeIndex.refreshInBackground(meeting: meeting)
+    }
+
+    private func updateTranscript(_ value: Transcript?) {
+        transcript = value
+        transcriptDisplay = Transcript.DisplayIndex(transcript: value)
+        speakerPresentation = MeetingSpeakerPresentation(transcript: value)
     }
 
     private func consumeMeetingSeek() {
@@ -1013,6 +1024,7 @@ private struct MeetingWorkspaceDetail: View {
                 || app.settings.identifySpeakersFromVisuals || app.settings.rememberSpeakersOnMac else { return }
         do {
             speakerObservationDiagnostics = try await app.speakerIdentity.observationDiagnostics(for: meeting)
+            observedParticipants = try await app.speakerIdentity.participants(for: meeting)
             speakerIdentityState = try await app.speakerIdentity.state(for: meeting)
             speakerProfiles = try await app.speakerIdentity.profiles()
             let latestChoice = speakerIdentityState?.decisions.filter {
@@ -1025,7 +1037,8 @@ private struct MeetingWorkspaceDetail: View {
                 let recovered = app.speakerIdentity.applyingLatestDecision(to: recoveredValue, meetingID: meeting.id)
                 if recovered.segments != current.segments || recovered.speakerAliases != current.speakerAliases
                     || recovered.speakerCalendarIdentityIDs != current.speakerCalendarIdentityIDs {
-                    try app.saveTranscript(recovered, for: meeting); transcript = recovered
+                    try app.saveTranscript(recovered, for: meeting)
+                    updateTranscript(recovered)
                 }
             }
         } catch { speakerIdentityNotice = error.localizedDescription }
@@ -1046,7 +1059,7 @@ private struct MeetingWorkspaceDetail: View {
             do {
                 let updated = try await app.speakerIdentity.choose(choice, meeting: meeting, transcript: current)
                 try app.saveTranscript(updated, for: meeting)
-                transcript = updated
+                updateTranscript(updated)
                 searchContentRevision += 1
                 exportError = nil
                 speakerIdentityNotice = app.speakerIdentity.notice
@@ -1409,7 +1422,14 @@ private struct MeetingSearchChip: View {
 
 private struct MeetingAudioBar: View {
     @ObservedObject var player: MeetingPlayer
+    @ObservedObject private var clock: MeetingPlaybackClock
     let folder: URL
+
+    init(player: MeetingPlayer, folder: URL) {
+        self.player = player
+        self.clock = player.clock
+        self.folder = folder
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -1423,11 +1443,11 @@ private struct MeetingAudioBar: View {
             .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
             WaveformView(
                 sources: player.waveformSources,
-                currentTime: player.currentTime,
+                currentTime: clock.currentTime,
                 duration: player.duration,
                 onSeek: { player.seek(to: $0) })
                 .id(folder)
-            Text("\(Transcript.stamp(player.currentTime)) / \(Transcript.stamp(player.duration))")
+            Text("\(Transcript.stamp(clock.currentTime)) / \(Transcript.stamp(player.duration))")
                 .font(WorkspaceTypography.metadata.monospacedDigit()).foregroundStyle(.secondary)
                 .fixedSize()
             Menu("\(player.speed.formatted())x") {
@@ -1649,6 +1669,7 @@ private struct ActionCorrectionSheet: View {
 
 private struct TranscriptEvidenceList: View {
     let transcript: Transcript?
+    let display: Transcript.DisplayIndex
     @ObservedObject var player: MeetingPlayer
     let speakerPresentation: MeetingSpeakerPresentation
     let searchQuery: String
@@ -1657,7 +1678,7 @@ private struct TranscriptEvidenceList: View {
     let onRenameSpeaker: (String) -> Void
 
     var body: some View {
-        if let transcript, !transcript.segments.isEmpty {
+        if let transcript, !display.segments.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 if !transcript.engine.isEmpty && transcript.engine != "merged" {
                     HStack(spacing: 6) {
@@ -1681,7 +1702,9 @@ private struct TranscriptEvidenceList: View {
                 }
 
                 LazyVStack(alignment: .leading, spacing: 2) {
-                    ForEach(Array(transcript.segments.enumerated()), id: \.offset) { index, segment in
+                    ForEach(display.segments) { row in
+                        let index = row.id
+                        let segment = row.segment
                         HStack(alignment: .top, spacing: 10) {
                             Button {
                                 player.play(at: segment.start)
@@ -1707,24 +1730,25 @@ private struct TranscriptEvidenceList: View {
                             .buttonStyle(.plain)
                             .help("Play from \(Transcript.stamp(segment.start))")
                             .accessibilityIdentifier("transcript.segment.\(index).play")
-                            TranscriptSpeakerButton(
-                                title: speakerPresentation.speaker(segment.speaker, in: transcript),
-                                query: searchQuery,
-                                activeMatchIndex: activeOccurrence(
-                                    at: .transcript(
-                                        segmentIndex: index,
-                                        field: .speaker)),
-                                identifier: "transcript.segment.\(index).speaker") {
-                                    onRenameSpeaker(segment.speaker)
+                            Group {
+                                if row.beginsSpeakerTurn {
+                                    TranscriptSpeakerButton(
+                                        title: speakerPresentation.speaker(segment.speaker, in: transcript),
+                                        query: searchQuery,
+                                        activeMatchIndex: activeOccurrence(
+                                            at: .transcript(segmentIndex: index, field: .speaker)),
+                                        identifier: "transcript.segment.\(index).speaker") {
+                                        onRenameSpeaker(segment.speaker)
+                                    }
+                                } else {
+                                    Color.clear.accessibilityHidden(true)
                                 }
-                                .id(MeetingPageSearchMatch.Location.transcript(
-                                    segmentIndex: index,
-                                    field: .speaker))
-                                .frame(width: 92, height: 20, alignment: .leading)
-                                .opacity(index > 0 && transcript.segments[index - 1].speaker == segment.speaker ? 0 : 1)
-                                .accessibilityHidden(index > 0 && transcript.segments[index - 1].speaker == segment.speaker)
+                            }
+                            .id(MeetingPageSearchMatch.Location.transcript(segmentIndex: index, field: .speaker))
+                            .frame(width: 132, height: 20, alignment: .leading)
+                            .clipped()
                             SearchHighlightedText(
-                                segment.displayText,
+                                row.text,
                                 query: searchQuery,
                                 activeMatchIndex: activeOccurrence(
                                     at: .transcript(
@@ -1735,13 +1759,13 @@ private struct TranscriptEvidenceList: View {
                                 .help("Select text and press Command-C to copy")
                                 .accessibilityIdentifier("transcript.segment.\(index).text")
                         }
-                        .padding(.top, index == 0 || transcript.segments[index - 1].speaker != segment.speaker ? 12 : 2)
+                        .padding(.top, row.beginsSpeakerTurn ? 12 : 2)
                         .padding(.bottom, 3)
                         .padding(.horizontal, 6)
-                        .background(
-                            (evidenceSegment == index || (player.isPlaying && isActive(segment)))
-                                ? Brand.teal.opacity(0.14) : Color.clear,
-                            in: RoundedRectangle(cornerRadius: 6))
+                        .background {
+                            TranscriptPlaybackHighlight(clock: player.clock, isPlaying: player.isPlaying,
+                                start: segment.start, end: segment.end, isEvidence: evidenceSegment == index)
+                        }
                         .id(MeetingPageSearchMatch.Location.transcript(
                             segmentIndex: index,
                             field: .text))
@@ -1757,16 +1781,30 @@ private struct TranscriptEvidenceList: View {
         }
     }
 
-    private func isActive(_ segment: Transcript.Segment) -> Bool {
-        player.currentTime >= segment.start
-            && player.currentTime < max(segment.end, segment.start + 0.5)
-    }
-
     private func activeOccurrence(
         at location: MeetingPageSearchMatch.Location
     ) -> Int? {
         guard activeMatch?.location == location else { return nil }
         return activeMatch?.occurrenceIndex
+    }
+}
+
+private struct TranscriptPlaybackHighlight: View {
+    let clock: MeetingPlaybackClock
+    let isPlaying: Bool
+    let start: TimeInterval
+    let end: TimeInterval
+    let isEvidence: Bool
+    @State private var containsPlayhead = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 6)
+            .fill(isEvidence || (isPlaying && containsPlayhead) ? Brand.teal.opacity(0.14) : Color.clear)
+            .onReceive(clock.$currentTime.map { $0 >= start && $0 < max(end, start + 0.5) }.removeDuplicates()) {
+                containsPlayhead = $0
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -1787,6 +1825,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     let calendarCandidates: [CalendarParticipantIdentity]
     let assignedCalendarIdentityIDs: Set<String>
     let identityState: MeetingSpeakerIdentityState?
+    let observedParticipants: [MeetingParticipantName]
     let profiles: [SpeakerVoiceProfile]
     let rememberingEnabled: Bool
     let notice: String?
@@ -1809,6 +1848,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         calendarCandidates: [CalendarParticipantIdentity],
         assignedCalendarIdentityIDs: Set<String>,
         identityState: MeetingSpeakerIdentityState?,
+        observedParticipants: [MeetingParticipantName],
         profiles: [SpeakerVoiceProfile],
         rememberingEnabled: Bool,
         notice: String?,
@@ -1825,6 +1865,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.calendarCandidates = calendarCandidates
         self.assignedCalendarIdentityIDs = assignedCalendarIdentityIDs
         self.identityState = identityState
+        self.observedParticipants = observedParticipants
         self.profiles = profiles
         self.rememberingEnabled = rememberingEnabled
         self.notice = notice
@@ -1832,7 +1873,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.onPlay = onPlay
         self.onAction = onAction
         self.onDeleteEvidence = onDeleteEvidence
-        _remember = State(initialValue: rememberingEnabled)
+        _remember = State(initialValue: false)
         self.onSave = onSave
         self.onReset = onReset
         self.onCancel = onCancel
@@ -1856,6 +1897,28 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 .accessibilityIdentifier("speaker.rename.name")
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+            if !observedParticipants.isEmpty {
+                Text("Seen in this meeting")
+                    .font(.subheadline.weight(.semibold))
+                ForEach(observedParticipants) { participant in
+                    Button {
+                        name = participant.name
+                        selectedCalendarIdentityID = nil
+                        profileID = nil
+                    } label: {
+                        HStack {
+                            Label(participant.name, systemImage: normalizedName(name) == normalizedName(participant.name)
+                                ? "checkmark.circle.fill" : "person.crop.circle")
+                            Spacer()
+                            Text(participant.isSelf ? "You" : (participant.source == .ocr ? "From screen" : "From Meet"))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("speaker.rename.meetParticipant.\(participant.id)")
+                }
+            }
             if !calendarCandidates.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Suggestions from calendar guests")
@@ -1929,8 +1992,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
     }
 
     private var otherHints: [String] {
-        let calendarNames = Set(calendarCandidates.compactMap(\.suggestedSpeakerName).map(normalizedName))
-        return hints.filter { !calendarNames.contains(normalizedName($0)) }
+        let knownNames = Set((calendarCandidates.compactMap(\.suggestedSpeakerName)
+            + observedParticipants.map(\.name)).map(normalizedName))
+        return hints.filter { !knownNames.contains(normalizedName($0)) }
     }
 
     private func calendarCandidateRow(

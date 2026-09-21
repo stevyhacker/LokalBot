@@ -59,6 +59,7 @@ struct Transcript: Codable {
         let speakerLabel: String
         let speakerKey: String
         let hasSpeakerAlias: Bool
+        let beginsSpeakerTurn: Bool
     }
 
     /// Cached transcript presentation plus a chronological interval index for
@@ -88,17 +89,21 @@ struct Transcript: Codable {
             }
 
             let roster = transcript.speakerRoster
+            var previousSpeaker: String?
             segments = transcript.segments.enumerated().compactMap { index, segment in
                 let text = segment.displayText
                 guard !text.isEmpty else { return nil }
                 let speakerKey = Transcript.canonicalSpeakerKey(segment.speaker)
+                let beginsSpeakerTurn = previousSpeaker != speakerKey
+                previousSpeaker = speakerKey
                 return DisplaySegment(
                     id: index,
                     segment: segment,
                     text: text,
                     speakerLabel: roster[speakerKey]?.name ?? Transcript.defaultSpeakerName(for: segment.speaker),
                     speakerKey: speakerKey,
-                    hasSpeakerAlias: transcript.speakerAliases[speakerKey] != nil)
+                    hasSpeakerAlias: transcript.speakerAliases[speakerKey] != nil,
+                    beginsSpeakerTurn: beginsSpeakerTurn)
             }
 
             intervals = segments.map { display in

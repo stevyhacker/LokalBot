@@ -59,6 +59,33 @@ import XCTest
         } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
     }
 
+    func testSilentParticipantNamesSurviveRestartButExpireWithEvidence() async throws {
+        let generation = UUID()
+        try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
+        let names = [MeetingParticipantName(name: "Jonathan", source: .ocr)]
+        do {
+            try await store.recordParticipants(names, meeting: meeting, generation: generation)
+            XCTFail("Unverified source supplied participant names")
+        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
+        try await store.verifyProvider(meeting: meeting, generation: generation)
+        try await store.recordParticipants(names, meeting: meeting, generation: generation)
+        try await store.seal(meeting: meeting, generation: generation, failed: false)
+        let reopened = MeetingSpeakerEvidenceStore(root: root, key: key)
+        let restored = try await reopened.participants(meeting: meeting, retentionDays: 14)
+        XCTAssertEqual(restored, names)
+        let evidence = try await reopened.evidence(meeting: meeting, retentionDays: 14)
+        XCTAssertTrue(evidence?.intervals.isEmpty == true)
+        let ciphertext = try Data(contentsOf: meeting.folderURL(in: storage).appendingPathComponent("speaker-evidence/session.sealed"))
+        XCTAssertNil(ciphertext.range(of: Data("Jonathan".utf8)))
+        try await store.eraseEvidence(meeting: meeting)
+        let erased = try await reopened.participants(meeting: meeting, retentionDays: 14)
+        XCTAssertTrue(erased.isEmpty)
+        do {
+            try await store.recordParticipants(names, meeting: meeting, generation: generation)
+            XCTFail("Late roster resurrected erased evidence")
+        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
+    }
+
     func testManualDecisionSurvivesRestartAndVisualEvidenceExpiry() async throws {
         var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
         saved.audioRevision = "audio"

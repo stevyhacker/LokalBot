@@ -26,24 +26,35 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         button.alignment = .left
         button.controlSize = .small
         button.focusRingType = .exterior
+        button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        button.cell?.lineBreakMode = .byTruncatingTail
+        button.cell?.usesSingleLineMode = true
         button.identifier = NSUserInterfaceItemIdentifier(identifier)
         button.setAccessibilityIdentifier(identifier)
-        button.toolTip = "Rename speaker"
-        update(button)
+        update(button, coordinator: context.coordinator)
         return button
     }
 
     func updateNSView(_ button: NSButton, context: Context) {
         context.coordinator.action = action
-        update(button)
+        update(button, coordinator: context.coordinator)
     }
 
-    private func update(_ button: NSButton) {
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? nsView.intrinsicContentSize.width,
+               height: proposal.height ?? nsView.intrinsicContentSize.height)
+    }
+
+    private func update(_ button: NSButton, coordinator: Coordinator) {
+        let presentation = Presentation(title: title, query: query, activeMatchIndex: activeMatchIndex)
+        guard coordinator.presentation != presentation else { return }
+        coordinator.presentation = presentation
         button.attributedTitle = Self.attributedTitle(
             title,
             query: query,
             activeMatchIndex: activeMatchIndex)
         button.setAccessibilityLabel(title)
+        button.toolTip = "Rename speaker: \(title)"
     }
 
     private static func attributedTitle(
@@ -51,6 +62,8 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         query: String,
         activeMatchIndex: Int?
     ) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingTail
         let result = NSMutableAttributedString(
             string: title,
             attributes: [
@@ -58,6 +71,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
                     ofSize: NSFont.smallSystemFontSize,
                     weight: .bold),
                 .foregroundColor: NSColor.labelColor,
+                .paragraphStyle: paragraph,
             ])
         for (index, range) in MeetingPageSearch.ranges(
             in: title,
@@ -72,8 +86,15 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         return result
     }
 
+    fileprivate struct Presentation: Equatable {
+        let title: String
+        let query: String
+        let activeMatchIndex: Int?
+    }
+
     final class Coordinator: NSObject {
         var action: () -> Void
+        fileprivate var presentation: Presentation?
 
         init(action: @escaping () -> Void) {
             self.action = action

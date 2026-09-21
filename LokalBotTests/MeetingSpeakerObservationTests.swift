@@ -149,6 +149,47 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         XCTAssertNil(MeetingParticipantTileResolver.name(ownLabels: [], descendantLabels: ["More options for Alice", "Bob"]))
     }
 
+    func testPersistentNameStripDoesNotRequireHoverControls() {
+        let frame = CGRect(x: 16, y: 78, width: 838, height: 1118)
+        let name = MeetingParticipantTileResolver.VisibleLabel(text: "Jonathan",
+            frame: .init(x: 32, y: 1160, width: 65, height: 20))
+        XCTAssertEqual(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: []), "Jonathan")
+        let initial = MeetingParticipantTileResolver.VisibleLabel(text: "J", frame: .init(x: 410, y: 610, width: 25, height: 50))
+        XCTAssertEqual(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [initial, name], controls: []), "Jonathan")
+        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: ["Call controls"]))
+        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: ["Jonathan is presenting"]))
+        var heading = name; heading.frame.origin.y = 90
+        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [heading], controls: []))
+        var paragraph = name; paragraph.text = "Quarterly report"; paragraph.frame.origin.y = 500
+        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name, paragraph], controls: []))
+    }
+
+    func testSelfViewControlsAndRosterSuffixIdentifyTheLocalTile() {
+        let frame = CGRect(x: 0, y: 0, width: 800, height: 600)
+        for control in ["Reframe", "Backgrounds and effects",
+                        "Others might see more of your background. Click to view your full video."] {
+            XCTAssertTrue(MeetingParticipantTileResolver.tile(name: "Alex", frame: frame, labels: [control]).isSelf)
+        }
+        XCTAssertEqual(MeetingParticipantTileResolver.selfName("Alex (You)"), "Alex")
+        XCTAssertNil(MeetingParticipantTileResolver.selfName("Alex"))
+        XCTAssertEqual(MeetingParticipantTileResolver.selfName(rowLabels: ["Alex"], descendantLabels: ["Alex", "(You)"]), "Alex")
+        XCTAssertNil(MeetingParticipantTileResolver.selfName(rowLabels: ["Alex", "Sam"], descendantLabels: ["(You)"]))
+        XCTAssertNil(MeetingParticipantTileResolver.selfName(rowLabels: ["Alex"], descendantLabels: ["Alex"]))
+        XCTAssertFalse(MeetingParticipantTileResolver.tile(name: "Alex", frame: frame, labels: ["More options for Alex"]).isSelf)
+    }
+
+    func testParticipantPresenceNeverCreatesSpeakingEvidence() {
+        let presence = MeetingParticipantName(name: "Jonathan", source: .ocr)
+        let batch = MeetingSpeakerObservationBatch(sourceKey: "meet", observations: [], participants: [presence])
+        var accumulator = SpeakerObservationAccumulator()
+        XCTAssertNil(accumulator.consume(batch, clock: clock()))
+        XCTAssertNil(accumulator.consume(batch, clock: clock()))
+        let merged = MeetingParticipantName.merging([presence], [.init(name: "Jonathan", source: .accessibility, isSelf: true)])
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertTrue(merged[0].isSelf)
+        XCTAssertEqual(merged[0].source, .ocr)
+    }
+
     func testNestedTileContainersAreDeduplicatedButDuplicatePeopleRemainAmbiguous() {
         let inner = MeetingParticipantTile(name: "Alice", frame: .init(x: 10, y: 10, width: 200, height: 150), speaking: true, muted: false, isSelf: false)
         var outer = inner; outer.frame = .init(x: 0, y: 0, width: 230, height: 180)

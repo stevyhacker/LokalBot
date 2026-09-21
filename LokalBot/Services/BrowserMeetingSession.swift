@@ -148,7 +148,7 @@ enum BrowserMeetingSession {
     /// Enumerate browser windows, never just the focused window. Background
     /// documents unavailable through Accessibility safely abstain. No pixels,
     /// participant names, or page text are retained by lifecycle detection.
-    static func window(processID: pid_t, expectedURL: URL?) -> Window? {
+    static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool = false) -> Window? {
         guard AXIsProcessTrusted() else { return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
@@ -157,6 +157,7 @@ enum BrowserMeetingSession {
         guard expectedURL == nil || expected != nil,
               let windows = value(app, kAXWindowsAttribute) as? [AXUIElement], windows.count <= 32 else { return nil }
         var matches: [Window] = []
+        let focused = value(app, kAXFocusedWindowAttribute)
         let deadline = ProcessInfo.processInfo.systemUptime + 1
         windowLoop: for window in windows {
             guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
@@ -201,8 +202,13 @@ enum BrowserMeetingSession {
                 // positive call-control match immediately so unrelated heavy
                 // windows later in the AX list cannot add latency or fail the
                 // bound meeting lookup.
-                if expected != nil, match.snapshot.state == .inCall { return match }
+                if expected != nil, match.snapshot.state == .inCall, !preferFocused { return match }
             }
+        }
+        if preferFocused {
+            let calls = matches.filter { $0.snapshot.state == .inCall }
+            if let focused, let match = calls.first(where: { CFEqual($0.element, focused) }) { return match }
+            return calls.count == 1 ? calls.first : nil
         }
         // Multiple unrelated Meet windows cannot silently pick the first call.
         if expected == nil {

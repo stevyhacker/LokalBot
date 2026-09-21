@@ -39,6 +39,12 @@ Browser meeting detection checks the Meet document URL and call controls through
 locates the recording-bound Google Meet document across Chrome windows during recording, at most
 twice per second. Accessibility associates participant names with tiles; when
 needed, ScreenCaptureKit and on-device Vision process transient window frames.
+Visible tile names corroborated by OCR are retained as manual name suggestions,
+including for silent participants. Presence alone never identifies a voice.
+The observer stays bound to one Chrome window; changing tabs cannot redirect it
+to another meeting or Chrome profile. Speaker-name suggestions are shown locally
+in the rename sheet and become transcript aliases only when confirmed or when
+separate speaking evidence satisfies the automatic matching rules.
 Those frames are not saved in the screenshot archive. Private windows, excluded
 apps/domains, locked sessions, explicit pause, unsupported layouts, and missing
 permissions cause gaps rather than guessed observations. It does not use face
