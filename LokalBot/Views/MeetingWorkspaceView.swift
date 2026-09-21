@@ -1745,7 +1745,7 @@ private struct TranscriptEvidenceList: View {
                                 }
                             }
                             .id(MeetingPageSearchMatch.Location.transcript(segmentIndex: index, field: .speaker))
-                            .frame(width: 132, height: 20, alignment: .leading)
+                            .frame(width: 128, height: 20, alignment: .leading)
                             .clipped()
                             SearchHighlightedText(
                                 row.text,
