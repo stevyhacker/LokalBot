@@ -157,7 +157,7 @@ jobs:
         run: |
           python3 Scripts/ci/ui-shards.py plan > .build/ui-results/inventory.json
           python3 Scripts/ci/test-products.py pack ui
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
@@ -168,7 +168,7 @@ jobs:
           if-no-files-found: error
       - name: Save smoke evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: ui-results-smoke
@@ -209,7 +209,7 @@ jobs:
         run: python3 Scripts/ci/ui-shards.py run "$UI_PHASE"
       - name: Save shard evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: ui-results-${{ matrix.phase }}
