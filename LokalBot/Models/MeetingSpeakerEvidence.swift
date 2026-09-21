@@ -59,6 +59,7 @@ struct SpeakerActivityInterval: Codable, Equatable, Sendable {
 
 /// Presence is a manual name suggestion, never evidence that this person spoke.
 struct MeetingParticipantName: Codable, Equatable, Identifiable, Sendable {
+    // OCR remains decodable for names retained by earlier app versions.
     enum Source: String, Codable, Sendable { case accessibility, ocr }
     var name: String
     var source: Source
@@ -84,7 +85,7 @@ struct MeetingSpeakerEvidenceSession: Codable, Sendable {
     var schemaVersion = 1
     var meetingID: UUID
     var generation: UUID
-    var provider = "google-meet-chrome-v3"
+    var provider = "google-meet-chrome-ax-v1"
     var openedAt = Date()
     var sealed = false
     var failed = false
@@ -120,7 +121,7 @@ struct SpeakerNameMatch: Codable, Equatable, Identifiable, Sendable {
 
     var explanation: String {
         switch source {
-        case .visual: "Matched meeting visuals across \(independentTurns) speaking turns"
+        case .visual: "Matched meeting speaker activity across \(independentTurns) speaking turns"
         case .profile: "Matched a remembered voice across \(independentTurns) speaking turns"
         }
     }

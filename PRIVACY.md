@@ -37,24 +37,27 @@ Browser meeting detection checks the Meet document URL and call controls through
 
 **Meeting speaker identification** is a separate, off-by-default setting. It
 locates the recording-bound Google Meet document across Chrome windows during recording, at most
-twice per second. Accessibility associates participant names with tiles; when
-needed, ScreenCaptureKit and on-device Vision process transient window frames.
-Visible tile names corroborated by OCR are retained as manual name suggestions,
-including for silent participants. Presence alone never identifies a voice.
+twice per second. Accessibility associates structured participant names with
+tiles and reads explicit speaking labels when Meet exposes them. Participant
+names are retained as manual name suggestions, including for silent participants.
+Presence alone never identifies a voice. Speaker identification does not capture
+screenshots, run OCR, or inspect pixel-based speaking indicators.
 The observer stays bound to one Chrome window; changing tabs cannot redirect it
 to another meeting or Chrome profile. Speaker-name suggestions are shown locally
 in the rename sheet and become transcript aliases only when confirmed or when
 separate speaking evidence satisfies the automatic matching rules.
-Those frames are not saved in the screenshot archive. Private windows, excluded
+Private windows, excluded
 apps/domains, locked sessions, explicit pause, unsupported layouts, and missing
-permissions cause gaps rather than guessed observations. It does not use face
-recognition or send images to an external model.
+permissions cause gaps rather than guessed observations. Missing speaking labels
+do not trigger screen capture. It does not use face recognition. Separate
+screen-memory and meeting visual-context settings are unchanged.
 
 Compact speaker evidence is AES-GCM encrypted with a per-install Keychain key.
-Visual evidence and unaccepted suggestions expire under the screen retention
+Meeting observation evidence and unaccepted suggestions expire under the screen retention
 period, even when capture is disabled. Applied names, user corrections,
 suppression choices, and the audio-turn anchors needed to remember those
-choices remain with the meeting. Deleting visual evidence keeps those choices.
+choices remain with the meeting. Deleting meeting speaker evidence keeps those choices.
+Names and evidence retained by earlier screenshot-based versions remain readable.
 
 **Remember speakers on this Mac** is another separate, off-by-default setting.
 When you explicitly confirm a name, enough clear speech can enroll a local
@@ -115,8 +118,8 @@ grant optional permissions until you approve them:
 - Accessibility for browser-meeting detection, Autocomplete (the Cotyping
   engine), dictation insertion, visible-text context, and approved agent
   interaction.
-- Screen Recording when visual screen context or visual speaker-indicator
-  capture is selected; Accessibility also supports meeting-speaker observation.
+- Screen Recording when visual screen context is selected. Meeting-speaker
+  observation uses Accessibility only and does not require Screen Recording.
 
 Recording defaults to automatic detection on a fresh install. You are
 responsible for informing participants and obtaining any consent required

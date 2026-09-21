@@ -5,10 +5,10 @@ struct SpeakerIdentitySettingsControls: View {
     @State private var managingProfiles = false
 
     var body: some View {
-        Toggle("Identify speakers from meeting visuals", isOn: $app.settings.identifySpeakersFromVisuals)
-            .accessibilityLabel("Identify speakers from meeting visuals")
+        Toggle("Identify speakers from Google Meet", isOn: $app.settings.identifySpeakersFromVisuals)
+            .accessibilityLabel("Identify speakers from Google Meet")
             .accessibilityIdentifier("settings.speakerVisuals")
-        Text("Applies to new recordings. Observes the recorded Google Meet window in Chrome, including while you work in another app. Keep the meeting selected in that Chrome window. Reliable matches name speakers automatically; uncertain matches stay as suggestions. Images are processed locally and are not saved. Applied names become part of your transcript and its configured summaries.")
+        Text("Applies to new recordings. Uses Accessibility to read participant names and explicit speaking labels from the recorded Google Meet tab in Chrome. Keep that tab selected. No screenshots are taken for speaker identification. Missing speaking labels leave names available for manual assignment. Applied names become part of your transcript and its configured summaries.")
             .font(.caption).foregroundStyle(.secondary)
         Toggle("Remember speakers on this Mac", isOn: $app.settings.rememberSpeakersOnMac)
             .accessibilityLabel("Remember speakers on this Mac")
@@ -217,7 +217,7 @@ struct SpeakerIdentityReview: View {
                 }
             }
             if state?.revision ?? 0 > 0 {
-                Button("Delete visual evidence", role: .destructive, action: onDeleteEvidence)
+                Button("Delete meeting speaker evidence", role: .destructive, action: onDeleteEvidence)
                     .font(.caption)
                 Text("Keeps your saved speaker names and remembered voice profiles.")
                     .font(.caption).foregroundStyle(.secondary)

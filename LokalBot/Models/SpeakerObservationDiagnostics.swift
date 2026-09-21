@@ -3,7 +3,9 @@ import Foundation
 enum SpeakerObservationIssue: String, Codable, Sendable {
     case chromeUnavailable, unboundBackgroundWindow, screenUnavailable, accessibilityPermission
     case accessibilityBusy, accessibilityTimeout, accessibilityBudget, sourceUnavailable, sourceRejected
-    case layoutUnavailable, screenPermission, windowChanged, waitingForFrame, frameUnavailable, sourceChanged
+    case layoutUnavailable, windowChanged, sourceChanged
+    // Decode historical diagnostics without requiring the retired pixel observer.
+    case screenPermission, waitingForFrame, frameUnavailable
     case paused, settingsChanged, noActiveSpeaker, ambiguousSpeaker, noClockCoverage, providerUnavailable, evidenceUnavailable
     case selfIdentityUnavailable
 
@@ -18,14 +20,14 @@ enum SpeakerObservationIssue: String, Codable, Sendable {
         case .sourceUnavailable: "The recorded Meet document is not readable in the available Chrome windows"
         case .sourceRejected: "Meet source does not match the recording or its privacy settings"
         case .layoutUnavailable: "Participant names are unavailable in this Meet layout"
-        case .screenPermission: "Screen Recording permission is needed for visual indicators"
+        case .screenPermission: "The former screenshot observer lacked Screen Recording permission"
         case .windowChanged, .sourceChanged: "Meet window or selected tab changed during observation"
-        case .waitingForFrame: "Waiting for a fresh participant frame"
-        case .frameUnavailable: "Participant frame capture is unavailable"
+        case .waitingForFrame: "The former screenshot observer was waiting for a fresh frame"
+        case .frameUnavailable: "The former screenshot observer could not capture a frame"
         case .paused: "Speaker observation paused"
         case .settingsChanged: "Speaker observation settings changed"
-        case .noActiveSpeaker: "Waiting for a visible speaker"
-        case .ambiguousSpeaker: "The visible speaking indicator is ambiguous"
+        case .noActiveSpeaker: "Meet is not exposing an explicit speaking label"
+        case .ambiguousSpeaker: "The meeting speaking signal is ambiguous"
         case .noClockCoverage: "Waiting for consecutive observations aligned to recorded audio"
         case .providerUnavailable: "Speaker observation is unavailable"
         case .evidenceUnavailable: "Speaker evidence storage is unavailable"
@@ -57,7 +59,7 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
         if (maximumParticipantCount ?? 0) > 0 {
             return "Participant names were captured, but speaking activity could not be matched to the audio. The names remain available for manual assignment."
         }
-        return "No usable speaker observations were captured. You can name voices in the transcript; processing this recording again cannot recover the missing visual evidence."
+        return "No usable speaker observations were captured. You can name voices in the transcript; processing this recording again cannot recover the missing speaking evidence."
     }
 
     mutating func record(_ issue: SpeakerObservationIssue) {

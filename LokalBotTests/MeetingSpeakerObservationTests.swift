@@ -21,7 +21,7 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         XCTAssertEqual(interval.range.start, 0.02, accuracy: 0.00001)
         XCTAssertEqual(interval.range.end, 0.5, accuracy: 0.00001)
     }
-    func testGapsLayoutsSourcesAndStaleFramesNeverExtendThePriorSpeaker() {
+    func testGapsLayoutsSourcesAndStaleObservationsNeverExtendThePriorSpeaker() {
         let changes = [batch(time: 102), batch(time: 100.5, epoch: "reordered"), batch(time: 100.5, source: "different-tab"), batch(time: 100)]
         for changed in changes {
             var accumulator = SpeakerObservationAccumulator()
@@ -111,33 +111,57 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         XCTAssertFalse(GoogleMeetSpeakerObservationProvider.sameLayout([alice], [changedName]))
     }
 
-    func testCaptureWindowUsesUniqueProcessAndFullFrameInsteadOfCrossAPITitleEquality() {
-        var snapshot = MeetingParticipantSnapshot(processID: 42, title: "Meet - Example - Google Chrome",
-            url: "https://meet.google.com/abc-defg-hij", windowFrame: .init(x: -1200, y: 40, width: 1100, height: 800),
-            tiles: [], hostStart: 100, hostEnd: 100.1)
-        let window = GoogleMeetSpeakerObservationProvider.CaptureWindow(id: 7, processID: 42, frame: snapshot.windowFrame)
-        var unrelated = window; unrelated.id = 8; unrelated.processID = 43
-        XCTAssertEqual(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [unrelated, window]), 7)
-        snapshot.title = "Meet - Example"
-        XCTAssertEqual(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [window]), 7)
-        var rounded = window; rounded.frame.origin.x += 1; rounded.frame.size.height -= 1
-        XCTAssertEqual(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [rounded]), 7)
+    private func snapshot(speaking: Bool?, selfKnown: Bool = true) -> MeetingParticipantSnapshot {
+        .init(processID: 42, title: "Meet", url: "https://meet.google.com/abc-defg-hij",
+            windowFrame: .init(x: 0, y: 0, width: 1100, height: 800),
+            tiles: [.init(name: "Jonathan", frame: .init(x: 10, y: 10, width: 200, height: 150),
+                speaking: speaking, muted: false, isSelf: false)],
+            hostStart: 100, hostEnd: 100.1, selfNames: selfKnown ? ["Alex"] : [])
     }
 
-    func testCaptureWindowRejectsAmbiguousMissingAndDifferentSizedWindows() {
-        let snapshot = MeetingParticipantSnapshot(processID: 42, title: "Meet",
-            url: "https://meet.google.com/abc-defg-hij", windowFrame: .init(x: 0, y: 0, width: 1100, height: 800),
-            tiles: [], hostStart: 100, hostEnd: 100.1)
-        let window = GoogleMeetSpeakerObservationProvider.CaptureWindow(id: 7, processID: 42, frame: snapshot.windowFrame)
-        var duplicate = window; duplicate.id = 8
-        XCTAssertNil(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [window, duplicate]))
-        XCTAssertNil(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: []))
-        var taller = window; taller.frame.size.height += 40
-        XCTAssertNil(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [taller]))
-        var otherProcess = window; otherProcess.processID = 43
-        XCTAssertNil(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [otherProcess]))
-        var moved = window; moved.frame.origin.y += 10
-        XCTAssertNil(GoogleMeetSpeakerObservationProvider.captureWindowID(snapshot: snapshot, windows: [moved]))
+    func testAccessibilityNamesRemainSuggestionsWithoutExplicitSpeakingLabels() {
+        for speaking in [nil, false] as [Bool?] {
+            let batch = GoogleMeetSpeakerObservationProvider.accessibilityBatch(snapshot: snapshot(speaking: speaking), sourceKey: "meet")
+            XCTAssertNil(batch.issue)
+            XCTAssertEqual(batch.participants, [.init(name: "Jonathan", source: .accessibility)])
+            XCTAssertEqual(batch.observations.map(\.active), [false])
+            var accumulator = SpeakerObservationAccumulator()
+            XCTAssertNil(accumulator.consume(batch, clock: clock()))
+            var diagnostics = SpeakerObservationDiagnostics()
+            diagnostics.record(batch, interval: nil)
+            XCTAssertEqual(diagnostics.lastIssue, .noActiveSpeaker)
+            XCTAssertTrue(diagnostics.missingSpeakerNamesExplanation?.contains("manual assignment") == true)
+        }
+    }
+
+    func testExplicitAccessibilityActivityStillRequiresKnownSelfIdentity() {
+        for selfKnown in [true, false] {
+            let batch = GoogleMeetSpeakerObservationProvider.accessibilityBatch(
+                snapshot: snapshot(speaking: true, selfKnown: selfKnown), sourceKey: "meet")
+            XCTAssertEqual(batch.participants, [.init(name: "Jonathan", source: .accessibility)])
+            XCTAssertEqual(batch.observations.map(\.active), [selfKnown])
+            XCTAssertEqual(batch.issue, selfKnown ? nil : .selfIdentityUnavailable)
+            XCTAssertEqual(batch.observations.first?.hostStart ?? 0, 100, accuracy: 0.00001)
+            XCTAssertEqual(batch.observations.first?.hostEnd ?? 0, 100.1, accuracy: 0.00001)
+        }
+    }
+
+    func testAccessibilityBatchPreservesDuplicateMutedAndSharedRoomGuards() {
+        var duplicate = snapshot(speaking: true)
+        var otherTile = duplicate.tiles[0]; otherTile.frame.origin.x += 300
+        duplicate.tiles.append(otherTile)
+        let duplicateBatch = GoogleMeetSpeakerObservationProvider.accessibilityBatch(snapshot: duplicate, sourceKey: "meet")
+        XCTAssertTrue(duplicateBatch.observations.allSatisfy { !$0.unique })
+        XCTAssertEqual(duplicateBatch.participants.count, 1)
+        var room = snapshot(speaking: true)
+        room.tiles[0].sharedRoom = true
+        let roomBatch = GoogleMeetSpeakerObservationProvider.accessibilityBatch(snapshot: room, sourceKey: "meet")
+        XCTAssertEqual(roomBatch.observations.first?.unique, false)
+        var muted = snapshot(speaking: true)
+        muted.tiles[0].muted = true
+        let mutedBatch = GoogleMeetSpeakerObservationProvider.accessibilityBatch(snapshot: muted, sourceKey: "meet")
+        var accumulator = SpeakerObservationAccumulator()
+        XCTAssertNil(accumulator.consume(mutedBatch, clock: clock()))
     }
 
     func testParticipantControlsAndNamesEstablishTilesWithoutPossessiveLabels() {
@@ -149,19 +173,10 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         XCTAssertNil(MeetingParticipantTileResolver.name(ownLabels: [], descendantLabels: ["More options for Alice", "Bob"]))
     }
 
-    func testPersistentNameStripDoesNotRequireHoverControls() {
-        let frame = CGRect(x: 16, y: 78, width: 838, height: 1118)
-        let name = MeetingParticipantTileResolver.VisibleLabel(text: "Jonathan",
-            frame: .init(x: 32, y: 1160, width: 65, height: 20))
-        XCTAssertEqual(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: []), "Jonathan")
-        let initial = MeetingParticipantTileResolver.VisibleLabel(text: "J", frame: .init(x: 410, y: 610, width: 25, height: 50))
-        XCTAssertEqual(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [initial, name], controls: []), "Jonathan")
-        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: ["Call controls"]))
-        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name], controls: ["Jonathan is presenting"]))
-        var heading = name; heading.frame.origin.y = 90
-        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [heading], controls: []))
-        var paragraph = name; paragraph.text = "Quarterly report"; paragraph.frame.origin.y = 500
-        XCTAssertNil(MeetingParticipantTileResolver.nameStrip(frame: frame, labels: [name, paragraph], controls: []))
+    func testUnstructuredTileTextIsNotPromotedWithoutTheRetiredOCRVerification() {
+        XCTAssertNil(MeetingParticipantTileResolver.name(ownLabels: [], descendantLabels: ["Jonathan"]))
+        XCTAssertNil(MeetingParticipantTileResolver.name(ownLabels: ["Jonathan"], descendantLabels: ["J", "Jonathan"]))
+        XCTAssertNil(MeetingParticipantTileResolver.name(ownLabels: ["Presentation"], descendantLabels: ["Quarterly report"]))
     }
 
     func testSelfViewControlsAndRosterSuffixIdentifyTheLocalTile() {
@@ -179,7 +194,7 @@ final class MeetingSpeakerObservationTests: XCTestCase {
     }
 
     func testParticipantPresenceNeverCreatesSpeakingEvidence() {
-        let presence = MeetingParticipantName(name: "Jonathan", source: .ocr)
+        let presence = MeetingParticipantName(name: "Jonathan", source: .accessibility)
         let batch = MeetingSpeakerObservationBatch(sourceKey: "meet", observations: [], participants: [presence])
         var accumulator = SpeakerObservationAccumulator()
         XCTAssertNil(accumulator.consume(batch, clock: clock()))
@@ -187,7 +202,21 @@ final class MeetingSpeakerObservationTests: XCTestCase {
         let merged = MeetingParticipantName.merging([presence], [.init(name: "Jonathan", source: .accessibility, isSelf: true)])
         XCTAssertEqual(merged.count, 1)
         XCTAssertTrue(merged[0].isSelf)
+        XCTAssertEqual(merged[0].source, .accessibility)
+    }
+
+    func testHistoricalOCRNamesAndFrameDiagnosticsStillDecode() throws {
+        let presence = try JSONDecoder().decode(MeetingParticipantName.self,
+            from: Data(#"{"name":"Jonathan","source":"ocr","isSelf":false}"#.utf8))
+        XCTAssertEqual(presence.source, .ocr)
+        let merged = MeetingParticipantName.merging([presence], [.init(name: "Jonathan", source: .accessibility, isSelf: true)])
+        XCTAssertEqual(merged.count, 1)
         XCTAssertEqual(merged[0].source, .ocr)
+        XCTAssertTrue(merged[0].isSelf)
+        for issue in [SpeakerObservationIssue.screenPermission, .waitingForFrame, .frameUnavailable] {
+            XCTAssertEqual(try JSONDecoder().decode(SpeakerObservationIssue.self,
+                from: JSONEncoder().encode(issue)), issue)
+        }
     }
 
     func testNestedTileContainersAreDeduplicatedButDuplicatePeopleRemainAmbiguous() {

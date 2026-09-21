@@ -9,8 +9,6 @@ struct MeetingParticipantTile: Equatable, Sendable {
     var muted: Bool
     var isSelf: Bool
     var sharedRoom = false
-    var requiresNameVerification = false
-    var activityIndicatorFrame: CGRect?
 }
 
 struct MeetingParticipantSnapshot: Sendable {
@@ -183,7 +181,6 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
               let windows = value(application, kAXWindowsAttribute) as? [AXUIElement], windows.contains(where: { CFEqual(window, $0) }) else { return .unavailable(.sourceChanged) }
         var tiles: [MeetingParticipantTile] = []
         var selfNames = Set<String>()
-        var indicators: [String: [CGRect]] = [:]
         for (index, item) in records.enumerated() where item.labels.contains("Participants") {
             for (offset, child) in records.dropFirst(index + 1).prefix(500).enumerated() {
                 if child.depth <= item.depth { break }
@@ -199,15 +196,6 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
                 if let name = MeetingParticipantTileResolver.selfName(rowLabels: child.labels, descendantLabels: rowLabels) {
                     selfNames.insert(name)
                 }
-                let rowNames = Set(child.labels.compactMap(ParticipantObservation.safeName))
-                if rowNames.count == 1, let name = rowNames.first {
-                    for nested in records.dropFirst(index + offset + 2).prefix(30) {
-                        if nested.depth <= child.depth { break }
-                        if nested.labels.contains("Mute \(name)'s microphone"), let rect = nested.frame {
-                            indicators[ParticipantObservation.nameKey(name), default: []].append(rect)
-                        }
-                    }
-                }
             }
         }
         let excludedRegions = records.filter {
@@ -219,26 +207,15 @@ final class MeetingParticipantAccessibilityReader: @unchecked Sendable {
                   tileFrame.width >= 80, tileFrame.height >= 60,
                   !excludedRegions.contains(where: { $0.contains(tileFrame) }) else { continue }
             var labels: [String] = []
-            var visibleLabels: [MeetingParticipantTileResolver.VisibleLabel] = []
             for child in records.dropFirst(index + 1).prefix(100) {
                 if child.depth <= item.depth { break }
                 if child.depth <= item.depth + 6 {
                     labels += child.labels
-                    if child.string(kAXRoleAttribute) == "AXStaticText", let textFrame = child.frame,
-                       let text = child.labels.first {
-                        visibleLabels.append(.init(text: text, frame: textFrame))
-                    }
                 }
             }
-            let structured = MeetingParticipantTileResolver.name(ownLabels: item.labels, descendantLabels: labels)
-            guard let name = structured ?? MeetingParticipantTileResolver.nameStrip(frame: tileFrame,
-                labels: visibleLabels, controls: item.labels + labels) else { continue }
+            guard let name = MeetingParticipantTileResolver.name(ownLabels: item.labels, descendantLabels: labels) else { continue }
             var tile = MeetingParticipantTileResolver.tile(name: name, frame: tileFrame, labels: item.labels + labels)
-            tile.requiresNameVerification = structured == nil
             tile.isSelf = tile.isSelf || selfNames.contains { ParticipantObservation.nameKey($0) == ParticipantObservation.nameKey(name) }
-            if let matches = indicators[ParticipantObservation.nameKey(name)], matches.count == 1 {
-                tile.activityIndicatorFrame = matches.first
-            }
             tiles.append(tile)
         }
         guard RecordingAudioClock.now - start <= observationBudget else { return .unavailable(.accessibilityBudget) }

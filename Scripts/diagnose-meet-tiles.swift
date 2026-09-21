@@ -7,8 +7,7 @@
 // actually exposes right now: document URLs, tile candidates, resolved names,
 // speaking/muted labels, and unmatched groups. No pixels, no ScreenCaptureKit,
 // no network. Output stays in the local file you choose (default /tmp).
-// Persistent name-strip candidates are reported separately: the app must still
-// corroborate them with OCR before retaining them as participant suggestions.
+// Only structured Accessibility labels qualify; there is no screenshot fallback.
 //
 // WARNING: the output contains participant names from your live meeting.
 // Keep it local and delete it when done.
@@ -233,25 +232,6 @@ func tileFlags(name: String, labels: [String]) -> TileFlags {
             || keys.contains("others might see more of your background. click to view your full video."))
 }
 
-func persistentName(frame: CGRect, labels: [(text: String, frame: CGRect)], controls: [String]) -> String? {
-    guard frame.width >= 120, frame.height >= 90,
-          !controls.contains(where: {
-              let key = $0.lowercased()
-              return key.contains("presenting") || key.contains("presentation")
-                || ["call controls", "side panel", "participants", "in the meeting", "leave call", "chat with everyone"].contains(key)
-          }) else { return nil }
-    let visible = labels.filter { frame.contains($0.frame) }
-    let names = Set(visible.compactMap { label -> String? in
-        guard label.frame.minY >= frame.minY + frame.height * 0.75,
-              label.frame.minX <= frame.minX + min(80, frame.width * 0.25),
-              label.frame.height <= 40, label.frame.width < frame.width * 0.85,
-              let name = basicSafeName(label.text), name.rangeOfCharacter(from: .letters) != nil else { return nil }
-        return name
-    })
-    guard names.count == 1, visible.filter({ $0.text.count > 1 }).count == 1 else { return nil }
-    return names.first
-}
-
 // MARK: - Window scan
 
 struct Record {
@@ -391,7 +371,6 @@ var meetWindows = 0
 var totalTiles = 0
 var totalNamed = 0
 var totalSpeakingLabels = 0
-var totalPersistent = 0
 
 for (wIndex, window) in windows.enumerated() {
     let scan = scanWindow(window, config: config)
@@ -405,7 +384,7 @@ for (wIndex, window) in windows.enumerated() {
     let groupRoles = Set(scan.records.map(\.role)).sorted()
 
     // Tile candidates: same role/size filter as the app.
-    var candidates: [(frame: CGRect, own: [String], desc: [String], visible: [(text: String, frame: CGRect)])] = []
+    var candidates: [(frame: CGRect, own: [String], desc: [String])] = []
     let excludedRegions = scan.records.filter {
         $0.labels.contains { ["Side panel", "Left side panel", "Call controls"].contains($0) }
     }.compactMap(\.frame)
@@ -419,22 +398,17 @@ for (wIndex, window) in windows.enumerated() {
               !excludedRegions.contains(where: { $0.contains(tileFrame) })
         else { continue }
         var desc: [String] = []
-        var visible: [(text: String, frame: CGRect)] = []
         for child in scan.records.dropFirst(index + 1).prefix(100) {
             if child.depth <= record.depth { break }
             if child.depth <= record.depth + 6 {
                 desc += child.labels
-                if child.role == "AXStaticText", let textFrame = child.frame, let text = child.labels.first {
-                    visible.append((text, textFrame))
-                }
             }
         }
-        candidates.append((tileFrame, record.labels, desc, visible))
+        candidates.append((tileFrame, record.labels, desc))
     }
     // Innermost dedupe mirrors the app (smallest frame wins per name).
     var tiles: [[String: Any]] = []
     var unmatched: [[String: Any]] = []
-    var persistent: [[String: Any]] = []
     for candidate in candidates.sorted(by: {
         $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
     }) {
@@ -458,10 +432,6 @@ for (wIndex, window) in windows.enumerated() {
                 "descendantLabels": Array(candidate.desc.prefix(20)),
             ])
         } else {
-            if let name = persistentName(frame: candidate.frame, labels: candidate.visible, controls: candidate.own + candidate.desc),
-               !persistent.contains(where: { $0["name"] as? String == name }) {
-                persistent.append(["name": name, "frame": frameString(candidate.frame), "requiresOCR": true])
-            }
             if unmatched.count < 100 {
                 unmatched.append([
                     "role": "tile-candidate",
@@ -474,7 +444,6 @@ for (wIndex, window) in windows.enumerated() {
     }
     totalTiles += candidates.count
     totalNamed += tiles.count
-    totalPersistent += persistent.count
 
     windowDumps.append([
         "index": wIndex,
@@ -489,7 +458,6 @@ for (wIndex, window) in windows.enumerated() {
         "roles": groupRoles,
         "tileCandidates": candidates.count,
         "namedTiles": tiles,
-        "persistentNameCandidates": persistent,
         "unmatchedCandidates": unmatched,
         "buttons": Array(Set(scan.buttons).sorted().prefix(60)),
         "messages": Array(Set(scan.messages).sorted().prefix(60)),
@@ -499,7 +467,6 @@ for (wIndex, window) in windows.enumerated() {
 print("Meet documents found: \(meetWindows)")
 print("Tile candidates: \(totalTiles), named: \(totalNamed), "
     + "with speaking label: \(totalSpeakingLabels)")
-print("Persistent name candidates needing OCR: \(totalPersistent)")
 
 if meetWindows == 0 {
     diagnosis.append("No Meet AXWebArea found: app reports sourceUnavailable. "
@@ -510,15 +477,13 @@ if meetWindows == 0 {
         + "current Meet layout likely uses roles or label patterns outside "
         + "AXGroup/AXImage/AXUnknown + \"X's tile\" / \"Video of X\" / "
         + "\"More options for X\".")
-} else if totalPersistent > 0 {
-    diagnosis.append("Persistent tile names are available without hover controls. The app corroborates these with local OCR; this AX-only diagnostic does not verify pixels or speaking activity.")
 } else if totalNamed == 0 {
     diagnosis.append("Tile-size groups exist but no names resolved: compare "
         + "ownLabels/descendantLabels against the accepted patterns.")
 } else if totalSpeakingLabels == 0 {
-    diagnosis.append("Names resolve but no speaking labels: app falls back to "
-        + "the ScreenCaptureKit frame path, which needs Screen Recording "
-        + "permission and a fresh frame within 0.75s.")
+    diagnosis.append("Names resolve but no explicit speaking labels: names remain "
+        + "available for manual assignment, but this observation cannot name voices "
+        + "automatically. There is no screenshot fallback.")
 }
 
 let output: [String: Any] = [
@@ -528,7 +493,6 @@ let output: [String: Any] = [
     "tileCandidates": totalTiles,
     "namedTiles": totalNamed,
     "speakingLabels": totalSpeakingLabels,
-    "persistentNameCandidates": totalPersistent,
     "diagnosis": diagnosis,
     "windows": windowDumps,
 ]

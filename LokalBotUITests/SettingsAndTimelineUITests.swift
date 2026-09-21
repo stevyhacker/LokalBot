@@ -85,7 +85,7 @@ final class SettingsUITests: XCTestCase {
         UITestHarness.scrollTo(visuals, in: app)
         XCTAssertTrue(visuals.waitForExistence(timeout: 6))
         XCTAssertTrue(remembering.exists)
-        XCTAssertEqual(visuals.label, "Identify speakers from meeting visuals")
+        XCTAssertEqual(visuals.label, "Identify speakers from Google Meet")
         XCTAssertEqual(remembering.label, "Remember speakers on this Mac")
         XCTAssertEqual(String(describing: visuals.value ?? ""), "0")
         XCTAssertEqual(String(describing: remembering.value ?? ""), "0")
