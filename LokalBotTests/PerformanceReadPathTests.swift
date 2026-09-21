@@ -1,8 +1,41 @@
 import XCTest
+import Combine
 @testable import LokalBot
 
 @MainActor
 final class PerformanceReadPathTests: XCTestCase {
+    func testPlaybackTicksDoNotInvalidateTheWorkspacePlayer() {
+        let player = MeetingPlayer()
+        var workspaceUpdates = 0
+        var clockUpdates = 0
+        let workspace = player.objectWillChange.sink { workspaceUpdates += 1 }
+        let clock = player.clock.$currentTime.dropFirst().sink { _ in clockUpdates += 1 }
+        for tick in 1...240 { player.clock.update(to: Double(tick) / 4) }
+        player.clock.update(to: 60)
+        XCTAssertEqual(player.currentTime, 60)
+        XCTAssertEqual(clockUpdates, 240)
+        XCTAssertEqual(workspaceUpdates, 0, "Playback time must not rebuild the meeting detail")
+        withExtendedLifetime((workspace, clock)) {}
+        player.stop()
+        XCTAssertEqual(player.currentTime, 0)
+    }
+
+    func testLongTranscriptNamePreparationBenchmark() {
+        let transcript = Transcript(segments: (0..<5_000).map {
+            .init(start: Double($0), end: Double($0 + 1), speaker: "them \($0 % 20)", text: "An update.")
+        }, engine: "test")
+        let keys = (0..<20).map { "them \($0)" }
+        let start = Date()
+        let previousNames = keys.map { transcript.displaySpeaker(for: $0) }
+        let previousSeconds = Date().timeIntervalSince(start)
+        let cachedStart = Date()
+        let presentation = MeetingSpeakerPresentation(transcript: transcript)
+        let cachedNames = keys.map { presentation.speaker($0, in: transcript) }
+        let cachedSeconds = Date().timeIntervalSince(cachedStart)
+        XCTAssertEqual(previousNames, cachedNames)
+        print("TRANSCRIPT_BENCHMARK rows=5000 speakers=20 repeatedScans=\(previousSeconds)s singleRoster=\(cachedSeconds)s")
+    }
+
     func testOCRIndexMigrationKeepsHistoricalIdentityAndRetention() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -9,6 +9,8 @@ struct MeetingDocumentSnapshot: Sendable {
     var partialProjection: MeetingOutcomeProjection?
     var summary: String?
     var speakerNameHints: [String]
+    var transcriptDisplay: Transcript.DisplayIndex
+    var speakerPresentation: MeetingSpeakerPresentation
 
     static func load(meeting: Meeting, root: URL, template: NoteTemplate, databaseURL: URL) -> Self {
         let folder = root.appendingPathComponent(meeting.relativePath)
@@ -30,6 +32,8 @@ struct MeetingDocumentSnapshot: Sendable {
         return Self(notes: MeetingNotes.load(from: folder), transcript: transcript,
                     partialNotes: partial, partialProjection: projection, summary: summary,
                     speakerNameHints: SpeakerNameHintExtractor.hints(
-                        calendarNames: meeting.resolvedCalendarParticipantIdentities.compactMap(\.name), ocrText: text))
+                        calendarNames: meeting.resolvedCalendarParticipantIdentities.compactMap(\.name), ocrText: text),
+                    transcriptDisplay: Transcript.DisplayIndex(transcript: transcript),
+                    speakerPresentation: MeetingSpeakerPresentation(transcript: transcript))
     }
 }

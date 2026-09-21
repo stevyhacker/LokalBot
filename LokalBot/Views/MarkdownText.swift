@@ -650,10 +650,14 @@ struct SearchHighlightedText: View {
     }
 
     var body: some View {
-        Text(MeetingSearchHighlighting.apply(
-            to: AttributedString(text),
-            query: query,
-            activeMatchIndex: activeMatchIndex))
+        if query.isEmpty {
+            Text(text)
+        } else {
+            Text(MeetingSearchHighlighting.apply(
+                to: AttributedString(text),
+                query: query,
+                activeMatchIndex: activeMatchIndex))
+        }
     }
 }
 

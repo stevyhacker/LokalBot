@@ -3,8 +3,11 @@ import Foundation
 enum SpeakerObservationIssue: String, Codable, Sendable {
     case chromeUnavailable, unboundBackgroundWindow, screenUnavailable, accessibilityPermission
     case accessibilityBusy, accessibilityTimeout, accessibilityBudget, sourceUnavailable, sourceRejected
-    case layoutUnavailable, screenPermission, windowChanged, waitingForFrame, frameUnavailable, sourceChanged
+    case layoutUnavailable, windowChanged, sourceChanged
+    // Decode historical diagnostics without requiring the retired pixel observer.
+    case screenPermission, waitingForFrame, frameUnavailable
     case paused, settingsChanged, noActiveSpeaker, ambiguousSpeaker, noClockCoverage, providerUnavailable, evidenceUnavailable
+    case selfIdentityUnavailable
 
     var explanation: String {
         switch self {
@@ -17,17 +20,18 @@ enum SpeakerObservationIssue: String, Codable, Sendable {
         case .sourceUnavailable: "The recorded Meet document is not readable in the available Chrome windows"
         case .sourceRejected: "Meet source does not match the recording or its privacy settings"
         case .layoutUnavailable: "Participant names are unavailable in this Meet layout"
-        case .screenPermission: "Screen Recording permission is needed for visual indicators"
+        case .screenPermission: "The former screenshot observer lacked Screen Recording permission"
         case .windowChanged, .sourceChanged: "Meet window or selected tab changed during observation"
-        case .waitingForFrame: "Waiting for a fresh participant frame"
-        case .frameUnavailable: "Participant frame capture is unavailable"
+        case .waitingForFrame: "The former screenshot observer was waiting for a fresh frame"
+        case .frameUnavailable: "The former screenshot observer could not capture a frame"
         case .paused: "Speaker observation paused"
         case .settingsChanged: "Speaker observation settings changed"
-        case .noActiveSpeaker: "Waiting for a visible speaker"
-        case .ambiguousSpeaker: "The visible speaking indicator is ambiguous"
+        case .noActiveSpeaker: "Meet is not exposing an explicit speaking label"
+        case .ambiguousSpeaker: "The meeting speaking signal is ambiguous"
         case .noClockCoverage: "Waiting for consecutive observations aligned to recorded audio"
         case .providerUnavailable: "Speaker observation is unavailable"
         case .evidenceUnavailable: "Speaker evidence storage is unavailable"
+        case .selfIdentityUnavailable: "Names are available; your Meet tile must be identified before automatic naming"
         }
     }
 }
@@ -41,6 +45,7 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
     var intervals = 0
     var coveredSeconds: Double = 0
     var visualObservationAttempts: Int?
+    var maximumParticipantCount: Int?
     var issues: [String: Int] = [:]
     var lastIssue: SpeakerObservationIssue?
 
@@ -51,7 +56,10 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
                               .waitingForFrame, .frameUnavailable].reduce(0) { $0 + issues[$1.rawValue, default: 0] }
         guard (visualObservationAttempts ?? legacyAttempts) > 0, observations > 0,
               intervals == 0, coveredSeconds == 0 else { return nil }
-        return "No usable speaker observations were captured. You can name voices in the transcript; processing this recording again cannot recover the missing visual evidence."
+        if (maximumParticipantCount ?? 0) > 0 {
+            return "Participant names were captured, but speaking activity could not be matched to the audio. The names remain available for manual assignment."
+        }
+        return "No usable speaker observations were captured. You can name voices in the transcript; processing this recording again cannot recover the missing speaking evidence."
     }
 
     mutating func record(_ issue: SpeakerObservationIssue) {
@@ -63,6 +71,7 @@ struct SpeakerObservationDiagnostics: Codable, Equatable, Sendable {
         observations += 1
         visualObservationAttempts = (visualObservationAttempts ?? 0) + (visual ? 1 : 0)
         maximumTileCount = max(maximumTileCount, batch.observations.count)
+        maximumParticipantCount = max(maximumParticipantCount ?? 0, batch.participants.count)
         if !batch.observations.isEmpty { batchesWithTiles += 1 }
         if let issue = batch.issue { record(issue) } else if batch.reason != nil { record(.providerUnavailable) } else if let interval {
             intervals += 1

@@ -45,6 +45,10 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         try await store().observationDiagnostics(meeting: meeting, retentionDays: settings().retentionDays)
     }
 
+    func participants(for meeting: Meeting) async throws -> [MeetingParticipantName] {
+        try await store().participants(meeting: meeting, retentionDays: settings().retentionDays)
+    }
+
     nonisolated static func audioRevision(url: URL) throws -> String {
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }

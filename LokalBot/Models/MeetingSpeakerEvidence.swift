@@ -57,11 +57,35 @@ struct SpeakerActivityInterval: Codable, Equatable, Sendable {
     var layoutEpoch: String
 }
 
+/// Presence is a manual name suggestion, never evidence that this person spoke.
+struct MeetingParticipantName: Codable, Equatable, Identifiable, Sendable {
+    // OCR remains decodable for names retained by earlier app versions.
+    enum Source: String, Codable, Sendable { case accessibility, ocr }
+    var name: String
+    var source: Source
+    var isSelf = false
+    var id: String { ParticipantObservation.nameKey(name) }
+
+    static func merging(_ existing: [Self], _ incoming: [Self]) -> [Self] {
+        var names = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for var item in incoming {
+            guard let safe = ParticipantObservation.safeName(item.name) else { continue }
+            item.name = safe
+            if let prior = names[item.id] {
+                item.isSelf = item.isSelf || prior.isSelf
+                if prior.source == .ocr { item.source = .ocr }
+            }
+            names[item.id] = item
+        }
+        return Array(names.values.sorted { $0.id < $1.id }.prefix(60))
+    }
+}
+
 struct MeetingSpeakerEvidenceSession: Codable, Sendable {
     var schemaVersion = 1
     var meetingID: UUID
     var generation: UUID
-    var provider = "google-meet-chrome-v2"
+    var provider = "google-meet-chrome-ax-v1"
     var openedAt = Date()
     var sealed = false
     var failed = false
@@ -69,6 +93,7 @@ struct MeetingSpeakerEvidenceSession: Codable, Sendable {
     var intervals: [SpeakerActivityInterval] = []
     var clockSpans: [AudioClockSpan] = []
     var diagnostics: SpeakerObservationDiagnostics?
+    var participants: [MeetingParticipantName]?
 }
 
 struct MeetingSpeakerEvidenceChunk: Codable, Sendable {
@@ -96,7 +121,7 @@ struct SpeakerNameMatch: Codable, Equatable, Identifiable, Sendable {
 
     var explanation: String {
         switch source {
-        case .visual: "Matched meeting visuals across \(independentTurns) speaking turns"
+        case .visual: "Matched meeting speaker activity across \(independentTurns) speaking turns"
         case .profile: "Matched a remembered voice across \(independentTurns) speaking turns"
         }
     }

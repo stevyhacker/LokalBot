@@ -1,8 +1,22 @@
 import Foundation
 
 /// Read participant identity from the tile's own accessible label or from a
-/// matching name + participant control. Generic OCR/page text is insufficient.
+/// matching name + participant control. Generic page text is insufficient.
 enum MeetingParticipantTileResolver {
+    static func selfName(_ label: String) -> String? {
+        for suffix in [" (You)", " (you)"] where label.hasSuffix(suffix) {
+            return ParticipantObservation.safeName(String(label.dropLast(suffix.count)))
+        }
+        return nil
+    }
+
+    static func selfName(rowLabels: [String], descendantLabels: [String]) -> String? {
+        let labels = rowLabels + descendantLabels
+        if let combined = labels.compactMap(selfName).first { return combined }
+        guard labels.contains("(You)") || labels.contains("(you)") else { return nil }
+        let names = Set(rowLabels.compactMap(ParticipantObservation.safeName))
+        return names.count == 1 ? names.first : nil
+    }
     static func name(ownLabels: [String], descendantLabels: [String]) -> String? {
         let direct = Set(ownLabels.compactMap { MeetingParticipantAccessibilityReader.tileName(description: $0) })
         if direct.count == 1 { return direct.first }
@@ -34,7 +48,9 @@ enum MeetingParticipantTileResolver {
         return MeetingParticipantTile(name: name, frame: frame,
             speaking: speaking && !silent ? true : silent ? false : nil,
             muted: keys.contains("\(key)'s microphone is off") || keys.contains("microphone off") || keys.contains("microphone is off"),
-            isSelf: keys.contains("your tile") || keys.contains("you") || keys.contains("\(key) (you)"),
+            isSelf: keys.contains("your tile") || keys.contains("you") || keys.contains("\(key) (you)")
+                || keys.contains("reframe") || keys.contains("backgrounds and effects")
+                || keys.contains("others might see more of your background. click to view your full video."),
             sharedRoom: keys.contains(where: { $0.contains("paired") || $0.contains("conference room") || $0 == "meeting room" })
                 || key.range(of: #"\b(room|boardroom)\b| & | and "#, options: .regularExpression) != nil)
     }

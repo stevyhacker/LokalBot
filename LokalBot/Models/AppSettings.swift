@@ -359,6 +359,7 @@ struct AppSettings: Codable, Equatable {
     /// of post-processing per meeting.
     var multiSpeakerDiarization: Bool = true
     /// Independently opted-in local Meet observation; never enables Day Memory.
+    /// The legacy persisted key is retained; observation is now Accessibility-only.
     var identifySpeakersFromVisuals: Bool = false
     /// User-confirmed voices only. No automatic enrollment from inferred names.
     var rememberSpeakersOnMac: Bool = false

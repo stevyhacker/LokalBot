@@ -111,6 +111,25 @@ actor MeetingSpeakerEvidenceStore {
         try write(session, at: url)
     }
 
+    func recordParticipants(_ participants: [MeetingParticipantName], meeting: Meeting, generation: UUID) throws {
+        try checkMeeting(meeting)
+        guard !erasedEvidence.contains(meeting.id), sessions[meeting.id]?.generation == generation else { throw Failure.stale }
+        let url = evidenceFolder(meeting).appendingPathComponent("session.sealed")
+        guard var session = try read(MeetingSpeakerEvidenceSession.self, at: url),
+              session.generation == generation, session.providerVerified else { throw Failure.stale }
+        let merged = MeetingParticipantName.merging(session.participants ?? [], participants)
+        if merged != session.participants {
+            session.participants = merged
+            try write(session, at: url)
+        }
+    }
+
+    func participants(meeting: Meeting, retentionDays: Int) throws -> [MeetingParticipantName] {
+        guard let session = try retainedSession(meeting: meeting, retentionDays: retentionDays),
+              session.providerVerified, !session.failed else { return [] }
+        return session.participants ?? []
+    }
+
     private func retainedSession(meeting: Meeting, retentionDays: Int) throws -> MeetingSpeakerEvidenceSession? {
         try checkMeeting(meeting)
         guard sessions[meeting.id] == nil else { return nil }

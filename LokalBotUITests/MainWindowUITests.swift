@@ -755,6 +755,37 @@ final class MainWindowUITests: XCTestCase {
         }, "calendar attendee was not saved as the speaker alias")
     }
 
+    func testLongTranscriptSpeakerNameStaysInsideItsColumn() {
+        openLibrary()
+        selectMeeting(fixture.designReview)
+        UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
+        let speaker = app.buttons["transcript.segment.1.speaker"]
+        UITestHarness.scrollTo(speaker, in: app)
+        XCTAssertTrue(speaker.waitForExistence(timeout: 3))
+        speaker.click()
+        let name = app.textFields["speaker.rename.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.click()
+        name.typeKey("a", modifierFlags: .command)
+        let longName = "Alexandria Montgomery-Wellington"
+        name.typeText(longName)
+        identified("speaker.rename.save").click()
+        XCTAssertTrue(UITestHarness.waitUntil { speaker.label == longName })
+        let text = app.staticTexts["transcript.segment.1.text"]
+        XCTAssertTrue(text.waitForExistence(timeout: 3))
+        XCTAssertLessThanOrEqual(speaker.frame.width, 133)
+        XCTAssertLessThanOrEqual(speaker.frame.maxX + 8, text.frame.minX)
+        XCTAssertGreaterThan(text.frame.width, 100)
+        let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        screenshot.name = "transcript-long-speaker-name"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        speaker.click()
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        XCTAssertEqual(name.value as? String, longName)
+        app.sheets.firstMatch.buttons["Cancel"].click()
+    }
+
     /// Frequent processing actions stay direct, while copy/export and speech
     /// utilities remain available in one clearly labelled overflow.
     func testMeetingProcessingActionsAreDirectToolbarButtons() {
