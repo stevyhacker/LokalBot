@@ -539,6 +539,7 @@ final class RedesignUITests: XCTestCase {
         add(hierarchy)
         var types: XCUIAccessibilityAuditType = [.sufficientElementDescription, .action]
         if includeContrast { types.insert(.contrast) }
+        let verifiedText = includeContrast && contrastBounds == nil ? try verifyRecallExplanationContrast() : []
         try app.performAccessibilityAudit(for: types) { issue in
             guard let affected = issue.element, affected.exists else { return false }
             if issue.auditType == .contrast {
@@ -552,6 +553,10 @@ final class RedesignUITests: XCTestCase {
                    content.descendants(matching: affected.elementType).matching(NSPredicate(
                     format: "identifier == %@ AND label == %@", affected.identifier, affected.label)).count > 0,
                    !content.frame.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
+                // macOS 15's audit flags these labels even at measured 14:1
+                // contrast. Suppress only after checking their rendered pixels
+                // in this appearance; a faint or empty label still fails.
+                if verifiedText.contains(affected.label) { return true }
             }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch
@@ -562,6 +567,63 @@ final class RedesignUITests: XCTestCase {
             return systemPicker.exists && systemPicker.frame == affected.frame
         }
     }
+
+    private func verifyRecallExplanationContrast() throws -> Set<String> {
+        let labels = [
+            "Find an answer in indexed meetings and permitted screen text, with sources. Asking is read-only.",
+            "Search meeting titles, transcripts, summaries, and permitted screen text without asking the model.",
+        ]
+        var verified = Set<String>()
+        for label in labels {
+            let text = app.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            guard text.exists, app.windows.firstMatch.frame.contains(text.frame) else { continue }
+            let screenshot = text.screenshot()
+            let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
+            let ratio = try renderedTextContrast(bitmap)
+            let evidence = XCTAttachment(screenshot: screenshot)
+            evidence.name = "recall-explanation-contrast-\(String(format: "%.2f", ratio))"
+            evidence.lifetime = .keepAlways
+            add(evidence)
+            XCTAssertGreaterThanOrEqual(ratio, 4.5, "Rendered explanation must meet 4.5:1: \(label)")
+            if ratio >= 4.5 { verified.insert(label) }
+        }
+        return verified
+    }
+
+    /// Only for the plain, single-color text labels above. The dominant color
+    /// is the background; the most repeated remaining color is the glyph fill.
+    /// Minimum sample counts reject blank captures and isolated dark pixels.
+    private func renderedTextContrast(_ bitmap: NSBitmapImageRep) throws -> Double {
+        let pixels = bitmap.pixelsWide * bitmap.pixelsHigh
+        let bytes = UnsafeMutablePointer<UInt8>.allocate(capacity: pixels * 4)
+        bytes.initialize(repeating: 0, count: pixels * 4)
+        defer { bytes.deallocate() }
+        let colorSpace = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        let context = try XCTUnwrap(CGContext(
+            data: bytes, width: bitmap.pixelsWide, height: bitmap.pixelsHigh,
+            bitsPerComponent: 8, bytesPerRow: bitmap.pixelsWide * 4, space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
+        context.draw(try XCTUnwrap(bitmap.cgImage),
+                     in: CGRect(x: 0, y: 0, width: bitmap.pixelsWide, height: bitmap.pixelsHigh))
+        var counts: [Int: Int] = [:]
+        for offset in stride(from: 0, to: pixels * 4, by: 4) {
+            let rgb = (Int(bytes[offset]) << 16) | (Int(bytes[offset + 1]) << 8) | Int(bytes[offset + 2])
+            counts[rgb, default: 0] += 1
+        }
+        let background = try XCTUnwrap(counts.max { $0.value < $1.value })
+        let foreground = try XCTUnwrap(counts.filter { $0.key != background.key }.max { $0.value < $1.value })
+        XCTAssertGreaterThan(background.value, pixels / 2, "Expected a uniform label background")
+        XCTAssertGreaterThanOrEqual(foreground.value, max(20, pixels / 100), "Expected a supported glyph fill")
+        func luminance(_ rgb: Int) -> Double {
+            let channels = [Double((rgb >> 16) & 255), Double((rgb >> 8) & 255), Double(rgb & 255)]
+                .map { $0 / 255 }
+                .map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
+            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+        }
+        let first = luminance(background.key), second = luminance(foreground.key)
+        return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+    }
+
     private func snapshot(_ name: String) {
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         attachment.name = name
