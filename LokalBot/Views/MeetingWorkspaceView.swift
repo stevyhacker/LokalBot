@@ -1435,7 +1435,10 @@ private struct MeetingWorkspaceHeader: View {
                 .accessibilityIdentifier("detail.title")
             let items = meetingWorkspaceMetadataItems(for: meeting)
             ViewThatFits(in: .horizontal) {
-                metadataRow(items).fixedSize(horizontal: true, vertical: false)
+                // Use a stable width threshold, so a longer app or date label
+                // cannot move the player and tabs when selecting a meeting.
+                metadataRow(items).frame(minWidth: 600, alignment: .leading)
+                    .fixedSize(horizontal: true, vertical: false)
                 VStack(alignment: .leading, spacing: 6) {
                     metadataRow(Array(items.prefix(2)))
                     metadataRow(Array(items.dropFirst(2)))

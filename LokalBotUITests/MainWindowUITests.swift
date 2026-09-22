@@ -924,10 +924,11 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(askRetrievalSegment("Ask").exists, "Ask segment missing")
         XCTAssertTrue(identified("ask.searchMatching").exists,
                       "Exact/meaning search menu missing")
-        XCTAssertFalse(identified("ask.sources").exists,
-                       "Ask scopes should not masquerade as search facets")
-        XCTAssertLessThan(field.frame.minY, askFrame.minY,
-                          "Search should move its query to the top")
+        XCTAssertTrue(identified("ask.sources").exists,
+                      "Search must retain the same source scope as Ask")
+        XCTAssertTrue(identified("ask.timeScope").exists)
+        XCTAssertEqual(field.frame.minY, askFrame.minY, accuracy: 1,
+                       "Switching modes must preserve the input position")
         XCTAssertGreaterThanOrEqual(field.frame.minX, app.windows.firstMatch.frame.minX)
         XCTAssertLessThanOrEqual(field.frame.maxX, app.windows.firstMatch.frame.maxX)
     }
