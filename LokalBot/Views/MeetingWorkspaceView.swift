@@ -2218,7 +2218,7 @@ struct EvidencePill: View {
                     .foregroundStyle(.tint)
             }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.primary)
         }
         .buttonStyle(.borderless)
         .help(citation.excerpt)

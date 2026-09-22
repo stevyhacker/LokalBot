@@ -257,6 +257,7 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
             XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
             try auditWorkspaceAccessibility(includeContrast: true)
+            snapshot("meeting-review-owners-\(appearance)")
             let refresh = app.buttons["meeting.review.refresh"]
             UITestHarness.scrollTo(refresh, in: app, within: app.scrollViews["meeting.content.scroll"])
             XCTAssertTrue(refresh.isHittable)
