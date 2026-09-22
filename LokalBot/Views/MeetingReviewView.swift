@@ -38,6 +38,7 @@ struct MeetingSpeakerReviewSection: View {
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Review speakers")
         .accessibilityIdentifier("meeting.review.speakers")
     }
 

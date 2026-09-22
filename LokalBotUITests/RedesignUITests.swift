@@ -258,6 +258,10 @@ final class RedesignUITests: XCTestCase {
             UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
             XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
+            app.buttons["ask.sources"].click()
+            XCTAssertTrue(app.checkBoxes["Screen"].waitForExistence(timeout: 3))
+            try auditWorkspaceAccessibility(includeContrast: true)
+            app.typeKey(.escape, modifierFlags: [])
             snapshot("recall-accessibility-\(appearance)")
         }
     }

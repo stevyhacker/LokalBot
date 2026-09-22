@@ -56,6 +56,7 @@ private struct AskContent: View {
         nonmutating set { app.recallState.screenApp = newValue }
     }
     @State private var screenApps: [String] = []
+    @State private var sourceScopePresented = false
     private var pinnedScreens: [ScreenAskContext] {
         get { app.recallState.pins }
         nonmutating set { app.recallState.pins = newValue }
@@ -384,30 +385,44 @@ private struct AskContent: View {
     }
 
     private var sourceScopeControl: some View {
-        Menu {
+        Button { sourceScopePresented.toggle() } label: {
+            Label(sourceSummary, systemImage: "square.stack.3d.up")
+        }
+        .fixedSize()
+        .help("Choose which local sources LokalBot may use")
+        .accessibilityLabel("Sources")
+        .accessibilityValue(sourceSummary)
+        .accessibilityIdentifier("ask.sources")
+        .popover(isPresented: $sourceScopePresented) { sourceScopePopover }
+    }
+
+    private var sourceScopePopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sources").font(WorkspaceTypography.sectionTitle)
             ForEach(AskSourceScope.allCases) { source in
-                Button {
-                    toggleSource(source)
-                } label: {
-                    Label(source.displayName,
-                          systemImage: sources.contains(source) ? "checkmark" : source.icon)
+                Toggle(isOn: Binding(
+                    get: { sources.contains(source) },
+                    set: { _ in toggleSource(source) })) {
+                    Label(source.displayName, systemImage: source.icon)
                 }
+                .toggleStyle(.checkbox)
+                .accessibilityLabel(source.displayName)
                 .disabled(
                     (sources.contains(source) && sources.count == 1)
                         || (source == .screen && !pinnedScreens.isEmpty))
             }
             Divider()
             Button {
+                sourceScopePresented = false
                 app.openSettings(tab: .privacy)
             } label: {
                 Label("Manage source permissions…", systemImage: "gearshape")
             }
-        } label: {
-            Label(sourceSummary, systemImage: "square.stack.3d.up")
         }
-        .fixedSize()
-        .help("Choose which local sources LokalBot may use")
-        .accessibilityIdentifier("ask.sources")
+        .padding(16)
+        .frame(width: 280)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Source selection")
     }
 
     private var sourceSummary: String {

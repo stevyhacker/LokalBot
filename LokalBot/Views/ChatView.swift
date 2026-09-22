@@ -876,7 +876,11 @@ private struct ConversationListContent: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(historySections, id: \.title) { section in
-                        Section(section.title) {
+                        Group {
+                            Text(section.title)
+                                .font(WorkspaceTypography.metadataEmphasis)
+                                .workspaceTextRole(.metadata)
+                                .accessibilityAddTraits(.isHeader)
                             ForEach(section.conversations) { conversation in
                                 row(conversation)
                                     .tag(conversation.id)
@@ -904,6 +908,7 @@ private struct ConversationListContent: View {
         // Ask label.
         .navigationTitle("Ask")
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Conversation history")
         .accessibilityIdentifier("chat.conversationList")
         .alert(
             "Delete Question?",
@@ -1016,19 +1021,22 @@ private struct ConversationListContent: View {
     private func row(_ conversation: Conversation) -> some View {
         let title = ChatViewModel.displayTitle(for: conversation)
         let timestamp = historyTimestamp(conversation.updatedAt)
-        return VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(WorkspaceTypography.rowTitle)
-                .lineLimit(1)
-            Text(timestamp)
-                .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+        return Button { model.select(conversation.id) } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(WorkspaceTypography.rowTitle)
+                    .lineLimit(1)
+                Text(timestamp)
+                    .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 5)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 5)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .ignore)
+        .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityValue(timestamp)
+        .accessibilityAddTraits(model.currentID == conversation.id ? .isSelected : [])
     }
 
     private func historyTimestamp(_ date: Date) -> String {

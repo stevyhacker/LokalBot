@@ -223,6 +223,7 @@ struct TimelineContextPanel: View {
                             }
                         }
                         .accessibilityElement(children: .contain)
+                        .accessibilityLabel("Documents and windows")
                         .accessibilityIdentifier("timeline.session.titleEvidence")
                     }
                 }
