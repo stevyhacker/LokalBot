@@ -38,20 +38,20 @@ enum WorkspaceTypography {
     static let display = Font.system(size: 22, weight: .bold)
     static let pageTitle = Font.system(size: 20, weight: .bold)
     static let sectionTitle = Font.system(size: 15, weight: .semibold)
-    static let body = Font.system(size: 14, weight: .regular)
-    static let bodyEmphasis = Font.system(size: 14, weight: .semibold)
+    static let body = Font.system(size: 15, weight: .regular)
+    static let bodyEmphasis = Font.system(size: 15, weight: .semibold)
     /// Ask is a dense reading surface rather than a presentation page. Its
     /// question and answer hierarchy stays compact without shrinking titles
     /// elsewhere in the app.
     static let conversationTitle = Font.system(size: 17, weight: .semibold)
     static let editorialSectionTitle = Font.system(size: 14, weight: .semibold)
-    static let editorialBody = Font.system(size: 13, weight: .regular)
-    static let editorialBodyEmphasis = Font.system(size: 13, weight: .semibold)
+    static let editorialBody = Font.system(size: 14, weight: .regular)
+    static let editorialBodyEmphasis = Font.system(size: 14, weight: .semibold)
     static let rowTitle = Font.system(size: 14, weight: .semibold)
     static let control = Font.system(size: 13, weight: .medium)
-    static let metadata = Font.system(size: 12, weight: .regular)
-    static let metadataEmphasis = Font.system(size: 12, weight: .semibold)
-    static let overline = Font.system(size: 10, weight: .semibold)
+    static let metadata = Font.system(size: 13, weight: .regular)
+    static let metadataEmphasis = Font.system(size: 13, weight: .semibold)
+    static let overline = Font.system(size: 12, weight: .semibold)
 }
 
 enum WorkspaceMetric {
@@ -115,11 +115,11 @@ private struct WorkspaceTextRoleModifier: ViewModifier {
         case .metadata:
             content
                 .font(WorkspaceTypography.metadata)
-                .foregroundStyle(Color.secondary)
+                .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.supporting))
         case .supporting:
             content
                 .font(WorkspaceTypography.editorialBody)
-                .foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
+                .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.supporting))
         case .trust:
             content
                 .font(WorkspaceTypography.editorialBody)
@@ -127,8 +127,25 @@ private struct WorkspaceTextRoleModifier: ViewModifier {
         case .warning:
             content
                 .font(WorkspaceTypography.editorialBody)
-                .foregroundStyle(Brand.error)
+                .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.warning))
         }
+    }
+}
+
+/// Opaque supporting text stays legible on both window and inset surfaces.
+/// Unlike tertiary/opacity-based labels, it does not fade with nested styling.
+enum WorkspaceTextColor {
+    static let supporting = NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return NSColor(srgbRed: dark ? 0.76 : 0.34,
+                       green: dark ? 0.76 : 0.34,
+                       blue: dark ? 0.76 : 0.34, alpha: 1)
+    }
+
+    static let warning = NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return dark ? NSColor(srgbRed: 0.95, green: 0.70, blue: 0.34, alpha: 1)
+                    : NSColor(srgbRed: 0.50, green: 0.25, blue: 0.06, alpha: 1)
     }
 }
 

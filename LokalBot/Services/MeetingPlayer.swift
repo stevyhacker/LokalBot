@@ -41,6 +41,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
 
     private var players: [AVAudioPlayer] = []
     private var ticker: Timer?
+    private var excerptEnd: TimeInterval?
     private var loadGeneration = 0
 
     /// Use exactly the tracks and gains that loaded successfully for playback.
@@ -107,6 +108,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
     }
 
     func play(at time: TimeInterval? = nil) {
+        excerptEnd = nil
         guard !players.isEmpty else { return }
         if let time {
             setPlayheads(to: time)
@@ -127,12 +129,20 @@ final class MeetingPlayer: NSObject, ObservableObject {
         startTicker()
     }
 
+    /// Review a bounded voice sample without continuing through the meeting.
+    func playExcerpt(from start: TimeInterval, to end: TimeInterval) {
+        guard start.isFinite, end.isFinite, start >= 0, end > start, start < duration else { return }
+        play(at: start)
+        excerptEnd = min(end, duration)
+    }
+
     /// Push the current `speed` to every player (live rate change).
     private func applySpeed() {
         for player in players where player.enableRate { player.rate = speed }
     }
 
     func pause() {
+        excerptEnd = nil
         for player in players { player.pause() }
         isPlaying = false
         stopTicker()
@@ -148,6 +158,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
     }
 
     func stop() {
+        excerptEnd = nil
         loadGeneration &+= 1
         for player in players { player.stop() }
         players = []
@@ -170,6 +181,11 @@ final class MeetingPlayer: NSObject, ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self, let timelinePlayer = self.timelinePlayer else { return }
                 self.currentTime = min(timelinePlayer.currentTime, self.duration)
+                if let end = self.excerptEnd, self.currentTime >= end {
+                    self.pause()
+                    self.setPlayheads(to: end)
+                    self.currentTime = end
+                }
             }
         }
     }

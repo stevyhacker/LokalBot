@@ -134,6 +134,9 @@ private struct MeetingWorkspaceDetail: View {
     @State private var evidenceSegment: Int?
     @State private var evidenceRevision = 0
     @State private var correction: ActionCorrectionDraft?
+    @State private var correctionError: String?
+    @State private var reviewSpeakers: [MeetingSpeakerReviewItem] = []
+    @State private var returningToReview = false
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
     @State private var observedParticipants: [MeetingParticipantName] = []
@@ -168,6 +171,7 @@ private struct MeetingWorkspaceDetail: View {
         _transcript = State(initialValue: document.transcript)
         _transcriptDisplay = State(initialValue: document.transcriptDisplay)
         _speakerPresentation = State(initialValue: document.speakerPresentation)
+        _reviewSpeakers = State(initialValue: MeetingSpeakerReviewItem.items(in: document.transcript))
         _summary = State(initialValue: document.summary)
         _partialNotes = State(initialValue: document.partialNotes)
         _partialProjection = State(initialValue: document.partialProjection)
@@ -207,12 +211,18 @@ private struct MeetingWorkspaceDetail: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     meetingOverviewContent
-                    Picker("Meeting content", selection: Binding(get: { tab }, set: { tab = $0 })) {
-                        ForEach(MeetingWorkspaceTab.allCases) { Text($0.rawValue).tag($0) }
+                    if returningToReview && tab == .transcript {
+                        Button("Back to speaker and action review") {
+                            tab = .review
+                            returningToReview = false
+                        }
+                        .accessibilityIdentifier("meeting.review.return")
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .accessibilityIdentifier("meeting.contentTabs")
+                    ViewThatFits(in: .horizontal) {
+                        contentTabPicker.pickerStyle(.segmented)
+                            .fixedSize(horizontal: true, vertical: false)
+                        contentTabPicker.pickerStyle(.menu)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, WorkspaceMetric.pagePadding)
@@ -225,6 +235,7 @@ private struct MeetingWorkspaceDetail: View {
                         case .overview: overviewContent
                         case .summary: summarySection
                         case .transcript: transcriptSection
+                        case .review: speakerAndActionReview
                         case .notes:
                             MeetingNotesEditor(meeting: meeting, searchQuery: visibleSearchQuery, activeMatchIndex: activeOccurrence(at: .notes)) {
                                 notes = $0
@@ -266,6 +277,8 @@ private struct MeetingWorkspaceDetail: View {
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
                 transcriptExpanded = true
                 tab = .transcript
+            } else if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "review" {
+                tab = .review
             }
 #endif
             await load()
@@ -291,14 +304,23 @@ private struct MeetingWorkspaceDetail: View {
                     + "\(app.meetingPageSearchRequestRevision) id=\(meeting.id)")
         }
         .sheet(item: $correction) { draft in
-            ActionCorrectionSheet(draft: draft) { text, owner, due in
-                _ = app.outcomeIndex.correctAction(
+            ActionCorrectionSheet(
+                draft: draft,
+                ownerSuggestions: reviewSpeakers.filter(\.isNamed).map(\.name),
+                error: correctionError
+            ) { text, owner, due in
+                let saved = app.outcomeIndex.correctAction(
                     actionID: draft.actionID,
                     meetingID: meeting.id,
                     text: text == draft.originalText ? nil : text,
                     owner: owner,
                     due: due)
-                correction = nil
+                if saved {
+                    correction = nil
+                    correctionError = nil
+                } else {
+                    correctionError = app.outcomeIndex.lastError ?? "The correction could not be saved. Please try again."
+                }
             } onCancel: { correction = nil }
         }
         .sheet(item: $speakerRenameDraft) { draft in
@@ -313,7 +335,7 @@ private struct MeetingWorkspaceDetail: View {
                 rememberingEnabled: app.settings.rememberSpeakersOnMac,
                 notice: speakerIdentityNotice,
                 busy: savingSpeakerIdentity,
-                onPlay: { player.play(at: $0) },
+                onPlay: { player.playExcerpt(from: $0, to: $0 + 12) },
                 onAction: { action, name, remember, profileID in
                     performSpeakerChoice(.init(label: draft.speaker, name: name,
                         action: action, remember: remember, profileID: profileID,
@@ -367,6 +389,7 @@ private struct MeetingWorkspaceDetail: View {
                     Button("Copy Summary", action: copySummary).disabled(summary?.isEmpty != false)
                     Button("Copy Transcript", action: copyTranscript).disabled(transcript?.segments.isEmpty != false)
                 }.accessibilityIdentifier("meeting.export")
+                    .accessibilityLabel("Export meeting")
             }
 
             ToolbarItem(placement: .primaryAction) {
@@ -414,6 +437,7 @@ private struct MeetingWorkspaceDetail: View {
                     Label("More Meeting Actions", systemImage: "ellipsis.circle")
                 }
                 .accessibilityIdentifier("toolbar.meetingActions")
+                .accessibilityLabel("More meeting actions")
             }
         }
         .accessibilityElement(children: .contain)
@@ -430,6 +454,14 @@ private struct MeetingWorkspaceDetail: View {
             let count = meeting.mergedSourceMeetingIDs?.count ?? 0
             Text("Remove this merged meeting and restore \(count) original meetings? Their source folders will stay intact.")
         }
+    }
+
+    private var contentTabPicker: some View {
+        Picker("Meeting content", selection: Binding(get: { tab }, set: { tab = $0 })) {
+            ForEach(MeetingWorkspaceTab.allCases) { Text($0.rawValue).tag($0) }
+        }
+        .labelsHidden()
+        .accessibilityIdentifier("meeting.contentTabs")
     }
 
     @ViewBuilder private var meetingOverviewContent: some View {
@@ -465,13 +497,17 @@ private struct MeetingWorkspaceDetail: View {
                 Text("Verified notes and actions are saved below. Actions become editable when the notes finish.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-        } else if speakerSummaryNeedsRefresh || MeetingAttributionArtifacts.needsRefresh(in: folder) {
-            HStack {
-                Text("Transcript or speaker details changed. Refresh the notes and action owners.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("Refresh summary") { app.reprocess(meeting, transcribe: false, summarize: true) }
-                    .controlSize(.small)
+        } else if notesNeedRefresh && tab != .review {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Transcript or speaker details changed", systemImage: "exclamationmark.triangle")
+                    .font(WorkspaceTypography.bodyEmphasis)
+                Text("Review speakers and action owners, then refresh the derived notes.")
+                    .workspaceTextRole(.trust)
+                Button("Review speakers and follow-ups") { tab = .review }
+                    .accessibilityIdentifier("meeting.review.open")
             }
+            .padding(12).workspaceControl()
+            .accessibilityIdentifier("meeting.notes.stale")
         }
         if let unmatched = projection?.state.unmatchedActions, !unmatched.isEmpty {
             DisclosureGroup("Review \(unmatched.count) unmatched action edits") {
@@ -497,7 +533,10 @@ private struct MeetingWorkspaceDetail: View {
                 Spacer(minLength: 0)
                 Menu("Name speakers") {
                     ForEach(unnamedRemoteSpeakers, id: \.self) { speaker in
-                        Button(transcript?.displaySpeaker(for: speaker) ?? speaker) { beginRenameSpeaker(speaker) }
+                        Button(transcript?.displaySpeaker(for: speaker) ?? speaker) {
+                            tab = .review
+                            beginRenameSpeaker(speaker)
+                        }
                     }
                 }
                 .controlSize(.small)
@@ -515,7 +554,7 @@ private struct MeetingWorkspaceDetail: View {
                     Text(explanation).font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
-                Button("Review speakers") { tab = .transcript; transcriptExpanded = true }
+                Button("Review speakers") { tab = .review }
                     .controlSize(.small)
                     .accessibilityIdentifier("meeting.reviewSpeakers")
             }
@@ -533,6 +572,33 @@ private struct MeetingWorkspaceDetail: View {
                 icon: "speaker.slash",
                 location: .speechError)
         }
+    }
+
+    private var notesNeedRefresh: Bool {
+        speakerSummaryNeedsRefresh || MeetingAttributionArtifacts.needsRefresh(in: folder)
+    }
+
+    private var speakerAndActionReview: some View {
+        VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
+            MeetingSpeakerReviewSection(
+                speakers: reviewSpeakers, canPlay: player.isLoaded,
+                onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
+                onReview: beginRenameSpeaker)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("2. Review action owners").font(WorkspaceTypography.sectionTitle)
+                Text("These are all actions from this meeting. Only actions assigned to you appear in My actions. Select an owner to correct it; use a timestamp to inspect the source.")
+                    .workspaceTextRole(.supporting)
+                actionItemsSection
+            }
+            MeetingNotesRefreshSection(
+                needsRefresh: notesNeedRefresh,
+                hasNotes: summary?.isEmpty == false,
+                isProcessing: app.pipeline.stages[meeting.id].map { !$0.isFailure } ?? false,
+                canRefresh: transcript?.segments.isEmpty == false && partialNotes == nil,
+                settings: app.settings,
+                onRefresh: { app.reprocess(meeting, transcribe: false, summarize: true) })
+        }
+        .accessibilityIdentifier("meeting.review")
     }
 
     private func processingStageContent(
@@ -631,6 +697,7 @@ private struct MeetingWorkspaceDetail: View {
                                     meetingID: meeting.id)
                             },
                             onCorrect: {
+                                correctionError = nil
                                 correction = ActionCorrectionDraft(reference: reference)
                             },
                             onEvidence: { citation in
@@ -933,6 +1000,7 @@ private struct MeetingWorkspaceDetail: View {
         transcript = document.transcript
         transcriptDisplay = document.transcriptDisplay
         speakerPresentation = document.speakerPresentation
+        reviewSpeakers = MeetingSpeakerReviewItem.items(in: document.transcript)
         partialNotes = document.partialNotes
         partialProjection = document.partialProjection
         summary = document.summary
@@ -946,6 +1014,7 @@ private struct MeetingWorkspaceDetail: View {
         transcript = value
         transcriptDisplay = Transcript.DisplayIndex(transcript: value)
         speakerPresentation = MeetingSpeakerPresentation(transcript: value)
+        reviewSpeakers = MeetingSpeakerReviewItem.items(in: value)
     }
 
     private func consumeMeetingSeek() {
@@ -956,6 +1025,7 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func revealEvidence(at seconds: TimeInterval) {
+        if tab == .review { returningToReview = true }
         transcriptExpanded = true
         tab = .transcript
         player.pause()
@@ -1363,16 +1433,24 @@ private struct MeetingWorkspaceHeader: View {
                 .id(MeetingPageSearchMatch.Location.title)
                 .font(WorkspaceTypography.display)
                 .accessibilityIdentifier("detail.title")
-            HStack(spacing: 7) {
-                ForEach(meetingWorkspaceMetadataItems(for: meeting), id: \.field) { item in
-                    MeetingSearchChip(
-                        icon: item.icon,
-                        text: item.text,
-                        searchQuery: searchQuery,
-                        activeMatchIndex: activeOccurrence(
-                            at: .meetingMetadata(item.field)),
-                        location: .meetingMetadata(item.field))
+            let items = meetingWorkspaceMetadataItems(for: meeting)
+            ViewThatFits(in: .horizontal) {
+                metadataRow(items).fixedSize(horizontal: true, vertical: false)
+                VStack(alignment: .leading, spacing: 6) {
+                    metadataRow(Array(items.prefix(2)))
+                    metadataRow(Array(items.dropFirst(2)))
                 }
+            }
+        }
+    }
+
+    private func metadataRow(_ items: [MeetingWorkspaceMetadataItem]) -> some View {
+        HStack(spacing: 7) {
+            ForEach(items, id: \.field) { item in
+                MeetingSearchChip(
+                    icon: item.icon, text: item.text, searchQuery: searchQuery,
+                    activeMatchIndex: activeOccurrence(at: .meetingMetadata(item.field)),
+                    location: .meetingMetadata(item.field))
             }
         }
     }
@@ -1483,6 +1561,8 @@ private struct OutcomeActionRow: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("meeting.action.toggle.\(reference.action.id)")
+            .accessibilityLabel(reference.status == .done ? "Reopen action" : "Mark action done")
+            .accessibilityValue(reference.text)
             .disabled(!isEditable)
             VStack(alignment: .leading, spacing: 5) {
                 SearchHighlightedText(
@@ -1509,6 +1589,8 @@ private struct OutcomeActionRow: View {
                         .buttonStyle(.plain)
                         .font(WorkspaceTypography.metadataEmphasis)
                         .foregroundStyle(.secondary)
+                        .accessibilityLabel("Correct owner: \(displayOwner ?? "Owner unclear")")
+                        .accessibilityIdentifier("meeting.action.owner.\(reference.action.id)")
                         .disabled(!isEditable)
                     if let due = reference.due {
                         MeetingSearchChip(
@@ -1554,6 +1636,7 @@ private struct OutcomeActionRow: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             .accessibilityIdentifier("meeting.action.status.\(reference.action.id)")
+            .accessibilityLabel("Options for action: \(reference.text)")
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
@@ -1635,6 +1718,8 @@ private struct ActionCorrectionDraft: Identifiable {
 
 private struct ActionCorrectionSheet: View {
     @State var draft: ActionCorrectionDraft
+    var ownerSuggestions: [String] = []
+    var error: String?
     let onSave: (String, String, String) -> Void
     let onCancel: () -> Void
 
@@ -1647,19 +1732,25 @@ private struct ActionCorrectionSheet: View {
                 Spacer()
                 Menu(draft.owner.isEmpty ? "Unassigned" : draft.owner) {
                     Button("Me") { draft.owner = "Me" }
+                    ForEach(Array(Set(ownerSuggestions)).sorted(), id: \.self) { owner in
+                        Button(owner) { draft.owner = owner }
+                    }
                     Button("Unresolved speaker") { draft.owner = "Unresolved speaker" }
                     Button("Unassigned") { draft.owner = "" }
                 }
             }
             TextField("Owner", text: $draft.owner)
+                .accessibilityIdentifier("meeting.action.correction.owner")
             TextField("Due date as agreed", text: $draft.due)
             Text("This correction is stored separately from the extracted source.")
                 .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+            if let error { Text(error).workspaceTextRole(.warning) }
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
                 Button("Save correction") { onSave(draft.text, draft.owner, draft.due) }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("meeting.action.correction.save")
             }
         }
         .padding(WorkspaceMetric.sectionGap)

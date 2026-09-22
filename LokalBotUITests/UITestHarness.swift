@@ -171,6 +171,14 @@ enum UITestHarness {
         let picker = app.descendants(matching: .any)[pickerIdentifier]
         XCTAssertTrue(picker.waitForExistence(timeout: 8),
                       "segmented picker \(pickerIdentifier) missing", file: file, line: line)
+        let compactPicker = app.popUpButtons[pickerIdentifier]
+        if compactPicker.exists {
+            compactPicker.click()
+            let item = app.menuItems[name]
+            XCTAssertTrue(item.waitForExistence(timeout: 3), file: file, line: line)
+            item.click()
+            return
+        }
         let segment = segment(name, pickerIdentifier: pickerIdentifier, in: app)
         XCTAssertTrue(segment.waitForExistence(timeout: 4),
                       "segment \(name) missing", file: file, line: line)

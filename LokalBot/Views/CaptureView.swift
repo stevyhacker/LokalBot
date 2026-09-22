@@ -266,6 +266,7 @@ struct TimelineContentView: View {
                 TimelineWorkspaceHeader(
                     model: model,
                     showsContextToggle: usesDrawer,
+                    usesCompactHeader: proxy.size.width < 1_000,
                     contextPresented: $contextDrawerPresented)
                 Divider()
 
@@ -296,12 +297,13 @@ struct TimelineContentView: View {
                 } else {
                     HSplitView {
                         TimelineContextPanel(model: model, onDismiss: nil)
-                            .frame(minWidth: 340, idealWidth: 520, maxWidth: WorkspaceMetric.readingMaxWidth)
-                            .splitPaneAccessibilityLabel("Timeline evidence")
+                            .frame(minWidth: WorkspaceMetric.timelineContextMinWidth, idealWidth: 520, maxWidth: WorkspaceMetric.readingMaxWidth)
+                            .splitPaneAccessibilityLabel("Timeline evidence", autosaveName: "LokalBot.timeline")
                         CaptureDayView(model: model, onOpenContext: {})
                             .frame(minWidth: 360, idealWidth: 460, maxWidth: .infinity)
                             .splitPaneAccessibilityLabel("Day timeline")
                     }
+                    .id("workspace.timeline")
                 }
             }
             .animation(
@@ -380,6 +382,7 @@ private struct TimelineWorkspaceHeader: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
     let showsContextToggle: Bool
+    let usesCompactHeader: Bool
     @Binding var contextPresented: Bool
 
     var body: some View {
@@ -387,25 +390,20 @@ private struct TimelineWorkspaceHeader: View {
         let sessions = model.workSessions
         let active = sessions.reduce(0) { $0 + $1.activeDuration }
         VStack(alignment: .leading, spacing: 10) {
-            if showsContextToggle {
-                HStack(spacing: 8) {
-                    dayControls
-                    Spacer(minLength: 8)
-                    contextToggle
-                }
-                HStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    askButton
-                    regenerateButton
-                    digestActions
+            if usesCompactHeader {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        dayControls.fixedSize()
+                        Spacer(minLength: 8)
+                        if showsContextToggle { contextToggle }
+                    }
+                    digestControls
                 }
             } else {
                 HStack(spacing: 8) {
-                    dayControls
+                    dayControls.fixedSize()
                     Spacer(minLength: 12)
-                    askButton
-                    regenerateButton
-                    digestActions
+                    digestControls.fixedSize()
                 }
             }
 
@@ -416,6 +414,14 @@ private struct TimelineWorkspaceHeader: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    private var digestControls: some View {
+        HStack(spacing: 8) {
+            askButton
+            regenerateButton
+            digestActions
+        }
     }
 
     private var dayControls: some View {
@@ -729,7 +735,7 @@ private struct TimelineWorkSessionRow: View {
                     if let context = secondaryContext {
                         Text(context)
                             .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
                 }
@@ -774,13 +780,13 @@ private struct TimelineWorkSessionRow: View {
     }
 
     private var secondaryContext: String? {
-        let otherTitles = session.notableTitles.filter { $0 != session.title }.prefix(2)
-        guard !otherTitles.isEmpty else {
+        let remaining = max(0, session.notableTitles.count - 2)
+        guard !session.notableTitles.isEmpty else {
             return session.contextSwitchCount > 0
                 ? "\(session.contextSwitchCount) context switch\(session.contextSwitchCount == 1 ? "" : "es")"
                 : nil
         }
-        return otherTitles.joined(separator: " · ")
+        return remaining > 0 ? "Window titles · \(remaining) more in evidence" : "From captured window titles"
     }
 
     private func timeRange(start: Date, end: Date) -> some View {
@@ -788,7 +794,7 @@ private struct TimelineWorkSessionRow: View {
             Text(start.formatted(date: .omitted, time: .shortened))
                 .foregroundStyle(.primary)
             Text(end.formatted(date: .omitted, time: .shortened))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
         }
         .font(WorkspaceTypography.metadata.monospacedDigit())
         .frame(width: 60, alignment: .trailing)

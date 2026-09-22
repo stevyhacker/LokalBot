@@ -6,21 +6,25 @@ import SwiftUI
 /// replacing the native split view, its children, or its keyboard behavior.
 private struct SplitPaneAccessibility: NSViewRepresentable {
     let label: String
+    var autosaveName: String?
 
     func makeNSView(context: Context) -> PaneAnchor {
         let anchor = PaneAnchor()
         anchor.setAccessibilityElement(false)
         anchor.label = label
+        anchor.autosaveName = autosaveName
         return anchor
     }
 
     func updateNSView(_ anchor: PaneAnchor, context: Context) {
         anchor.label = label
+        anchor.autosaveName = autosaveName
         anchor.updatePaneLabel()
     }
 
     final class PaneAnchor: NSView {
         var label = ""
+        var autosaveName: String?
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -42,6 +46,13 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
                 var child: NSView = self
                 while let parent = child.superview {
                     if let split = parent as? NSSplitView {
+                        // HSplitView's idealWidth is only a layout proposal.
+                        // Give each workspace its own native divider storage;
+                        // never borrow a sibling workspace's split position.
+                        if let name = self.autosaveName,
+                           split.autosaveName != name {
+                            split.autosaveName = name
+                        }
                         child.setAccessibilityLabel(self.label)
                         // NSSplitView exposes pane proxies separately from
                         // its arranged NSViews. The proxy, rather than the
@@ -64,7 +75,7 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
 }
 
 extension View {
-    func splitPaneAccessibilityLabel(_ label: String) -> some View {
-        background { SplitPaneAccessibility(label: label) }
+    func splitPaneAccessibilityLabel(_ label: String, autosaveName: String? = nil) -> some View {
+        background { SplitPaneAccessibility(label: label, autosaveName: autosaveName) }
     }
 }

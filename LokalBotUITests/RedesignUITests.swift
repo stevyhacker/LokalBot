@@ -30,6 +30,7 @@ final class RedesignUITests: XCTestCase {
             ("actions", ["LOKALBOT_INITIAL_ACTIONS": "1"]),
             ("meeting", ["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"]),
             ("transcript", ["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0", "LOKALBOT_DETAIL_TAB": "transcript"]),
+            ("review", ["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0", "LOKALBOT_DETAIL_TAB": "review"]),
             ("timeline", ["LOKALBOT_INITIAL_SECTION": "timeline"]),
             ("search", ["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search", "LOKALBOT_INITIAL_SEARCH": "failover"]),
             ("ask", ["LOKALBOT_INITIAL_SECTION": "ask"]),
@@ -93,6 +94,7 @@ final class RedesignUITests: XCTestCase {
         let anchors = [
             "today": "today.dayDigest.text", "actions": "actions.search",
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
+            "review": "meeting.review.speakers",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
             "ask": "ask.submit", "settings": "settings.retention", "models": "models.overview",
             "dictation": "dictation.form", "agent": "agent.composer",
@@ -108,7 +110,7 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(element("capture.meeting.\(fixture.designReview.id.uuidString)").exists,
                           "Capture must include the seeded meeting")
         }
-        if route == "meeting" || route == "transcript" {
+        if ["meeting", "transcript", "review"].contains(route) {
             let title = element("detail.title")
             let expectedTitle = fixture.designReview.title
             XCTAssertTrue(UITestHarness.waitUntil(timeout: 5) {
@@ -141,6 +143,142 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(element("ask.selectedEvidence").exists)
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists)
         snapshot("bounded-ask-draft")
+    }
+
+    func testRecallKeepsInputScopeAndHistoryInPlaceAcrossModes() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
+        let input = app.textFields["search.field"]
+        XCTAssertTrue(input.waitForExistence(timeout: 5))
+        let inputFrame = input.frame
+        let sourcesFrame = element("ask.sources").frame
+        let dateFrame = element("ask.timeScope").frame
+        let historyFrame = element("chat.conversationList").frame
+        let sourceLabel = element("ask.sources").label
+        let dateLabel = element("ask.timeScope").label
+
+        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
+        XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
+        XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
+        XCTAssertEqual(element("ask.sources").frame.minY, sourcesFrame.minY, accuracy: 1)
+        XCTAssertEqual(element("ask.timeScope").frame.minY, dateFrame.minY, accuracy: 1)
+        XCTAssertEqual(element("chat.conversationList").frame.width, historyFrame.width, accuracy: 1)
+        input.click(); input.typeText("failover")
+        XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
+        XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1, "Results must not relocate the input")
+        XCTAssertEqual(element("ask.sources").label, sourceLabel)
+        XCTAssertEqual(element("ask.timeScope").label, dateLabel)
+        snapshot("search-stable-input")
+
+        UITestHarness.selectSegment("Ask", pickerIdentifier: "ask.retrieval", in: app)
+        XCTAssertEqual(input.value as? String, "failover")
+        XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
+        XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
+        XCTAssertEqual(element("ask.sources").label, sourceLabel)
+        XCTAssertEqual(element("ask.timeScope").label, dateLabel)
+        XCTAssertFalse(app.staticTexts["chat.message.user"].exists, "Switching modes must not submit the query")
+    }
+
+    func testRecallDividerRestoresAfterVisitingOtherWorkspaces() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+        let history = element("chat.conversationList")
+        XCTAssertTrue(history.waitForExistence(timeout: 5))
+        let originalWidth = history.frame.width
+        let divider = history.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 0.5))
+        let resizeDelta: CGFloat = originalWidth > 280 ? -45 : 45
+        divider.press(forDuration: 0.2, thenDragTo: divider.withOffset(CGVector(dx: resizeDelta, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(history.frame.width - originalWidth) > 20 },
+                      "The test must exercise a user-resized divider")
+        let chosenWidth = history.frame.width
+        for section in ["sidebar.timeline", "sidebar.meetings", "sidebar.settings"] {
+            UITestHarness.clickSidebar(section, in: app)
+            UITestHarness.clickSidebar("sidebar.ask", in: app)
+            XCTAssertTrue(history.waitForExistence(timeout: 5))
+            XCTAssertTrue(UITestHarness.waitUntil { abs(history.frame.width - chosenWidth) <= 2 },
+                          "Recall width changed after visiting \(section)")
+        }
+        snapshot("recall-restored-divider")
+    }
+
+    func testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
+                    "LOKALBOT_DETAIL_TAB": "review"])
+        let speaker = app.buttons["meeting.review.speaker.them"]
+        XCTAssertTrue(speaker.waitForExistence(timeout: 5))
+        let listen = app.buttons["meeting.review.listen.them"]
+        XCTAssertTrue(UITestHarness.waitUntil { listen.isEnabled })
+        listen.click()
+        let transport = element("meeting.audioPlayer")
+        XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3))
+        XCTAssertTrue(UITestHarness.waitUntil(timeout: 15) { transport.buttons["Play"].exists },
+                      "A review excerpt must stop instead of continuing through the meeting")
+        speaker.click()
+        let candidate = element("speaker.rename.calendarCandidate.0")
+        XCTAssertTrue(candidate.waitForExistence(timeout: 3))
+        candidate.click()
+        element("speaker.rename.save").click()
+        XCTAssertTrue(UITestHarness.waitUntil { speaker.label.contains("Ana Petrović") })
+        XCTAssertTrue(element("meeting.review").exists, "Naming a speaker must return to the review")
+
+        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
+        UITestHarness.scrollTo(owner, in: app)
+        owner.click()
+        let field = app.textFields["meeting.action.correction.owner"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Ana Petrović")
+        app.buttons["meeting.action.correction.save"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("Ana Petrović") })
+
+        let evidence = app.buttons["Jump to evidence at 00:00:35"]
+        UITestHarness.scrollTo(evidence, in: app)
+        XCTAssertTrue(evidence.exists)
+        evidence.click()
+        XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
+        app.buttons["meeting.review.return"].click()
+        let refresh = app.buttons["meeting.review.refresh"]
+        UITestHarness.scrollTo(refresh, in: app)
+        XCTAssertTrue(refresh.isEnabled)
+        XCTAssertTrue(UITestHarness.staticText(containing: "Notes need a refresh", in: app).exists)
+        XCTAssertTrue(UITestHarness.staticText(containing: "Refreshing processes the transcript on this Mac", in: app).exists)
+        XCTAssertTrue(owner.label.contains("Ana Petrović"), "Evidence navigation must preserve the correction")
+        snapshot("meeting-review-ready-to-refresh")
+    }
+
+    func testReviewAndSearchAccessibilityInBothAppearances() throws {
+        for appearance in ["light", "dark"] {
+            try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
+                        "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": appearance])
+            XCTAssertTrue(element("meeting.review.speakers").waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true)
+            let owner = app.buttons["meeting.action.owner.fixture-action-design-1"]
+            UITestHarness.scrollTo(owner, in: app)
+            XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
+            XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
+            try auditWorkspaceAccessibility(includeContrast: true)
+            UITestHarness.clickSidebar("sidebar.ask", in: app)
+            UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
+            XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true)
+            snapshot("recall-accessibility-\(appearance)")
+        }
+    }
+
+    func testTimelineTitleHasInspectableEvidenceAndReturnsToSession() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+        let session = app.buttons["timeline.session.1"]
+        XCTAssertTrue(session.waitForExistence(timeout: 5))
+        XCTAssertTrue(session.label.contains("TimelineView.swift"))
+        session.click()
+        let titles = element("timeline.session.titleEvidence")
+        XCTAssertTrue(titles.waitForExistence(timeout: 5))
+        let disclosure = titles.disclosureTriangles.firstMatch
+        XCTAssertTrue(disclosure.exists)
+        disclosure.click()
+        app.buttons["timeline.titleSource.1"].click()
+        XCTAssertTrue(element("timeline.activityPreview").waitForExistence(timeout: 5))
+        XCTAssertTrue(UITestHarness.staticText(containing: "TimelineView.swift", in: app).exists)
+        app.buttons["Back to work session"].click()
+        XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
+        snapshot("timeline-inspectable-title-evidence")
     }
 
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
@@ -345,7 +483,7 @@ final class RedesignUITests: XCTestCase {
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
-    private func auditWorkspaceAccessibility() throws {
+    private func auditWorkspaceAccessibility(includeContrast: Bool = false) throws {
         // Report every app issue. The hosted virtual Mac also exposes a
         // system-generated Touch Bar and its Emoji picker outside our window;
         // neither is an app-owned control or a usable hosted input surface.
@@ -355,7 +493,9 @@ final class RedesignUITests: XCTestCase {
         hierarchy.name = "workspace-accessibility-hierarchy"
         hierarchy.lifetime = .keepAlways
         add(hierarchy)
-        try app.performAccessibilityAudit(for: [.sufficientElementDescription, .action]) { issue in
+        var types: XCUIAccessibilityAuditType = [.sufficientElementDescription, .action]
+        if includeContrast { types.insert(.contrast) }
+        try app.performAccessibilityAudit(for: types) { issue in
             guard let affected = issue.element, affected.exists else { return false }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch

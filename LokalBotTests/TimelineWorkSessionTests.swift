@@ -64,7 +64,7 @@ final class TimelineWorkSessionTests: XCTestCase {
         ])
 
         XCTAssertEqual(sessions.first?.primaryApp, "Xcode")
-        XCTAssertEqual(sessions.first?.title, "Xcode and Safari")
+        XCTAssertEqual(sessions.first?.title, "CaptureView.swift · Tests")
         XCTAssertEqual(sessions.first?.notableTitles.first, "CaptureView.swift")
     }
 
@@ -114,5 +114,75 @@ final class TimelineWorkSessionTests: XCTestCase {
         XCTAssertEqual(items.count, 2)
         if case .work = items[0] {} else { XCTFail("work session should be first") }
         if case .meeting = items[1] {} else { XCTFail("meeting should be second") }
+    }
+
+    func testSustainedNewDocumentStartsANewSegmentWithoutLosingEvidence() {
+        let input = [
+            block(1, app: "Xcode", title: "Vault.swift", start: 0, end: 900),
+            block(2, app: "Slack", title: "#team", start: 900, end: 960),
+            block(3, app: "Preview", title: "Resume.pdf", start: 960, end: 1_560),
+        ]
+        let sessions = TimelineWorkSession.sessions(from: input)
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertEqual(sessions[0].blocks.map(\.id), [1, 2])
+        XCTAssertEqual(sessions[1].title, "Resume.pdf")
+        XCTAssertEqual(sessions.flatMap(\.blocks).map(\.id), input.map(\.id))
+        XCTAssertEqual(sessions.reduce(0) { $0 + $1.activeDuration }, 1_560)
+    }
+
+    func testBriefInterruptionsDoNotFragmentDocumentWork() {
+        let sessions = TimelineWorkSession.sessions(from: [
+            block(1, app: "Xcode", title: "Vault.swift", start: 0, end: 900),
+            block(2, app: "Slack", title: "#team", start: 900, end: 960),
+            block(3, app: "Xcode", title: "Vault.swift", start: 960, end: 1_800),
+        ])
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertEqual(sessions[0].titleEvidence[0].title, "Vault.swift")
+        XCTAssertEqual(sessions[0].titleEvidence[0].blocks.map(\.id), [1, 3])
+        XCTAssertEqual(sessions[0].titleEvidence[0].duration, 1_740)
+    }
+
+    func testContinuousFourHourDayUsesBoundedSegmentsAtSourceBoundaries() {
+        let input: [ActivityBlock] = (0..<240).map { (minute: Int) -> ActivityBlock in
+            let start = TimeInterval(minute) * 60
+            return block(Int64(minute), app: "Xcode", title: "Vault.swift", start: start, end: start + 60)
+        }
+        let sessions = TimelineWorkSession.sessions(from: input)
+        XCTAssertEqual(sessions.count, 6)
+        XCTAssertTrue(sessions.allSatisfy { $0.end.timeIntervalSince($0.start) <= 45 * 60 })
+        XCTAssertEqual(sessions.flatMap(\.blocks).map(\.id), input.map(\.id))
+        XCTAssertEqual(sessions.reduce(0) { $0 + $1.activeDuration }, 4 * 60 * 60)
+    }
+
+    func testOverlappingEvidenceIsNotSplitOrDoubleCountedAtDurationBoundary() {
+        let sessions = TimelineWorkSession.sessions(from: [
+            block(1, app: "Xcode", title: "Vault.swift", start: 0, end: 3_600),
+            block(2, app: "Preview", title: "Resume.pdf", start: 2_800, end: 4_000),
+            block(3, app: "Safari", title: "Docs", start: 4_000, end: 4_300),
+        ])
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertEqual(sessions[0].blocks.map(\.id), [1, 2])
+        XCTAssertEqual(sessions.reduce(0) { $0 + $1.activeDuration }, 4_300)
+    }
+
+    func testTitleEvidencePreservesDistinctLongTitlesAndOriginalWindowNames() {
+        let prefix = String(repeating: "Document ", count: 15)
+        let first = prefix + "A", second = prefix + "B"
+        let sessions = TimelineWorkSession.sessions(from: [
+            block(1, app: "Google Chrome", title: first + " - Google Chrome", start: 0, end: 60),
+            block(2, app: "Google Chrome", title: second + " - Google Chrome", start: 60, end: 120),
+        ])
+        XCTAssertEqual(sessions[0].titleEvidence.map(\.title), [first, second])
+        XCTAssertEqual(sessions[0].titleEvidence[0].blocks[0].title, first + " - Google Chrome")
+    }
+
+    func testTitleRankingUsesUniqueObservedTimeForOverlappingEvidence() {
+        let sessions = TimelineWorkSession.sessions(from: [
+            block(1, app: "Preview", title: "Resume.pdf", start: 0, end: 300),
+            block(2, app: "Preview", title: "Resume.pdf", start: 10, end: 300),
+            block(3, app: "Xcode", title: "Vault.swift", start: 300, end: 800),
+        ])
+        XCTAssertEqual(sessions[0].title, "Vault.swift · Resume.pdf")
+        XCTAssertEqual(sessions[0].titleEvidence.map(\.duration), [500, 300])
     }
 }
