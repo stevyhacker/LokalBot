@@ -615,11 +615,16 @@ final class RedesignUITests: XCTestCase {
         let foreground = try XCTUnwrap(counts.filter { $0.key != background.key }.max { $0.value < $1.value })
         XCTAssertGreaterThan(background.value, pixels / 2, "Expected a uniform label background")
         XCTAssertGreaterThanOrEqual(foreground.value, max(20, pixels / 100), "Expected a supported glyph fill")
+        func linear(_ byte: Int) -> Double {
+            let value = Double(byte) / 255.0
+            if value <= 0.04045 { return value / 12.92 }
+            return pow((value + 0.055) / 1.055, 2.4)
+        }
         func luminance(_ rgb: Int) -> Double {
-            let channels = [Double((rgb >> 16) & 255), Double((rgb >> 8) & 255), Double(rgb & 255)]
-                .map { $0 / 255 }
-                .map { $0 <= 0.04045 ? $0 / 12.92 : pow(($0 + 0.055) / 1.055, 2.4) }
-            return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+            let red = linear((rgb >> 16) & 255)
+            let green = linear((rgb >> 8) & 255)
+            let blue = linear(rgb & 255)
+            return red * 0.2126 + green * 0.7152 + blue * 0.0722
         }
         let first = luminance(background.key), second = luminance(foreground.key)
         return (max(first, second) + 0.05) / (min(first, second) + 0.05)
