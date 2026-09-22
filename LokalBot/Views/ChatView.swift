@@ -938,7 +938,7 @@ private struct ConversationListContent: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(Brand.teal)
+            .foregroundStyle(.primary)
             .frame(minHeight: 28)
             .keyboardShortcut("n", modifiers: [.command])
             .help("Start a new question")
