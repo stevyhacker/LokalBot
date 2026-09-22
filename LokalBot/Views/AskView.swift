@@ -967,7 +967,8 @@ private struct AskContent: View {
                 .foregroundStyle(.primary)
             VStack(spacing: 10) {
                 Text("Find an answer in indexed meetings and permitted screen text, with sources. Asking is read-only.")
-                    .workspaceTextRole(.supporting)
+                    .font(WorkspaceTypography.editorialBody)
+                    .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 400)
                 if inferenceState.isBlocked {
@@ -1016,7 +1017,8 @@ private struct AskContent: View {
             Text(matchByMeaning
                 ? "Find meetings and permitted screen text that mean what you type, even when the words differ."
                 : "Search meeting titles, transcripts, summaries, and permitted screen text without asking the model.")
-                .workspaceTextRole(.supporting)
+                .font(WorkspaceTypography.editorialBody)
+                .foregroundStyle(Color.primary)
                 .multilineTextAlignment(.center)
         }
         .padding(24)
