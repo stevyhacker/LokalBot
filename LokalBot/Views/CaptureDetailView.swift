@@ -8,6 +8,7 @@ struct TimelineContextPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
     let onDismiss: (() -> Void)?
+    @State private var expandedTitles: Set<String> = []
 
     @ViewBuilder
     var body: some View {
@@ -196,7 +197,10 @@ struct TimelineContextPanel: View {
                             Text("These are captured window titles. Expand a title to inspect the activity behind it.")
                                 .workspaceTextRole(.supporting)
                             ForEach(session.titleEvidence) { evidence in
-                                DisclosureGroup {
+                                WorkspaceDisclosure(isExpanded: Binding(
+                                    get: { expandedTitles.contains(evidence.id) },
+                                    set: { if $0 { expandedTitles.insert(evidence.id) } else { expandedTitles.remove(evidence.id) } }),
+                                    identifier: "timeline.titleDisclosure.\(evidence.id)", style: .compact) {
                                     ForEach(evidence.blocks) { block in
                                         Button {
                                             model.selection = block.id
@@ -216,7 +220,7 @@ struct TimelineContextPanel: View {
                                 } label: {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Text(evidence.title).font(WorkspaceTypography.bodyEmphasis)
-                                        Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity blocks")
+                                        Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity \(evidence.blocks.count == 1 ? "block" : "blocks")")
                                             .workspaceTextRole(.supporting)
                                     }
                                 }

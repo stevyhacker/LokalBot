@@ -60,6 +60,7 @@ struct WorkspaceMenu: NSViewRepresentable {
         button.isEnabled = isEnabled
         button.setAccessibilityLabel(label ?? title)
         button.setAccessibilityTitle(label ?? title)
+        button.setAccessibilityValue(title)
         button.setAccessibilityIdentifier(identifier)
         button.toolTip = label ?? title
     }
@@ -105,8 +106,19 @@ struct PopoverAccessibilityLabel: NSViewRepresentable {
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
         override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); labelWindow() }
         func labelWindow() {
-            window?.setAccessibilityLabel(label)
-            window?.title = label
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window = self.window else { return }
+                window.setAccessibilityLabel(self.label)
+                window.title = self.label
+                // AppKit inserts a separate group around the SwiftUI content.
+                // Name that boundary too so entering the popover is meaningful.
+                for child in window.accessibilityChildren() ?? [] {
+                    guard let group = child as? any NSAccessibilityProtocol,
+                          group.accessibilityRole() == .group else { continue }
+                    group.setAccessibilityLabel(self.label)
+                    group.setAccessibilityTitle(self.label)
+                }
+            }
         }
     }
 }

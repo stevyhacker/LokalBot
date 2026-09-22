@@ -248,7 +248,7 @@ private struct AskContent: View {
         let canSubmit = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !model.isResponding
 
-        return HStack(alignment: .center, spacing: 10) {
+        return HStack(alignment: .top, spacing: 10) {
             TextField(
                 "Search or ask about your work…",
                 text: queryBinding,
@@ -256,7 +256,7 @@ private struct AskContent: View {
                 .textFieldStyle(.plain)
                 .font(WorkspaceTypography.body)
                 .lineLimit(1...3)
-                .frame(minWidth: 60, maxWidth: .infinity)
+                .frame(minWidth: 60, maxWidth: .infinity, minHeight: 32, alignment: .topLeading)
                 .focused($inputFocused)
                 .onSubmit { submitQuery() }
                 .accessibilityLabel("Question or search")
@@ -273,11 +273,11 @@ private struct AskContent: View {
                 .accessibilityIdentifier("chat.stop")
             }
             submitButton(canSubmit: canSubmit)
-                .frame(width: 184, alignment: .trailing)
+                .frame(width: 184, height: 32, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
-        .frame(minHeight: 56)
+        .frame(minHeight: 56, alignment: .top)
         .background(.quaternary.opacity(0.26),
                     in: RoundedRectangle(cornerRadius: Brand.Radius.panel,
                                          style: .continuous))
@@ -823,8 +823,8 @@ private struct AskContent: View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { LoadingStateLabel("Searching local sources…") }
-                Text("Showing \(resultCount) source groups · Return opens the selected result")
-                    .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+                Text("Showing \(resultCount) source \(resultCount == 1 ? "group" : "groups") · Return opens the selected result")
+                    .workspaceTextRole(.metadata)
                 if matchByMeaning && !app.embeddingIndex.hasEmbeddings {
                     Text("Meaning search is unavailable for meetings. Showing exact word matches.")
                         .workspaceTextRole(.warning)
@@ -838,7 +838,7 @@ private struct AskContent: View {
                     VStack(alignment: .leading) {
                         meetingResult(group.primary)
                         if group.matches.count > 1 {
-                            DisclosureGroup("\(group.matches.count - 1) more matches") {
+                            DisclosureGroup("\(group.matches.count - 1) more \(group.matches.count == 2 ? "match" : "matches")") {
                                 ForEach(group.matches.filter { $0.id != group.primary.id }) { meetingResult($0) }
                             }
                         }
@@ -958,11 +958,17 @@ private struct AskContent: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        ContentUnavailableView {
-            Label("Ask your work memory", systemImage: "sparkle.magnifyingglass")
-        } description: {
+        VStack(spacing: 12) {
+            Image(systemName: "sparkle.magnifyingglass")
+                .font(.system(size: 32))
+                .accessibilityHidden(true)
+            Text("Ask your work memory")
+                .font(WorkspaceTypography.display)
+                .foregroundStyle(.primary)
             VStack(spacing: 10) {
                 Text("Find an answer in indexed meetings and permitted screen text, with sources. Asking is read-only.")
+                    .workspaceTextRole(.supporting)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: 400)
                 if inferenceState.isBlocked {
                     Label(inferenceStatusHelp, systemImage: inferenceState.icon)
@@ -976,7 +982,6 @@ private struct AskContent: View {
                         .frame(maxWidth: 400, alignment: .leading)
                 }
             }
-        } actions: {
             VStack(spacing: 8) {
                 ForEach(model.suggestions, id: \.self) { suggestion in
                     Button { sendSuggestion(suggestion) } label: {
@@ -995,6 +1000,7 @@ private struct AskContent: View {
             }
             .padding(.top, 4)
         }
+        .padding(24)
         .accessibilityIdentifier("chat.empty")
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

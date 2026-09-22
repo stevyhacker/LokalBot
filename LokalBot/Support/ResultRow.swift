@@ -81,16 +81,18 @@ struct ResultRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text(title).font(.headline).lineLimit(1)
+                Text(title).font(WorkspaceTypography.rowTitle).lineLimit(1)
                 if let timestamp {
-                    Text(timestamp).font(.caption).foregroundStyle(.secondary)
+                    Text(timestamp).workspaceTextRole(.metadata)
                 }
                 Spacer()
-                BrandChip(text: kind, size: .compact)
+                Text(kind)
+                    .workspaceTextRole(.metadata)
+                    .monospacedDigit()
+                    .chipChrome(.compact)
             }
             highlighted
-                .font(.callout)
-                .foregroundStyle(.secondary)
+                .workspaceTextRole(.supporting)
                 .lineLimit(3)
         }
         .padding(.vertical, 3)

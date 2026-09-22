@@ -1,5 +1,3 @@
-import AppKit
-import ApplicationServices
 import XCTest
 
 /// Hosted-only review of the integrated redesign against synthetic evidence.
@@ -260,6 +258,8 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(refresh.isHittable)
             try auditWorkspaceAccessibility(includeContrast: true)
             UITestHarness.clickSidebar("sidebar.ask", in: app)
+            XCTAssertTrue(element("chat.empty").waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true)
             UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
             XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
@@ -267,6 +267,11 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(app.checkBoxes["Screen"].waitForExistence(timeout: 3))
             try auditWorkspaceAccessibility(includeContrast: true, contrastBounds: app.popovers.firstMatch.frame)
             app.typeKey(.escape, modifierFlags: [])
+            app.textFields["search.field"].click()
+            app.textFields["search.field"].typeText("failover")
+            XCTAssertTrue(element("search.results").waitForExistence(timeout: 5))
+            XCTAssertTrue(UITestHarness.staticText(containing: "Please benchmark", in: app).waitForExistence(timeout: 5))
+            try auditWorkspaceAccessibility(includeContrast: true)
             snapshot("recall-accessibility-\(appearance)")
         }
     }
@@ -279,11 +284,9 @@ final class RedesignUITests: XCTestCase {
         session.click()
         let titles = element("timeline.session.titleEvidence")
         XCTAssertTrue(titles.waitForExistence(timeout: 5))
-        let disclosure = titles.disclosureTriangles.firstMatch
+        let disclosure = app.buttons["timeline.titleDisclosure.timelineview.swift"]
         XCTAssertTrue(disclosure.exists)
-        // The native macOS disclosure triangle occupies the leading edge;
-        // the AX frame also includes its noninteractive title.
-        disclosure.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).click()
+        disclosure.click()
         let source = app.buttons["timeline.titleSource.1"]
         XCTAssertTrue(source.waitForExistence(timeout: 3))
         source.click()
@@ -294,36 +297,27 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    func testMeetingMenusRespondToAccessibilityPress() throws {
+    func testMeetingMenusHaveAccessibleActionsAndOpen() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
                     "LOKALBOT_DETAIL_TAB": "review"])
-        let running = try XCTUnwrap(NSRunningApplication.runningApplications(
-            withBundleIdentifier: "me.dotenv.LokalBot.uitesthost").first)
-        let application = AXUIElementCreateApplication(running.processIdentifier)
+        XCTAssertTrue(element("meeting.export").waitForExistence(timeout: 5))
+        // XCTest audits the exposed actions through its authorized automation
+        // service; menu interaction below separately verifies the callbacks.
+        // This is not a manual VoiceOver listening test.
+        try auditWorkspaceAccessibility()
         for (identifier, item) in [("meeting.export", "Copy Meeting as Markdown"),
                                    ("toolbar.meetingActions", "Transcribe only"),
                                    ("meeting.playbackSpeed", "Reset to 1x")] {
-            let control = try XCTUnwrap(accessibilityElement(identifier, below: application))
-            var names: CFArray?
-            XCTAssertEqual(AXUIElementCopyActionNames(control, &names), .success)
-            XCTAssertTrue((names as? [String] ?? []).contains(kAXPressAction as String))
-            XCTAssertEqual(AXUIElementPerformAction(control, kAXPressAction as CFString), .success)
+            let control = element(identifier)
+            XCTAssertTrue(control.waitForExistence(timeout: 5))
+            control.click()
             XCTAssertTrue(app.menuItems[item].waitForExistence(timeout: 3))
             app.typeKey(.escape, modifierFlags: [])
         }
-    }
-
-    private func accessibilityElement(_ identifier: String, below root: AXUIElement) -> AXUIElement? {
-        var value: CFTypeRef?
-        if AXUIElementCopyAttributeValue(root, kAXIdentifierAttribute as CFString, &value) == .success,
-           value as? String == identifier { return root }
-        var children: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(root, kAXChildrenAttribute as CFString, &children) == .success,
-              let children = children as? [AXUIElement] else { return nil }
-        for child in children {
-            if let found = accessibilityElement(identifier, below: child) { return found }
-        }
-        return nil
+        let speed = element("meeting.playbackSpeed")
+        speed.click()
+        app.menuItems["1.5x"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { speed.value as? String == "1.5x" })
     }
 
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
