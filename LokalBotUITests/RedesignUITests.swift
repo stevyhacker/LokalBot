@@ -556,7 +556,8 @@ final class RedesignUITests: XCTestCase {
                 // macOS 15's audit flags these labels even at measured 14:1
                 // contrast. Suppress only after checking their rendered pixels
                 // in this appearance; a faint or empty label still fails.
-                if verifiedText.contains(affected.label) { return true }
+                if verifiedText.contains(affected.label)
+                    || (affected.value as? String).map(verifiedText.contains) == true { return true }
             }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch
@@ -575,7 +576,7 @@ final class RedesignUITests: XCTestCase {
         ]
         var verified = Set<String>()
         for label in labels {
-            let text = app.staticTexts.matching(NSPredicate(format: "label == %@", label)).firstMatch
+            let text = app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).firstMatch
             guard text.exists, app.windows.firstMatch.frame.contains(text.frame) else { continue }
             let screenshot = text.screenshot()
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
