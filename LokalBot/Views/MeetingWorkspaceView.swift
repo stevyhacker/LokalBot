@@ -598,6 +598,7 @@ private struct MeetingWorkspaceDetail: View {
                 settings: app.settings,
                 onRefresh: { app.reprocess(meeting, transcribe: false, summarize: true) })
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meeting.review")
     }
 

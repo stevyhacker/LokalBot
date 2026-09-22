@@ -903,6 +903,7 @@ private struct ConversationListContent: View {
         // accessibility title. The detail column deliberately adds no second
         // Ask label.
         .navigationTitle("Ask")
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("chat.conversationList")
         .alert(
             "Delete Question?",

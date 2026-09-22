@@ -222,6 +222,7 @@ struct TimelineContextPanel: View {
                                 }
                             }
                         }
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("timeline.session.titleEvidence")
                     }
                 }

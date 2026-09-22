@@ -223,7 +223,6 @@ private struct AskContent: View {
         .padding(.vertical, 16)
         .workspaceReadingWidth()
         .frame(maxWidth: .infinity, alignment: .top)
-        .accessibilityIdentifier("ask.header")
     }
 
     private var topLevelModeControl: some View {

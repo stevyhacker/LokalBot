@@ -37,6 +37,7 @@ struct MeetingSpeakerReviewSection: View {
                 if speaker.id != speakers.last?.id { Divider() }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("meeting.review.speakers")
     }
 
