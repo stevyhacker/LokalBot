@@ -219,7 +219,9 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(element("meeting.review").exists, "Naming a speaker must return to the review")
 
         let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
-        UITestHarness.scrollTo(owner, in: app)
+        let reviewContent = app.scrollViews["meeting.content.scroll"]
+        UITestHarness.scrollTo(owner, in: app, within: reviewContent)
+        XCTAssertTrue(owner.isHittable)
         owner.click()
         let field = app.textFields["meeting.action.correction.owner"]
         XCTAssertTrue(field.waitForExistence(timeout: 3))
@@ -228,13 +230,14 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("Ana Petrović") })
 
         let evidence = app.buttons["Jump to evidence at 00:00:35"]
-        UITestHarness.scrollTo(evidence, in: app)
-        XCTAssertTrue(evidence.exists)
+        UITestHarness.scrollTo(evidence, in: app, within: reviewContent)
+        XCTAssertTrue(evidence.isHittable)
         evidence.click()
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
         app.buttons["meeting.review.return"].click()
         let refresh = app.buttons["meeting.review.refresh"]
-        UITestHarness.scrollTo(refresh, in: app)
+        UITestHarness.scrollTo(refresh, in: app, within: reviewContent)
+        XCTAssertTrue(refresh.isHittable)
         XCTAssertTrue(refresh.isEnabled)
         XCTAssertTrue(UITestHarness.staticText(containing: "Notes need a refresh", in: app).exists)
         XCTAssertTrue(UITestHarness.staticText(containing: "Refreshing processes the transcript on this Mac", in: app).exists)
@@ -249,7 +252,8 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(element("meeting.review.speakers").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
             let owner = app.buttons["meeting.action.owner.fixture-action-design-1"]
-            UITestHarness.scrollTo(owner, in: app)
+            UITestHarness.scrollTo(owner, in: app, within: app.scrollViews["meeting.content.scroll"])
+            XCTAssertTrue(owner.isHittable)
             XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
             XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
             try auditWorkspaceAccessibility(includeContrast: true)
@@ -270,7 +274,7 @@ final class RedesignUITests: XCTestCase {
             app.textFields["search.field"].click()
             app.textFields["search.field"].typeText("failover")
             XCTAssertTrue(element("search.results").waitForExistence(timeout: 5))
-            XCTAssertTrue(UITestHarness.staticText(containing: "Please benchmark", in: app).waitForExistence(timeout: 5))
+            XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
             snapshot("recall-accessibility-\(appearance)")
         }

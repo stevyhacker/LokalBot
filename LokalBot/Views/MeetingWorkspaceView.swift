@@ -2215,8 +2215,10 @@ struct EvidencePill: View {
                 }
             } icon: {
                 Image(systemName: "quote.bubble")
+                    .foregroundStyle(.tint)
             }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
+                .foregroundStyle(.primary)
         }
         .buttonStyle(.borderless)
         .help(citation.excerpt)

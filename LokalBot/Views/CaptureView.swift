@@ -733,7 +733,7 @@ private struct TimelineWorkSessionRow: View {
                     HStack(spacing: 8) {
                         Text(appSummary)
                             .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                             .lineLimit(1)
                         Text(CaptureStyle.hm(session.activeDuration))
                             .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
@@ -742,13 +742,13 @@ private struct TimelineWorkSessionRow: View {
                     if let context = secondaryContext {
                         Text(context)
                             .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                             .lineLimit(1)
                     }
                     if sceneCount > 0 {
                         Label("\(sceneCount)", systemImage: "rectangle.and.text.magnifyingglass")
                             .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -797,7 +797,7 @@ private struct TimelineWorkSessionRow: View {
             Text(start.formatted(date: .omitted, time: .shortened))
                 .foregroundStyle(.primary)
             Text(end.formatted(date: .omitted, time: .shortened))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
         }
         .font(WorkspaceTypography.metadata.monospacedDigit())
         .frame(width: 60, alignment: .trailing)
@@ -817,7 +817,7 @@ private struct TimelineSessionMeetingRow: View {
                     Text(meeting.startedAt.formatted(date: .omitted, time: .shortened))
                         .foregroundStyle(.primary)
                     Text(end.formatted(date: .omitted, time: .shortened))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                 }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .frame(width: 60, alignment: .trailing)
@@ -829,7 +829,7 @@ private struct TimelineSessionMeetingRow: View {
                         .lineLimit(2)
                     Text(meeting.endedAt == nil ? "Meeting · Recording in progress" : "Meeting")
                         .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(meeting.endedAt == nil ? Brand.recording : .secondary)
+                        .foregroundStyle(meeting.endedAt == nil ? Brand.recording : Color(nsColor: WorkspaceTextColor.supporting))
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 6) {
