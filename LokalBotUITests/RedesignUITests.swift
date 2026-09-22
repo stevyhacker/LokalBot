@@ -105,7 +105,7 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(app.staticTexts["Try the real autocomplete"].waitForExistence(timeout: 10))
         }
         if route == "timeline" {
-            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Xcode"))
+            XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
                 .firstMatch.waitForExistence(timeout: 5), "Capture must include the seeded work session")
             XCTAssertTrue(element("capture.meeting.\(fixture.designReview.id.uuidString)").exists,
                           "Capture must include the seeded meeting")

@@ -362,10 +362,10 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 6), "work sessions should be visible immediately")
         let usesContextDrawer = revealTimelineContext()
         if !usesContextDrawer {
-            XCTAssertGreaterThan(
+            XCTAssertLessThan(
                 identified("capture.dayOverview").frame.midX,
                 identified("timeline.workSessions").frame.midX,
-                "Day brief should be right of Work sessions in the wide Timeline layout")
+                "Day brief should stay left of Work sessions in the wide Timeline layout")
         }
         XCTAssertTrue(identified("timeline.dayDigest.generate").waitForExistence(timeout: 5),
                       "day-digest action should remain directly visible")
@@ -394,7 +394,7 @@ final class MainWindowUITests: XCTestCase {
         if usesContextDrawer { closeTimelineContext() }
         // The grounded block title becomes the human-scale session title.
         XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Xcode"))
+            NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
             .firstMatch.exists,
                       "seeded work-session title missing")
         // Meetings remain first-class chronological rows.

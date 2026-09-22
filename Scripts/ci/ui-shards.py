@@ -23,7 +23,7 @@ SMOKE = [
     'MainWindowUITests/testActionThreadSourceCanBeSeparatedAndRestored',
 ]
 SIZES = ['1000x700', '1180x740', '1440x900']
-ROUTES = ['today', 'actions', 'meeting', 'transcript', 'timeline', 'search', 'ask',
+ROUTES = ['today', 'actions', 'meeting', 'transcript', 'review', 'timeline', 'search', 'ask',
           'settings', 'models', 'dictation', 'autocomplete', 'agent']
 
 
@@ -137,13 +137,13 @@ def verify(root, phases=None):
                 for appearance in ['light', 'dark'] for route in ROUTES}
     captures = list(root.rglob('captures/*.png'))
     if collections.Counter(p.name for p in captures) != collections.Counter(expected):
-        raise ValueError('Missing, duplicate or unexpected matrix captures (72 required)')
+        raise ValueError(f'Missing, duplicate or unexpected matrix captures ({len(expected)} required)')
     for path in captures:
         data = path.read_bytes()
         size = tuple(map(int, path.name.split('-')[0].split('x')))
         if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != size:
             raise ValueError(f'Invalid capture dimensions: {path}')
-    print(f'Complete UI coverage: {len(inventory())} unique tests and 72 correctly sized captures.')
+    print(f'Complete UI coverage: {len(inventory())} unique tests and {len(expected)} correctly sized captures.')
 
 
 if __name__ == '__main__':
