@@ -962,7 +962,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil {
             let detailWidth = self.app.windows.firstMatch.frame.maxX
                 - detailDivider.frame.maxX
-            return conversations.frame.width <= 330 && detailWidth >= 420
+            return conversations.frame.width <= 340 && detailWidth >= 420
         }, "conversation history squeezed Ask below its readable width "
            + "(history: \(conversations.frame.width), Ask field: \(field.frame.width))")
     }

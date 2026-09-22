@@ -727,31 +727,34 @@ private struct TimelineWorkSessionRow: View {
                     Text(session.title)
                         .font(WorkspaceTypography.bodyEmphasis)
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text(appSummary)
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(session.title)
+                    HStack(spacing: 8) {
+                        Text(appSummary)
+                            .font(WorkspaceTypography.metadata)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                        Text(CaptureStyle.hm(session.activeDuration))
+                            .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
+                            .fixedSize()
+                    }
                     if let context = secondaryContext {
                         Text(context)
                             .font(WorkspaceTypography.metadata)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
-                }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 5) {
-                    Text(CaptureStyle.hm(session.activeDuration))
-                        .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
                     if sceneCount > 0 {
                         Label("\(sceneCount)", systemImage: "rectangle.and.text.magnifyingglass")
                             .font(WorkspaceTypography.metadata)
                             .foregroundStyle(.secondary)
                     }
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -786,7 +789,7 @@ private struct TimelineWorkSessionRow: View {
                 ? "\(session.contextSwitchCount) context switch\(session.contextSwitchCount == 1 ? "" : "es")"
                 : nil
         }
-        return remaining > 0 ? "Window titles · \(remaining) more in evidence" : "From captured window titles"
+        return remaining > 0 ? "Captured titles · \(remaining) more" : "Captured window titles"
     }
 
     private func timeRange(start: Date, end: Date) -> some View {

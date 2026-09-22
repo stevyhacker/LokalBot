@@ -136,6 +136,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var correction: ActionCorrectionDraft?
     @State private var correctionError: String?
     @State private var reviewSpeakers: [MeetingSpeakerReviewItem] = []
+    @State private var previousReviewProjection: MeetingOutcomeProjection?
     @State private var returningToReview = false
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
@@ -247,6 +248,8 @@ private struct MeetingWorkspaceDetail: View {
                     .frame(maxWidth: WorkspaceMetric.contentMaxWidth, alignment: .leading)
                     .frame(maxWidth: .infinity, alignment: .top)
                 }
+                .accessibilityIdentifier("meeting.content.scroll")
+                .accessibilityLabel("Meeting content")
             }
             .onChange(of: evidenceRevision) {
                 guard let index = evidenceSegment else { return }
@@ -264,6 +267,7 @@ private struct MeetingWorkspaceDetail: View {
                 }
             }
             .onChange(of: projection) {
+                reloadReviewProjection()
                 if isSearchPresented {
                     updateSearch(using: scrollProxy)
                 }
@@ -314,8 +318,10 @@ private struct MeetingWorkspaceDetail: View {
                     meetingID: meeting.id,
                     text: text == draft.originalText ? nil : text,
                     owner: owner,
-                    due: due)
+                    due: due,
+                    reviewing: tab == .review ? meeting : nil)
                 if saved {
+                    reloadReviewProjection()
                     correction = nil
                     correctionError = nil
                 } else {
@@ -383,13 +389,13 @@ private struct MeetingWorkspaceDetail: View {
                 }.accessibilityIdentifier("meeting.ask")
             }
             ToolbarItem(placement: .primaryAction) {
-                Menu("Export", systemImage: "square.and.arrow.up") {
-                    Button("Copy Meeting as Markdown") { MeetingMarkdownActions.copy(meeting) }
-                    Button("Export Meeting as Markdown…") { exportError = MeetingMarkdownActions.export(meeting) }
-                    Button("Copy Summary", action: copySummary).disabled(summary?.isEmpty != false)
-                    Button("Copy Transcript", action: copyTranscript).disabled(transcript?.segments.isEmpty != false)
-                }.accessibilityIdentifier("meeting.export")
-                    .accessibilityLabel("Export meeting")
+                WorkspaceMenu(title: "Export", symbol: "square.and.arrow.up", label: "Export meeting",
+                              identifier: "meeting.export", items: [
+                    .init(title: "Copy Meeting as Markdown", action: { MeetingMarkdownActions.copy(meeting) }),
+                    .init(title: "Export Meeting as Markdown…", action: { exportError = MeetingMarkdownActions.export(meeting) }),
+                    .init(title: "Copy Summary", enabled: summary?.isEmpty == false, action: copySummary),
+                    .init(title: "Copy Transcript", enabled: transcript?.segments.isEmpty == false, action: copyTranscript),
+                ])
             }
 
             ToolbarItem(placement: .primaryAction) {
@@ -400,47 +406,12 @@ private struct MeetingWorkspaceDetail: View {
                 .accessibilityIdentifier("toolbar.meetingSearch")
             }
             ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button(isReadingSummary ? "Stop spoken summary" : "Read summary aloud") {
-                        isReadingSummary ? stopSpeech() : readSummary()
-                    }
-                    .disabled(summary?.isEmpty != false)
-                    Button(isExportingSpeech ? "Exporting spoken summary..." : "Export spoken summary") {
-                        exportSpokenSummary()
-                    }
-                    .disabled(isExportingSpeech || summary?.isEmpty != false)
-                    Divider()
-                    Button("Meeting boundaries…") { editingBoundaries = true }
-                        .disabled(transcript == nil)
-                    Button("Transcribe & Summarize") { app.reprocess(meeting, transcribe: true, summarize: true) }
-                        .accessibilityIdentifier("toolbar.transcribeAndSummarize")
-                    Button("Transcribe only") { app.reprocess(meeting, transcribe: true, summarize: false) }
-                        .accessibilityIdentifier("toolbar.transcribeOnly")
-                    Button("Summarize again") { app.reprocess(meeting, transcribe: false, summarize: true) }
-                        .accessibilityIdentifier("toolbar.resummarize")
-                    Divider()
-                    Button(isExportingAudio ? "Exporting audio..." : "Export audio") {
-                        exportAudio()
-                    }
-                    .disabled(isExportingAudio || !player.isLoaded)
-                    Button("Show in Finder") {
-                        NSWorkspace.shared.activateFileViewerSelecting([folder])
-                    }
-                    if meeting.isMergedMeeting {
-                        Divider()
-                        Button("Undo merge…", systemImage: "arrow.uturn.backward") {
-                            undoMergeConfirmation = true
-                        }
-                        .accessibilityIdentifier("toolbar.undoMerge")
-                    }
-                } label: {
-                    Label("More Meeting Actions", systemImage: "ellipsis.circle")
-                }
-                .accessibilityIdentifier("toolbar.meetingActions")
-                .accessibilityLabel("More meeting actions")
+                WorkspaceMenu(title: "More meeting actions", symbol: "ellipsis.circle",
+                              identifier: "toolbar.meetingActions", items: meetingActionMenuItems)
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Meeting workspace")
         .accessibilityIdentifier("meeting.detail.workspace")
         .sheet(isPresented: $editingBoundaries) {
             MeetingBoundaryEditor(meeting: meeting) { try app.setMeetingBoundaries($0, for: meeting) }
@@ -462,6 +433,32 @@ private struct MeetingWorkspaceDetail: View {
         }
         .labelsHidden()
         .accessibilityIdentifier("meeting.contentTabs")
+    }
+
+    private var meetingActionMenuItems: [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = [
+            .init(title: isReadingSummary ? "Stop spoken summary" : "Read summary aloud",
+                  enabled: summary?.isEmpty == false, action: { isReadingSummary ? stopSpeech() : readSummary() }),
+            .init(title: isExportingSpeech ? "Exporting spoken summary..." : "Export spoken summary",
+                  enabled: !isExportingSpeech && summary?.isEmpty == false, action: exportSpokenSummary),
+            .separator,
+            .init(title: "Meeting boundaries…", enabled: transcript != nil, action: { editingBoundaries = true }),
+            .init(title: "Transcribe & Summarize", identifier: "toolbar.transcribeAndSummarize",
+                  action: { app.reprocess(meeting, transcribe: true, summarize: true) }),
+            .init(title: "Transcribe only", identifier: "toolbar.transcribeOnly",
+                  action: { app.reprocess(meeting, transcribe: true, summarize: false) }),
+            .init(title: "Summarize again", identifier: "toolbar.resummarize",
+                  action: { app.reprocess(meeting, transcribe: false, summarize: true) }),
+            .separator,
+            .init(title: isExportingAudio ? "Exporting audio..." : "Export audio",
+                  enabled: !isExportingAudio && player.isLoaded, action: exportAudio),
+            .init(title: "Show in Finder", action: { NSWorkspace.shared.activateFileViewerSelecting([folder]) }),
+        ]
+        if meeting.isMergedMeeting {
+            items += [.separator, .init(title: "Undo merge…", identifier: "toolbar.undoMerge",
+                                       action: { undoMergeConfirmation = true })]
+        }
+        return items
     }
 
     @ViewBuilder private var meetingOverviewContent: some View {
@@ -524,12 +521,12 @@ private struct MeetingWorkspaceDetail: View {
             }
         }
         if let speakerIdentityNotice {
-            Text(speakerIdentityNotice).font(.caption).foregroundStyle(.secondary)
+            Text(speakerIdentityNotice).workspaceTextRole(.supporting)
         }
-        if !calendarSpeakerCandidates.isEmpty, !unnamedRemoteSpeakers.isEmpty {
+        if tab != .review, !calendarSpeakerCandidates.isEmpty, !unnamedRemoteSpeakers.isEmpty {
             HStack {
                 Label("\(calendarSpeakerCandidates.count) calendar guests available as speaker suggestions", systemImage: "person.2")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .workspaceTextRole(.supporting)
                 Spacer(minLength: 0)
                 Menu("Name speakers") {
                     ForEach(unnamedRemoteSpeakers, id: \.self) { speaker in
@@ -540,6 +537,7 @@ private struct MeetingWorkspaceDetail: View {
                     }
                 }
                 .controlSize(.small)
+                .fixedSize()
                 .accessibilityIdentifier("meeting.calendarSpeakerSuggestions")
             }
         }
@@ -588,6 +586,10 @@ private struct MeetingWorkspaceDetail: View {
                 Text("2. Review action owners").font(WorkspaceTypography.sectionTitle)
                 Text("These are all actions from this meeting. Only actions assigned to you appear in My actions. Select an owner to correct it; use a timestamp to inspect the source.")
                     .workspaceTextRole(.supporting)
+                if projection == nil, previousReviewProjection != nil {
+                    Text("These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript.")
+                        .workspaceTextRole(.warning)
+                }
                 actionItemsSection
             }
             MeetingNotesRefreshSection(
@@ -670,7 +672,7 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private var actionItemsSection: some View {
-        let actions = projection?.actionReferences ?? []
+        let actions = (projection ?? (tab == .review ? previousReviewProjection : nil))?.actionReferences ?? []
         let speakerNames = speakerPresentation
         return WorkspaceSection(
             title: "Action items",
@@ -704,7 +706,7 @@ private struct MeetingWorkspaceDetail: View {
                             },
                             onEvidence: { citation in
                                 revealEvidence(at: citation.start)
-                            }, isEditable: partialNotes == nil)
+                            }, isEditable: partialNotes == nil, canSetStatus: projection != nil)
                         if reference.id != actions.last?.id { Divider() }
                     }
                 }
@@ -973,6 +975,7 @@ private struct MeetingWorkspaceDetail: View {
 
     private func load() async {
         documentLoading = true
+        reloadReviewProjection()
         // The first document was prepared before this pane became visible.
         // Only pipeline updates need to read it again.
         if loadRevision > 0 {
@@ -1132,6 +1135,7 @@ private struct MeetingWorkspaceDetail: View {
                 let updated = try await app.speakerIdentity.choose(choice, meeting: meeting, transcript: current)
                 try app.saveTranscript(updated, for: meeting)
                 updateTranscript(updated)
+                reloadReviewProjection()
                 searchContentRevision += 1
                 exportError = nil
                 speakerIdentityNotice = app.speakerIdentity.notice
@@ -1141,6 +1145,10 @@ private struct MeetingWorkspaceDetail: View {
                 }
             } catch { speakerIdentityNotice = "Could not save speaker name: \(error.localizedDescription)" }
         }
+    }
+
+    private func reloadReviewProjection() {
+        previousReviewProjection = projection == nil ? app.outcomeIndex.projectionForReview(of: meeting) : nil
     }
 
     private func exportAudio() {
@@ -1490,7 +1498,7 @@ private struct MeetingSearchChip: View {
             }
         }
         .font(size.font.monospacedDigit())
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
         .chipChrome(size)
     }
 
@@ -1531,18 +1539,19 @@ private struct MeetingAudioBar: View {
                 onSeek: { player.seek(to: $0) })
                 .id(folder)
             Text("\(Transcript.stamp(clock.currentTime)) / \(Transcript.stamp(player.duration))")
-                .font(WorkspaceTypography.metadata.monospacedDigit()).foregroundStyle(.secondary)
+                .font(WorkspaceTypography.metadata.monospacedDigit())
+                .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                 .fixedSize()
-            Menu("\(player.speed.formatted())x") {
-                ForEach([0.75, 1, 1.25, 1.5, 1.75, 2.0], id: \.self) { speed in
-                    Button("\(speed.formatted())x") { player.speed = Float(speed) }
-                }
-                Divider()
-                Button("Reset to 1x") { player.speed = 1.0 }
-            }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Playback speed")
+            WorkspaceMenu(title: "\(player.speed.formatted())x", label: "Playback speed",
+                          identifier: "meeting.playbackSpeed", items:
+                [0.75, 1, 1.25, 1.5, 1.75, 2.0].map { speed in
+                    .init(title: "\(speed.formatted())x", selected: player.speed == Float(speed),
+                          action: { player.speed = Float(speed) })
+                } + [.separator, .init(title: "Reset to 1x", action: { player.speed = 1 })])
         }
         .padding(12).workspaceControl()
         .accessibilityElement(children: .contain)
+        .accessibilityLabel("Meeting playback")
         .accessibilityIdentifier("meeting.audioPlayer")
     }
 }
@@ -1557,6 +1566,7 @@ private struct OutcomeActionRow: View {
     let onCorrect: () -> Void
     let onEvidence: (OutcomeSourceCitation) -> Void
     var isEditable = true
+    var canSetStatus = true
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -1568,7 +1578,7 @@ private struct OutcomeActionRow: View {
             .accessibilityIdentifier("meeting.action.toggle.\(reference.action.id)")
             .accessibilityLabel(reference.status == .done ? "Reopen action" : "Mark action done")
             .accessibilityValue(reference.text)
-            .disabled(!isEditable)
+            .disabled(!isEditable || !canSetStatus)
             VStack(alignment: .leading, spacing: 5) {
                 SearchHighlightedText(
                     reference.text,
@@ -1622,26 +1632,20 @@ private struct OutcomeActionRow: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Menu {
-                ForEach(OutcomeStatus.allCases, id: \.rawValue) { status in
-                    Button(status.label) { onStatus(status) }
-                }
-                Divider()
-                Button("Correct owner or due date", action: onCorrect)
-                Button("Open in Agent") {
+            WorkspaceMenu(title: "Action options", symbol: "ellipsis",
+                          label: "Options for action: \(reference.text)",
+                          identifier: "meeting.action.status.\(reference.action.id)", items:
+                OutcomeStatus.allCases.map { status in
+                    .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
+                          action: { onStatus(status) })
+                } + [.separator, .init(title: "Correct owner or due date", action: onCorrect),
+                     .init(title: "Open in Agent", action: {
                     app.openAgent(.init(
                         title: reference.text,
                         prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
                         meetingID: reference.meetingID,
                         actionID: reference.action.id))
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityIdentifier("meeting.action.status.\(reference.action.id)")
-            .accessibilityLabel("Options for action: \(reference.text)")
+                })])
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)

@@ -538,6 +538,46 @@ final class MeetingOutcomesTests: XCTestCase {
 
     // MARK: - get_action_items tool (planted library)
 
+    func testArchivedActionsCanBeCorrectedWithoutReenteringCurrentIndex() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let meeting = try storage.createMeetingFolder(title: "Speaker review", appName: "Zoom")
+        let folder = meeting.folderURL(in: storage)
+        let original = MeetingOutcomes(actionItems: [
+            .init(id: "review-action", text: "Benchmark failover", owner: "Them"),
+        ], decisions: [], openQuestions: [])
+        try original.write(to: folder)
+        let index = OutcomeIndex(storage: storage)
+        index.refresh(meeting: meeting)
+        XCTAssertNotNil(index.projection(for: meeting.id))
+
+        try MeetingAttributionArtifacts.invalidate(in: folder)
+        index.refresh(meeting: meeting)
+        XCTAssertNil(index.projection(for: meeting.id))
+        XCTAssertTrue(index.correctAction(actionID: "review-action", meetingID: meeting.id,
+                                          text: nil, owner: "Ana", due: "Friday", reviewing: meeting))
+        XCTAssertTrue(index.all.isEmpty)
+        XCTAssertTrue(index.openUserActionThreads.isEmpty)
+        XCTAssertNil(MeetingOutcomes.load(from: folder))
+        XCTAssertTrue(MeetingAttributionArtifacts.needsRefresh(in: folder))
+        XCTAssertEqual(MeetingAttributionArtifacts.previous(in: folder)?.actionItems.first?.owner, "Them")
+
+        let reopened = OutcomeIndex(storage: storage)
+        reopened.refresh(meeting: meeting)
+        XCTAssertNil(reopened.projection(for: meeting.id))
+        let reviewed = try XCTUnwrap(reopened.projectionForReview(of: meeting)?.actionReferences.first)
+        XCTAssertEqual(reviewed.owner, "Ana")
+        XCTAssertEqual(reviewed.due, "Friday")
+        XCTAssertTrue(reviewed.ownerWasCorrected)
+        XCTAssertFalse(reopened.correctAction(actionID: "missing", meetingID: meeting.id,
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertFalse(reopened.correctAction(actionID: "review-action", meetingID: UUID(),
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
+        XCTAssertNil(reopened.projectionForReview(of: meeting), "Old archives are not a fallback for unrelated missing data")
+    }
+
     func testGetActionItemsAgainstPlantedLibrary() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-outcomes-tool-\(UUID().uuidString)", isDirectory: true)

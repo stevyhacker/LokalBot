@@ -52,9 +52,11 @@ struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
         load(for: meeting, root: storage.rootURL)
     }
 
-    static func load(for meeting: Meeting, root: URL) -> Self? {
+    static func load(for meeting: Meeting, root: URL, includingPrevious: Bool = false) -> Self? {
         let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
-        guard let outcomes = MeetingOutcomes.load(from: folder) else { return nil }
+        let previous = includingPrevious && MeetingAttributionArtifacts.needsRefresh(in: folder)
+            ? MeetingAttributionArtifacts.previous(in: folder) : nil
+        guard let outcomes = MeetingOutcomes.load(from: folder) ?? previous else { return nil }
         let state = MeetingOutcomeStore.loadState(from: folder)
         let followUp = MeetingOutcomeStore.loadFollowUp(from: folder)
             ?? FollowUpDraft.seeded(for: meeting, outcomes: outcomes)
@@ -293,8 +295,8 @@ final class OutcomeIndex: ObservableObject {
 
     @discardableResult
     func correctAction(actionID: String, meetingID: Meeting.ID,
-                       text: String?, owner: String?, due: String?) -> Bool {
-        mutateAction(actionID: actionID, meetingID: meetingID) { state in
+                       text: String?, owner: String?, due: String?, reviewing meeting: Meeting? = nil) -> Bool {
+        mutateAction(actionID: actionID, meetingID: meetingID, reviewing: meeting) { state in
             let now = Date().outcomePersistedTimestamp
             let text = Self.nilIfBlank(text)
             let owner = Self.nilIfBlank(owner)
@@ -347,11 +349,14 @@ final class OutcomeIndex: ObservableObject {
     private func mutateAction(
         actionID: String,
         meetingID: Meeting.ID,
+        reviewing meeting: Meeting? = nil,
         notify: Bool = true,
         rebuildThreads: Bool = true,
         change: (inout MeetingOutcomeState.ActionState) -> Void
     ) -> Bool {
-        guard var projection = projections[meetingID],
+        guard meeting == nil || meeting?.id == meetingID else { return false }
+        let current = projections[meetingID]
+        guard var projection = current ?? meeting.flatMap({ projectionForReview(of: $0) }),
               projection.outcomes.actionItems.contains(where: { $0.id == actionID })
         else { return false }
         var actionState = projection.state.actions[actionID] ?? .init()
@@ -365,7 +370,9 @@ final class OutcomeIndex: ObservableObject {
             if previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
                 try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
             }
-            projections[meetingID] = projection
+            // Archived extraction stays out of Today, Ask, and action threads.
+            // Review can still persist corrections for the explicit refresh.
+            if current != nil { projections[meetingID] = projection }
             projectionRevisions[meetingID, default: 0] &+= 1
             if rebuildThreads { rebuildActionThreads() }
             lastError = nil
@@ -379,6 +386,11 @@ final class OutcomeIndex: ObservableObject {
 
     private func loadProjection(for meeting: Meeting) -> MeetingOutcomeProjection? {
         MeetingOutcomeProjection.load(for: meeting, storage: storage)
+    }
+
+    func projectionForReview(of meeting: Meeting) -> MeetingOutcomeProjection? {
+        projections[meeting.id] ?? MeetingOutcomeProjection.load(
+            for: meeting, root: storage.rootURL, includingPrevious: true)
     }
 
     private func notifyEvidenceChanged(_ meetings: [Meeting]) {

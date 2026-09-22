@@ -250,13 +250,7 @@ private struct AskContent: View {
 
         return HStack(alignment: .center, spacing: 10) {
             TextField(
-                mode == .ask
-                    ? (model.messages.isEmpty
-                        ? "Ask LokalBot about your work…"
-                        : "Ask a follow-up…")
-                    : (matchByMeaning
-                        ? "Search local memory by meaning…"
-                        : "Search exact words in local memory…"),
+                "Search or ask about your work…",
                 text: queryBinding,
                 axis: .vertical)
                 .textFieldStyle(.plain)
@@ -265,6 +259,7 @@ private struct AskContent: View {
                 .frame(minWidth: 60, maxWidth: .infinity)
                 .focused($inputFocused)
                 .onSubmit { submitQuery() }
+                .accessibilityLabel("Question or search")
                 .accessibilityIdentifier("search.field")
             if model.isResponding {
                 Button(action: model.stop) {
@@ -278,6 +273,7 @@ private struct AskContent: View {
                 .accessibilityIdentifier("chat.stop")
             }
             submitButton(canSubmit: canSubmit)
+                .frame(width: 184, alignment: .trailing)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -423,6 +419,7 @@ private struct AskContent: View {
         .frame(width: 280)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Source selection")
+        .background(PopoverAccessibilityLabel(label: "Source selection"))
     }
 
     private var sourceSummary: String {
@@ -583,7 +580,6 @@ private struct AskContent: View {
             ? "Match concepts even when the words differ"
             : "Match the words you type")
         .accessibilityIdentifier("ask.searchMatching")
-        .accessibilityLabel("Search matching")
     }
 
     private func setMatchByMeaning(_ enabled: Bool) {
@@ -1004,14 +1000,20 @@ private struct AskContent: View {
     }
 
     private var keywordEmptyState: some View {
-        ContentUnavailableView {
-            Label(matchByMeaning ? "Match by meaning" : "Keyword search",
-                  systemImage: matchByMeaning ? "atom" : "magnifyingglass")
-        } description: {
+        VStack(spacing: 12) {
+            Image(systemName: matchByMeaning ? "atom" : "magnifyingglass")
+                .font(.system(size: 32))
+                .accessibilityHidden(true)
+            Text(matchByMeaning ? "Match by meaning" : "Keyword search")
+                .font(WorkspaceTypography.display)
+                .foregroundStyle(.primary)
             Text(matchByMeaning
                 ? "Find meetings and permitted screen text that mean what you type, even when the words differ."
                 : "Search meeting titles, transcripts, summaries, and permitted screen text without asking the model.")
+                .workspaceTextRole(.supporting)
+                .multilineTextAlignment(.center)
         }
+        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

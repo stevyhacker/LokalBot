@@ -1,4 +1,5 @@
 import AppKit
+import ApplicationServices
 import XCTest
 
 /// Hosted-only review of the integrated redesign against synthetic evidence.
@@ -254,13 +255,17 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(owner.label.hasPrefix("Correct owner:"))
             XCTAssertEqual(app.buttons["meeting.action.toggle.fixture-action-design-1"].label, "Mark action done")
             try auditWorkspaceAccessibility(includeContrast: true)
+            let refresh = app.buttons["meeting.review.refresh"]
+            UITestHarness.scrollTo(refresh, in: app, within: app.scrollViews["meeting.content.scroll"])
+            XCTAssertTrue(refresh.isHittable)
+            try auditWorkspaceAccessibility(includeContrast: true)
             UITestHarness.clickSidebar("sidebar.ask", in: app)
             UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
             XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
             app.buttons["ask.sources"].click()
             XCTAssertTrue(app.checkBoxes["Screen"].waitForExistence(timeout: 3))
-            try auditWorkspaceAccessibility(includeContrast: true)
+            try auditWorkspaceAccessibility(includeContrast: true, contrastBounds: app.popovers.firstMatch.frame)
             app.typeKey(.escape, modifierFlags: [])
             snapshot("recall-accessibility-\(appearance)")
         }
@@ -276,13 +281,49 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(titles.waitForExistence(timeout: 5))
         let disclosure = titles.disclosureTriangles.firstMatch
         XCTAssertTrue(disclosure.exists)
-        disclosure.click()
-        app.buttons["timeline.titleSource.1"].click()
+        // The native macOS disclosure triangle occupies the leading edge;
+        // the AX frame also includes its noninteractive title.
+        disclosure.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5)).click()
+        let source = app.buttons["timeline.titleSource.1"]
+        XCTAssertTrue(source.waitForExistence(timeout: 3))
+        source.click()
         XCTAssertTrue(element("timeline.activityPreview").waitForExistence(timeout: 5))
         XCTAssertTrue(UITestHarness.staticText(containing: "TimelineView.swift", in: app).exists)
         app.buttons["Back to work session"].click()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
         snapshot("timeline-inspectable-title-evidence")
+    }
+
+    func testMeetingMenusRespondToAccessibilityPress() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
+                    "LOKALBOT_DETAIL_TAB": "review"])
+        let running = try XCTUnwrap(NSRunningApplication.runningApplications(
+            withBundleIdentifier: "me.dotenv.LokalBot.uitesthost").first)
+        let application = AXUIElementCreateApplication(running.processIdentifier)
+        for (identifier, item) in [("meeting.export", "Copy Meeting as Markdown"),
+                                   ("toolbar.meetingActions", "Transcribe only"),
+                                   ("meeting.playbackSpeed", "Reset to 1x")] {
+            let control = try XCTUnwrap(accessibilityElement(identifier, below: application))
+            var names: CFArray?
+            XCTAssertEqual(AXUIElementCopyActionNames(control, &names), .success)
+            XCTAssertTrue((names as? [String] ?? []).contains(kAXPressAction as String))
+            XCTAssertEqual(AXUIElementPerformAction(control, kAXPressAction as CFString), .success)
+            XCTAssertTrue(app.menuItems[item].waitForExistence(timeout: 3))
+            app.typeKey(.escape, modifierFlags: [])
+        }
+    }
+
+    private func accessibilityElement(_ identifier: String, below root: AXUIElement) -> AXUIElement? {
+        var value: CFTypeRef?
+        if AXUIElementCopyAttributeValue(root, kAXIdentifierAttribute as CFString, &value) == .success,
+           value as? String == identifier { return root }
+        var children: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(root, kAXChildrenAttribute as CFString, &children) == .success,
+              let children = children as? [AXUIElement] else { return nil }
+        for child in children {
+            if let found = accessibilityElement(identifier, below: child) { return found }
+        }
+        return nil
     }
 
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
@@ -487,7 +528,7 @@ final class RedesignUITests: XCTestCase {
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
-    private func auditWorkspaceAccessibility(includeContrast: Bool = false) throws {
+    private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil) throws {
         // Report every app issue. The hosted virtual Mac also exposes a
         // system-generated Touch Bar and its Emoji picker outside our window;
         // neither is an app-owned control or a usable hosted input surface.
@@ -501,6 +542,18 @@ final class RedesignUITests: XCTestCase {
         if includeContrast { types.insert(.contrast) }
         try app.performAccessibilityAudit(for: types) { issue in
             guard let affected = issue.element, affected.exists else { return false }
+            if issue.auditType == .contrast {
+                // The macOS audit also samples offscreen text and content
+                // behind popovers. Audit only painted, unclipped text here;
+                // each scroll region and open popover is audited separately.
+                let bounds = contrastBounds ?? self.app.windows.firstMatch.frame
+                if !bounds.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
+                let content = self.app.scrollViews["meeting.content.scroll"]
+                if content.exists,
+                   content.descendants(matching: affected.elementType).matching(NSPredicate(
+                    format: "identifier == %@ AND label == %@", affected.identifier, affected.label)).count > 0,
+                   !content.frame.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
+            }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch
             guard affected.elementType == .popUpButton, affected.label == "emoji & symbols",
