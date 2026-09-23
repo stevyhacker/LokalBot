@@ -19,7 +19,7 @@ struct DayActivityProjection {
         sessions = TimelineWorkSession.sessions(from: self.blocks)
         activeSeconds = sessions.reduce(0) { $0 + $1.activeDuration }
         perApp = Dictionary(grouping: self.blocks, by: \.app).mapValues { blocks in
-            TimelineWorkSession.sessions(from: blocks).reduce(0) { $0 + $1.activeDuration }
+            TimelineWorkSession.mergedDuration(blocks)
         }.sorted { $0.value > $1.value }
     }
 }

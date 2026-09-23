@@ -538,6 +538,63 @@ final class MeetingOutcomesTests: XCTestCase {
 
     // MARK: - get_action_items tool (planted library)
 
+    func testArchivedActionsCanBeCorrectedWithoutReenteringCurrentIndex() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let meeting = try storage.createMeetingFolder(title: "Speaker review", appName: "Zoom")
+        let folder = meeting.folderURL(in: storage)
+        let original = MeetingOutcomes(actionItems: [
+            .init(id: "review-action", text: "Benchmark failover", owner: "Them"),
+        ], decisions: [], openQuestions: [])
+        try original.write(to: folder)
+        var evidenceChanges = 0
+        let index = OutcomeIndex(storage: storage, onEvidenceChanged: { _ in evidenceChanges += 1 })
+        index.refresh(meeting: meeting)
+        XCTAssertNotNil(index.projection(for: meeting.id))
+
+        try MeetingAttributionArtifacts.invalidate(in: folder)
+        index.refresh(meeting: meeting)
+        XCTAssertNil(index.projection(for: meeting.id))
+        XCTAssertTrue(index.correctAction(actionID: "review-action", meetingID: meeting.id,
+                                          text: nil, owner: "Ana", due: "Friday", reviewing: meeting))
+        XCTAssertTrue(index.all.isEmpty)
+        XCTAssertTrue(index.openUserActionThreads.isEmpty)
+        XCTAssertNil(MeetingOutcomes.load(from: folder))
+        XCTAssertTrue(MeetingAttributionArtifacts.needsRefresh(in: folder))
+        XCTAssertEqual(MeetingAttributionArtifacts.previous(in: folder)?.actionItems.first?.owner, "Them")
+        XCTAssertEqual(evidenceChanges, 0, "Archive-only edits must not invalidate current derived evidence")
+        XCTAssertNil(DayDigestMeetingArtifacts.latestModifiedAt(in: folder),
+                     "An archive-only correction must not advance the digest's evidence watermark")
+
+        let reopened = OutcomeIndex(storage: storage)
+        reopened.refresh(meeting: meeting)
+        XCTAssertNil(reopened.projection(for: meeting.id))
+        let reviewed = try XCTUnwrap(reopened.projectionForReview(of: meeting)?.actionReferences.first)
+        XCTAssertEqual(reviewed.owner, "Ana")
+        XCTAssertEqual(reviewed.due, "Friday")
+        XCTAssertTrue(reviewed.ownerWasCorrected)
+        XCTAssertEqual(reopened.projectionForReview(of: meeting)?.isArchived, true)
+        XCTAssertFalse(reopened.correctAction(actionID: "missing", meetingID: meeting.id,
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertFalse(reopened.correctAction(actionID: "review-action", meetingID: UUID(),
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertTrue(reopened.lastError?.contains("different meeting") == true)
+        XCTAssertFalse(reopened.correctAction(actionID: "missing", meetingID: meeting.id,
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertTrue(reopened.lastError?.contains("no longer available") == true,
+                      "Guard failures must replace the error from an earlier operation")
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
+        XCTAssertNil(reopened.projectionForReview(of: meeting), "Old archives are not a fallback for unrelated missing data")
+
+        // An empty cache is not archived evidence: current on-disk outcomes still notify.
+        try original.write(to: folder)
+        XCTAssertTrue(index.correctAction(actionID: "review-action", meetingID: meeting.id,
+                                          text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertEqual(evidenceChanges, 1)
+        XCTAssertNotNil(DayDigestMeetingArtifacts.latestModifiedAt(in: folder))
+    }
+
     func testGetActionItemsAgainstPlantedLibrary() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-outcomes-tool-\(UUID().uuidString)", isDirectory: true)

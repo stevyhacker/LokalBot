@@ -353,6 +353,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var conversations: [Conversation] = []
     /// The conversation currently shown in the transcript.
     @Published private(set) var currentID: UUID
+    /// Explicit navigation also fires when selecting the current or empty question.
+    @Published private(set) var navigationRevision = 0
     @Published private(set) var isLoadingHistory = false
     private var historyTask: Task<Void, Never>?
     private var historyTouched = false
@@ -590,6 +592,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Start a new, empty conversation (persisting the current one first).
     func newConversation() {
+        navigationRevision &+= 1
         historyTouched = true
         stop()
         persist(touchUpdatedAt: false)
@@ -603,6 +606,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Switch the transcript to a previously-saved conversation.
     func select(_ id: UUID) {
+        navigationRevision &+= 1
         historyTouched = true
         guard id != currentID else { return }
         stop()

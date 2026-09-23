@@ -149,7 +149,7 @@ struct ActionsWorkspaceView: View {
                 Picker("Review", selection: $reviewMode) {
                     Text("Actions").tag("actions")
                     Text("Threads").tag("threads")
-                }.pickerStyle(.segmented).frame(width: 180)
+                }.pickerStyle(.segmented).labelsHidden().frame(width: 180)
                     .accessibilityIdentifier("actions.reviewMode")
                 TextField("Search actions and meetings", text: $query).textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("actions.search")

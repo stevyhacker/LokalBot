@@ -10,8 +10,6 @@ struct MainWindowView: View {
     /// Mirrors the current split controller for the app-owned toolbar label.
     /// AppKit owns the actual collapse animation through the responder chain.
     @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
-    @SceneStorage("workspace.meetings.width") private var meetingColumnWidth = 300.0
-    @SceneStorage("workspace.conversations.width") private var conversationColumnWidth = 250.0
     @State private var pendingDelete: Set<Meeting.ID>?
     /// Shared by Timeline's chronology and bounded context panel.
     @StateObject private var capture = CaptureModel()
@@ -168,30 +166,29 @@ struct MainWindowView: View {
         case .meetings:
             HSplitView {
                 MeetingListView(pendingDelete: $pendingDelete)
-                    .frame(minWidth: 240, idealWidth: meetingColumnWidth, maxWidth: 440)
-                    .onGeometryChange(for: Double.self) { Double($0.size.width) } action: { meetingColumnWidth = $0 }
-                    .splitPaneAccessibilityLabel("Meeting library")
+                    .frame(minWidth: 240, idealWidth: 300, maxWidth: 440)
+                    .splitPaneAccessibilityLabel("Meeting library", autosaveName: "LokalBot.meetings")
                 MeetingLibraryDetailView(pendingDelete: $pendingDelete)
                     .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
                     .splitPaneAccessibilityLabel("Meeting details")
             }
+            .id("workspace.meetings")
         case .type:
             TypeView()
         case .ask:
             HSplitView {
-                if app.askMode == .ask {
-                    ChatConversationList()
-                        .frame(minWidth: 200, idealWidth: conversationColumnWidth, maxWidth: 340)
-                        .onGeometryChange(for: Double.self) { Double($0.size.width) } action: { conversationColumnWidth = $0 }
-                        .splitPaneAccessibilityLabel("Conversations")
-                }
+                ChatConversationList()
+                        .frame(minWidth: 200, idealWidth: 250, maxWidth: 340)
+                        .splitPaneAccessibilityLabel("Conversations", autosaveName: "LokalBot.recall")
                 AskView().frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
-                    .splitPaneAccessibilityLabel(app.askMode == .ask ? "Conversation" : "Search memory")
+                    .splitPaneAccessibilityLabel("Search and conversation")
             }
+            .id("workspace.recall")
         case .agent:
             AgentView(sessions: app.agentSessions, installer: app.agentInstaller)
         case .settings:
             SettingsView()
+                .id("workspace.settings")
         }
     }
 

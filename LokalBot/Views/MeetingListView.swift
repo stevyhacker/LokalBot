@@ -28,6 +28,7 @@ struct MeetingListView: View {
                 TextField("Search meetings", text: $query)
                     .textFieldStyle(.roundedBorder)
                     .font(WorkspaceTypography.control)
+                    .accessibilityLabel("Search meetings")
                     .accessibilityIdentifier("meeting.search")
                 if app.evidenceMeetingID != nil, !query.isEmpty || filter != .all {
                     Text("The opened source remains visible outside these filters.")
@@ -47,17 +48,17 @@ struct MeetingListView: View {
 
             List(selection: $app.selectedMeetingIDs) {
                 ForEach(groupedMeetings, id: \.label) { group in
-                    Section {
+                    Group {
+                        SectionHeader(text: group.label)
                         ForEach(group.items) { meeting in
                             MeetingRowView(meeting: meeting)
                                 .tag(meeting.id)
                         }
-                    } header: {
-                        SectionHeader(text: group.label)
                     }
                 }
             }
             .accessibilityIdentifier("meeting.list")
+            .accessibilityLabel("Meeting library")
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if app.selectedMeetingIDs.count > 1 {
                     mergeSelectionBar

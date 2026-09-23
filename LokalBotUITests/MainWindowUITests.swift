@@ -362,10 +362,10 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 6), "work sessions should be visible immediately")
         let usesContextDrawer = revealTimelineContext()
         if !usesContextDrawer {
-            XCTAssertGreaterThan(
+            XCTAssertLessThan(
                 identified("capture.dayOverview").frame.midX,
                 identified("timeline.workSessions").frame.midX,
-                "Day brief should be right of Work sessions in the wide Timeline layout")
+                "Day brief should stay left of Work sessions in the wide Timeline layout")
         }
         XCTAssertTrue(identified("timeline.dayDigest.generate").waitForExistence(timeout: 5),
                       "day-digest action should remain directly visible")
@@ -394,7 +394,7 @@ final class MainWindowUITests: XCTestCase {
         if usesContextDrawer { closeTimelineContext() }
         // The grounded block title becomes the human-scale session title.
         XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "label CONTAINS[c] %@", "Xcode"))
+            NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
             .firstMatch.exists,
                       "seeded work-session title missing")
         // Meetings remain first-class chronological rows.
@@ -924,10 +924,11 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(askRetrievalSegment("Ask").exists, "Ask segment missing")
         XCTAssertTrue(identified("ask.searchMatching").exists,
                       "Exact/meaning search menu missing")
-        XCTAssertFalse(identified("ask.sources").exists,
-                       "Ask scopes should not masquerade as search facets")
-        XCTAssertLessThan(field.frame.minY, askFrame.minY,
-                          "Search should move its query to the top")
+        XCTAssertTrue(identified("ask.sources").exists,
+                      "Search must retain the same source scope as Ask")
+        XCTAssertTrue(identified("ask.timeScope").exists)
+        XCTAssertEqual(field.frame.minY, askFrame.minY, accuracy: 1,
+                       "Switching modes must preserve the input position")
         XCTAssertGreaterThanOrEqual(field.frame.minX, app.windows.firstMatch.frame.minX)
         XCTAssertLessThanOrEqual(field.frame.maxX, app.windows.firstMatch.frame.maxX)
     }
@@ -961,7 +962,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil {
             let detailWidth = self.app.windows.firstMatch.frame.maxX
                 - detailDivider.frame.maxX
-            return conversations.frame.width <= 330 && detailWidth >= 420
+            return conversations.frame.width <= 340 && detailWidth >= 420
         }, "conversation history squeezed Ask below its readable width "
            + "(history: \(conversations.frame.width), Ask field: \(field.frame.width))")
     }

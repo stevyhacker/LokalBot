@@ -373,9 +373,18 @@ struct Transcript: Codable {
     func canConfirmSpeaker(_ speaker: String) -> Bool {
         let key = Self.canonicalSpeakerKey(speaker)
         let turns = segments.filter { Self.canonicalSpeakerKey($0.speaker) == key }
+        return Self.canConfirmIdentity(in: turns)
+    }
+
+    static func canConfirmIdentity(in turns: [Segment]) -> Bool {
         return !turns.isEmpty && turns.allSatisfy {
             $0.resolvedAttribution.canConfirmIdentity
         }
+    }
+
+    static func isPlaceholderSpeakerName(_ name: String) -> Bool {
+        name.range(of: #"^(?:Them(?: \d+)?|Speaker(?: \d+| unclear)?|Local speaker)$"#,
+                   options: [.regularExpression, .caseInsensitive]) != nil
     }
 
     func displaySpeaker(for speaker: String) -> String {

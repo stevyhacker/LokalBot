@@ -16,6 +16,26 @@ enum SyntheticFixture {
     static let todayDigestMarker = "Current-day digest marker"
     static let previousDayDigestMarker = "Previous-day digest marker"
 
+    static func plantActivityMoment(in library: Library) throws {
+        var db: OpaquePointer?
+        guard sqlite3_open(library.root.appendingPathComponent("lokalbotv3.sqlite").path, &db) == SQLITE_OK else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        defer { sqlite3_close(db) }
+        let timestamp = library.designReview.startedAt.addingTimeInterval(-105 * 60).timeIntervalSince1970
+        let sql = """
+            CREATE TABLE IF NOT EXISTS screenshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, path TEXT NOT NULL, app TEXT NOT NULL,
+                window_title TEXT NOT NULL DEFAULT '', capture_trigger TEXT NOT NULL DEFAULT 'interval',
+                perceptual_hash TEXT NOT NULL DEFAULT '', similarity_group INTEGER NOT NULL DEFAULT 0,
+                source_url TEXT NOT NULL DEFAULT '', document_name TEXT NOT NULL DEFAULT '',
+                meeting_id TEXT NOT NULL DEFAULT '', privacy_redactions INTEGER NOT NULL DEFAULT 0);
+            INSERT INTO screenshots (id, ts, path, app, window_title)
+                VALUES (9001, \(timestamp), '', 'Xcode', 'TimelineView.swift');
+            """
+        guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else { throw CocoaError(.fileWriteUnknown) }
+    }
+
     static func makeNotesPartial(for meeting: Meeting, in library: Library) throws {
         let folder = library.folder(for: meeting)
         // These synthetic transcripts contain only engine and plain segments,

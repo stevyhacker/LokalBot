@@ -8,6 +8,7 @@ struct TimelineContextPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
     let onDismiss: (() -> Void)?
+    @State private var expandedTitles: Set<String> = []
 
     @ViewBuilder
     var body: some View {
@@ -17,11 +18,11 @@ struct TimelineContextPanel: View {
                 screenshot: screenshot,
                 onReload: { model.reload(app: app) },
                 onClear: { model.selectedSnapshotID = nil },
-                backLabel: model.selectedSessionID == nil
-                    ? "Back to day digest" : "Back to work session",
+                backLabel: model.selection != nil ? "Back to activity"
+                    : model.selectedSessionID == nil ? "Back to day digest" : "Back to work session",
                 onDismiss: onDismiss)
                 .id(snapshotID)
-        } else if app.selectedMeetingIDs.isEmpty, let session = model.selectedSession {
+        } else if app.selectedMeetingIDs.isEmpty, model.selection == nil, let session = model.selectedSession {
             sessionPreview(session)
         } else {
             switch inspectorState {
@@ -86,15 +87,13 @@ struct TimelineContextPanel: View {
                 if model.digestIsStale {
                     Label("Newer activity is available. Regenerate the digest to include it.",
                           systemImage: "clock.arrow.circlepath")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(Brand.error)
+                        .workspaceTextRole(.warning)
                         .accessibilityIdentifier("capture.dayDigest.stale")
                 }
 
                 if let digestError = model.digestError {
                     Label(digestError, systemImage: "exclamationmark.triangle")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(Brand.error)
+                        .workspaceTextRole(.warning)
                 }
 
                 if let digest = model.digest {
@@ -193,19 +192,43 @@ struct TimelineContextPanel: View {
                             in: RoundedRectangle(cornerRadius: Brand.Radius.control))
 
                 if !session.notableTitles.isEmpty {
-                    TimelineContextSection(title: "Activity observed", icon: "text.page") {
+                    TimelineContextSection(title: "Documents and windows", icon: "text.page") {
                         VStack(alignment: .leading, spacing: 9) {
-                            ForEach(session.notableTitles.prefix(4), id: \.self) { title in
-                                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption)
-                                        .foregroundStyle(Brand.teal)
-                                    Text(title)
-                                        .font(WorkspaceTypography.body)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
+                            Text("These are captured window titles. Expand a title to inspect the activity behind it.")
+                                .workspaceTextRole(.supporting)
+                            ForEach(session.titleEvidence) { evidence in
+                                WorkspaceDisclosure(isExpanded: Binding(
+                                    get: { expandedTitles.contains(evidence.id) },
+                                    set: { if $0 { expandedTitles.insert(evidence.id) } else { expandedTitles.remove(evidence.id) } }),
+                                    identifier: "timeline.titleDisclosure.\(evidence.id)", style: .compact) {
+                                    ForEach(evidence.blocks) { block in
+                                        Button {
+                                            model.selection = block.id
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(block.title).lineLimit(2)
+                                                Text("\(block.app) · \(block.start.formatted(date: .omitted, time: .shortened))–\(block.end.formatted(date: .omitted, time: .shortened))")
+                                                    .workspaceTextRole(.supporting)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Inspect \(block.title), \(block.app), \(block.start.formatted(date: .omitted, time: .shortened))")
+                                        .accessibilityIdentifier("timeline.titleSource.\(block.id)")
+                                    }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(evidence.title).font(WorkspaceTypography.bodyEmphasis)
+                                        Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity \(evidence.blocks.count == 1 ? "block" : "blocks")")
+                                            .workspaceTextRole(.supporting)
+                                    }
                                 }
                             }
                         }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel("Documents and windows")
+                        .accessibilityIdentifier("timeline.session.titleEvidence")
                     }
                 }
 
@@ -292,8 +315,11 @@ struct TimelineContextPanel: View {
                     title: block.app,
                     subtitle: "\(block.start.formatted(date: .omitted, time: .shortened))–\(block.end.formatted(date: .omitted, time: .shortened)) · \(CaptureStyle.hm(block.duration))",
                     icon: "rectangle.stack",
-                    onBack: clearSelection,
-                    onDismiss: onDismiss)
+                    onBack: {
+                        if model.selectedSession != nil { model.selection = nil } else { clearSelection() }
+                    },
+                    onDismiss: onDismiss,
+                    backLabel: model.selectedSession == nil ? "Back to day digest" : "Back to work session")
                     .accessibilityIdentifier("timeline.activityPreview")
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -354,7 +380,6 @@ struct TimelineContextPanel: View {
     private func relatedMomentRow(_ screenshot: ActivityStore.Screenshot) -> some View {
         Button {
             model.selectedSnapshotID = screenshot.id
-            model.selection = nil
             app.selectedMeetingIDs = []
         } label: {
             HStack(spacing: 10) {
@@ -536,6 +561,7 @@ private struct TimelinePanelHeader: View {
     let icon: String
     let onBack: (() -> Void)?
     let onDismiss: (() -> Void)?
+    var backLabel = "Back to day digest"
 
     var body: some View {
         HStack(alignment: .top, spacing: 9) {
@@ -544,8 +570,8 @@ private struct TimelinePanelHeader: View {
                     Image(systemName: "arrow.left")
                 }
                 .buttonStyle(.plain)
-                .help("Back to day digest")
-                .accessibilityLabel("Back to day digest")
+                .help(backLabel)
+                .accessibilityLabel(backLabel)
             }
             IconTile(systemImage: icon, tint: Brand.teal, size: 30)
             VStack(alignment: .leading, spacing: 2) {

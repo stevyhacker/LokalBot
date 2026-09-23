@@ -55,7 +55,7 @@ struct SettingsView: View {
             .background(SettingsPalette.navigation(colorScheme))
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Settings navigation")
-            .splitPaneAccessibilityLabel("Settings navigation")
+            .splitPaneAccessibilityLabel("Settings navigation", autosaveName: "LokalBot.settings")
             VStack(alignment: .leading, spacing: 0) {
                 if !queryIsEmpty || app.settingsTab != .models {
                     settingsHeaderTitle.padding(20)

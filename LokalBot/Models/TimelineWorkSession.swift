@@ -13,15 +13,31 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     let title: String
     let apps: [String]
     let contextSwitchCount: Int
-    let notableTitles: [String]
+    let titleEvidence: [TitleEvidence]
+    var notableTitles: [String] { titleEvidence.map(\.title) }
 
     var appCount: Int { apps.count }
+
+    /// Titles are observed window/document names, not generated task claims.
+    /// Keep the source blocks so the label can always be inspected.
+    struct TitleEvidence: Identifiable, Equatable, Sendable {
+        let title: String
+        let blocks: [ActivityBlock]
+        var id: String { title.lowercased() }
+        let duration: TimeInterval
+    }
+
+    private struct TitledBlock {
+        let block: ActivityBlock
+        let title: String?
+    }
 
     /// Collapse adjacent blocks into one work session. A short gap usually
     /// represents reading, typing, or switching apps rather than a new task.
     static func sessions(
         from sourceBlocks: [ActivityBlock],
-        maximumGap: TimeInterval = 5 * 60
+        maximumGap: TimeInterval = 5 * 60,
+        maximumDuration: TimeInterval = 45 * 60
     ) -> [TimelineWorkSession] {
         let blocks = sourceBlocks
             .filter { $0.end > $0.start && !isSystemOnly(app: $0.app) }
@@ -29,21 +45,35 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 if $0.start == $1.start { return $0.id < $1.id }
                 return $0.start < $1.start
             }
-        guard let first = blocks.first else { return [] }
+        let titled = blocks.map { TitledBlock(block: $0, title: cleanedTitle($0.title, app: $0.app)) }
+        guard let first = titled.first else { return [] }
 
-        var groups: [[ActivityBlock]] = []
+        var groups: [[TitledBlock]] = []
         var current = [first]
-        var currentEnd = first.end
+        var currentEnd = first.block.end
+        var seenTitles = Set(first.title.map { [$0.lowercased()] } ?? [])
 
-        for block in blocks.dropFirst() {
-            if block.start.timeIntervalSince(currentEnd) <= maximumGap {
-                current.append(block)
+        for observed in titled.dropFirst() {
+            let block = observed.block
+            let title = observed.title?.lowercased()
+            let elapsed = block.start.timeIntervalSince(current[0].block.start)
+            // Short tool/app switches stay together. A sustained, previously
+            // unseen document after ten minutes is an inspectable boundary.
+            // Never cut overlapping blocks: that would double-count activity.
+            let sustainedChange = elapsed >= 10 * 60 && block.duration >= 3 * 60
+                && title.map { !seenTitles.contains($0) } == true
+            let newSegment = block.start >= currentEnd
+                && (elapsed >= max(60, maximumDuration) || sustainedChange)
+            if block.start.timeIntervalSince(currentEnd) <= maximumGap && !newSegment {
+                current.append(observed)
                 currentEnd = max(currentEnd, block.end)
             } else {
                 groups.append(current)
-                current = [block]
+                current = [observed]
                 currentEnd = block.end
+                seenTitles = []
             }
+            if let title { seenTitles.insert(title) }
         }
         groups.append(current)
         return groups.compactMap(makeSession)
@@ -60,8 +90,8 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         ].contains(normalized)
     }
 
-    private static func makeSession(_ sourceBlocks: [ActivityBlock]) -> TimelineWorkSession? {
-        let blocks = sourceBlocks.sorted { $0.start < $1.start }
+    private static func makeSession(_ sourceBlocks: [TitledBlock]) -> TimelineWorkSession? {
+        let blocks = sourceBlocks.map(\.block)
         guard let first = blocks.first else { return nil }
         let start = first.start
         let end = blocks.map(\.end).max() ?? first.end
@@ -80,27 +110,28 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             return leftDuration > rightDuration
         }
         let primaryApp = apps.first ?? first.app
-        let notableTitles = rankedTitles(in: blocks)
-        // A single document can name a session; mixed activity keeps factual
-        // app labels instead of attributing the whole period to one window.
-        let title = apps.count == 1 && notableTitles.count == 1
-            ? notableTitles[0]
-            : apps.prefix(3).joined(separator: " and ") + (apps.count > 3 ? " and more" : "")
+        let activeDuration = mergedDuration(blocks)
+        let evidence = rankedTitleEvidence(in: sourceBlocks)
+        // A fleeting page should remain inspectable without naming the whole session.
+        let representativeTitles = evidence.filter { $0.duration >= activeDuration * 0.2 }.map(\.title)
+        let title = representativeTitles.isEmpty
+            ? apps.prefix(2).joined(separator: " and ") + (apps.count > 2 ? " and more" : "")
+            : representativeTitles.prefix(2).joined(separator: " · ")
 
         return TimelineWorkSession(
             id: first.id,
             blocks: blocks,
             start: start,
             end: end,
-            activeDuration: mergedDuration(blocks),
+            activeDuration: activeDuration,
             primaryApp: primaryApp,
             title: title,
             apps: apps,
             contextSwitchCount: contextSwitches(in: blocks),
-            notableTitles: notableTitles)
+            titleEvidence: evidence)
     }
 
-    private static func mergedDuration(_ blocks: [ActivityBlock]) -> TimeInterval {
+    static func mergedDuration(_ blocks: [ActivityBlock]) -> TimeInterval {
         let ordered = blocks.sorted { $0.start < $1.start }
         guard let first = ordered.first else { return 0 }
         var total: TimeInterval = 0
@@ -120,20 +151,21 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return max(0, total)
     }
 
-    private static func rankedTitles(in blocks: [ActivityBlock]) -> [String] {
-        var durationByTitle: [String: TimeInterval] = [:]
+    private static func rankedTitleEvidence(in blocks: [TitledBlock]) -> [TitleEvidence] {
+        var blocksByTitle: [String: [ActivityBlock]] = [:]
         var displayTitle: [String: String] = [:]
         var firstIndex: [String: Int] = [:]
 
-        for (index, block) in blocks.enumerated() {
-            let title = cleanedTitle(block.title, app: block.app)
-            guard let title else { continue }
+        for (index, observed) in blocks.enumerated() {
+            let block = observed.block
+            guard let title = observed.title else { continue }
             let key = title.lowercased()
-            durationByTitle[key, default: 0] += max(0, block.duration)
+            blocksByTitle[key, default: []].append(block)
             displayTitle[key] = displayTitle[key] ?? title
             firstIndex[key] = firstIndex[key] ?? index
         }
 
+        let durationByTitle = blocksByTitle.mapValues { mergedDuration($0) }
         return durationByTitle.keys.sorted { lhs, rhs in
             let leftDuration = durationByTitle[lhs] ?? 0
             let rightDuration = durationByTitle[rhs] ?? 0
@@ -141,7 +173,10 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 return (firstIndex[lhs] ?? .max) < (firstIndex[rhs] ?? .max)
             }
             return leftDuration > rightDuration
-        }.compactMap { displayTitle[$0] }
+        }.map { key in
+            TitleEvidence(title: displayTitle[key] ?? key, blocks: blocksByTitle[key] ?? [],
+                          duration: durationByTitle[key] ?? 0)
+        }
     }
 
     private static func cleanedTitle(_ raw: String, app: String) -> String? {
@@ -158,7 +193,9 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         guard !generic.contains(normalized),
               normalized != app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         else { return nil }
-        return String(compact.prefix(96))
+        // Do not truncate the grouping key: distinct long document names can
+        // share a prefix. Views truncate visually and keep the full AX label.
+        return compact
     }
 
     /// Chromium-family windows append status and identity segments to the page

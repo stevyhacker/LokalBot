@@ -12,6 +12,40 @@ struct RecallWorkspaceState {
     var screenApp: String?
     var sources = AskSourceScope.defaults
     var pins: [ScreenAskContext] = []
+    private(set) var sourcesBeforeEvidence: Set<AskSourceScope>?
+
+    mutating func selectEvidence(meetingIDs: Set<UUID>?, screenIDs: Set<Int64>?,
+                                 sources selectedSources: Set<AskSourceScope>? = nil) {
+        guard meetingIDs != nil || screenIDs != nil else {
+            clearEvidence()
+            if let selectedSources { sources = selectedSources }
+            return
+        }
+        sourcesBeforeEvidence = sourcesBeforeEvidence ?? sources
+        self.meetingIDs = meetingIDs
+        self.screenIDs = screenIDs
+        if let selectedSources {
+            sources = selectedSources
+        } else {
+            sources = []
+            if meetingIDs?.isEmpty == false { sources.insert(.meetings) }
+            if screenIDs?.isEmpty == false { sources.insert(.screen) }
+            if sources.isEmpty { sources = [.meetings] }
+        }
+    }
+
+    /// An explicit source choice supersedes any earlier temporary narrowing.
+    mutating func chooseSources(_ selection: Set<AskSourceScope>) {
+        sources = selection
+        sourcesBeforeEvidence = nil
+    }
+
+    mutating func clearEvidence() {
+        meetingIDs = nil
+        screenIDs = nil
+        if let sourcesBeforeEvidence { sources = sourcesBeforeEvidence }
+        sourcesBeforeEvidence = nil
+    }
 }
 
 struct ScreenRecallGroup: Identifiable, Sendable {
@@ -72,13 +106,15 @@ extension RecallSearch {
         let screenFilter = filter
         let url = app.activityStore.databaseURL
         let facet = state.facet
+        let searchMeetings = state.sources.contains(.meetings) && facet != .screen
+        let searchScreens = state.sources.contains(.screen) && (facet == .all || facet == .screen)
         var result = await ActivityStore.readInBackground(at: url) { store in
             var result = Result()
-            if facet != .screen {
+            if searchMeetings {
                 result.meetings = groups(SearchIndex(databaseURL: url, readOnly: true)
                     .search(query, kind: facet.kind, limit: 2_000, meetingIDs: scopedMeetingIDs))
             }
-            guard !Task.isCancelled, facet == .all || facet == .screen else { return result }
+            guard !Task.isCancelled, searchScreens else { return result }
             var hits = store.searchOCR(query, limit: 2_000, filter: screenFilter, groupResults: false)
             if hits.isEmpty {
                 hits = store.searchOCR(query, limit: 2_000, matchAll: false, dropStopWords: true,
@@ -100,7 +136,7 @@ extension RecallSearch {
         guard !Task.isCancelled else { return Result() }
         onLexical?(result)
         guard state.meaning else { return result }
-        if state.facet == .all, app.embeddingIndex.hasEmbeddings {
+        if searchMeetings, state.facet == .all, app.embeddingIndex.hasEmbeddings {
             let semantic = await app.embeddingIndex.search(query, limit: 200, meetingIDs: meetingIDs)
             guard !Task.isCancelled else { return Result() }
             result.meetings = groups(result.meetings.flatMap(\.matches) + semantic.map {
@@ -108,7 +144,7 @@ extension RecallSearch {
                                 snippet: $0.text, speaker: "Meaning match")
             })
         }
-        if state.facet == .all || state.facet == .screen {
+        if searchScreens {
             let semantic = await app.embeddingIndex.searchScreen(query, filter: filter, limit: 200)
             guard !Task.isCancelled else { return Result() }
             let hits = result.screens.flatMap(\.matches)

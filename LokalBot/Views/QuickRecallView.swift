@@ -307,7 +307,7 @@ private struct QuickRecallContent: View {
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled, currentQuery == trimmedQuery else { return }
-            let result = await RecallSearch.search(currentQuery, state: app.recallState, day: app.askDayScope, app: app)
+            let result = await RecallSearch.search(currentQuery, state: RecallWorkspaceState(), day: nil, app: app)
             guard !Task.isCancelled, currentQuery == trimmedQuery else { return }
             screenGroups = result.screens
             meetingHits = result.meetings.map(\.primary)
@@ -347,18 +347,9 @@ private struct QuickRecallContent: View {
         let value = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, !model.isResponding else { return }
         if !showingConversation {
-            if usingResults {
-                app.recallState.meetingIDs = Set(meetingHits.map(\.meetingID))
-                app.recallState.screenIDs = matchingScreenIDs
-                app.recallState.sources = []
-                if !meetingHits.isEmpty { app.recallState.sources.insert(.meetings) }
-                if !screenGroups.isEmpty { app.recallState.sources.insert(.screen) }
-                if app.recallState.sources.isEmpty { app.recallState.sources = [.meetings] }
-            }
-            app.recallQuery = value
-            app.openAsk(query: value, dayScope: app.askDayScope,
-                        screenSnapshotIDs: app.recallState.screenIDs.map { Array($0) },
-                        meetingIDs: app.recallState.meetingIDs)
+            app.openAsk(query: value, dayScope: nil,
+                        screenSnapshotIDs: usingResults ? Array(matchingScreenIDs) : nil,
+                        meetingIDs: usingResults ? Set(meetingHits.map(\.meetingID)) : nil)
             WindowAccess.shared.open("main")
             dismiss()
             return
@@ -391,9 +382,7 @@ private struct QuickRecallContent: View {
             app.askMode = .ask
             app.navSection = .ask
         } else {
-            app.recallQuery = query
-            app.openAsk(query: query, dayScope: app.askDayScope, screenSnapshotIDs: app.recallState.screenIDs.map { Array($0) },
-                        meetingIDs: app.recallState.meetingIDs, mode: .keyword)
+            app.openAsk(query: query, dayScope: nil, mode: .keyword)
         }
         WindowAccess.shared.open("main")
         dismiss()

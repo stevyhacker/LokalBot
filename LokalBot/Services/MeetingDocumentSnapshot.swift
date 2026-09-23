@@ -11,6 +11,7 @@ struct MeetingDocumentSnapshot: Sendable {
     var speakerNameHints: [String]
     var transcriptDisplay: Transcript.DisplayIndex
     var speakerPresentation: MeetingSpeakerPresentation
+    var attributionNeedsRefresh = false
 
     static func load(meeting: Meeting, root: URL, template: NoteTemplate, databaseURL: URL) -> Self {
         let folder = root.appendingPathComponent(meeting.relativePath)
@@ -34,6 +35,7 @@ struct MeetingDocumentSnapshot: Sendable {
                     speakerNameHints: SpeakerNameHintExtractor.hints(
                         calendarNames: meeting.resolvedCalendarParticipantIdentities.compactMap(\.name), ocrText: text),
                     transcriptDisplay: Transcript.DisplayIndex(transcript: transcript),
-                    speakerPresentation: MeetingSpeakerPresentation(transcript: transcript))
+                    speakerPresentation: MeetingSpeakerPresentation(transcript: transcript),
+                    attributionNeedsRefresh: MeetingAttributionArtifacts.needsRefresh(in: folder))
     }
 }
