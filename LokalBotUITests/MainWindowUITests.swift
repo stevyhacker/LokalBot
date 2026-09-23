@@ -751,6 +751,9 @@ final class MainWindowUITests: XCTestCase {
                       "calendar candidate name missing from button label: \(candidate.label)")
         XCTAssertTrue(candidate.label.contains("ana@example.com"),
                       "calendar candidate email missing from button label: \(candidate.label)")
+        XCTAssertTrue(candidate.label.contains("Calendar"), "Suggestions retain their provenance")
+        XCTAssertTrue(identified("speaker.rename.leaveUnidentified").exists)
+        XCTAssertFalse(app.staticTexts["Suggestions from calendar guests"].exists)
         candidate.click()
 
         let name = app.textFields["speaker.rename.name"]

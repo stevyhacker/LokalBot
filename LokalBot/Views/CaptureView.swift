@@ -296,17 +296,17 @@ struct TimelineContentView: View {
                     }
                 } else {
                     HSplitView {
-                        CaptureDayView(model: model, onOpenContext: {})
-                            .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
-                            .accessibilityElement(children: .contain)
-                            .accessibilityIdentifier("timeline.sessionRail")
-                            .splitPaneAccessibilityLabel("Work sessions", autosaveName: "LokalBot.timeline.reading.v2")
                         TimelineContextPanel(model: model, onDismiss: nil)
                             .frame(minWidth: WorkspaceMetric.timelineContextMinWidth,
                                    maxWidth: .infinity, maxHeight: .infinity)
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("timeline.evidencePane")
-                            .splitPaneAccessibilityLabel("Timeline evidence")
+                            .splitPaneAccessibilityLabel("Timeline evidence", autosaveName: "LokalBot.timeline.reading.v3")
+                        CaptureDayView(model: model, onOpenContext: {})
+                            .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("timeline.sessionRail")
+                            .splitPaneAccessibilityLabel("Work sessions")
                     }
                     .id("workspace.timeline")
                 }

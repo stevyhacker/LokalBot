@@ -2024,83 +2024,36 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 .accessibilityIdentifier("speaker.rename.name")
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-            if !observedParticipants.isEmpty {
-                Text("Seen in this meeting")
-                    .font(.subheadline.weight(.semibold))
-                ForEach(observedParticipants) { participant in
-                    Button {
-                        name = participant.name
-                        selectedCalendarIdentityID = nil
-                        profileID = nil
-                    } label: {
-                        HStack {
-                            Label(participant.name, systemImage: normalizedName(name) == normalizedName(participant.name)
-                                ? "checkmark.circle.fill" : "person.crop.circle")
-                            Spacer()
-                            Text(participant.isSelf ? "You" : (participant.source == .ocr ? "From screen" : "From Meet"))
-                                .font(.caption).foregroundStyle(.secondary)
+                    if !suggestions.isEmpty {
+                        Text("Name suggestions")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Listen, choose a name, then save. These sources suggest names; attendance does not identify a voice.")
+                            .workspaceTextRole(.supporting)
+                            .fixedSize(horizontal: false, vertical: true)
+                        ForEach(suggestions) { suggestion in
+                            suggestionRow(suggestion)
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("speaker.rename.meetParticipant.\(participant.id)")
-                }
-            }
-            if !calendarCandidates.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Suggestions from calendar guests")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-
-                    Text("Play the voice, choose a guest, then save. Names marked From email are editable suggestions.")
-                        .font(.caption).foregroundStyle(.secondary)
-
-                    ForEach(Array(calendarCandidates.enumerated()), id: \.element.id) { index, candidate in
-                        calendarCandidateRow(candidate, index: index)
-                    }
-
-                    Text("Email addresses stay in this meeting's local metadata and are shown only to distinguish attendees.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .padding(10)
-                .background(
-                    .quaternary.opacity(0.22),
-                    in: RoundedRectangle(cornerRadius: 8))
-            }
-
-            SpeakerIdentityReview(speaker: draft.speaker, state: identityState,
-                profiles: profiles, rememberingEnabled: rememberingEnabled,
-                name: $name, remember: $remember, profileID: $profileID,
-                onPlay: onPlayEvidence, onAction: onAction, onDeleteEvidence: onDeleteEvidence,
-                canConfirmIdentity: draft.canConfirmIdentity, microphoneIsUser: draft.microphoneIsUser)
-            if let notice { Text(notice).font(.caption).foregroundStyle(.secondary) }
-
-            if !otherHints.isEmpty {
-                Text("Other suggestions")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(otherHints, id: \.self) { hint in
-                            Button(hint) {
-                                name = hint
-                                selectedCalendarIdentityID = nil
-                            }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
+                        if !calendarCandidates.isEmpty {
+                            Text("Email addresses stay in this meeting's local metadata and help distinguish guests.")
+                                .workspaceTextRole(.supporting)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                }
-            }
 
+                    SpeakerIdentityReview(speaker: draft.speaker, state: identityState,
+                        profiles: profiles, rememberingEnabled: rememberingEnabled,
+                        name: $name, remember: $remember, profileID: $profileID,
+                        onPlay: onPlayEvidence, onAction: onAction, onDeleteEvidence: onDeleteEvidence,
+                        canConfirmIdentity: draft.canConfirmIdentity, microphoneIsUser: draft.microphoneIsUser)
+                    if let notice { Text(notice).font(.caption).foregroundStyle(.secondary) }
                 }
             }
             .frame(maxHeight: 440)
 
             HStack {
-                Button("Reset to \(draft.defaultName)", action: onReset)
+                Button("Leave unidentified", action: onReset)
+                    .help("Clear the saved name and return to \(draft.defaultName)")
+                    .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel)
                 Button("Save") { onSave(name, selectedCalendarIdentityID, remember, profileID) }
@@ -2118,74 +2071,61 @@ private struct WorkspaceSpeakerRenameSheet: View {
         }
     }
 
-    private var otherHints: [String] {
-        let knownNames = Set((calendarCandidates.compactMap(\.suggestedSpeakerName)
-            + observedParticipants.map(\.name)).map(normalizedName))
-        return hints.filter { !knownNames.contains(normalizedName($0)) }
+    private var suggestions: [MeetingSpeakerSuggestion] {
+        MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, participants: observedParticipants, hints: hints)
     }
 
-    private func calendarCandidateRow(
-        _ candidate: CalendarParticipantIdentity,
-        index: Int
-    ) -> some View {
-        let assignedElsewhere = assignedCalendarIdentityIDs.contains(candidate.id)
-            && candidate.id != draft.currentCalendarIdentityID
-        let label = calendarCandidateAccessibilityLabel(
-            candidate,
-            assignedElsewhere: assignedElsewhere)
+    private func suggestionRow(_ suggestion: MeetingSpeakerSuggestion) -> some View {
+        let assignedElsewhere = suggestion.calendar.map {
+            assignedCalendarIdentityIDs.contains($0.id) && $0.id != draft.currentCalendarIdentityID
+        } ?? false
+        let selected: Bool = if let selectedCalendarIdentityID {
+            suggestion.calendar?.id == selectedCalendarIdentityID
+        } else {
+            suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
+                == MeetingSpeakerSuggestion.nameKey(name)
+        }
+        let title = suggestion.name ?? "Enter a name for this guest"
+        let label = ([title] + suggestion.sources + [suggestion.calendar?.emailAddress,
+                      assignedElsewhere ? "Also assigned to another voice" : nil].compactMap { $0 })
+            .joined(separator: ", ")
         return Button {
-            selectCalendarCandidate(candidate)
+            name = suggestion.name ?? ""
+            selectedCalendarIdentityID = suggestion.calendar?.id
+            profileID = nil
         } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack {
-                    Label(candidate.suggestedSpeakerName ?? "Enter a name for this guest",
-                        systemImage: selectedCalendarIdentityID == candidate.id ? "checkmark.circle.fill" : "person.crop.circle")
-                    Spacer()
-                    if candidate.name == nil, candidate.suggestedSpeakerName != nil {
-                        Text("From email").font(.caption).foregroundStyle(.secondary)
-                    }
+            VStack(alignment: .leading, spacing: 5) {
+                Label(title, systemImage: selected ? "checkmark.circle.fill" : "person.crop.circle")
+                    .font(WorkspaceTypography.body)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { sourceBadges(suggestion) }
+                    VStack(alignment: .leading, spacing: 4) { sourceBadges(suggestion) }
                 }
-                if let email = candidate.emailAddress {
-                    Text(email).font(.caption).foregroundStyle(.secondary)
+                if let email = suggestion.calendar?.emailAddress {
+                    Text(email).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                 }
-                if assignedElsewhere { Text("Also assigned to another voice").font(.caption).foregroundStyle(.secondary) }
+                if assignedElsewhere {
+                    Text("Also assigned to another voice")
+                        .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        // A standard SwiftUI bordered button supplies the native AXButton
-        // role. Custom plain labels and NSViewRepresentable roots can be
-        // flattened by SwiftUI when presented inside a sheet.
         .buttonStyle(.bordered)
-        .tint(selectedCalendarIdentityID == candidate.id ? .accentColor : nil)
-        .help(assignedElsewhere ? "Also assign this attendee to this speaker" : "Assign this attendee")
+        .tint(selected ? .accentColor : nil)
         .accessibilityLabel(label)
-        .accessibilityIdentifier("speaker.rename.calendarCandidate.\(index)")
+        .accessibilityIdentifier(suggestion.accessibilityID)
     }
 
-    private func selectCalendarCandidate(_ candidate: CalendarParticipantIdentity) {
-        selectedCalendarIdentityID = candidate.id
-        profileID = nil
-        name = candidate.suggestedSpeakerName ?? ""
-    }
-
-    private func calendarCandidateAccessibilityLabel(
-        _ candidate: CalendarParticipantIdentity,
-        assignedElsewhere: Bool
-    ) -> String {
-        [
-            candidate.suggestedSpeakerName ?? "Enter a name for this guest",
-            candidate.emailAddress,
-            candidate.name == nil && candidate.suggestedSpeakerName != nil ? "Name suggested from email" : nil,
-            assignedElsewhere ? "Assigned" : nil,
-        ]
-        .compactMap { $0 }
-        .joined(separator: ", ")
-    }
-
-    private func normalizedName(_ value: String) -> String {
-        value.folding(
-            options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
-            locale: .current)
+    private func sourceBadges(_ suggestion: MeetingSpeakerSuggestion) -> some View {
+        ForEach(suggestion.sources, id: \.self) { source in
+            Text(source)
+                .font(WorkspaceTypography.metadata)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(.quaternary, in: Capsule())
+        }
     }
 }
 

@@ -366,6 +366,8 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(evidence.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(rail.frame.width, 361)
         XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
+        XCTAssertLessThanOrEqual(evidence.frame.maxX, rail.frame.minX,
+                                 "Work sessions belong to the right of the day digest")
         app.buttons["timeline.session.1"].click()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
         XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
