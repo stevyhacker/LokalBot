@@ -17,6 +17,8 @@ struct ActionsWorkspaceView: View {
     }
     @State private var correction: OutcomeActionReference?
     @State private var failures: [String] = []
+    /// Shows a checkbox per row so several actions can be chosen without ⌘-click.
+    @State private var selecting = false
 
     private var all: [OutcomeActionReference] {
         app.outcomeIndex.all.flatMap(\.actionReferences).filter(\.isForUser)
@@ -79,8 +81,10 @@ struct ActionsWorkspaceView: View {
 
     private var threadList: some View {
         VStack(spacing: 8) {
-            Text("Matching threads retain all linked sources. Review their source meetings before applying a status to the whole thread.")
-                .workspaceTextRole(.supporting).padding(.horizontal, 20)
+            Text("A thread groups the same action across meetings. Changing its status updates every linked meeting.")
+                .workspaceTextRole(.supporting)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
             List(visibleThreads) { thread in
                 ActionThreadRow(thread: thread)
             }
@@ -99,7 +103,11 @@ struct ActionsWorkspaceView: View {
         HSplitView {
             List(selection: listSelection) {
                 ForEach(visible) { reference in
-                    OutcomeOverviewActionRow(reference: reference).tag(reference.id)
+                    HStack(alignment: .top, spacing: 8) {
+                        if selecting { selectionToggle(reference.id) }
+                        OutcomeOverviewActionRow(reference: reference)
+                    }
+                    .tag(reference.id)
                         .contextMenu {
                             Button("Correct action…") { correction = reference }
                             Button("Show details") { selection = [reference.id] }
@@ -132,10 +140,12 @@ struct ActionsWorkspaceView: View {
             Spacer()
             if reviewMode == "actions" {
                 if visibleSelection.isEmpty {
-                    Text("Select actions to change several at once (⌘-click)")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("actions.batch.hint")
+                    if selecting {
+                        Text("Choose actions to change together")
+                            .font(WorkspaceTypography.metadata)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("actions.batch.hint")
+                    }
                 } else {
                     Menu("Change \(CountLabel.format(visibleSelection.count, "selected action"))") {
                         ForEach(OutcomeStatus.allCases, id: \.rawValue) { next in
@@ -147,12 +157,18 @@ struct ActionsWorkspaceView: View {
                     .fixedSize()
                     .accessibilityIdentifier("actions.batch")
                 }
+                Button(selecting ? "Done" : "Select") {
+                    selecting.toggle()
+                    if !selecting { selection = [] }
+                }
+                .help(selecting ? "Stop selecting actions" : "Select several actions to change their status together")
+                .accessibilityIdentifier("actions.selectMode")
             }
         }.padding(20)
     }
 
     private var filters: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Picker("Review", selection: $reviewMode) {
                     Text("Actions").tag("actions")
@@ -176,6 +192,23 @@ struct ActionsWorkspaceView: View {
             }
         }.padding(.horizontal, 20).padding(.bottom, 12)
     }
+    private func selectionToggle(_ id: String) -> some View {
+        let isSelected = selection.contains(id)
+        return Button {
+            if isSelected { selection.remove(id) } else { selection.insert(id) }
+        } label: {
+            Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                .font(.system(size: 15))
+                .foregroundStyle(isSelected ? Brand.teal : .secondary)
+                .frame(width: 24, height: 24)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, WorkspaceMetric.rowVerticalPadding - 3)
+        .accessibilityLabel(isSelected ? "Deselect action" : "Select action")
+        .accessibilityIdentifier("actions.select.\(id)")
+    }
+
     private var statusPicker: some View {
         Picker("Status", selection: $status) {
             Text("All").tag("")
