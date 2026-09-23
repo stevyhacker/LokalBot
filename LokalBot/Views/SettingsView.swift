@@ -269,6 +269,8 @@ struct SettingsView: View {
                         SettingsLabel("Launch LokalBot at login",
                                       help: "Start automatically so it's ready to catch meetings.")
                     }
+                    .accessibilityLabel("Launch LokalBot at login")
+                    .accessibilityHint("Start automatically so it's ready to catch meetings.")
 
                     Toggle(isOn: $app.settings.menuBarOnly) {
                         SettingsLabel("Menu bar only (hide Dock icon)",
