@@ -92,7 +92,7 @@ private struct RetentionReviewSheet: View {
                 Spacer()
                 Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
                 Button("Apply policy and cleanup", role: .destructive, action: onApply)
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     .accessibilityIdentifier("retention.confirm")
             }
         }

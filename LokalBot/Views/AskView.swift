@@ -307,9 +307,8 @@ private struct AskContent: View {
             Label(resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
                 .font(WorkspaceTypography.control)
         }
-        .buttonStyle(.borderedProminent)
+        .primaryActionButton()
         .controlSize(.regular)
-        .tint(Brand.teal)
         .disabled(!canSubmit || isSearching)
         .keyboardShortcut(.return, modifiers: [.command])
         .accessibilityIdentifier("ask.submit")

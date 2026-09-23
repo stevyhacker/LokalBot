@@ -59,7 +59,7 @@ struct DictationView: View {
                 Button(actionTitle) { app.dictation.toggle(source: "rehearsal") }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
-                    .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.teal)
+                    .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.tealFill)
             }
             Picker("Intent", selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
                 ForEach(DictationIntent.allCases) { Text($0.rawValue).tag($0) }

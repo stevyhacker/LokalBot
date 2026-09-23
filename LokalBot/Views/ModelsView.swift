@@ -168,7 +168,7 @@ private struct ModelStorageFooter: View {
                 Spacer(minLength: 8)
                 Button(activeDownloads > 0
                        ? "Downloads (\(activeDownloads))" : "Manage downloads", action: manage)
-                    .buttonStyle(.link)
+                    .buttonStyle(.workspaceLink)
                     .accessibilityIdentifier("models.manageDownloads")
             }
         }

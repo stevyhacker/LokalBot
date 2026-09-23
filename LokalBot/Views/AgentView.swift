@@ -29,7 +29,7 @@ struct AgentView: View {
             } else { installCard }
         }
         .navigationTitle(installer.phase == .installed ? "" : "Agent")
-        .tint(AgentPalette.accent(for: colorScheme))
+        .tint(Brand.teal)
         .alert("Agent tasks", isPresented: Binding(get: { sessions.error != nil }, set: { if !$0 { sessions.error = nil } })) {
             Button("OK") { sessions.error = nil }
         } message: { Text(sessions.error ?? "") }
@@ -62,7 +62,7 @@ struct AgentView: View {
                 Button("Download & Enable Agent Mode") {
                     Task { await installer.installIfNeeded() }
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("agent.install")
             case .downloading(let name, let progress):
                 ProgressView(value: progress >= 0 ? progress : nil)

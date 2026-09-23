@@ -267,7 +267,7 @@ private struct ActionEditorSheet: View {
                 Button("Save correction") {
                     if app.outcomeIndex.correctAction(actionID: reference.action.id, meetingID: reference.meetingID,
                                                      text: text, owner: owner, due: due) { dismiss() } else { error = app.outcomeIndex.lastError ?? "The correction could not be saved." }
-                }.buttonStyle(.borderedProminent).disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }.primaryActionButton().disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }.padding(24).frame(width: 530)
     }

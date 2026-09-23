@@ -97,7 +97,7 @@ struct ScreenMomentDetailView: View {
             .accessibilityLabel(backLabel)
             .accessibilityIdentifier("timeline.screenDetail.backToDayOverview")
             IconTile(systemImage: screenshot.hasPixels ? "camera.viewfinder" : "text.viewfinder",
-                     tint: Brand.teal, size: 30)
+                     tint: Brand.tealFill, size: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(screenshot.app)
                     .font(WorkspaceTypography.conversationTitle)

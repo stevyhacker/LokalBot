@@ -109,7 +109,7 @@ struct AutocompleteExperienceView: View {
                     if generating { ProgressView().controlSize(.small) }
                     Spacer()
                     Button("Insert suggestion") { accept() }
-                        .buttonStyle(.borderedProminent)
+                        .primaryActionButton()
                         .disabled(suggestion.isEmpty)
                 }
                 if let error {

@@ -26,6 +26,7 @@ struct CotypingModelPreparationView: View {
                 HStack(spacing: 4) {
                     Text("LFM uses its own commercial and redistribution terms.")
                     Link("Review license", destination: ModelCatalog.recommendedCotypingLicenseURL)
+                        .buttonStyle(.workspaceLink)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)

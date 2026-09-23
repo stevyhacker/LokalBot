@@ -80,7 +80,7 @@ private struct TodayMeetingRow: View {
                 Link(destination: meetingURL) {
                     Label("Join", systemImage: "video")
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("today.meeting.\(event.externalID).join")
             }
             Button {
@@ -140,7 +140,7 @@ private struct UpcomingMeetingCard: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 12) {
-            IconTile(systemImage: "calendar.badge.clock", tint: Brand.teal, size: 42)
+            IconTile(systemImage: "calendar.badge.clock", tint: Brand.tealFill, size: 42)
             VStack(alignment: .leading, spacing: 4) {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     Text(event.startDate <= context.date ? "In progress" : "Up next")
@@ -174,7 +174,7 @@ private struct UpcomingMeetingCard: View {
                 Link(destination: meetingURL) {
                     Label("Join", systemImage: "video")
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("today.upcomingMeeting.join")
             }
             Button {

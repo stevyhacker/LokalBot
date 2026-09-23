@@ -151,7 +151,7 @@ struct ModelPickerSheet: View {
                     setup.apply(patch, title: selectedName)
                     dismiss()
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canApply || (patch.matches(app.settings) && !needsDownload))
                 .accessibilityIdentifier("models.picker.apply")

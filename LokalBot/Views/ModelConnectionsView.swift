@@ -116,7 +116,7 @@ struct ModelConnectionsView: View {
             }
             HStack(spacing: 12) {
                 Button("Save connection") { saveConnection() }
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     .disabled(!hasChanges || testing)
                     .accessibilityIdentifier("models.connection.save")
                 Button(testing ? "Checking…" : "Check connection") {

@@ -147,7 +147,7 @@ struct ModelStackOverviewView: View {
                     .accessibilityIdentifier("models.stack.status.\(role.rawValue)")
             } else if destination.isBlocked {
                 Button("Review connection…", action: connections)
-                    .font(.system(size: 12)).buttonStyle(.link)
+                    .font(.system(size: 12)).buttonStyle(.workspaceLink)
             } else if !status.isReady {
                 Label(status.label, systemImage: status.isWorking ? "arrow.down.circle" : "exclamationmark.circle")
                     .font(.system(size: 12))

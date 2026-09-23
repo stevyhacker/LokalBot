@@ -115,7 +115,7 @@ struct GraniteSpeechModelPicker: View {
             .disabled(selection.isDefault)
             Spacer()
             Button("Use selected model") { applySelection() }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .keyboardShortcut(.defaultAction)
                 .disabled(candidateConfiguration == nil)
                 .accessibilityIdentifier("models.granite.useSelected")

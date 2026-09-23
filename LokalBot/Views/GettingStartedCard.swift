@@ -22,7 +22,7 @@ struct GettingStartedCard: View {
                 HeroPanel(radius: Brand.Radius.card) {
                     HStack(spacing: 14) {
                         IconTile(systemImage: "waveform.badge.magnifyingglass",
-                                 tint: Brand.teal, size: 48)
+                                 tint: Brand.tealFill, size: 48)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Welcome to LokalBot").font(.title2.bold())
                                 .foregroundStyle(.white)

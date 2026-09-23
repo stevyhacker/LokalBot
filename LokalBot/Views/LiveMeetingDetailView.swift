@@ -64,7 +64,7 @@ struct LiveMeetingDetailView: View {
                     Label("Stop Recording", systemImage: "stop.circle.fill")
                 }
                 .tint(.red)
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("live.stop")
             }
             RecordingHealthStrip(recording: app.recording)

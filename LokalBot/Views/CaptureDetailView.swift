@@ -248,7 +248,7 @@ struct TimelineContextPanel: View {
                     Label("Ask about this session", systemImage: "sparkles")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -354,7 +354,7 @@ struct TimelineContextPanel: View {
                     Label("Ask about this activity", systemImage: "sparkles")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -499,7 +499,7 @@ private struct TimelineMeetingPreview: View {
                         Label("Open meeting", systemImage: "arrow.up.right.square")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     Button {
                         app.openAsk(query: "What matters from \(meeting.displayTitle)?")
                     } label: {
@@ -557,7 +557,7 @@ private struct TimelinePanelHeader: View {
                 .help(backLabel)
                 .accessibilityLabel(backLabel)
             }
-            IconTile(systemImage: icon, tint: Brand.teal, size: 30)
+            IconTile(systemImage: icon, tint: Brand.tealFill, size: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .lineLimit(2)

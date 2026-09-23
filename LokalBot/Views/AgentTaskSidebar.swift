@@ -39,7 +39,7 @@ struct AgentTaskSidebar: View {
                 HStack {
                     Label("Archived", systemImage: "archivebox").font(.caption)
                     Spacer()
-                    Button("Show active") { showArchived = false }.buttonStyle(.link)
+                    Button("Show active") { showArchived = false }.buttonStyle(.workspaceLink)
                 }.padding(.horizontal, 12).padding(.bottom, 8)
             }
             List(selection: Binding<UUID?>(get: { sessions.selectedID }, set: { if let id = $0 { sessions.select(id) } })) {

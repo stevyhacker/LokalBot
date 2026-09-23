@@ -71,7 +71,7 @@ struct ModelPresetSheet: View {
                     setup.apply(selected.patch, title: selected.title)
                     dismiss()
                 }
-                .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                .primaryActionButton().keyboardShortcut(.defaultAction)
                 .disabled(setup.pending != nil)
                 .accessibilityIdentifier("models.preset.apply")
             }

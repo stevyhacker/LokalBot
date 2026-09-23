@@ -95,7 +95,7 @@ struct MeetingNotesRefreshSection: View {
                 localText: "Refreshing processes the transcript on this Mac.",
                 remoteText: "Refreshing sends the transcript and confirmed names to your approved model server.")
             Button(isProcessing ? "Processing…" : "Refresh notes and owners", action: onRefresh)
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .disabled(isProcessing || !canRefresh)
                 .accessibilityIdentifier("meeting.review.refresh")
         }

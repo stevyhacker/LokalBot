@@ -721,7 +721,7 @@ private struct EvidenceDisclosure: View {
                     .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
-                    .background(Brand.teal, in: Circle())
+                    .background(Brand.tealFill, in: Circle())
                 Image(systemName: source.icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)

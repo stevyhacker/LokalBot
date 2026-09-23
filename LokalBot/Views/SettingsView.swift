@@ -836,7 +836,9 @@ struct SettingsView: View {
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
                     HStack(spacing: 16) {
                         Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
+                            .buttonStyle(.workspaceLink)
                         Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
+                            .buttonStyle(.workspaceLink)
                     }
                     .font(WorkspaceTypography.editorialBody)
                 }

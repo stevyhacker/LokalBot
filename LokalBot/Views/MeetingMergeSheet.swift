@@ -216,8 +216,7 @@ struct MeetingMergeSheet: View {
                     .foregroundStyle(.secondary)
             }
             Button("Merge meetings") { merge() }
-                .buttonStyle(.borderedProminent)
-                .tint(Brand.teal)
+                .primaryActionButton()
                 .disabled(isMerging || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .keyboardShortcut(.defaultAction)
                 .accessibilityIdentifier("meeting.mergeConfirm")

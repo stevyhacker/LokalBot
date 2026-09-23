@@ -762,7 +762,7 @@ private struct TimelineSessionMeetingRow: View {
                 }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .frame(width: 60, alignment: .trailing)
-                IconTile(systemImage: "waveform", tint: Brand.teal, size: 32)
+                IconTile(systemImage: "waveform", tint: Brand.tealFill, size: 32)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(meeting.displayTitle)
                         .font(WorkspaceTypography.bodyEmphasis)
@@ -907,7 +907,7 @@ private struct CaptureTrackView: View {
             onSelectMeeting(meeting.id)
         } label: {
             RoundedRectangle(cornerRadius: 4)
-                .fill(Brand.teal.opacity(isSelected ? 1 : 0.85))
+                .fill(Brand.tealFill.opacity(isSelected ? 1 : 0.85))
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {

@@ -1776,7 +1776,7 @@ private struct ActionCorrectionSheet: View {
                 Spacer()
                 Button("Cancel", action: onCancel)
                 Button("Save correction") { onSave(draft.text, draft.owner, draft.due) }
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     .accessibilityIdentifier("meeting.action.correction.save")
             }
         }

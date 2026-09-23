@@ -51,7 +51,7 @@ struct AgentComposer: View {
                 .padding(14)
                 .background(AgentPalette.composer(for: colorScheme), in: RoundedRectangle(cornerRadius: 16))
                 .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(
-                    focused ? AgentPalette.accent(for: colorScheme) : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
+                    focused ? Brand.teal : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
                     lineWidth: focused || contrast == .increased ? 1.5 : 1))
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
                 .dropDestination(for: URL.self) { urls, _ in
@@ -146,7 +146,7 @@ struct AgentComposer: View {
             Button(controller.state == .running ? "Queue follow-up" : "Send", systemImage: controller.state == .running ? "text.badge.plus" : "arrow.up") {
                 submit(steer: false)
             }
-            .buttonStyle(.borderedProminent).controlSize(.large)
+            .primaryActionButton().controlSize(.large)
             .font(.system(size: 13, weight: .semibold))
             .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
             .accessibilityIdentifier("agent.send")

@@ -24,7 +24,7 @@ struct NeedsAttentionSection: View {
                 Button("Review all actions") {
                     app.openActions()
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("outcomes.review")
             }
         }

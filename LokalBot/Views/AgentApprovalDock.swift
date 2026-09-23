@@ -72,7 +72,7 @@ struct AgentApprovalDock: View {
                     id: request.id, approved: false, scope: .once)
             }
         }
-        .buttonStyle(.borderedProminent)
+        .primaryActionButton()
         .keyboardShortcut(.cancelAction)
         .accessibilityIdentifier("agent.approve.deny")
 

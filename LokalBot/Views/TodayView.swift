@@ -22,7 +22,7 @@ struct TodayView: View {
                 WorkspaceSection(title: "Day digest", icon: "sparkles") {
                     DayDigestCard(model: model, yesterday: dream, identifier: "today")
                     Button("Open timeline") { app.navSection = .timeline }
-                        .buttonStyle(.link)
+                        .buttonStyle(.workspaceLink)
                 }
             }
             .padding(WorkspaceMetric.pagePadding)
@@ -141,7 +141,7 @@ struct TodayView: View {
                         } label: {
                             Label("Live transcript & notes", systemImage: "text.bubble")
                         }
-                        .buttonStyle(.borderedProminent)
+                        .primaryActionButton()
                     }
                 }
             }

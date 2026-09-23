@@ -6,7 +6,9 @@ enum SettingsPalette {
     static func navigation(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xE9E9E9, dark: 0x242426) }
     static func panel(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xFFFFFF, dark: 0x2C2C2E) }
     static func hover(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xECECEE, dark: 0x39393D) }
-    static func accent(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x0C7462, dark: 0x6CD9BF) }
+    /// The shared brand accent; kept as a palette entry so Settings call sites
+    /// read uniformly.
+    static func accent(_ scheme: ColorScheme) -> Color { Brand.teal }
     static func remote(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x4D4B9C, dark: 0xB8B2FF) }
     static func warning(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x8C4D06, dark: 0xFFD08A) }
 
@@ -123,10 +125,10 @@ private struct SettingsActionButton: View {
         configuration.label
             .font(.system(size: 13, weight: .semibold))
             .padding(.horizontal, 12).padding(.vertical, 7)
-            .foregroundStyle(prominent ? (scheme == .dark ? SettingsPalette.canvas(scheme) : .white) : accent)
+            .foregroundStyle(prominent ? Color.white : accent)
             .background(background, in: shape)
             .overlay {
-                shape.strokeBorder(accent.opacity(prominent || contrast == .increased ? 1 : 0.7), lineWidth: 1)
+                shape.strokeBorder((prominent ? Brand.tealFill : accent).opacity(prominent || contrast == .increased ? 1 : 0.7), lineWidth: 1)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
             }
@@ -135,7 +137,7 @@ private struct SettingsActionButton: View {
     }
 
     private var background: Color {
-        if prominent { return SettingsPalette.accent(scheme) }
+        if prominent { return Brand.tealFill }
         return hovered || configuration.isPressed ? SettingsPalette.hover(scheme) : SettingsPalette.panel(scheme)
     }
 }
