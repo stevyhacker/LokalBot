@@ -192,8 +192,10 @@ struct ScreenSearchResultRow: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
-                        Text(hit.isSemantic ? "Related by meaning" : "Keyword match")
-                            .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+                        if hit.isSemantic {
+                            Text("Related by meaning")
+                                .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+                        }
                         highlightedSnippet
                             .font(.callout)
                             .foregroundStyle(.secondary)

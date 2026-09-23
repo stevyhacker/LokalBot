@@ -176,7 +176,7 @@ struct TimelineContextPanel: View {
                         }
                     }
 
-                DisclosureGroup("Browse all \(frames.count) retained moments") {
+                DisclosureGroup(frames.count == 1 ? "Browse the retained moment" : "Browse all \(CountLabel.format(frames.count, "retained moment"))") {
                     SessionMomentBrowser(model: model, session: session)
                 }
                 .accessibilityIdentifier("timeline.session.browseMoments")

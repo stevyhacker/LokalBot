@@ -2006,7 +2006,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Rename Speaker").font(.headline)
+                Text("Rename speaker").font(.headline)
                 Spacer()
                 if let sample = draft.sample {
                     Button("Play voice") { onPlay(sample) }

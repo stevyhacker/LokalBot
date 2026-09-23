@@ -554,11 +554,11 @@ final class RedesignUITests: XCTestCase {
         search.typeText("Synthetic commitment 398")
         XCTAssertTrue(element("actions.selection.hidden").waitForExistence(timeout: 5),
                       "Filtering should preserve the selected action while excluding it from the batch")
-        XCTAssertFalse(element("actions.batch").isEnabled)
+        XCTAssertFalse(element("actions.batch").exists, "The batch menu appears only for visible selections")
         search.click(); search.typeKey("a", modifierFlags: .command)
         search.typeText("Synthetic commitment 399")
         XCTAssertTrue(action.waitForExistence(timeout: 5))
-        XCTAssertTrue(element("actions.batch").isEnabled, "Returning to the action should restore its selection")
+        XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "Returning to the action should restore its selection")
         XCTAssertFalse(element("actions.selection.hidden").exists)
         let complete = app.buttons["outcome.action.toggle.\(fixture.designReview.id.uuidString):large-action-399"]
         XCTAssertTrue(complete.waitForExistence(timeout: 4))

@@ -680,7 +680,7 @@ private struct TimelineWorkSessionRow: View {
                         .font(WorkspaceTypography.bodyEmphasis)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(.tail)
                         .help(session.title)
                     HStack(spacing: 8) {
                         Text(appSummary)

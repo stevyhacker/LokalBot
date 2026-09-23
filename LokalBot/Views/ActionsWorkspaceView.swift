@@ -131,14 +131,22 @@ struct ActionsWorkspaceView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if reviewMode == "actions" {
-                Menu("Change \(visibleSelection.count) selected") {
-                    ForEach(OutcomeStatus.allCases, id: \.rawValue) { next in
-                        Button(next.label) {
-                            failures = app.outcomeIndex.setStatus(next, for: visibleSelection)
+                if visibleSelection.isEmpty {
+                    Text("Select actions to change several at once (⌘-click)")
+                        .font(WorkspaceTypography.metadata)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("actions.batch.hint")
+                } else {
+                    Menu("Change \(CountLabel.format(visibleSelection.count, "selected action"))") {
+                        ForEach(OutcomeStatus.allCases, id: \.rawValue) { next in
+                            Button(next.label) {
+                                failures = app.outcomeIndex.setStatus(next, for: visibleSelection)
+                            }
                         }
                     }
-                }.disabled(visibleSelection.isEmpty)
+                    .fixedSize()
                     .accessibilityIdentifier("actions.batch")
+                }
             }
         }.padding(20)
     }

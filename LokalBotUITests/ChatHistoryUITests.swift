@@ -57,7 +57,7 @@ final class ChatHistoryUITests: XCTestCase {
 
         // The new-chat affordance is present in the history column.
         let newQuestion = app.buttons.matching(NSPredicate(
-            format: "identifier == %@ OR label == %@", "chat.new", "New Question"
+            format: "identifier == %@ OR label == %@", "chat.new", "New conversation"
         )).firstMatch
         XCTAssertTrue(newQuestion.waitForExistence(timeout: 4),
                       "new-chat button missing")
@@ -101,7 +101,7 @@ final class ChatHistoryUITests: XCTestCase {
         field.click(); field.typeText("unsent search")
         app.buttons["chat.new"].click()
         XCTAssertTrue(app.buttons["ask.submit"].waitForExistence(timeout: 4))
-        XCTAssertEqual(field.value as? String, "", "New Question must open Ask even when already empty")
+        XCTAssertEqual(field.value as? String, "", "New conversation must open Ask even when already empty")
     }
 
     private func text(containing fragment: String) -> XCUIElement {

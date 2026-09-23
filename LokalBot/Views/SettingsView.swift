@@ -877,7 +877,7 @@ struct SettingsView: View {
                     .disabled(!updates.isStarted)
                     Text(updates.isStarted
                          ? "Updates are signed and delivered via Sparkle. LokalBot stays local-first — only the appcast and the chosen download are fetched."
-                         : "Updater inactive — set the appcast feed URL and Sparkle public key before shipping (see RELEASING.md).")
+                         : Self.inactiveUpdaterNote)
                         .font(WorkspaceTypography.editorialBody).settingsSecondary()
                 }
             }
@@ -982,6 +982,15 @@ struct SettingsView: View {
                 }
             }
 
+    }
+
+    /// Release builds explain the state; only dev builds point at release setup.
+    private static var inactiveUpdaterNote: String {
+        #if LOKALBOT_DEV
+        "Updater inactive — set the appcast feed URL and Sparkle public key before shipping (see RELEASING.md)."
+        #else
+        "Automatic updates are unavailable in this build."
+        #endif
     }
 
     /// Calendar permission state + action for the Meetings section.

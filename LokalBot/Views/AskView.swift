@@ -270,7 +270,7 @@ private struct AskContent: View {
                             Text("Meeting · \(meetingTitle(group.id)) · \(meetingDate(group.id) ?? "")")
                         }
                         ForEach(screenGroups) { group in
-                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(group.matches.count) moments")
+                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(CountLabel.format(group.matches.count, "moment"))")
                         }
                         ForEach(pinnedScreens) { pin in
                             Text("Attached screen · \(pin.app) · \(pin.timestamp.formatted(date: .abbreviated, time: .shortened))")
@@ -284,7 +284,7 @@ private struct AskContent: View {
             }
         } label: {
             Text(isSearching ? "Finding sources…" : resultCount > 0
-                 ? "Answer sources: \(groupedMeetings.count) meetings · \(answerScreenIDs.count) screen moments"
+                 ? "Answer sources: \(CountLabel.format(groupedMeetings.count, "meeting")) · \(CountLabel.format(answerScreenIDs.count, "screen moment"))"
                  : "Answer sources: \(sourceSummary) · \(timeScopeLabel)")
         }
         .font(WorkspaceTypography.metadata)
@@ -674,7 +674,7 @@ private struct AskContent: View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { LoadingStateLabel("Searching local sources…") }
-                Text("Showing \(resultCount) source \(resultCount == 1 ? "group" : "groups") · Return opens · ⌘Return asks")
+                Text("\(CountLabel.format(resultCount, "result")) · Return opens · ⌘Return asks")
                     .workspaceTextRole(.metadata)
                 if resultCount == 0 && !isSearching {
                     noMatchesRow(sources == [.today]
@@ -703,7 +703,7 @@ private struct AskContent: View {
                             .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                         screenResult(group.primary)
                         if group.matches.count > 1 {
-                            DisclosureGroup("\(group.matches.count - 1) more moments in this session") {
+                            DisclosureGroup("\(CountLabel.format(group.matches.count - 1, "more moment")) in this session") {
                                 ForEach(group.matches.dropFirst()) { screenResult($0) }
                             }
                         }
@@ -724,7 +724,7 @@ private struct AskContent: View {
         Button { app.openSearchHit(hit) } label: {
             ResultRow(title: meetingTitle(hit.meetingID), kind: kindLabel(hit), snippet: hit.snippet,
                       timestamp: meetingDate(hit.meetingID),
-                      matchLabel: hit.isSemantic ? "Related by meaning" : "Keyword match")
+                      matchLabel: hit.isSemantic ? "Related by meaning" : nil)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
