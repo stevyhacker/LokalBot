@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ModelsView: View {
+    /// Matches the width of the grouped settings forms on the other tabs.
+    static let contentWidth: CGFloat = 760
     @EnvironmentObject var app: AppState
     @Environment(\.colorScheme) private var colorScheme
     @SceneStorage("settings.models.page") private var pageValue = ModelsSettingsPage.active.rawValue
@@ -12,30 +14,27 @@ struct ModelsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 20) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text("Models").font(.system(size: 26, weight: .bold)).tracking(-0.5)
-                        Text("Choose what powers LokalBot.").font(.system(size: 14)).settingsSecondary()
-                    }
-                    Spacer()
-                    Button("Check setup…") { sheet = .checks }
-                        .buttonStyle(SettingsActionButtonStyle(prominent: true))
-                        .accessibilityIdentifier("models.testAll")
-                }
+            // The page title and subtitle come from the shared Settings header.
+            HStack(spacing: 12) {
                 Picker("Models view", selection: page) {
                     ForEach(ModelsSettingsPage.allCases) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 480)
+                .frame(maxWidth: 420)
                 .accessibilityIdentifier("models.pages")
+                Spacer(minLength: 12)
+                Button("Check setup…") { sheet = .checks }
+                    .buttonStyle(SettingsActionButtonStyle())
+                    .accessibilityIdentifier("models.testAll")
             }
-            .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 20)
-            .background(SettingsPalette.panel(colorScheme))
+            .frame(maxWidth: Self.contentWidth)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 28).padding(.vertical, 14)
 
-            SettingsSeparator()
             ModelSetupFeedback(controller: app.modelSetup)
+                .frame(maxWidth: Self.contentWidth)
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 28)
 
             ScrollView {
@@ -49,9 +48,11 @@ struct ModelsView: View {
                         ModelConnectionsView(app: app)
                     }
                 }
-                .frame(maxWidth: 1000, alignment: .leading)
+                // Every page shares one centered column, like other Settings tabs.
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 28).padding(.vertical, 18)
+                .frame(maxWidth: Self.contentWidth)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 28).padding(.bottom, 18)
             }
             .accessibilityIdentifier("models.content")
             ModelStorageFooter(app: app) { page.wrappedValue = .downloaded }
@@ -93,9 +94,10 @@ struct ModelsView: View {
         case "settings.transcriptionLanguage", "settings.transcriptionPrompt": sheet = .transcriptionOptions
         case "settings.cotypingBuiltInModelID": sheet = .autocomplete
         case "settings.dictationCompositionBuiltInModelID": sheet = .dictation
-        case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey",
-             "settings.generationBudgetPreset":
+        case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":
             page.wrappedValue = .connections
+        case "settings.generationBudgetPreset":
+            page.wrappedValue = .active
         default: sheet = .assistant
         }
     }

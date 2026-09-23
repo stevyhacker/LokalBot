@@ -89,6 +89,13 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Download size from the blurb ("0.6 GB"), when the blurb leads with one.
+    var sizeLabel: String? {
+        guard let lead = blurb.components(separatedBy: " · ").first,
+              lead.hasSuffix(" GB") || lead.hasSuffix(" MB") else { return nil }
+        return lead
+    }
+
     var blurb: String {
         switch self {
         case .parakeetV3: "0.6 GB · 25 European languages, ~190× realtime"

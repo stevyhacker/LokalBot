@@ -53,10 +53,8 @@ struct SettingsView: View {
             .accessibilityLabel("Settings navigation")
             .splitPaneAccessibilityLabel("Settings navigation", autosaveName: "LokalBot.settings")
             VStack(alignment: .leading, spacing: 0) {
-                if !queryIsEmpty || app.settingsTab != .models {
-                    settingsHeaderTitle.padding(20)
-                    SettingsSeparator()
-                }
+                settingsHeaderTitle.padding(20)
+                SettingsSeparator()
                 if !queryIsEmpty {
                     searchResults
                 } else if app.settingsTab == .models {
@@ -154,7 +152,7 @@ struct SettingsView: View {
         case .writing:
             "Dictation, autocomplete, and your writing profile."
         case .models:
-            "Choose and prepare local or remote model backends."
+            "Choose the models behind Transcribe, Think, and Autocomplete."
         case .privacy:
             "Control retention, exclusions, encryption, and remote processing."
         case .advanced:

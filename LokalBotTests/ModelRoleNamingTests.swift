@@ -22,3 +22,11 @@ final class ModelRoleNamingTests: XCTestCase {
                        "The legacy name should still find the Think backend setting")
     }
 }
+
+final class ModelStorageCopyTests: XCTestCase {
+    func testTranscriptionSizesComeFromTheBlurb() {
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.sizeLabel, "3.2 GB")
+        XCTAssertEqual(TranscriptionModelChoice.parakeetV3.sizeLabel, "0.6 GB")
+        XCTAssertNil(TranscriptionModelChoice.graniteSpeech.sizeLabel)
+    }
+}

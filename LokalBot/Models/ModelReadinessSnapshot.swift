@@ -66,10 +66,11 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     }
 
     var storageSummary: String {
-        let stored = ByteCountFormatter.string(fromByteCount: storedBytes, countStyle: .file)
-        guard let availableBytes else { return "\(stored) stored locally" }
+        let stored = storedBytes == 0 ? "none downloaded yet"
+            : ByteCountFormatter.string(fromByteCount: storedBytes, countStyle: .file) + " on this Mac"
+        guard let availableBytes else { return stored }
         let free = ByteCountFormatter.string(fromByteCount: availableBytes, countStyle: .file)
-        return "\(stored) stored locally · \(free) available"
+        return "\(stored) · \(free) free"
     }
 
     // MARK: Role readiness (shared by automation gates)
