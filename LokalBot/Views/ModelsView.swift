@@ -21,7 +21,7 @@ struct ModelsView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(maxWidth: 420)
+                .fixedSize()
                 .accessibilityIdentifier("models.pages")
                 Spacer(minLength: 12)
                 Button("Check setup…") { sheet = .checks }
