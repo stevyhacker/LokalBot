@@ -583,7 +583,7 @@ private struct MeetingWorkspaceDetail: View {
             VStack(alignment: .leading, spacing: 8) {
                 Label("2. Review action owners", systemImage: "person.crop.circle.badge.checkmark")
                     .font(WorkspaceTypography.sectionTitle)
-                Text("These are all actions from this meeting. Only actions assigned to you appear in My actions. Select an owner to correct it; use a timestamp to inspect the source.")
+                Text("All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.")
                     .workspaceTextRole(.supporting)
                 if projection == nil, previousReviewProjection != nil {
                     Text("These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript.")

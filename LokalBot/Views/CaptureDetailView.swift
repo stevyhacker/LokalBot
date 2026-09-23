@@ -19,11 +19,14 @@ struct TimelineContextPanel: View {
                 onReload: { model.reload(app: app) },
                 onClear: { model.selectedSnapshotID = nil },
                 backLabel: model.selection != nil ? "Back to activity"
-                    : model.selectedSessionID == nil ? "Back to day digest" : "Back to work session",
+                    : model.selectedSessionID != nil ? "Back to work session"
+                    : model.showsRawCapture ? "Back to raw capture" : "Back to day digest",
                 onDismiss: onDismiss)
                 .id(snapshotID)
         } else if app.selectedMeetingIDs.isEmpty, model.selection == nil, let session = model.selectedSession {
             sessionPreview(session)
+        } else if model.showsRawCapture, app.selectedMeetingIDs.isEmpty, model.selection == nil {
+            rawCapturePanel
         } else {
             switch inspectorState {
             case .meeting:
@@ -48,6 +51,21 @@ struct TimelineContextPanel: View {
                 dayBrief
             }
         }
+    }
+
+    private var rawCapturePanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            TimelinePanelHeader(
+                title: "Raw capture",
+                subtitle: "\(CountLabel.format(model.blocks.count, "activity entry", plural: "activity entries")) · \(CountLabel.format(model.rewindFrames.count, "screen moment"))",
+                icon: "waveform.path.ecg.rectangle",
+                onBack: { model.showsRawCapture = false },
+                onDismiss: onDismiss)
+                .accessibilityIdentifier("timeline.rawCapturePanel")
+            TimelineRawCaptureView(model: model)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var inspectorState: CaptureInspectorState {
@@ -239,16 +257,18 @@ struct TimelineContextPanel: View {
                 }
                 .accessibilityIdentifier("timeline.session.details")
 
-                Button {
-                    app.openAsk(
-                        query: "What matters from my work session on \(session.title)?",
-                        dayScope: model.day,
-                        screenSnapshotIDs: model.shots.filter { $0.ts >= session.start && $0.ts <= session.end }.map(\.id))
-                } label: {
-                    Label("Ask about this session", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
+                HStack {
+                    Spacer()
+                    Button {
+                        app.openAsk(
+                            query: "What matters from my work session on \(session.title)?",
+                            dayScope: model.day,
+                            screenSnapshotIDs: model.shots.filter { $0.ts >= session.start && $0.ts <= session.end }.map(\.id))
+                    } label: {
+                        Label("Ask about this session", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .primaryActionButton()
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -300,10 +320,15 @@ struct TimelineContextPanel: View {
                     subtitle: "\(block.start.formatted(date: .omitted, time: .shortened))–\(block.end.formatted(date: .omitted, time: .shortened)) · \(CaptureStyle.hm(block.duration))",
                     icon: "rectangle.stack",
                     onBack: {
-                        if model.selectedSession != nil { model.selection = nil } else { clearSelection() }
+                        if model.selectedSession != nil || model.showsRawCapture {
+                            model.selection = nil
+                        } else {
+                            clearSelection()
+                        }
                     },
                     onDismiss: onDismiss,
-                    backLabel: model.selectedSession == nil ? "Back to day digest" : "Back to work session")
+                    backLabel: model.selectedSession != nil ? "Back to work session"
+                        : model.showsRawCapture ? "Back to raw capture" : "Back to day digest")
                     .accessibilityIdentifier("timeline.activityPreview")
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -346,15 +371,17 @@ struct TimelineContextPanel: View {
                     }
                 }
 
-                Button {
-                    app.openAsk(
-                        query: "What matters from my \(block.app) activity, \(block.title)?",
-                        dayScope: model.day)
-                } label: {
-                    Label("Ask about this activity", systemImage: "sparkles")
-                        .frame(maxWidth: .infinity)
+                HStack {
+                    Spacer()
+                    Button {
+                        app.openAsk(
+                            query: "What matters from my \(block.app) activity, \(block.title)?",
+                            dayScope: model.day)
+                    } label: {
+                        Label("Ask about this activity", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.bordered)
                 }
-                .primaryActionButton()
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .topLeading)
@@ -408,6 +435,7 @@ struct TimelineContextPanel: View {
         model.selectedSnapshotID = nil
         model.selection = nil
         model.selectedSessionID = nil
+        model.showsRawCapture = false
         app.selectedMeetingIDs = []
     }
 }
@@ -447,10 +475,11 @@ private struct TimelineMeetingPreview: View {
                                     in: RoundedRectangle(cornerRadius: Brand.Radius.control))
                 }
 
-                if let summary, !summary.isEmpty {
-                    TimelineContextSection(title: "Summary", icon: "text.alignleft") {
-                        MarkdownText(summary)
-                            .lineLimit(8)
+                // The recap only: decisions and actions render below as their
+                // own sections, so the full summary would repeat them.
+                if let recap = summary.flatMap(SummaryPresentation.recap) {
+                    TimelineContextSection(title: "Recap", icon: "text.alignleft") {
+                        MarkdownText(recap)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .textSelection(.enabled)
                     }
@@ -492,20 +521,20 @@ private struct TimelineMeetingPreview: View {
                         .foregroundStyle(.secondary)
                 }
 
-                VStack(spacing: 8) {
-                    Button {
-                        app.openMeeting(meeting.id)
-                    } label: {
-                        Label("Open meeting", systemImage: "arrow.up.right.square")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .primaryActionButton()
+                HStack(spacing: 8) {
+                    Spacer()
                     Button {
                         app.openAsk(query: "What matters from \(meeting.displayTitle)?")
                     } label: {
                         Label("Ask about this meeting", systemImage: "sparkles")
-                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.bordered)
+                    Button {
+                        app.openMeeting(meeting.id)
+                    } label: {
+                        Label("Open meeting", systemImage: "arrow.up.right.square")
+                    }
+                    .primaryActionButton()
                 }
             }
             .padding(16)
@@ -547,16 +576,42 @@ private struct TimelinePanelHeader: View {
     let onDismiss: (() -> Void)?
     var backLabel = "Back to day digest"
 
+    /// "Back to day digest" → "Day digest" for the visible button text.
+    private var backTitle: String {
+        let destination = backLabel.hasPrefix("Back to ") ? String(backLabel.dropFirst(8)) : backLabel
+        return destination.prefix(1).uppercased() + destination.dropFirst()
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 9) {
-            if let onBack {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.left")
+        VStack(alignment: .leading, spacing: 10) {
+            if onBack != nil || onDismiss != nil {
+                HStack {
+                    if let onBack {
+                        Button(action: onBack) {
+                            Label(backTitle, systemImage: "chevron.left")
+                                .font(WorkspaceTypography.control)
+                        }
+                        .buttonStyle(.workspaceLink)
+                        .help(backLabel)
+                        .accessibilityLabel(backLabel)
+                    }
+                    Spacer(minLength: 4)
+                    if let onDismiss {
+                        Button(action: onDismiss) {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.plain)
+                        .help("Close context panel")
+                        .accessibilityLabel("Close context panel")
+                    }
                 }
-                .buttonStyle(.plain)
-                .help(backLabel)
-                .accessibilityLabel(backLabel)
             }
+            titleRow
+        }
+    }
+
+    private var titleRow: some View {
+        HStack(alignment: .top, spacing: 9) {
             IconTile(systemImage: icon, tint: Brand.tealFill, size: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -570,14 +625,6 @@ private struct TimelinePanelHeader: View {
                     .lineLimit(2)
             }
             Spacer(minLength: 4)
-            if let onDismiss {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
-                }
-                .buttonStyle(.plain)
-                .help("Close context panel")
-                .accessibilityLabel("Close context panel")
-            }
         }
     }
 }

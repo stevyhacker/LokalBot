@@ -733,6 +733,7 @@ private struct AskContent: View {
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
             // Results share the composer's reading column.
             .frame(maxWidth: WorkspaceMetric.readingMaxWidth)
             .frame(maxWidth: .infinity)
