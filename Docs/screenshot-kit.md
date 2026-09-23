@@ -55,10 +55,10 @@ toolbars below their supported constraints.
 | `meetings-transcript.png` | Meetings | speaker-labeled transcript and evidence navigation |
 | `timeline.png` | Timeline | grouped work sessions, meetings, digest, and raw-capture entry |
 | `quick-recall.png` | Quick Recall | saved, screen, and meeting results in the global shortcut window |
-| `search.png` | Ask search | cross-library search and facets |
+| `search.png` | Ask search | live cross-library results and source menu |
 | `chat.png` | Ask conversation | grounded assistant answer and citations |
-| `cotyping.png` | Type → Autocomplete | readiness, real local preview, and acceptance rehearsal |
-| `dictation.png` | Type → Dictation | shortcut, permissions, and local dictation setup |
+| `cotyping.png` | Settings → Writing | readiness and the real local autocomplete preview |
+| `dictation.png` | Settings → Writing | shortcut, permissions, and local dictation setup |
 | `models.png` | Settings → Models | Transcribe/Think/Autocomplete readiness, presets, storage |
 | `settings.png` | Settings | searchable settings and current information architecture |
 
