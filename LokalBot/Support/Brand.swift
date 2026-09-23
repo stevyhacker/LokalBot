@@ -10,7 +10,7 @@ enum Brand {
     /// tinted controls. Deep teal on light surfaces and a lighter mint on dark
     /// ones, so accent text meets WCAG AA in both appearances
     /// (`BrandContrastTests`).
-    static let tealNSColor = NSColor(name: "LokalBotAccent") { appearance in
+    static let tealNSColor = NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
             ? NSColor(srgbRed: 0x74 / 255, green: 0xE0 / 255, blue: 0xC6 / 255, alpha: 1) // #74E0C6
             : NSColor(srgbRed: 0x08 / 255, green: 0x66 / 255, blue: 0x5A / 255, alpha: 1) // #08665A
