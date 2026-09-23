@@ -39,7 +39,7 @@ struct ModelStackOverviewView: View {
                     .font(.system(size: 13)).settingsSecondary()
                 Spacer(minLength: 8)
                 Button("Choose preset…") { present(.presets) }
-                    .buttonStyle(SettingsActionButtonStyle())
+                    .buttonStyle(.bordered)
                     .disabled(setup.pending != nil)
                     .accessibilityIdentifier("models.choosePreset")
             }
@@ -203,7 +203,7 @@ struct ModelStackOverviewView: View {
 
     private func changeButton(_ role: ModelRole, sheet: ModelsSettingsSheet) -> some View {
         Button("Change…") { present(sheet) }
-            .buttonStyle(SettingsActionButtonStyle())
+            .buttonStyle(.bordered)
             .frame(minWidth: 84)
             .disabled(setup.pending != nil)
             .accessibilityIdentifier("models.stack.change.\(role == .autocomplete ? "type" : role.rawValue)")

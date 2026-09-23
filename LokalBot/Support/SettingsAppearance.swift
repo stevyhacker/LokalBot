@@ -101,47 +101,6 @@ private struct SettingsModelIconModifier: ViewModifier {
     }
 }
 
-/// Clear button edges and a strong primary fill, while retaining native
-/// Button keyboard activation, focus, accessibility, and disabled semantics.
-struct SettingsActionButtonStyle: ButtonStyle {
-    var prominent = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        SettingsActionButton(configuration: configuration, prominent: prominent)
-    }
-}
-
-private struct SettingsActionButton: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.isEnabled) private var isEnabled
-    @State private var hovered = false
-    let configuration: ButtonStyleConfiguration
-    let prominent: Bool
-
-    var body: some View {
-        let accent = SettingsPalette.accent(scheme)
-        let shape = RoundedRectangle(cornerRadius: Brand.Radius.tab, style: .continuous)
-        configuration.label
-            .font(.system(size: 13, weight: .semibold))
-            .padding(.horizontal, 12).padding(.vertical, 7)
-            .foregroundStyle(prominent ? Color.white : accent)
-            .background(background, in: shape)
-            .overlay {
-                shape.strokeBorder((prominent ? Brand.tealFill : accent).opacity(prominent || contrast == .increased ? 1 : 0.7), lineWidth: 1)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .onHover { hovered = $0 }
-    }
-
-    private var background: Color {
-        if prominent { return Brand.tealFill }
-        return hovered || configuration.isPressed ? SettingsPalette.hover(scheme) : SettingsPalette.panel(scheme)
-    }
-}
-
 extension View {
     func settingsPanel() -> some View {
         modifier(SettingsPanelModifier())

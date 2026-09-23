@@ -25,7 +25,7 @@ struct ModelsView: View {
                 .accessibilityIdentifier("models.pages")
                 Spacer(minLength: 12)
                 Button("Check setup…") { sheet = .checks }
-                    .buttonStyle(SettingsActionButtonStyle())
+                    .buttonStyle(.bordered)
                     .accessibilityIdentifier("models.testAll")
             }
             .frame(maxWidth: Self.contentWidth)
