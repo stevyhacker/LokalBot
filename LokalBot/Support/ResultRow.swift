@@ -77,6 +77,7 @@ struct ResultRow: View {
     let kind: String
     let snippet: String
     var timestamp: String?
+    var matchLabel: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -90,6 +91,9 @@ struct ResultRow: View {
                     .workspaceTextRole(.metadata)
                     .monospacedDigit()
                     .chipChrome(.compact)
+            }
+            if let matchLabel {
+                Text(matchLabel).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             }
             highlighted
                 .workspaceTextRole(.supporting)

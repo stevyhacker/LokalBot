@@ -26,7 +26,7 @@ struct TodayView: View {
                 }
             }
             .padding(WorkspaceMetric.pagePadding)
-            .frame(maxWidth: WorkspaceMetric.contentMaxWidth, alignment: .leading)
+            .frame(maxWidth: 900, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .navigationTitle("Today")

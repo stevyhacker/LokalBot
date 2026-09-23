@@ -352,7 +352,8 @@ private struct MeetingWorkspaceDetail: View {
                 rememberingEnabled: app.settings.rememberSpeakersOnMac,
                 notice: speakerIdentityNotice,
                 busy: savingSpeakerIdentity,
-                onPlay: { player.playExcerpt(from: $0, to: $0 + 12) },
+                onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
+                onPlayEvidence: { player.playExcerpt(from: $0, to: $0 + 12) },
                 onAction: { action, name, remember, profileID in
                     performSpeakerChoice(.init(label: draft.speaker, name: name,
                         action: action, remember: remember, profileID: profileID,
@@ -506,7 +507,7 @@ private struct MeetingWorkspaceDetail: View {
                 Text("Verified notes and actions are saved below. Actions become editable when the notes finish.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-        } else if notesNeedRefresh && tab != .review {
+        } else if notesNeedRefresh && tab == .summary {
             VStack(alignment: .leading, spacing: 8) {
                 Label("Transcript or speaker details changed", systemImage: "exclamationmark.triangle")
                     .font(WorkspaceTypography.bodyEmphasis)
@@ -535,40 +536,14 @@ private struct MeetingWorkspaceDetail: View {
         if let speakerIdentityNotice {
             Text(speakerIdentityNotice).workspaceTextRole(.supporting)
         }
-        if tab != .review, !calendarSpeakerCandidates.isEmpty, !unnamedRemoteSpeakers.isEmpty {
-            HStack {
-                Label("\(calendarSpeakerCandidates.count) calendar guests available as speaker suggestions", systemImage: "person.2")
+        if tab == .summary, !unnamedRemoteSpeakers.isEmpty, !notesNeedRefresh {
+            HStack(alignment: .firstTextBaseline) {
+                Text("\(unnamedRemoteSpeakers.count) \(unnamedRemoteSpeakers.count == 1 ? "speaker needs a name" : "speakers need names"). Review action-linked voices first.")
                     .workspaceTextRole(.supporting)
-                Spacer(minLength: 0)
-                Menu("Name speakers") {
-                    ForEach(unnamedRemoteSpeakers, id: \.self) { speaker in
-                        Button(transcript?.displaySpeaker(for: speaker) ?? speaker) {
-                            tab = .review
-                            beginRenameSpeaker(speaker)
-                        }
-                    }
-                }
-                .controlSize(.small)
-                .fixedSize()
-                .accessibilityIdentifier("meeting.calendarSpeakerSuggestions")
-            }
-        }
-        if let explanation = speakerObservationDiagnostics?.missingSpeakerNamesExplanation,
-           let transcript, transcript.segments.contains(where: {
-               $0.resolvedAttribution.source == .system && transcript.speakerAliases[Transcript.canonicalSpeakerKey($0.speaker)] == nil
-           }) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Label("Speaker names weren’t captured", systemImage: "person.crop.circle.badge.questionmark")
-                        .font(.caption.weight(.medium))
-                    Text(explanation).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
                 Button("Review speakers") { tab = .review }
-                    .controlSize(.small)
                     .accessibilityIdentifier("meeting.reviewSpeakers")
             }
-            .accessibilityIdentifier("meeting.speakerCaptureUnavailable")
         }
         if let exportError {
             workspaceErrorLabel(
@@ -590,8 +565,19 @@ private struct MeetingWorkspaceDetail: View {
 
     private var speakerAndActionReview: some View {
         VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
+            if let explanation = speakerObservationDiagnostics?.missingSpeakerNamesExplanation,
+               !unnamedRemoteSpeakers.isEmpty {
+                Text(explanation).workspaceTextRole(.supporting)
+                    .accessibilityIdentifier("meeting.speakerCaptureUnavailable")
+            }
+            if !calendarSpeakerCandidates.isEmpty, !unnamedRemoteSpeakers.isEmpty {
+                Text("\(calendarSpeakerCandidates.count) calendar guests are available as name suggestions. Attendance alone does not identify a voice.")
+                    .workspaceTextRole(.supporting)
+                    .accessibilityIdentifier("meeting.calendarSpeakerSuggestions")
+            }
             MeetingSpeakerReviewSection(
-                speakers: reviewSpeakers, canPlay: player.isLoaded,
+                speakers: MeetingSpeakerReviewItem.prioritized(reviewSpeakers,
+                    actions: (projection ?? previousReviewProjection)?.actionReferences.map(\.effectiveAction) ?? []), canPlay: player.isLoaded,
                 onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
                 onReview: beginRenameSpeaker)
             VStack(alignment: .leading, spacing: 8) {
@@ -1081,9 +1067,7 @@ private struct MeetingWorkspaceDetail: View {
             defaultName: Transcript.defaultSpeakerName(for: speaker),
             currentName: transcript.displaySpeaker(for: speaker),
             currentCalendarIdentityID: transcript.calendarIdentityID(for: speaker),
-            sampleStart: transcript.segments.first(where: {
-                Transcript.canonicalSpeakerKey($0.speaker) == speaker && $0.end - $0.start >= 3
-            })?.start ?? transcript.segments.first(where: { Transcript.canonicalSpeakerKey($0.speaker) == speaker })?.start,
+            sample: reviewSpeakers.first { $0.id == Transcript.canonicalSpeakerKey(speaker) }?.sample,
             canConfirmIdentity: transcript.canConfirmSpeaker(speaker),
             microphoneIsUser: transcript.speakerRoster[speaker]?.identity == .user
                 && transcript.segments.contains { Transcript.canonicalSpeakerKey($0.speaker) == speaker
@@ -1948,7 +1932,7 @@ private struct WorkspaceSpeakerRenameDraft: Identifiable {
     let defaultName: String
     let currentName: String
     let currentCalendarIdentityID: String?
-    var sampleStart: Double?
+    var sample: Transcript.Segment?
     var canConfirmIdentity = false
     var microphoneIsUser = false
 }
@@ -1964,7 +1948,8 @@ private struct WorkspaceSpeakerRenameSheet: View {
     let rememberingEnabled: Bool
     let notice: String?
     let busy: Bool
-    let onPlay: (Double) -> Void
+    let onPlay: (Transcript.Segment) -> Void
+    let onPlayEvidence: (Double) -> Void
     let onAction: (SpeakerAliasDecision.Action, String?, Bool, UUID?) -> Void
     let onDeleteEvidence: () -> Void
     let onSave: (String, String?, Bool, UUID?) -> Void
@@ -1987,7 +1972,8 @@ private struct WorkspaceSpeakerRenameSheet: View {
         rememberingEnabled: Bool,
         notice: String?,
         busy: Bool,
-        onPlay: @escaping (Double) -> Void,
+        onPlay: @escaping (Transcript.Segment) -> Void,
+        onPlayEvidence: @escaping (Double) -> Void,
         onAction: @escaping (SpeakerAliasDecision.Action, String?, Bool, UUID?) -> Void,
         onDeleteEvidence: @escaping () -> Void,
         onSave: @escaping (String, String?, Bool, UUID?) -> Void,
@@ -2005,6 +1991,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.notice = notice
         self.busy = busy
         self.onPlay = onPlay
+        self.onPlayEvidence = onPlayEvidence
         self.onAction = onAction
         self.onDeleteEvidence = onDeleteEvidence
         _remember = State(initialValue: false)
@@ -2021,10 +2008,16 @@ private struct WorkspaceSpeakerRenameSheet: View {
             HStack {
                 Text("Rename Speaker").font(.headline)
                 Spacer()
-                if let start = draft.sampleStart {
-                    Button("Play voice") { onPlay(start) }
+                if let sample = draft.sample {
+                    Button("Play voice") { onPlay(sample) }
                         .accessibilityIdentifier("speaker.rename.playVoice")
                 }
+            }
+            if let sample = draft.sample {
+                Text(sample.text).font(WorkspaceTypography.body).lineLimit(4)
+            } else {
+                Text("No clear voice excerpt available. Check the transcript before confirming this speaker.")
+                    .workspaceTextRole(.supporting)
             }
             TextField("Speaker name", text: $name)
                 .textFieldStyle(.roundedBorder)
@@ -2080,7 +2073,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
             SpeakerIdentityReview(speaker: draft.speaker, state: identityState,
                 profiles: profiles, rememberingEnabled: rememberingEnabled,
                 name: $name, remember: $remember, profileID: $profileID,
-                onPlay: onPlay, onAction: onAction, onDeleteEvidence: onDeleteEvidence,
+                onPlay: onPlayEvidence, onAction: onAction, onDeleteEvidence: onDeleteEvidence,
                 canConfirmIdentity: draft.canConfirmIdentity, microphoneIsUser: draft.microphoneIsUser)
             if let notice { Text(notice).font(.caption).foregroundStyle(.secondary) }
 

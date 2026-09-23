@@ -10,6 +10,8 @@ struct WorkspaceMenu: NSViewRepresentable {
         var enabled = true
         var selected = false
         var action: () -> Void = {}
+        var children: [Item] = []
+        var flattened: [Item] { [self] + children.flatMap(\.flattened) }
         static var separator: Self { Self(title: "") }
     }
 
@@ -32,9 +34,10 @@ struct WorkspaceMenu: NSViewRepresentable {
 
     func updateNSView(_ button: PopUpButton, context: Context) {
         let coordinator = context.coordinator
-        coordinator.actions = items.map(\.action)
-        let fingerprint = [title, symbol ?? ""] + items.map {
-            "\($0.identifier)|\($0.title)|\($0.enabled)|\($0.selected)"
+        let flattened = items.flatMap(\.flattened)
+        coordinator.actions = flattened.map(\.action)
+        let fingerprint = [title, symbol ?? ""] + flattened.map {
+            "\($0.identifier)|\($0.title)|\($0.enabled)|\($0.selected)|\($0.children.count)"
         }
         // Playback updates frequently. Keep an open menu intact when only
         // closure captures changed, while always using the latest callbacks.
@@ -45,16 +48,28 @@ struct WorkspaceMenu: NSViewRepresentable {
             let heading = NSMenuItem(title: symbol == nil ? title : "", action: nil, keyEquivalent: "")
             if let symbol { heading.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
             menu.addItem(heading)
-            for (index, item) in items.enumerated() {
-                if item.title.isEmpty { menu.addItem(.separator()); continue }
-                let entry = NSMenuItem(title: item.title, action: #selector(Coordinator.select(_:)), keyEquivalent: "")
-                entry.target = coordinator
-                entry.tag = index
-                entry.isEnabled = item.enabled
-                entry.state = item.selected ? .on : .off
-                if !item.identifier.isEmpty { entry.identifier = NSUserInterfaceItemIdentifier(item.identifier) }
-                menu.addItem(entry)
+            var actionIndex = 0
+            func append(_ items: [Item], to menu: NSMenu) {
+                for item in items {
+                    let index = actionIndex
+                    actionIndex += 1
+                    if item.title.isEmpty { menu.addItem(.separator()); continue }
+                    let entry = NSMenuItem(title: item.title, action: #selector(Coordinator.select(_:)), keyEquivalent: "")
+                    entry.target = coordinator
+                    entry.tag = index
+                    entry.isEnabled = item.enabled
+                    entry.state = item.selected ? .on : .off
+                    if !item.identifier.isEmpty { entry.identifier = NSUserInterfaceItemIdentifier(item.identifier) }
+                    if !item.children.isEmpty {
+                        let submenu = NSMenu(title: item.title)
+                        submenu.autoenablesItems = false
+                        append(item.children, to: submenu)
+                        entry.submenu = submenu
+                    }
+                    menu.addItem(entry)
+                }
             }
+            append(items, to: menu)
             button.menu = menu
         }
         button.isEnabled = isEnabled

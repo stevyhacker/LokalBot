@@ -281,6 +281,7 @@ final class ActivityStore {
         var snippet: String
         var similarityGroupID: Int64?
         var captureCount: Int
+        var isSemantic = false
 
         init(snapshotID: Int64, ts: Date, app: String, windowTitle: String = "",
              snippet: String, similarityGroupID: Int64? = nil, captureCount: Int = 1) {

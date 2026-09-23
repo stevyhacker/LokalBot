@@ -12,16 +12,6 @@ struct DayDigestCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if showsControls { DayDigestControls(model: model, identifier: identifier) }
-            if let yesterday { YesterdayDigestLine(report: yesterday, day: model.day) }
-            if let updated = model.digestUpdatedAt {
-                Text("Updated " + updated.formatted(date: .omitted, time: .shortened))
-                    .workspaceTextRole(.metadata)
-            }
-            if model.digestIsStale {
-                Label("New activity available. Update the digest to include it.", systemImage: "clock.arrow.circlepath")
-                    .workspaceTextRole(.warning)
-                    .accessibilityIdentifier("\(identifier).dayDigest.stale")
-            }
             if let digest = model.digest {
                 DayDigestView(digest, mode: .timeline)
                     .accessibilityElement(children: .contain)
@@ -29,6 +19,23 @@ struct DayDigestCard: View {
             } else {
                 Text("Your digest brings together this day's meetings and captured activity.")
                     .workspaceTextRole(.supporting)
+            }
+            if model.digestUpdatedAt != nil || model.digestIsStale {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let updated = model.digestUpdatedAt {
+                        Text("Updated " + updated.formatted(date: .omitted, time: .shortened))
+                    }
+                    if model.digestIsStale {
+                        Text("New activity available · Update digest to include it")
+                            .accessibilityIdentifier("\(identifier).dayDigest.stale")
+                    }
+                }
+                .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+            if let yesterday {
+                Divider()
+                YesterdayDigestLine(report: yesterday, day: model.day)
             }
             if let error = model.digestError {
                 Label(error, systemImage: "exclamationmark.triangle").workspaceTextRole(.warning)
@@ -106,6 +113,13 @@ private struct YesterdayDigestLine: View {
             ForEach(Array((report.attention + report.repeatedWork + report.suggestedChecks + report.frictions).enumerated()), id: \.offset) { _, text in
                 DreamBriefText(text: "• " + text)
             }
+            if report.isFallback {
+                Text("Previous-day summary uses captured evidence only.").workspaceTextRole(.supporting)
+            }
+            if report.inferenceProvenance?.location == .remote {
+                Label("Previous-day summary used approved remote inference", systemImage: "network")
+                    .workspaceTextRole(.trust)
+            }
             Text(report.provenanceDescription).workspaceTextRole(.metadata)
             if TodayDreamSelection.isRetryableFailure(report, referenceDate: day) {
                 Button(app.dreaming.isDreaming ? "Updating…" : "Retry previous-day summary") { app.dreamNow() }
@@ -120,12 +134,5 @@ private struct YesterdayDigestLine: View {
         }
         .help(report.provenanceDescription)
         .accessibilityIdentifier("today.dream")
-        if report.isFallback {
-            Text("Previous-day summary uses captured evidence only.").workspaceTextRole(.supporting)
-        }
-        if report.inferenceProvenance?.location == .remote {
-            Label("Previous-day summary used approved remote inference", systemImage: "network")
-                .workspaceTextRole(.trust)
-        }
     }
 }

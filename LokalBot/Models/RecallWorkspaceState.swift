@@ -59,6 +59,16 @@ extension RecallSearch {
         var screens: [ScreenRecallGroup] = []
     }
 
+    static func readableScreens(_ hits: [ActivityStore.OCRHit], query: String) -> [ActivityStore.OCRHit] {
+        hits.compactMap { hit in
+            guard let excerpt = RecallPassage.excerpt(hit.snippet, query: query)
+                ?? RecallPassage.excerpt(hit.windowTitle, query: query) else { return nil }
+            var result = hit
+            result.snippet = excerpt
+            return result
+        }
+    }
+
     /// Group adjacent moments per source/day, then restore relevance order.
     /// Each timestamp is classified once; long sessions avoid quadratic scans.
     static func screenGroups(_ hits: [ActivityStore.OCRHit], limit: Int = 40) -> [ScreenRecallGroup] {
@@ -110,8 +120,9 @@ extension RecallSearch {
         var result = await ActivityStore.readInBackground(at: url) { store in
             var result = Result()
             if searchMeetings {
-                result.meetings = groups(SearchIndex(databaseURL: url, readOnly: true)
-                    .search(query, kind: facet.kind, limit: 2_000, meetingIDs: scopedMeetingIDs))
+                let hits = SearchIndex(databaseURL: url, readOnly: true)
+                    .search(query, kind: facet.kind, limit: 2_000, meetingIDs: scopedMeetingIDs)
+                result.meetings = groups(readable(hits, query: query))
             }
             guard !Task.isCancelled, searchScreens else { return result }
             var hits = store.searchOCR(query, limit: 2_000, filter: screenFilter, groupResults: false)
@@ -129,7 +140,7 @@ extension RecallSearch {
             }
             hits += saved.map { ActivityStore.OCRHit(snapshotID: $0.snapshotID, ts: $0.ts, app: $0.app,
                                                     windowTitle: $0.windowTitle, snippet: $0.note) }
-            result.screens = screenGroups(hits)
+            result.screens = screenGroups(readableScreens(hits, query: query))
             return result
         }
         guard !Task.isCancelled else { return Result() }
@@ -138,10 +149,14 @@ extension RecallSearch {
         if searchMeetings, state.facet == .all, app.embeddingIndex.hasEmbeddings {
             let semantic = await app.embeddingIndex.search(query, limit: 200, meetingIDs: meetingIDs)
             guard !Task.isCancelled else { return Result() }
-            result.meetings = fusedMeetings(keyword: result.meetings.flatMap(\.matches), semantic: semantic.map {
-                SearchIndex.Hit(meetingID: $0.meetingID, kind: .segment, start: $0.start,
-                                snippet: $0.text, speaker: "")
-            })
+            let passages = await ActivityStore.readInBackground(at: url) { _ in
+                let index = SearchIndex(databaseURL: url, readOnly: true)
+                return semantic.compactMap {
+                    index.semanticPassage(meetingID: $0.meetingID, start: $0.start, text: $0.text, query: query)
+                }
+            }
+            guard !Task.isCancelled else { return Result() }
+            result.meetings = fusedMeetings(keyword: result.meetings.flatMap(\.matches), semantic: passages)
         }
         if searchScreens {
             let semantic = await app.embeddingIndex.searchScreen(query, filter: filter, limit: 200)
@@ -154,8 +169,11 @@ extension RecallSearch {
                 if let hit = keywordByID[match.snapshotID] { return hit }
                 guard let hit = semanticByID[match.snapshotID],
                       let shot = app.activityStore.screenshot(id: match.snapshotID) else { return nil }
-                return ActivityStore.OCRHit(snapshotID: shot.id, ts: shot.ts, app: shot.app,
-                                            windowTitle: shot.windowTitle, snippet: hit.text)
+                guard let excerpt = RecallPassage.excerpt(hit.text, query: query) else { return nil }
+                var result = ActivityStore.OCRHit(snapshotID: shot.id, ts: shot.ts, app: shot.app,
+                                                   windowTitle: shot.windowTitle, snippet: excerpt)
+                result.isSemantic = true
+                return result
             })
         }
         return result

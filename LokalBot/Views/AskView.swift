@@ -187,6 +187,7 @@ private struct AskContent: View {
             composerPanel
             askScopeControls
             selectedEvidenceControl
+            if phase == .searching { answerScopePreview }
             if !pinnedScreens.isEmpty {
                 pinnedContextRow
             }
@@ -255,12 +256,49 @@ private struct AskContent: View {
 
     /// Command-Return sends explicitly, bounded to the displayed source groups.
     /// No matches leaves the chosen source/day scope available for a question.
+    private var answerScreenIDs: Set<Int64> {
+        Set(screenGroups.flatMap(\.matches).map(\.snapshotID)).union(pinnedScreens.map(\.snapshotID))
+    }
+
+    private var answerScopePreview: some View {
+        DisclosureGroup {
+            if resultCount > 0 {
+                Text("The answer can retrieve passages from these meetings and screen moments, including collapsed matches. It may use only the passages relevant to your question.")
+                    .workspaceTextRole(.supporting)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(groupedMeetings) { group in
+                            Text("Meeting · \(meetingTitle(group.id)) · \(meetingDate(group.id) ?? "")")
+                        }
+                        ForEach(screenGroups) { group in
+                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(group.matches.count) moments")
+                        }
+                        ForEach(pinnedScreens) { pin in
+                            Text("Attached screen · \(pin.app) · \(pin.timestamp.formatted(date: .abbreviated, time: .shortened))")
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 160)
+            } else {
+                Text(meetingScope != nil || screenScope != nil
+                     ? "Ask stays within the selected evidence shown above, even when this search has no matches."
+                     : "Ask can search the selected sources within \(timeScopeLabel.lowercased()). Result-type and screen-app filters apply to search results only.")
+            }
+        } label: {
+            Text(isSearching ? "Finding sources…" : resultCount > 0
+                 ? "Answer sources: \(groupedMeetings.count) meetings · \(answerScreenIDs.count) screen moments"
+                 : "Answer sources: \(sourceSummary) · \(timeScopeLabel)")
+        }
+        .font(WorkspaceTypography.metadata)
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("ask.answerScope")
+    }
+
     private func askAboutResults() {
         guard !isSearching else { return }
         if resultCount > 0 {
             app.recallState.selectEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
-                screenIDs: Set(screenGroups.flatMap(\.matches).map(\.snapshotID)))
+                screenIDs: answerScreenIDs)
         }
         escalate()
     }
@@ -319,37 +357,33 @@ private struct AskContent: View {
     }
 
     private var sourceScopeControl: some View {
-        Menu {
-            ForEach(AskSourceScope.allCases) { source in
-                Toggle(source.displayName, isOn: Binding(
-                    get: { sources.contains(source) },
-                    set: { _ in toggleSource(source) }))
-                    .disabled((sources.contains(source) && sources.count == 1)
-                              || (source == .screen && !pinnedScreens.isEmpty))
-            }
-            Divider()
-            Picker("Result type", selection: Binding(get: { facet }, set: { facet = $0 })) {
-                ForEach(AskFacet.allCases) { Text($0.rawValue).tag($0) }
-            }
-            if sources.contains(.screen) {
-                Picker("Screen dates", selection: Binding(get: { screenDateScope }, set: { screenDateScope = $0 })) {
-                    ForEach([ScreenSearchDateScope.today, .yesterday, .sevenDays, .any]) { Text($0.rawValue).tag($0) }
-                }
-                Picker("Screen app", selection: Binding(get: { selectedScreenApp }, set: { selectedScreenApp = $0 })) {
-                    Text("All apps").tag(nil as String?)
-                    ForEach(screenApps, id: \.self) { Text($0).tag(Optional($0)) }
-                }
-            }
-            Divider()
-            Button("Manage source permissions…") { app.openSettings(tab: .privacy) }
-        } label: {
-            Label(sourceSummary, systemImage: "line.3.horizontal.decrease.circle")
+        WorkspaceMenu(title: sourceSummary, label: "Sources", identifier: "ask.sources", items: sourceMenuItems)
+            .fixedSize()
+            .help("Choose sources and result filters")
+    }
+
+    private var sourceMenuItems: [WorkspaceMenu.Item] {
+        var items = AskSourceScope.allCases.map { source in
+            WorkspaceMenu.Item(title: source.displayName,
+                enabled: !((sources.contains(source) && sources.count == 1)
+                           || (source == .screen && !pinnedScreens.isEmpty)),
+                selected: sources.contains(source), action: { toggleSource(source) })
         }
-        .fixedSize()
-        .help("Choose sources and result filters")
-        .accessibilityLabel("Sources")
-        .accessibilityValue(sourceSummary)
-        .accessibilityIdentifier("ask.sources")
+        items += [.separator, .init(title: "Result type", children: AskFacet.allCases.map { option in
+            .init(title: option.rawValue, selected: facet == option, action: { facet = option })
+        })]
+        if sources.contains(.screen) {
+            items.append(.init(title: "Screen dates", children: [ScreenSearchDateScope.today, .yesterday, .sevenDays, .any].map { option in
+                .init(title: option.rawValue, selected: screenDateScope == option, action: { screenDateScope = option })
+            }))
+            items.append(.init(title: "Screen app", children:
+                [.init(title: "All apps", selected: selectedScreenApp == nil, action: { selectedScreenApp = nil })]
+                + screenApps.map { name in
+                    .init(title: name, selected: selectedScreenApp == name, action: { selectedScreenApp = name })
+                }))
+        }
+        items += [.separator, .init(title: "Manage source permissions…", action: { app.openSettings(tab: .privacy) })]
+        return items
     }
 
     private var sourceSummary: String {
@@ -519,7 +553,6 @@ private struct AskContent: View {
     private func escalate() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, !model.isResponding else { return }
-        reconcilePinnedScreenScope()
         let scope = AskEscalationScope.resolve(
             mode: mode,
             selectedSources: sources,
@@ -662,7 +695,9 @@ private struct AskContent: View {
     private func meetingResult(_ hit: SearchIndex.Hit) -> some View {
         Button { app.openSearchHit(hit) } label: {
             ResultRow(title: meetingTitle(hit.meetingID), kind: kindLabel(hit), snippet: hit.snippet,
-                      timestamp: meetingDate(hit.meetingID)).contentShape(Rectangle())
+                      timestamp: meetingDate(hit.meetingID),
+                      matchLabel: hit.isSemantic ? "Related by meaning" : "Keyword match")
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("search.hit.\(hit.meetingID.uuidString).\(hit.kind.rawValue)")

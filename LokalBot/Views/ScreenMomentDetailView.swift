@@ -141,10 +141,10 @@ struct ScreenMomentDetailView: View {
                 }
             }
             if !screenshot.sourceURL.isEmpty {
-                LabeledContent("Source") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Source").font(WorkspaceTypography.bodyEmphasis)
                     Text(screenshot.sourceURL)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.trailing)
+                        .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
                 }
             }

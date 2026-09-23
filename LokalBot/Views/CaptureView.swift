@@ -296,12 +296,17 @@ struct TimelineContentView: View {
                     }
                 } else {
                     HSplitView {
-                        TimelineContextPanel(model: model, onDismiss: nil)
-                            .frame(minWidth: WorkspaceMetric.timelineContextMinWidth, idealWidth: 520, maxWidth: WorkspaceMetric.readingMaxWidth)
-                            .splitPaneAccessibilityLabel("Timeline evidence", autosaveName: "LokalBot.timeline")
                         CaptureDayView(model: model, onOpenContext: {})
-                            .frame(minWidth: 360, idealWidth: 460, maxWidth: .infinity)
-                            .splitPaneAccessibilityLabel("Day timeline")
+                            .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("timeline.sessionRail")
+                            .splitPaneAccessibilityLabel("Work sessions", autosaveName: "LokalBot.timeline.reading.v2")
+                        TimelineContextPanel(model: model, onDismiss: nil)
+                            .frame(minWidth: WorkspaceMetric.timelineContextMinWidth,
+                                   maxWidth: .infinity, maxHeight: .infinity)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("timeline.evidencePane")
+                            .splitPaneAccessibilityLabel("Timeline evidence")
                     }
                     .id("workspace.timeline")
                 }
@@ -510,9 +515,6 @@ struct CaptureDayView: View {
                         .font(WorkspaceTypography.sectionTitle)
                         .accessibilityIdentifier("timeline.workSessions")
                     Spacer()
-                    Text("Select a session to inspect its evidence")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(.secondary)
                 }
                 if meetings.contains(where: { $0.endedAt == nil }) {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -688,17 +690,6 @@ private struct TimelineWorkSessionRow: View {
                         Text(CaptureStyle.hm(session.activeDuration))
                             .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
                             .fixedSize()
-                    }
-                    if let context = secondaryContext {
-                        Text(context)
-                            .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                            .lineLimit(1)
-                    }
-                    if sceneCount > 0 {
-                        Label("\(sceneCount)", systemImage: "rectangle.and.text.magnifyingglass")
-                            .font(WorkspaceTypography.metadata)
-                            .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

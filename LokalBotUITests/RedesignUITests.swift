@@ -339,6 +339,7 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(titles.waitForExistence(timeout: 5))
         let disclosure = app.buttons["timeline.titleDisclosure.timelineview.swift"]
         XCTAssertTrue(disclosure.exists)
+        UITestHarness.scrollTo(disclosure, in: app)
         disclosure.click()
         let source = app.buttons["timeline.titleSource.1"]
         XCTAssertTrue(source.waitForExistence(timeout: 3))
@@ -354,6 +355,51 @@ final class RedesignUITests: XCTestCase {
         app.buttons["Back to work session"].click()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
         snapshot("timeline-inspectable-title-evidence")
+    }
+
+    func testTimelineReservesMostWidthForEvidence() throws {
+        try SyntheticFixture.plantActivityMoment(in: fixture)
+        try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+        let rail = element("timeline.sessionRail")
+        let evidence = element("timeline.evidencePane")
+        XCTAssertTrue(rail.waitForExistence(timeout: 5))
+        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(rail.frame.width, 361)
+        XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
+        app.buttons["timeline.session.1"].click()
+        XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
+        snapshot("timeline-reading-pane")
+    }
+
+    func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "advanced"])
+        let form = app.scrollViews["settings.form"]
+        let cli = UITestHarness.staticText(containing: "Agent CLI", in: app)
+        UITestHarness.scrollTo(cli, in: app, within: form, attempts: 16)
+        UITestHarness.selectSettingsCategory("General", in: app)
+        let launchToggle = UITestHarness.toggle("Launch LokalBot at login", in: app)
+        XCTAssertTrue(UITestHarness.waitUntil { launchToggle.isHittable }, "A category opens at its own top")
+        UITestHarness.selectSettingsCategory("Writing", in: app)
+        let dictation = app.segmentedControls["settings.writing.sections"].buttons["Dictation"]
+        XCTAssertTrue(dictation.waitForExistence(timeout: 5))
+        XCTAssertTrue(dictation.isHittable)
+        dictation.click()
+        let toggle = UITestHarness.toggle("Enable dictation shortcut", in: app)
+        XCTAssertTrue(UITestHarness.waitUntil { toggle.isHittable })
+        snapshot("writing-direct-dictation")
+        UITestHarness.selectSettingsCategory("Advanced", in: app)
+        let cpu = element("settings.resourceMonitor.cpu")
+        UITestHarness.scrollTo(cpu, in: app, within: form, attempts: 16)
+        let cells = [cpu, element("settings.resourceMonitor.memory"), element("settings.resourceMonitor.models"),
+                     element("settings.resourceMonitor.modelMemory")]
+        for (index, cell) in cells.enumerated() {
+            XCTAssertTrue(cell.exists)
+            for other in cells.dropFirst(index + 1) {
+                XCTAssertFalse(cell.frame.intersects(other.frame), "Resource values must not overlap")
+            }
+        }
+        snapshot("settings-wrapping-resources")
     }
 
     func testMeetingMenusHaveAccessibleActionsAndOpen() throws {

@@ -40,6 +40,12 @@ struct DayDigestView: View {
 
     private var fullContent: some View {
         VStack(alignment: .leading, spacing: 20) {
+            if let decisions = presentation.decisionsMarkdown {
+                digestSection("Decisions and next steps", icon: "checklist") {
+                    SelectableDigestText(decisions)
+                }
+            }
+
             if !presentation.atAGlanceMarkdown.isEmpty {
                 digestSection("Highlights", icon: "sparkles") {
                     SelectableDigestText(presentation.atAGlanceMarkdown)
@@ -95,12 +101,6 @@ struct DayDigestView: View {
                 }
                 .accessibilityIdentifier("dayDigest.otherActivity")
                 .accessibilityHint("Shorter activities that used a smaller share of the recorded day")
-            }
-
-            if let decisions = presentation.decisionsMarkdown {
-                digestSection("Decisions and next steps", icon: "checklist") {
-                    SelectableDigestText(decisions)
-                }
             }
 
             if mode.showsMeetings, let meetings = presentation.meetingsMarkdown {

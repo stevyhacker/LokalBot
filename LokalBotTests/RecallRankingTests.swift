@@ -25,7 +25,7 @@ final class RecallRankingTests: XCTestCase {
     func testStableTiesAndEmptySemanticFallback() {
         let first = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
         let second = UUID(uuidString: "00000000-0000-0000-0000-000000000002")!
-        XCTAssertEqual(RecallSearch.fusedMeetings(keyword: [hit(second, "B")], semantic: [hit(first, "A")]).map(\.id), [first, second])
+        XCTAssertEqual(RecallSearch.fusedMeetings(keyword: [hit(second, "B")], semantic: [hit(first, "A")]).map(\.id), [second, first])
         XCTAssertEqual(RecallSearch.fusedMeetings(keyword: [hit(second, "B"), hit(first, "A")], semantic: []).map(\.id), [second, first])
         XCTAssertTrue(RecallSearch.fusedMeetings(keyword: [hit(first, "A")], semantic: [], limit: 0).isEmpty)
     }

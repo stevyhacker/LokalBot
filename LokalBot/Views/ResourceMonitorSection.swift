@@ -9,7 +9,7 @@ struct ResourceMonitorSection: View {
     @StateObject private var monitor = ResourceMonitorViewModel()
 
     private let columns = [
-        GridItem(.adaptive(minimum: 145), spacing: 8, alignment: .leading),
+        GridItem(.adaptive(minimum: 210), spacing: 8, alignment: .leading),
     ]
 
     var body: some View {
@@ -48,8 +48,8 @@ struct ResourceMonitorSection: View {
 
             if loadedModels.isEmpty {
                 Label("No LokalBot model runtimes are loaded.", systemImage: "moon.zzz")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(WorkspaceTypography.editorialBody)
+                    .settingsSecondary()
             } else {
                 ForEach(loadedModels) { model in
                     modelRow(model)
@@ -57,8 +57,8 @@ struct ResourceMonitorSection: View {
             }
 
             Text("Updates every 2 seconds. CPU and memory include LokalBot and its helpers; multi-core CPU can exceed 100%. Model memory uses live helper footprints and ≈ in-process estimates. External Ollama and Apple Intelligence models are not counted.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(WorkspaceTypography.editorialBody)
+                .settingsSecondary()
         }
         .task(id: trackedProcessIdentities) {
             await monitor.poll(additionalProcessIdentities: trackedProcessIdentities)
@@ -112,20 +112,20 @@ struct ResourceMonitorSection: View {
         return LabeledContent {
             Text(value)
                 .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
+                .settingsSecondary()
         } label: {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.role)
                 Text(model.label)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(model.label)
                 if let note = model.leaseNote {
                     Text(note)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(WorkspaceTypography.metadata)
+                        .settingsSecondary()
                         .lineLimit(1)
                 }
             }
@@ -137,7 +137,15 @@ struct ResourceMonitorSection: View {
 
     private func metricTile(icon: String, value: String, label: String,
                             identifier: String) -> some View {
-        StatTile(icon: icon, value: value, label: label)
+        VStack(alignment: .leading, spacing: 6) {
+            Label(value, systemImage: icon)
+                .font(WorkspaceTypography.bodyEmphasis.monospacedDigit())
+            Text(label).font(WorkspaceTypography.editorialBody).settingsSecondary()
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: Brand.Radius.control))
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(label)
             .accessibilityValue(value.replacingOccurrences(of: "≈", with: "approximately "))

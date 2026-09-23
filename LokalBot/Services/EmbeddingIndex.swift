@@ -372,7 +372,7 @@ final class EmbeddingIndex {
                 guard let baseAddress = buffer.baseAddress else { return Data() }
                 return Data(bytes: baseAddress, count: buffer.count * MemoryLayout<Float>.stride)
             }
-            return (start: chunk.start, text: String(chunk.text.prefix(300)), vectorData: vectorData)
+            return (start: chunk.start, text: chunk.text, vectorData: vectorData)
         }
 
         guard let database else { return }
