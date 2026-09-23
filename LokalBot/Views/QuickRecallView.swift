@@ -7,6 +7,7 @@ struct QuickRecallView: View {
 
     var body: some View {
         QuickRecallContent(model: app.chat)
+            .background(HiddenWindowButtons())
     }
 }
 

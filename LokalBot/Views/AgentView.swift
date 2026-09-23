@@ -28,7 +28,7 @@ struct AgentView: View {
                 .task { await sessions.refreshHistory() }
             } else { installCard }
         }
-        .navigationTitle(installer.phase == .installed ? "" : "Agent")
+        .navigationTitle("Agent")
         .tint(Brand.teal)
         .alert("Agent tasks", isPresented: Binding(get: { sessions.error != nil }, set: { if !$0 { sessions.error = nil } })) {
             Button("OK") { sessions.error = nil }

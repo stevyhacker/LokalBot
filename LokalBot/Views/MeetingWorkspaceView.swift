@@ -1673,6 +1673,8 @@ private struct OutcomeActionRow: View {
                         meetingID: reference.meetingID,
                         actionID: reference.action.id))
                 })])
+            .frame(minWidth: 32, minHeight: 24)
+            .fixedSize()
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
@@ -2200,6 +2202,10 @@ struct EvidencePill: View {
             }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .foregroundStyle(Color.primary)
+                // A comfortable click target around the small timestamp.
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .help(citation.excerpt)

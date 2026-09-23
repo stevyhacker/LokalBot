@@ -171,8 +171,11 @@ struct ActionThreadRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
             .accessibilityLabel("Action thread options")
             .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
@@ -360,9 +363,13 @@ struct OutcomeOverviewActionRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
+            .accessibilityLabel("Action options")
             .accessibilityIdentifier("outcome.action.status.\(reference.id)")
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)

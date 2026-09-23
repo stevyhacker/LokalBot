@@ -200,13 +200,20 @@ struct AgentComposer: View {
     private var accessDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("This task’s access").font(.headline)
-            Label(controller.workspace.path, systemImage: "folder").textSelection(.enabled)
-            Text(controller.approvalMode.detail)
-            Text("Meeting Library: scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant.")
-            Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
-            if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
-                Text("New tasks use the model selected in Settings.")
+            Label(controller.workspace.path, systemImage: "folder")
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(controller.workspace.path)
+                .textSelection(.enabled)
+            Group {
+                Text(controller.approvalMode.detail)
+                Text("Meeting Library: scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant.")
+                Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
+                if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
+                    Text("New tasks use the model selected in Settings.")
+                }
             }
+            .fixedSize(horizontal: false, vertical: true)
         }.font(.callout).padding(18).frame(width: 360)
     }
 

@@ -348,19 +348,20 @@ private struct SidebarPrivacyFooter: View {
     private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
 
     var body: some View {
+        // Two parallel status lines, same weight, aligned after the dot.
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
                 StatusDot(color: destination == .onDevice ? Brand.teal : Brand.amber, size: 7)
                 Text("Storage: this Mac")
-                    .font(WorkspaceTypography.editorialBodyEmphasis)
-                    .foregroundStyle(.primary)
             }
             Text(processingLabel)
-                .workspaceTextRole(.supporting)
+                .padding(.leading, 13)
             if case .remote(let host) = destination {
-                Text(host).workspaceTextRole(.metadata)
+                Text(host).workspaceTextRole(.metadata).padding(.leading, 13)
             }
         }
+        .font(WorkspaceTypography.metadataEmphasis)
+        .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.leading, 20)
         .padding(.trailing, 12)
