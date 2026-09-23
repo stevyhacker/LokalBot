@@ -66,7 +66,7 @@ struct MeetingSpeakerReviewSection: View {
                 .accessibilityLabel("Listen to an excerpt from \(SpeakerDisplayName.label(speaker.name))")
                 .accessibilityIdentifier("meeting.review.listen.\(speaker.id)")
             }
-            Button(speaker.isNamed || !speaker.canConfirm ? "Review name…" : "Confirm speaker…") { onReview(speaker.id) }
+            Button(speaker.isNamed ? "Review name…" : "Name speaker…") { onReview(speaker.id) }
                 .accessibilityLabel("Review speaker \(SpeakerDisplayName.label(speaker.name))")
                 .accessibilityIdentifier("meeting.review.speaker.\(speaker.id)")
         }

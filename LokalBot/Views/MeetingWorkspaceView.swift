@@ -581,7 +581,8 @@ private struct MeetingWorkspaceDetail: View {
                 onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
                 onReview: beginRenameSpeaker)
             VStack(alignment: .leading, spacing: 8) {
-                Text("2. Review action owners").font(WorkspaceTypography.sectionTitle)
+                Label("2. Review action owners", systemImage: "person.crop.circle.badge.checkmark")
+                    .font(WorkspaceTypography.sectionTitle)
                 Text("These are all actions from this meeting. Only actions assigned to you appear in My actions. Select an owner to correct it; use a timestamp to inspect the source.")
                     .workspaceTextRole(.supporting)
                 if projection == nil, previousReviewProjection != nil {
@@ -1423,6 +1424,8 @@ private struct MeetingWorkspaceMetadataItem {
     let field: MeetingPageSearchMatch.MeetingMetadataField
     let icon: String
     let text: String
+    /// A capture limitation people should notice, not neutral metadata.
+    var warning: String?
 }
 
 private func meetingWorkspaceMetadataItems(
@@ -1437,8 +1440,10 @@ private func meetingWorkspaceMetadataItems(
         .init(field: .app, icon: "video", text: meeting.appName),
         .init(
             field: .audioSource,
-            icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "mic.fill",
-            text: meeting.hasSystemTrack ? "Mic + system" : "Mic only"),
+            icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "exclamationmark.triangle.fill",
+            text: meeting.hasSystemTrack ? "Mic + system" : "Mic only",
+            warning: meeting.hasSystemTrack ? nil
+                : "Only your microphone was recorded. Other participants are captured only if your mic picked them up."),
     ]
     return items.filter { !meeting.isMergedMeeting || $0.field != .app }
 }
@@ -1481,7 +1486,8 @@ private struct MeetingWorkspaceHeader: View {
                 MeetingSearchChip(
                     icon: item.icon, text: item.text, searchQuery: searchQuery,
                     activeMatchIndex: activeOccurrence(at: .meetingMetadata(item.field)),
-                    location: .meetingMetadata(item.field))
+                    location: .meetingMetadata(item.field),
+                    warning: item.warning)
             }
         }
     }
@@ -1501,6 +1507,7 @@ private struct MeetingSearchChip: View {
     let searchQuery: String
     let activeMatchIndex: Int?
     let location: MeetingPageSearchMatch.Location
+    var warning: String?
 
     var body: some View {
         Group {
@@ -1516,8 +1523,10 @@ private struct MeetingSearchChip: View {
             }
         }
         .font(size.font.monospacedDigit())
-        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
+        .foregroundStyle(Color(nsColor: warning == nil ? WorkspaceTextColor.supporting : WorkspaceTextColor.warning))
         .chipChrome(size)
+        .help(warning ?? "")
+        .accessibilityHint(warning ?? "")
     }
 
     private var highlightedText: some View {
@@ -1960,6 +1969,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     @State private var profileID: UUID?
     @State private var name: String
     @State private var selectedCalendarIdentityID: String?
+    @FocusState private var nameFocused: Bool
 
     init(
         draft: WorkspaceSpeakerRenameDraft,
@@ -1998,7 +2008,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.onSave = onSave
         self.onReset = onReset
         self.onCancel = onCancel
-        _name = State(initialValue: draft.currentName)
+        // Placeholder labels ("Them", "Local speaker") are not names; start
+        // empty so typing a name doesn't begin by deleting one.
+        _name = State(initialValue: Transcript.isPlaceholderSpeakerName(draft.currentName) ? "" : draft.currentName)
         _selectedCalendarIdentityID = State(
             initialValue: draft.currentCalendarIdentityID)
     }
@@ -2019,8 +2031,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 Text("No clear voice excerpt available. Check the transcript before confirming this speaker.")
                     .workspaceTextRole(.supporting)
             }
-            TextField("Speaker name", text: $name)
+            TextField("Speaker name", text: $name, prompt: Text("Name this speaker"))
                 .textFieldStyle(.roundedBorder)
+                .focused($nameFocused)
                 .accessibilityIdentifier("speaker.rename.name")
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -2052,7 +2065,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
 
             HStack {
                 Button("Leave unidentified", action: onReset)
-                    .help("Clear the saved name and return to \(draft.defaultName)")
+                    .help("Clear the saved name and return to \(SpeakerDisplayName.label(draft.defaultName))")
                     .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -2066,6 +2079,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         .frame(width: 500)
         .disabled(busy)
         .onAppear {
+            nameFocused = true
             uiTestDiagnosticLog(
                 "speaker.rename sheet appear candidates=\(calendarCandidates.count)")
         }
@@ -2219,6 +2233,8 @@ struct WorkspaceSection<Content: View>: View {
             .font(WorkspaceTypography.sectionTitle)
             content
         }
+        // Sections share one width even when their content is short.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .workspacePanel()
     }
 }

@@ -163,7 +163,7 @@ struct SpeakerIdentityReview: View {
                     Button("Someone else") { onAction(.confirmOther, name, remember, profileID) }
                 }
             } else {
-                Text("Identity is unresolved for audio without reliable speaker separation.")
+                Text("This audio mixes voices, so it can't be confirmed as one person. You can still name it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let match = assignment?.match, assignment?.origin.isProtected == false {
