@@ -851,12 +851,22 @@ final class RecordingController: ObservableObject {
 
     private func prewarmDiarizationModels(reason: String) {
         guard settings.multiSpeakerDiarization, diarizationPrewarmTask == nil else { return }
-        diarizationPrewarmTask = Task { [weak self, reason] in
+        let config = settings
+        diarizationPrewarmTask = Task { [weak self, reason, config] in
+            defer {
+                // A stopped recording may already have started another prewarm.
+                if !Task.isCancelled { self?.diarizationPrewarmTask = nil }
+            }
             lokalbotLog("diarization prewarm start reason=\(reason)")
-            await self?.pipeline.prepareDiarizationModels()
-            guard !Task.isCancelled else { return }
-            lokalbotLog("diarization prewarm ready reason=\(reason)")
-            self?.diarizationPrewarmTask = nil
+            do {
+                try await self?.pipeline.prepareDiarizationModels(config: config)
+                guard !Task.isCancelled else { return }
+                lokalbotLog("diarization prewarm ready reason=\(reason)")
+            } catch is CancellationError {
+                return
+            } catch {
+                lokalbotLog("diarization prewarm failed reason=\(reason): \(error.localizedDescription)")
+            }
         }
     }
 

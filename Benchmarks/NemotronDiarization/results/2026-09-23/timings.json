@@ -1,0 +1,62 @@
+[
+  {
+    "engine": "baseline",
+    "audioSeconds": 1049.3546875,
+    "warmSeconds": [
+      4.293285375,
+      4.707725208,
+      4.31329875
+    ],
+    "medianSeconds": 4.31329875,
+    "medianRTFx": 243.283562841549,
+    "loadSeconds": 0.083226125,
+    "firstRunSeconds": 4.635987,
+    "peakRSSBytes": 534380544,
+    "allFourPredictionsIdentical": true
+  },
+  {
+    "engine": "c128-split-w8a8",
+    "audioSeconds": 1049.3546875,
+    "warmSeconds": [
+      2.187877125,
+      2.186997167,
+      2.186537166
+    ],
+    "medianSeconds": 2.186997167,
+    "medianRTFx": 479.8152934690107,
+    "loadSeconds": 0.066510125,
+    "firstRunSeconds": 2.203798042,
+    "peakRSSBytes": 245940224,
+    "allFourPredictionsIdentical": true
+  },
+  {
+    "engine": "fast128",
+    "audioSeconds": 1049.3546875,
+    "warmSeconds": [
+      2.881027875,
+      2.869771333,
+      2.875517416
+    ],
+    "medianSeconds": 2.875517416,
+    "medianRTFx": 364.92725853829427,
+    "loadSeconds": 0.075057458,
+    "firstRunSeconds": 2.894613958,
+    "peakRSSBytes": 263405568,
+    "allFourPredictionsIdentical": true
+  },
+  {
+    "engine": "offline",
+    "audioSeconds": 1049.3546875,
+    "warmSeconds": [
+      2.09928925,
+      2.099555625,
+      2.096770208
+    ],
+    "medianSeconds": 2.09928925,
+    "medianRTFx": 499.8618877793996,
+    "loadSeconds": 0.075942125,
+    "firstRunSeconds": 2.150594833,
+    "peakRSSBytes": 269533184,
+    "allFourPredictionsIdentical": true
+  }
+]

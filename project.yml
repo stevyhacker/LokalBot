@@ -24,7 +24,7 @@ settings:
 packages:
   FluidAudio:
     url: https://github.com/FluidInference/FluidAudio
-    exactVersion: 0.15.8   # pinned: 0.x releases break API between minors
+    exactVersion: 0.17.1   # includes the benchmarked Nemotron 3 CoreML runtime
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit
     exactVersion: 1.1.0

@@ -1,6 +1,9 @@
 import Foundation
 
 struct SpeakerVoiceSample: Codable, Equatable, Sendable {
+    // Compatibility identifier, not the current library version. FluidAudio
+    // 0.17.1 keeps the pinned Pyannote weights/preprocessing and 256-D space;
+    // NemotronRuntimeTests verifies cross-version vectors on public AMI audio.
     static let fingerprint = "FluidAudio-0.15.8-87a39df/pyannote-community-1/embedding256/16k-mono-v1"
     var speaker: String
     var range: SpeakerTurnAnchor

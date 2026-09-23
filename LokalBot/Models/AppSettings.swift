@@ -353,11 +353,10 @@ struct AppSettings: Codable, Equatable {
     /// Target language for the summary. `.matchTranscript` auto-detects from
     /// the transcript text; otherwise the prompt forces the chosen language.
     var summaryLanguage: SummaryLanguage = .matchTranscript
-    /// Run FluidAudio's neural diarizer on `system.m4a` and split the
-    /// catch-all "Them" speaker into "Them 1" / "Them 2" / … by acoustic
-    /// similarity. On by default — the model is ~100 MB and adds 30-60 s
-    /// of post-processing per meeting.
+    /// Separate acoustic voices on microphone and system tracks after recording.
     var multiSpeakerDiarization: Bool = true
+    /// Existing installs keep the established backend; Nemotron is opt-in.
+    var diarizationModel: DiarizationModel = .community1
     /// Independently opted-in local Meet observation; never enables Day Memory.
     /// The legacy persisted key is retained; observation is now Accessibility-only.
     var identifySpeakersFromVisuals: Bool = false
@@ -680,6 +679,7 @@ struct AppSettings: Codable, Equatable {
         case identifySpeakersFromVisuals
         case rememberSpeakersOnMac
         case multiSpeakerDiarization
+        case diarizationModel
         case cotypingEnabled
         case cotypingUserName
         case cotypingStyleNote
@@ -838,6 +838,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(noteTemplate, forKey: .noteTemplate)
         try c.encode(summaryLanguage, forKey: .summaryLanguage)
         try c.encode(multiSpeakerDiarization, forKey: .multiSpeakerDiarization)
+        try c.encode(diarizationModel, forKey: .diarizationModel)
         try c.encode(identifySpeakersFromVisuals, forKey: .identifySpeakersFromVisuals)
         try c.encode(rememberSpeakersOnMac, forKey: .rememberSpeakersOnMac)
         try c.encode(cotypingEnabled, forKey: .cotypingEnabled)
@@ -981,6 +982,7 @@ struct AppSettings: Codable, Equatable {
         noteTemplate = decode(.noteTemplate, defaults.noteTemplate)
         summaryLanguage = decode(.summaryLanguage, defaults.summaryLanguage)
         multiSpeakerDiarization = decode(.multiSpeakerDiarization, defaults.multiSpeakerDiarization)
+        diarizationModel = decode(.diarizationModel, defaults.diarizationModel)
         identifySpeakersFromVisuals = decode(.identifySpeakersFromVisuals, defaults.identifySpeakersFromVisuals)
         rememberSpeakersOnMac = decode(.rememberSpeakersOnMac, defaults.rememberSpeakersOnMac)
         cotypingEnabled = decode(.cotypingEnabled, defaults.cotypingEnabled)

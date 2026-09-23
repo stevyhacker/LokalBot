@@ -1,0 +1,9 @@
+{
+  "calls": 15370,
+  "medianSeconds": 0.035367375,
+  "p95Seconds": 0.035595208,
+  "maxSeconds": 0.287925917,
+  "callsExceedingChunkDuration": 0,
+  "bufferLatencySeconds": 1.04,
+  "audioChunkSeconds": 0.72
+}

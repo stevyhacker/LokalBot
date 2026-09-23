@@ -469,7 +469,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var summarizationSection: some View {
             if shows("Summarization", ["summary", "summarize", "notes", "template", "language",
-                                       "diarization", "speaker", "split speaker", "neural"]) {
+                                       "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote"]) {
                 Section("Summarization") {
                     Picker("Notes template", selection: $app.settings.noteTemplate) {
                         ForEach(NoteTemplate.allCases) { template in
@@ -487,9 +487,17 @@ struct SettingsView: View {
                         }
                     }
                     .settingTarget("settings.summaryLanguage", selected: app.focusedSettingID)
-                    Toggle("Split \"Them\" by speaker (neural diarization)",
+                    Toggle("Separate voices by speaker",
                            isOn: $app.settings.multiSpeakerDiarization)
-                    Text("Adds 30–60 s of post-processing per meeting. First run downloads ~100 MB of speaker models from Hugging Face.")
+                        .accessibilityIdentifier("settings.multiSpeakerDiarization")
+                    Picker("Speaker model", selection: $app.settings.diarizationModel) {
+                        ForEach(DiarizationModel.allCases) { model in
+                            Text(model.displayName).tag(model)
+                        }
+                    }
+                    .disabled(!app.settings.multiSpeakerDiarization)
+                    .accessibilityIdentifier("settings.diarizationModel")
+                    Text(app.settings.diarizationModel.description)
                         .font(WorkspaceTypography.editorialBody).settingsSecondary()
                     SpeakerIdentitySettingsControls()
                 }

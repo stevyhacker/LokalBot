@@ -2,6 +2,20 @@ import XCTest
 @testable import LokalBot
 
 final class AppSettingsTests: XCTestCase {
+    func testDiarizationModelPreservesLegacyDefaultAndRoundTripsOptIn() throws {
+        for json in ["{}", #"{"diarizationModel":"future-model"}"#] {
+            let settings = try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
+            XCTAssertEqual(settings.diarizationModel, .community1)
+            XCTAssertFalse(settings.rememberSpeakersOnMac)
+        }
+        var settings = AppSettings()
+        settings.diarizationModel = .nemotron3
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(decoded.diarizationModel, .nemotron3)
+        XCTAssertFalse(decoded.rememberSpeakersOnMac)
+        XCTAssertNotEqual(DiarizationModel.community1.checkpointIdentity, decoded.diarizationModel.checkpointIdentity)
+    }
+
     func testDecodesLegacyLanguageHintIntoTypedLanguage() throws {
         let data = #"{"languageHint":"fr"}"#.data(using: .utf8)!
 

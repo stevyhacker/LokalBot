@@ -1122,6 +1122,34 @@ final class MainWindowUITests: XCTestCase {
 
     // MARK: - Settings
 
+    func testNemotronSpeakerModelSelectionPersistsAndRespectsDiarizationToggle() {
+        clickSidebar("sidebar.settings")
+        UITestHarness.selectSettingsCategory("Recording", in: app)
+        let picker = app.popUpButtons["settings.diarizationModel"]
+        UITestHarness.scrollTo(picker, in: app)
+        XCTAssertTrue(picker.waitForExistence(timeout: 4))
+        picker.click()
+        app.menuItems["Nemotron 3 (Preview)"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { picker.value as? String == "Nemotron 3 (Preview)" })
+
+        let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        attachment.name = "Nemotron speaker model settings"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let toggle = app.checkBoxes["settings.multiSpeakerDiarization"]
+        toggle.click()
+        XCTAssertFalse(picker.isEnabled)
+        toggle.click()
+        XCTAssertTrue(picker.isEnabled)
+
+        clickSidebar("sidebar.meetings")
+        clickSidebar("sidebar.settings")
+        UITestHarness.selectSettingsCategory("Recording", in: app)
+        UITestHarness.scrollTo(picker, in: app)
+        XCTAssertEqual(picker.value as? String, "Nemotron 3 (Preview)")
+    }
+
     /// ⌘, must land on the one in-window Settings home — the separate
     /// macOS Settings scene is gone (spec: one home per concern).
     func testSettingsShortcutLandsInWindow() {

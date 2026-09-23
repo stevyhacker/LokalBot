@@ -1,0 +1,23 @@
+{
+  "machine": "Apple M4 Max, 16 CPU cores, 48 GB unified memory",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0\nBuildVersion:\t\t26A428\n",
+  "appRevision": "32f7459b2b2a59d5cd68dec6c1116e31ed08212e",
+  "modelRevision": "53445f72d5735e33406ccce7b92116bce7ab1ab7",
+  "sources": {
+    "FluidAudio": "5c51c5c93afff0d89594a2a93c3103e790ba648c",
+    "FluidAudioBaseline": "87a39dfe4068fef0f1c69bfe704b2b3ef4fbc5bc",
+    "references": "9527b7c64846fb38316a610f32e9d3466bd6d8b7"
+  },
+  "baselineModelRevision": "df2625ac79a7ac6b65ad868fee6d80f320da4232",
+  "baselineCacheVerification": {
+    "installedCacheMatchesBenchmarkWeights": true,
+    "benchmarkWeightsMatchPinnedHuggingFaceLFS": true,
+    "weights": [
+      "Embedding",
+      "FBank",
+      "PldaRho",
+      "Segmentation"
+    ]
+  },
+  "baselineLoadNote": "The first run populated speaker-diarization under the isolated cache from the source-pinned revision. Reported first-load time includes that download. Main processing timers exclude model loading."
+}
