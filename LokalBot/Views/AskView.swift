@@ -52,6 +52,8 @@ private struct AskContent: View {
     @State private var screenWasEnabledBeforePins: Bool?
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
+    /// Arrow keys mean "open this result", so Return then opens even a question.
+    @State private var pickedResultWithKeyboard = false
     @State private var showingTimeScope = false
     @FocusState private var inputFocused: Bool
 
@@ -81,6 +83,7 @@ private struct AskContent: View {
         .onChange(of: query) {
             model.preserveSelectionDuringHistoryLoad()
             selectedResult = 0
+            pickedResultWithKeyboard = false
             runSearch()
         }
         .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
@@ -104,11 +107,13 @@ private struct AskContent: View {
         .onKeyPress(.downArrow) {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
+            pickedResultWithKeyboard = true
             return .handled
         }
         .onKeyPress(.upArrow) {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = max(0, selectedResult - 1)
+            pickedResultWithKeyboard = true
             return .handled
         }
         .onChange(of: app.navigationHandoff.revision) { consumeNavigationHandoff() }
@@ -243,8 +248,23 @@ private struct AskContent: View {
     private var groupedMeetings: [MeetingRecallGroup] { RecallSearch.groups(hits) }
     private var resultCount: Int { groupedMeetings.count + screenGroups.count }
 
+    /// Return: keywords open the highlighted result; a question asks through
+    /// `askAboutResults`, the same scoped path as Command-Return.
     private func submitQuery() {
         guard phase == .searching else { return }
+        switch returnAction {
+        case .ask: askAboutResults()
+        case .openResult: openSelectedResult()
+        case .none: break
+        }
+    }
+
+    private var returnAction: AskReturnAction {
+        AskReturnAction.resolve(query: query, resultCount: resultCount,
+                                pickedWithKeyboard: pickedResultWithKeyboard)
+    }
+
+    private func openSelectedResult() {
         if groupedMeetings.indices.contains(selectedResult) {
             app.openSearchHit(groupedMeetings[selectedResult].primary)
         } else {
@@ -674,7 +694,9 @@ private struct AskContent: View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { LoadingStateLabel("Searching local sources…") }
-                Text("\(CountLabel.format(resultCount, "result")) · Return opens · ⌘Return asks")
+                Text(CountLabel.format(resultCount, "result") + (returnAction == .ask
+                     ? " · Return asks · ↓ to pick a result"
+                     : " · Return opens · ⌘Return asks"))
                     .workspaceTextRole(.metadata)
                 if resultCount == 0 && !isSearching {
                     noMatchesRow(sources == [.today]
@@ -699,8 +721,6 @@ private struct AskContent: View {
                 }
                 ForEach(Array(screenGroups.enumerated()), id: \.element.id) { index, group in
                     VStack(alignment: .leading) {
-                        Text(group.primary.ts.formatted(date: .abbreviated, time: .omitted))
-                            .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                         screenResult(group.primary)
                         if group.matches.count > 1 {
                             DisclosureGroup("\(CountLabel.format(group.matches.count - 1, "more moment")) in this session") {
@@ -713,6 +733,9 @@ private struct AskContent: View {
                 }
             }
             .listStyle(.inset)
+            // Results share the composer's reading column.
+            .frame(maxWidth: WorkspaceMetric.readingMaxWidth)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("search.results")
             .accessibilityLabel("Search results")
             .onChange(of: selectedResult) { proxy.scrollTo(selectedResult) }
@@ -813,7 +836,7 @@ private struct AskContent: View {
                 .font(WorkspaceTypography.display)
                 .foregroundStyle(.primary)
             VStack(spacing: 10) {
-                Text("Type to find meetings and screen moments. Press Return to open a result, or ⌘Return to ask about what you found.")
+                Text("Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.")
                     .font(WorkspaceTypography.editorialBody)
                     .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.center)

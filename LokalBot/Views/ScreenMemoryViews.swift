@@ -176,31 +176,29 @@ struct ScreenSearchResultRow: View {
                 HStack(alignment: .top, spacing: 10) {
                     ScreenThumbnailView(snapshotID: hit.snapshotID, height: 72)
                         .frame(width: 116)
-                    VStack(alignment: .leading, spacing: 4) {
+                    // Same anatomy as meeting results and Quick Recall: the
+                    // window title leads, app and time follow, then the match.
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(WorkspaceTypography.rowTitle)
+                            .lineLimit(1)
                         HStack(spacing: 5) {
-                            Text(hit.app)
-                                .font(.headline)
-                                .lineLimit(1)
+                            if !hit.windowTitle.isEmpty {
+                                Text(hit.app)
+                                Text("·")
+                            }
                             Text(hit.ts.formatted(date: .abbreviated, time: .shortened))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer(minLength: 4)
+                            if hit.isSemantic {
+                                Text("· Related by meaning")
+                            }
                         }
-                        if !hit.windowTitle.isEmpty {
-                            Text(hit.windowTitle)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-                        if hit.isSemantic {
-                            Text("Related by meaning")
-                                .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
-                        }
+                        .workspaceTextRole(.metadata)
+                        .lineLimit(1)
                         highlightedSnippet
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                            .workspaceTextRole(.supporting)
                             .lineLimit(2)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .contentShape(Rectangle())
             }
@@ -221,8 +219,13 @@ struct ScreenSearchResultRow: View {
         .accessibilityIdentifier("screen.hit.\(hit.snapshotID)")
     }
 
+    private var title: String {
+        hit.windowTitle.isEmpty ? hit.app : hit.windowTitle
+    }
+
     private var highlightedSnippet: Text {
-        SnippetHighlighter.segments(hit.snippet).reduce(Text("")) { text, segment in
+        let snippet = SnippetCleaner.withoutTitleEcho(hit.snippet, title: title) ?? hit.snippet
+        return SnippetHighlighter.segments(snippet).reduce(Text("")) { text, segment in
             text + (segment.isMatch
                 ? Text(segment.text).bold().foregroundStyle(.primary)
                 : Text(segment.text))
