@@ -868,7 +868,10 @@ final class ActivityStore {
 
     /// All blocks overlapping the given day, oldest first.
     func blocks(on day: Date) -> [ActivityBlock] {
-        let interval = Self.dayInterval(containing: day)
+        blocks(in: Self.dayInterval(containing: day))
+    }
+
+    func blocks(in interval: DateInterval) -> [ActivityBlock] {
         do {
             return try requiredDatabase().queryChecked("""
                 SELECT id, app, title, start, end FROM activity_blocks

@@ -54,30 +54,30 @@ final class RecallSourceScopeTests: XCTestCase {
             windowTitle: "Redis notes", ocr: "Redis evidence")
         var state = RecallWorkspaceState()
         state.sources = [.meetings]
-        let meetingResult = await RecallSearch.search("Redis", state: state, day: nil, app: app)
+        let meetingResult = await RecallSearch.search("Redis", state: state, dateScope: nil, app: app)
         XCTAssertEqual(meetingResult.meetings.map(\.id), [meetingID])
         XCTAssertTrue(meetingResult.screens.isEmpty)
 
         state.sources = [.screen]
-        let screenResult = await RecallSearch.search("Redis", state: state, day: nil, app: app)
+        let screenResult = await RecallSearch.search("Redis", state: state, dateScope: nil, app: app)
         XCTAssertTrue(screenResult.meetings.isEmpty)
         XCTAssertEqual(screenResult.screens.flatMap(\.matches).map(\.snapshotID), [screenID])
 
         state.sources = [.today]
-        let activityResult = await RecallSearch.search("Redis", state: state, day: nil, app: app)
+        let activityResult = await RecallSearch.search("Redis", state: state, dateScope: nil, app: app)
         XCTAssertTrue(activityResult.meetings.isEmpty)
         XCTAssertTrue(activityResult.screens.isEmpty)
 
         state.sources = [.meetings, .screen]
         state.meetingIDs = []
         state.screenIDs = []
-        let bounded = await RecallSearch.search("Redis", state: state, day: nil, app: app)
+        let bounded = await RecallSearch.search("Redis", state: state, dateScope: nil, app: app)
         XCTAssertTrue(bounded.meetings.isEmpty, "An empty reviewed scope must not widen to the library")
         XCTAssertTrue(bounded.screens.isEmpty)
 
         app.recallState = state
         app.askDayScope = Date.distantPast
-        let quickRecall = await RecallSearch.search("Redis", state: RecallWorkspaceState(), day: nil, app: app)
+        let quickRecall = await RecallSearch.search("Redis", state: RecallWorkspaceState(), dateScope: nil, app: app)
         XCTAssertEqual(quickRecall.meetings.map(\.id), [meetingID])
         XCTAssertEqual(quickRecall.screens.flatMap(\.matches).map(\.snapshotID), [screenID])
         XCTAssertEqual(app.recallState.meetingIDs, [], "Quick Recall must not mutate the full workspace scope")

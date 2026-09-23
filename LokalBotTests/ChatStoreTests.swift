@@ -817,6 +817,18 @@ final class ChatViewModelStateTests: XCTestCase {
         XCTAssertEqual(model.conversations.first?.updatedAt, newer.updatedAt)
     }
 
+    func testSendingAndReopeningAQuestionPreservesItsDateRange() async throws {
+        let scope = try XCTUnwrap(AskDateScope(storageKey: "2026-09-01...2026-09-07"))
+        let store = makeStore()
+        let model = makeModel(engine: SequencedChatEngine(["Scoped answer"]), runner: BlockingChatRunner(), store: store)
+        model.send("What happened this week?", sourceScopes: [.screen], dateScope: scope)
+        await waitUntil("range answer did not complete") { !model.isResponding }
+        XCTAssertEqual(model.messages.first?.dayScopeKey, scope.storageKey)
+        let reopened = makeModel(engine: SequencedChatEngine([]), runner: BlockingChatRunner(), store: store)
+        XCTAssertEqual(reopened.currentQuestionScope?.dayScopeKey, scope.storageKey)
+        XCTAssertEqual(reopened.currentQuestionScope?.sources, [.screen])
+    }
+
     func testSavedConversationRestoresItsLastQuestionScope() throws {
         let store = makeStore()
         let day = try XCTUnwrap(Calendar.current.date(from: DateComponents(

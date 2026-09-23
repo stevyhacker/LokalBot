@@ -28,7 +28,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
     var activity: [Activity]
     /// Sources enabled for this specific question. Empty on legacy turns.
     var sourceScopes: [AskSourceScope]
-    /// Optional calendar-day constraint applied to this turn. Kept separate
+    /// Optional civil-day or date-range constraint applied to this turn. Kept separate
     /// from source scopes so a date filter never silently grants a source.
     var dayScopeKey: String?
     /// Civil days represented by screen moments explicitly attached to the
@@ -87,7 +87,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
         legacyScopeIsAmbiguous = try c.decodeIfPresent(
             Bool.self, forKey: .legacyScopeIsAmbiguous) ?? false
         let rawDayScope = try? c.decode(String.self, forKey: .dayScope)
-        dayScopeKey = rawDayScope.flatMap { AskDayScope.isCanonicalKey($0) ? $0 : nil }
+        dayScopeKey = rawDayScope.flatMap { AskDateScope(storageKey: $0) != nil ? $0 : nil }
         if c.contains(.dayScope), dayScopeKey == nil {
             // Older builds persisted an absolute Date. Its originating time
             // zone was never saved, so converting it to a civil day after the
@@ -450,14 +450,14 @@ final class ChatViewModel: ObservableObject {
     /// of the visible transcript while still sending it in the current turn.
     func send(_ prompt: String? = nil, displayText: String? = nil,
               sourceScopes: Set<AskSourceScope> = AskSourceScope.defaults,
-              dayScope: Date? = nil,
+              dayScope: Date? = nil, dateScope: AskDateScope? = nil,
               attachedScreenDates: [Date] = [],
               meetingIDs: Set<UUID>? = nil, screenSnapshotIDs: Set<Int64>? = nil) {
         sendResolved(
             prompt,
             displayText: displayText,
             sourceScopes: sourceScopes,
-            dayScopeKey: dayScope.map { AskDayScope.key(for: $0) },
+            dayScopeKey: dateScope?.storageKey ?? dayScope.map { AskDayScope.key(for: $0) },
             attachedScreenDayKeys: Array(Set(
                 attachedScreenDates.map { AskDayScope.key(for: $0) })).sorted(),
             meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
@@ -675,12 +675,13 @@ final class ChatViewModel: ObservableObject {
         from messages: [ChatMessage],
         allowedScopes: Set<AskSourceScope> = AskSourceScope.defaults,
         dayScope: Date? = nil,
+        dateScope: AskDateScope? = nil,
         calendar: Calendar = .current
     ) -> [ChatAgent.Turn] {
         finalizedHistoryForKey(
             from: messages,
             allowedScopes: allowedScopes,
-            dayScopeKey: dayScope.map { AskDayScope.key(for: $0, calendar: calendar) })
+            dayScopeKey: dateScope?.storageKey ?? dayScope.map { AskDayScope.key(for: $0, calendar: calendar) })
     }
 
     private static func finalizedHistoryForKey(
@@ -720,7 +721,7 @@ final class ChatViewModel: ObservableObject {
             return allowedScopes == AskSourceScope.defaults && dayScopeKey == nil
         }
         if let dayScopeKey,
-           user.attachedScreenDayKeys.contains(where: { $0 != dayScopeKey }) {
+           user.attachedScreenDayKeys.contains(where: { AskDateScope(storageKey: dayScopeKey)?.contains(dayKey: $0) != true }) {
             return false
         }
         let historicalScopes = Set(user.sourceScopes)

@@ -387,15 +387,7 @@ private struct EditorialTurn: View {
         }
         var parts = [sourceText]
         if let dayKey = message.dayScopeKey {
-            let dayText: String
-            if let day = AskDayScope.date(for: dayKey) {
-                dayText = Calendar.current.isDateInToday(day)
-                    ? "Today"
-                    : day.formatted(date: .abbreviated, time: .omitted)
-            } else {
-                dayText = dayKey
-            }
-            parts.append(dayText)
+            parts.append(AskDateScope(storageKey: dayKey)?.label() ?? dayKey)
         }
         if !message.attachedScreenDayKeys.isEmpty {
             let days = message.attachedScreenDayKeys.map { key in

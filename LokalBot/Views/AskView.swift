@@ -40,10 +40,6 @@ private struct AskContent: View {
     @State private var hits: [SearchIndex.Hit] = []
     @State private var ocrHits: [ActivityStore.OCRHit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
-    private var screenDateScope: ScreenSearchDateScope {
-        get { app.recallState.screenDate }
-        nonmutating set { app.recallState.screenDate = newValue }
-    }
     private var selectedScreenApp: String? {
         get { app.recallState.screenApp }
         nonmutating set { app.recallState.screenApp = newValue }
@@ -92,13 +88,15 @@ private struct AskContent: View {
         }
         .onDisappear { searchTask?.cancel() }
         .onChange(of: facet) { runSearch() }
-        .onChange(of: screenDateScope) { runSearch() }
-        .onChange(of: app.askDayScope) {
+        .onChange(of: app.askDateScope) {
             reconcilePinnedScreenScope()
             runSearch()
         }
         .onChange(of: selectedScreenApp) { runSearch() }
-        .onChange(of: sources) { runSearch() }
+        .onChange(of: sources) {
+            if !sources.contains(.screen) { selectedScreenApp = nil }
+            runSearch()
+        }
     }
 
     var body: some View {
@@ -186,6 +184,7 @@ private struct AskContent: View {
         VStack(alignment: .leading, spacing: 10) {
             composerPanel
             askScopeControls
+            activeSearchFilters
             selectedEvidenceControl
             if phase == .searching { answerScopePreview }
             if !pinnedScreens.isEmpty {
@@ -323,12 +322,12 @@ private struct AskContent: View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 sourceScopeControl
-                timeScopeControl
+                dateScopeControls
                 Spacer(minLength: 8)
                 processingDestination
             }
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) { sourceScopeControl; timeScopeControl }
+                HStack(spacing: 8) { sourceScopeControl; dateScopeControls }
                     .frame(minHeight: 28)
                 processingDestination
             }
@@ -373,9 +372,6 @@ private struct AskContent: View {
             .init(title: option.rawValue, selected: facet == option, action: { facet = option })
         })]
         if sources.contains(.screen) {
-            items.append(.init(title: "Screen dates", children: [ScreenSearchDateScope.today, .yesterday, .sevenDays, .any].map { option in
-                .init(title: option.rawValue, selected: screenDateScope == option, action: { screenDateScope = option })
-            }))
             items.append(.init(title: "Screen app", children:
                 [.init(title: "All apps", selected: selectedScreenApp == nil, action: { selectedScreenApp = nil })]
                 + screenApps.map { name in
@@ -387,16 +383,47 @@ private struct AskContent: View {
     }
 
     private var sourceSummary: String {
-        let label: String
-        if sources == AskSourceScope.defaults {
-            label = "All sources"
-        } else if let only = sources.first, sources.count == 1 {
-            label = only.displayName
-        } else {
-            label = "\(sources.count) sources"
+        sources == AskSourceScope.defaults ? "All sources"
+            : AskSourceScope.allCases.filter(sources.contains).map(\.displayName).joined(separator: ", ")
+    }
+
+    private var hasSearchFilters: Bool {
+        app.askDateScope != nil || facet != .all || selectedScreenApp != nil
+    }
+
+    @ViewBuilder private var activeSearchFilters: some View {
+        if facet != .all || selectedScreenApp != nil {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { searchFilterButtons }
+                VStack(alignment: .leading, spacing: 6) { searchFilterButtons }
+            }
+            .font(WorkspaceTypography.control)
+            .controlSize(.small)
+            .accessibilityIdentifier("ask.activeFilters")
         }
-        let filtered = facet != .all || screenDateScope != .any || selectedScreenApp != nil
-        return filtered ? label + " · Filtered" : label
+    }
+
+    @ViewBuilder private var searchFilterButtons: some View {
+        if facet != .all {
+            Button { facet = .all } label: {
+                Label("Results: \(facet.rawValue)", systemImage: "xmark.circle")
+            }
+            .help("Clear the result-type filter")
+            .accessibilityIdentifier("ask.filter.resultType")
+        }
+        if let selectedScreenApp {
+            Button { self.selectedScreenApp = nil } label: {
+                Label("Screen app: \(selectedScreenApp)", systemImage: "xmark.circle")
+            }
+            .help("Clear the screen-app filter; it does not filter meetings or activity")
+            .accessibilityIdentifier("ask.filter.screenApp")
+        }
+    }
+
+    private func clearSearchFilters() {
+        facet = .all
+        selectedScreenApp = nil
+        app.askDateScope = nil
     }
 
     private func toggleSource(_ source: AskSourceScope) {
@@ -407,70 +434,78 @@ private struct AskContent: View {
             selection.insert(source)
         }
         app.recallState.chooseSources(selection)
+        if !selection.contains(.screen) { selectedScreenApp = nil }
+    }
+
+    private var dateScopeControls: some View {
+        HStack(spacing: 4) {
+            timeScopeControl
+            if app.askDateScope != nil {
+                Button { app.askDateScope = nil } label: { Image(systemName: "xmark.circle") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Clear date filter")
+                    .accessibilityIdentifier("ask.filter.date.clear")
+            }
+        }
     }
 
     private var timeScopeControl: some View {
-        Button {
-            showingTimeScope.toggle()
-        } label: {
+        Button { showingTimeScope.toggle() } label: {
             Label(timeScopeLabel, systemImage: "calendar")
         }
         .buttonStyle(.bordered)
         .fixedSize()
-        .popover(isPresented: $showingTimeScope, arrowEdge: .bottom) {
-            timeScopePopover
-        }
-        .help("Limit every enabled source to one calendar day")
+        .popover(isPresented: $showingTimeScope, arrowEdge: .bottom) { timeScopePopover }
+        .help("One date scope for meeting, activity, and screen search and answers")
         .accessibilityIdentifier("ask.timeScope")
     }
 
     private var timeScopePopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Time scope")
-                .font(WorkspaceTypography.sectionTitle)
-            Text("Applied to Meetings, Activity, and Screen independently of source access.")
+            Text("Date scope").font(WorkspaceTypography.sectionTitle)
+            Text("Applies to search results and answers across all selected sources.")
                 .workspaceTextRole(.supporting)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button {
-                    app.askDayScope = nil
-                    showingTimeScope = false
-                } label: {
-                    Label("Any time", systemImage: app.askDayScope == nil ? "checkmark" : "clock")
-                }
-                .buttonStyle(.bordered)
-                Button {
-                    app.askDayScope = Calendar.current.startOfDay(for: Date())
-                    showingTimeScope = false
-                } label: {
-                    Label("Today", systemImage: isTodayScoped ? "checkmark" : "sun.max")
-                }
-                .buttonStyle(.bordered)
+                datePreset("Any time", scope: nil, identifier: "any")
+                datePreset("Today", scope: AskDateScope(day: Date()), identifier: "today")
+            }
+            HStack {
+                datePreset("Yesterday", scope: Calendar.current.date(byAdding: .day, value: -1, to: Date())
+                    .map { AskDateScope(day: $0) }, identifier: "yesterday")
+                datePreset("Last 7 days", scope: .lastSevenDays(), identifier: "sevenDays")
             }
             Divider()
-            DatePicker("Specific date", selection: scopedDate, displayedComponents: .date)
-                .datePickerStyle(.compact)
-                .accessibilityIdentifier("ask.timeScope.date")
+            HStack {
+                DatePicker("Specific date", selection: scopedDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .accessibilityIdentifier("ask.timeScope.date")
+                Button("Use date") { app.askDateScope = AskDateScope(day: scopedDate.wrappedValue); showingTimeScope = false }
+                    .accessibilityIdentifier("ask.timeScope.useDate")
+            }
         }
         .padding(16)
-        .frame(width: 300)
+        .frame(width: 340)
+    }
+
+    private func datePreset(_ label: String, scope: AskDateScope?, identifier: String) -> some View {
+        Button {
+            app.askDateScope = scope
+            showingTimeScope = false
+        } label: {
+            Label(label, systemImage: app.askDateScope == scope ? "checkmark" : "calendar")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("ask.timeScope.\(identifier)")
     }
 
     private var scopedDate: Binding<Date> {
         Binding(
-            get: { app.askDayScope ?? Date() },
-            set: { app.askDayScope = Calendar.current.startOfDay(for: $0) })
+            get: { app.askDateScope.flatMap { AskDayScope.date(for: $0.firstDay) } ?? Date() },
+            set: { app.askDateScope = AskDateScope(day: $0) })
     }
 
-    private var isTodayScoped: Bool {
-        app.askDayScope.map(Calendar.current.isDateInToday) ?? false
-    }
-
-    private var timeScopeLabel: String {
-        guard let day = app.askDayScope else { return "Any time" }
-        if Calendar.current.isDateInToday(day) { return "Today" }
-        return day.formatted(date: .abbreviated, time: .omitted)
-    }
+    private var timeScopeLabel: String { app.askDateScope?.label() ?? "Any time" }
 
     private var inferenceStatus: some View {
         Button {
@@ -553,27 +588,17 @@ private struct AskContent: View {
     private func escalate() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, !model.isResponding else { return }
-        let scope = AskEscalationScope.resolve(
-            mode: mode,
-            selectedSources: sources,
-            selectedDay: app.askDayScope)
+        let dateScope = app.askDateScope
         let contextualQuestion = ScreenAskContext.prompt(question: q, contexts: pinnedScreens)
-        let prompt: String
-        if let day = scope.dayScope {
-            prompt = "About my day on \(day.formatted(date: .long, time: .omitted)): \(contextualQuestion)"
-        } else {
-            prompt = contextualQuestion
-        }
+        let prompt = dateScope.map { "About my work on \($0.dateLabel): \(contextualQuestion)" } ?? contextualQuestion
         mode = .ask
         model.send(
             prompt,
             displayText: q,
-            sourceScopes: scope.sources,
-            dayScope: scope.dayScope,
+            sourceScopes: sources,
+            dateScope: dateScope,
             attachedScreenDates: pinnedScreens.map(\.timestamp),
             meetingIDs: meetingScope, screenSnapshotIDs: screenScope)
-        sources = scope.sources
-        app.askDayScope = scope.dayScope
         clearPinnedScreens(restoringScope: false)
         query = ""
     }
@@ -588,7 +613,7 @@ private struct AskContent: View {
     private func resetAskScope() {
         app.recallState.clearEvidence()
         app.recallState.chooseSources(AskSourceScope.defaults)
-        app.askDayScope = nil
+        app.askDateScope = nil
         pinnedScreens = []
         screenWasEnabledBeforePins = nil
         showingTimeScope = false
@@ -601,7 +626,7 @@ private struct AskContent: View {
         }
         app.recallState.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
                                        sources: scope.sources)
-        app.askDayScope = scope.dayScopeKey.flatMap { AskDayScope.date(for: $0) }
+        app.askDateScope = scope.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
         pinnedScreens = []
         screenWasEnabledBeforePins = nil
         showingTimeScope = false
@@ -609,7 +634,7 @@ private struct AskContent: View {
 
     private func reconcilePinnedScreenScope() {
         guard !pinnedScreens.isEmpty else { return }
-        pinnedScreens = ScreenAskContext.withinDay(pinnedScreens, day: app.askDayScope)
+        if let dateScope = app.askDateScope { pinnedScreens = pinnedScreens.filter { dateScope.contains($0.timestamp) } }
         sources.insert(.screen)
         screenScope = Set(pinnedScreens.map(\.snapshotID))
     }
@@ -655,7 +680,11 @@ private struct AskContent: View {
                 if resultCount == 0 && !isSearching {
                     noMatchesRow(sources == [.today]
                         ? "Activity totals are available in Ask. Enable Meetings or Screen to search source text."
-                        : "No results for “\(query)” in this scope.")
+                        : "No results for “\(query)” in \(sourceSummary) · \(timeScopeLabel).")
+                    if hasSearchFilters {
+                        Button("Clear search filters", action: clearSearchFilters)
+                            .accessibilityIdentifier("ask.filters.clear")
+                    }
                 }
                 ForEach(Array(groupedMeetings.enumerated()), id: \.element.id) { index, group in
                     VStack(alignment: .leading) {
@@ -733,14 +762,14 @@ private struct AskContent: View {
 
     private func runSearch() {
         searchTask?.cancel()
-        let q = query, request = app.recallState, day = app.askDayScope
+        let q = query, request = app.recallState, dateScope = app.askDateScope
         // Never leave rows from a previous query available to Return.
         hits = []; ocrHits = []; screenGroups = []
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
-            let result = await RecallSearch.search(q, state: request, day: day, app: app) { lexical in
+            let result = await RecallSearch.search(q, state: request, dateScope: dateScope, app: app) { lexical in
                 guard !Task.isCancelled, q == query else { return }
                 publishSearch(lexical)
             }
@@ -754,7 +783,7 @@ private struct AskContent: View {
         hits = result.meetings.flatMap(\.matches)
         screenGroups = result.screens
         ocrHits = result.screens.flatMap(\.matches)
-        screenApps = Array(Set(ocrHits.map(\.app))).sorted()
+        screenApps = Array(Set(ocrHits.map(\.app) + [selectedScreenApp].compactMap { $0 })).sorted()
         selectedResult = min(selectedResult, max(0, resultCount - 1))
     }
 

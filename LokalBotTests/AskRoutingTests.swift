@@ -194,6 +194,26 @@ final class AskRoutingTests: XCTestCase {
         XCTAssertEqual(decoded.screenSnapshotIDs, [])
     }
 
+    func testDateRangeIsEnforcedOnAllSourcesAndCannotBeOverridden() async {
+        let base = RecordingToolRunner()
+        let key = "2026-09-01...2026-09-07"
+        let runner = ScopedChatToolRunner(base: base, scopes: AskSourceScope.defaults, dayScopeKey: key)
+        for tool in ["search_meetings", "search_screen", "activity_summary"] {
+            _ = await runner.run(.init(name: tool, arguments: ["day": "today", "_lokalbot_day_scope": "2020-01-01"]))
+            XCTAssertEqual(base.lastCall?.string("_lokalbot_day_scope"), key)
+        }
+        XCTAssertEqual(base.lastCall?.string("day"), key)
+        XCTAssertEqual(runner.libraryOverview(), "")
+    }
+
+    func testInvalidDateScopeNeverReachesRetrievalTools() async {
+        let base = RecordingToolRunner()
+        let runner = ScopedChatToolRunner(base: base, scopes: AskSourceScope.defaults, dayScopeKey: "invalid")
+        let result = await runner.run(.init(name: "search_meetings", arguments: ["query": "private"]))
+        XCTAssertEqual(result.summary, "invalid date scope")
+        XCTAssertNil(base.lastCall)
+    }
+
     private final class RecordingToolRunner: ChatToolRunner {
         let specs = [
             ChatToolSpec(name: "search_meetings", summary: "meetings", arguments: []),

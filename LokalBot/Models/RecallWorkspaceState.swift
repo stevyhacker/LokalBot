@@ -7,7 +7,6 @@ struct RecallWorkspaceState {
     var screenIDs: Set<Int64>?
     var selectedResult = 0
     var facet: AskFacet = .all
-    var screenDate: ScreenSearchDateScope = .any
     var screenApp: String?
     var sources = AskSourceScope.defaults
     var pins: [ScreenAskContext] = []
@@ -100,16 +99,16 @@ extension RecallSearch {
     }
 
     @MainActor
-    static func search(_ query: String, state: RecallWorkspaceState, day: Date?, app: AppState,
+    static func search(_ query: String, state: RecallWorkspaceState, dateScope: AskDateScope?, app: AppState,
                        onLexical: ((Result) -> Void)? = nil) async -> Result {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return Result() }
         var meetingIDs = state.meetingIDs
-        if let day {
-            let dayIDs = Set(app.meetings.filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }.map(\.id))
+        if let dateScope {
+            let dayIDs = Set(app.meetings.filter { dateScope.contains($0.startedAt) }.map(\.id))
             meetingIDs = meetingIDs.map { $0.intersection(dayIDs) } ?? dayIDs
         }
         let scopedMeetingIDs = meetingIDs
-        let interval = day.flatMap { Calendar.current.dateInterval(of: .day, for: $0) } ?? state.screenDate.interval()
+        let interval = dateScope?.interval()
         var filter = ScreenSearchFilter(interval: interval, app: state.screenApp)
         filter.snapshotIDs = state.screenIDs
         let screenFilter = filter

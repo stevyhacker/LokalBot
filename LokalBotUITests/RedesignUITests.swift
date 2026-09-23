@@ -176,6 +176,31 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists, "Switching modes must not submit the query")
     }
 
+    func testAskHasOneDateScopeAndVisibleRemovableFilters() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
+        let date = element("ask.timeScope")
+        XCTAssertTrue(date.waitForExistence(timeout: 5))
+        date.click()
+        app.buttons["ask.timeScope.sevenDays"].click()
+        XCTAssertTrue(date.label.contains("Last 7 days"))
+        XCTAssertTrue(element("ask.filter.date.clear").exists)
+        element("ask.sources").click()
+        XCTAssertTrue(app.menuItems["Result type"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.menuItems["Screen dates"].exists)
+        app.menuItems["Result type"].hover()
+        XCTAssertTrue(app.menuItems["Summaries"].waitForExistence(timeout: 3))
+        app.menuItems["Summaries"].click()
+        let typeFilter = element("ask.filter.resultType")
+        XCTAssertTrue(typeFilter.waitForExistence(timeout: 3))
+        XCTAssertTrue(typeFilter.label.contains("Summaries"))
+        snapshot("ask-unified-date-filters")
+        typeFilter.click()
+        XCTAssertFalse(typeFilter.exists)
+        element("ask.filter.date.clear").click()
+        XCTAssertTrue(date.label.contains("Any time"))
+        XCTAssertFalse(element("ask.filter.date.clear").exists)
+    }
+
     func testClearingResultEvidenceRestoresSearchSources() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search",
                     "LOKALBOT_INITIAL_SEARCH": "failover"], blockedInference: true)

@@ -271,10 +271,16 @@ final class AppState: ObservableObject {
     @Published private(set) var presentedMeetingSearchID: Meeting.ID?
     @Published private(set) var meetingPageSearchRequestRevision = 0
 
-    /// A day handed to the Ask section (the old Timeline "Ask" tab, spec
-    /// §2.2): rendered as a removable chip, and prepended to escalated
-    /// queries so the assistant scopes its answer to that day.
-    @Published var askDayScope: Date?
+    /// One date boundary for Ask search, answer tools and restored questions.
+    /// The single-day adapter keeps Timeline navigation handoffs compatible.
+    @Published var askDateScope: AskDateScope?
+    var askDayScope: Date? {
+        get {
+            guard let scope = askDateScope, scope.firstDay == scope.lastDay else { return nil }
+            return AskDayScope.date(for: scope.firstDay)
+        }
+        set { askDateScope = newValue.map { AskDateScope(day: $0) } }
+    }
     /// Atomic, destination-scoped payloads for cross-surface navigation.
     private(set) lazy var navigationHandoff = NavigationHandoff()
 

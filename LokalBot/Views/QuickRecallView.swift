@@ -307,7 +307,7 @@ private struct QuickRecallContent: View {
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
             guard !Task.isCancelled, currentQuery == trimmedQuery else { return }
-            let result = await RecallSearch.search(currentQuery, state: RecallWorkspaceState(), day: nil, app: app)
+            let result = await RecallSearch.search(currentQuery, state: RecallWorkspaceState(), dateScope: nil, app: app)
             guard !Task.isCancelled, currentQuery == trimmedQuery else { return }
             screenGroups = result.screens
             meetingHits = result.meetings.map(\.primary)
@@ -362,7 +362,7 @@ private struct QuickRecallContent: View {
         let scope = model.currentQuestionScope
         model.send(value,
                    sourceScopes: scope?.sources ?? AskSourceScope.defaults,
-                   dayScope: scope?.dayScopeKey.flatMap { AskDayScope.date(for: $0) },
+                   dateScope: scope?.dayScopeKey.flatMap { AskDateScope(storageKey: $0) },
                    meetingIDs: scope?.meetingIDs, screenSnapshotIDs: scope?.screenSnapshotIDs)
         inputFocused = true
     }

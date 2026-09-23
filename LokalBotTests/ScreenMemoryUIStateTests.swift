@@ -7,7 +7,7 @@ final class ScreenMemoryUIStateTests: XCTestCase {
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/Podgorica"))
         let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-07-14T12:00:00+02:00"))
         let interval = try XCTUnwrap(
-            ScreenSearchDateScope.sevenDays.interval(now: now, calendar: calendar))
+            AskDateScope.lastSevenDays(now: now, calendar: calendar).interval(calendar: calendar))
 
         XCTAssertEqual(calendar.dateComponents([.year, .month, .day], from: interval.start),
                        DateComponents(year: 2026, month: 7, day: 8))
