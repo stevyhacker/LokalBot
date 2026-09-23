@@ -125,9 +125,8 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testSearchReturnIsSilentAndExplicitAskReviewsScope() throws {
-        try launch()
+        try launch(blockedInference: true)
         UITestHarness.clickSidebar("sidebar.ask", in: app)
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         let input = app.textFields["search.field"]
         input.click(); input.typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
@@ -138,10 +137,12 @@ final class RedesignUITests: XCTestCase {
         app.buttons["Back"].firstMatch.click()
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "failover")
-        app.buttons["ask.escalate"].click()
-        XCTAssertTrue(element("ask.selectedEvidence").exists)
-        XCTAssertFalse(app.staticTexts["chat.message.user"].exists)
-        snapshot("bounded-ask-draft")
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
+        input.typeKey(.return, modifierFlags: .command)
+        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["chat.message.user"].waitForExistence(timeout: 5))
+        XCTAssertEqual(input.value as? String, "")
+        snapshot("bounded-ask-question")
     }
 
     func testRecallKeepsInputScopeAndHistoryInPlaceAcrossModes() throws {
@@ -155,7 +156,6 @@ final class RedesignUITests: XCTestCase {
         let sourceLabel = element("ask.sources").label
         let dateLabel = element("ask.timeScope").label
 
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
         XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
         XCTAssertEqual(element("ask.sources").frame.minY, sourcesFrame.minY, accuracy: 1)
@@ -168,7 +168,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertEqual(element("ask.timeScope").label, dateLabel)
         snapshot("search-stable-input")
 
-        UITestHarness.selectSegment("Ask", pickerIdentifier: "ask.retrieval", in: app)
         XCTAssertEqual(input.value as? String, "failover")
         XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
         XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
@@ -179,16 +178,16 @@ final class RedesignUITests: XCTestCase {
 
     func testClearingResultEvidenceRestoresSearchSources() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search",
-                    "LOKALBOT_INITIAL_SEARCH": "failover"])
+                    "LOKALBOT_INITIAL_SEARCH": "failover"], blockedInference: true)
         let sources = element("ask.sources")
         XCTAssertTrue(sources.waitForExistence(timeout: 5))
         let originalSources = sources.value as? String
         XCTAssertNotNil(originalSources)
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
-        app.buttons["ask.escalate"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
+        app.buttons["ask.submit"].click()
         XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 3))
         XCTAssertNotEqual(sources.value as? String, originalSources)
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         element("ask.selectedEvidence").click()
         XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
         XCTAssertFalse(element("ask.selectedEvidence").exists)
@@ -287,7 +286,7 @@ final class RedesignUITests: XCTestCase {
         UITestHarness.scrollTo(evidence, in: app, within: content)
         evidence.click()
         XCTAssertTrue(app.buttons["meeting.review.return"].waitForExistence(timeout: 3))
-        UITestHarness.selectSegment("Overview", pickerIdentifier: "meeting.contentTabs", in: app)
+        UITestHarness.selectSegment("Summary", pickerIdentifier: "meeting.contentTabs", in: app)
         UITestHarness.scrollTo(evidence, in: app, within: content)
         evidence.click()
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
@@ -314,12 +313,11 @@ final class RedesignUITests: XCTestCase {
             UITestHarness.clickSidebar("sidebar.ask", in: app)
             XCTAssertTrue(element("chat.empty").waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
-            UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
             XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
-            app.buttons["ask.sources"].click()
-            XCTAssertTrue(app.checkBoxes["Screen"].waitForExistence(timeout: 3))
-            try auditWorkspaceAccessibility(includeContrast: true, contrastBounds: app.popovers.firstMatch.frame)
+            element("ask.sources").click()
+            XCTAssertTrue(app.menuItems["Screen"].waitForExistence(timeout: 3))
+            try auditWorkspaceAccessibility()
             app.typeKey(.escape, modifierFlags: [])
             app.textFields["search.field"].click()
             app.textFields["search.field"].typeText("failover")
@@ -383,20 +381,19 @@ final class RedesignUITests: XCTestCase {
 
     func testAutocompleteAcceptsPhysicalTabAndEscapeDismissesGhost() throws {
         try launch(["LOKALBOT_COTYPING_DEMO": "1"])
-        UITestHarness.clickSidebar("sidebar.type", in: app)
-        UITestHarness.selectSegment("Autocomplete", pickerIdentifier: "type.tab", in: app)
-        let start = app.buttons["Start"]
-        UITestHarness.scrollTo(start, in: app)
-        start.click()
-        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })
-        app.typeKey(.tab, modifierFlags: [])
-        XCTAssertTrue(UITestHarness.staticText(containing: "Rehearsal complete", in: app).waitForExistence(timeout: 4))
-        app.buttons["Restart"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })
-        app.typeKey(.escape, modifierFlags: [])
-        XCTAssertFalse(app.buttons["Insert suggestion"].isEnabled)
-        XCTAssertFalse(UITestHarness.staticText(containing: "Rehearsal complete", in: app).exists)
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        UITestHarness.selectSettingsCategory("Writing", in: app)
         let editor = app.textViews["autocomplete.rehearsal.editor"]
+        UITestHarness.scrollTo(editor, in: app)
+        editor.click()
+        let original = editor.value as? String
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })
+        editor.typeKey(.tab, modifierFlags: [])
+        XCTAssertTrue(UITestHarness.waitUntil { editor.value as? String != original })
+        editor.typeText(" Next")
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["Insert suggestion"].isEnabled })
+        editor.typeKey(.escape, modifierFlags: [])
+        XCTAssertFalse(app.buttons["Insert suggestion"].isEnabled)
         let textBeforeNavigation = editor.value as? String
         XCTAssertNotNil(textBeforeNavigation)
         app.typeKey(.tab, modifierFlags: [])
@@ -438,7 +435,6 @@ final class RedesignUITests: XCTestCase {
             XCTAssertTrue(element("meeting.contentTabs").isHittable)
         }
         UITestHarness.clickSidebar("sidebar.ask", in: app)
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         app.textFields["search.field"].click()
         app.textFields["search.field"].typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
@@ -471,7 +467,7 @@ final class RedesignUITests: XCTestCase {
         let data = try JSONSerialization.data(withJSONObject: ["schemaVersion": 2, "actionItems": actions])
         try data.write(to: folder.appendingPathComponent("outcomes.json"))
         try launch()
-        app.buttons["Review actions"].click()
+        app.buttons["outcomes.review"].click()
         let search = app.textFields["actions.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.click(); search.typeText("Synthetic commitment 399")
@@ -563,10 +559,19 @@ final class RedesignUITests: XCTestCase {
         snapshot("agent-denied-and-stopped")
     }
 
-    private func launch(_ environment: [String: String] = [:]) throws {
+    private func launch(_ environment: [String: String] = [:], blockedInference: Bool = false) throws {
         app?.terminate()
         UITestHarness.cleanUp(defaultsSuiteName: suite)
-        let run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Redesign", environment: environment)
+        let run: UITestHarness.Launch
+        if blockedInference {
+            // Deliberately invalid destination: exercise submission and saved
+            // scope without downloading a model or contacting a server.
+            run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Redesign",
+                settingsJSON: #"{"menuBarOnly":false,"calendarDetectionEnabled":false,"semanticSearchEnabled":false,"cotypingEnabled":false,"summarizerBackend":"OpenAI-compatible server","openAIBaseURL":"invalid"}"#,
+                environment: environment)
+        } else {
+            run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Redesign", environment: environment)
+        }
         app = run.app; suite = run.defaultsSuiteName
     }
     private func withBlockedStateFile(_ file: URL, perform body: () throws -> Void) throws {
@@ -627,8 +632,7 @@ final class RedesignUITests: XCTestCase {
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
         let labels = [
-            "Find an answer in indexed meetings and permitted screen text, with sources. Asking is read-only.",
-            "Search meeting titles, transcripts, summaries, and permitted screen text without asking the model.",
+            "Type to find meetings and screen moments. Press Return to open a result, or ⌘Return to ask about what you found.",
         ]
         var verified = Set<String>()
         for label in labels {

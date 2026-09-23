@@ -44,6 +44,11 @@ enum InferencePresentation: Equatable {
         }
     }
 
+    var isRemote: Bool {
+        if case .remote = self { return true }
+        return false
+    }
+
     var isBlocked: Bool {
         if case .blocked = self { return true }
         return false

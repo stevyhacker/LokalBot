@@ -3,39 +3,42 @@ import SwiftUI
 struct DictationView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var dictation: DictationCoordinator
+    var embedded = false
     @StateObject private var permissions = PermissionManager.shared
 
     private var operation: AppSettings { dictation.presentedConfiguration }
 
     var body: some View {
-        Form {
-            statusSection
+        Group {
+            if embedded { content } else { Form { content }.formStyle(.grouped) }
+        }
+        .accessibilityIdentifier("dictation.form")
+        .onAppear {
+            if !embedded { permissions.startPolling() }
+            app.dictation.applySettings()
+        }
+        .onDisappear {
+            if !embedded { permissions.stopPolling() }
+            PermissionGuidanceController.shared.dismiss()
+        }
+        .onChange(of: permissions.granted) { _, _ in app.dictation.applySettings() }
+    }
+
+    @ViewBuilder private var content: some View {
+        statusSection
+        if !embedded {
             Section("Shortcut and output") {
                 LabeledContent("Shortcut", value: app.settings.dictationEnabled ? DictationShortcut.label : "Off")
                 LabeledContent("Shortcut output", value: app.settings.dictationOutputMode.label)
                 Button("Writing settings…") { app.openSettings(tab: .writing) }
             }
-            modelSection
-            if app.settings.dictationEnabled { permissionsSection }
-            if let result = app.dictation.lastComposedText {
-                lastResultSection(result)
-            } else if let transcript = app.dictation.lastTranscript {
-                lastSpokenRequestSection(transcript)
-            }
         }
-        .formStyle(.grouped)
-        .frame(minWidth: 460)
-        .accessibilityIdentifier("dictation.form")
-        .onAppear {
-            permissions.startPolling()
-            app.dictation.applySettings()
-        }
-        .onDisappear {
-            permissions.stopPolling()
-            PermissionGuidanceController.shared.dismiss()
-        }
-        .onChange(of: permissions.granted) { _, _ in
-            app.dictation.applySettings()
+        modelSection
+        if app.settings.dictationEnabled { permissionsSection }
+        if let result = app.dictation.lastComposedText {
+            lastResultSection(result)
+        } else if let transcript = app.dictation.lastTranscript {
+            lastSpokenRequestSection(transcript)
         }
     }
 

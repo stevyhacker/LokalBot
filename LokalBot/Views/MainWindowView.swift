@@ -173,8 +173,6 @@ struct MainWindowView: View {
                     .splitPaneAccessibilityLabel("Meeting details")
             }
             .id("workspace.meetings")
-        case .type:
-            TypeView()
         case .ask:
             HSplitView {
                 ChatConversationList()
@@ -211,9 +209,6 @@ struct MainWindowView: View {
                 identifier: "sidebar.ask")
             sidebarSectionHeader("Tools")
             sidebarDestination(
-                "Write", systemImage: "keyboard", section: .type,
-                identifier: "sidebar.type")
-            sidebarDestination(
                 "Agent", systemImage: "wand.and.sparkles", section: .agent,
                 identifier: "sidebar.agent")
             sidebarDestination(
@@ -226,7 +221,7 @@ struct MainWindowView: View {
             SidebarBrandHeader()
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            SidebarPrivacyFooter()
+            if app.navSection != .ask { SidebarPrivacyFooter() }
         }
         .scrollContentBackground(.hidden)
         .background(WorkspacePalette.sidebar(for: colorScheme))

@@ -7,7 +7,6 @@ struct RecallWorkspaceState {
     var screenIDs: Set<Int64>?
     var selectedResult = 0
     var facet: AskFacet = .all
-    var meaning = false
     var screenDate: ScreenSearchDateScope = .any
     var screenApp: String?
     var sources = AskSourceScope.defaults
@@ -135,23 +134,27 @@ extension RecallSearch {
         }
         guard !Task.isCancelled else { return Result() }
         onLexical?(result)
-        guard state.meaning else { return result }
+        guard app.settings.semanticSearchEnabled else { return result }
         if searchMeetings, state.facet == .all, app.embeddingIndex.hasEmbeddings {
             let semantic = await app.embeddingIndex.search(query, limit: 200, meetingIDs: meetingIDs)
             guard !Task.isCancelled else { return Result() }
-            result.meetings = groups(result.meetings.flatMap(\.matches) + semantic.map {
+            result.meetings = fusedMeetings(keyword: result.meetings.flatMap(\.matches), semantic: semantic.map {
                 SearchIndex.Hit(meetingID: $0.meetingID, kind: .segment, start: $0.start,
-                                snippet: $0.text, speaker: "Meaning match")
+                                snippet: $0.text, speaker: "")
             })
         }
         if searchScreens {
             let semantic = await app.embeddingIndex.searchScreen(query, filter: filter, limit: 200)
             guard !Task.isCancelled else { return Result() }
             let hits = result.screens.flatMap(\.matches)
-            let existing = Set(hits.map(\.snapshotID))
-            result.screens = screenGroups(hits + semantic.filter { !existing.contains($0.snapshotID) }.compactMap { hit in
-                guard let shot = app.activityStore.screenshot(id: hit.snapshotID) else { return nil }
-                return ActivityStore.OCRHit(snapshotID: hit.snapshotID, ts: shot.ts, app: shot.app,
+            let keywordByID = Dictionary(hits.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
+            let semanticByID = Dictionary(semantic.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
+            let ranked = ScreenSearchRanker.fuse(keyword: hits, semantic: semantic, limit: 2_000)
+            result.screens = screenGroups(ranked.compactMap { match in
+                if let hit = keywordByID[match.snapshotID] { return hit }
+                guard let hit = semanticByID[match.snapshotID],
+                      let shot = app.activityStore.screenshot(id: match.snapshotID) else { return nil }
+                return ActivityStore.OCRHit(snapshotID: shot.id, ts: shot.ts, app: shot.app,
                                             windowTitle: shot.windowTitle, snippet: hit.text)
             })
         }

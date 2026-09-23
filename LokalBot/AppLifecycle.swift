@@ -246,7 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let raw = env["LOKALBOT_INITIAL_SECTION"],
            let section = AppState.NavSection(captureName: raw) {
             app.navSection = section
-            if let tab = AppState.TypeTab(captureName: raw) { app.typeTab = tab }
+            if let tab = AppState.TypeTab(captureName: raw) { app.openType(tab) }
+            if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
             if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
         }
         applyCaptureMeetingSelection(to: app, environment: env)

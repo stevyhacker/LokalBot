@@ -12,19 +12,19 @@ import CoreGraphics
 final class AppState: ObservableObject {
 
     enum NavSection: Hashable {
-        case today, timeline, meetings, type, ask, agent, settings
+        case today, timeline, meetings, ask, agent, settings
 
         /// Section names accepted from the UI-test capture environment and
         /// deep links. Legacy names keep working: "capture" (the pre-split
         /// merged section) lands on Timeline, "dictation" and "cotyping" on
-        /// Type, "search"/"chat" on Ask (spec §2.1), and "models" on
+        /// Writing settings, "search"/"chat" on Ask (spec §2.1), and "models" on
         /// Settings, which absorbed it as a tab (spec §2.5).
         init?(captureName: String) {
             switch captureName.lowercased() {
             case "today": self = .today
             case "timeline", "capture": self = .timeline
             case "meetings": self = .meetings
-            case "write", "type", "dictation", "cotyping", "autocomplete": self = .type
+            case "write", "type", "dictation", "cotyping", "autocomplete": self = .settings
             case "ask", "search", "chat": self = .ask
             case "agent": self = .agent
             case "settings", "models": self = .settings
@@ -278,10 +278,11 @@ final class AppState: ObservableObject {
     /// Atomic, destination-scoped payloads for cross-surface navigation.
     private(set) lazy var navigationHandoff = NavigationHandoff()
 
-    /// Navigate to the Type section with a specific tab preselected.
+    /// Keep legacy writing commands routed to the corresponding Settings section.
     func openType(_ tab: TypeTab) {
         typeTab = tab
-        navSection = .type
+        openSettings(tab: .writing)
+        focusedSettingID = tab == .cotyping ? "settings.autocompletePreview" : "settings.dictationPreview"
     }
 
     /// Open Settings as a destination inside the existing main window.

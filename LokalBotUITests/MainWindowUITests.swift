@@ -47,11 +47,14 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(identified("today.dayDigest.actions").exists)
         XCTAssertTrue(textWithContent("Updated the Timeline UI").firstMatch.exists)
         XCTAssertFalse(textWithContent("screen:4242").firstMatch.exists)
-        XCTAssertTrue(textWithContent("Generated").firstMatch.exists)
+        XCTAssertTrue(textWithContent("Updated").firstMatch.exists)
         XCTAssertFalse(identified("dayDigest.fullActivityLog").exists)
-        XCTAssertTrue(app.buttons["Review actions"].exists)
-        UITestHarness.scrollTo(identified("today.fullBrief"), in: app)
-        XCTAssertTrue(identified("today.fullBrief").exists)
+        XCTAssertTrue(app.buttons["outcomes.review"].exists)
+        XCTAssertFalse(identified("today.memoryStatus").exists)
+        XCTAssertFalse(textWithContent("Morning brief").firstMatch.exists)
+        XCTAssertFalse(textWithContent("Today’s brief").firstMatch.exists)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier == %@", "toolbar.record")).count, 1)
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@", "Record now", "toolbar.record")).firstMatch.exists)
     }
 
     // MARK: - Library
@@ -222,8 +225,8 @@ final class MainWindowUITests: XCTestCase {
         openLibrary()
         let search = app.textFields["meeting.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 4), "meeting search missing")
-        XCTAssertTrue(app.descendants(matching: .any)["meeting.statusFilter"].exists,
-                      "status filter missing")
+        XCTAssertFalse(app.descendants(matching: .any)["meeting.statusFilter"].exists,
+                       "processing states belong on affected rows")
         search.click()
         search.typeText("Q3 roadmap")
         XCTAssertTrue(meetingRow(for: fixture.planning).waitForExistence(timeout: 4))
@@ -258,7 +261,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(app.buttons["sidebar.section.writeAct"].exists,
                        "Write & Act must be a header, not a destination")
         let ordered = ["sidebar.today", "sidebar.meetings", "sidebar.timeline",
-                       "sidebar.ask", "sidebar.type", "sidebar.agent", "sidebar.settings"]
+                       "sidebar.ask", "sidebar.agent", "sidebar.settings"]
             .map(identified)
         for item in ordered {
             XCTAssertTrue(item.exists, "approved sidebar destination missing")
@@ -267,6 +270,7 @@ final class MainWindowUITests: XCTestCase {
             XCTAssertLessThan(pair.0.frame.midY, pair.1.frame.midY,
                               "approved sidebar order changed")
         }
+        XCTAssertFalse(identified("sidebar.type").exists)
         // Storage and inference destinations remain separate claims.
         XCTAssertTrue(textWithContent("Storage: this Mac").firstMatch.exists)
         XCTAssertTrue(textWithContent("AI: on this Mac").firstMatch.exists)
@@ -373,8 +377,8 @@ final class MainWindowUITests: XCTestCase {
                       "Timeline should expose copy and Markdown export actions")
         XCTAssertFalse(identified("timeline.activityEvidence").exists,
                        "the chronological track should not be hidden behind Activity evidence")
-        XCTAssertFalse(textWithContent("Needs attention").firstMatch.exists,
-                       "empty outcome card should not consume Timeline space")
+        XCTAssertTrue(textWithContent("Needs attention").firstMatch.exists,
+                      "Timeline should expose the same actionable commitments as Today")
         XCTAssertFalse(textWithContent("Decisions").firstMatch.exists,
                        "empty decisions section should not consume Timeline space")
         XCTAssertTrue(textWithContent("Time allocation").firstMatch.waitForExistence(timeout: 6),
@@ -689,7 +693,8 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         XCTAssertTrue(textWithContent("Draft the eviction policy document").firstMatch.waitForExistence(timeout: 4))
         XCTAssertFalse(identified("meeting.summary").exists)
-        UITestHarness.selectSegment("Full Summary", pickerIdentifier: "meeting.contentTabs", in: app)
+        UITestHarness.scrollTo(identified("meeting.fullNotes"), in: app)
+        identified("meeting.fullNotes").click()
         XCTAssertTrue(identified("meeting.summary").waitForExistence(timeout: 4))
         UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
         let first = app.staticTexts["transcript.segment.0.text"]
@@ -715,7 +720,8 @@ final class MainWindowUITests: XCTestCase {
         let toggle = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "meeting.action.toggle.")).firstMatch
         XCTAssertTrue(toggle.exists)
         XCTAssertFalse(toggle.isEnabled)
-        UITestHarness.selectSegment("Full Summary", pickerIdentifier: "meeting.contentTabs", in: app)
+        UITestHarness.scrollTo(identified("meeting.fullNotes"), in: app)
+        identified("meeting.fullNotes").click()
         XCTAssertTrue(identified("meeting.summary").waitForExistence(timeout: 4))
         XCTAssertTrue(textWithContent("Redis was selected for the caching layer").firstMatch.exists)
     }
@@ -893,8 +899,8 @@ final class MainWindowUITests: XCTestCase {
                       "independent time-scope control missing")
         XCTAssertTrue(identified("ask.inferenceStatus").exists,
                       "local/remote inference status missing")
-        XCTAssertTrue(askRetrievalSegment("Search").exists,
-                      "Search mode missing")
+        XCTAssertFalse(identified("ask.retrieval").exists,
+                       "live recall must not require a mode switch")
 
         let field = app.textFields["search.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 4), "ask input field missing")
@@ -905,7 +911,7 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(field.value as? String, "what did we decide",
                        "ask input did not accept typed text")
 
-        XCTAssertTrue(app.buttons["ask.submit"].isEnabled,
+        XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled },
                       "Ask action did not become available for the typed question")
     }
 
@@ -915,15 +921,11 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 6), "ask input field missing")
         let askFrame = field.frame
 
-        UITestHarness.selectSegment(
-            "Search", pickerIdentifier: "ask.retrieval", in: app)
-        XCTAssertTrue(identified("ask.facet.all").waitForExistence(timeout: 4),
-                      "Search facets did not appear")
-        // The top-level switch stays binary; exact/meaning is a Search-only
-        // menu so it cannot be confused with asking the model.
-        XCTAssertTrue(askRetrievalSegment("Ask").exists, "Ask segment missing")
-        XCTAssertTrue(identified("ask.searchMatching").exists,
-                      "Exact/meaning search menu missing")
+        field.click()
+        field.typeText("failover")
+        XCTAssertTrue(identified("search.results").waitForExistence(timeout: 5))
+        XCTAssertFalse(identified("ask.retrieval").exists)
+        XCTAssertFalse(identified("ask.searchMatching").exists)
         XCTAssertTrue(identified("ask.sources").exists,
                       "Search must retain the same source scope as Ask")
         XCTAssertTrue(identified("ask.timeScope").exists)
@@ -1201,18 +1203,12 @@ final class MainWindowUITests: XCTestCase {
     private func digestTasksVisible() -> Bool {
         let identifiedHeader = app.descendants(matching: .any)["dayDigest.tasks"]
         if identifiedHeader.waitForExistence(timeout: 5) { return true }
-        return textWithContent("Tasks").firstMatch.exists
+        return textWithContent("Work summary").firstMatch.exists
     }
 
     private func switchToKeywordSearch() {
-        UITestHarness.selectSegment(
-            "Search", pickerIdentifier: "ask.retrieval", in: app)
-        XCTAssertTrue(identified("ask.facet.all").waitForExistence(timeout: 5),
-                      "Ask did not enter Search mode")
-    }
-
-    private func askRetrievalSegment(_ name: String) -> XCUIElement {
-        UITestHarness.segment(name, pickerIdentifier: "ask.retrieval", in: app)
+        XCTAssertTrue(identified("search.field").waitForExistence(timeout: 5))
+        XCTAssertFalse(identified("ask.retrieval").exists)
     }
 
     /// Timeline keeps the day context side by side when wide and behind an

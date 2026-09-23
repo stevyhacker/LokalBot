@@ -40,16 +40,6 @@ struct SettingsView: View {
                 .tint(SettingsPalette.accent(colorScheme))
                 .accessibilityLabel("Settings categories")
                 .accessibilityIdentifier("settings.categories")
-                HStack(spacing: 10) {
-                    Image(nsImage: NSApp.applicationIconImage)
-                        .resizable().frame(width: 30, height: 30)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("LokalBot").font(.system(size: 14, weight: .semibold))
-                        Text("Private work memory").font(.system(size: 12)).settingsSecondary()
-                    }
-                }
-                .padding(20)
             }
             .frame(minWidth: 205, idealWidth: 220, maxWidth: 250)
             .background(SettingsPalette.navigation(colorScheme))
@@ -171,8 +161,14 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .writing:
+            Section("Try autocomplete") {
+                AutocompleteExperienceView()
+                    .settingTarget("settings.autocompletePreview", selected: app.focusedSettingID)
+            }
             cotypingSection
             Section("Dictation") { DictationSettingsControls() }
+            DictationView(dictation: app.dictation, embedded: true)
+                .settingTarget("settings.dictationPreview", selected: app.focusedSettingID)
         case .models:
             EmptyView() // handled by the ModelsView branch in body
         case .privacy:
@@ -343,8 +339,7 @@ struct SettingsView: View {
                     Toggle("Macros", isOn: $app.settings.cotypingMacros)
                     .settingTarget("settings.cotypingMacros", selected: app.focusedSettingID)
                 }
-                Button("Open the autocomplete rehearsal") { app.openType(.cotyping) }
-                Text("Preview and rehearsal runs are excluded from production stats and local learning.")
+                Text("Preview runs are excluded from production stats and local learning.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -746,7 +741,7 @@ struct SettingsView: View {
                 if let memory = app.dreamMemory,
                    !memory.activeProjects.isEmpty || !memory.workGoals.isEmpty {
                     DisclosureGroup("Projects and goals") {
-                        Text("Pin items that should never age out, be evicted, or be expired by overnight dreaming.")
+                        Text("Pin items to keep them during automatic memory cleanup.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         if !memory.activeProjects.isEmpty {

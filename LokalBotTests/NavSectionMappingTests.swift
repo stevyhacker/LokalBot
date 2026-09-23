@@ -9,7 +9,7 @@ final class NavSectionMappingTests: XCTestCase {
     func testCaptureNamesMapToTheirSections() {
         XCTAssertEqual(AppState.NavSection(captureName: "timeline"), .timeline)
         XCTAssertEqual(AppState.NavSection(captureName: "meetings"), .meetings)
-        XCTAssertEqual(AppState.NavSection(captureName: "type"), .type)
+        XCTAssertEqual(AppState.NavSection(captureName: "type"), .settings)
         XCTAssertEqual(AppState.NavSection(captureName: "ask"), .ask)
         XCTAssertEqual(AppState.NavSection(captureName: "settings"), .settings)
     }
@@ -37,9 +37,9 @@ final class NavSectionMappingTests: XCTestCase {
         XCTAssertEqual(AppState.NavSection(captureName: "Capture"), .timeline)
     }
 
-    func testLegacyTypeNamesMapToType() {
-        XCTAssertEqual(AppState.NavSection(captureName: "dictation"), .type)
-        XCTAssertEqual(AppState.NavSection(captureName: "Cotyping"), .type)
+    func testLegacyTypeNamesMapToSettings() {
+        XCTAssertEqual(AppState.NavSection(captureName: "dictation"), .settings)
+        XCTAssertEqual(AppState.NavSection(captureName: "Cotyping"), .settings)
     }
 
     func testLegacySearchAndChatNamesMapToAsk() {

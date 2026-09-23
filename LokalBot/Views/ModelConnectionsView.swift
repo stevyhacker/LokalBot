@@ -50,7 +50,7 @@ struct ModelConnectionsView: View {
             }
             .pickerStyle(.segmented).frame(maxWidth: 380)
             .accessibilityIdentifier("models.connections.provider")
-            Label(connection == app.settings.summarizerBackend ? "Used by Assistant" : "Available for Assistant",
+            Label(connection == app.settings.summarizerBackend ? "Used by Think" : "Available for Think",
                   systemImage: connection == app.settings.summarizerBackend ? "checkmark.circle" : "network")
                 .font(.system(size: 13)).settingsSecondary()
             if connection == .openAICompatible {
@@ -311,7 +311,7 @@ struct ModelConnectionsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Remote processing · \(url.host ?? origin)", systemImage: "network")
                         .font(WorkspaceTypography.rowTitle)
-                    Text("Assistant may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features.")
+                    Text("Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features.")
                         .workspaceTextRole(.trust)
                         .fixedSize(horizontal: false, vertical: true)
                     Toggle("Allow sending context to \(origin)",

@@ -216,12 +216,12 @@ final class ModelSettingsTests: XCTestCase {
         settings.openAIModel = "z-ai/glm-5.3-flash"
         settings.approvedRemoteInferenceOrigins = ["https://openrouter.ai"]
         settings.dictationCompositionBuiltInModelID = ""
-        XCTAssertEqual(ModelSettingsPresentation.dictationLabel(settings), "Uses Assistant · OpenRouter")
+        XCTAssertEqual(ModelSettingsPresentation.dictationLabel(settings), "Uses Think · OpenRouter")
 
         settings.dictationCompositionBuiltInModelID = "qwen3.5-2b"
         XCTAssertTrue(ModelSettingsPresentation.dictationLabel(settings).contains("On this Mac"))
         settings.dictationCompositionBuiltInModelID = "removed-custom-model"
-        XCTAssertEqual(ModelSettingsPresentation.dictationLabel(settings), "Uses Assistant · OpenRouter")
+        XCTAssertEqual(ModelSettingsPresentation.dictationLabel(settings), "Uses Think · OpenRouter")
     }
 
     func testModelUsageIncludesInheritedDictation() {
@@ -231,7 +231,7 @@ final class ModelSettingsTests: XCTestCase {
         settings.cotypingBuiltInModelID = "shared"
         settings.dictationCompositionBuiltInModelID = ""
         XCTAssertEqual(ModelSettingsPresentation.uses(of: "shared", in: settings),
-                       ["Assistant", "Autocomplete", "Dictation composition"])
+                       ["Think", "Autocomplete", "Dictation composition"])
     }
 
     func testCheckIdentityIgnoresUnrelatedPreferencesButTracksRelevantChanges() {

@@ -43,7 +43,7 @@ struct ModelPresetSheet: View {
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
                     previewRow("Transcription", before: app.settings.transcriptionModelDisplayName,
                                after: selected.transcription.displayName)
-                    previewRow("Assistant", before: ModelSettingsPresentation.assistantName(app.settings),
+                    previewRow("Think", before: ModelSettingsPresentation.assistantName(app.settings),
                                after: ModelSettingsPresentation.assistantName(target))
                     previewRow("Autocomplete", before: name(app.settings.cotypingBuiltInModelID),
                                after: name(selected.autocompleteModelID))
@@ -53,7 +53,7 @@ struct ModelPresetSheet: View {
                 VStack(alignment: .leading, spacing: 9) {
                     Label("All three core models will run on this Mac.", systemImage: "desktopcomputer")
                     if app.settings.dictationCompositionBuiltInModelID.isEmpty {
-                        Text("Dictation composition follows Assistant and will also run locally.")
+                        Text("Dictation composition follows Think and will also run locally.")
                     }
                     Text("Estimated new download: " + ByteCountFormatter.string(fromByteCount: estimatedDownload, countStyle: .file))
                         .fontWeight(.medium)

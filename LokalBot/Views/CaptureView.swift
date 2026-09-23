@@ -238,7 +238,7 @@ private struct TimelineSessionStatRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            StatTile(icon: "clock", value: CaptureStyle.hm(activeSeconds), label: "active")
+            StatTile(icon: "clock", value: CaptureStyle.hm(activeSeconds), label: "tracked")
             StatTile(icon: "rectangle.stack", value: "\(sessionCount)",
                      label: sessionCount == 1 ? "session" : "sessions")
             if meetingCount > 0 {
@@ -418,9 +418,7 @@ private struct TimelineWorkspaceHeader: View {
 
     private var digestControls: some View {
         HStack(spacing: 8) {
-            askButton
-            regenerateButton
-            digestActions
+            DayDigestControls(model: model, identifier: "timeline")
         }
     }
 
@@ -447,33 +445,6 @@ private struct TimelineWorkspaceHeader: View {
         }
     }
 
-    private var regenerateButton: some View {
-        Button {
-            Task { await model.generateDigest(app: app) }
-        } label: {
-            if model.generating {
-                LoadingStateLabel("Updating digest…")
-            } else {
-                Label(model.digest == nil ? "Write day digest" : "Rewrite day digest",
-                      systemImage: "arrow.clockwise")
-            }
-        }
-        .buttonStyle(.bordered)
-        .disabled(model.generating)
-        .help("Rewrite the day digest using the latest activity and meetings")
-        .accessibilityIdentifier("timeline.dayDigest.generate")
-    }
-
-    private var askButton: some View {
-        Button {
-            app.openAsk(dayScope: model.day)
-        } label: {
-            Label("Ask about day", systemImage: "sparkle.magnifyingglass")
-        }
-        .buttonStyle(.borderedProminent)
-        .accessibilityIdentifier("capture.askDay")
-    }
-
     private var contextToggle: some View {
         Button {
             contextPresented.toggle()
@@ -482,27 +453,6 @@ private struct TimelineWorkspaceHeader: View {
         }
         .help(contextPresented ? "Hide day context" : "Show day context")
         .accessibilityIdentifier("timeline.context.toggle")
-    }
-
-    @ViewBuilder private var digestActions: some View {
-        if let digest = model.digest {
-            Menu {
-                Button { model.copyDigest(digest) } label: {
-                    Label("Copy digest", systemImage: "doc.on.doc")
-                }
-                .accessibilityIdentifier("capture.dayDigest.copyAll")
-                Button { model.exportDigest(digest) } label: {
-                    Label("Export Markdown", systemImage: "square.and.arrow.up")
-                }
-            } label: {
-                Label("Digest actions", systemImage: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(digestUpdatedHelp)
-            .accessibilityLabel("Day digest actions")
-            .accessibilityIdentifier("timeline.dayDigest.actions")
-        }
     }
 
     private var contextLabel: String {
@@ -622,7 +572,7 @@ struct CaptureDayView: View {
             isExpanded: $rawCaptureExpanded,
             identifier: "timeline.rawCapture") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Individual app blocks and every retained context scene. Use this for exact evidence or cleanup.")
+                    Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
                         .font(WorkspaceTypography.metadata)
                         .foregroundStyle(.secondary)
 
@@ -636,7 +586,7 @@ struct CaptureDayView: View {
 
                     if !model.blocks.isEmpty || !meetings.isEmpty {
                         Divider()
-                        Label("Raw activity blocks", systemImage: "calendar.day.timeline.left")
+                        Label("App activity", systemImage: "calendar.day.timeline.left")
                             .font(WorkspaceTypography.sectionTitle)
                             .accessibilityIdentifier("timeline.track")
                         rawTrack(meetings: meetings, now: now)
@@ -647,7 +597,7 @@ struct CaptureDayView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Label("Browse raw capture", systemImage: "waveform.path.ecg.rectangle")
                         .font(WorkspaceTypography.bodyEmphasis)
-                    Text("\(model.blocks.count) blocks · \(model.rewindFrames.count) scenes")
+                    Text("\(model.blocks.count) activity entries · \(model.rewindFrames.count) screen moments")
                         .font(WorkspaceTypography.metadata.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }

@@ -14,7 +14,6 @@ struct DayDigestView: View {
     enum Mode: Equatable {
         case standalone
         case timeline
-        case today
 
         var showsMeetings: Bool { self == .standalone }
         var showsTimeAllocation: Bool { self == .standalone }
@@ -29,7 +28,6 @@ struct DayDigestView: View {
     @State private var extraFocusExpanded = false
     @State private var otherActivityExpanded = false
     @State private var timeAllocationExpanded = false
-    @State private var fullBriefExpanded = false
 
     init(_ markdown: String, mode: Mode = .standalone) {
         presentation = DayDigestPresentation(markdown: markdown)
@@ -37,17 +35,7 @@ struct DayDigestView: View {
     }
 
     var body: some View {
-        if mode == .today {
-            VStack(alignment: .leading, spacing: 12) {
-                if !presentation.atAGlanceMarkdown.isEmpty {
-                    SelectableDigestText(presentation.atAGlanceMarkdown)
-                        .lineLimit(5)
-                }
-                ForEach(presentation.focusBlocks.prefix(3)) { focusBlock($0, prominent: true) }
-                DisclosureGroup("Full brief", isExpanded: $fullBriefExpanded) { fullContent }
-                    .accessibilityIdentifier("today.fullBrief")
-            }
-        } else { fullContent }
+        fullContent
     }
 
     private var fullContent: some View {
@@ -63,7 +51,7 @@ struct DayDigestView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "briefcase")
                             .accessibilityHidden(true)
-                        Text("Tasks")
+                        Text("Work summary")
                             .font(DayDigestTaskType.sectionTitle)
                             .accessibilityIdentifier("dayDigest.tasks")
                     }

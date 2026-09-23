@@ -130,6 +130,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var transcript: Transcript?
     @State private var transcriptDisplay = Transcript.DisplayIndex()
     @State private var speakerPresentation = MeetingSpeakerPresentation(transcript: nil)
+    @State private var fullNotesExpanded = false
     @State private var transcriptExpanded = false
     @State private var evidenceSegment: Int?
     @State private var evidenceRevision = 0
@@ -161,7 +162,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var speechTask: Task<Void, Never>?
     @State private var searchQuery = ""
     private var tab: MeetingWorkspaceTab {
-        get { app.meetingWorkspaceTabs[meeting.id] ?? .overview }
+        get { app.meetingWorkspaceTabs[meeting.id] ?? .summary }
         nonmutating set {
             if newValue != .transcript { returningToReview = false }
             app.meetingWorkspaceTabs[meeting.id] = newValue
@@ -239,8 +240,12 @@ private struct MeetingWorkspaceDetail: View {
                     VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
                         meetingStatusContent
                         switch tab {
-                        case .overview: overviewContent
-                        case .summary: summarySection
+                        case .summary:
+                            overviewContent
+                            DisclosureGroup("Show full notes", isExpanded: $fullNotesExpanded) {
+                                summarySection.padding(.top, 12)
+                            }
+                            .accessibilityIdentifier("meeting.fullNotes")
                         case .transcript: transcriptSection
                         case .review: speakerAndActionReview
                         case .notes:
@@ -849,6 +854,11 @@ private struct MeetingWorkspaceDetail: View {
         using scrollProxy: ScrollViewProxy
     ) {
         tab = MeetingWorkspaceTab.containing(match.location)
+        switch match.location {
+        case .summary, .summaryMetadata, .sectionHeader(.summary), .emptyState(.summary):
+            fullNotesExpanded = true
+        default: break
+        }
         let needsTranscriptLayout: Bool
         if match.location.requiresTranscriptExpansion {
             needsTranscriptLayout = !transcriptExpanded
