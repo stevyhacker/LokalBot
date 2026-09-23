@@ -16,8 +16,7 @@ struct RetentionSettingsControls: View {
                 get: { app.settings.keepOCRTextForever },
                 set: { propose(days: app.settings.retentionDays, forever: $0) }))
                 .settingTarget("settings.keepOCRTextForever", selected: app.focusedSettingID)
-            Text("Saved moments keep their images and text until you unsave or delete them. Shortening retention opens a cleanup review before changing the policy.")
-                .workspaceTextRole(.trust)
+            SettingsHelp("Saved moments keep their images and text until you unsave or delete them. Shortening retention opens a cleanup review first.")
             Button("Review expired context…") {
                 loadReview(days: app.settings.retentionDays, forever: app.settings.keepOCRTextForever)
             }

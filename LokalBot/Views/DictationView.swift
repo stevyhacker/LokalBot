@@ -58,21 +58,19 @@ struct DictationView: View {
                 Spacer()
                 Button(actionTitle) { app.dictation.toggle(source: "rehearsal") }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
                     .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.tealFill)
             }
-            Picker("Intent", selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
+            Picker(selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
                 ForEach(DictationIntent.allCases) { Text($0.rawValue).tag($0) }
+            } label: {
+                SettingsLabel("Intent", help: operation.dictationIntent.detail)
             }.pickerStyle(.segmented).disabled(app.dictation.state != .idle || app.dictation.isStarting)
-            Text(operation.dictationIntent.detail)
             if operation.dictationIntent == .compose {
                 Toggle("Use the focused window as context", isOn: Binding(
                     get: { operation.dictationUseScreenContext }, set: { app.settings.dictationUseScreenContext = $0 }))
                     .disabled(app.dictation.state != .idle || app.dictation.isStarting)
             }
-            Text("Try here shows the result below. It never inserts into another app or changes your clipboard.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingsHelp("Trying here shows the result below. It never inserts into another app or changes your clipboard; the shortcut uses the output setting above.")
         }
     }
 

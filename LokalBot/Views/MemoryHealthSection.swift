@@ -11,7 +11,8 @@ struct MemoryHealthSection: View {
 
     var body: some View {
         let audio = app.recording.memoryHealthSnapshot()
-        Section("Memory Health") {
+        Group {
+        Section("Memory health") {
             healthRow(
                 "Activity",
                 icon: "clock.arrow.circlepath",
@@ -39,17 +40,17 @@ struct MemoryHealthSection: View {
                 detail: missingPermissions.isEmpty
                     ? "All enabled features are authorized"
                     : missingPermissions.map(\.title).joined(separator: ", "))
-
-            Divider()
+        }
+        Section("Meeting audio") {
             healthRow(
-                "Me audio",
+                "Your microphone",
                 icon: "mic",
                 value: audio.microphoneStatus,
                 detail: audioDetail(
                     date: audio.microphoneLastWriteAt,
                     dropped: audio.microphoneDroppedBuffers))
             healthRow(
-                "Them audio",
+                "Other side (system audio)",
                 icon: "waveform",
                 value: audio.systemAudioStatus,
                 detail: audioDetail(
@@ -62,8 +63,8 @@ struct MemoryHealthSection: View {
                     value: recovery.formatted(.relative(presentation: .named)),
                     detail: recovery.formatted(date: .abbreviated, time: .standard))
             }
-
-            Divider()
+        }
+        Section("Background work") {
             healthRow(
                 "Processing queue",
                 icon: "list.bullet.rectangle",
@@ -87,7 +88,7 @@ struct MemoryHealthSection: View {
 
             if let error = activeError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(WorkspaceTypography.editorialBody)
+                    .font(.system(size: 12))
                     .foregroundStyle(Brand.error)
                     .textSelection(.enabled)
             }
@@ -100,9 +101,8 @@ struct MemoryHealthSection: View {
                     .font(WorkspaceTypography.metadata)
                     .settingsSecondary()
             }
-            Text("Meeting recording and autocomplete generation take priority over OCR, embeddings, and routines. Automatic background work catches up when those interactive tasks are idle.")
-                .font(WorkspaceTypography.editorialBody)
-                .foregroundStyle(.secondary)
+            SettingsHelp("Meeting recording and autocomplete take priority over OCR, embeddings, and routines, which catch up when those tasks are idle.")
+        }
         }
         .task {
             permissions.startPolling()

@@ -19,8 +19,11 @@ struct ExclusionRulesEditor: View {
             Text(title).font(WorkspaceTypography.metadataEmphasis)
             ForEach(Array(rules.enumerated()), id: \.offset) { index, rule in
                 HStack {
-                    Label(rule, systemImage: kind == .applications ? "app" : "globe")
-                        .textSelection(.enabled)
+                    Label {
+                        Text(rule).textSelection(.enabled)
+                    } icon: {
+                        ruleIcon(rule)
+                    }
                     if kind != .applications, !validDomain(rule) {
                         Text("Legacy rule · review").font(WorkspaceTypography.metadata).foregroundStyle(Brand.amber)
                     }
@@ -34,7 +37,8 @@ struct ExclusionRulesEditor: View {
                 }.padding(7).workspaceControl()
             }
             HStack {
-                TextField(kind == .applications ? "Application name" : "example.com or https://example.com/private", text: $draft)
+                // A plain String keeps the example URL from rendering as a link.
+                TextField(placeholder, text: $draft)
                     .textFieldStyle(.roundedBorder).onSubmit(add)
                 Button("Add", action: add).disabled(draft.trimmingCharacters(in: .whitespaces).isEmpty)
                 if kind == .applications { Button("Choose app…", action: chooseApplication) }
@@ -47,6 +51,21 @@ struct ExclusionRulesEditor: View {
                 Text("A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them.")
                     .workspaceTextRole(.supporting)
             }
+        }
+    }
+
+    private var placeholder: String {
+        kind == .applications ? "Application name" : "example.com or https://example.com/private"
+    }
+
+    /// The real app icon when LokalBot can resolve it; a plain symbol otherwise.
+    /// An empty rounded square read as an unchecked checkbox.
+    @ViewBuilder private func ruleIcon(_ rule: String) -> some View {
+        if kind == .applications, let icon = QuickRecallApplicationIconResolver.icon(for: rule) {
+            Image(nsImage: icon).resizable().frame(width: 16, height: 16)
+        } else {
+            Image(systemName: kind == .applications ? "square.grid.2x2" : "globe")
+                .foregroundStyle(.secondary)
         }
     }
 

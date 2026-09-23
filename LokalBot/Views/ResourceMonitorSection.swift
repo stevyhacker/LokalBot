@@ -8,8 +8,10 @@ struct ResourceMonitorSection: View {
     @ObservedObject private var modelRuntimes = ModelRuntimeRegistry.shared
     @StateObject private var monitor = ResourceMonitorViewModel()
 
+    /// Two even columns keep the four metrics in a balanced 2×2 grid.
     private let columns = [
-        GridItem(.adaptive(minimum: 210), spacing: 8, alignment: .leading),
+        GridItem(.flexible(), spacing: 8, alignment: .leading),
+        GridItem(.flexible(), spacing: 8, alignment: .leading),
     ]
 
     var body: some View {
@@ -48,7 +50,7 @@ struct ResourceMonitorSection: View {
 
             if loadedModels.isEmpty {
                 Label("No LokalBot model runtimes are loaded.", systemImage: "moon.zzz")
-                    .font(WorkspaceTypography.editorialBody)
+                    .font(.system(size: 12))
                     .settingsSecondary()
             } else {
                 ForEach(loadedModels) { model in
@@ -56,9 +58,7 @@ struct ResourceMonitorSection: View {
                 }
             }
 
-            Text("Updates every 2 seconds. CPU and memory include LokalBot and its helpers; multi-core CPU can exceed 100%. Model memory uses live helper footprints and ≈ in-process estimates. External Ollama and Apple Intelligence models are not counted.")
-                .font(WorkspaceTypography.editorialBody)
-                .settingsSecondary()
+            SettingsHelp("Updates every 2 seconds. Includes LokalBot and its helpers, so multi-core CPU can exceed 100%. External Ollama and Apple Intelligence models aren't counted.")
         }
         .task(id: trackedProcessIdentities) {
             await monitor.poll(additionalProcessIdentities: trackedProcessIdentities)

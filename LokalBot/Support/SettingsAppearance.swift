@@ -159,3 +159,63 @@ extension View {
         modifier(SettingsModelIconModifier(destination: destination))
     }
 }
+
+// MARK: - Row labels
+
+/// One-sentence explanation shown under a settings control. It is smaller and
+/// quieter than the control label so each row reads as one setting.
+struct SettingsHelp: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12))
+            .settingsSecondary()
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// A settings control label: the title with its explanation attached, for use
+/// as the label of a Toggle, Picker, Stepper, or LabeledContent.
+struct SettingsLabel: View {
+    let title: String
+    let help: String?
+
+    init(_ title: String, help: String? = nil) {
+        self.title = title
+        self.help = help
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+            if let help { SettingsHelp(help) }
+        }
+    }
+}
+
+/// Longer mechanics behind a collapsed disclosure, so the default view of a
+/// section stays a list of controls.
+struct SettingsDetails: View {
+    let title: String
+    let text: String
+
+    init(_ title: String = "How this works", _ text: String) {
+        self.title = title
+        self.text = text
+    }
+
+    var body: some View {
+        DisclosureGroup {
+            SettingsHelp(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+        } label: {
+            Text(title).font(.system(size: 12, weight: .medium)).settingsSecondary()
+        }
+    }
+}

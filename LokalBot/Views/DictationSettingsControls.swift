@@ -25,8 +25,6 @@ struct DictationSettingsControls: View {
             Toggle("Keep dictation audio files", isOn: $app.settings.dictationRetainAudio)
                 .accessibilityLabel("Keep dictation audio files")
                 .settingTarget("settings.dictationRetainAudio", selected: app.focusedSettingID)
-            Text("Try here always displays the result in LokalBot. The system shortcut uses the output setting above.")
-                .workspaceTextRole(.supporting)
         }
     }
 }
