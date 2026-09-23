@@ -353,9 +353,16 @@ private struct AskContent: View {
     }
 
     private var sourceSummary: String {
-        if sources == AskSourceScope.defaults { return "All sources" }
-        if let only = sources.first, sources.count == 1 { return only.displayName }
-        return "\(sources.count) sources"
+        let label: String
+        if sources == AskSourceScope.defaults {
+            label = "All sources"
+        } else if let only = sources.first, sources.count == 1 {
+            label = only.displayName
+        } else {
+            label = "\(sources.count) sources"
+        }
+        let filtered = facet != .all || screenDateScope != .any || selectedScreenApp != nil
+        return filtered ? label + " · Filtered" : label
     }
 
     private func toggleSource(_ source: AskSourceScope) {

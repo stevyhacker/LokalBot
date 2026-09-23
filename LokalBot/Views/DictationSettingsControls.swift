@@ -27,7 +27,6 @@ struct DictationSettingsControls: View {
                 .settingTarget("settings.dictationRetainAudio", selected: app.focusedSettingID)
             Text("Try here always displays the result in LokalBot. The system shortcut uses the output setting above.")
                 .workspaceTextRole(.supporting)
-            Button("Open dictation") { app.openType(.dictation) }
         }
     }
 }
