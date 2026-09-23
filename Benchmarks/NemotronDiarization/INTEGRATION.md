@@ -1,6 +1,6 @@
 # Nemotron integration draft
 
-Settings → Recording → **Speaker model** offers **Nemotron 3 (Preview)**. The existing Pyannote Community-1 default is preserved for both fresh and upgraded settings. Selection affects later processing; it does not rewrite completed transcripts. Reprocess a meeting to use another model.
+Fresh installs default to **Nemotron 3 (Preview)** under Settings → Recording → **Speaker model**. Existing saved selections are preserved. Older settings without a model-selection field keep Pyannote Community-1, which remains selectable. Disabling diarization and the separate identity opt-ins are preserved. Selection affects later processing; it does not rewrite completed transcripts. Reprocess a meeting to use another model.
 
 ## Runtime and evidence
 
@@ -20,10 +20,10 @@ The adapter also reproduced all **522** saved Nemotron segments on that recordin
 
 ## Validation and limits
 
-The local app builds. Across the selected non-UI suites, 156 tests passed and one existing optional test skipped; the explicit public-fixture runtime test ran and passed. Tests cover legacy settings, persisted opt-in, model failure/retry, cancellation before downloading, overlap, clean temporal voice matching, pinned artifacts, existing voice matching, and pipeline preparation. Strict SwiftLint and diff checks pass. The hosted settings test captures the selected model and checks disabling/re-enabling diarization; hosted results are reported in the PR.
+The local app builds. The initial integration passed 156 selected non-UI tests with one existing optional test skipped; the explicit public-fixture runtime test ran and passed. After changing the new-install default, all 67 settings, diarization, and pipeline-preparation tests passed, including fresh-store persistence, legacy migration, explicit backend choices, and preserved off switches. Tests also cover model failure/retry, cancellation before downloading, overlap, clean temporal voice matching, pinned artifacts, and existing voice matching. Strict SwiftLint and diff checks pass. The hosted settings test captures the selected model, verifies the legacy selection, and checks disabling/re-enabling diarization; hosted results are reported in the PR.
 
 An additional 13 existing `MeetingSpeakerIdentityServiceTests` could not complete locally: reading newly written protected synthetic `.sealed` files failed with Cocoa error 257 / POSIX `EPERM`. A standalone Foundation probe reproduced the same failure with `.atomic, .completeFileProtectionUnlessOpen`, while an ordinary atomic write/read succeeded. The unchanged storage code and its protection policy were preserved. Hosted CI runs the full suite; these tests are not reported as locally passing.
 
 This is post-recording inference. It decodes a complete track before calling the batch API, so audio/features grow with recording duration. Cancellation is checked around decoding and synchronous model processing; FluidAudio cannot interrupt an in-progress batch call. No live microphone path, eight-speaker quality study, multi-hour memory study, private-meeting evaluation, or full ASR/name-attribution evaluation is claimed. It has not been installed or released.
 
-The benchmark covers four English AMI conversations with four speakers, each under two microphone conditions. Its 66.5% relative DER reduction and 2.05× warm speedup are evidence for an opt-in pilot, not universal product performance guarantees.
+The benchmark covers four English AMI conversations with four speakers, each under two microphone conditions. Its 66.5% relative DER reduction and 2.05× warm speedup support making Nemotron the new-install default; they are not universal product performance guarantees. Keep this PR as a draft until hosted validation passes and representative real meetings, including longer recordings, non-English speech, and a smaller Apple Silicon Mac, have been checked. This draft changes the intended default, not release readiness.

@@ -1128,6 +1128,8 @@ final class MainWindowUITests: XCTestCase {
         let picker = app.popUpButtons["settings.diarizationModel"]
         UITestHarness.scrollTo(picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 4))
+        // The harness seeds legacy saved settings without a model-selection key.
+        XCTAssertEqual(picker.value as? String, "Pyannote Community-1")
         picker.click()
         app.menuItems["Nemotron 3 (Preview)"].click()
         XCTAssertTrue(UITestHarness.waitUntil { picker.value as? String == "Nemotron 3 (Preview)" })

@@ -355,8 +355,8 @@ struct AppSettings: Codable, Equatable {
     var summaryLanguage: SummaryLanguage = .matchTranscript
     /// Separate acoustic voices on microphone and system tracks after recording.
     var multiSpeakerDiarization: Bool = true
-    /// Existing installs keep the established backend; Nemotron is opt-in.
-    var diarizationModel: DiarizationModel = .community1
+    /// Fresh installs use Nemotron. Decoding preserves the backend of older installs.
+    var diarizationModel: DiarizationModel = .nemotron3
     /// Independently opted-in local Meet observation; never enables Day Memory.
     /// The legacy persisted key is retained; observation is now Accessibility-only.
     var identifySpeakersFromVisuals: Bool = false
@@ -982,7 +982,10 @@ struct AppSettings: Codable, Equatable {
         noteTemplate = decode(.noteTemplate, defaults.noteTemplate)
         summaryLanguage = decode(.summaryLanguage, defaults.summaryLanguage)
         multiSpeakerDiarization = decode(.multiSpeakerDiarization, defaults.multiSpeakerDiarization)
-        diarizationModel = decode(.diarizationModel, defaults.diarizationModel)
+        // A persisted blob without this field predates model selection and used
+        // Community-1. Preserve that backend; only a fresh settings store gets
+        // the new Nemotron default. Valid explicit choices always round-trip.
+        diarizationModel = decode(.diarizationModel, .community1)
         identifySpeakersFromVisuals = decode(.identifySpeakersFromVisuals, defaults.identifySpeakersFromVisuals)
         rememberSpeakersOnMac = decode(.rememberSpeakersOnMac, defaults.rememberSpeakersOnMac)
         cotypingEnabled = decode(.cotypingEnabled, defaults.cotypingEnabled)
