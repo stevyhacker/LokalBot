@@ -12,6 +12,40 @@ struct RecallWorkspaceState {
     var screenApp: String?
     var sources = AskSourceScope.defaults
     var pins: [ScreenAskContext] = []
+    private(set) var sourcesBeforeEvidence: Set<AskSourceScope>?
+
+    mutating func selectEvidence(meetingIDs: Set<UUID>?, screenIDs: Set<Int64>?,
+                                 sources selectedSources: Set<AskSourceScope>? = nil) {
+        guard meetingIDs != nil || screenIDs != nil else {
+            clearEvidence()
+            if let selectedSources { sources = selectedSources }
+            return
+        }
+        sourcesBeforeEvidence = sourcesBeforeEvidence ?? sources
+        self.meetingIDs = meetingIDs
+        self.screenIDs = screenIDs
+        if let selectedSources {
+            sources = selectedSources
+        } else {
+            sources = []
+            if meetingIDs?.isEmpty == false { sources.insert(.meetings) }
+            if screenIDs?.isEmpty == false { sources.insert(.screen) }
+            if sources.isEmpty { sources = [.meetings] }
+        }
+    }
+
+    /// An explicit source choice supersedes any earlier temporary narrowing.
+    mutating func chooseSources(_ selection: Set<AskSourceScope>) {
+        sources = selection
+        sourcesBeforeEvidence = nil
+    }
+
+    mutating func clearEvidence() {
+        meetingIDs = nil
+        screenIDs = nil
+        if let sourcesBeforeEvidence { sources = sourcesBeforeEvidence }
+        sourcesBeforeEvidence = nil
+    }
 }
 
 struct ScreenRecallGroup: Identifiable, Sendable {

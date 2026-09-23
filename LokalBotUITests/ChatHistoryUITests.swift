@@ -83,7 +83,6 @@ final class ChatHistoryUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["ask.escalate"]
             .waitForExistence(timeout: 4), "keyword results did not appear")
 
-        UITestHarness.selectSegment("Ask", pickerIdentifier: "ask.retrieval", in: app)
         let older = conversationButton(olderConversationID)
         XCTAssertTrue(older.waitForExistence(timeout: 4), "older conversation missing")
         XCTAssertTrue(older.label.localizedCaseInsensitiveContains(olderConversationTitle),
@@ -93,6 +92,20 @@ final class ChatHistoryUITests: XCTestCase {
         XCTAssertTrue(text(containing: olderAssistantLine).waitForExistence(timeout: 6),
                       "selected conversation remained hidden behind the old search query")
         XCTAssertEqual(field.value as? String, "", "conversation selection did not clear search")
+
+        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
+        field.click(); field.typeText("another search")
+        older.click()
+        XCTAssertTrue(app.buttons["ask.submit"].waitForExistence(timeout: 4))
+        XCTAssertEqual(field.value as? String, "", "Selecting the current conversation must open it too")
+        XCTAssertTrue(text(containing: olderAssistantLine).exists)
+
+        app.buttons["chat.new"].click()
+        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
+        field.click(); field.typeText("unsent search")
+        app.buttons["chat.new"].click()
+        XCTAssertTrue(app.buttons["ask.submit"].waitForExistence(timeout: 4))
+        XCTAssertEqual(field.value as? String, "", "New Question must open Ask even when already empty")
     }
 
     private func text(containing fragment: String) -> XCUIElement {

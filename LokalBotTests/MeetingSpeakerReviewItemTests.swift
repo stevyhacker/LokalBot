@@ -2,6 +2,23 @@ import XCTest
 @testable import LokalBot
 
 final class MeetingSpeakerReviewItemTests: XCTestCase {
+    func testNamedUserIsNotOfferedAsAnotherActionOwner() throws {
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "me", text: "I will follow up.",
+                  attribution: .init(source: .microphone, identity: .user, method: .confirmation)),
+            .init(start: 5, end: 10, speaker: "them", text: "Thanks.",
+                  attribution: .init(source: .system, identity: .other, method: .confirmation)),
+        ], engine: "fixture", speakerAliases: ["me": "Stevan", "them": "Ana"])
+        let speakers = MeetingSpeakerReviewItem.items(in: transcript)
+        let user = try XCTUnwrap(speakers.first { $0.isUser })
+        XCTAssertEqual(user.name, "Stevan")
+        XCTAssertTrue(user.isNamed)
+        XCTAssertEqual(MeetingSpeakerReviewItem.ownerSuggestions(from: speakers), ["Ana"])
+        for speaker in speakers {
+            XCTAssertEqual(speaker.canConfirm, transcript.canConfirmSpeaker(speaker.id))
+        }
+    }
+
     func testReviewKeepsVoiceKeysAndUsesLongerValidExcerpt() {
         let transcript = Transcript(segments: [
             .init(start: 0, end: 1, speaker: "them 1", text: "Yes.",

@@ -570,6 +570,18 @@ final class ChatViewModelStateTests: XCTestCase {
     private var root: URL!
     private let encryptionKey = SymmetricKey(data: Data(repeating: 0xC7, count: 32))
 
+    func testExplicitNavigationEmitsWhenConversationIDDoesNotChange() {
+        let model = makeModel(engine: SequencedChatEngine([]), runner: BlockingChatRunner())
+        let id = model.currentID
+        let revision = model.navigationRevision
+        model.select(id)
+        XCTAssertEqual(model.currentID, id)
+        XCTAssertEqual(model.navigationRevision, revision + 1)
+        model.newConversation()
+        XCTAssertEqual(model.currentID, id)
+        XCTAssertEqual(model.navigationRevision, revision + 2)
+    }
+
     func testDeferredHistoryRestoresEncryptedConversation() async {
         let store = makeStore()
         let saved = Conversation(title: "Saved", messages: [ChatMessage(

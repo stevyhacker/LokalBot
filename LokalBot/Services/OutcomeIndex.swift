@@ -5,6 +5,7 @@ struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
     var outcomes: MeetingOutcomes
     var state: MeetingOutcomeState
     var followUp: FollowUpDraft
+    var isArchived = false
 
     var id: Meeting.ID { meeting.id }
 
@@ -54,13 +55,14 @@ struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
 
     static func load(for meeting: Meeting, root: URL, includingPrevious: Bool = false) -> Self? {
         let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
-        let previous = includingPrevious && MeetingAttributionArtifacts.needsRefresh(in: folder)
+        let current = MeetingOutcomes.load(from: folder)
+        let previous = current == nil && includingPrevious && MeetingAttributionArtifacts.needsRefresh(in: folder)
             ? MeetingAttributionArtifacts.previous(in: folder) : nil
-        guard let outcomes = MeetingOutcomes.load(from: folder) ?? previous else { return nil }
+        guard let outcomes = current ?? previous else { return nil }
         let state = MeetingOutcomeStore.loadState(from: folder)
         let followUp = MeetingOutcomeStore.loadFollowUp(from: folder)
             ?? FollowUpDraft.seeded(for: meeting, outcomes: outcomes)
-        return Self(meeting: meeting, outcomes: outcomes, state: state, followUp: followUp)
+        return Self(meeting: meeting, outcomes: outcomes, state: state, followUp: followUp, isArchived: current == nil)
     }
 }
 
@@ -354,11 +356,17 @@ final class OutcomeIndex: ObservableObject {
         rebuildThreads: Bool = true,
         change: (inout MeetingOutcomeState.ActionState) -> Void
     ) -> Bool {
-        guard meeting == nil || meeting?.id == meetingID else { return false }
+        guard meeting == nil || meeting?.id == meetingID else {
+            lastError = "This action belongs to a different meeting. Reopen it and try again."
+            return false
+        }
         let current = projections[meetingID]
         guard var projection = current ?? meeting.flatMap({ projectionForReview(of: $0) }),
               projection.outcomes.actionItems.contains(where: { $0.id == actionID })
-        else { return false }
+        else {
+            lastError = "This action is no longer available. Reopen the meeting's actions and try again."
+            return false
+        }
         var actionState = projection.state.actions[actionID] ?? .init()
         let previous = actionState
         change(&actionState)
@@ -367,16 +375,17 @@ final class OutcomeIndex: ObservableObject {
         do {
             try MeetingOutcomeStore.writeState(
                 projection.state, to: projection.meeting.folderURL(in: storage))
-            if previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
+            if !projection.isArchived,
+               previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
                 try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
             }
             // Archived extraction stays out of Today, Ask, and action threads.
             // Review can still persist corrections for the explicit refresh.
             if current != nil { projections[meetingID] = projection }
             projectionRevisions[meetingID, default: 0] &+= 1
-            if rebuildThreads { rebuildActionThreads() }
+            if rebuildThreads && !projection.isArchived { rebuildActionThreads() }
             lastError = nil
-            if notify { onEvidenceChanged([projection.meeting]) }
+            if notify && !projection.isArchived { onEvidenceChanged([projection.meeting]) }
             return true
         } catch {
             lastError = error.localizedDescription

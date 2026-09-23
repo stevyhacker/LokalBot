@@ -64,7 +64,8 @@ final class TimelineWorkSessionTests: XCTestCase {
         ])
 
         XCTAssertEqual(sessions.first?.primaryApp, "Xcode")
-        XCTAssertEqual(sessions.first?.title, "CaptureView.swift · Tests")
+        XCTAssertEqual(sessions.first?.title, "CaptureView.swift")
+        XCTAssertEqual(sessions.first?.notableTitles, ["CaptureView.swift", "Tests"])
         XCTAssertEqual(sessions.first?.notableTitles.first, "CaptureView.swift")
     }
 
@@ -77,6 +78,27 @@ final class TimelineWorkSessionTests: XCTestCase {
 
         XCTAssertEqual(sessions.first?.title,
                        "Kaya beach Ulcinj bilježi odličnu posjećenost - YouTube")
+    }
+
+    func testBriefTitleRemainsEvidenceWithoutNamingWholeSession() throws {
+        let session = try XCTUnwrap(TimelineWorkSession.sessions(from: [
+            block(1, app: "Terminal", title: "Terminal", start: 0, end: 2_400),
+            block(2, app: "Safari", title: "Sign in", start: 2_400, end: 2_408),
+        ]).first)
+        XCTAssertEqual(session.title, "Terminal and Safari")
+        XCTAssertEqual(session.activeDuration, 2_408)
+        XCTAssertEqual(session.titleEvidence.map(\.title), ["Sign in"])
+        XCTAssertEqual(session.titleEvidence.first?.duration, 8)
+        XCTAssertEqual(session.titleEvidence.first?.blocks.map(\.id), [2])
+    }
+
+    func testTitleCoverageUsesActiveTimeAndIncludesTwentyPercentBoundary() throws {
+        let session = try XCTUnwrap(TimelineWorkSession.sessions(from: [
+            block(1, app: "Terminal", title: "Terminal", start: 0, end: 80),
+            block(2, app: "Preview", title: "Plan.pdf", start: 380, end: 400),
+        ]).first)
+        XCTAssertEqual(session.title, "Plan.pdf")
+        XCTAssertEqual(session.activeDuration, 100)
     }
 
     func testStrippingBrowserChromeHandlesFirefoxAndPlainTitles() {

@@ -13,22 +13,23 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     let title: String
     let apps: [String]
     let contextSwitchCount: Int
-    let notableTitles: [String]
+    let titleEvidence: [TitleEvidence]
+    var notableTitles: [String] { titleEvidence.map(\.title) }
 
     var appCount: Int { apps.count }
 
     /// Titles are observed window/document names, not generated task claims.
     /// Keep the source blocks so the label can always be inspected.
-    struct TitleEvidence: Identifiable {
+    struct TitleEvidence: Identifiable, Equatable, Sendable {
         let title: String
         let blocks: [ActivityBlock]
         var id: String { title.lowercased() }
-        var duration: TimeInterval { TimelineWorkSession.mergedDuration(blocks) }
+        let duration: TimeInterval
     }
 
-    var titleEvidence: [TitleEvidence] {
-        let byTitle = Dictionary(grouping: blocks) { Self.cleanedTitle($0.title, app: $0.app)?.lowercased() ?? "" }
-        return notableTitles.map { TitleEvidence(title: $0, blocks: byTitle[$0.lowercased()] ?? []) }
+    private struct TitledBlock {
+        let block: ActivityBlock
+        let title: String?
     }
 
     /// Collapse adjacent blocks into one work session. A short gap usually
@@ -44,16 +45,18 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 if $0.start == $1.start { return $0.id < $1.id }
                 return $0.start < $1.start
             }
-        guard let first = blocks.first else { return [] }
+        let titled = blocks.map { TitledBlock(block: $0, title: cleanedTitle($0.title, app: $0.app)) }
+        guard let first = titled.first else { return [] }
 
-        var groups: [[ActivityBlock]] = []
+        var groups: [[TitledBlock]] = []
         var current = [first]
-        var currentEnd = first.end
-        var seenTitles = Set(cleanedTitle(first.title, app: first.app).map { [$0.lowercased()] } ?? [])
+        var currentEnd = first.block.end
+        var seenTitles = Set(first.title.map { [$0.lowercased()] } ?? [])
 
-        for block in blocks.dropFirst() {
-            let title = cleanedTitle(block.title, app: block.app)?.lowercased()
-            let elapsed = block.start.timeIntervalSince(current[0].start)
+        for observed in titled.dropFirst() {
+            let block = observed.block
+            let title = observed.title?.lowercased()
+            let elapsed = block.start.timeIntervalSince(current[0].block.start)
             // Short tool/app switches stay together. A sustained, previously
             // unseen document after ten minutes is an inspectable boundary.
             // Never cut overlapping blocks: that would double-count activity.
@@ -62,11 +65,11 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             let newSegment = block.start >= currentEnd
                 && (elapsed >= max(60, maximumDuration) || sustainedChange)
             if block.start.timeIntervalSince(currentEnd) <= maximumGap && !newSegment {
-                current.append(block)
+                current.append(observed)
                 currentEnd = max(currentEnd, block.end)
             } else {
                 groups.append(current)
-                current = [block]
+                current = [observed]
                 currentEnd = block.end
                 seenTitles = []
             }
@@ -87,8 +90,8 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         ].contains(normalized)
     }
 
-    private static func makeSession(_ sourceBlocks: [ActivityBlock]) -> TimelineWorkSession? {
-        let blocks = sourceBlocks.sorted { $0.start < $1.start }
+    private static func makeSession(_ sourceBlocks: [TitledBlock]) -> TimelineWorkSession? {
+        let blocks = sourceBlocks.map(\.block)
         guard let first = blocks.first else { return nil }
         let start = first.start
         let end = blocks.map(\.end).max() ?? first.end
@@ -107,25 +110,28 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             return leftDuration > rightDuration
         }
         let primaryApp = apps.first ?? first.app
-        let notableTitles = rankedTitles(in: blocks)
-        let title = notableTitles.isEmpty
+        let activeDuration = mergedDuration(blocks)
+        let evidence = rankedTitleEvidence(in: sourceBlocks)
+        // A fleeting page should remain inspectable without naming the whole session.
+        let representativeTitles = evidence.filter { $0.duration >= activeDuration * 0.2 }.map(\.title)
+        let title = representativeTitles.isEmpty
             ? apps.prefix(2).joined(separator: " and ") + (apps.count > 2 ? " and more" : "")
-            : notableTitles.prefix(2).joined(separator: " · ")
+            : representativeTitles.prefix(2).joined(separator: " · ")
 
         return TimelineWorkSession(
             id: first.id,
             blocks: blocks,
             start: start,
             end: end,
-            activeDuration: mergedDuration(blocks),
+            activeDuration: activeDuration,
             primaryApp: primaryApp,
             title: title,
             apps: apps,
             contextSwitchCount: contextSwitches(in: blocks),
-            notableTitles: notableTitles)
+            titleEvidence: evidence)
     }
 
-    private static func mergedDuration(_ blocks: [ActivityBlock]) -> TimeInterval {
+    static func mergedDuration(_ blocks: [ActivityBlock]) -> TimeInterval {
         let ordered = blocks.sorted { $0.start < $1.start }
         guard let first = ordered.first else { return 0 }
         var total: TimeInterval = 0
@@ -145,14 +151,14 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return max(0, total)
     }
 
-    private static func rankedTitles(in blocks: [ActivityBlock]) -> [String] {
+    private static func rankedTitleEvidence(in blocks: [TitledBlock]) -> [TitleEvidence] {
         var blocksByTitle: [String: [ActivityBlock]] = [:]
         var displayTitle: [String: String] = [:]
         var firstIndex: [String: Int] = [:]
 
-        for (index, block) in blocks.enumerated() {
-            let title = cleanedTitle(block.title, app: block.app)
-            guard let title else { continue }
+        for (index, observed) in blocks.enumerated() {
+            let block = observed.block
+            guard let title = observed.title else { continue }
             let key = title.lowercased()
             blocksByTitle[key, default: []].append(block)
             displayTitle[key] = displayTitle[key] ?? title
@@ -167,7 +173,10 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 return (firstIndex[lhs] ?? .max) < (firstIndex[rhs] ?? .max)
             }
             return leftDuration > rightDuration
-        }.compactMap { displayTitle[$0] }
+        }.map { key in
+            TitleEvidence(title: displayTitle[key] ?? key, blocks: blocksByTitle[key] ?? [],
+                          duration: durationByTitle[key] ?? 0)
+        }
     }
 
     private static func cleanedTitle(_ raw: String, app: String) -> String? {

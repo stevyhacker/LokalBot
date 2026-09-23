@@ -34,7 +34,11 @@ enum DayDigestMeetingArtifacts {
     ]
 
     static func latestModifiedAt(in folder: URL) -> Date? {
-        fileNames.compactMap { name -> Date? in
+        // Archive-only corrections are not consumed by the current digest.
+        let hasCurrentOutcomes = FileManager.default.fileExists(
+            atPath: folder.appendingPathComponent(MeetingOutcomes.fileName).path)
+        return fileNames.compactMap { name -> Date? in
+            guard name != MeetingOutcomeState.fileName || hasCurrentOutcomes else { return nil }
             let url = folder.appendingPathComponent(name)
             let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
             return attributes?[.modificationDate] as? Date

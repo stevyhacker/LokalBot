@@ -137,6 +137,8 @@ private struct MeetingWorkspaceDetail: View {
     @State private var correctionError: String?
     @State private var reviewSpeakers: [MeetingSpeakerReviewItem] = []
     @State private var previousReviewProjection: MeetingOutcomeProjection?
+    @State private var reviewLoadTask: Task<Void, Never>?
+    @State private var attributionNeedsRefresh = false
     @State private var returningToReview = false
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
@@ -160,7 +162,10 @@ private struct MeetingWorkspaceDetail: View {
     @State private var searchQuery = ""
     private var tab: MeetingWorkspaceTab {
         get { app.meetingWorkspaceTabs[meeting.id] ?? .overview }
-        nonmutating set { app.meetingWorkspaceTabs[meeting.id] = newValue }
+        nonmutating set {
+            if newValue != .transcript { returningToReview = false }
+            app.meetingWorkspaceTabs[meeting.id] = newValue
+        }
     }
     @State private var searchMatches: [MeetingPageSearchMatch] = []
     @State private var selectedSearchMatchIndex = 0
@@ -178,6 +183,7 @@ private struct MeetingWorkspaceDetail: View {
         _partialProjection = State(initialValue: document.partialProjection)
         _speakerNameHints = State(initialValue: document.speakerNameHints)
         _calendarSpeakerCandidates = State(initialValue: meeting.resolvedCalendarParticipantIdentities)
+        _attributionNeedsRefresh = State(initialValue: document.attributionNeedsRefresh)
     }
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
@@ -263,13 +269,13 @@ private struct MeetingWorkspaceDetail: View {
             }
             .onChange(of: searchContentRevision) {
                 if isSearchPresented {
-                    updateSearch(using: scrollProxy)
+                    updateSearch(using: scrollProxy, revealFirst: false)
                 }
             }
             .onChange(of: projection) {
                 reloadReviewProjection()
                 if isSearchPresented {
-                    updateSearch(using: scrollProxy)
+                    updateSearch(using: scrollProxy, revealFirst: false)
                 }
             }
         }
@@ -310,7 +316,7 @@ private struct MeetingWorkspaceDetail: View {
         .sheet(item: $correction) { draft in
             ActionCorrectionSheet(
                 draft: draft,
-                ownerSuggestions: reviewSpeakers.filter(\.isNamed).map(\.name),
+                ownerSuggestions: MeetingSpeakerReviewItem.ownerSuggestions(from: reviewSpeakers),
                 error: correctionError
             ) { text, owner, due in
                 let saved = app.outcomeIndex.correctAction(
@@ -370,6 +376,7 @@ private struct MeetingWorkspaceDetail: View {
                 onCancel: { speakerRenameDraft = nil })
         }
         .onDisappear {
+            reviewLoadTask?.cancel()
             app.meetingPlaybackPositions[meeting.id] = player.currentTime
             app.meetingPlaybackSpeeds[meeting.id] = player.speed
             player.stop()
@@ -573,7 +580,7 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private var notesNeedRefresh: Bool {
-        speakerSummaryNeedsRefresh || MeetingAttributionArtifacts.needsRefresh(in: folder)
+        speakerSummaryNeedsRefresh || attributionNeedsRefresh
     }
 
     private var speakerAndActionReview: some View {
@@ -817,13 +824,14 @@ private struct MeetingWorkspaceDetail: View {
         selectedSearchMatchIndex = 0
     }
 
-    private func updateSearch(using scrollProxy: ScrollViewProxy) {
+    private func updateSearch(using scrollProxy: ScrollViewProxy, revealFirst: Bool = true) {
+        let previousMatch = activeSearchMatch
         let matches = MeetingPageSearch.matches(
             query: searchQuery,
             sources: searchSources)
         searchMatches = matches
-        selectedSearchMatchIndex = 0
-        if let first = matches.first {
+        selectedSearchMatchIndex = revealFirst ? 0 : matches.firstIndex { $0 == previousMatch } ?? 0
+        if revealFirst, let first = matches.first {
             reveal(first, using: scrollProxy)
         }
     }
@@ -1008,6 +1016,7 @@ private struct MeetingWorkspaceDetail: View {
         reviewSpeakers = MeetingSpeakerReviewItem.items(in: document.transcript)
         partialNotes = document.partialNotes
         partialProjection = document.partialProjection
+        attributionNeedsRefresh = document.attributionNeedsRefresh
         summary = document.summary
         speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
@@ -1020,6 +1029,7 @@ private struct MeetingWorkspaceDetail: View {
         transcriptDisplay = Transcript.DisplayIndex(transcript: value)
         speakerPresentation = MeetingSpeakerPresentation(transcript: value)
         reviewSpeakers = MeetingSpeakerReviewItem.items(in: value)
+        reloadReviewProjection()
     }
 
     private func consumeMeetingSeek() {
@@ -1030,7 +1040,7 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func revealEvidence(at seconds: TimeInterval) {
-        if tab == .review { returningToReview = true }
+        returningToReview = tab == .review
         transcriptExpanded = true
         tab = .transcript
         player.pause()
@@ -1135,7 +1145,6 @@ private struct MeetingWorkspaceDetail: View {
                 let updated = try await app.speakerIdentity.choose(choice, meeting: meeting, transcript: current)
                 try app.saveTranscript(updated, for: meeting)
                 updateTranscript(updated)
-                reloadReviewProjection()
                 searchContentRevision += 1
                 exportError = nil
                 speakerIdentityNotice = app.speakerIdentity.notice
@@ -1148,7 +1157,22 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func reloadReviewProjection() {
-        previousReviewProjection = projection == nil ? app.outcomeIndex.projectionForReview(of: meeting) : nil
+        reviewLoadTask?.cancel()
+        let meeting = meeting, root = app.storage.rootURL, folder = folder
+        let includePrevious = projection == nil
+        if !includePrevious { previousReviewProjection = nil }
+        reviewLoadTask = Task { @MainActor in
+            let worker = Task.detached(priority: .userInitiated) {
+                let needsRefresh = MeetingAttributionArtifacts.needsRefresh(in: folder)
+                let reviewed = includePrevious
+                    ? MeetingOutcomeProjection.load(for: meeting, root: root, includingPrevious: true) : nil
+                return (needsRefresh, reviewed)
+            }
+            let result = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+            guard !Task.isCancelled else { return }
+            attributionNeedsRefresh = result.0
+            previousReviewProjection = projection == nil ? result.1 : nil
+        }
     }
 
     private func exportAudio() {

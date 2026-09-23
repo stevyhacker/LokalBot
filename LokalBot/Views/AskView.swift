@@ -130,14 +130,9 @@ private struct AskContent: View {
         .onChange(of: model.currentID) {
             // A saved conversation selection is an explicit mode switch. An
             // old search query must not keep masking the selected transcript.
-            query = ""
-            mode = .ask
-            if model.messages.isEmpty {
-                resetAskScope()
-            } else {
-                restoreAskScope()
-            }
+            openSelectedConversation()
         }
+        .onChange(of: model.navigationRevision) { openSelectedConversation() }
         .onAppear {
             if mode == .keyword || !query.isEmpty { model.preserveSelectionDuringHistoryLoad() }
             _ = consumeNavigationHandoff()
@@ -158,10 +153,8 @@ private struct AskContent: View {
         guard let handoff = app.navigationHandoff.consumeAsk() else { return false }
         app.askDayScope = handoff.dayScope.map(Calendar.current.startOfDay(for:))
         mode = handoff.mode
-        meetingScope = handoff.meetingIDs
-        screenScope = handoff.screenSnapshotIDs.map { Set($0) }
-        if meetingScope != nil { sources = [.meetings] }
-        if screenScope != nil { sources = meetingScope == nil ? [.screen] : [.meetings, .screen] }
+        app.recallState.selectEvidence(meetingIDs: handoff.meetingIDs,
+                                       screenIDs: handoff.screenSnapshotIDs.map { Set($0) })
         if let handedQuery = handoff.query {
             query = handedQuery
         }
@@ -303,12 +296,8 @@ private struct AskContent: View {
     /// Review the complete visible source groups before explicitly submitting.
     private func prepareResultQuestion() {
         guard !isSearching, resultCount > 0 else { return }
-        meetingScope = Set(groupedMeetings.map(\.id))
-        screenScope = Set(screenGroups.flatMap(\.matches).map(\.snapshotID))
-        sources = []
-        if meetingScope?.isEmpty == false { sources.insert(.meetings) }
-        if screenScope?.isEmpty == false { sources.insert(.screen) }
-        if sources.isEmpty { sources = [.meetings] }
+        app.recallState.selectEvidence(meetingIDs: Set(groupedMeetings.map(\.id)),
+                                       screenIDs: Set(screenGroups.flatMap(\.matches).map(\.snapshotID)))
         mode = .ask
         inputFocused = true
     }
@@ -367,9 +356,8 @@ private struct AskContent: View {
     @ViewBuilder private var selectedEvidenceControl: some View {
         if meetingScope != nil || screenScope != nil {
             Button {
-                meetingScope = nil
-                screenScope = nil
                 clearPinnedScreens(restoringScope: true)
+                app.recallState.clearEvidence()
                 if mode == .keyword { runSearch() }
             } label: {
                 Label("\(meetingScope.map { "\($0.count) meetings" } ?? "All meetings") · \(screenScope.map { "\($0.count) screens" } ?? "All screens")",
@@ -435,7 +423,7 @@ private struct AskContent: View {
         } else {
             selection.insert(source)
         }
-        sources = selection
+        app.recallState.chooseSources(selection)
     }
 
     private var timeScopeControl: some View {
@@ -756,10 +744,16 @@ private struct AskContent: View {
         query = ""
     }
 
+    private func openSelectedConversation() {
+        query = ""
+        mode = .ask
+        if model.messages.isEmpty { resetAskScope() } else { restoreAskScope() }
+        inputFocused = true
+    }
+
     private func resetAskScope() {
-        sources = AskSourceScope.defaults
-        meetingScope = nil
-        screenScope = nil
+        app.recallState.clearEvidence()
+        app.recallState.chooseSources(AskSourceScope.defaults)
         app.askDayScope = nil
         pinnedScreens = []
         screenWasEnabledBeforePins = nil
@@ -771,9 +765,8 @@ private struct AskContent: View {
             resetAskScope()
             return
         }
-        sources = scope.sources
-        meetingScope = scope.meetingIDs
-        screenScope = scope.screenSnapshotIDs
+        app.recallState.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
+                                       sources: scope.sources)
         app.askDayScope = scope.dayScopeKey.flatMap { AskDayScope.date(for: $0) }
         pinnedScreens = []
         screenWasEnabledBeforePins = nil

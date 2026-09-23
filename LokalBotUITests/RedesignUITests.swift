@@ -177,6 +177,23 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists, "Switching modes must not submit the query")
     }
 
+    func testClearingResultEvidenceRestoresSearchSources() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_INITIAL_ASK_MODE": "search",
+                    "LOKALBOT_INITIAL_SEARCH": "failover"])
+        let sources = element("ask.sources")
+        XCTAssertTrue(sources.waitForExistence(timeout: 5))
+        let originalSources = sources.value as? String
+        XCTAssertNotNil(originalSources)
+        XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
+        app.buttons["ask.escalate"].click()
+        XCTAssertTrue(element("ask.selectedEvidence").waitForExistence(timeout: 3))
+        XCTAssertNotEqual(sources.value as? String, originalSources)
+        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
+        element("ask.selectedEvidence").click()
+        XCTAssertTrue(UITestHarness.waitUntil { sources.value as? String == originalSources })
+        XCTAssertFalse(element("ask.selectedEvidence").exists)
+    }
+
     func testRecallDividerRestoresAfterVisitingOtherWorkspaces() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let history = element("chat.conversationList")
@@ -245,6 +262,38 @@ final class RedesignUITests: XCTestCase {
         snapshot("meeting-review-ready-to-refresh")
     }
 
+    func testMeetingCorrectionKeepsReviewWithPageSearchOpenAndClearsReturnOrigin() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
+                    "LOKALBOT_DETAIL_TAB": "review"])
+        XCTAssertTrue(element("meeting.review").waitForExistence(timeout: 5))
+        app.typeKey("f", modifierFlags: .command)
+        let search = app.textFields["meeting.search.field"]
+        XCTAssertTrue(search.waitForExistence(timeout: 3))
+        search.click(); search.typeText("failover")
+        XCTAssertTrue(app.staticTexts["meeting.search.status"].waitForExistence(timeout: 3))
+        UITestHarness.selectSegment("Review", pickerIdentifier: "meeting.contentTabs", in: app)
+        let content = app.scrollViews["meeting.content.scroll"]
+        let owner = app.buttons["meeting.action.owner.fixture-action-design-2"]
+        UITestHarness.scrollTo(owner, in: app, within: content)
+        owner.click()
+        let field = app.textFields["meeting.action.correction.owner"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
+        field.click(); field.typeKey("a", modifierFlags: .command); field.typeText("Me")
+        app.buttons["meeting.action.correction.save"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { owner.label.contains("Me") })
+        XCTAssertTrue(element("meeting.review").exists, "Refreshing search matches must not navigate away from Review")
+
+        let evidence = app.buttons["Jump to evidence at 00:00:35"]
+        UITestHarness.scrollTo(evidence, in: app, within: content)
+        evidence.click()
+        XCTAssertTrue(app.buttons["meeting.review.return"].waitForExistence(timeout: 3))
+        UITestHarness.selectSegment("Overview", pickerIdentifier: "meeting.contentTabs", in: app)
+        UITestHarness.scrollTo(evidence, in: app, within: content)
+        evidence.click()
+        XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["meeting.review.return"].exists, "Overview evidence must not retain the old Review origin")
+    }
+
     func testReviewAndSearchAccessibilityInBothAppearances() throws {
         for appearance in ["light", "dark"] {
             try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
@@ -282,6 +331,7 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testTimelineTitleHasInspectableEvidenceAndReturnsToSession() throws {
+        try SyntheticFixture.plantActivityMoment(in: fixture)
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let session = app.buttons["timeline.session.1"]
         XCTAssertTrue(session.waitForExistence(timeout: 5))
@@ -297,6 +347,12 @@ final class RedesignUITests: XCTestCase {
         source.click()
         XCTAssertTrue(element("timeline.activityPreview").waitForExistence(timeout: 5))
         XCTAssertTrue(UITestHarness.staticText(containing: "TimelineView.swift", in: app).exists)
+        let moment = app.buttons["timeline.activityMoment.9001"]
+        XCTAssertTrue(moment.waitForExistence(timeout: 3))
+        moment.click()
+        XCTAssertTrue(app.buttons["Back to activity"].waitForExistence(timeout: 3))
+        app.buttons["Back to activity"].click()
+        XCTAssertTrue(element("timeline.activityPreview").waitForExistence(timeout: 3))
         app.buttons["Back to work session"].click()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
         snapshot("timeline-inspectable-title-evidence")

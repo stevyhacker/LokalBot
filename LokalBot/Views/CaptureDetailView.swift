@@ -380,7 +380,6 @@ struct TimelineContextPanel: View {
     private func relatedMomentRow(_ screenshot: ActivityStore.Screenshot) -> some View {
         Button {
             model.selectedSnapshotID = screenshot.id
-            model.selection = nil
             app.selectedMeetingIDs = []
         } label: {
             HStack(spacing: 10) {

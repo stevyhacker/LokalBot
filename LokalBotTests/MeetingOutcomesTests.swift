@@ -548,7 +548,8 @@ final class MeetingOutcomesTests: XCTestCase {
             .init(id: "review-action", text: "Benchmark failover", owner: "Them"),
         ], decisions: [], openQuestions: [])
         try original.write(to: folder)
-        let index = OutcomeIndex(storage: storage)
+        var evidenceChanges = 0
+        let index = OutcomeIndex(storage: storage, onEvidenceChanged: { _ in evidenceChanges += 1 })
         index.refresh(meeting: meeting)
         XCTAssertNotNil(index.projection(for: meeting.id))
 
@@ -562,6 +563,9 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertNil(MeetingOutcomes.load(from: folder))
         XCTAssertTrue(MeetingAttributionArtifacts.needsRefresh(in: folder))
         XCTAssertEqual(MeetingAttributionArtifacts.previous(in: folder)?.actionItems.first?.owner, "Them")
+        XCTAssertEqual(evidenceChanges, 0, "Archive-only edits must not invalidate current derived evidence")
+        XCTAssertNil(DayDigestMeetingArtifacts.latestModifiedAt(in: folder),
+                     "An archive-only correction must not advance the digest's evidence watermark")
 
         let reopened = OutcomeIndex(storage: storage)
         reopened.refresh(meeting: meeting)
@@ -570,12 +574,25 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertEqual(reviewed.owner, "Ana")
         XCTAssertEqual(reviewed.due, "Friday")
         XCTAssertTrue(reviewed.ownerWasCorrected)
+        XCTAssertEqual(reopened.projectionForReview(of: meeting)?.isArchived, true)
         XCTAssertFalse(reopened.correctAction(actionID: "missing", meetingID: meeting.id,
                                                text: nil, owner: "Me", due: nil, reviewing: meeting))
         XCTAssertFalse(reopened.correctAction(actionID: "review-action", meetingID: UUID(),
                                                text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertTrue(reopened.lastError?.contains("different meeting") == true)
+        XCTAssertFalse(reopened.correctAction(actionID: "missing", meetingID: meeting.id,
+                                               text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertTrue(reopened.lastError?.contains("no longer available") == true,
+                      "Guard failures must replace the error from an earlier operation")
         try FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
         XCTAssertNil(reopened.projectionForReview(of: meeting), "Old archives are not a fallback for unrelated missing data")
+
+        // An empty cache is not archived evidence: current on-disk outcomes still notify.
+        try original.write(to: folder)
+        XCTAssertTrue(index.correctAction(actionID: "review-action", meetingID: meeting.id,
+                                          text: nil, owner: "Me", due: nil, reviewing: meeting))
+        XCTAssertEqual(evidenceChanges, 1)
+        XCTAssertNotNil(DayDigestMeetingArtifacts.latestModifiedAt(in: folder))
     }
 
     func testGetActionItemsAgainstPlantedLibrary() async throws {

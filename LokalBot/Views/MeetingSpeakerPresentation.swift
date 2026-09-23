@@ -21,9 +21,7 @@ struct MeetingSpeakerPresentation {
             }
             let clean = original.replacingOccurrences(
                 of: #"(?: · source \d+)+$"#, with: "", options: .regularExpression)
-            let isAnonymous = clean.range(
-                of: #"^(?:Them(?: \d+)?|Speaker(?: \d+| unclear)?|Local speaker)$"#,
-                options: [.regularExpression, .caseInsensitive]) != nil
+            let isAnonymous = Transcript.isPlaceholderSpeakerName(clean)
             let name: String
             if isAnonymous {
                 name = "Speaker \(nextSpeaker)"
