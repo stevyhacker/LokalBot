@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Outcome-first Autocomplete home. Advanced tuning lives in Settings;
-/// rehearsal and preview call the real completion engine but intentionally do
-/// not touch production acceptance statistics or the learning store.
+/// Writing-settings readiness and preview. The real completion engine is used
+/// without touching production acceptance statistics or the learning store.
 struct AutocompleteExperienceView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject private var permissions = PermissionManager.shared
@@ -18,11 +17,7 @@ struct AutocompleteExperienceView: View {
     @State private var generating = false
     @State private var error: String?
     @State private var task: Task<Void, Never>?
-    @State private var rehearsalStep = 0
-    @State private var rehearsalActive = false
     @State private var focusRevision = 0
-
-    private let rehearsalPrompt = "Reply to the team: Thanks for reviewing the proposal. Next"
 
     private var selectedModel: ModelCatalog.Entry? {
         ModelCatalog.entry(
@@ -46,77 +41,38 @@ struct AutocompleteExperienceView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
-                header
-                readiness
-                preview
-                rehearsal
-                privacy
-                DisclosureGroup("Lifetime usage") {
-                    HStack {
-                        StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
-                        StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
-                    }.padding(.top, 8)
-                }
+        VStack(alignment: .leading, spacing: 16) {
+            readiness
+            preview
+            DisclosureGroup("Lifetime usage") {
+                HStack {
+                    StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
+                    StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
+                }.padding(.top, 8)
             }
-            .padding(WorkspaceMetric.pagePadding)
-            .frame(maxWidth: WorkspaceMetric.contentMaxWidth, alignment: .leading)
-            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .task {
-            permissions.startPolling()
-
-        }
-        .onDisappear {
-            permissions.stopPolling()
-            task?.cancel()
-        }
-        .navigationTitle("Autocomplete")
+        .onDisappear { task?.cancel() }
         .accessibilityIdentifier("autocomplete.home")
-    }
-
-    private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Autocomplete").font(WorkspaceTypography.display)
-                Text("Fast, private sentence completion in almost any Mac app.")
-                    .font(WorkspaceTypography.body).foregroundStyle(.secondary)
-            }
-            Spacer()
-            Toggle("Enable", isOn: $app.settings.cotypingEnabled)
-                .toggleStyle(.switch)
-            Button {
-                app.openSettings(tab: .writing)
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-            }
-        }
     }
 
     private var readiness: some View {
         WorkspaceSection(title: app.settings.cotypingEnabled ? "Autocomplete on" : (modelReady ? "Off · model ready" : "Off · model needed"), icon: "checkmark.circle") {
-            HStack(spacing: 16) {
-                readinessItem(
-                    "Model",
-                    selectedModel?.displayName ?? "LFM2.5 1.2B Instruct",
-                    ready: modelReady)
-                Divider().frame(height: 34)
-                readinessItem(
-                    "Accessibility",
-                    permissionLabel(.accessibility),
-                    ready: demoReady || (permissions.granted[.accessibility] ?? false))
-                Divider().frame(height: 34)
-                readinessItem(
-                    "Input Monitoring",
-                    permissionLabel(.inputMonitoring),
-                    ready: demoReady || (permissions.granted[.inputMonitoring] ?? false))
-                Spacer()
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 16) { readinessItems }
+                VStack(alignment: .leading, spacing: 10) { readinessItems }
             }
             if !modelReady {
                 CotypingModelPreparationView(compact: true)
             }
         }
+    }
+
+    @ViewBuilder private var readinessItems: some View {
+        readinessItem("Model", selectedModel?.displayName ?? "LFM2.5 1.2B Instruct", ready: modelReady)
+        readinessItem("Accessibility", permissionLabel(.accessibility),
+                      ready: demoReady || (permissions.granted[.accessibility] ?? false))
+        readinessItem("Input Monitoring", permissionLabel(.inputMonitoring),
+                      ready: demoReady || (permissions.granted[.inputMonitoring] ?? false))
     }
 
     private func readinessItem(_ title: String, _ detail: String, ready: Bool) -> some View {
@@ -139,7 +95,7 @@ struct AutocompleteExperienceView: View {
                 RehearsalTextEditor(text: $text, suggestion: suggestion,
                                     acceptKey: app.settings.cotypingAcceptKey,
                                     focusRevision: focusRevision,
-                                    onAccept: { accept(fromKeyboard: true) },
+                                    onAccept: { accept() },
                                     onReject: { task?.cancel(); suggestion = ""; generating = false })
                     .frame(minHeight: 120)
                     .padding(8)
@@ -152,7 +108,7 @@ struct AutocompleteExperienceView: View {
                         .foregroundStyle(.secondary)
                     if generating { ProgressView().controlSize(.small) }
                     Spacer()
-                    Button("Insert suggestion") { accept(fromKeyboard: false) }
+                    Button("Insert suggestion") { accept() }
                         .buttonStyle(.borderedProminent)
                         .disabled(suggestion.isEmpty)
                 }
@@ -161,64 +117,6 @@ struct AutocompleteExperienceView: View {
                         .font(.callout).foregroundStyle(Brand.error)
                 }
             }
-        }
-    }
-
-    private var rehearsal: some View {
-        WorkspaceSection(title: "Two-step rehearsal", icon: "figure.walk") {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Practice generation and acceptance here before enabling it system-wide.")
-                    .font(WorkspaceTypography.body).foregroundStyle(.secondary)
-                rehearsalRow(
-                    number: 1,
-                    title: "Generate a real suggestion",
-                    state: rehearsalStep >= 1 ? "Detected" : "Not started",
-                    complete: rehearsalStep >= 1) {
-                        rehearsalActive = true
-                        rehearsalStep = 0
-                        text = rehearsalPrompt
-                        suggestion = ""
-                        focusRevision += 1
-                        schedule()
-                    }
-                rehearsalRow(
-                    number: 2,
-                    title: "Accept with \(app.settings.cotypingAcceptKey.label)",
-                    state: rehearsalStep >= 2 ? "Accepted" : "Waiting",
-                    complete: rehearsalStep >= 2)
-                if rehearsalStep == 2 {
-                    Label("Rehearsal complete", systemImage: "checkmark.seal.fill")
-                        .font(.callout.weight(.medium)).foregroundStyle(Brand.teal)
-                }
-                Text("Rehearsal is excluded from production stats and learned writing data.")
-                    .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func rehearsalRow(number: Int, title: String, state: String,
-                              complete: Bool, action: (() -> Void)? = nil) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: complete ? "checkmark.circle.fill" : "\(number).circle")
-                .foregroundStyle(complete ? Brand.teal : .secondary)
-            Text(title)
-            Spacer()
-            Text(state).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
-            if let action {
-                Button(rehearsalActive ? "Restart" : "Start", action: action)
-            }
-        }
-    }
-
-    private var privacy: some View {
-        WorkspaceSection(title: "Private by design", icon: "lock.shield") {
-            HStack(alignment: .top, spacing: 12) {
-                Label("Generated on this Mac", systemImage: "memorychip")
-                Label("Never runs in password fields", systemImage: "key")
-                Label("Apps and sites can be excluded", systemImage: "nosign")
-                Spacer()
-            }
-            .font(WorkspaceTypography.body).foregroundStyle(.secondary)
         }
     }
 
@@ -244,7 +142,6 @@ struct AutocompleteExperienceView: View {
 #endif
                 if !Task.isCancelled {
                     suggestion = result
-                    if rehearsalActive, !result.isEmpty { rehearsalStep = max(rehearsalStep, 1) }
                 }
             } catch is CancellationError {
             } catch {
@@ -253,10 +150,9 @@ struct AutocompleteExperienceView: View {
         }
     }
 
-    private func accept(fromKeyboard: Bool) {
+    private func accept() {
         guard !suggestion.isEmpty else { return }
         text += suggestion
         suggestion = ""
-        if fromKeyboard, rehearsalActive, rehearsalStep >= 1 { rehearsalStep = 2 }
     }
 }

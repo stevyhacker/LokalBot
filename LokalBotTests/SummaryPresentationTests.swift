@@ -76,7 +76,7 @@ final class SummaryPresentationTests: XCTestCase {
     func testRecapRemovesAttributionAndCitationsAndStopsAtTheNextSection() {
         let recap = "- **You:** Send the proposal. — [00:05]\n- **Ana:** The release is on Friday. — [00:10]"
         let markdown = "## TL;DR\n\n\(recap)\n\n## Key points\n\n- Another fact.\n\n## Decisions\n\nNone"
-        XCTAssertEqual(SummaryPresentation.recap(markdown), "Send the proposal. The release is on Friday.")
+        XCTAssertEqual(SummaryPresentation.recap(markdown), "• Send the proposal.\n• The release is on Friday.")
         XCTAssertTrue(SummaryPresentation.split(markdown).body.contains(recap),
                       "Full Summary must retain evidence and attribution")
     }
@@ -90,22 +90,22 @@ final class SummaryPresentationTests: XCTestCase {
         A separate decision.
         """
         XCTAssertEqual(SummaryPresentation.recap(markdown),
-                       "Build the investor report. Keep the **two-contract** design.")
+                       "• Build the investor report.\n• Keep the **two-contract** design.")
     }
 
     func testRecapPreservesOrdinaryColonsAndTimesInContent() {
         let markdown = "## TL;DR\n- **Ana:** Deadline: Friday at 10:30. — [01:02:03]\n- Budget: **$2,000**."
         XCTAssertEqual(SummaryPresentation.recap(markdown),
-                       "Deadline: Friday at 10:30. Budget: **$2,000**.")
+                       "• Deadline: Friday at 10:30.\n• Budget: **$2,000**.")
     }
 
     func testLongRecapRetainsAllContentForExpansion() throws {
         let points = (1...30).map { "- **Them 1 · source 2:** Decision \($0). — [00:22:20]" }
         let recap = try XCTUnwrap(SummaryPresentation.recap("## TL;DR\n" + points.joined(separator: "\n")))
-        XCTAssertTrue(recap.hasPrefix("Decision 1."))
+        XCTAssertTrue(recap.hasPrefix("• Decision 1."))
         XCTAssertTrue(recap.hasSuffix("Decision 30."))
         XCTAssertFalse(recap.contains("source"))
-        XCTAssertFalse(recap.contains("\n"))
+        XCTAssertEqual(recap.components(separatedBy: "\n").count, 30)
     }
 
     func testEmptyGeneratedSectionsDoNotBecomeTheRecap() {

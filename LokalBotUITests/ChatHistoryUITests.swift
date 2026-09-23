@@ -72,15 +72,13 @@ final class ChatHistoryUITests: XCTestCase {
     func testSelectingConversationClearsActiveSearch() {
         UITestHarness.clickSidebar("sidebar.ask", in: app)
 
-        UITestHarness.selectSegment(
-            "Search", pickerIdentifier: "ask.retrieval", in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["ask.facet.all"]
-            .waitForExistence(timeout: 4), "keyword mode did not expose search facets")
+        XCTAssertTrue(app.descendants(matching: .any)["ask.sources"]
+            .waitForExistence(timeout: 4), "source filter menu missing")
         let field = app.textFields["search.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 6), "ask search field missing")
         field.click()
         field.typeText("a query that would otherwise mask the transcript")
-        XCTAssertTrue(app.descendants(matching: .any)["ask.escalate"]
+        XCTAssertTrue(app.descendants(matching: .any)["ask.submit"]
             .waitForExistence(timeout: 4), "keyword results did not appear")
 
         let older = conversationButton(olderConversationID)
@@ -93,7 +91,6 @@ final class ChatHistoryUITests: XCTestCase {
                       "selected conversation remained hidden behind the old search query")
         XCTAssertEqual(field.value as? String, "", "conversation selection did not clear search")
 
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         field.click(); field.typeText("another search")
         older.click()
         XCTAssertTrue(app.buttons["ask.submit"].waitForExistence(timeout: 4))
@@ -101,7 +98,6 @@ final class ChatHistoryUITests: XCTestCase {
         XCTAssertTrue(text(containing: olderAssistantLine).exists)
 
         app.buttons["chat.new"].click()
-        UITestHarness.selectSegment("Search", pickerIdentifier: "ask.retrieval", in: app)
         field.click(); field.typeText("unsent search")
         app.buttons["chat.new"].click()
         XCTAssertTrue(app.buttons["ask.submit"].waitForExistence(timeout: 4))

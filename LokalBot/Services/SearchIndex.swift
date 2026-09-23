@@ -22,6 +22,7 @@ final class SearchIndex {
         /// Snippet with « » around matched terms.
         let snippet: String
         let speaker: String
+        var isSemantic = false
     }
 
     private let database: SQLiteDatabase?
@@ -286,6 +287,42 @@ final class SearchIndex {
                        snippet: String(cString: snippetText),
                        speaker: speaker)
         }.filter { !locallyDeletedMeetingIDs.contains($0.meetingID) }
+    }
+
+    /// Embeddings historically retained only the first 300 characters and lost
+    /// source kind. Recover the matching document before choosing a reading excerpt.
+    func semanticPassage(meetingID: UUID, start: TimeInterval, text: String, query: String) -> Hit? {
+        guard let database, !locallyDeletedMeetingIDs.contains(meetingID) else { return nil }
+        let candidates: [(String, Kind, TimeInterval, String)] = database.query("""
+            SELECT text, kind, start, speaker FROM search_document_rows AS source
+            JOIN docs ON docs.rowid = source.doc_rowid
+            WHERE source.meeting_id = ?1 AND (kind = 'summary' OR (kind = 'segment' AND start >= ?2 AND start < ?3))
+              AND NOT EXISTS (SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1)
+            LIMIT 100
+            """, bind: [meetingID.uuidString, start, start + 120]) { statement in
+                guard let body = sqlite3_column_text(statement, 0),
+                      let rawKind = sqlite3_column_text(statement, 1),
+                      let kind = Kind(rawValue: String(cString: rawKind)) else { return nil }
+                return (String(cString: body), kind, sqlite3_column_double(statement, 2),
+                        sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? "")
+            }
+        let fragments = text.split(separator: "\n").map { line -> String in
+            let line = String(line)
+            return line.range(of: ": ").map { String(line[$0.upperBound...]) } ?? line
+        }.filter { !$0.isEmpty }
+        let summaries = candidates.filter { $0.1 == .summary && $0.0.contains(String(text.prefix(100))) }
+        let matching = summaries.isEmpty ? candidates.filter { candidate in
+            candidate.1 == .segment && fragments.contains { candidate.0.contains(String($0.prefix(80))) }
+        } : summaries
+        return matching.compactMap { match -> Hit? in
+            guard let snippet = RecallPassage.excerpt(match.0, query: query) else { return nil }
+            return Hit(meetingID: meetingID, kind: match.1, start: match.2,
+                       snippet: snippet, speaker: match.3, isSemantic: true)
+        }.sorted {
+            let left = RecallPassage.queryMatchCount($0.snippet, query: query)
+            let right = RecallPassage.queryMatchCount($1.snippet, query: query)
+            return left == right ? $0.start < $1.start : left > right
+        }.first
     }
 
     /// Common English function words that carry no retrieval signal. Stripped

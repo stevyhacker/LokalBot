@@ -1,153 +1,31 @@
 import AppKit
 import SwiftUI
 
-/// The Today calendar surface. Setup states stay compact; once events exist,
-/// the active/next meeting gets preparation detail and the rest of the day
-/// remains visible as a chronological, lightweight schedule.
+/// Show the next calendar event only when one exists. Calendar setup and
+/// permissions stay in Settings.
 struct UpcomingMeetingSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: UpcomingMeetingPreparationModel
 
     var body: some View {
-        switch model.status {
-        case .loading, .noMeetingsToday:
-            EmptyView()
-        case .disabled:
-            setupCard(
-                icon: "calendar.badge.clock",
-                title: "Prepare for upcoming meetings",
-                detail: "See what’s next and bring forward related decisions, commitments, and project context.",
-                actionTitle: "Show upcoming meetings",
-                action: enableCalendar)
-        case .permissionRequired:
-            setupCard(
-                icon: "calendar.badge.plus",
-                title: "Connect your Mac calendar",
-                detail: "LokalBot reads upcoming events from accounts already synced to Apple Calendar.",
-                actionTitle: "Allow Calendar Access",
-                error: app.calendar.accessRequestError,
-                action: requestCalendarAccess)
-        case .permissionDenied:
-            setupCard(
-                icon: "calendar.badge.exclamationmark",
-                title: "Calendar access is off",
-                detail: "Allow LokalBot to read events before upcoming meetings can appear here.",
-                actionTitle: "Open System Settings",
-                action: openCalendarSettings)
-        case .ready:
-            TodayMeetingsSchedule(model: model)
-                .environmentObject(app)
-        }
-    }
-
-    private func setupCard(icon: String, title: String, detail: String,
-                           actionTitle: String, error: String? = nil,
-                           action: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 12) {
-                IconTile(systemImage: icon, tint: Brand.teal, size: 38)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(WorkspaceTypography.rowTitle)
-                    Text(detail)
-                        .font(WorkspaceTypography.body)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 12)
-                Button(actionTitle, action: action)
-                    .buttonStyle(.bordered)
-            }
-            if let error {
-                Label(error, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(Brand.error)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(WorkspaceMetric.cardPadding)
-        .background(
-            RoundedRectangle(cornerRadius: Brand.Radius.panel, style: .continuous)
-                .fill(.quaternary.opacity(0.35)))
-        .accessibilityIdentifier("today.upcomingMeeting.setup")
-    }
-
-    private func enableCalendar() {
-        app.settings.calendarDetectionEnabled = true
-        if app.calendar.authorizationStatus == .notDetermined {
-            requestCalendarAccess()
-        } else {
-            Task { await model.refresh(app: app) }
-        }
-    }
-
-    private func requestCalendarAccess() {
-        app.calendar.requestAccess { _ in
-            Task { await model.refresh(app: app) }
-        }
-    }
-
-    private func openCalendarSettings() {
-        guard let url = URL(
-            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Calendars") else {
-            return
-        }
-        NSWorkspace.shared.open(url)
-    }
-}
-
-private struct TodayMeetingsSchedule: View {
-    @EnvironmentObject private var app: AppState
-    @ObservedObject var model: UpcomingMeetingPreparationModel
-    @State private var laterExpanded = false
-    @State private var preparationExpanded = true
-
-    @State private var earlierExpanded = false
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { context in
-            let upcoming = model.meetingsToday.filter { $0.endDate > context.date }
-            let earlier = model.meetingsToday.filter { $0.endDate <= context.date }
-            VStack(alignment: .leading, spacing: 11) {
-                HStack {
-                    Label("Upcoming", systemImage: "calendar")
-                        .font(WorkspaceTypography.sectionTitle)
-                    Spacer()
-                    Text("\(upcoming.count) remaining")
-                        .font(WorkspaceTypography.metadata.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-                if let next = upcoming.first {
-                    TodayMeetingRow(event: next).environmentObject(app)
-                } else {
-                    Text("No more meetings scheduled today.").foregroundStyle(.secondary)
-                }
-                if upcoming.count > 1 {
-                    DisclosureGroup("\(upcoming.count - 1) later today", isExpanded: $laterExpanded) {
-                        ForEach(Array(upcoming.dropFirst()), id: \.externalID) { event in
-                            TodayMeetingRow(event: event).environmentObject(app)
+        if model.status == .ready {
+            TimelineView(.periodic(from: .now, by: 30)) { context in
+                if let next = model.meetingsToday.first(where: { $0.endDate > context.date }) {
+                    WorkspaceSection(title: "Next meeting", icon: "calendar") {
+                        TodayMeetingRow(event: next)
+                        if let evidence = model.evidence,
+                           evidence.event.externalID == next.externalID,
+                           evidence.hasPreparationContext {
+                            DisclosureGroup("Preparation context") {
+                                UpcomingMeetingCard(model: model, evidence: evidence)
+                            }
                         }
                     }
-                }
-                if let evidence = model.evidence, evidence.event.endDate > context.date,
-                   evidence.hasPreparationContext {
-                    DisclosureGroup("Preparation context", isExpanded: $preparationExpanded) {
-                        UpcomingMeetingCard(model: model, evidence: evidence).environmentObject(app)
-                    }
-                }
-                if !earlier.isEmpty {
-                    DisclosureGroup("Earlier today · \(earlier.count)", isExpanded: $earlierExpanded) {
-                        ForEach(earlier, id: \.externalID) { event in
-                            TodayMeetingRow(event: event).environmentObject(app)
-                        }
-                    }
+                    .accessibilityIdentifier("today.meetings")
                 }
             }
-            .font(.callout)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("today.meetings")
     }
-
 }
 
 private struct TodayMeetingRow: View {

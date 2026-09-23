@@ -80,11 +80,10 @@ enum SummaryPresentation {
         let text = section.components(separatedBy: "\n").map { line in
             line
                 .replacingOccurrences(of: #"^\s*[-*•]\s+(?:\*\*[^*\n]+:\*\*\s*)?"#,
-                                      with: "", options: .regularExpression)
+                                      with: "• ", options: .regularExpression)
                 .replacingOccurrences(of: #"\s*[—–-]\s*\[\d{1,2}:\d{2}(?::\d{2})?\]\s*$"#,
                                       with: "", options: .regularExpression)
-        }.joined(separator: " ")
-            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        }.joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty ? nil : text
     }
@@ -106,44 +105,29 @@ enum SummaryPresentation {
     }
 }
 
-/// State belongs to the selected meeting's view, so every meeting opens compact.
+/// Collapse whole points rather than truncating the middle of the recap.
 struct MeetingRecapView: View {
     let text: String
     @State private var isExpanded = false
-    @State private var fullHeight: CGFloat = 0
-    @State private var collapsedHeight: CGFloat = 0
+
+    private var points: [String] {
+        text.components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            SelectableDigestText(text, font: WorkspaceTypography.body)
-                .lineLimit(isExpanded ? nil : 3)
-                .truncationMode(.tail)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
-                    if !isExpanded { collapsedHeight = height }
-                }
-                .background(alignment: .topLeading) {
-                    SelectableDigestText(text, font: WorkspaceTypography.body)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .hidden()
-                        .accessibilityHidden(true)
-                        .allowsHitTesting(false)
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                            fullHeight = $0
-                        }
-                }
-                .accessibilityIdentifier("meeting.recap.text")
-            if isExpanded || fullHeight > collapsedHeight + 1 {
-                Button {
-                    isExpanded.toggle()
-                } label: {
-                    Label(isExpanded ? "Show less" : "Show more",
-                          systemImage: isExpanded ? "chevron.up" : "chevron.down")
-                }
-                .buttonStyle(.plain)
-                .font(WorkspaceTypography.metadataEmphasis)
-                .foregroundStyle(Brand.teal)
-                .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
-                .accessibilityIdentifier("meeting.recap.expand")
+            ForEach(Array((isExpanded ? points : Array(points.prefix(5))).enumerated()), id: \.offset) { _, point in
+                SelectableDigestText(point, font: WorkspaceTypography.body)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("meeting.recap.text")
+            }
+            if points.count > 5 {
+                Button(isExpanded ? "Show less" : "Show \(points.count - 5) more points") { isExpanded.toggle() }
+                    .buttonStyle(.plain)
+                    .font(WorkspaceTypography.metadataEmphasis)
+                    .foregroundStyle(Brand.teal)
+                    .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+                    .accessibilityIdentifier("meeting.recap.expand")
             }
         }
     }

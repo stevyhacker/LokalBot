@@ -84,34 +84,10 @@ struct TimelineContextPanel: View {
                     onDismiss: onDismiss)
                     .accessibilityIdentifier("capture.dayOverview")
 
-                if model.digestIsStale {
-                    Label("Newer activity is available. Regenerate the digest to include it.",
-                          systemImage: "clock.arrow.circlepath")
-                        .workspaceTextRole(.warning)
-                        .accessibilityIdentifier("capture.dayDigest.stale")
-                }
-
-                if let digestError = model.digestError {
-                    Label(digestError, systemImage: "exclamationmark.triangle")
-                        .workspaceTextRole(.warning)
-                }
-
-                if let digest = model.digest {
-                    DayDigestView(digest, mode: .timeline)
-                        .accessibilityIdentifier("capture.dayDigest.text")
-                } else {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("No day digest yet", systemImage: "doc.text")
-                            .font(WorkspaceTypography.sectionTitle)
-                        Text("Use \u{201C}Write day digest\u{201D} above to generate one. Your chronology stays available while it runs.")
-                            .font(WorkspaceTypography.body)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(WorkspaceMetric.cardPadding)
-                    .background(.quaternary.opacity(0.24),
-                                in: RoundedRectangle(cornerRadius: Brand.Radius.control))
-                }
+                NeedsAttentionSection(threads: app.outcomeIndex.openUserActionThreads.filter { thread in
+                    thread.references.contains { Calendar.current.isDate($0.meetingStartedAt, inSameDayAs: model.day) }
+                }, limit: 3)
+                DayDigestCard(model: model, identifier: "capture", showsControls: false)
 
                 if !perApp.isEmpty {
                     compactTimeAllocation(perApp)
@@ -179,59 +155,6 @@ struct TimelineContextPanel: View {
                     onDismiss: onDismiss)
                     .accessibilityIdentifier("timeline.sessionPreview")
 
-                VStack(alignment: .leading, spacing: 10) {
-                    sessionMetrics(session)
-                    Text(session.apps.prefix(5).joined(separator: " · "))
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(CaptureStyle.color(for: session.primaryApp).opacity(0.10),
-                            in: RoundedRectangle(cornerRadius: Brand.Radius.control))
-
-                if !session.notableTitles.isEmpty {
-                    TimelineContextSection(title: "Documents and windows", icon: "text.page") {
-                        VStack(alignment: .leading, spacing: 9) {
-                            Text("These are captured window titles. Expand a title to inspect the activity behind it.")
-                                .workspaceTextRole(.supporting)
-                            ForEach(session.titleEvidence) { evidence in
-                                WorkspaceDisclosure(isExpanded: Binding(
-                                    get: { expandedTitles.contains(evidence.id) },
-                                    set: { if $0 { expandedTitles.insert(evidence.id) } else { expandedTitles.remove(evidence.id) } }),
-                                    identifier: "timeline.titleDisclosure.\(evidence.id)", style: .compact) {
-                                    ForEach(evidence.blocks) { block in
-                                        Button {
-                                            model.selection = block.id
-                                        } label: {
-                                            VStack(alignment: .leading, spacing: 3) {
-                                                Text(block.title).lineLimit(2)
-                                                Text("\(block.app) · \(block.start.formatted(date: .omitted, time: .shortened))–\(block.end.formatted(date: .omitted, time: .shortened))")
-                                                    .workspaceTextRole(.supporting)
-                                            }
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                            .contentShape(Rectangle())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .accessibilityLabel("Inspect \(block.title), \(block.app), \(block.start.formatted(date: .omitted, time: .shortened))")
-                                        .accessibilityIdentifier("timeline.titleSource.\(block.id)")
-                                    }
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(evidence.title).font(WorkspaceTypography.bodyEmphasis)
-                                        Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity \(evidence.blocks.count == 1 ? "block" : "blocks")")
-                                            .workspaceTextRole(.supporting)
-                                    }
-                                }
-                            }
-                        }
-                        .accessibilityElement(children: .contain)
-                        .accessibilityLabel("Documents and windows")
-                        .accessibilityIdentifier("timeline.session.titleEvidence")
-                    }
-                }
-
                 TimelineContextSection(
                     title: "Representative evidence",
                     icon: "rectangle.and.text.magnifyingglass") {
@@ -253,7 +176,68 @@ struct TimelineContextPanel: View {
                         }
                     }
 
-                SessionMomentBrowser(model: model, session: session)
+                DisclosureGroup("Browse all \(frames.count) retained moments") {
+                    SessionMomentBrowser(model: model, session: session)
+                }
+                .accessibilityIdentifier("timeline.session.browseMoments")
+
+                if !session.notableTitles.isEmpty {
+                    TimelineContextSection(title: "Documents and windows", icon: "text.page") {
+                        VStack(alignment: .leading, spacing: 9) {
+                            Text("These are captured window titles. Expand a title to inspect the activity behind it.")
+                                .workspaceTextRole(.supporting)
+                            ForEach(session.titleEvidence) { evidence in
+                                WorkspaceDisclosure(isExpanded: Binding(
+                                    get: { expandedTitles.contains(evidence.id) },
+                                    set: { if $0 { expandedTitles.insert(evidence.id) } else { expandedTitles.remove(evidence.id) } }),
+                                    identifier: "timeline.titleDisclosure.\(evidence.id)", style: .compact) {
+                                    Text(evidence.title).textSelection(.enabled)
+                                    ForEach(evidence.blocks) { block in
+                                        Button {
+                                            model.selection = block.id
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(block.title).lineLimit(2)
+                                                Text("\(block.app) · \(block.start.formatted(date: .omitted, time: .shortened))–\(block.end.formatted(date: .omitted, time: .shortened))")
+                                                    .workspaceTextRole(.supporting)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityLabel("Inspect \(block.title), \(block.app), \(block.start.formatted(date: .omitted, time: .shortened))")
+                                        .accessibilityIdentifier("timeline.titleSource.\(block.id)")
+                                    }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(evidence.title).font(WorkspaceTypography.bodyEmphasis)
+                                            .lineLimit(2).help(evidence.title)
+                                        Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity \(evidence.blocks.count == 1 ? "block" : "blocks")")
+                                            .workspaceTextRole(.supporting)
+                                    }
+                                }
+                            }
+                        }
+                        .accessibilityElement(children: .contain)
+                        .accessibilityLabel("Documents and windows")
+                        .accessibilityIdentifier("timeline.session.titleEvidence")
+                    }
+                }
+
+                DisclosureGroup("Session details") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        sessionMetrics(session)
+                        Text(session.apps.prefix(5).joined(separator: " · "))
+                            .font(WorkspaceTypography.metadata)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(CaptureStyle.color(for: session.primaryApp).opacity(0.10),
+                                in: RoundedRectangle(cornerRadius: Brand.Radius.control))
+                }
+                .accessibilityIdentifier("timeline.session.details")
 
                 Button {
                     app.openAsk(
@@ -576,6 +560,8 @@ private struct TimelinePanelHeader: View {
             IconTile(systemImage: icon, tint: Brand.teal, size: 30)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
+                    .lineLimit(2)
+                    .help(title)
                     .font(WorkspaceTypography.conversationTitle)
                     .lineLimit(2)
                 Text(subtitle)

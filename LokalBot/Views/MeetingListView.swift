@@ -11,16 +11,7 @@ struct MeetingListView: View {
     @SceneStorage("meeting.library.query") private var query = ""
     @State private var contentMatches: Set<UUID> = []
     @State private var searchTask: Task<Void, Never>?
-    @State private var filter: StatusFilter = .all
     @State private var mergeDraft: MeetingMergeDraft?
-
-    private enum StatusFilter: String, CaseIterable, Identifiable {
-        case all = "All"
-        case ready = "Ready"
-        case processing = "Processing"
-        case failed = "Failed"
-        var id: String { rawValue }
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,16 +21,22 @@ struct MeetingListView: View {
                     .font(WorkspaceTypography.control)
                     .accessibilityLabel("Search meetings")
                     .accessibilityIdentifier("meeting.search")
-                if app.evidenceMeetingID != nil, !query.isEmpty || filter != .all {
+                if app.evidenceMeetingID != nil, !query.isEmpty {
                     Text("The opened source remains visible outside these filters.")
                         .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                 }
-                Picker("Status", selection: $filter) {
-                    ForEach(StatusFilter.allCases) { item in Text(item.rawValue).tag(item) }
+                if !failedMeetings.isEmpty {
+                    HStack {
+                        Label("\(failedMeetings.count) failed", systemImage: "exclamationmark.triangle")
+                            .foregroundStyle(Brand.error)
+                        Spacer()
+                        Button("Retry") {
+                            for meeting in failedMeetings { app.retryProcessing(meeting) }
+                        }
+                        .accessibilityIdentifier("meeting.retryFailed")
+                    }
+                    .accessibilityIdentifier("meeting.failures")
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .accessibilityIdentifier("meeting.statusFilter")
 
             }
             .padding(WorkspaceMetric.cardPadding)
@@ -95,7 +92,6 @@ struct MeetingListView: View {
         }
         .task { app.selectDefaultMeetingIfNeeded(); searchContent() }
         .onChange(of: query) { app.evidenceMeetingID = nil; searchContent() }
-        .onChange(of: filter) { app.evidenceMeetingID = nil; searchContent() }
         .onDisappear { searchTask?.cancel() }
         .sheet(item: $mergeDraft) { draft in
             MeetingMergeSheet(meetings: draft.meetings, storage: app.storage)
@@ -146,19 +142,12 @@ struct MeetingListView: View {
                 Label("No meetings yet", systemImage: "waveform.circle")
             } description: {
                 Text("LokalBot detects meeting apps automatically, or start a recording now.")
-            } actions: {
-                Button("Record now") {
-                    app.startRecording(
-                        context: app.recordingContext(for: app.detector.activeApp))
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("meeting.empty.record")
             }
         } else {
             ContentUnavailableView(
                 "No matching meetings",
                 systemImage: "waveform.circle",
-                description: Text("Try different words, a meeting title, app, or status."))
+                description: Text("Try different words, a meeting title, or app."))
         }
     }
 
@@ -184,7 +173,7 @@ struct MeetingListView: View {
         let calendar = Calendar.current
         let all = ((app.currentMeeting.map { [$0] } ?? []) + app.meetings)
             .filter { !$0.isMergedSource }
-            .filter { (matchesQuery($0) && matchesFilter($0)) || $0.id == app.evidenceMeetingID }
+            .filter { matchesQuery($0) || $0.id == app.evidenceMeetingID }
         let groups = Dictionary(grouping: all) { calendar.startOfDay(for: $0.startedAt) }
         return groups.keys.sorted(by: >).map { day in
             (Self.dayLabel(day), groups[day]!.sorted { $0.startedAt > $1.startedAt })
@@ -205,21 +194,15 @@ struct MeetingListView: View {
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
-            let allowed = Set(app.meetings.filter(matchesFilter).map(\.id))
+            let allowed = Set(app.meetings.map(\.id))
             contentMatches = Set(RecallSearch.meetings(needle, index: app.searchIndex, meetingIDs: allowed).map(\.id))
             let visible = Set(groupedMeetings.flatMap(\.items).map(\.id))
             app.selectedMeetingIDs.formIntersection(visible)
         }
     }
 
-    private func matchesFilter(_ meeting: Meeting) -> Bool {
-        let stage = app.pipeline.stages[meeting.id]
-        switch filter {
-        case .all: return true
-        case .ready: return meeting.endedAt != nil && stage == nil
-        case .processing: return meeting.endedAt == nil || (stage != nil && stage?.isFailure == false)
-        case .failed: return stage?.isFailure == true
-        }
+    private var failedMeetings: [Meeting] {
+        app.meetings.filter { !$0.isMergedSource && app.pipeline.stages[$0.id]?.isFailure == true }
     }
 
     private static func dayLabel(_ day: Date) -> String {

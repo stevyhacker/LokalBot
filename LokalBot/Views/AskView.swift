@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Explicit local Search and scoped Ask share their retained source context.
+/// Live recall and explicit questions share one input and retained source context.
 struct AskView: View {
     @EnvironmentObject var app: AppState
 
@@ -33,13 +33,6 @@ private struct AskContent: View {
         get { app.recallState.selectedResult }
         nonmutating set { app.recallState.selectedResult = newValue }
     }
-    /// Search flavor within keyword mode: exact words vs. semantic matching.
-    /// Seeded from the persisted setting; selecting "Match by meaning" turns
-    /// indexing on, while going back to exact words never turns it off.
-    private var matchByMeaning: Bool {
-        get { app.recallState.meaning }
-        nonmutating set { app.recallState.meaning = newValue }
-    }
     private var facet: AskFacet {
         get { app.recallState.facet }
         nonmutating set { app.recallState.facet = newValue }
@@ -47,16 +40,11 @@ private struct AskContent: View {
     @State private var hits: [SearchIndex.Hit] = []
     @State private var ocrHits: [ActivityStore.OCRHit] = []
     @State private var screenGroups: [ScreenRecallGroup] = []
-    private var screenDateScope: ScreenSearchDateScope {
-        get { app.recallState.screenDate }
-        nonmutating set { app.recallState.screenDate = newValue }
-    }
     private var selectedScreenApp: String? {
         get { app.recallState.screenApp }
         nonmutating set { app.recallState.screenApp = newValue }
     }
     @State private var screenApps: [String] = []
-    @State private var sourceScopePresented = false
     private var pinnedScreens: [ScreenAskContext] {
         get { app.recallState.pins }
         nonmutating set { app.recallState.pins = newValue }
@@ -85,8 +73,7 @@ private struct AskContent: View {
             retrievalBody
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(nil, value: mode)
-        .animation(nil, value: matchByMeaning)
+        .animation(nil, value: phase)
     }
 
     private var searchContent: some View {
@@ -94,35 +81,33 @@ private struct AskContent: View {
         .onChange(of: query) {
             model.preserveSelectionDuringHistoryLoad()
             selectedResult = 0
-            if mode == .keyword { runSearch() }
+            runSearch()
         }
         .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
-            if mode == .keyword { runSearch() }
+            runSearch()
         }
         .onDisappear { searchTask?.cancel() }
-        .onChange(of: mode) {
-            model.preserveSelectionDuringHistoryLoad()
-            if mode == .keyword { runSearch() }
-        }
         .onChange(of: facet) { runSearch() }
-        .onChange(of: screenDateScope) { runSearch() }
-        .onChange(of: app.askDayScope) {
+        .onChange(of: app.askDateScope) {
             reconcilePinnedScreenScope()
-            if mode == .keyword { runSearch() }
+            runSearch()
         }
         .onChange(of: selectedScreenApp) { runSearch() }
-        .onChange(of: sources) { if mode == .keyword { runSearch() } }
+        .onChange(of: sources) {
+            if !sources.contains(.screen) { selectedScreenApp = nil }
+            runSearch()
+        }
     }
 
     var body: some View {
         searchContent
         .onKeyPress(.downArrow) {
-            guard mode == .keyword, resultCount > 0 else { return .ignored }
+            guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
             return .handled
         }
         .onKeyPress(.upArrow) {
-            guard mode == .keyword, resultCount > 0 else { return .ignored }
+            guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = max(0, selectedResult - 1)
             return .handled
         }
@@ -134,9 +119,9 @@ private struct AskContent: View {
         }
         .onChange(of: model.navigationRevision) { openSelectedConversation() }
         .onAppear {
-            if mode == .keyword || !query.isEmpty { model.preserveSelectionDuringHistoryLoad() }
+            if !query.isEmpty { model.preserveSelectionDuringHistoryLoad() }
             _ = consumeNavigationHandoff()
-            if mode == .keyword { runSearch() }
+            runSearch()
             inputFocused = true
             #if LOKALBOT_UI_TEST_HOST
             if query.isEmpty,
@@ -182,19 +167,14 @@ private struct AskContent: View {
 
     // MARK: - Input + facets
 
-    @ViewBuilder
-    private var retrievalBody: some View {
+    private var phase: AskPhase { AskRouter.phase(query: query, hasMessages: !model.messages.isEmpty) }
+
+    @ViewBuilder private var retrievalBody: some View {
         Group {
-            if mode == .keyword {
-                if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    keywordEmptyState
-                } else {
-                    results
-                }
-            } else if model.messages.isEmpty {
-                emptyState
-            } else {
-                ChatTranscriptView(model: model)
+            switch phase {
+            case .searching: results
+            case .idle: emptyState
+            case .conversation: ChatTranscriptView(model: model)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -202,39 +182,19 @@ private struct AskContent: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            topLevelModeControl
             composerPanel
             askScopeControls
+            activeSearchFilters
             selectedEvidenceControl
-            if mode == .keyword { searchControls }
-            if mode == .ask, !pinnedScreens.isEmpty {
+            if phase == .searching { answerScopePreview }
+            if !pinnedScreens.isEmpty {
                 pinnedContextRow
-            } else if mode == .keyword, facet == .screen {
-                screenFilterRow
             }
         }
         .padding(.horizontal, WorkspaceMetric.pagePadding)
         .padding(.vertical, 16)
         .workspaceReadingWidth()
         .frame(maxWidth: .infinity, alignment: .top)
-    }
-
-    private var topLevelModeControl: some View {
-        Picker("Mode", selection: Binding(get: { mode }, set: selectMode)) {
-            ForEach(AskMode.allCases) { candidate in
-                Text(candidate.displayName).tag(candidate)
-            }
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .frame(width: 180)
-        .accessibilityIdentifier("ask.retrieval")
-    }
-
-    private func selectMode(_ selection: AskMode) {
-        mode = selection
-        if selection == .keyword { runSearch() }
-        inputFocused = true
     }
 
     private var composerPanel: some View {
@@ -284,7 +244,7 @@ private struct AskContent: View {
     private var resultCount: Int { groupedMeetings.count + screenGroups.count }
 
     private func submitQuery() {
-        guard mode == .keyword else { escalate(); return }
+        guard phase == .searching else { return }
         if groupedMeetings.indices.contains(selectedResult) {
             app.openSearchHit(groupedMeetings[selectedResult].primary)
         } else {
@@ -293,33 +253,67 @@ private struct AskContent: View {
         }
     }
 
-    /// Review the complete visible source groups before explicitly submitting.
-    private func prepareResultQuestion() {
-        guard !isSearching, resultCount > 0 else { return }
-        app.recallState.selectEvidence(meetingIDs: Set(groupedMeetings.map(\.id)),
-                                       screenIDs: Set(screenGroups.flatMap(\.matches).map(\.snapshotID)))
-        mode = .ask
-        inputFocused = true
+    /// Command-Return sends explicitly, bounded to the displayed source groups.
+    /// No matches leaves the chosen source/day scope available for a question.
+    private var answerScreenIDs: Set<Int64> {
+        Set(screenGroups.flatMap(\.matches).map(\.snapshotID)).union(pinnedScreens.map(\.snapshotID))
+    }
+
+    private var answerScopePreview: some View {
+        DisclosureGroup {
+            if resultCount > 0 {
+                Text("The answer can retrieve passages from these meetings and screen moments, including collapsed matches. It may use only the passages relevant to your question.")
+                    .workspaceTextRole(.supporting)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(groupedMeetings) { group in
+                            Text("Meeting · \(meetingTitle(group.id)) · \(meetingDate(group.id) ?? "")")
+                        }
+                        ForEach(screenGroups) { group in
+                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(group.matches.count) moments")
+                        }
+                        ForEach(pinnedScreens) { pin in
+                            Text("Attached screen · \(pin.app) · \(pin.timestamp.formatted(date: .abbreviated, time: .shortened))")
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(maxHeight: 160)
+            } else {
+                Text(meetingScope != nil || screenScope != nil
+                     ? "Ask stays within the selected evidence shown above, even when this search has no matches."
+                     : "Ask can search the selected sources within \(timeScopeLabel.lowercased()). Result-type and screen-app filters apply to search results only.")
+            }
+        } label: {
+            Text(isSearching ? "Finding sources…" : resultCount > 0
+                 ? "Answer sources: \(groupedMeetings.count) meetings · \(answerScreenIDs.count) screen moments"
+                 : "Answer sources: \(sourceSummary) · \(timeScopeLabel)")
+        }
+        .font(WorkspaceTypography.metadata)
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("ask.answerScope")
+    }
+
+    private func askAboutResults() {
+        guard !isSearching else { return }
+        if resultCount > 0 {
+            app.recallState.selectEvidence(
+                meetingIDs: Set(groupedMeetings.map(\.id)),
+                screenIDs: answerScreenIDs)
+        }
+        escalate()
     }
 
     private func submitButton(canSubmit: Bool) -> some View {
-        Button {
-            guard canSubmit else { return }
-            if mode == .ask { escalate() } else { prepareResultQuestion() }
-        } label: {
-            Label(mode == .ask ? "Ask" : "Ask about these results", systemImage: mode == .ask ? "arrow.up" : "sparkles")
+        Button(action: askAboutResults) {
+            Label(resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
                 .font(WorkspaceTypography.control)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.regular)
         .tint(Brand.teal)
-        .disabled(!canSubmit || (mode == .keyword && (isSearching || resultCount == 0)))
+        .disabled(!canSubmit || isSearching)
         .keyboardShortcut(.return, modifiers: [.command])
-        .accessibilityIdentifier(mode == .ask ? "ask.submit" : "ask.escalate")
-        .accessibilityLabel(mode == .ask ? "Ask" : "Ask about these results")
-        .help(mode == .ask
-            ? "Ask (Return or Command-Return)"
-            : "Review result scope (Command-Return)")
+        .accessibilityIdentifier("ask.submit")
+        .help("Ask using the displayed results (Command-Return)")
     }
 
     // MARK: - Ask and Search controls
@@ -328,12 +322,12 @@ private struct AskContent: View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 sourceScopeControl
-                timeScopeControl
+                dateScopeControls
                 Spacer(minLength: 8)
                 processingDestination
             }
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) { sourceScopeControl; timeScopeControl }
+                HStack(spacing: 8) { sourceScopeControl; dateScopeControls }
                     .frame(minHeight: 28)
                 processingDestination
             }
@@ -342,15 +336,8 @@ private struct AskContent: View {
         .controlSize(.small)
     }
 
-    @ViewBuilder private var processingDestination: some View {
-        if mode == .ask {
-            inferenceStatus.frame(minHeight: 28)
-        } else {
-            Label("Search stays on this Mac", systemImage: "desktopcomputer")
-                .workspaceTextRole(.supporting)
-                .frame(minHeight: 28)
-                .accessibilityIdentifier("ask.searchDestination")
-        }
+    private var processingDestination: some View {
+        inferenceStatus.frame(minHeight: 28)
     }
 
     @ViewBuilder private var selectedEvidenceControl: some View {
@@ -358,7 +345,7 @@ private struct AskContent: View {
             Button {
                 clearPinnedScreens(restoringScope: true)
                 app.recallState.clearEvidence()
-                if mode == .keyword { runSearch() }
+                runSearch()
             } label: {
                 Label("\(meetingScope.map { "\($0.count) meetings" } ?? "All meetings") · \(screenScope.map { "\($0.count) screens" } ?? "All screens")",
                       systemImage: "xmark.circle")
@@ -369,51 +356,74 @@ private struct AskContent: View {
     }
 
     private var sourceScopeControl: some View {
-        Button { sourceScopePresented.toggle() } label: {
-            Label(sourceSummary, systemImage: "square.stack.3d.up")
-        }
-        .fixedSize()
-        .help("Choose which local sources LokalBot may use")
-        .accessibilityLabel("Sources")
-        .accessibilityValue(sourceSummary)
-        .accessibilityIdentifier("ask.sources")
-        .popover(isPresented: $sourceScopePresented) { sourceScopePopover }
+        WorkspaceMenu(title: sourceSummary, label: "Sources", identifier: "ask.sources", items: sourceMenuItems)
+            .fixedSize()
+            .help("Choose sources and result filters")
     }
 
-    private var sourceScopePopover: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Sources").font(WorkspaceTypography.sectionTitle)
-            ForEach(AskSourceScope.allCases) { source in
-                Toggle(isOn: Binding(
-                    get: { sources.contains(source) },
-                    set: { _ in toggleSource(source) })) {
-                    Label(source.displayName, systemImage: source.icon)
-                }
-                .toggleStyle(.checkbox)
-                .accessibilityLabel(source.displayName)
-                .disabled(
-                    (sources.contains(source) && sources.count == 1)
-                        || (source == .screen && !pinnedScreens.isEmpty))
-            }
-            Divider()
-            Button {
-                sourceScopePresented = false
-                app.openSettings(tab: .privacy)
-            } label: {
-                Label("Manage source permissions…", systemImage: "gearshape")
-            }
+    private var sourceMenuItems: [WorkspaceMenu.Item] {
+        var items = AskSourceScope.allCases.map { source in
+            WorkspaceMenu.Item(title: source.displayName,
+                enabled: !((sources.contains(source) && sources.count == 1)
+                           || (source == .screen && !pinnedScreens.isEmpty)),
+                selected: sources.contains(source), action: { toggleSource(source) })
         }
-        .padding(16)
-        .frame(width: 280)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Source selection")
-        .background(PopoverAccessibilityLabel(label: "Source selection"))
+        items += [.separator, .init(title: "Result type", children: AskFacet.allCases.map { option in
+            .init(title: option.rawValue, selected: facet == option, action: { facet = option })
+        })]
+        if sources.contains(.screen) {
+            items.append(.init(title: "Screen app", children:
+                [.init(title: "All apps", selected: selectedScreenApp == nil, action: { selectedScreenApp = nil })]
+                + screenApps.map { name in
+                    .init(title: name, selected: selectedScreenApp == name, action: { selectedScreenApp = name })
+                }))
+        }
+        items += [.separator, .init(title: "Manage source permissions…", action: { app.openSettings(tab: .privacy) })]
+        return items
     }
 
     private var sourceSummary: String {
-        if sources == AskSourceScope.defaults { return "All sources" }
-        if let only = sources.first, sources.count == 1 { return only.displayName }
-        return "\(sources.count) sources"
+        sources == AskSourceScope.defaults ? "All sources"
+            : AskSourceScope.allCases.filter(sources.contains).map(\.displayName).joined(separator: ", ")
+    }
+
+    private var hasSearchFilters: Bool {
+        app.askDateScope != nil || facet != .all || selectedScreenApp != nil
+    }
+
+    @ViewBuilder private var activeSearchFilters: some View {
+        if facet != .all || selectedScreenApp != nil {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) { searchFilterButtons }
+                VStack(alignment: .leading, spacing: 6) { searchFilterButtons }
+            }
+            .font(WorkspaceTypography.control)
+            .controlSize(.small)
+            .accessibilityIdentifier("ask.activeFilters")
+        }
+    }
+
+    @ViewBuilder private var searchFilterButtons: some View {
+        if facet != .all {
+            Button { facet = .all } label: {
+                Label("Results: \(facet.rawValue)", systemImage: "xmark.circle")
+            }
+            .help("Clear the result-type filter")
+            .accessibilityIdentifier("ask.filter.resultType")
+        }
+        if let selectedScreenApp {
+            Button { self.selectedScreenApp = nil } label: {
+                Label("Screen app: \(selectedScreenApp)", systemImage: "xmark.circle")
+            }
+            .help("Clear the screen-app filter; it does not filter meetings or activity")
+            .accessibilityIdentifier("ask.filter.screenApp")
+        }
+    }
+
+    private func clearSearchFilters() {
+        facet = .all
+        selectedScreenApp = nil
+        app.askDateScope = nil
     }
 
     private func toggleSource(_ source: AskSourceScope) {
@@ -424,70 +434,78 @@ private struct AskContent: View {
             selection.insert(source)
         }
         app.recallState.chooseSources(selection)
+        if !selection.contains(.screen) { selectedScreenApp = nil }
+    }
+
+    private var dateScopeControls: some View {
+        HStack(spacing: 4) {
+            timeScopeControl
+            if app.askDateScope != nil {
+                Button { app.askDateScope = nil } label: { Image(systemName: "xmark.circle") }
+                    .buttonStyle(.borderless)
+                    .accessibilityLabel("Clear date filter")
+                    .accessibilityIdentifier("ask.filter.date.clear")
+            }
+        }
     }
 
     private var timeScopeControl: some View {
-        Button {
-            showingTimeScope.toggle()
-        } label: {
+        Button { showingTimeScope.toggle() } label: {
             Label(timeScopeLabel, systemImage: "calendar")
         }
         .buttonStyle(.bordered)
         .fixedSize()
-        .popover(isPresented: $showingTimeScope, arrowEdge: .bottom) {
-            timeScopePopover
-        }
-        .help("Limit every enabled source to one calendar day")
+        .popover(isPresented: $showingTimeScope, arrowEdge: .bottom) { timeScopePopover }
+        .help("One date scope for meeting, activity, and screen search and answers")
         .accessibilityIdentifier("ask.timeScope")
     }
 
     private var timeScopePopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Time scope")
-                .font(WorkspaceTypography.sectionTitle)
-            Text("Applied to Meetings, Activity, and Screen independently of source access.")
+            Text("Date scope").font(WorkspaceTypography.sectionTitle)
+            Text("Applies to search results and answers across all selected sources.")
                 .workspaceTextRole(.supporting)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Button {
-                    app.askDayScope = nil
-                    showingTimeScope = false
-                } label: {
-                    Label("Any time", systemImage: app.askDayScope == nil ? "checkmark" : "clock")
-                }
-                .buttonStyle(.bordered)
-                Button {
-                    app.askDayScope = Calendar.current.startOfDay(for: Date())
-                    showingTimeScope = false
-                } label: {
-                    Label("Today", systemImage: isTodayScoped ? "checkmark" : "sun.max")
-                }
-                .buttonStyle(.bordered)
+                datePreset("Any time", scope: nil, identifier: "any")
+                datePreset("Today", scope: AskDateScope(day: Date()), identifier: "today")
+            }
+            HStack {
+                datePreset("Yesterday", scope: Calendar.current.date(byAdding: .day, value: -1, to: Date())
+                    .map { AskDateScope(day: $0) }, identifier: "yesterday")
+                datePreset("Last 7 days", scope: .lastSevenDays(), identifier: "sevenDays")
             }
             Divider()
-            DatePicker("Specific date", selection: scopedDate, displayedComponents: .date)
-                .datePickerStyle(.compact)
-                .accessibilityIdentifier("ask.timeScope.date")
+            HStack {
+                DatePicker("Specific date", selection: scopedDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .accessibilityIdentifier("ask.timeScope.date")
+                Button("Use date") { app.askDateScope = AskDateScope(day: scopedDate.wrappedValue); showingTimeScope = false }
+                    .accessibilityIdentifier("ask.timeScope.useDate")
+            }
         }
         .padding(16)
-        .frame(width: 300)
+        .frame(width: 340)
+    }
+
+    private func datePreset(_ label: String, scope: AskDateScope?, identifier: String) -> some View {
+        Button {
+            app.askDateScope = scope
+            showingTimeScope = false
+        } label: {
+            Label(label, systemImage: app.askDateScope == scope ? "checkmark" : "calendar")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("ask.timeScope.\(identifier)")
     }
 
     private var scopedDate: Binding<Date> {
         Binding(
-            get: { app.askDayScope ?? Date() },
-            set: { app.askDayScope = Calendar.current.startOfDay(for: $0) })
+            get: { app.askDateScope.flatMap { AskDayScope.date(for: $0.firstDay) } ?? Date() },
+            set: { app.askDateScope = AskDateScope(day: $0) })
     }
 
-    private var isTodayScoped: Bool {
-        app.askDayScope.map(Calendar.current.isDateInToday) ?? false
-    }
-
-    private var timeScopeLabel: String {
-        guard let day = app.askDayScope else { return "Any time" }
-        if Calendar.current.isDateInToday(day) { return "Today" }
-        return day.formatted(date: .abbreviated, time: .omitted)
-    }
+    private var timeScopeLabel: String { app.askDateScope?.label() ?? "Any time" }
 
     private var inferenceStatus: some View {
         Button {
@@ -495,9 +513,9 @@ private struct AskContent: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: inferenceState.icon)
-                    .foregroundStyle(inferenceState.isBlocked ? Brand.error : Brand.teal)
+                    .foregroundStyle(inferenceState.isBlocked ? Brand.error : inferenceState.isRemote ? Brand.teal : .secondary)
                 Text(inferenceState.label)
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(inferenceState.isRemote || inferenceState.isBlocked ? .primary : .secondary)
             }
             .font(WorkspaceTypography.metadataEmphasis)
             .padding(.horizontal, 8)
@@ -519,108 +537,6 @@ private struct AskContent: View {
     }
 
     private var inferenceState: InferencePresentation { InferencePresentation(settings: app.settings) }
-
-    private var searchControls: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 10) {
-                searchMatchingControl
-                Divider().frame(height: 20)
-                facetControls
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 10) {
-                searchMatchingControl
-                compactFacetControl
-                Spacer(minLength: 0)
-            }
-        }
-    }
-
-    private var compactFacetControl: some View {
-        Menu {
-            ForEach(AskFacet.allCases) { candidate in
-                Button {
-                    facet = candidate
-                } label: {
-                    Label(candidate.rawValue,
-                          systemImage: facet == candidate
-                            ? "checkmark"
-                            : "line.3.horizontal.decrease")
-                }
-            }
-        } label: {
-            Label("Filter: \(facet.rawValue)",
-                  systemImage: "line.3.horizontal.decrease.circle")
-        }
-        .fixedSize()
-        .accessibilityIdentifier("ask.facet.compact")
-    }
-
-    private var searchMatchingControl: some View {
-        Picker("Search matching", selection: Binding(get: { matchByMeaning }, set: setMatchByMeaning)) {
-            Text("Words").tag(false)
-            Text("Meaning").tag(true)
-        }
-        .pickerStyle(.segmented)
-        .labelsHidden()
-        .fixedSize()
-        .help(matchByMeaning
-            ? "Match concepts even when the words differ"
-            : "Match the words you type")
-        .accessibilityIdentifier("ask.searchMatching")
-    }
-
-    private func setMatchByMeaning(_ enabled: Bool) {
-        matchByMeaning = enabled
-        if enabled && !app.settings.semanticSearchEnabled { enableSemanticIndexing() }
-        runSearch()
-    }
-
-    private var screenFilterRow: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                ForEach([ScreenSearchDateScope.today, .yesterday, .sevenDays, .any]) { scope in
-                    screenFilterChip(scope.rawValue, selected: screenDateScope == scope) {
-                        screenDateScope = scope
-                    }
-                }
-                Spacer()
-                Text("Click to rewind · pin to ask with context")
-                    .font(WorkspaceTypography.metadata)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    screenFilterChip("All apps", selected: selectedScreenApp == nil) {
-                        selectedScreenApp = nil
-                    }
-                    ForEach(screenApps, id: \.self) { appName in
-                        screenFilterChip(appName, selected: selectedScreenApp == appName) {
-                            selectedScreenApp = appName
-                        }
-                    }
-                }
-            }
-        }
-        .accessibilityIdentifier("ask.screen.filters")
-    }
-
-    private func screenFilterChip(_ text: String, selected: Bool,
-                                  action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(text)
-                .font(.system(size: 11, weight: selected ? .semibold : .regular))
-                .foregroundStyle(selected ? AnyShapeStyle(.white)
-                                          : AnyShapeStyle(.secondary))
-                .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(selected ? AnyShapeStyle(Brand.teal)
-                                     : AnyShapeStyle(.quaternary.opacity(0.45)),
-                            in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
-    }
 
     private var pinnedContextRow: some View {
         HStack(spacing: 8) {
@@ -662,52 +578,6 @@ private struct AskContent: View {
         .accessibilityIdentifier("ask.screen.context")
     }
 
-    private var facetControls: some View {
-        HStack(spacing: 10) {
-            ForEach(AskFacet.allCases) { candidate in
-                facetChip(candidate.rawValue,
-                          on: facet == candidate,
-                          id: "ask.facet.\(candidate.rawValue.lowercased())") {
-                    facet = candidate
-                }
-            }
-        }
-    }
-
-    private func facetChip(_ label: String, on: Bool, id: String,
-                           action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(WorkspaceTypography.control)
-                .foregroundStyle(on ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(on ? AnyShapeStyle(Brand.teal)
-                               : AnyShapeStyle(.quaternary.opacity(0.42)),
-                            in: Capsule())
-                .overlay {
-                    Capsule().strokeBorder(
-                        on ? Brand.teal.opacity(0.32) : Color.primary.opacity(0.09))
-                }
-                .fixedSize()
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(id)
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-
-    /// First selection of "Match by meaning" turns semantic indexing on and
-    /// kicks off the embedding backfill (which downloads the embedding model
-    /// on first use) — same behavior the old toggle had. Switching back to
-    /// exact words never turns indexing off.
-    private func enableSemanticIndexing() {
-        app.settings.semanticSearchEnabled = true
-        Task {
-            await app.embeddingIndex.reindexAll(app.meetings)
-            await app.embeddingIndex.reindexScreenText()
-        }
-    }
-
     // MARK: - Escalation
 
     /// ↵ or the pinned row: hand the query to the assistant and switch the
@@ -718,28 +588,17 @@ private struct AskContent: View {
     private func escalate() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, !model.isResponding else { return }
-        reconcilePinnedScreenScope()
-        let scope = AskEscalationScope.resolve(
-            mode: mode,
-            selectedSources: sources,
-            selectedDay: app.askDayScope)
+        let dateScope = app.askDateScope
         let contextualQuestion = ScreenAskContext.prompt(question: q, contexts: pinnedScreens)
-        let prompt: String
-        if let day = scope.dayScope {
-            prompt = "About my day on \(day.formatted(date: .long, time: .omitted)): \(contextualQuestion)"
-        } else {
-            prompt = contextualQuestion
-        }
+        let prompt = dateScope.map { "About my work on \($0.dateLabel): \(contextualQuestion)" } ?? contextualQuestion
         mode = .ask
         model.send(
             prompt,
             displayText: q,
-            sourceScopes: scope.sources,
-            dayScope: scope.dayScope,
+            sourceScopes: sources,
+            dateScope: dateScope,
             attachedScreenDates: pinnedScreens.map(\.timestamp),
             meetingIDs: meetingScope, screenSnapshotIDs: screenScope)
-        sources = scope.sources
-        app.askDayScope = scope.dayScope
         clearPinnedScreens(restoringScope: false)
         query = ""
     }
@@ -754,7 +613,7 @@ private struct AskContent: View {
     private func resetAskScope() {
         app.recallState.clearEvidence()
         app.recallState.chooseSources(AskSourceScope.defaults)
-        app.askDayScope = nil
+        app.askDateScope = nil
         pinnedScreens = []
         screenWasEnabledBeforePins = nil
         showingTimeScope = false
@@ -767,7 +626,7 @@ private struct AskContent: View {
         }
         app.recallState.selectEvidence(meetingIDs: scope.meetingIDs, screenIDs: scope.screenSnapshotIDs,
                                        sources: scope.sources)
-        app.askDayScope = scope.dayScopeKey.flatMap { AskDayScope.date(for: $0) }
+        app.askDateScope = scope.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
         pinnedScreens = []
         screenWasEnabledBeforePins = nil
         showingTimeScope = false
@@ -775,7 +634,7 @@ private struct AskContent: View {
 
     private func reconcilePinnedScreenScope() {
         guard !pinnedScreens.isEmpty else { return }
-        pinnedScreens = ScreenAskContext.withinDay(pinnedScreens, day: app.askDayScope)
+        if let dateScope = app.askDateScope { pinnedScreens = pinnedScreens.filter { dateScope.contains($0.timestamp) } }
         sources.insert(.screen)
         screenScope = Set(pinnedScreens.map(\.snapshotID))
     }
@@ -816,16 +675,16 @@ private struct AskContent: View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { LoadingStateLabel("Searching local sources…") }
-                Text("Showing \(resultCount) source \(resultCount == 1 ? "group" : "groups") · Return opens the selected result")
+                Text("Showing \(resultCount) source \(resultCount == 1 ? "group" : "groups") · Return opens · ⌘Return asks")
                     .workspaceTextRole(.metadata)
-                if matchByMeaning && !app.embeddingIndex.hasEmbeddings {
-                    Text("Meaning search is unavailable for meetings. Showing exact word matches.")
-                        .workspaceTextRole(.warning)
-                }
                 if resultCount == 0 && !isSearching {
                     noMatchesRow(sources == [.today]
                         ? "Activity totals are available in Ask. Enable Meetings or Screen to search source text."
-                        : "No results for “\(query)” in this scope.")
+                        : "No results for “\(query)” in \(sourceSummary) · \(timeScopeLabel).")
+                    if hasSearchFilters {
+                        Button("Clear search filters", action: clearSearchFilters)
+                            .accessibilityIdentifier("ask.filters.clear")
+                    }
                 }
                 ForEach(Array(groupedMeetings.enumerated()), id: \.element.id) { index, group in
                     VStack(alignment: .leading) {
@@ -865,7 +724,9 @@ private struct AskContent: View {
     private func meetingResult(_ hit: SearchIndex.Hit) -> some View {
         Button { app.openSearchHit(hit) } label: {
             ResultRow(title: meetingTitle(hit.meetingID), kind: kindLabel(hit), snippet: hit.snippet,
-                      timestamp: meetingDate(hit.meetingID)).contentShape(Rectangle())
+                      timestamp: meetingDate(hit.meetingID),
+                      matchLabel: hit.isSemantic ? "Related by meaning" : "Keyword match")
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("search.hit.\(hit.meetingID.uuidString).\(hit.kind.rawValue)")
@@ -899,22 +760,16 @@ private struct AskContent: View {
         }
     }
 
-    private var searchMeetingIDs: Set<UUID>? {
-        guard let day = app.askDayScope else { return meetingScope }
-        let dayIDs = Set(app.meetings.filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }.map(\.id))
-        return meetingScope.map { $0.intersection(dayIDs) } ?? dayIDs
-    }
-
     private func runSearch() {
         searchTask?.cancel()
-        let q = query, request = app.recallState, day = app.askDayScope
+        let q = query, request = app.recallState, dateScope = app.askDateScope
         // Never leave rows from a previous query available to Return.
         hits = []; ocrHits = []; screenGroups = []
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
             guard !Task.isCancelled else { return }
-            let result = await RecallSearch.search(q, state: request, day: day, app: app) { lexical in
+            let result = await RecallSearch.search(q, state: request, dateScope: dateScope, app: app) { lexical in
                 guard !Task.isCancelled, q == query else { return }
                 publishSearch(lexical)
             }
@@ -928,7 +783,7 @@ private struct AskContent: View {
         hits = result.meetings.flatMap(\.matches)
         screenGroups = result.screens
         ocrHits = result.screens.flatMap(\.matches)
-        screenApps = Array(Set(ocrHits.map(\.app))).sorted()
+        screenApps = Array(Set(ocrHits.map(\.app) + [selectedScreenApp].compactMap { $0 })).sorted()
         selectedResult = min(selectedResult, max(0, resultCount - 1))
     }
 
@@ -959,22 +814,11 @@ private struct AskContent: View {
                 .font(WorkspaceTypography.display)
                 .foregroundStyle(.primary)
             VStack(spacing: 10) {
-                Text("Find an answer in indexed meetings and permitted screen text, with sources. Asking is read-only.")
+                Text("Type to find meetings and screen moments. Press Return to open a result, or ⌘Return to ask about what you found.")
                     .font(WorkspaceTypography.editorialBody)
                     .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 400)
-                if inferenceState.isBlocked {
-                    Label(inferenceStatusHelp, systemImage: inferenceState.icon)
-                        .workspaceTextRole(.warning)
-                        .frame(maxWidth: 400, alignment: .leading)
-                } else {
-                    InferenceDisclosure(
-                        settings: app.settings,
-                        localText: "Answers use your local Main LLM; retrieved evidence stays on this Mac.",
-                        remoteText: "Answers use your approved remote Main LLM (\(app.settings.summarizerBackend.displayName)); retrieved evidence is sent to that server.")
-                        .frame(maxWidth: 400, alignment: .leading)
-                }
             }
             VStack(spacing: 8) {
                 ForEach(model.suggestions, id: \.self) { suggestion in
@@ -996,25 +840,6 @@ private struct AskContent: View {
         }
         .padding(24)
         .accessibilityIdentifier("chat.empty")
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var keywordEmptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: matchByMeaning ? "atom" : "magnifyingglass")
-                .font(.system(size: 32))
-                .accessibilityHidden(true)
-            Text(matchByMeaning ? "Match by meaning" : "Keyword search")
-                .font(WorkspaceTypography.display)
-                .foregroundStyle(.primary)
-            Text(matchByMeaning
-                ? "Find meetings and permitted screen text that mean what you type, even when the words differ."
-                : "Search meeting titles, transcripts, summaries, and permitted screen text without asking the model.")
-                .font(WorkspaceTypography.editorialBody)
-                .foregroundStyle(Color.primary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 

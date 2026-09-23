@@ -25,9 +25,12 @@ final class DictationSettingsUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
             .waitForExistence(timeout: 10), "main window never rendered its Today landing")
-        UITestHarness.clickSidebar("sidebar.type", in: app)
-        UITestHarness.selectSegment(
-            "Dictation", pickerIdentifier: "type.tab", in: app)
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        UITestHarness.selectSettingsCategory("Writing", in: app)
+        let dictation = app.segmentedControls["settings.writing.sections"].buttons["Dictation"]
+        XCTAssertTrue(dictation.waitForExistence(timeout: 5))
+        dictation.click()
+        UITestHarness.scrollTo(app.buttons["Try here"], in: app, within: app.scrollViews["settings.form"], attempts: 16)
         XCTAssertTrue(dictationForm.waitForExistence(timeout: 8),
                       "Dictation tab did not render")
     }
@@ -41,24 +44,24 @@ final class DictationSettingsUITests: XCTestCase {
     func testComposeByDefaultControlsRenderWithoutStartingRecording() {
         XCTAssertTrue(app.buttons["Try here"].exists)
         XCTAssertTrue(formText(containing: "never inserts into another app").exists)
-        XCTAssertTrue(app.buttons["Writing settings…"].exists)
+        XCTAssertFalse(app.buttons["Writing settings…"].exists)
         XCTAssertTrue(formText(containing: "Speech uses the meeting ASR model").exists)
         XCTAssertTrue(formText(containing: "Compose").exists)
         XCTAssertFalse(formText(containing: "Listening").exists)
     }
 
     func testEnablingGlobalShortcutRevealsPermissionRepairRows() {
-        app.buttons["Writing settings…"].click()
         let toggle = UITestHarness.toggle("Enable dictation shortcut", in: app)
         UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(toggle.waitForExistence(timeout: 4))
         toggle.click()
         XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "1" },
                       "The dictation shortcut switch must turn on before leaving settings")
-        UITestHarness.clickSidebar("sidebar.type", in: app)
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        UITestHarness.selectSettingsCategory("Writing", in: app)
+        UITestHarness.scrollTo(formText(containing: "Records your voice for the current dictation"), in: app, within: app.scrollViews["settings.form"], attempts: 16)
         XCTAssertTrue(formText(containing: "Records your voice for the current dictation").waitForExistence(timeout: 5))
         XCTAssertTrue(formText(containing: "Detects the global dictation shortcut").exists)
-        app.buttons["Writing settings…"].click()
         UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
         toggle.click()
         XCTAssertTrue(UITestHarness.waitUntil { String(describing: toggle.value ?? "") == "0" })

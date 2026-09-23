@@ -20,7 +20,7 @@ enum ModelPickerRole: String, Identifiable {
     var title: String {
         switch self {
         case .transcription: "Transcription"
-        case .assistant: "Assistant"
+        case .assistant: "Think"
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation composition"
         }
@@ -176,9 +176,9 @@ enum ModelSettingsPresentation {
             || ModelCatalog.entry(id: effective.dictationCompositionBuiltInModelID,
                                   custom: settings.customBuiltInModels) == nil {
             switch InferencePresentation(settings: effective) {
-            case .onDevice: return "Uses Assistant · On this Mac"
-            case .remote(let host): return "Uses Assistant · \(host == "openrouter.ai" ? "OpenRouter" : host)"
-            case .blocked: return "Uses Assistant · Connection blocked"
+            case .onDevice: return "Uses Think · On this Mac"
+            case .remote(let host): return "Uses Think · \(host == "openrouter.ai" ? "OpenRouter" : host)"
+            case .blocked: return "Uses Think · Connection blocked"
             }
         }
         return assistantName(effective) + " · On this Mac"
@@ -186,7 +186,7 @@ enum ModelSettingsPresentation {
 
     static func uses(of entryID: String, in settings: AppSettings) -> [String] {
         var uses: [String] = []
-        if settings.summarizerBackend == .builtIn, settings.builtInModelID == entryID { uses.append("Assistant") }
+        if settings.summarizerBackend == .builtIn, settings.builtInModelID == entryID { uses.append("Think") }
         if settings.cotypingBuiltInModelID == entryID { uses.append("Autocomplete") }
         let composition = settings.dictationCompositionTextEngineSettings
         if composition.summarizerBackend == .builtIn, composition.builtInModelID == entryID {

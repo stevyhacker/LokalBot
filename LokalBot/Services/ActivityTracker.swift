@@ -281,6 +281,7 @@ final class ActivityStore {
         var snippet: String
         var similarityGroupID: Int64?
         var captureCount: Int
+        var isSemantic = false
 
         init(snapshotID: Int64, ts: Date, app: String, windowTitle: String = "",
              snippet: String, similarityGroupID: Int64? = nil, captureCount: Int = 1) {
@@ -867,7 +868,10 @@ final class ActivityStore {
 
     /// All blocks overlapping the given day, oldest first.
     func blocks(on day: Date) -> [ActivityBlock] {
-        let interval = Self.dayInterval(containing: day)
+        blocks(in: Self.dayInterval(containing: day))
+    }
+
+    func blocks(in interval: DateInterval) -> [ActivityBlock] {
         do {
             return try requiredDatabase().queryChecked("""
                 SELECT id, app, title, start, end FROM activity_blocks

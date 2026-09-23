@@ -1,8 +1,7 @@
 import Foundation
 
 enum MeetingWorkspaceTab: String, CaseIterable, Identifiable {
-    case overview = "Overview"
-    case summary = "Full Summary"
+    case summary = "Summary"
     case transcript = "Transcript"
     case notes = "Notes"
     case review = "Review"
@@ -13,7 +12,7 @@ enum MeetingWorkspaceTab: String, CaseIterable, Identifiable {
         case .summary, .summaryMetadata, .sectionHeader(.summary), .emptyState(.summary): .summary
         case .notes, .notesLabel, .sectionHeader(.notes), .emptyState(.notes): .notes
         case .transcript, .transcriptEngine, .sectionHeader(.transcript), .emptyState(.transcript): .transcript
-        default: .overview
+        default: .summary
         }
     }
 }

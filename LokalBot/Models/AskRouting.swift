@@ -155,11 +155,15 @@ final class ScopedChatToolRunner: ChatToolRunner {
                 : "false"
         }
         if let day = dayScopeKey {
+            guard AskDateScope(storageKey: day) != nil else {
+                return ChatToolResult(text: "The selected date scope is invalid. Choose a date again.", summary: "invalid date scope")
+            }
             if ["search_meetings", "list_meetings", "get_meeting", "get_action_items",
                 "search_screen"].contains(call.name) {
                 arguments["_lokalbot_day_scope"] = day
             } else if call.name == "activity_summary" {
                 arguments["day"] = day
+                arguments["_lokalbot_day_scope"] = day
             }
         }
         if arguments != call.arguments {

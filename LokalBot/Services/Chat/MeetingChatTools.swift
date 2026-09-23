@@ -358,8 +358,7 @@ final class MeetingChatTools: ChatToolRunner {
             return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
         }
         let meetings = scopedMeetings(meetingsProvider(), call: call)
-        let hasDayScope = call.string("_lokalbot_day_scope")
-            .flatMap { Self.parseDay($0) } != nil
+        let hasDayScope = call.string("_lokalbot_day_scope") != nil
         let allowedIDs: Set<UUID>? = hasDayScope || call.string("_lokalbot_meeting_ids") != nil
             ? Set(meetings.map(\.id)) : nil
         var keyword = searchIndex.search(query, limit: 8, meetingIDs: allowedIDs)
@@ -437,9 +436,9 @@ final class MeetingChatTools: ChatToolRunner {
                 scoped = meetings
                 scopeLabel = "Selected meetings"
             } else if let dayArgument = call.string("_lokalbot_day_scope"),
-               let day = Self.parseDay(dayArgument) {
+               let scope = AskDateScope(storageKey: dayArgument) {
                 scoped = meetings
-                scopeLabel = day.formatted(date: .abbreviated, time: .omitted)
+                scopeLabel = scope.dateLabel
             } else {
                 let days = max(1, min(call.int("days") ?? 7, 90))
                 let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
@@ -463,9 +462,11 @@ final class MeetingChatTools: ChatToolRunner {
             return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
         }
         var filter: ScreenSearchFilter
-        if let dayArgument = call.string("_lokalbot_day_scope"),
-           let day = Self.parseDay(dayArgument) {
-            filter = ScreenSearchFilter(interval: ActivityStore.dayInterval(containing: day))
+        if let dayArgument = call.string("_lokalbot_day_scope") {
+            guard let interval = AskDateScope(storageKey: dayArgument)?.interval() else {
+                return ChatToolResult(text: "Invalid date scope.", summary: "invalid date scope")
+            }
+            filter = ScreenSearchFilter(interval: interval)
         } else {
             filter = .all
         }
@@ -486,18 +487,20 @@ final class MeetingChatTools: ChatToolRunner {
     }
 
     private func activitySummary(_ call: ChatToolCall) -> ChatToolResult {
-        let argument = call.string("day") ?? "today"
-        guard let day = Self.parseDay(argument) else {
-            return ChatToolResult(
-                text: "Could not understand day '\(argument)'. Use 'today', 'yesterday', or YYYY-MM-DD.",
-                summary: "bad day argument")
+        let argument = call.string("_lokalbot_day_scope") ?? call.string("day") ?? "today"
+        let scope = AskDateScope(storageKey: argument)
+            ?? (call.string("_lokalbot_day_scope") == nil ? Self.parseDay(argument).map { AskDateScope(day: $0) } : nil)
+        guard let scope, let interval = scope.interval() else {
+            return ChatToolResult(text: "Could not understand day or date scope '\(argument)'.", summary: "bad day argument")
         }
-        let blocks = activityStore.blocks(on: day)
+        let blocks = activityStore.blocks(in: interval).map {
+            ActivityBlock(id: $0.id, app: $0.app, title: $0.title,
+                          start: max($0.start, interval.start), end: min($0.end, interval.end))
+        }
         let includeMeetings = call.string("_lokalbot_include_meetings") != "false"
         let meetings = includeMeetings
-            ? scopedMeetings(meetingsProvider(), call: call).filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }
-            : []
-        let label = day.formatted(date: .abbreviated, time: .omitted)
+            ? scopedMeetings(meetingsProvider(), call: call).filter { scope.contains($0.startedAt) } : []
+        let label = scope.dateLabel
         return ChatToolResult(
             text: MeetingChatFormat.activitySummary(dayLabel: label, blocks: blocks,
                                                     meetings: meetings),
@@ -510,9 +513,9 @@ final class MeetingChatTools: ChatToolRunner {
             let ids = Set(raw.split(separator: ",").compactMap { UUID(uuidString: String($0)) })
             meetings = meetings.filter { ids.contains($0.id) }
         }
-        guard let dayArgument = call.string("_lokalbot_day_scope"),
-              let day = Self.parseDay(dayArgument) else { return meetings }
-        return meetings.filter { Calendar.current.isDate($0.startedAt, inSameDayAs: day) }
+        guard let dayArgument = call.string("_lokalbot_day_scope") else { return meetings }
+        guard let scope = AskDateScope(storageKey: dayArgument) else { return [] }
+        return meetings.filter { scope.contains($0.startedAt) }
     }
 
     /// 'today' / 'yesterday' / ISO date (YYYY-MM-DD) → a Date inside that day.

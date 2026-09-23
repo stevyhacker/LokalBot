@@ -87,7 +87,7 @@ struct MemoryHealthSection: View {
 
             if let error = activeError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                    .font(WorkspaceTypography.editorialBody)
                     .foregroundStyle(Brand.error)
                     .textSelection(.enabled)
             }
@@ -97,11 +97,11 @@ struct MemoryHealthSection: View {
                 Button("Run retention now") { app.screenshots.pruneOldScreenshots() }
                 Spacer()
                 Text("Updates every 2 seconds")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
             }
             Text("Meeting recording and autocomplete generation take priority over OCR, embeddings, and routines. Automatic background work catches up when those interactive tasks are idle.")
-                .font(.caption)
+                .font(WorkspaceTypography.editorialBody)
                 .foregroundStyle(.secondary)
         }
         .task {
@@ -190,8 +190,8 @@ struct MemoryHealthSection: View {
                     .foregroundStyle(.secondary)
                 if let detail, !detail.isEmpty {
                     Text(detail)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .font(WorkspaceTypography.metadata)
+                        .settingsSecondary()
                 }
             }
         } label: {

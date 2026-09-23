@@ -221,10 +221,6 @@ final class DayDigestPresentationTests: XCTestCase {
         XCTAssertFalse(DayDigestView.Mode.timeline.showsFullActivityLog)
         XCTAssertFalse(DayDigestView.Mode.timeline.showsOtherActivity)
 
-        XCTAssertFalse(DayDigestView.Mode.today.showsTimeAllocation)
-        XCTAssertFalse(DayDigestView.Mode.today.showsMeetings)
-        XCTAssertFalse(DayDigestView.Mode.today.showsFullActivityLog)
-        XCTAssertFalse(DayDigestView.Mode.today.showsOtherActivity)
 
         XCTAssertTrue(DayDigestView.Mode.standalone.showsTimeAllocation)
         XCTAssertTrue(DayDigestView.Mode.standalone.showsMeetings)

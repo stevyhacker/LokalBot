@@ -103,7 +103,7 @@ struct ModelPickerSheet: View {
         case .transcription: transcription == .graniteSpeech ? granite.displayName : transcription.displayName
         case .assistant: ModelSettingsPresentation.assistantName(patch.applying(to: app.settings))
         case .autocomplete: selectedEntry?.displayName ?? selectedID
-        case .dictation: selectedID.isEmpty ? "Assistant for dictation" : selectedEntry?.displayName ?? selectedID
+        case .dictation: selectedID.isEmpty ? "Think for dictation" : selectedEntry?.displayName ?? selectedID
         }
     }
 
@@ -190,7 +190,7 @@ struct ModelPickerSheet: View {
             .padding(.horizontal, 24).padding(.bottom, 12)
             List(selection: selection) {
                 if role == .dictation, query.isEmpty {
-                    ModelChoiceRow(title: "Use Assistant", detail: ModelSettingsPresentation.destination(app.settings),
+                    ModelChoiceRow(title: "Use Think", detail: ModelSettingsPresentation.destination(app.settings),
                                    inUse: app.settings.dictationCompositionBuiltInModelID.isEmpty,
                                    available: true, progress: nil)
                         .tag("")
@@ -263,7 +263,7 @@ struct ModelPickerSheet: View {
     private var selectionDetails: some View {
         VStack(alignment: .leading, spacing: 9) {
             Text(role == .transcription ? transcription.blurb
-                 : selectedEntry?.blurb ?? "Uses the same model and processing destination as Assistant.")
+                 : selectedEntry?.blurb ?? "Uses the same model and processing destination as Think.")
                 .font(.system(size: 13)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let entry = selectedEntry, role != .transcription {

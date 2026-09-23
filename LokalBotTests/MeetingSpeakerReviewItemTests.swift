@@ -63,6 +63,32 @@ final class MeetingSpeakerReviewItemTests: XCTestCase {
         XCTAssertNotEqual(items[0].id, items[1].id)
     }
 
+    func testContentQualityBeatsLongFillerAndReturnsNoMisleadingSample() {
+        let segments: [Transcript.Segment] = [
+            .init(start: 0, end: 20, speaker: "them", text: "Okay."),
+            .init(start: 20, end: 26, speaker: "them", text: "I will review the redemption queue after this call."),
+            .init(start: 26, end: 40, speaker: "them", text: String(repeating: "uh ", count: 30)),
+        ]
+        XCTAssertEqual(MeetingSpeakerReviewItem.bestSample(in: segments)?.start, 20)
+        XCTAssertNil(MeetingSpeakerReviewItem.bestSample(in: [segments[0], segments[2]]))
+    }
+
+    func testActionLinkedSpeakersComeFirstWithoutGuessingAnOwner() {
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "them 1", text: "Discuss the release."),
+            .init(start: 5, end: 10, speaker: "them 2", text: "Please review the queue."),
+            .init(start: 10, end: 15, speaker: "them 3", text: "We should follow up."),
+        ], engine: "fixture")
+        let citation = OutcomeSourceCitation(segmentID: "5", start: 5, end: 10,
+                                             speaker: "them 2", excerpt: "Please review the queue.")
+        let action = MeetingOutcomes.ActionItem(text: "Review queue", citations: [citation])
+        let ranked = MeetingSpeakerReviewItem.prioritized(MeetingSpeakerReviewItem.items(in: transcript), actions: [action])
+        XCTAssertEqual(ranked.map(\.id), ["them 2", "them 1", "them 3"])
+        XCTAssertEqual(ranked.map(\.actionCount), [1, 0, 0])
+        XCTAssertTrue(ranked.allSatisfy { !$0.isNamed })
+        XCTAssertNil(action.owner)
+    }
+
     func testMalformedExcerptCannotBePlayedAndEmptyTranscriptHasNoRows() {
         let transcript = Transcript(segments: [
             .init(start: .nan, end: 10, speaker: "them", text: "Invalid timestamp."),

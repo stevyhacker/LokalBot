@@ -77,6 +77,6 @@ struct ModelChecksSheet: View {
     private var disclosure: String {
         InferencePresentation(settings: app.settings).detail(
             local: "Sample audio and text are processed on this Mac. No meeting, screen, or clipboard content is used.",
-            remote: "Assistant sends a short sample prompt to your approved server. Transcription and autocomplete are checked on this Mac.")
+            remote: "Think sends a short sample prompt to your approved server. Transcription and autocomplete are checked on this Mac.")
     }
 }

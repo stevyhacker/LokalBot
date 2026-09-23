@@ -29,6 +29,9 @@ struct MeetingSpeakerReviewSection: View {
                     if let sample = speaker.sample {
                         Text(sample.text).font(WorkspaceTypography.body)
                             .lineLimit(3).textSelection(.enabled)
+                    } else {
+                        Text("No clear voice excerpt available. Review the transcript before assigning a name.")
+                            .workspaceTextRole(.supporting)
                     }
                 }
                 .padding(.vertical, 8)
@@ -46,6 +49,10 @@ struct MeetingSpeakerReviewSection: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(speaker.name).font(WorkspaceTypography.bodyEmphasis)
             Text(speaker.status).workspaceTextRole(.supporting)
+            if speaker.actionCount > 0 {
+                Text("Linked to \(speaker.actionCount) action\(speaker.actionCount == 1 ? "" : "s")")
+                    .workspaceTextRole(.supporting)
+            }
         }
     }
 

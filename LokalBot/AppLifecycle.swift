@@ -246,7 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let raw = env["LOKALBOT_INITIAL_SECTION"],
            let section = AppState.NavSection(captureName: raw) {
             app.navSection = section
-            if let tab = AppState.TypeTab(captureName: raw) { app.typeTab = tab }
+            if let tab = AppState.TypeTab(captureName: raw) { app.openType(tab) }
+            if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
             if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
         }
         applyCaptureMeetingSelection(to: app, environment: env)
@@ -271,6 +272,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if env["LOKALBOT_INITIAL_ACTIONS"] == "1" { app.openActions() }
         if env["LOKALBOT_INITIAL_ASK_MODE"] == "search" { app.askMode = .keyword }
+        #if LOKALBOT_UI_TEST_HOST
+        if let key = env["LOKALBOT_INITIAL_ASK_DATE"] { app.askDateScope = AskDateScope(storageKey: key) }
+        if let raw = env["LOKALBOT_INITIAL_ASK_FACET"], let facet = AskFacet(rawValue: raw) { app.recallState.facet = facet }
+        app.recallState.screenApp = env["LOKALBOT_INITIAL_ASK_SCREEN_APP"]
+        #endif
         if env["LOKALBOT_SHOW_GETTING_STARTED"] == "1" {
             UserDefaults.standard.set(false, forKey: "lokalbotv3.gettingStartedDismissed")
         }
