@@ -18,7 +18,8 @@ struct TodayView: View {
                 UpcomingMeetingSection(model: upcomingMeeting)
                 NeedsAttentionSection(
                     threads: app.outcomeIndex.openUserActionThreads,
-                    limit: 3)
+                    limit: 3,
+                    showsPlanInAgent: true)
                 WorkspaceSection(title: "Day digest", icon: "sparkles") {
                     DayDigestCard(model: model, yesterday: dream, identifier: "today")
                     Button("Open timeline") { app.navSection = .timeline }
@@ -86,29 +87,6 @@ struct TodayView: View {
                     .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             }
             Spacer()
-            Menu {
-                Button("Plan open actions in Agent") {
-                    let threads = app.outcomeIndex.openUserActionThreads
-                    let lines = threads.prefix(8).map { thread in
-                        let sources = thread.meetingCount == 1
-                            ? "" : " (mentioned in \(thread.meetingCount) meetings)"
-                        return "- \(thread.text)\(sources)"
-                    }
-                    app.openAgent(.init(
-                        title: "Today's action threads",
-                        prompt: "Help me plan today's open meeting action threads:\n"
-                            + lines.joined(separator: "\n"),
-                        meetingID: threads.first?.latestReference.meetingID,
-                        actionID: threads.first?.latestReference.action.id))
-                }
-                .disabled(app.outcomeIndex.openUserActionThreads.isEmpty)
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityLabel("More Today actions")
-            .help("More Today actions")
         }
     }
 
@@ -123,7 +101,8 @@ struct TodayView: View {
 
     // MARK: Now
 
-    /// Recording status; the title bar owns the recording control.
+    /// Live recording status; the title bar owns the recording control, so an
+    /// idle Today shows nothing here.
     @ViewBuilder private var nowCard: some View {
         if let live = app.currentMeeting {
             HeroPanel(radius: Brand.Radius.panel) {
@@ -144,12 +123,6 @@ struct TodayView: View {
                         .primaryActionButton()
                     }
                 }
-            }
-        } else {
-            HStack(spacing: 10) {
-                Label("Nothing recording right now", systemImage: "record.circle")
-                    .font(WorkspaceTypography.body).foregroundStyle(.secondary)
-                Spacer()
             }
         }
     }

@@ -115,8 +115,9 @@ private struct UpcomingMeetingCard: View {
     }
 
     var body: some View {
+        // The meeting row above already shows the title, time, people, and
+        // Join/Record, so preparation context starts with the brief.
         VStack(alignment: .leading, spacing: 13) {
-            header
             brief
             primaryContext
             if extraContextCount > 0 {
@@ -136,59 +137,6 @@ private struct UpcomingMeetingCard: View {
                 .strokeBorder(Brand.teal.opacity(0.18)))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.upcomingMeeting")
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            IconTile(systemImage: "calendar.badge.clock", tint: Brand.tealFill, size: 42)
-            VStack(alignment: .leading, spacing: 4) {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text(event.startDate <= context.date ? "In progress" : "Up next")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Brand.teal)
-                }
-                Text(event.title)
-                    .font(.title3.bold())
-                    .textSelection(.enabled)
-                    .accessibilityIdentifier("today.upcomingMeeting.title")
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text(UpcomingMeetingPresentation.timeLabel(event: event, now: context.date))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                if let participants = UpcomingMeetingPresentation.participantLabel(event) {
-                    Label(participants, systemImage: "person.2")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 12)
-            actions
-        }
-    }
-
-    private var actions: some View {
-        HStack(spacing: 8) {
-            if let meetingURL = event.meetingURL {
-                Link(destination: meetingURL) {
-                    Label("Join", systemImage: "video")
-                }
-                .primaryActionButton()
-                .accessibilityIdentifier("today.upcomingMeeting.join")
-            }
-            Button {
-                app.startRecording(
-                    context: app.recordingContext(for: event),
-                    source: "today-upcoming")
-            } label: {
-                Label(app.isRecording ? "Recording" : "Record", systemImage: "record.circle")
-            }
-            .buttonStyle(.bordered)
-            .disabled(app.isRecording)
-            .accessibilityIdentifier("today.upcomingMeeting.record")
-        }
-        .controlSize(.regular)
     }
 
     private var brief: some View {
