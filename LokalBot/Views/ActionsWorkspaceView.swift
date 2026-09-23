@@ -218,7 +218,7 @@ struct ActionsWorkspaceView: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text(reference.text).font(WorkspaceTypography.sectionTitle).textSelection(.enabled)
                 Text(reference.meetingTitle).foregroundStyle(.secondary)
-                LabeledContent("Owner", value: reference.owner ?? "Not stated")
+                LabeledContent("Owner", value: reference.owner.map(SpeakerDisplayName.label) ?? "Not stated")
                 if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.meetingStartedAt)) }
                 Button("Correct action or resolve date…") { correction = reference }
                 Divider()

@@ -689,7 +689,7 @@ private struct MeetingWorkspaceDetail: View {
                     ForEach(actions) { reference in
                         OutcomeActionRow(
                             reference: reference,
-                            displayOwner: reference.owner.map { speakerNames.text($0) },
+                            displayOwner: reference.owner.map { speakerNames.owner($0) },
                             searchQuery: visibleSearchQuery,
                             activeMatch: activeSearchMatch,
                             onStatus: { status in
@@ -898,7 +898,7 @@ private struct MeetingWorkspaceDetail: View {
                     let id = reference.action.id
                     append(reference.text, at: .action(id: id, field: .text))
                     append(
-                        reference.owner.map { speakerNames.text($0) } ?? "Owner unclear",
+                        reference.owner.map { speakerNames.owner($0) } ?? "Owner unclear",
                         at: .action(id: id, field: .owner))
                     append(reference.due, at: .action(id: id, field: .due))
                     if let citation = reference.action.citations.first {
@@ -1757,8 +1757,8 @@ private struct ActionCorrectionSheet: View {
             HStack {
                 Text("Owner")
                 Spacer()
-                Menu(draft.owner.isEmpty ? "Unassigned" : draft.owner) {
-                    Button("Me") { draft.owner = "Me" }
+                Menu(draft.owner.isEmpty ? "Unassigned" : SpeakerDisplayName.label(draft.owner)) {
+                    Button("You") { draft.owner = "Me" }
                     ForEach(Array(Set(ownerSuggestions)).sorted(), id: \.self) { owner in
                         Button(owner) { draft.owner = owner }
                     }

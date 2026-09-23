@@ -286,7 +286,7 @@ private struct UpcomingMeetingCard: View {
     private func referenceRow(title: String, icon: String,
                               reference: UpcomingMeetingReference) -> some View {
         var metadata: [String] = []
-        if let owner = reference.owner, !owner.isEmpty { metadata.append(owner) }
+        if let owner = reference.owner, !owner.isEmpty { metadata.append(SpeakerDisplayName.label(owner)) }
         if let due = reference.due, !due.isEmpty { metadata.append("due \(due)") }
         if reference.sourceMeetingCount > 1 {
             metadata.append("\(reference.sourceMeetingCount) meetings")

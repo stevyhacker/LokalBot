@@ -755,7 +755,7 @@ private struct AskContent: View {
         switch hit.kind {
         case .title: "Title"
         case .summary: "Summary"
-        case .segment: "▶ \(Transcript.stamp(hit.start))\(hit.speaker.isEmpty ? "" : " · \(hit.speaker)")"
+        case .segment: "▶ \(Transcript.stamp(hit.start))\(hit.speaker.isEmpty ? "" : " · \(SpeakerDisplayName.label(hit.speaker))")"
         }
     }
 

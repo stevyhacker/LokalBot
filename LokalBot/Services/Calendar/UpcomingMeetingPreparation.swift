@@ -109,7 +109,7 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         }
         if let commitment = commitments.first {
             var detail = sentence(commitment.text)
-            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(owner)." }
+            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(SpeakerDisplayName.label(owner))." }
             if let due = nonEmpty(commitment.due) { detail += " Due: \(due)." }
             sentences.append("Commitment to revisit: \(detail)")
         }

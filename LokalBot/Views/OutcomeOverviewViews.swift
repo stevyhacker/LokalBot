@@ -226,7 +226,7 @@ private struct ActionThreadSourcesView: View {
                             }
                             HStack(spacing: 6) {
                                 if let owner = reference.owner {
-                                    Text("Owner: \(owner)")
+                                    Text("Owner: \(SpeakerDisplayName.label(owner))")
                                 }
                                 if let due = reference.due {
                                     Text("Due: \(due)")
