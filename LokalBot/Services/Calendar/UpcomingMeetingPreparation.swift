@@ -600,7 +600,7 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
         guard UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
             settings: app.settings) else {
             generationErrors[evidence.signature] =
-                "Choose an on-device Main LLM to generate this brief."
+                "Choose an on-device Think model to generate this brief."
             return
         }
 

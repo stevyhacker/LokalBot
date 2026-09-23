@@ -107,7 +107,7 @@ enum TextEngineError: LocalizedError, Sendable {
         case .httpStatus(let code, let detail, _):
             "LLM server returned HTTP \(code): \(detail)"
         case .noModel:
-            "No model selected for the Main LLM engine. Pick one in Settings → Models."
+            "No Think model is selected. Pick one in Settings → Models."
         case .unavailable(let detail):
             detail
         }

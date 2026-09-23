@@ -268,7 +268,7 @@ actor ParakeetEngine: TranscriptionEngine {
             ? "Parakeet TDT 0.6B v3" : "Parakeet TDT 0.6B v2"
         let estimatedBytes = ModelRuntimeRegistry.gibibytes(0.6)
         await ModelRuntimeRegistry.shared.reserve(
-            id: runtimeID, role: "Transcription", label: runtimeLabel,
+            id: runtimeID, role: "Transcribe", label: runtimeLabel,
             estimatedBytes: estimatedBytes)
         do {
             let models = try await AsrModels.downloadAndLoad(
@@ -280,7 +280,7 @@ actor ParakeetEngine: TranscriptionEngine {
             try await m.loadModels(models)
             manager = m
             await ModelRuntimeRegistry.shared.register(
-                id: runtimeID, role: "Transcription", label: runtimeLabel,
+                id: runtimeID, role: "Transcribe", label: runtimeLabel,
                 estimatedBytes: estimatedBytes)
         } catch {
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
@@ -407,7 +407,7 @@ actor WhisperEngine: TranscriptionEngine {
         let runtimeID = "transcription:whisper-large-v3-turbo"
         let estimatedBytes = ModelRuntimeRegistry.gibibytes(1.6)
         await ModelRuntimeRegistry.shared.reserve(
-            id: runtimeID, role: "Transcription", label: "Whisper large-v3 turbo",
+            id: runtimeID, role: "Transcribe", label: "Whisper large-v3 turbo",
             estimatedBytes: estimatedBytes)
         do {
             let environment = TranscriptionModelStore.Environment.live
@@ -436,7 +436,7 @@ actor WhisperEngine: TranscriptionEngine {
                 modelFolder: modelFolder.path(percentEncoded: false),
                 download: false))
             await ModelRuntimeRegistry.shared.register(
-                id: runtimeID, role: "Transcription", label: "Whisper large-v3 turbo",
+                id: runtimeID, role: "Transcribe", label: "Whisper large-v3 turbo",
                 estimatedBytes: estimatedBytes)
         } catch {
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
@@ -517,7 +517,7 @@ actor CohereEngine: TranscriptionEngine {
         let runtimeID = "transcription:cohere"
         let estimatedBytes = ModelRuntimeRegistry.gibibytes(2.1)
         await ModelRuntimeRegistry.shared.reserve(
-            id: runtimeID, role: "Transcription", label: "Cohere Transcribe",
+            id: runtimeID, role: "Transcribe", label: "Cohere Transcribe",
             estimatedBytes: estimatedBytes)
         do {
             let base = AppDirectories.fluidAudioRoot
@@ -534,7 +534,7 @@ actor CohereEngine: TranscriptionEngine {
             models = try await CoherePipeline.loadModels(
                 encoderDir: repoDir, decoderDir: repoDir, vocabDir: repoDir)
             await ModelRuntimeRegistry.shared.register(
-                id: runtimeID, role: "Transcription", label: "Cohere Transcribe",
+                id: runtimeID, role: "Transcribe", label: "Cohere Transcribe",
                 estimatedBytes: estimatedBytes)
         } catch {
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)

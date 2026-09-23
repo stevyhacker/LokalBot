@@ -80,11 +80,11 @@ actor GraniteTurboEngine: TranscriptionEngine {
         report(.init(fractionCompleted: nil, status: "Loading English fast mode..."), to: progress)
         let estimatedBytes = ModelRuntimeRegistry.gibibytes(1.4)
         await ModelRuntimeRegistry.shared.reserve(
-            id: Self.runtimeID, role: "Transcription", label: displayName, estimatedBytes: estimatedBytes)
+            id: Self.runtimeID, role: "Transcribe", label: displayName, estimatedBytes: estimatedBytes)
         do {
             model = try GraniteTurboModel(directory: directory)
             await ModelRuntimeRegistry.shared.register(
-                id: Self.runtimeID, role: "Transcription", label: displayName, estimatedBytes: estimatedBytes)
+                id: Self.runtimeID, role: "Transcribe", label: displayName, estimatedBytes: estimatedBytes)
         } catch {
             await ModelRuntimeRegistry.shared.unregister(id: Self.runtimeID)
             throw error

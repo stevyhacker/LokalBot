@@ -19,7 +19,7 @@ enum ModelPickerRole: String, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .transcription: "Transcription"
+        case .transcription: "Transcribe"
         case .assistant: "Think"
         case .autocomplete: "Autocomplete"
         case .dictation: "Dictation composition"

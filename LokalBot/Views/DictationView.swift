@@ -76,7 +76,7 @@ struct DictationView: View {
 
     private var modelSection: some View {
         Section("Model") {
-            LabeledContent("Transcription") {
+            LabeledContent("Transcribe model") {
                 Text(operation.transcriptionModelDisplayName)
                     .foregroundStyle(.secondary)
             }
@@ -93,8 +93,8 @@ struct DictationView: View {
             // case reads as a first-class notice, not caption fine print.
             InferenceDisclosure(
                 settings: operation.dictationCompositionTextEngineSettings,
-                localText: "Speech uses the meeting ASR model; final wording uses your configured local composition model and writing profile. Everything stays on this Mac.",
-                remoteText: "Final wording uses your approved remote Main LLM (\(operation.summarizerBackend.displayName)). What you dictate — and any screen context it composes with — is sent to that server.")
+                localText: "Speech uses the meeting ASR model; final wording uses your local composition model and writing profile. Everything stays on this Mac.",
+                remoteText: "Final wording uses your approved remote Think model (\(operation.summarizerBackend.displayName)). What you dictate — and any screen context it composes with — is sent to that server.")
                 .accessibilityIdentifier("dictation.remoteNotice")
             } else {
                 Label("Speech recognition runs on this Mac. No screen context or rewrite model is used.", systemImage: "desktopcomputer")

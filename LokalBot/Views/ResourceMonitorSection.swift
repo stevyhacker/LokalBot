@@ -277,10 +277,10 @@ enum ResourceMonitorPresentation {
 
     private static func role(for residencyID: String) -> String {
         switch residencyID {
-        case "llama-server:17872": "Main LLM"
+        case "llama-server:17872": "Think"
         case "llama-server:17873": "Embeddings"
         case "llama-server:17874", "cotyping-in-process": "Autocomplete"
-        case "llama-server:17875": "Transcription"
+        case "llama-server:17875": "Transcribe"
         default: "Local model"
         }
     }

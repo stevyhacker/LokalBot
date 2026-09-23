@@ -192,7 +192,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
             let runtimeID = "transcription:onnx:\(model.modelType):\(UUID().uuidString)"
             let estimatedBytes = ModelRuntimeRegistry.fileBytes(at: modelFile)
             await ModelRuntimeRegistry.shared.reserve(
-                id: runtimeID, role: "Transcription", label: model.displayName,
+                id: runtimeID, role: "Transcribe", label: model.displayName,
                 estimatedBytes: estimatedBytes)
             do {
                 // Cancellation can arrive while the MainActor reservation call
@@ -215,7 +215,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                 let processUsage = SystemResourceSampler.processUsage(for: process.processIdentifier)
                 await ModelRuntimeRegistry.shared.register(
                     id: runtimeID,
-                    role: "Transcription",
+                    role: "Transcribe",
                     label: model.displayName,
                     estimatedBytes: estimatedBytes,
                     processIdentifier: processUsage?.processIdentifier,

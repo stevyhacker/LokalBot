@@ -212,7 +212,7 @@ private struct UpcomingMeetingCard: View {
                         model.generatingSignature != nil
                             || !UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
                                 settings: app.settings))
-                    .help("Generate from these sources using the Main LLM on this Mac")
+                    .help("Generate from these sources using the Think model on this Mac")
                     .accessibilityIdentifier("today.upcomingMeeting.generateBrief")
                 }
             }

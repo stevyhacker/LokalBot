@@ -81,7 +81,7 @@ struct ModelDownloadsView: View {
                 }
             }
             if !transcriptionChoices.isEmpty {
-                sectionTitle("Transcription")
+                sectionTitle("Transcribe")
                 VStack(spacing: 0) {
                     ForEach(transcriptionChoices) { choice in
                         transcriptionRow(choice)

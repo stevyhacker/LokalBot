@@ -176,7 +176,7 @@ struct ModelStackOverviewView: View {
             .frame(minWidth: 84)
             .disabled(setup.pending != nil)
             .accessibilityIdentifier("models.stack.change.\(role == .autocomplete ? "type" : role.rawValue)")
-            .accessibilityLabel("Change \(role.settingsTitle.lowercased()) model")
+            .accessibilityLabel("Change \(role.settingsTitle) model")
     }
 
     private func supportingRow(_ title: String, icon: String, value: String,

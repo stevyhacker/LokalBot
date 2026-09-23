@@ -41,7 +41,7 @@ struct ModelPresetSheet: View {
                         Text("After applying")
                     }
                     .font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
-                    previewRow("Transcription", before: app.settings.transcriptionModelDisplayName,
+                    previewRow("Transcribe", before: app.settings.transcriptionModelDisplayName,
                                after: selected.transcription.displayName)
                     previewRow("Think", before: ModelSettingsPresentation.assistantName(app.settings),
                                after: ModelSettingsPresentation.assistantName(target))

@@ -142,7 +142,7 @@ final class AgentAccessManager: ObservableObject {
             }
             return .model(modelURL)
         case .ready:
-            return .failure("The Main LLM is set to an external server; ask_library answers with LokalBot's built-in engine. Pick a built-in model in LokalBot → Settings → Models.")
+            return .failure("The Think model is set to an external server; ask_library answers with LokalBot's built-in engine. Pick a built-in model in LokalBot → Settings → Models.")
         case .unsupported(let reason):
             return .failure(reason)
         }

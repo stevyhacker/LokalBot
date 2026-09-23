@@ -62,7 +62,7 @@ actor QwenASREngine: TranscriptionEngine {
         let estimatedBytes = ModelRuntimeRegistry.gibibytes(
             variant == .accuracy ? 3.2 : 0.7)
         await ModelRuntimeRegistry.shared.reserve(
-            id: runtimeID, role: "Transcription", label: variant.displayName,
+            id: runtimeID, role: "Transcribe", label: variant.displayName,
             estimatedBytes: estimatedBytes)
         do {
             let cacheDir = try Self.cacheDir(for: variant)
@@ -78,7 +78,7 @@ actor QwenASREngine: TranscriptionEngine {
                 }
             }
             await ModelRuntimeRegistry.shared.register(
-                id: runtimeID, role: "Transcription", label: variant.displayName,
+                id: runtimeID, role: "Transcribe", label: variant.displayName,
                 estimatedBytes: estimatedBytes)
         } catch {
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
