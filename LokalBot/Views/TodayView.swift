@@ -12,7 +12,7 @@ struct TodayView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
+            VStack(alignment: .leading, spacing: 32) {
                 header
                 nowCard
                 UpcomingMeetingSection(model: upcomingMeeting)
@@ -20,14 +20,12 @@ struct TodayView: View {
                     threads: app.outcomeIndex.openUserActionThreads,
                     limit: 3,
                     showsPlanInAgent: true)
-                WorkspaceSection(title: "Day digest", icon: "sparkles") {
-                    DayDigestCard(model: model, yesterday: dream, identifier: "today")
-                    Button("Open timeline") { app.navSection = .timeline }
-                        .buttonStyle(.workspaceLink)
-                }
+                digestSection
+                if let dream { previousDayCard(dream) }
             }
-            .padding(WorkspaceMetric.pagePadding)
-            .frame(maxWidth: 900, alignment: .leading)
+            .padding(.horizontal, 36)
+            .padding(.vertical, 32)
+            .frame(maxWidth: WorkspaceMetric.todayMaxWidth, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .navigationTitle("Today")
@@ -78,8 +76,8 @@ struct TodayView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("Today")
                     .font(WorkspaceTypography.display)
                     .accessibilityIdentifier("today.header")
@@ -87,7 +85,55 @@ struct TodayView: View {
                     .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             }
             Spacer()
+            Button { app.navSection = .timeline } label: {
+                Label("Open timeline", systemImage: "calendar.day.timeline.left")
+            }
+            .buttonStyle(.workspaceLink)
+            .font(WorkspaceTypography.control)
         }
+    }
+
+    // MARK: Digest
+
+    /// The digest is the page's main content, so it sits directly on the
+    /// canvas instead of inside a panel; its sessions carry their own cards.
+    private var digestSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: 12) {
+                    digestTitle
+                    Spacer(minLength: 12)
+                    DayDigestControls(model: model, identifier: "today").fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    digestTitle
+                    DayDigestControls(model: model, identifier: "today")
+                }
+            }
+            Divider()
+            DayDigestCard(model: model, identifier: "today", showsControls: false, mode: .today)
+        }
+    }
+
+    private var digestTitle: some View {
+        HStack(spacing: 10) {
+            IconTile(systemImage: "sparkles", tint: Brand.tealFill, size: 28)
+                .accessibilityHidden(true)
+            Text("Day digest").font(WorkspaceTypography.sectionTitle)
+        }
+    }
+
+    private func previousDayCard(_ report: DreamReport) -> some View {
+        YesterdayDigestLine(report: report, day: model.day)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.quaternary.opacity(0.24),
+                        in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
+            .overlay {
+                RoundedRectangle(cornerRadius: Brand.Radius.panel)
+                    .strokeBorder(Color.primary.opacity(0.09))
+            }
     }
 
     // Keep the previous-workday summary anchored to the selected date.

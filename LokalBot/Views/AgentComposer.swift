@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 struct AgentComposer: View {
     @EnvironmentObject private var app: AppState
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
@@ -49,11 +48,7 @@ struct AgentComposer: View {
                     }
                 }
                 .padding(14)
-                .background(AgentPalette.composer(for: colorScheme), in: RoundedRectangle(cornerRadius: 16))
-                .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(
-                    focused ? Brand.teal : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
-                    lineWidth: focused || contrast == .increased ? 1.5 : 1))
-                .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
+                .composerChrome(focused: focused)
                 .dropDestination(for: URL.self) { urls, _ in
                     for url in urls where url.isFileURL { controller.addAttachment(.file(url)) }
                     return urls.contains(where: \.isFileURL)

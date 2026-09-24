@@ -3,8 +3,10 @@ import SwiftUI
 struct DictationSettingsControls: View {
     @EnvironmentObject private var app: AppState
 
+    /// Separate Form rows, so each control gets the same row rhythm and
+    /// dividers as the rest of Settings.
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        Group {
             Toggle("Enable dictation shortcut", isOn: $app.settings.dictationEnabled)
                 .accessibilityLabel("Enable dictation shortcut")
                 .accessibilityIdentifier("settings.dictationEnabled")

@@ -119,7 +119,7 @@ struct OnboardingView: View {
             Text("Grant only what you need now. You can finish setup with missing permissions and enable the corresponding feature later.")
                 .workspaceTextRole(.trust)
             ForEach(relevantPermissions, id: \.self) { permission in
-                PermissionRow(permission: permission)
+                PermissionRow(permission: permission, prominentRationale: true)
             }
             if newlyGrantedRestartPermission {
                 Text("A newly granted permission may require a relaunch. Finish setup first; relaunch from Settings if the feature remains unavailable.")

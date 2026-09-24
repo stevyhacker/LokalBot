@@ -14,8 +14,12 @@ struct DayDigestView: View {
     enum Mode: Equatable {
         case standalone
         case timeline
+        /// Timeline's content on a wide page: sessions become a card grid and
+        /// prose keeps a reading width.
+        case today
 
         var showsMeetings: Bool { self == .standalone }
+        var arrangesSessionsInGrid: Bool { self == .today }
         var showsTimeAllocation: Bool { self == .standalone }
         var showsFullActivityLog: Bool { self == .standalone }
         var showsOtherActivity: Bool { self == .standalone }
@@ -28,6 +32,7 @@ struct DayDigestView: View {
     @State private var extraFocusExpanded = false
     @State private var otherActivityExpanded = false
     @State private var timeAllocationExpanded = false
+    @State private var sessionGridWidth: CGFloat = 0
 
     init(_ markdown: String, mode: Mode = .standalone) {
         presentation = DayDigestPresentation(markdown: markdown)
@@ -43,12 +48,14 @@ struct DayDigestView: View {
             if let decisions = presentation.decisionsMarkdown {
                 digestSection("Decisions and next steps", icon: "checklist") {
                     SelectableDigestText(decisions)
+                        .frame(maxWidth: proseMaxWidth, alignment: .leading)
                 }
             }
 
             if !presentation.atAGlanceMarkdown.isEmpty {
                 digestSection("Highlights", icon: "sparkles") {
                     SelectableDigestText(presentation.atAGlanceMarkdown)
+                        .frame(maxWidth: proseMaxWidth, alignment: .leading)
                 }
             }
 
@@ -62,23 +69,27 @@ struct DayDigestView: View {
                             .accessibilityIdentifier("dayDigest.tasks")
                     }
                     .foregroundStyle(.primary)
-                    VStack(alignment: .leading, spacing: 8) {
-                        sessionList(presentation.initialFocusBlocks, prominent: true)
-                        let additional = presentation.collapsibleFocusBlocks
-                        if !additional.isEmpty {
-                            DisclosureGroup(
-                                isExpanded: $extraFocusExpanded,
-                                content: {
-                                    sessionList(additional, prominent: true)
-                                    .padding(.top, 8)
-                                },
-                                label: {
-                                    Text(extraFocusExpanded
-                                         ? "Hide additional sessions"
-                                         : "Show \(additional.count) more session\(additional.count == 1 ? "" : "s")")
-                                        .font(WorkspaceTypography.control)
-                                })
-                            .accessibilityIdentifier("dayDigest.moreSummaryDetails")
+                    if mode.arrangesSessionsInGrid {
+                        sessionGrid
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            sessionList(presentation.initialFocusBlocks, prominent: true)
+                            let additional = presentation.collapsibleFocusBlocks
+                            if !additional.isEmpty {
+                                DisclosureGroup(
+                                    isExpanded: $extraFocusExpanded,
+                                    content: {
+                                        sessionList(additional, prominent: true)
+                                        .padding(.top, 8)
+                                    },
+                                    label: {
+                                        Text(extraFocusExpanded
+                                             ? "Hide additional sessions"
+                                             : "Show \(additional.count) more session\(additional.count == 1 ? "" : "s")")
+                                            .font(WorkspaceTypography.control)
+                                    })
+                                .accessibilityIdentifier("dayDigest.moreSummaryDetails")
+                            }
                         }
                     }
                 }
@@ -136,6 +147,60 @@ struct DayDigestView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var proseMaxWidth: CGFloat {
+        mode == .today ? WorkspaceMetric.readingMaxWidth : .infinity
+    }
+
+    private var sessionColumnCount: Int {
+        switch sessionGridWidth {
+        case 900...: 3
+        case 560...: 2
+        default: 1
+        }
+    }
+
+    /// Each session becomes its own card, filling the page width instead of
+    /// nesting a boxed list inside the digest.
+    private var sessionGrid: some View {
+        let blocks = extraFocusExpanded ? presentation.focusBlocks : presentation.initialFocusBlocks
+        let columns = sessionColumnCount
+        let rows = stride(from: 0, to: blocks.count, by: columns).map {
+            Array(blocks[$0..<min($0 + columns, blocks.count)])
+        }
+        let additional = presentation.collapsibleFocusBlocks
+        return VStack(alignment: .leading, spacing: 12) {
+            Grid(alignment: .topLeading, horizontalSpacing: 12, verticalSpacing: 12) {
+                ForEach(rows.indices, id: \.self) { index in
+                    GridRow {
+                        ForEach(rows[index]) { block in
+                            focusBlock(block, prominent: true)
+                                .padding(WorkspaceMetric.cardPadding)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                .background(.quaternary.opacity(0.24),
+                                            in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Brand.Radius.panel)
+                                        .strokeBorder(Color.primary.opacity(0.09))
+                                }
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sessionGridWidth = $0 }
+            if !additional.isEmpty {
+                Button(extraFocusExpanded
+                       ? "Hide additional sessions"
+                       : "Show \(additional.count) more session\(additional.count == 1 ? "" : "s")") {
+                    extraFocusExpanded.toggle()
+                }
+                .buttonStyle(.workspaceLink)
+                .font(WorkspaceTypography.control)
+                .accessibilityIdentifier("dayDigest.moreSummaryDetails")
+            }
+        }
     }
 
     private func digestSection<Content: View>(

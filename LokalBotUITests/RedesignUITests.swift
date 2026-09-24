@@ -399,6 +399,32 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-reading-pane")
     }
 
+    func testTimelineRailResizesAgainstTheDigest() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
+        let rail = element("timeline.sessionRail")
+        let evidence = element("timeline.evidencePane")
+        XCTAssertTrue(rail.waitForExistence(timeout: 5))
+        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
+        let opening = rail.frame.width
+        let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
+            abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
+        }, "Timeline divider missing")
+
+        app.activate()
+        let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: -160, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { rail.frame.width >= opening + 120 },
+                      "Work sessions should widen past their opening width (\(rail.frame.width) from \(opening))")
+        XCTAssertGreaterThanOrEqual(evidence.frame.width, 420, "The digest keeps its readable minimum")
+        snapshot("timeline-wide-sessions")
+
+        // Divider positions persist in the host's defaults; leave the next
+        // launch at the opening width.
+        let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening) < 8 })
+    }
+
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "settings", "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "advanced"])
         let form = app.scrollViews["settings.form"]

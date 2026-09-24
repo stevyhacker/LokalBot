@@ -35,8 +35,7 @@ struct SettingsView: View {
                     if let category = $0 { app.settingsTab = category; settingsQuery = ""; app.focusedSettingID = nil }
                 })) {
                     ForEach(AppState.SettingsTab.allCases, id: \.self) { category in
-                        Label(category.displayName, systemImage: category.icon)
-                            .font(.system(size: 14))
+                        SettingsCategoryLabel(category: category)
                             .padding(.vertical, 5)
                             .tag(category)
                     }
@@ -107,14 +106,19 @@ struct SettingsView: View {
     /// Search field + tab strip, above the tabbed content so search works
     /// from any tab (including Models).
     private var settingsHeaderTitle: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
-                .font(WorkspaceTypography.pageTitle)
-                .tracking(-0.35)
-            Text(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value.")
-                .font(WorkspaceTypography.body)
-                .settingsSecondary()
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .center, spacing: 12) {
+            IconTile(systemImage: queryIsEmpty ? app.settingsTab.icon : "magnifyingglass",
+                     tint: Brand.tealFill, size: 34)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
+                    .font(WorkspaceTypography.pageTitle)
+                    .tracking(-0.35)
+                Text(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value.")
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -179,20 +183,16 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.writing.sections")
             }
             if writingSection == .autocomplete {
-                Section("Try autocomplete") {
-                    AutocompleteExperienceView()
-                        .settingTarget("settings.autocompletePreview", selected: app.focusedSettingID)
-                }
+                AutocompleteExperienceView()
                 cotypingSection
             } else {
                 Section("Dictation") { DictationSettingsControls() }
                 DictationView(dictation: app.dictation, embedded: true)
-                    .settingTarget("settings.dictationPreview", selected: app.focusedSettingID)
             }
         case .models:
             EmptyView() // handled by the ModelsView branch in body
         case .privacy:
-            privacySection; exclusionsSection; permissionsSection; storageSection
+            privacySection; exclusionsSection; permissionsSection; privacyLinksSection
         case .advanced:
             memoryHealthSection; resourceMonitorSection; systemSection; agentCLISection
         }
@@ -872,41 +872,51 @@ struct SettingsView: View {
             if shows("Privacy", ["privacy", "retention", "ocr", "text", "screen text", "history",
                                  "delete", "prune", "forever", "keep", "local", "network",
                                  "data", "security", "agents", "mcp", "claude", "cli"]) {
-                Section("Privacy") {
+                Section("Where your data lives") {
                     InferenceDisclosure(
                         settings: app.settings,
                         localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
                         remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                    storageLocationRow
+                }
+                Section("Screen memory retention") {
                     RetentionSettingsControls()
+                }
+                Section("External agents") {
                     AgentAccessToggleRow(manager: app.agentAccess)
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
                     ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
-                    HStack(spacing: 16) {
-                        Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
-                            .buttonStyle(.workspaceLink)
-                        Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
-                            .buttonStyle(.workspaceLink)
-                    }
-                    .font(WorkspaceTypography.editorialBody)
                 }
             }
 
     }
 
-    @ViewBuilder private var storageSection: some View {
-            if shows("Storage", ["storage", "location", "files", "folder", "finder", "disk"]) {
-                Section("Storage") {
-                    LabeledContent("Location") {
-                        Button(app.storage.rootURL.path(percentEncoded: false)) {
-                            NSWorkspace.shared.activateFileViewerSelecting([app.storage.rootURL])
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Brand.teal)
-                    }
-                }
+    private var storageLocationRow: some View {
+        LabeledContent {
+            Button(app.storage.rootURL.path(percentEncoded: false)) {
+                NSWorkspace.shared.activateFileViewerSelecting([app.storage.rootURL])
             }
+            .buttonStyle(.workspaceLink)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help("Show in Finder")
+        } label: {
+            SettingsLabel("Library location", help: "Meetings, day memory, and the search index.")
+        }
+    }
 
+    /// Policy and support links close the Privacy & Data page.
+    private var privacyLinksSection: some View {
+        Section {
+            HStack(spacing: 16) {
+                Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
+                    .buttonStyle(.workspaceLink)
+                Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
+                    .buttonStyle(.workspaceLink)
+            }
+            .font(WorkspaceTypography.control)
+        }
     }
 
     @ViewBuilder private var updatesSection: some View {
@@ -975,15 +985,11 @@ struct SettingsView: View {
                     } else {
                         LabeledContent("Status") {
                             if installer.isInstalled {
-                                Label("Installed", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                MemoryHealthStatus(value: "Installed", tone: .good)
                             } else if !installer.isBundleLocationStable {
-                                Label("Move LokalBot.app to /Applications first",
-                                      systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(Brand.error)
+                                MemoryHealthStatus(value: "Move LokalBot.app to /Applications first", tone: .attention)
                             } else {
-                                Label("Not installed", systemImage: "circle")
-                                    .settingsSecondary()
+                                MemoryHealthStatus(value: "Not installed", tone: .idle)
                             }
                         }
                         HStack {
@@ -1129,6 +1135,24 @@ struct SettingsView: View {
         return symbols[weekday - 1]
     }
 
+}
+
+/// Category glyphs carry the accent like Agent's starters. A selected row on
+/// the prominent accent highlight falls back to the row's own foreground so
+/// the glyph never disappears into a teal fill.
+private struct SettingsCategoryLabel: View {
+    @Environment(\.backgroundProminence) private var prominence
+    let category: AppState.SettingsTab
+
+    var body: some View {
+        Label {
+            Text(category.displayName)
+        } icon: {
+            Image(systemName: category.icon)
+                .foregroundStyle(prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(Brand.teal))
+        }
+        .font(.system(size: 14))
+    }
 }
 
 /// Observes the nested manager directly so its published marker state keeps

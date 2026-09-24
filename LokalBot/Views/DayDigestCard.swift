@@ -8,12 +8,13 @@ struct DayDigestCard: View {
     var yesterday: DreamReport?
     let identifier: String
     var showsControls = true
+    var mode: DayDigestView.Mode = .timeline
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             if showsControls { DayDigestControls(model: model, identifier: identifier) }
             if let digest = model.digest {
-                DayDigestView(digest, mode: .timeline)
+                DayDigestView(digest, mode: mode)
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("\(identifier).dayDigest.text")
             } else {
@@ -93,7 +94,7 @@ struct DayDigestControls: View {
     }
 }
 
-private struct YesterdayDigestLine: View {
+struct YesterdayDigestLine: View {
     @EnvironmentObject private var app: AppState
     let report: DreamReport
     let day: Date

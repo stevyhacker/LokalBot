@@ -138,7 +138,11 @@ struct ResourceMonitorSection: View {
     private func metricTile(icon: String, value: String, label: String,
                             identifier: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label(value, systemImage: icon)
+            Label {
+                Text(value)
+            } icon: {
+                Image(systemName: icon).foregroundStyle(Brand.teal)
+            }
                 .font(WorkspaceTypography.bodyEmphasis.monospacedDigit())
             Text(label).font(WorkspaceTypography.editorialBody).settingsSecondary()
                 .fixedSize(horizontal: false, vertical: true)

@@ -68,18 +68,35 @@ enum WorkspaceMetric {
     static let contentMaxWidth: CGFloat = 1360
     /// Long-form answers and summaries stay within a comfortable reading line.
     static let readingMaxWidth: CGFloat = 780
+    /// Today is a glanceable page: wide enough for a row of session cards,
+    /// with prose still held to `readingMaxWidth`.
+    static let todayMaxWidth: CGFloat = 1120
     /// Timeline context remains useful beside the chronology before it drawers.
     static let timelineContextMinWidth: CGFloat = 420
     static let timelineDrawerBreakpoint: CGFloat = 820
     static let timelineDrawerMaxWidth: CGFloat = 520
+    /// The work-session rail is user-resizable against the digest. It opens
+    /// at a readable width and can take up to about half of a large window.
+    static let timelineRailMinWidth: CGFloat = 260
+    static let timelineRailIdealWidth: CGFloat = 360
+    static let timelineRailMaxWidth: CGFloat = 640
+    /// However far the rail is dragged, the digest keeps this much width so
+    /// its evidence headers never clip.
+    static let timelineEvidenceReadableWidth: CGFloat = 480
+
+    static func timelineRailMaxWidth(in paneWidth: CGFloat) -> CGFloat {
+        min(timelineRailMaxWidth, max(timelineRailMinWidth, paneWidth - timelineEvidenceReadableWidth))
+    }
 }
 
 /// Agent's three working surfaces remain neutral; accent marks focus and
 /// available primary actions. All colors adapt to the system appearance.
 enum AgentPalette {
     static let conversation = Color(nsColor: .textBackgroundColor)
+    /// The task list shares the secondary-column tone of Ask's conversations
+    /// and Settings' categories.
     static func tasks(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(white: 0.16) : Color(white: 0.96)
+        WorkspacePalette.conversationColumn(for: scheme)
     }
 
     static func composer(for scheme: ColorScheme) -> Color {
@@ -279,6 +296,24 @@ private struct WorkspaceControlModifier: ViewModifier {
     }
 }
 
+/// The raised input surface shared by Agent and Ask, docked at the bottom of
+/// each pane. Its border takes the accent while the field has focus.
+private struct ComposerChromeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    let focused: Bool
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16)
+        content
+            .background(AgentPalette.composer(for: colorScheme), in: shape)
+            .overlay(shape.strokeBorder(
+                focused ? Brand.teal : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
+                lineWidth: focused || contrast == .increased ? 1.5 : 1))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
+    }
+}
+
 extension View {
     /// Insets a detail pane into the soft canvas used by the main workspace.
     func workspaceSurface() -> some View {
@@ -288,6 +323,11 @@ extension View {
     /// Quiet control chrome for search and other shell-level fields.
     func workspaceControl() -> some View {
         modifier(WorkspaceControlModifier())
+    }
+
+    /// The docked composer surface used by Agent and Ask.
+    func composerChrome(focused: Bool) -> some View {
+        modifier(ComposerChromeModifier(focused: focused))
     }
 
     /// Applies a semantic foreground and minimum readable type size.

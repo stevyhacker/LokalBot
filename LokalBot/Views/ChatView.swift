@@ -39,7 +39,7 @@ struct ChatTranscriptView: View {
                         }
                     }
                     .padding(.horizontal, WorkspaceMetric.pagePadding)
-                    .padding(.top, 8)
+                    .padding(.top, 20)
                     .padding(.bottom, WorkspaceMetric.pagePadding)
                     .workspaceReadingWidth()
                     .frame(maxWidth: .infinity, alignment: .top)
