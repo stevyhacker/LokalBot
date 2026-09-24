@@ -10,8 +10,36 @@ struct TimelineContextPanel: View {
     let onDismiss: (() -> Void)?
     @State private var expandedTitles: Set<String> = []
 
-    @ViewBuilder
     var body: some View {
+        VStack(spacing: 0) {
+            // Selection replaces the detail below, not the owner of the rewind
+            // timer, cursor, and range-selection state.
+            if model.showsRawCapture, !model.rewindFrames.isEmpty {
+                ScreenRewindView(
+                    frames: model.rewindFrames,
+                    selectedSnapshotID: rawCaptureScreenSelection,
+                    onReload: { model.reload(app: app) },
+                    presentation: .compact)
+                    .padding(16)
+            }
+            selectedContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var rawCaptureScreenSelection: Binding<Int64?> {
+        Binding(get: { model.selectedSnapshotID }, set: { snapshotID in
+            model.selectedSnapshotID = snapshotID
+            if snapshotID != nil {
+                model.selection = nil
+                model.selectedSessionID = nil
+                app.selectedMeetingIDs = []
+            }
+        })
+    }
+
+    @ViewBuilder
+    private var selectedContent: some View {
         if let snapshotID = model.selectedSnapshotID,
            let screenshot = model.shots.first(where: { $0.id == snapshotID }) {
             ScreenMomentDetailView(

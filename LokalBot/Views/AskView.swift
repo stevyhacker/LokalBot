@@ -52,6 +52,8 @@ private struct AskContent: View {
     @State private var screenWasEnabledBeforePins: Bool?
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
+    @State private var searchedQuery = ""
+    @State private var pendingQuestion: String?
     /// Arrow keys mean "open this result", so Return then opens even a question.
     @State private var pickedResultWithKeyboard = false
     @State private var showingTimeScope = false
@@ -84,13 +86,21 @@ private struct AskContent: View {
             model.preserveSelectionDuringHistoryLoad()
             selectedResult = 0
             pickedResultWithKeyboard = false
-            runSearch()
+            // Return can arrive before this observer. Preserve only a request
+            // for this exact text; editing a queued question cancels it.
+            if pendingQuestion != query { pendingQuestion = nil }
+            runSearch(cancelPendingQuestion: false)
         }
         .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
-            runSearch()
+            runSearch(cancelPendingQuestion: false)
         }
-        .onDisappear { searchTask?.cancel() }
+        .onDisappear {
+            searchTask?.cancel()
+            pendingQuestion = nil
+        }
         .onChange(of: facet) { runSearch() }
+        .onChange(of: meetingScope) { runSearch() }
+        .onChange(of: screenScope) { runSearch() }
         .onChange(of: app.askDateScope) {
             reconcilePinnedScreenScope()
             runSearch()
@@ -108,12 +118,14 @@ private struct AskContent: View {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
             pickedResultWithKeyboard = true
+            pendingQuestion = nil
             return .handled
         }
         .onKeyPress(.upArrow) {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = max(0, selectedResult - 1)
             pickedResultWithKeyboard = true
+            pendingQuestion = nil
             return .handled
         }
         .onChange(of: app.navigationHandoff.revision) { consumeNavigationHandoff() }
@@ -141,6 +153,7 @@ private struct AskContent: View {
     @discardableResult
     private func consumeNavigationHandoff() -> Bool {
         guard let handoff = app.navigationHandoff.consumeAsk() else { return false }
+        pendingQuestion = nil
         app.askDayScope = handoff.dayScope.map(Calendar.current.startOfDay(for:))
         mode = handoff.mode
         app.recallState.selectEvidence(meetingIDs: handoff.meetingIDs,
@@ -313,7 +326,16 @@ private struct AskContent: View {
     }
 
     private func askAboutResults() {
-        guard !isSearching else { return }
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !model.isResponding else { return }
+        // Never submit rows belonging to the previous text if Return beats
+        // onChange. Completion below uses the same scoped submission path.
+        if searchedQuery != query { runSearch() }
+        if isSearching {
+            pendingQuestion = query
+            return
+        }
+        pendingQuestion = nil
         if resultCount > 0 {
             app.recallState.selectEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
@@ -324,12 +346,13 @@ private struct AskContent: View {
 
     private func submitButton(canSubmit: Bool) -> some View {
         Button(action: askAboutResults) {
-            Label(resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
+            Label(pendingQuestion != nil ? "Waiting for sources…"
+                  : resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
                 .font(WorkspaceTypography.control)
         }
         .primaryActionButton()
         .controlSize(.regular)
-        .disabled(!canSubmit || isSearching)
+        .disabled(!canSubmit || pendingQuestion != nil)
         .keyboardShortcut(.return, modifiers: [.command])
         .accessibilityIdentifier("ask.submit")
         .help("Ask using the displayed results (Command-Return)")
@@ -623,6 +646,7 @@ private struct AskContent: View {
     }
 
     private func openSelectedConversation() {
+        pendingQuestion = nil
         query = ""
         mode = .ask
         if model.messages.isEmpty { resetAskScope() } else { restoreAskScope() }
@@ -783,14 +807,22 @@ private struct AskContent: View {
         }
     }
 
-    private func runSearch() {
+    private func runSearch(cancelPendingQuestion: Bool = true) {
+        if cancelPendingQuestion { pendingQuestion = nil }
         searchTask?.cancel()
         let q = query, request = app.recallState, dateScope = app.askDateScope
+        searchedQuery = q
         // Never leave rows from a previous query available to Return.
         hits = []; ocrHits = []; screenGroups = []
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
+            #if LOKALBOT_UI_TEST_HOST
+            // Hold retrieval in flight for deterministic hosted Return tests.
+            if let delay = Int(ProcessInfo.processInfo.environment["LOKALBOT_ASK_SEARCH_DELAY_MS"] ?? "") {
+                try? await Task.sleep(for: .milliseconds(min(max(delay, 0), 10_000)))
+            }
+            #endif
             guard !Task.isCancelled else { return }
             let result = await RecallSearch.search(q, state: request, dateScope: dateScope, app: app) { lexical in
                 guard !Task.isCancelled, q == query else { return }
@@ -799,6 +831,7 @@ private struct AskContent: View {
             guard !Task.isCancelled, q == query else { return }
             publishSearch(result)
             isSearching = false
+            if pendingQuestion == q { askAboutResults() }
         }
     }
 

@@ -673,13 +673,6 @@ struct TimelineRawCaptureView: View {
             Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
                 .font(WorkspaceTypography.metadata)
                 .foregroundStyle(.secondary)
-            if !model.rewindFrames.isEmpty {
-                ScreenRewindView(
-                    frames: model.rewindFrames,
-                    selectedSnapshotID: screenSelection,
-                    onReload: { model.reload(app: app) },
-                    presentation: .compact)
-            }
             if !model.blocks.isEmpty || !meetings.isEmpty {
                 Label("App activity", systemImage: "calendar.day.timeline.left")
                     .font(WorkspaceTypography.sectionTitle)
@@ -697,7 +690,7 @@ struct TimelineRawCaptureView: View {
                         model.selectedSnapshotID = nil
                         app.selectedMeetingIDs = [id]
                     })
-                    .frame(minHeight: 360, maxHeight: .infinity)
+                    .frame(maxHeight: .infinity)
             } else if model.rewindFrames.isEmpty {
                 ContentUnavailableView(
                     "No raw capture",
@@ -708,12 +701,6 @@ struct TimelineRawCaptureView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private var screenSelection: Binding<Int64?> {
-        Binding(get: { model.selectedSnapshotID }, set: { snapshotID in
-            model.selectedSnapshotID = snapshotID
-            if snapshotID != nil { model.selection = nil }
-        })
-    }
 }
 
 private struct TimelineWorkSessionRow: View {

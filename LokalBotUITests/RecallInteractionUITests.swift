@@ -1,0 +1,111 @@
+import XCTest
+
+/// Hosted regressions for retrieval submission and Timeline rewind lifetimes.
+final class RecallInteractionUITests: XCTestCase {
+    private var fixture: SyntheticFixture.Library!
+    private var app: XCUIApplication!
+    private var suite: String?
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        fixture = try SyntheticFixture.plant()
+    }
+
+    override func tearDownWithError() throws {
+        app?.terminate()
+        UITestHarness.cleanUp(defaultsSuiteName: suite)
+        fixture?.cleanUp()
+    }
+
+    func testRawCaptureRewindKeepsPlayingAndSeekingAcrossMomentDetails() throws {
+        try SyntheticFixture.plantActivityMoment(in: fixture, count: 3)
+        try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
+        let raw = app.buttons["timeline.rawCapture"]
+        XCTAssertTrue(raw.waitForExistence(timeout: 8))
+        raw.click()
+        let play = app.buttons["Play context rewind"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.click()
+        // Two timer ticks must survive mounting the first moment detail.
+        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 8))
+        XCTAssertTrue(app.sliders["Rewind position"].exists)
+        let previous = app.buttons["Previous context moment"]
+        XCTAssertTrue(previous.isHittable)
+        previous.click()
+        XCTAssertTrue(element("timeline.screenDetail.9002").waitForExistence(timeout: 4))
+        app.buttons["Next context moment"].click()
+        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
+
+        let position = app.sliders["Rewind position"]
+        position.click()
+        app.typeKey(.home, modifierFlags: [])
+        XCTAssertTrue(element("timeline.screenDetail.9001").waitForExistence(timeout: 4))
+        app.typeKey(.end, modifierFlags: [])
+        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
+        app.buttons["Back to raw capture"].click()
+        XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 4))
+        XCTAssertEqual((position.value as? NSNumber)?.intValue, 2,
+                       "Returning to raw capture must preserve the rewind cursor")
+    }
+
+    func testQuestionReturnWaitsForSourcesAndSubmitsOnce() throws {
+        try launchDelayedAsk()
+        let field = app.textFields["search.field"]
+        field.click()
+        field.typeText("failover benchmark?\r")
+        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        XCTAssertFalse(element("chat.message.user").exists)
+        XCTAssertTrue(element("chat.message.user").waitForExistence(timeout: 10))
+        XCTAssertEqual(app.staticTexts.matching(identifier: "chat.message.user").count, 1)
+        XCTAssertEqual(field.value as? String, "")
+        XCTAssertTrue(element("ask.selectedEvidence").label.contains("1 meetings"),
+                      "Submission must use the retrieved meeting boundary")
+    }
+
+    func testEditingQueuedQuestionCancelsSubmission() throws {
+        try launchDelayedAsk()
+        let field = app.textFields["search.field"]
+        field.click()
+        field.typeText("failover benchmark?\r")
+        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        field.typeKey("a", modifierFlags: .command)
+        field.typeText("standup")
+        let result = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@",
+            "search.hit.\(fixture.standup.id.uuidString).")).firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 10))
+        XCTAssertFalse(element("chat.message.user").exists)
+        XCTAssertEqual(field.value as? String, "standup")
+    }
+
+    func testChangingScopeCancelsQueuedQuestion() throws {
+        try launchDelayedAsk()
+        let field = app.textFields["search.field"]
+        field.click()
+        field.typeText("failover benchmark?\r")
+        XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
+        element("ask.sources").click()
+        app.menuItems["Screen"].click()
+        XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 10))
+        XCTAssertFalse(element("chat.message.user").exists)
+        XCTAssertEqual(field.value as? String, "failover benchmark?")
+    }
+
+    private func launchDelayedAsk() throws {
+        try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_ASK_SEARCH_DELAY_MS": "5000"])
+        XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 8))
+    }
+
+    private func launch(_ environment: [String: String]) throws {
+        // Invalid inference destination exercises the saved user turn and
+        // source scope without downloading a model or contacting a server.
+        let run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "RecallInteraction",
+            settingsJSON: #"{"menuBarOnly":false,"calendarDetectionEnabled":false,"semanticSearchEnabled":false,"cotypingEnabled":false,"summarizerBackend":"OpenAI-compatible server","openAIBaseURL":"invalid"}"#,
+            environment: environment)
+        app = run.app
+        suite = run.defaultsSuiteName
+    }
+
+    private func element(_ id: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+}
