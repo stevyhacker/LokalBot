@@ -7,7 +7,20 @@
   <meta name="description" content="How LokalBot stores data locally, when it uses the network, and what changes when you approve a remote inference server." />
   <meta name="theme-color" content="#0b1119" />
   <link rel="canonical" href="https://www.lokalbot.com/privacy" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/privacy" />
+  <meta property="og:title" content="Privacy Policy — LokalBot" />
+  <meta property="og:description" content="How LokalBot stores data locally, when it uses the network, and what changes when you approve a remote inference server." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Privacy Policy — LokalBot" />
+  <meta name="twitter:description" content="How LokalBot stores data locally, when it uses the network, and what changes when you approve a remote inference server." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -29,7 +42,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective July 21, 2026</p>
+      <p class="eyebrow">Effective September 24, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service.</p>
     </header>
@@ -45,7 +58,7 @@
         <li>opt-in Agent Mode sessions and runtime files; and</li>
         <li>preferences, diagnostic logs, and encryption keys.</li>
       </ul>
-      <p>Fresh installs select day tracking with encrypted visual context by default, but collection still requires macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Dictation scratch audio is deleted after transcription by default.</p>
+      <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Dictation scratch audio is deleted after transcription by default.</p>
 
       <h2>When LokalBot uses the network</h2>
       <ul>
@@ -58,7 +71,7 @@
 
       <h2>Permissions and consent</h2>
       <p>Microphone and system-audio permissions enable recording. Calendar access helps detect and title meetings and provides local speaker-name suggestions. Attendee emails remain in meeting metadata, are deleted with the meeting, and are never added to transcripts, exports, or model prompts. Accessibility enables browser-meeting detection, Cotyping, dictation insertion, and approved agent interaction. Screen Recording enables visual screen context when selected.</p>
-      <p>Recording defaults to automatic detection on a fresh install. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
+      <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting. You can switch to automatic recording or turn auto-record off. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
 
       <h2>External-agent access</h2>
       <p>The bundled CLI and MCP interface are read-only and refuse library access until you enable Agent Access under Settings → Privacy. An enabled external tool runs as your macOS user, so connect only tools you trust.</p>
@@ -74,11 +87,13 @@
   <footer class="footer footer--legal">
     <div class="footer__brand">
       <a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Your private AI memory for work on macOS.</p>
+      <p>Find what you said or saw on your Mac.</p>
     </div>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub</a>
+      <a href="about">About</a>
+      <a href="benchmarks">Benchmarks</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>
       <a href="support">Support</a>

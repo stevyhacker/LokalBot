@@ -8,16 +8,22 @@
   <meta name="theme-color" content="#0b1119" />
   <link rel="canonical" href="https://www.lokalbot.com/offline-meeting-transcription-mac" />
   <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/offline-meeting-transcription-mac" />
   <meta property="og:title" content="Offline Meeting Transcription on Mac" />
   <meta property="og:description" content="Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Offline Meeting Transcription on Mac" />
+  <meta name="twitter:description" content="Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Offline meeting transcription on Mac","description":"Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload.","datePublished":"2026-07-13","dateModified":"2026-09-12","mainEntityOfPage":"https://www.lokalbot.com/offline-meeting-transcription-mac","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Offline meeting transcription on Mac","item":"https://www.lokalbot.com/offline-meeting-transcription-mac"}]},{"@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Will transcription start without Wi-Fi?","acceptedAnswer":{"@type":"Answer","text":"Yes, provided the selected model has already finished downloading."}},{"@type":"Question","name":"Can summaries also run offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. Select the built-in llama.cpp backend and a downloaded local model."}},{"@type":"Question","name":"Which model is smallest?","acceptedAnswer":{"@type":"Answer","text":"Among the highlighted speech choices, Qwen3-ASR 0.6B is about 0.7 GB. Actual on-disk usage can change with model packaging."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Offline meeting transcription on Mac","description":"Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload.","datePublished":"2026-07-13","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/offline-meeting-transcription-mac","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Offline meeting transcription on Mac","item":"https://www.lokalbot.com/offline-meeting-transcription-mac"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/offline-meeting-transcription-mac#faq","mainEntity":[{"@type":"Question","name":"Will transcription start without Wi-Fi?","acceptedAnswer":{"@type":"Answer","text":"Yes, provided the selected model has already finished downloading."}},{"@type":"Question","name":"Can summaries also run offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. Select the built-in llama.cpp backend and a downloaded local model."}},{"@type":"Question","name":"Which model is smallest?","acceptedAnswer":{"@type":"Answer","text":"Among the highlighted speech choices, Qwen3-ASR 0.6B is about 0.7 GB. Actual on-disk usage can change with model packaging."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -25,7 +31,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -35,7 +41,7 @@
       <p class="eyebrow">Offline transcription</p>
       <h1>Offline meeting transcription on Mac</h1>
       <p class="guide-hero__lead">What you need to download first, which local speech model to choose, and what continues working when your Mac has no network connection.</p>
-      <p class="guide-byline"><time datetime="2026-09-12">Updated September 12, 2026</time> · 5 min read</p>
+      <p class="guide-byline"><time datetime="2026-09-24">Updated September 24, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article">
@@ -56,7 +62,7 @@
 
         <h2>What happens during an offline meeting</h2>
         <p>LokalBot writes your microphone and the meeting application's output to synchronized local tracks. When the meeting ends, the chosen speech engine turns those files into text on the Mac. The built-in language-model backend can then write a recap without a server request. The transcript, recap, audio references, and search index remain in the local library.</p>
-        <p>Offline mode does not weaken recording-consent requirements. The app starts with manual recording as the default, and optional detection modes still leave the decision and legal responsibility with you.</p>
+        <p>Offline mode does not weaken recording-consent requirements. On a fresh install, LokalBot asks through a notification before it records a detected meeting. Automatic recording is opt-in, and the decision and legal responsibility stay with you.</p>
 
         <h2>What still uses the network</h2>
         <p>Model files and application updates have to come from somewhere, so those downloads require a connection. Optional Agent Mode setup also downloads its pinned runtime. Finally, if you replace the built-in inference backend with a non-loopback OpenAI-compatible URL, that configured service naturally needs the network and receives the request context. Loopback services such as a local Ollama instance can remain entirely on the Mac.</p>
@@ -119,15 +125,49 @@
         <h2 class="section__title">Meeting notes that stay on your Mac by default.</h2>
         <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
         <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
       </div>
     </section>
   </main>
 
   <footer class="footer">
-    <div class="footer__brand"><a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a><p>Your private AI memory for work — meetings, recall, writing, and local automation on macOS.</p><p class="footer__meta">Apple Silicon · macOS 15.0+</p></div>
-    <nav class="footer__col" aria-label="Learn"><h3>Learn</h3><a href="guides">All guides</a><a href="local-ai-meeting-notes-mac">Local meeting notes</a><a href="local-transcription-models-mac">Model guide</a><a href="system-requirements">Requirements</a></nav>
-    <nav class="footer__col" aria-label="Compare"><h3>Compare</h3><a href="lokalbot-vs-granola">vs Granola</a><a href="lokalbot-vs-rewind">vs Rewind</a><a href="lokalbot-vs-superwhisper">vs Superwhisper</a><a href="lokalbot-vs-hyprnote">vs Hyprnote</a></nav>
-    <nav class="footer__col" aria-label="Project"><h3>Project</h3><a href="https://github.com/stevyhacker/lokalbot">GitHub</a><a href="privacy">Privacy</a><a href="terms">Terms</a><a href="support">Support</a></nav>
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Find what you said or saw on your Mac.</p>
+      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="lokalbot-vs-granola">vs Granola</a>
+      <a href="lokalbot-vs-otter">vs Otter</a>
+      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="privacy">Privacy</a>
+      <a href="terms">Terms</a>
+      <a href="support">Support</a>
+    </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>
 </body>

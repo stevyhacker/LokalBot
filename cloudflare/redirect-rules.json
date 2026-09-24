@@ -1,5 +1,50 @@
 [
   {
+    "description": "Canonical home: /index.html to /",
+    "expression": "(http.request.uri.path eq \"/index.html\")",
+    "action": "redirect",
+    "action_parameters": {
+      "from_value": {
+        "status_code": 308,
+        "target_url": {
+          "value": "https://www.lokalbot.com/"
+        },
+        "preserve_query_string": true
+      }
+    },
+    "enabled": true
+  },
+  {
+    "description": "Canonical pages: /page.html to /page",
+    "expression": "(ends_with(http.request.uri.path, \".html\") and http.request.uri.path ne \"/404.html\")",
+    "action": "redirect",
+    "action_parameters": {
+      "from_value": {
+        "status_code": 308,
+        "target_url": {
+          "expression": "wildcard_replace(http.request.uri.path, \"/*.html\", \"https://www.lokalbot.com/${1}\")"
+        },
+        "preserve_query_string": true
+      }
+    },
+    "enabled": true
+  },
+  {
+    "description": "Canonical pages: /page/ to /page",
+    "expression": "(ends_with(http.request.uri.path, \"/\") and http.request.uri.path ne \"/\")",
+    "action": "redirect",
+    "action_parameters": {
+      "from_value": {
+        "status_code": 308,
+        "target_url": {
+          "expression": "wildcard_replace(http.request.uri.path, \"/*/\", \"https://www.lokalbot.com/${1}\")"
+        },
+        "preserve_query_string": true
+      }
+    },
+    "enabled": true
+  },
+  {
     "description": "Canonical host: lokalbot.com to www.lokalbot.com",
     "expression": "(http.host eq \"lokalbot.com\")",
     "action": "redirect",

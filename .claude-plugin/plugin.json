@@ -1,6 +1,6 @@
 {
   "name": "lokalbot",
-  "description": "A local LLM workhorse that keeps a private memory of your workday. Gives Claude Code read-only access to your local LokalBot meeting library via the /lokalbot:recall command, the lokalbot-cli skill, and a stdio MCP server.",
+  "description": "Find what you said or saw on your Mac. Gives Claude Code read-only access to your local LokalBot meeting library via the /lokalbot:recall command, the lokalbot-cli skill, and a stdio MCP server.",
   "version": "0.1.0",
   "author": {
     "name": "stevyhacker",

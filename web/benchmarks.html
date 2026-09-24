@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot Benchmarks: Local Speech, Search &amp; Summary Models</title>
+  <meta name="description" content="Measured speech recognition, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps." />
+  <meta name="theme-color" content="#0b1119" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/benchmarks" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/benchmarks" />
+  <meta property="og:title" content="LokalBot local model benchmarks" />
+  <meta property="og:description" content="Measured speech recognition, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot local model benchmarks" />
+  <meta name="twitter:description" content="Measured speech recognition, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://www.lokalbot.com/benchmarks#article","headline":"LokalBot local model benchmarks","description":"Measured speech recognition, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.","datePublished":"2026-09-24","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/benchmarks","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"Dataset","@id":"https://www.lokalbot.com/benchmarks#dataset","name":"LokalBot local model benchmarks","description":"Engine-level measurements of local speech recognition (word error rate, realtime factor), semantic search (top-1, top-5, MRR), meeting summary latency, autocomplete latency, and screenshot OCR for the LokalBot Mac app, measured on an Apple M4 Max with 48 GB of unified memory.","url":"https://www.lokalbot.com/benchmarks","sameAs":["https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks","https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks"],"creator":{"@id":"https://www.lokalbot.com/#organization"},"license":"https://www.gnu.org/licenses/gpl-3.0.en.html","isAccessibleForFree":true,"temporalCoverage":"2026-06-24/2026-09-09","measurementTechnique":["Normalized word error rate","Mean reciprocal rank","Latency percentiles","Token F1"],"variableMeasured":["Word error rate","Realtime factor","Top-1 retrieval accuracy","Summary latency","Autocomplete latency","OCR token F1"],"distribution":[{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/SummaryEfficiency/results-2026-09-09.json"},{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/results/asr-comparison.json"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Benchmarks","item":"https://www.lokalbot.com/benchmarks"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/benchmarks#faq","mainEntity":[{"@type":"Question","name":"What hardware were these benchmarks run on?","acceptedAnswer":{"@type":"Answer","text":"All published runs used one Apple M4 Max MacBook Pro with 48 GB of unified memory. Results on M1, M2, and M3 Macs have not been measured yet, so treat the timings as one data point rather than per-chip guidance."}},{"@type":"Question","name":"Which speech model does LokalBot use by default?","acceptedAnswer":{"@type":"Answer","text":"Qwen3-ASR 1.7B has been the default transcription model since LokalBot 0.8.1. The accuracy run on this page predates that change and compares IBM Granite Speech models; a Qwen3-ASR accuracy run has not been published yet."}},{"@type":"Question","name":"How accurate is LokalBot's transcription?","acceptedAnswer":{"@type":"Answer","text":"On 44 public AMI and LibriSpeech clips, Granite Speech 4.1 (Q4) reached a 4.42% normalized word error rate: 8.83% on conversational AMI meeting audio and 0.25% on clean LibriSpeech read speech. Accuracy on your own recordings depends on microphones, accents, crosstalk, and vocabulary."}},{"@type":"Question","name":"Can I reproduce these results?","acceptedAnswer":{"@type":"Answer","text":"Yes. The scripts, pinned model manifests, and raw results are in the Benchmarks folder on GitHub. A few inputs, such as a private transcript used only as a search distractor, are kept out of the repository and are noted in each report."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#guide">Skip to content</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="guide">
+    <header class="guide-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Benchmarks</span></nav>
+      <p class="eyebrow">Benchmarks</p>
+      <h1>LokalBot local model benchmarks</h1>
+      <p class="guide-hero__lead">Accuracy and speed of the models that transcribe, search, summarize, and autocomplete on your Mac, with the methods, sources, and what has not been measured.</p>
+      <p class="guide-byline"><time datetime="2026-09-24">Updated September 24, 2026</time> · Measured on Apple M4 Max, 48 GB</p>
+    </header>
+
+    <article class="guide-article">
+        <h2>Key results</h2>
+        <ul>
+          <li><strong>Speech recognition:</strong> Granite Speech 4.1 (Q4) scored a 4.42% normalized word error rate on 44 public clips and processed 33× realtime once warm.</li>
+          <li><strong>Semantic search:</strong> Harrier 0.6B ranked the correct passage first for 40 of 48 queries (83.3%), against 35 of 48 for Qwen3-Embedding 0.6B. Harrier is now LokalBot's search model.</li>
+          <li><strong>Summaries:</strong> Qwen3.5 4B produced a recap and action list for a 26-minute meeting in 33 seconds with a warm runtime, and for a 91-minute meeting in 71–74 seconds.</li>
+          <li><strong>Autocomplete:</strong> LFM2.5 1.2B passed all 28 safety scenarios with a 143 ms average and about 490 ms p95 latency.</li>
+          <li><strong>Screenshot text:</strong> Apple Vision averaged 243 ms per real screenshot with 0.971 token F1 on the ground-truth set. Every open-source OCR engine tested was several times slower.</li>
+        </ul>
+        <p>Every number comes from a report checked into the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks" target="_blank" rel="noopener">LokalBot repository</a>. These are engine-level measurements on one machine, an Apple M4 Max MacBook Pro with 48 GB of unified memory. They are not end-to-end UI timings. The same data is summarized on the <a href="https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks" target="_blank" rel="noopener">LokalBot benchmarks Space</a> on Hugging Face.</p>
+
+        <h2>Speech recognition accuracy and speed</h2>
+        <p>The fixed set is 44 public clips totalling 271.3 seconds: 24 conversational clips from the AMI meeting corpus and 20 clean LibriSpeech clips. Every model received identical 16 kHz mono audio. Word error rate uses the standard Whisper English normalizer, so contractions such as &ldquo;I've&rdquo; and &ldquo;I have&rdquo; score the same. Run date: September 7, 2026.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th>Measure</th><th>Granite 4.1 Q4</th><th>Granite 4.1 Q8</th><th>Granite 5 TurboCTC</th></tr></thead>
+            <tbody>
+              <tr><td>Normalized word error rate</td><td>4.42%</td><td>4.93%</td><td>5.18%</td></tr>
+              <tr><td>AMI meeting audio</td><td>8.83%</td><td>9.09%</td><td>10.13%</td></tr>
+              <tr><td>LibriSpeech read speech</td><td>0.25%</td><td>0.99%</td><td>0.49%</td></tr>
+              <tr><td>Audio seconds per second (warm)</td><td>33.2×</td><td>29.3×</td><td>280.2×</td></tr>
+              <tr><td>Median clip latency</td><td>161 ms</td><td>187 ms</td><td>17.5 ms</td></tr>
+              <tr><td>Sampled peak memory (RSS)</td><td>2.87 GiB</td><td>3.62 GiB</td><td>1.05 GiB</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Granite Speech 5 was about 8× faster but English-only and unpunctuated, and it is not integrated into LokalBot. With a set this small, the accuracy differences do not establish a reliable ranking. <strong>Qwen3-ASR 1.7B, the default since LokalBot 0.8.1, was not part of this run.</strong> Parakeet and Whisper large-v3 turbo have not been scored against this set either. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md" target="_blank" rel="noopener">model alternatives report</a>.</p>
+
+        <h2>Semantic search quality</h2>
+        <p>Search was tested on 48 authored queries: 24 in English and 24 in Serbian/Montenegrin, across Latin and Cyrillic scripts. Queries ran against 110 passages, 86 of them distractors. The relevant passage for each query was fixed before inference. Both models used Q8 weights and 1,024-dimension vectors.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th>Measure</th><th>Qwen3-Embedding 0.6B</th><th>Harrier 0.6B</th></tr></thead>
+            <tbody>
+              <tr><td>Correct passage ranked first</td><td>35/48 (72.9%)</td><td><strong>40/48 (83.3%)</strong></td></tr>
+              <tr><td>Correct passage in top five</td><td>45/48 (93.8%)</td><td><strong>47/48 (97.9%)</strong></td></tr>
+              <tr><td>English, ranked first</td><td>22/24</td><td>22/24</td></tr>
+              <tr><td>Serbian/Montenegrin, ranked first</td><td>13/24</td><td><strong>18/24</strong></td></tr>
+              <tr><td>Mean reciprocal rank</td><td>0.814</td><td><strong>0.903</strong></td></tr>
+              <tr><td>Median query latency</td><td>11.85 ms</td><td>11.97 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The gain came almost entirely from non-English queries. Forty-eight correlated queries are a pilot, not a general retrieval benchmark. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md" target="_blank" rel="noopener">model alternatives report</a>.</p>
+
+        <h2>Meeting summary and action-item speed</h2>
+        <p>This replay runs LokalBot's production summary and action extractor against two meeting transcripts with Qwen3.5 4B (Q4_K_M) on llama.cpp b10173. &ldquo;Cold&rdquo; includes starting the model runtime; &ldquo;warm&rdquo; reuses a loaded runtime. Transcription time is excluded. Run date: September 9, 2026.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th>Meeting</th><th>Transcript</th><th>Cold</th><th>Warm</th><th>Model calls</th></tr></thead>
+            <tbody>
+              <tr><td>26-minute meeting</td><td>4,477 words</td><td>59.8 s</td><td>33.4 s</td><td>5</td></tr>
+              <tr><td>91-minute meeting</td><td>11,229 words</td><td>71.5 s</td><td>74.2 s</td><td>8</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>All four runs completed without truncated output. LokalBot's validator dropped notes and actions it could not tie to transcript evidence or to the right owner. That check covers evidence and ownership, not meaning, so factual coverage still needs human review. In the same September 7 pilot, the smaller MiniCPM5 2B model was faster on long context but misattributed action items and looped on one summary. Qwen3.5 4B remains the default. Sources: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/SummaryEfficiency/results-2026-09-09.json" target="_blank" rel="noopener">summary replay results</a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/ModelAlternatives/2026-09-07/REPORT.md" target="_blank" rel="noopener">model alternatives report</a>.</p>
+
+        <h2>Autocomplete latency</h2>
+        <p>The production <code>--cotyping-bench</code> harness runs 28 scenarios through the in-process llama.cpp engine. A model passes if it clears all 28 safety checks, completes at least 12 of 13 words, and keeps p95 latency at or below 2 seconds. Run date: July 21, 2026.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th>Model</th><th>Safety</th><th>Word completions</th><th>Average</th><th>p95</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr><td>LFM2.5 1.2B Instruct (Q4_K_M)</td><td>28/28</td><td>12/13</td><td>143–151 ms</td><td>484–494 ms</td><td>Pass ×3</td></tr>
+              <tr><td>Gemma 4 E4B Instruct</td><td>28/28</td><td>12/13</td><td>399 ms</td><td>1,830 ms</td><td>Pass</td></tr>
+              <tr><td>Qwen3.5 2B</td><td>27/28</td><td>11/13</td><td>437 ms</td><td>1,629 ms</td><td>Fail (quality)</td></tr>
+              <tr><td>Qwen3.5 4B</td><td>27/28</td><td>11/13</td><td>434 ms</td><td>1,652 ms</td><td>Fail (quality)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Cold Metal kernel compilation on the first scenario took about 19 seconds for LFM2.5 and about 127 seconds for Gemma 4 E4B. Source: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/Cotyping/results/2026-07-21-model-debounce-benchmark.md" target="_blank" rel="noopener">autocomplete benchmark</a>.</p>
+
+        <h2>Screenshot text recognition</h2>
+        <p>When you opt in to saving screen text, LokalBot reads it with Apple Vision. On 5 synthetic screenshots with known text, Apple Vision scored 0.971 token F1 at 120 ms per image. The closest open-source engine, PP-OCRv6 medium, scored 0.974 but took 6.78 seconds per image and about 15 seconds to load. On 15 real screenshots, Apple Vision averaged 243 ms per image; every alternative tested took 1.3 to 22 seconds. Run date: June 24, 2026. Sources: <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/SYNTHETIC-RESULTS-2026-06-24.md" target="_blank" rel="noopener">synthetic OCR results</a> and <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/OCR/RESULTS-2026-06-24.md" target="_blank" rel="noopener">real-screenshot OCR results</a>.</p>
+
+        <h2>What has not been measured yet</h2>
+        <ul>
+          <li>Any Mac other than the M4 Max. M1, M2, and M3 results would change the timing picture.</li>
+          <li>Word error rate for Qwen3-ASR, Parakeet, and Whisper large-v3 turbo.</li>
+          <li>A published speaker-diarization error rate.</li>
+          <li>Human-rated summary quality on a fixed corpus: faithfulness and action-item completeness.</li>
+          <li>Noisy far-field microphones, most supported languages, and power or thermal behavior.</li>
+        </ul>
+        <p>Model choices change between releases. <strong>Settings → Models</strong> in the app shows your active selections, download sizes, and presets. For choosing a speech engine, see the <a href="local-transcription-models-mac">local transcription model guide</a>.</p>
+    </article>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Common questions</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>What hardware were these benchmarks run on?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>All published runs used one Apple M4 Max MacBook Pro with 48 GB of unified memory. Results on M1, M2, and M3 Macs have not been measured yet, so treat the timings as one data point rather than per-chip guidance.</p>
+        </details>
+        <details class="qa">
+          <summary>Which speech model does LokalBot use by default?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Qwen3-ASR 1.7B has been the default transcription model since LokalBot 0.8.1. The accuracy run on this page predates that change and compares IBM Granite Speech models; a Qwen3-ASR accuracy run has not been published yet.</p>
+        </details>
+        <details class="qa">
+          <summary>How accurate is LokalBot's transcription?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>On 44 public AMI and LibriSpeech clips, Granite Speech 4.1 (Q4) reached a 4.42% normalized word error rate: 8.83% on conversational AMI meeting audio and 0.25% on clean LibriSpeech read speech. Accuracy on your own recordings depends on microphones, accents, crosstalk, and vocabulary.</p>
+        </details>
+        <details class="qa">
+          <summary>Can I reproduce these results?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. The scripts, pinned model manifests, and raw results are in the <a href="https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks">Benchmarks folder on GitHub</a>. A few inputs, such as a private transcript used only as a search distractor, are kept out of the repository and are noted in each report.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="guide-related" aria-labelledby="related-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="related-title">Related pages</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="local-transcription-models-mac">
+          <span class="guide-card__eyebrow">Model guide</span>
+          <strong>Local transcription models for Mac</strong>
+          <span>Compare Granite Speech, Parakeet, Qwen3-ASR, and Whisper for private on-device meeting transcription.</span>
+        </a>
+        <a class="guide-card" href="system-requirements">
+          <span class="guide-card__eyebrow">Compatibility</span>
+          <strong>LokalBot system requirements</strong>
+          <span>macOS version, Apple Silicon, memory, disk, and permissions before you install.</span>
+        </a>
+        <a class="guide-card" href="about">
+          <span class="guide-card__eyebrow">Fact sheet</span>
+          <strong>About LokalBot</strong>
+          <span>What LokalBot is, what it runs, and what it does not do, on one page.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Find what you said or saw on your Mac.</h2>
+        <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Find what you said or saw on your Mac.</p>
+      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="lokalbot-vs-granola">vs Granola</a>
+      <a href="lokalbot-vs-otter">vs Otter</a>
+      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="privacy">Privacy</a>
+      <a href="terms">Terms</a>
+      <a href="support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

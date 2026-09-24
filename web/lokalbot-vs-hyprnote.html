@@ -3,28 +3,30 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LokalBot vs Hyprnote: Open-Source Local Notes</title>
-  <meta name="description" content="Compare two open-source local meeting notetakers: built-in local AI, cloud options, storage, license, dictation, and day timeline." />
+  <title>LokalBot vs Hyprnote (anarlog): open-source local notes</title>
+  <meta name="description" content="Compare two open-source, local-first meeting notetakers: LokalBot and Hyprnote, now anarlog. Built-in local AI, cloud options, storage, license, and scope." />
   <meta name="theme-color" content="#0b1119" />
 
   <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-hyprnote" />
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-hyprnote" />
-  <meta property="og:title" content="LokalBot vs Hyprnote — two open-source local notetakers" />
-  <meta property="og:description" content="Both are open-source and local-first. They differ on scope, built-in local AI vs bring-your-own keys, and license." />
+  <meta property="og:title" content="LokalBot vs Hyprnote (anarlog) — two open-source local notetakers" />
+  <meta property="og:description" content="Both are open source and local-first. They differ on scope, built-in local AI vs bring-your-own, platforms, and license." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="LokalBot vs Hyprnote — two open-source local notetakers" />
-  <meta name="twitter:description" content="Both are open-source and local-first. They differ on scope, built-in local AI vs bring-your-own keys, and license." />
+  <meta name="twitter:title" content="LokalBot vs Hyprnote (anarlog) — two open-source local notetakers" />
+  <meta name="twitter:description" content="Both are open source and local-first. They differ on scope, built-in local AI vs bring-your-own, platforms, and license." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
 
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/lokalbot-icon.svg" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs Hyprnote","description":"Compare two open-source, local-first meeting notetakers: LokalBot and Hyprnote, now anarlog. Built-in local AI, cloud options, storage, license, and scope.","datePublished":"2026-07-01","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-hyprnote","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","applicationCategory":"BusinessApplication","operatingSystem":"macOS 15+"},{"@type":"SoftwareApplication","name":"Hyprnote (anarlog)"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Hyprnote","item":"https://www.lokalbot.com/lokalbot-vs-hyprnote"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-hyprnote#faq","mainEntity":[{"@type":"Question","name":"Aren't you basically the same project?","acceptedAnswer":{"@type":"Answer","text":"We overlap on the part that matters — local, bot-free meeting notes — and that's a good thing; the category needs more of it. We differ on scope (a workspace vs a notetaker), on shipped local AI vs bring-your-own model, on platforms, and on license."}},{"@type":"Question","name":"What's Char?","acceptedAnswer":{"@type":"Answer","text":"The team's current product: an AI notepad in private beta at char.com, backed by Y Combinator. It's a separate codebase from the open-source anarlog app, which the team says remains maintained."}},{"@type":"Question","name":"Why GPLv3 instead of MIT?","acceptedAnswer":{"@type":"Answer","text":"Copyleft. Anyone can fork LokalBot, but improvements have to stay open. For an app that hears your meetings and reads your screen, we want the audit path to survive every fork — the code you can read should always be the code you run."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -68,15 +70,20 @@
     <!-- ─────────────────────── HEAD ─────────────────────── -->
     <section class="section compare-head">
       <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs Hyprnote</span></nav>
         <p class="eyebrow">Compare</p>
         <h1 class="section__title">LokalBot vs Hyprnote</h1>
-        <p class="section__lead">Hyprnote is the closest cousin on this list: open-source, local-first meeting notes — it helped prove the category. In 2026 the app was renamed anarlog, and the team's newest product is Char, a separate cloud-era notepad in private beta (hyprnote.com now lands on char.com). The open-source notetaker remains maintained, and it's good. Here's how LokalBot differs.</p>
-        <p class="compare-updated">Last verified July 2026 · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+        <p class="section__lead">Hyprnote is the closest cousin on this list: open-source, local-first meeting notes — it helped prove the category. The app is now called anarlog, and hyprnote.com redirects to char.com, the team's newer product. The MIT-licensed anarlog app remains maintained, and it's good. Here's how LokalBot differs.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-09-24">September 24, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
       </header>
     </section>
 
     <!-- ─────────────────────── TABLE ─────────────────────── -->
-    <section class="section section--tight" aria-label="Feature comparison">
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
       <div class="compare-wrap reveal">
         <table class="compare">
           <thead>
@@ -89,28 +96,33 @@
           <tbody>
             <tr>
               <th scope="row">Scope</th>
-              <td>Workspace: meetings + dictation + day timeline + autocomplete + chat + CLI</td>
-              <td>Meeting notetaker with markdown notes</td>
+              <td>Meetings, dictation, day timeline, autocomplete, and chat in one app</td>
+              <td>Meeting notetaker</td>
             </tr>
             <tr>
-              <th scope="row">Local transcription</th>
-              <td><i class="ph ph-check" aria-hidden="true"></i>Neural Engine — Granite, Parakeet, or Whisper-family</td>
-              <td><i class="ph ph-check" aria-hidden="true"></i>On-device</td>
+              <th scope="row">Transcription</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your Mac — Qwen3-ASR by default, with Parakeet, Granite Speech, and Whisper as alternatives</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On-device models on supported Macs, or a cloud provider you select</td>
             </tr>
             <tr>
-              <th scope="row">Summaries / LLM</th>
-              <td><i class="ph ph-check" aria-hidden="true"></i>Local llama.cpp built in — works with no keys and no setup</td>
-              <td>Bring your own: OpenAI, Anthropic, Gemini, OpenRouter — or local via Ollama / LM Studio</td>
+              <th scope="row">Summaries and chat</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>llama.cpp built in — works with no keys and no setup</td>
+              <td>Your choice: a local server such as Ollama or LM Studio, your own API key, Apple Intelligence, or optional hosted AI</td>
             </tr>
             <tr>
-              <th scope="row">Cloud path</th>
-              <td>None by default — no account, no API keys</td>
-              <td>Optional cloud LLMs through your own API keys</td>
+              <th scope="row">Cloud features</th>
+              <td>None — no account and no sync service; a remote inference server needs your approval</td>
+              <td>Opt-in hosted AI, encrypted CloudSync, and sharing</td>
             </tr>
             <tr>
               <th scope="row">Notes on disk</th>
-              <td>SQLite library with full-text and vector search</td>
-              <td><span class="dim">Markdown files — easy to sync or put in git</span></td>
+              <td>Local SQLite library with full-text and vector search; Markdown export</td>
+              <td>Local SQLite plus plain files; Markdown export</td>
+            </tr>
+            <tr>
+              <th scope="row">Connect AI tools</th>
+              <td>Read-only CLI and MCP server, off until you enable Agent Access</td>
+              <td>Local CLI and MCP server</td>
             </tr>
             <tr>
               <th scope="row">System-wide dictation</th>
@@ -119,28 +131,28 @@
             </tr>
             <tr>
               <th scope="row">Day timeline</th>
-              <td><i class="ph ph-check" aria-hidden="true"></i>Permission-gated screenshots + OCR with app tracking</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days</td>
               <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
             </tr>
             <tr>
               <th scope="row">Writing autocomplete</th>
-              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping ghost text</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping, in almost any app</td>
               <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
             </tr>
             <tr>
               <th scope="row">License</th>
               <td>GPLv3 — every fork's improvements stay open</td>
-              <td>MIT — permissive; forks may go closed</td>
+              <td>MIT for the community app; enterprise components are commercially licensed</td>
             </tr>
             <tr>
               <th scope="row">Direction</th>
-              <td>Independent, on-device only</td>
-              <td>Maintained; the company's focus now includes Char, a cloud notepad in private beta</td>
+              <td>Independent, local by default</td>
+              <td>Maintained as the community notetaker; the team now builds Char</td>
             </tr>
             <tr>
               <th scope="row">Platforms</th>
               <td>macOS 15+ on Apple Silicon</td>
-              <td>Releases per platform on GitHub</td>
+              <td>macOS, Windows, and Linux</td>
             </tr>
           </tbody>
         </table>
@@ -148,15 +160,20 @@
     </section>
 
     <!-- ─────────────────────── PICKS ─────────────────────── -->
-    <section class="section section--tight" aria-label="Which one is for you">
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
       <div class="pick-grid">
         <article class="pick reveal">
-          <h3>Pick Hyprnote (anarlog) if&hellip;</h3>
+          <h3>Pick Hyprnote if&hellip;</h3>
           <p>A kindred project with different choices — all defensible.</p>
           <ul class="checklist">
-            <li><i class="ph ph-check" aria-hidden="true"></i> Markdown files on disk are your organizing principle — sync via git, iCloud, anything</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You need the same notetaker on Windows or Linux</li>
             <li><i class="ph ph-check" aria-hidden="true"></i> You already run Ollama or have LLM API keys you like</li>
-            <li><i class="ph ph-check" aria-hidden="true"></i> You prefer the MIT license, or you're not on an Apple Silicon Mac</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want optional cloud sync and note sharing</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You prefer the MIT license</li>
           </ul>
         </article>
         <article class="pick pick--lokal reveal">
@@ -166,7 +183,7 @@
             <li><i class="ph ph-check" aria-hidden="true"></i> You want zero setup: recommended models in-app, no keys, no separate LLM runner</li>
             <li><i class="ph ph-check" aria-hidden="true"></i> You want meetings plus dictation, a day timeline, and autocomplete</li>
             <li><i class="ph ph-check" aria-hidden="true"></i> Copyleft matters: GPLv3 keeps every fork's improvements open</li>
-            <li><i class="ph ph-check" aria-hidden="true"></i> You want everything searchable in one place — transcripts, notes, and your screen</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want transcripts, notes, and your screen activity searchable in one place</li>
           </ul>
         </article>
       </div>
@@ -181,11 +198,11 @@
       <div class="faq__list reveal">
         <details class="qa">
           <summary>Aren't you basically the same project?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>We overlap on the part that matters — local, bot-free meeting notes — and that's a good thing; the category needs more of it. We differ on scope (a workspace vs a notetaker), on shipped local AI vs bring-your-own model, and on license.</p>
+          <p>We overlap on the part that matters — local, bot-free meeting notes — and that's a good thing; the category needs more of it. We differ on scope (a workspace vs a notetaker), on shipped local AI vs bring-your-own model, on platforms, and on license.</p>
         </details>
         <details class="qa">
           <summary>What's Char?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>The new product from Hyprnote's team, backed by Y Combinator: an AI notepad in private beta at char.com. It's separate from the open-source anarlog app, which the team says remains maintained.</p>
+          <p>The team's current product: an AI notepad in private beta at char.com, backed by Y Combinator. It's a separate codebase from the open-source anarlog app, which the team says remains maintained.</p>
         </details>
         <details class="qa">
           <summary>Why GPLv3 instead of MIT?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -205,18 +222,22 @@
           <i class="ph ph-download-simple" aria-hidden="true"></i>
           Download for macOS
         </a>
-        <p class="download__sub">.dmg installer &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+        <p class="download__sub">.dmg installer &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
       </div>
     </section>
 
     <!-- ─────────────────────── MORE ─────────────────────── -->
     <section class="section section--tight" aria-label="More comparisons">
-      <nav class="compare-more">
+      <nav class="compare-more" aria-label="More comparisons">
         <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
-        <a href="lokalbot-vs-rewind">LokalBot vs Rewind</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
         <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind</a>
       </nav>
-      <p class="compare-disclaimer">Hyprnote, anarlog, and Char are trademarks of their owners; LokalBot is not affiliated with or endorsed by them. Details are based on their public repository and sites as of July 2026 — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+      <p class="compare-disclaimer">Hyprnote, anarlog, and Char are trademarks of their owners; LokalBot is not affiliated with or endorsed by them. Details are based on their public repository and sites as of September 2026 and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
     </section>
   </main>
 
@@ -227,28 +248,34 @@
         <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Your private AI memory for work — meetings, recall, writing, and local automation on macOS.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+</p>
+      <p>Find what you said or saw on your Mac.</p>
+      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
+      <a href="system-requirements">System requirements</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
       <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-otter">vs Otter</a>
+      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
       <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="about">About</a>
       <a href="/guides">Guides</a>
+      <a href="benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/stevyhacker/lokalbot#build--run" target="_blank" rel="noopener">Build from source</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>
       <a href="support">Support</a>

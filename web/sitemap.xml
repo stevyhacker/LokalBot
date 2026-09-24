@@ -2,11 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.lokalbot.com/</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/guides</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/local-ai-meeting-notes-mac</loc>
@@ -14,15 +14,15 @@
   </url>
   <url>
     <loc>https://www.lokalbot.com/offline-meeting-transcription-mac</loc>
-    <lastmod>2026-09-12</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/open-source-ai-meeting-notes</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/record-both-sides-mac-meeting-without-bot</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/local-transcription-models-mac</loc>
@@ -30,38 +30,62 @@
   </url>
   <url>
     <loc>https://www.lokalbot.com/system-requirements</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/about</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/benchmarks</loc>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/privacy</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/terms</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/support</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/enshittification-proof</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/lokalbot-vs-granola</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
-    <loc>https://www.lokalbot.com/lokalbot-vs-rewind</loc>
-    <lastmod>2026-07-13</lastmod>
+    <loc>https://www.lokalbot.com/lokalbot-vs-otter</loc>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
-    <loc>https://www.lokalbot.com/lokalbot-vs-superwhisper</loc>
-    <lastmod>2026-07-13</lastmod>
+    <loc>https://www.lokalbot.com/lokalbot-vs-fireflies</loc>
+    <lastmod>2026-09-24</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/lokalbot-vs-hyprnote</loc>
-    <lastmod>2026-07-13</lastmod>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/lokalbot-vs-macwhisper</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/lokalbot-vs-superwhisper</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/lokalbot-vs-screenpipe</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/lokalbot-vs-rewind</loc>
+    <lastmod>2026-09-24</lastmod>
   </url>
 </urlset>

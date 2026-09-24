@@ -3,26 +3,27 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LokalBot — Find your meetings, notes, and saved screen text</title>
-  <meta name="description" content="Search your meetings and the screen text you choose to save. LokalBot is a free, open-source Mac app with local transcription, recall, and dictation." />
+  <title>LokalBot — Find what you said or saw on your Mac</title>
+  <meta name="description" content="LokalBot is a free, open-source Mac app that finds what you said or saw: bot-free meeting notes, on-device transcription, saved screen text, and dictation." />
   <meta name="theme-color" content="#0b1119" />
   <meta name="google-site-verification" content="lFM4iF9Ki1rYDro5yRHgbWsy0_kwdIkXOhAOcM-oVP0" />
   <link rel="canonical" href="https://www.lokalbot.com/" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/" />
-  <meta property="og:title" content="LokalBot — Where did I see that?" />
-  <meta property="og:description" content="Find what you discussed, what you had open, and what you need to follow up on. Free and open source. Runs locally by default." />
+  <meta property="og:title" content="LokalBot — Find what you said or saw on your Mac" />
+  <meta property="og:description" content="Search your meetings and the screen text you choose to save. Free and open source. Runs locally by default." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/screens/quick-recall.png" />
-  <meta property="og:image:width" content="1320" />
-  <meta property="og:image:height" content="1024" />
+  <meta property="og:image:width" content="2640" />
+  <meta property="og:image:height" content="2048" />
   <meta property="og:image:alt" content="A LokalBot search for Redis finds a saved Slack moment, screen text from Safari, and meeting transcripts." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="LokalBot — Where did I see that?" />
+  <meta name="twitter:title" content="LokalBot — Find what you said or saw on your Mac" />
   <meta name="twitter:description" content="Search your meetings and the screen text you choose to save. A free, open-source Mac app that runs locally by default." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/screens/quick-recall.png" />
   <meta name="twitter:image:alt" content="Quick Recall finding Redis in a saved Slack moment, screen text, and meeting transcripts." />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/lokalbot-icon.svg" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
   <script type="application/ld+json">
@@ -34,26 +35,121 @@
         "@id": "https://www.lokalbot.com/#website",
         "url": "https://www.lokalbot.com/",
         "name": "LokalBot",
-        "description": "Search meetings and saved screen text on your Mac.",
-        "inLanguage": "en"
+        "description": "Find what you said or saw on your Mac.",
+        "inLanguage": "en",
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        }
+      },
+      {
+        "@type": "Organization",
+        "@id": "https://www.lokalbot.com/#organization",
+        "name": "LokalBot project",
+        "url": "https://www.lokalbot.com/",
+        "logo": "https://www.lokalbot.com/assets/lokalbot-icon-512.png",
+        "slogan": "Find what you said or saw on your Mac.",
+        "sameAs": [
+          "https://github.com/stevyhacker/lokalbot"
+        ]
       },
       {
         "@type": "SoftwareApplication",
         "@id": "https://www.lokalbot.com/#software",
         "name": "LokalBot",
         "url": "https://www.lokalbot.com/",
-        "description": "A free, open-source Mac app for searching meetings and optional saved screen text, reviewing action items, and dictating. Processing runs locally by default.",
+        "description": "Find what you said or saw on your Mac. LokalBot is a free, open-source Mac app that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and the screen text you choose to save. Processing runs locally by default.",
         "applicationCategory": "BusinessApplication",
-        "applicationSubCategory": "Work memory and meeting notes",
+        "applicationSubCategory": "Meeting notes and work memory",
         "operatingSystem": "macOS 15.0 or later on Apple Silicon",
+        "featureList": [
+          "Bot-free meeting recording of your microphone and the meeting app's audio on separate tracks",
+          "On-device transcription with Qwen3-ASR, Parakeet, Granite Speech, or Whisper",
+          "Local meeting summaries, decisions, and action items",
+          "One search across meetings, saved moments, and optional screen text",
+          "Day tracking that starts with app and window activity only; screen text and encrypted screenshots are opt-in",
+          "System-wide dictation with a hold-to-talk shortcut",
+          "Optional local writing autocomplete",
+          "Read-only CLI and MCP access for approved local agents"
+        ],
         "downloadUrl": "https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg",
+        "installUrl": "https://github.com/stevyhacker/lokalbot/releases/latest",
+        "releaseNotes": "https://github.com/stevyhacker/lokalbot/releases/latest",
         "softwareHelp": "https://www.lokalbot.com/support",
         "license": "https://www.gnu.org/licenses/gpl-3.0.en.html",
         "isAccessibleForFree": true,
-        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@id": "https://www.lokalbot.com/#organization"
+        },
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        },
+        "dateModified": "2026-09-24",
         "image": "https://www.lokalbot.com/assets/screens/quick-recall.png",
         "screenshot": "https://www.lokalbot.com/assets/screens/quick-recall.png",
-        "sameAs": ["https://github.com/stevyhacker/lokalbot"]
+        "sameAs": [
+          "https://github.com/stevyhacker/lokalbot",
+          "https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks",
+          "https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://www.lokalbot.com/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What does it capture from my screen?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "New installs start with activity-only tracking. You can turn tracking off, save visible text without pictures, or add encrypted screenshots. Text and screenshots are opt-in. Private windows, excluded apps and sites, and secure fields are skipped; use exclusions for anything you don't want retained. Captured text and screenshots are deleted after 14 days by default. Moments you explicitly save stay until you unsave or delete them."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does anything leave my Mac?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Recordings and built-in processing stay local. Network access covers model downloads, update checks, and optional agent setup. A remote model receives the context needed for a request only after you approve its server. Approved agent commands can also access the network. Connected CLI or MCP tools have their own data handling; meeting and screen-memory access have separate permissions. See the privacy policy."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I choose my own models?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Start with the built-in local models, choose another downloaded model, or connect Ollama, Apple Intelligence, or an OpenAI-compatible server. Transcription, summaries, and autocomplete have their own model choices. See the transcription model guide and offline setup guide."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is LokalBot free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. LokalBot is free and open source under GPLv3. There is no account, subscription, or LokalBot server. See the fact sheet for what it includes."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which Macs does it run on?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Apple Silicon Macs (M1 or later) with macOS 15 or later. Intel Macs are not supported. Check the system requirements for memory and disk space."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does a bot join my meetings?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. LokalBot records your microphone and the meeting app's audio on separate tracks. Let participants know you're recording and get their consent. Read how recording works."
+            }
+          }
+        ]
       }
     ]
   }
@@ -87,8 +183,8 @@
     <section class="hero home-hero" aria-labelledby="hero-title">
       <div class="hero__copy">
         <p class="eyebrow">Work memory for Mac</p>
-        <h1 class="hero__title" id="hero-title">Where did I see that?</h1>
-        <p class="hero__sub">Search your meetings and the screen text you choose to save. Find what you discussed, what you had open, and what you need to follow up on.</p>
+        <h1 class="hero__title" id="hero-title">Find what you said or saw on your Mac.</h1>
+        <p class="hero__sub">Search your meetings and the screen text you choose to save: what you discussed, what you had open, and what you still need to follow up on.</p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg">
             <i class="ph ph-apple-logo" aria-hidden="true"></i>
@@ -244,6 +340,14 @@
           <p>Yes. Start with the built-in local models, choose another downloaded model, or connect Ollama, Apple Intelligence, or an OpenAI-compatible server. Transcription, summaries, and autocomplete have their own model choices. See the <a href="local-transcription-models-mac">transcription model guide</a> and <a href="offline-meeting-transcription-mac">offline setup guide</a>.</p>
         </details>
         <details class="qa">
+          <summary>Is LokalBot free?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. LokalBot is free and open source under GPLv3. There is no account, subscription, or LokalBot server. See <a href="about">the fact sheet</a> for what it includes.</p>
+        </details>
+        <details class="qa">
+          <summary>Which Macs does it run on?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Apple Silicon Macs (M1 or later) with macOS 15 or later. Intel Macs are not supported. Check the <a href="system-requirements">system requirements</a> for memory and disk space.</p>
+        </details>
+        <details class="qa">
           <summary>Does a bot join my meetings?<i class="ph ph-plus" aria-hidden="true"></i></summary>
           <p>No. LokalBot records your microphone and the meeting app's audio on separate tracks. Let participants know you're recording and get their consent. Read <a href="record-both-sides-mac-meeting-without-bot">how recording works</a>.</p>
         </details>
@@ -257,7 +361,7 @@
         <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Find what you discussed and what you had open.</p>
+      <p>Find what you said or saw on your Mac.</p>
       <p class="footer__meta">Free and open source. Made for Mac.</p>
     </div>
     <nav class="footer__col" aria-label="Product">
@@ -271,13 +375,19 @@
     <nav class="footer__col" id="compare" aria-label="Compare">
       <h3>Compare</h3>
       <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-otter">vs Otter</a>
+      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
       <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="about">About</a>
+      <a href="benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a>
       <a href="https://github.com/stevyhacker/lokalbot#build-from-source" target="_blank" rel="noopener">Build from source</a>
       <a href="privacy">Privacy</a>
