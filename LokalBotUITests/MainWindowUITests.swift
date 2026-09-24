@@ -1139,11 +1139,13 @@ final class MainWindowUITests: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
 
-        let toggle = app.checkBoxes["settings.multiSpeakerDiarization"]
+        let toggle = UITestHarness.toggle("Separate voices by speaker", in: app)
+        UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(toggle.waitForExistence(timeout: 4))
         toggle.click()
-        XCTAssertFalse(picker.isEnabled)
+        XCTAssertTrue(UITestHarness.waitUntil { !picker.isEnabled })
         toggle.click()
-        XCTAssertTrue(picker.isEnabled)
+        XCTAssertTrue(UITestHarness.waitUntil { picker.isEnabled })
 
         clickSidebar("sidebar.meetings")
         clickSidebar("sidebar.settings")
