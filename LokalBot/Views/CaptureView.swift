@@ -307,12 +307,12 @@ struct TimelineContentView: View {
                         CaptureDayView(model: model, onOpenContext: {})
                             .frame(minWidth: WorkspaceMetric.timelineRailMinWidth,
                                    idealWidth: WorkspaceMetric.timelineRailIdealWidth,
-                                   maxWidth: WorkspaceMetric.timelineRailMaxWidth)
+                                   maxWidth: WorkspaceMetric.timelineRailMaxWidth(in: proxy.size.width))
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("timeline.sessionRail")
                             .splitPaneAccessibilityLabel(
                                 "Work sessions",
-                                autosaveName: "LokalBot.timeline.reading.v4",
+                                autosaveName: "LokalBot.timeline.reading.v5",
                                 initialWidth: WorkspaceMetric.timelineRailIdealWidth)
                     }
                     .id("workspace.timeline")

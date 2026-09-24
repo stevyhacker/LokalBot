@@ -80,6 +80,13 @@ enum WorkspaceMetric {
     static let timelineRailMinWidth: CGFloat = 260
     static let timelineRailIdealWidth: CGFloat = 360
     static let timelineRailMaxWidth: CGFloat = 640
+    /// However far the rail is dragged, the digest keeps this much width so
+    /// its evidence headers never clip.
+    static let timelineEvidenceReadableWidth: CGFloat = 480
+
+    static func timelineRailMaxWidth(in paneWidth: CGFloat) -> CGFloat {
+        min(timelineRailMaxWidth, max(timelineRailMinWidth, paneWidth - timelineEvidenceReadableWidth))
+    }
 }
 
 /// Agent's three working surfaces remain neutral; accent marks focus and

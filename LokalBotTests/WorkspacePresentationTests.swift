@@ -25,6 +25,18 @@ final class WorkspacePresentationTests: XCTestCase {
             WorkspaceMetric.timelineContextMinWidth + 360)
     }
 
+    func testTimelineRailLeavesTheDigestReadableAtEveryWidth() {
+        // At the drawer breakpoint and a 1000 pt window the rail yields, so
+        // the digest never falls below its readable width.
+        for paneWidth: CGFloat in [WorkspaceMetric.timelineDrawerBreakpoint, 833] {
+            let rail = WorkspaceMetric.timelineRailMaxWidth(in: paneWidth)
+            XCTAssertGreaterThanOrEqual(paneWidth - rail, WorkspaceMetric.timelineEvidenceReadableWidth)
+            XCTAssertGreaterThanOrEqual(rail, WorkspaceMetric.timelineRailMinWidth)
+        }
+        // Large windows reach the full drag range.
+        XCTAssertEqual(WorkspaceMetric.timelineRailMaxWidth(in: 1_273), WorkspaceMetric.timelineRailMaxWidth)
+    }
+
     func testCompactRadiusTokensAreNamedAndOrdered() {
         XCTAssertLessThan(Brand.Radius.tab, Brand.Radius.row)
         XCTAssertLessThan(Brand.Radius.row, Brand.Radius.control)

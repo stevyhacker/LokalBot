@@ -33,11 +33,12 @@ final class CotypingSettingsUITests: XCTestCase {
 
     func testAutocompleteExperienceShowsReadinessPreviewAndPrivacy() {
         XCTAssertTrue(staticText("Autocomplete on").exists)
-        XCTAssertTrue(staticText("Try the real autocomplete").exists)
+        // Form rows render lazily; the preview section follows the summary row.
+        XCTAssertTrue(staticText("Try the real autocomplete").waitForExistence(timeout: 5))
         XCTAssertFalse(staticText("Two-step rehearsal").exists)
         XCTAssertFalse(staticText("Private by design").exists)
         XCTAssertTrue(app.buttons.matching(
-            NSPredicate(format: "label == 'Insert suggestion'")).firstMatch.exists)
+            NSPredicate(format: "label == 'Insert suggestion'")).firstMatch.waitForExistence(timeout: 5))
         XCTAssertFalse(staticText("Cotyping").exists,
                        "legacy internal name leaked into the Writing settings")
     }

@@ -40,23 +40,13 @@ struct AutocompleteExperienceView: View {
 #endif
     }
 
-    /// Returns Form sections: readiness rows, then the live preview. Both use
-    /// the Settings row type scale instead of nested workspace panels.
+    /// Returns Form sections: a readiness summary, then the live preview. Both
+    /// use the Settings row type scale instead of nested workspace panels, and
+    /// the preview stays near the top of Writing without scrolling.
     var body: some View {
         Group {
-            Section("Readiness") {
+            Section {
                 summary
-                LabeledContent("Model") {
-                    HStack(spacing: 8) {
-                        Text(selectedModel?.displayName ?? "LFM2.5 1.2B Instruct")
-                            .settingsSecondary()
-                            .lineLimit(1)
-                        MemoryHealthStatus(value: modelReady ? "Ready" : "Download needed",
-                                           tone: modelReady ? .good : .attention)
-                    }
-                }
-                permissionRow("Accessibility", .accessibility)
-                permissionRow("Input Monitoring", .inputMonitoring)
                 if !modelReady {
                     CotypingModelPreparationView(compact: true)
                 }
@@ -76,37 +66,50 @@ struct AutocompleteExperienceView: View {
     }
 
     private var summary: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             IconTile(systemImage: "text.cursor",
                      tint: app.settings.cotypingEnabled ? Brand.tealFill : Color(nsColor: .systemGray),
                      size: 32)
                 .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(app.settings.cotypingEnabled ? "Autocomplete on" : "Autocomplete off")
-                    .font(WorkspaceTypography.bodyEmphasis)
-                Text(summaryDetail)
-                    .font(WorkspaceTypography.metadata)
-                    .settingsSecondary()
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(app.settings.cotypingEnabled ? "Autocomplete on" : "Autocomplete off")
+                        .font(WorkspaceTypography.bodyEmphasis)
+                    Text(summaryDetail)
+                        .font(WorkspaceTypography.metadata)
+                        .settingsSecondary()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 6) { readiness }
+                    VStack(alignment: .leading, spacing: 6) { readiness }
+                }
             }
         }
         .padding(.vertical, 4)
         .accessibilityIdentifier("autocomplete.home")
     }
 
+    @ViewBuilder private var readiness: some View {
+        MemoryHealthStatus(value: modelReady ? "Model ready" : "Model needed",
+                           tone: modelReady ? .good : .attention)
+            .help(selectedModel?.displayName ?? "LFM2.5 1.2B Instruct")
+        permissionStatus("Accessibility", .accessibility)
+        permissionStatus("Input Monitoring", .inputMonitoring)
+    }
+
     private var summaryDetail: String {
-        if app.settings.cotypingEnabled { return "Suggestions appear as you type in other apps." }
+        let model = selectedModel?.displayName ?? "LFM2.5 1.2B Instruct"
+        if app.settings.cotypingEnabled { return "\(model) · suggestions appear as you type in other apps." }
         return modelReady
             ? "The model is ready. Turn on autocomplete below to start."
             : "Download the Autocomplete model to try it."
     }
 
-    private func permissionRow(_ title: String, _ permission: AppPermission) -> some View {
+    private func permissionStatus(_ title: String, _ permission: AppPermission) -> some View {
         let granted = demoReady || (permissions.granted[permission] ?? false)
-        return LabeledContent(title) {
-            MemoryHealthStatus(value: granted ? "Granted" : "Needs permission",
-                               tone: granted ? .good : .attention)
-        }
+        return MemoryHealthStatus(value: granted ? "\(title) granted" : "\(title) needed",
+                                  tone: granted ? .good : .attention)
     }
 
     private var preview: some View {

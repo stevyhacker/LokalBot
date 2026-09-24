@@ -45,6 +45,14 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             updatePaneLabel()
         }
 
+        /// The split can attach before it has its final width. Keep retrying
+        /// as the pane lays out until the opening width lands, instead of
+        /// leaving (and saving) HSplitView's even split.
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            if initialWidth != nil, initialWidthPending { updatePaneLabel() }
+        }
+
         func updatePaneLabel() {
             // Defer until SwiftUI has attached the hosting view to its split
             // item. Only this anchor's nearest pane is ever modified.
