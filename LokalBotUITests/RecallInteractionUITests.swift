@@ -37,14 +37,16 @@ final class RecallInteractionUITests: XCTestCase {
         XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
 
         let position = app.sliders["Rewind position"]
-        position.click()
-        app.typeKey(.home, modifierFlags: [])
+        let first = position.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+        let last = position.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5))
+        last.press(forDuration: 0.1, thenDragTo: first)
         XCTAssertTrue(element("timeline.screenDetail.9001").waitForExistence(timeout: 4))
-        app.typeKey(.end, modifierFlags: [])
+        first.press(forDuration: 0.1, thenDragTo: last)
         XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
+        let lastPosition = String(describing: position.value)
         app.buttons["Back to raw capture"].click()
         XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 4))
-        XCTAssertEqual((position.value as? NSNumber)?.intValue, 2,
+        XCTAssertEqual(String(describing: position.value), lastPosition,
                        "Returning to raw capture must preserve the rewind cursor")
     }
 
@@ -56,7 +58,10 @@ final class RecallInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
         XCTAssertFalse(element("chat.message.user").exists)
         XCTAssertTrue(element("chat.message.user").waitForExistence(timeout: 10))
-        XCTAssertEqual(app.staticTexts.matching(identifier: "chat.message.user").count, 1)
+        // The row identifier is inherited by its metadata as well as its text.
+        let questions = app.staticTexts.matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat.message.user", "failover benchmark?"))
+        XCTAssertEqual(questions.count, 1)
         XCTAssertEqual(field.value as? String, "")
         XCTAssertTrue(element("ask.selectedEvidence").label.contains("1 meetings"),
                       "Submission must use the retrieved meeting boundary")
@@ -84,7 +89,7 @@ final class RecallInteractionUITests: XCTestCase {
         field.typeText("failover benchmark?\r")
         XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
         element("ask.sources").click()
-        app.menuItems["Screen"].click()
+        app.menuItems["Activity"].click()
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 10))
         XCTAssertFalse(element("chat.message.user").exists)
         XCTAssertEqual(field.value as? String, "failover benchmark?")
