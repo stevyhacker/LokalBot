@@ -39,7 +39,7 @@ struct ModelStackOverviewView: View {
                     .font(.system(size: 13)).settingsSecondary()
                 Spacer(minLength: 8)
                 Button("Choose preset…") { present(.presets) }
-                    .buttonStyle(SettingsActionButtonStyle())
+                    .buttonStyle(.bordered)
                     .disabled(setup.pending != nil)
                     .accessibilityIdentifier("models.choosePreset")
             }
@@ -63,6 +63,9 @@ struct ModelStackOverviewView: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 14)
             .settingsPanel()
+            processingBudget
+                .padding(.horizontal, 16).padding(.vertical, 14)
+                .settingsPanel()
             VStack(alignment: .leading, spacing: 4) {
                 Text("Also used by LokalBot").font(.system(size: 16, weight: .semibold))
                     .padding(.bottom, 6)
@@ -84,6 +87,34 @@ struct ModelStackOverviewView: View {
         .controlSize(.regular)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("models.overview")
+    }
+
+    /// How much of a long meeting Think processes per pass. It applies to every
+    /// Think backend, so it lives here rather than with one connection.
+    private var processingBudget: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Think processing budget").font(.system(size: 16, weight: .semibold))
+            Picker("Think processing budget", selection: $app.settings.generationBudgetPreset) {
+                ForEach(GenerationBudgetPreset.allCases) { Text($0.displayName).tag($0) }
+            }
+            .labelsHidden().pickerStyle(.segmented).frame(maxWidth: 420)
+            .accessibilityIdentifier("models.generationBudget")
+            .settingTarget("settings.generationBudgetPreset", selected: app.focusedSettingID)
+            Text("Applies to every Think model — built-in, Apple Intelligence, and servers. "
+                 + app.settings.generationBudgetPreset.detail)
+                .font(.system(size: 12)).settingsSecondary()
+                .fixedSize(horizontal: false, vertical: true)
+            if app.settings.generationBudgetPreset == .unlimited {
+                Label("Unlimited removes practical caps: a single meeting can process for up to "
+                      + "6 hours. On a paid API this can run up significant token costs; on a "
+                      + "local model it can keep this Mac busy and hot for a long time.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.system(size: 12)).foregroundStyle(Brand.error)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("models.generationBudget.warning")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var dictationDetail: String? {
@@ -147,7 +178,7 @@ struct ModelStackOverviewView: View {
                     .accessibilityIdentifier("models.stack.status.\(role.rawValue)")
             } else if destination.isBlocked {
                 Button("Review connection…", action: connections)
-                    .font(.system(size: 12)).buttonStyle(.link)
+                    .font(.system(size: 12)).buttonStyle(.workspaceLink)
             } else if !status.isReady {
                 Label(status.label, systemImage: status.isWorking ? "arrow.down.circle" : "exclamationmark.circle")
                     .font(.system(size: 12))
@@ -172,11 +203,11 @@ struct ModelStackOverviewView: View {
 
     private func changeButton(_ role: ModelRole, sheet: ModelsSettingsSheet) -> some View {
         Button("Change…") { present(sheet) }
-            .buttonStyle(SettingsActionButtonStyle())
+            .buttonStyle(.bordered)
             .frame(minWidth: 84)
             .disabled(setup.pending != nil)
             .accessibilityIdentifier("models.stack.change.\(role == .autocomplete ? "type" : role.rawValue)")
-            .accessibilityLabel("Change \(role.settingsTitle.lowercased()) model")
+            .accessibilityLabel("Change \(role.settingsTitle) model")
     }
 
     private func supportingRow(_ title: String, icon: String, value: String,

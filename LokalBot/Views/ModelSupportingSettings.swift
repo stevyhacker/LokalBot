@@ -44,7 +44,7 @@ struct ModelSpeechSettingsSheet: View {
                         Button("Cancel") { download.cancel() }
                     } else {
                         Button("Download voice model") { download.download() }
-                            .buttonStyle(.borderedProminent)
+                            .primaryActionButton()
                     }
                 }
                 Text(download.isDownloaded ? "Downloaded. Voice synthesis runs locally."

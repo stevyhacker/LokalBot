@@ -63,7 +63,7 @@ struct ModelChecksSheet: View {
                     Button("Cancel checks") { checks.cancel() }
                 } else {
                     Button("Check available models") { checks.run(availableRoles, app: app) }
-                        .buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                        .primaryActionButton().keyboardShortcut(.defaultAction)
                         .disabled(availableRoles.isEmpty)
                         .accessibilityIdentifier("models.check.available")
                 }

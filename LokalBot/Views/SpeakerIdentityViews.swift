@@ -5,19 +5,22 @@ struct SpeakerIdentitySettingsControls: View {
     @State private var managingProfiles = false
 
     var body: some View {
-        Toggle("Identify speakers from Google Meet", isOn: $app.settings.identifySpeakersFromVisuals)
+        Toggle(isOn: $app.settings.identifySpeakersFromVisuals) {
+            SettingsLabel("Identify speakers from Google Meet",
+                          help: "For new recordings, reads participant names and speaking labels from the recorded Meet tab in Chrome through Accessibility. No screenshots are taken.")
+        }
             .accessibilityLabel("Identify speakers from Google Meet")
             .accessibilityIdentifier("settings.speakerVisuals")
-        Text("Applies to new recordings. Uses Accessibility to read participant names and explicit speaking labels from the recorded Google Meet tab in Chrome. Keep that tab selected. No screenshots are taken for speaker identification. Missing speaking labels leave names available for manual assignment. Applied names become part of your transcript and its configured summaries.")
-            .font(.caption).foregroundStyle(.secondary)
-        Toggle("Remember speakers on this Mac", isOn: $app.settings.rememberSpeakersOnMac)
+        SettingsDetails("How Meet identification works",
+                        "Keep the recorded Google Meet tab selected in Chrome. When a speaking label is missing, names stay available for you to assign. Applied names become part of your transcript and its summaries.")
+        Toggle(isOn: $app.settings.rememberSpeakersOnMac) {
+            SettingsLabel("Remember speakers on this Mac",
+                          help: "When you confirm a name, eligible voice samples can create an encrypted local profile for future Meet recordings. Automatic guesses never train profiles.")
+        }
             .accessibilityLabel("Remember speakers on this Mac")
             .accessibilityIdentifier("settings.rememberSpeakers")
-        Text("When you confirm a name, eligible voice samples can create an encrypted local profile for future Meet recordings. Automatic guesses never train profiles. You can choose This meeting only when naming a speaker.")
-            .font(.caption).foregroundStyle(.secondary)
         if !app.settings.multiSpeakerDiarization {
-            Text("Turn on speaker separation to match names to individual remote voices.")
-                .font(.caption).foregroundStyle(.secondary)
+            SettingsHelp("Turn on “Separate other speakers by voice” to match names to individual remote voices.")
         }
         Button("Manage remembered people…") { managingProfiles = true }
             .sheet(isPresented: $managingProfiles) {
@@ -160,7 +163,7 @@ struct SpeakerIdentityReview: View {
                     Button("Someone else") { onAction(.confirmOther, name, remember, profileID) }
                 }
             } else {
-                Text("Identity is unresolved for audio without reliable speaker separation.")
+                Text("This audio mixes voices, so it can't be confirmed as one person. You can still name it.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let match = assignment?.match, assignment?.origin.isProtected == false {

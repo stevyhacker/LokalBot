@@ -117,7 +117,7 @@ struct GenerationTestFailurePopover: View {
                 Link(destination: actionURL) {
                     Label(actionTitle, systemImage: "arrow.up.right.square")
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .controlSize(.large)
                 .accessibilityIdentifier("models.generationTest.openPrivacy")
             }

@@ -109,7 +109,7 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         }
         if let commitment = commitments.first {
             var detail = sentence(commitment.text)
-            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(owner)." }
+            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(SpeakerDisplayName.label(owner))." }
             if let due = nonEmpty(commitment.due) { detail += " Due: \(due)." }
             sentences.append("Commitment to revisit: \(detail)")
         }
@@ -600,7 +600,7 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
         guard UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
             settings: app.settings) else {
             generationErrors[evidence.signature] =
-                "Choose an on-device Main LLM to generate this brief."
+                "Choose an on-device Think model to generate this brief."
             return
         }
 

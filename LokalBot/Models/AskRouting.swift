@@ -197,6 +197,36 @@ enum AskPhase: Equatable {
     case idle, searching, conversation
 }
 
+/// Whether typed Ask input reads as a question rather than search keywords.
+enum AskIntent {
+    private static let questionStarts: Set<String> = [
+        "what", "why", "how", "when", "where", "who", "whom", "whose", "which",
+        "did", "do", "does", "is", "are", "was", "were", "can", "could", "should",
+        "would", "will", "has", "have", "had", "summarize", "summarise", "explain",
+        "list", "tell", "compare", "remind", "draft",
+    ]
+
+    static func isQuestion(_ query: String) -> Bool {
+        let words = query.split(whereSeparator: \.isWhitespace)
+        guard let first = words.first else { return false }
+        if query.trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("?") { return words.count >= 2 }
+        let lead = first.lowercased().trimmingCharacters(in: .punctuationCharacters)
+        return words.count >= 3 && questionStarts.contains(lead)
+    }
+}
+
+/// What Return does in Ask. Keywords open the highlighted result and never
+/// start inference; a question asks through the same path as Command-Return,
+/// unless the person picked a result with the arrow keys first.
+enum AskReturnAction: Equatable {
+    case openResult, ask, none
+
+    static func resolve(query: String, resultCount: Int, pickedWithKeyboard: Bool) -> Self {
+        if !pickedWithKeyboard, AskIntent.isQuestion(query) { return .ask }
+        return resultCount > 0 ? .openResult : .none
+    }
+}
+
 enum AskRouter {
     static func phase(query: String, hasMessages: Bool) -> AskPhase {
         guard query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {

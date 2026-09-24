@@ -36,7 +36,7 @@ struct MeetingSpeakerReviewSection: View {
                 }
                 .padding(.vertical, 8)
                 .accessibilityElement(children: .contain)
-                .accessibilityLabel(speaker.name)
+                .accessibilityLabel(SpeakerDisplayName.label(speaker.name))
                 if speaker.id != speakers.last?.id { Divider() }
             }
         }
@@ -47,7 +47,7 @@ struct MeetingSpeakerReviewSection: View {
 
     private func speakerLabel(_ speaker: MeetingSpeakerReviewItem) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(speaker.name).font(WorkspaceTypography.bodyEmphasis)
+            Text(SpeakerDisplayName.label(speaker.name)).font(WorkspaceTypography.bodyEmphasis)
             Text(speaker.status).workspaceTextRole(.supporting)
             if speaker.actionCount > 0 {
                 Text("Linked to \(speaker.actionCount) action\(speaker.actionCount == 1 ? "" : "s")")
@@ -63,11 +63,11 @@ struct MeetingSpeakerReviewSection: View {
                     Label("Listen", systemImage: "play.fill")
                 }
                 .disabled(!canPlay)
-                .accessibilityLabel("Listen to an excerpt from \(speaker.name)")
+                .accessibilityLabel("Listen to an excerpt from \(SpeakerDisplayName.label(speaker.name))")
                 .accessibilityIdentifier("meeting.review.listen.\(speaker.id)")
             }
-            Button(speaker.isNamed || !speaker.canConfirm ? "Review name…" : "Confirm speaker…") { onReview(speaker.id) }
-                .accessibilityLabel("Review speaker \(speaker.name)")
+            Button(speaker.isNamed ? "Review name…" : "Name speaker…") { onReview(speaker.id) }
+                .accessibilityLabel("Review speaker \(SpeakerDisplayName.label(speaker.name))")
                 .accessibilityIdentifier("meeting.review.speaker.\(speaker.id)")
         }
         .fixedSize()
@@ -95,7 +95,7 @@ struct MeetingNotesRefreshSection: View {
                 localText: "Refreshing processes the transcript on this Mac.",
                 remoteText: "Refreshing sends the transcript and confirmed names to your approved model server.")
             Button(isProcessing ? "Processing…" : "Refresh notes and owners", action: onRefresh)
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .disabled(isProcessing || !canRefresh)
                 .accessibilityIdentifier("meeting.review.refresh")
         }

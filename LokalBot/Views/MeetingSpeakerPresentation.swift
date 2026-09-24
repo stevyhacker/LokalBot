@@ -1,5 +1,22 @@
 import Foundation
 
+/// Friendlier labels for LokalBot's placeholder speaker names. Stored keys,
+/// aliases, owners, prompts, and exports keep the canonical names ("Me",
+/// "Them 2"); "Local speaker" stays because that voice is not yet confirmed
+/// as the user.
+enum SpeakerDisplayName {
+    static func label(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch trimmed.lowercased() {
+        case "me": return "You"
+        case "them": return "Other speaker"
+        default:
+            if let match = trimmed.wholeMatch(of: /[Tt]hem (\d+)/) { return "Speaker \(match.1)" }
+            return name
+        }
+    }
+}
+
 /// Display-only names for a combined meeting. Source-scoped keys, confirmed
 /// identities, and persisted aliases remain untouched for edits and evidence.
 struct MeetingSpeakerPresentation {
@@ -35,7 +52,13 @@ struct MeetingSpeakerPresentation {
     }
 
     func speaker(_ key: String, in transcript: Transcript) -> String {
-        names[Transcript.canonicalSpeakerKey(key)] ?? transcript.displaySpeaker(for: key)
+        SpeakerDisplayName.label(
+            names[Transcript.canonicalSpeakerKey(key)] ?? transcript.displaySpeaker(for: key))
+    }
+
+    /// An action owner as people should read it ("You", "Other speaker").
+    func owner(_ value: String) -> String {
+        SpeakerDisplayName.label(text(value))
     }
 
     func text(_ value: String) -> String {

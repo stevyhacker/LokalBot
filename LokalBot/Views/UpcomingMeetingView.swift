@@ -80,7 +80,7 @@ private struct TodayMeetingRow: View {
                 Link(destination: meetingURL) {
                     Label("Join", systemImage: "video")
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("today.meeting.\(event.externalID).join")
             }
             Button {
@@ -115,8 +115,9 @@ private struct UpcomingMeetingCard: View {
     }
 
     var body: some View {
+        // The meeting row above already shows the title, time, people, and
+        // Join/Record, so preparation context starts with the brief.
         VStack(alignment: .leading, spacing: 13) {
-            header
             brief
             primaryContext
             if extraContextCount > 0 {
@@ -136,59 +137,6 @@ private struct UpcomingMeetingCard: View {
                 .strokeBorder(Brand.teal.opacity(0.18)))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("today.upcomingMeeting")
-    }
-
-    private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            IconTile(systemImage: "calendar.badge.clock", tint: Brand.teal, size: 42)
-            VStack(alignment: .leading, spacing: 4) {
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text(event.startDate <= context.date ? "In progress" : "Up next")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Brand.teal)
-                }
-                Text(event.title)
-                    .font(.title3.bold())
-                    .textSelection(.enabled)
-                    .accessibilityIdentifier("today.upcomingMeeting.title")
-                TimelineView(.periodic(from: .now, by: 30)) { context in
-                    Text(UpcomingMeetingPresentation.timeLabel(event: event, now: context.date))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-                if let participants = UpcomingMeetingPresentation.participantLabel(event) {
-                    Label(participants, systemImage: "person.2")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            Spacer(minLength: 12)
-            actions
-        }
-    }
-
-    private var actions: some View {
-        HStack(spacing: 8) {
-            if let meetingURL = event.meetingURL {
-                Link(destination: meetingURL) {
-                    Label("Join", systemImage: "video")
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("today.upcomingMeeting.join")
-            }
-            Button {
-                app.startRecording(
-                    context: app.recordingContext(for: event),
-                    source: "today-upcoming")
-            } label: {
-                Label(app.isRecording ? "Recording" : "Record", systemImage: "record.circle")
-            }
-            .buttonStyle(.bordered)
-            .disabled(app.isRecording)
-            .accessibilityIdentifier("today.upcomingMeeting.record")
-        }
-        .controlSize(.regular)
     }
 
     private var brief: some View {
@@ -212,7 +160,7 @@ private struct UpcomingMeetingCard: View {
                         model.generatingSignature != nil
                             || !UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
                                 settings: app.settings))
-                    .help("Generate from these sources using the Main LLM on this Mac")
+                    .help("Generate from these sources using the Think model on this Mac")
                     .accessibilityIdentifier("today.upcomingMeeting.generateBrief")
                 }
             }
@@ -286,7 +234,7 @@ private struct UpcomingMeetingCard: View {
     private func referenceRow(title: String, icon: String,
                               reference: UpcomingMeetingReference) -> some View {
         var metadata: [String] = []
-        if let owner = reference.owner, !owner.isEmpty { metadata.append(owner) }
+        if let owner = reference.owner, !owner.isEmpty { metadata.append(SpeakerDisplayName.label(owner)) }
         if let due = reference.due, !due.isEmpty { metadata.append("due \(due)") }
         if reference.sourceMeetingCount > 1 {
             metadata.append("\(reference.sourceMeetingCount) meetings")

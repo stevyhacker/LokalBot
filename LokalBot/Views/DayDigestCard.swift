@@ -64,7 +64,7 @@ struct DayDigestControls: View {
         Button { app.openAsk(dayScope: model.day) } label: {
             Label("Ask about day", systemImage: "sparkle.magnifyingglass")
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(.bordered)
         .accessibilityIdentifier(identifier == "timeline" ? "capture.askDay" : "\(identifier).askDay")
     }
 

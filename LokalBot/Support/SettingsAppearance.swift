@@ -6,7 +6,9 @@ enum SettingsPalette {
     static func navigation(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xE9E9E9, dark: 0x242426) }
     static func panel(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xFFFFFF, dark: 0x2C2C2E) }
     static func hover(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xECECEE, dark: 0x39393D) }
-    static func accent(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x0C7462, dark: 0x6CD9BF) }
+    /// The shared brand accent; kept as a palette entry so Settings call sites
+    /// read uniformly.
+    static func accent(_ scheme: ColorScheme) -> Color { Brand.teal }
     static func remote(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x4D4B9C, dark: 0xB8B2FF) }
     static func warning(_ scheme: ColorScheme) -> Color { color(scheme, light: 0x8C4D06, dark: 0xFFD08A) }
 
@@ -99,47 +101,6 @@ private struct SettingsModelIconModifier: ViewModifier {
     }
 }
 
-/// Clear button edges and a strong primary fill, while retaining native
-/// Button keyboard activation, focus, accessibility, and disabled semantics.
-struct SettingsActionButtonStyle: ButtonStyle {
-    var prominent = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        SettingsActionButton(configuration: configuration, prominent: prominent)
-    }
-}
-
-private struct SettingsActionButton: View {
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.isEnabled) private var isEnabled
-    @State private var hovered = false
-    let configuration: ButtonStyleConfiguration
-    let prominent: Bool
-
-    var body: some View {
-        let accent = SettingsPalette.accent(scheme)
-        let shape = RoundedRectangle(cornerRadius: Brand.Radius.tab, style: .continuous)
-        configuration.label
-            .font(.system(size: 13, weight: .semibold))
-            .padding(.horizontal, 12).padding(.vertical, 7)
-            .foregroundStyle(prominent ? (scheme == .dark ? SettingsPalette.canvas(scheme) : .white) : accent)
-            .background(background, in: shape)
-            .overlay {
-                shape.strokeBorder(accent.opacity(prominent || contrast == .increased ? 1 : 0.7), lineWidth: 1)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.45)
-            .onHover { hovered = $0 }
-    }
-
-    private var background: Color {
-        if prominent { return SettingsPalette.accent(scheme) }
-        return hovered || configuration.isPressed ? SettingsPalette.hover(scheme) : SettingsPalette.panel(scheme)
-    }
-}
-
 extension View {
     func settingsPanel() -> some View {
         modifier(SettingsPanelModifier())
@@ -155,5 +116,65 @@ extension View {
 
     func settingsModelIcon(_ destination: InferencePresentation = .onDevice) -> some View {
         modifier(SettingsModelIconModifier(destination: destination))
+    }
+}
+
+// MARK: - Row labels
+
+/// One-sentence explanation shown under a settings control. It is smaller and
+/// quieter than the control label so each row reads as one setting.
+struct SettingsHelp: View {
+    let text: String
+
+    init(_ text: String) {
+        self.text = text
+    }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 12))
+            .settingsSecondary()
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+/// A settings control label: the title with its explanation attached, for use
+/// as the label of a Toggle, Picker, Stepper, or LabeledContent.
+struct SettingsLabel: View {
+    let title: String
+    let help: String?
+
+    init(_ title: String, help: String? = nil) {
+        self.title = title
+        self.help = help
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+            if let help { SettingsHelp(help) }
+        }
+    }
+}
+
+/// Longer mechanics behind a collapsed disclosure, so the default view of a
+/// section stays a list of controls.
+struct SettingsDetails: View {
+    let title: String
+    let text: String
+
+    init(_ title: String = "How this works", _ text: String) {
+        self.title = title
+        self.text = text
+    }
+
+    var body: some View {
+        DisclosureGroup {
+            SettingsHelp(text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+        } label: {
+            Text(title).font(.system(size: 12, weight: .medium)).settingsSecondary()
+        }
     }
 }

@@ -721,7 +721,7 @@ private struct EvidenceDisclosure: View {
                     .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
                     .foregroundStyle(.white)
                     .frame(width: 28, height: 28)
-                    .background(Brand.teal, in: Circle())
+                    .background(Brand.tealFill, in: Circle())
                 Image(systemName: source.icon)
                     .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(.secondary)
@@ -844,7 +844,7 @@ private struct ActivityRow: View {
 }
 
 /// The Ask section's question history — a selectable list of saved conversations
-/// plus a visible "New Question" action. Selecting one loads it into the transcript;
+/// plus a visible "New conversation" action. Selecting one loads it into the transcript;
 /// conversations persist across launches via `ChatStore`.
 struct ChatConversationList: View {
     @EnvironmentObject var app: AppState
@@ -924,7 +924,7 @@ private struct ConversationListContent: View {
             Button {
                 model.newConversation()
             } label: {
-                Label("New Question", systemImage: "square.and.pencil")
+                Label("New conversation", systemImage: "square.and.pencil")
                     .font(WorkspaceTypography.control)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())

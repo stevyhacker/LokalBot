@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Brand identity derived from the app icon and marketing site. The icon is an
@@ -5,8 +6,20 @@ import SwiftUI
 /// single amber antenna. The app uses a deeper primary teal than the icon so
 /// tinted text and controls keep sufficient contrast on light materials.
 enum Brand {
-    /// Primary app accent. Deep enough for text and white-on-teal controls.
-    static let teal = Color(red: 0.075, green: 0.522, blue: 0.455)       // #138574
+    /// Primary app accent for text, icons, strokes, selection washes, and
+    /// tinted controls. Deep teal on light surfaces and a lighter mint on dark
+    /// ones, so accent text meets WCAG AA in both appearances
+    /// (`BrandContrastTests`).
+    static let tealNSColor = NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor(srgbRed: 0x74 / 255, green: 0xE0 / 255, blue: 0xC6 / 255, alpha: 1) // #74E0C6
+            : NSColor(srgbRed: 0x08 / 255, green: 0x66 / 255, blue: 0x5A / 255, alpha: 1) // #08665A
+    }
+    static let teal = Color(nsColor: tealNSColor)
+    /// Accent fill behind white foregrounds — filled buttons, badges, icon
+    /// tiles, and meeting blocks. Stays deep in both appearances.
+    static let tealFillNSColor = NSColor(srgbRed: 0x08 / 255, green: 0x66 / 255, blue: 0x5A / 255, alpha: 1)
+    static let tealFill = Color(nsColor: tealFillNSColor)
     /// Bright end of the gradient — glows, active states, the recording eye.
     static let tealBright = Color(red: 0.431, green: 0.949, blue: 0.863) // #6ef2dc
     /// The single warm note — reserved for the live "recording" indicator,

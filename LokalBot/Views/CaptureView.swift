@@ -17,6 +17,8 @@ final class CaptureModel: ObservableObject {
     @Published var selection: ActivityBlock.ID?
     @Published var selectedSessionID: TimelineWorkSession.ID?
     @Published var selectedSnapshotID: Int64?
+    /// Raw activity and screen moments shown full width in the main pane.
+    @Published var showsRawCapture = false
     @Published var digest: String?
     @Published private(set) var digestUpdatedAt: Date?
     @Published private(set) var latestDigestEvidenceAt: Date?
@@ -329,6 +331,9 @@ struct TimelineContentView: View {
             .onChange(of: model.selectedSnapshotID) { _, snapshotID in
                 if usesDrawer, snapshotID != nil { contextDrawerPresented = true }
             }
+            .onChange(of: model.showsRawCapture) { _, showsRawCapture in
+                if usesDrawer, showsRawCapture { contextDrawerPresented = true }
+            }
             .onChange(of: app.selectedMeetingIDs) { _, meetingIDs in
                 if usesDrawer, !meetingIDs.isEmpty { contextDrawerPresented = true }
             }
@@ -389,6 +394,7 @@ private struct TimelineWorkspaceHeader: View {
     let showsContextToggle: Bool
     let usesCompactHeader: Bool
     @Binding var contextPresented: Bool
+    @State private var showingCalendar = false
 
     var body: some View {
         let meetings = model.meetings(in: app)
@@ -434,10 +440,23 @@ private struct TimelineWorkspaceHeader: View {
             }
             .accessibilityLabel("Previous day")
             .accessibilityIdentifier("timeline.previousDay")
-            DatePicker("", selection: daySelection, displayedComponents: .date)
-                .labelsHidden()
-                .fixedSize()
-                .accessibilityIdentifier("timeline.dayPicker")
+            Button {
+                showingCalendar = true
+            } label: {
+                Label(model.day.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()),
+                      systemImage: "calendar")
+                    .monospacedDigit()
+            }
+            .popover(isPresented: $showingCalendar, arrowEdge: .bottom) {
+                DatePicker("Day", selection: daySelection, in: ...Date(), displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .padding(12)
+            }
+            .help("Choose a day")
+            .accessibilityLabel("Choose day")
+            .accessibilityValue(model.day.formatted(date: .complete, time: .omitted))
+            .accessibilityIdentifier("timeline.dayPicker")
             Button("Today") { changeDay(to: Date()) }
                 .disabled(Calendar.current.isDateInToday(model.day))
                 .accessibilityIdentifier("timeline.today")
@@ -465,6 +484,7 @@ private struct TimelineWorkspaceHeader: View {
         if !app.selectedMeetingIDs.isEmpty { return "Meeting" }
         if model.selectedSessionID != nil { return "Session" }
         if model.selection != nil { return "Activity" }
+        if model.showsRawCapture { return "Raw capture" }
         return "Day digest"
     }
 
@@ -483,6 +503,7 @@ private struct TimelineWorkspaceHeader: View {
     }
 
     private func changeDay(to day: Date) {
+        showingCalendar = false
         guard !Calendar.current.isDate(day, inSameDayAs: model.day) else { return }
         app.selectedMeetingIDs = []
         model.selectDay(day, app: app)
@@ -495,7 +516,6 @@ struct CaptureDayView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var model: CaptureModel
     let onOpenContext: () -> Void
-    @State private var rawCaptureExpanded = false
 
     var body: some View {
         let meetings = model.meetings(in: app)
@@ -562,79 +582,64 @@ struct CaptureDayView: View {
                     }
                 }
 
-                rawCapture(meetings: meetings, now: now)
+                rawCaptureRow
                     .padding(.top, 4)
             }
             .padding(.bottom, 8)
         }
     }
 
-    private func rawCapture(meetings: [Meeting], now: Date) -> some View {
-        WorkspaceDisclosure(
-            isExpanded: $rawCaptureExpanded,
-            identifier: "timeline.rawCapture") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(.secondary)
-
-                    if !model.rewindFrames.isEmpty {
-                        ScreenRewindView(
-                            frames: model.rewindFrames,
-                            selectedSnapshotID: screenSelection,
-                            onReload: { model.reload(app: app) },
-                            presentation: .compact)
-                    }
-
-                    if !model.blocks.isEmpty || !meetings.isEmpty {
-                        Divider()
-                        Label("App activity", systemImage: "calendar.day.timeline.left")
-                            .font(WorkspaceTypography.sectionTitle)
-                            .accessibilityIdentifier("timeline.track")
-                        rawTrack(meetings: meetings, now: now)
-                            .frame(height: 360)
-                    }
-                }
-            } label: {
+    /// Opens raw activity and screen moments full width in the main pane,
+    /// where the hour track and filmstrip have room to be read.
+    private var rawCaptureRow: some View {
+        let isSelected = model.showsRawCapture
+        return Button {
+            let willSelect = !model.showsRawCapture
+            model.selection = nil
+            model.selectedSessionID = nil
+            model.selectedSnapshotID = nil
+            app.selectedMeetingIDs = []
+            model.showsRawCapture = willSelect
+            if willSelect { onOpenContext() }
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "waveform.path.ecg.rectangle")
+                    .font(.system(size: 17))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    Label("Browse raw capture", systemImage: "waveform.path.ecg.rectangle")
+                    Text("Browse raw capture")
                         .font(WorkspaceTypography.bodyEmphasis)
-                    Text("\(model.blocks.count) activity entries · \(model.rewindFrames.count) screen moments")
+                    Text("\(CountLabel.format(model.blocks.count, "activity entry", plural: "activity entries")) · \(CountLabel.format(model.rewindFrames.count, "screen moment"))")
                         .font(WorkspaceTypography.metadata.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
-    }
-
-    private func rawTrack(meetings: [Meeting], now: Date) -> some View {
-        CaptureTrackView(
-            items: CaptureTrackItem.items(blocks: model.blocks,
-                                          meetings: meetings,
-                                          now: now),
-            blockSelection: model.selection,
-            selectedMeetingIDs: app.selectedMeetingIDs,
-            onSelectBlock: { id in
-                model.selection = id
-                model.selectedSessionID = nil
-                if id != nil {
-                    model.selectedSnapshotID = nil
-                    app.selectedMeetingIDs = []
-                    onOpenContext()
-                }
-            },
-            onSelectMeeting: { id in
-                let willSelect = app.selectedMeetingIDs != [id]
-                model.selection = nil
-                model.selectedSessionID = nil
-                model.selectedSnapshotID = nil
-                app.selectedMeetingIDs = willSelect ? [id] : []
-                if willSelect { onOpenContext() }
-            })
+            .padding(12)
+            .contentShape(Rectangle())
+            .background(
+                isSelected ? Brand.teal.opacity(0.11) : Color.primary.opacity(0.035),
+                in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
+            .overlay {
+                RoundedRectangle(cornerRadius: Brand.Radius.panel)
+                    .strokeBorder(isSelected ? Brand.teal.opacity(0.8) : Color.primary.opacity(0.10),
+                                  lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Browse raw capture")
+        .accessibilityValue(isSelected ? "Open" : "")
+        .accessibilityIdentifier("timeline.rawCapture")
     }
 
     private func selectSession(_ session: TimelineWorkSession) {
         let willSelect = model.selectedSessionID != session.id
         model.selectedSessionID = willSelect ? session.id : nil
+        model.showsRawCapture = false
         model.selection = nil
         model.selectedSnapshotID = nil
         app.selectedMeetingIDs = []
@@ -643,6 +648,7 @@ struct CaptureDayView: View {
 
     private func selectMeeting(_ id: Meeting.ID) {
         let willSelect = app.selectedMeetingIDs != [id]
+        model.showsRawCapture = false
         model.selection = nil
         model.selectedSessionID = nil
         model.selectedSnapshotID = nil
@@ -650,17 +656,51 @@ struct CaptureDayView: View {
         if willSelect { onOpenContext() }
     }
 
-    private var screenSelection: Binding<Int64?> {
-        Binding(get: { model.selectedSnapshotID }, set: { snapshotID in
-            model.selectedSnapshotID = snapshotID
-            if snapshotID != nil {
-                model.selection = nil
-                model.selectedSessionID = nil
-                app.selectedMeetingIDs = []
-                onOpenContext()
+}
+
+// MARK: - Raw capture
+
+/// Individual activity blocks and retained screen moments for exact evidence
+/// or cleanup. Shown full width in the Timeline's main pane so the hour
+/// track and filmstrip are readable without nested scrolling in the rail.
+struct TimelineRawCaptureView: View {
+    @EnvironmentObject var app: AppState
+    @ObservedObject var model: CaptureModel
+
+    var body: some View {
+        let meetings = model.meetings(in: app)
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
+                .font(WorkspaceTypography.metadata)
+                .foregroundStyle(.secondary)
+            if !model.blocks.isEmpty || !meetings.isEmpty {
+                Label("App activity", systemImage: "calendar.day.timeline.left")
+                    .font(WorkspaceTypography.sectionTitle)
+                    .accessibilityIdentifier("timeline.track")
+                CaptureTrackView(
+                    items: CaptureTrackItem.items(blocks: model.blocks, meetings: meetings, now: Date()),
+                    blockSelection: model.selection,
+                    selectedMeetingIDs: app.selectedMeetingIDs,
+                    onSelectBlock: { id in
+                        model.selection = id
+                        if id != nil { model.selectedSnapshotID = nil }
+                    },
+                    onSelectMeeting: { id in
+                        model.selection = nil
+                        model.selectedSnapshotID = nil
+                        app.selectedMeetingIDs = [id]
+                    })
+                    .frame(maxHeight: .infinity)
+            } else if model.rewindFrames.isEmpty {
+                ContentUnavailableView(
+                    "No raw capture",
+                    systemImage: "waveform.path.ecg.rectangle",
+                    description: Text("No activity or screen moments were retained for this day."))
             }
-        })
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
+
 }
 
 private struct TimelineWorkSessionRow: View {
@@ -671,7 +711,7 @@ private struct TimelineWorkSessionRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 timeRange(start: session.start, end: session.end)
                 IconTile(systemImage: "briefcase", tint: CaptureStyle.color(for: session.primaryApp),
                          size: 32)
@@ -680,7 +720,7 @@ private struct TimelineWorkSessionRow: View {
                         .font(WorkspaceTypography.bodyEmphasis)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(.tail)
                         .help(session.title)
                     HStack(spacing: 8) {
                         Text(appSummary)
@@ -753,7 +793,7 @@ private struct TimelineSessionMeetingRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(meeting.startedAt.formatted(date: .omitted, time: .shortened))
                         .foregroundStyle(.primary)
@@ -762,24 +802,29 @@ private struct TimelineSessionMeetingRow: View {
                 }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .frame(width: 60, alignment: .trailing)
-                IconTile(systemImage: "waveform", tint: Brand.teal, size: 32)
+                IconTile(systemImage: "waveform", tint: Brand.tealFill, size: 32)
+                // Same anatomy as work sessions: one-line title, kind and
+                // duration beneath, chevron centered on the trailing edge.
                 VStack(alignment: .leading, spacing: 4) {
                     Text(meeting.displayTitle)
                         .font(WorkspaceTypography.bodyEmphasis)
                         .foregroundStyle(.primary)
-                        .lineLimit(2)
-                    Text(meeting.endedAt == nil ? "Meeting · Recording in progress" : "Meeting")
-                        .font(WorkspaceTypography.metadata)
-                        .foregroundStyle(meeting.endedAt == nil ? Brand.recording : Color(nsColor: WorkspaceTextColor.supporting))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(meeting.displayTitle)
+                    HStack(spacing: 8) {
+                        Text(meeting.endedAt == nil ? "Meeting · Recording" : "Meeting")
+                            .font(WorkspaceTypography.metadata)
+                            .foregroundStyle(meeting.endedAt == nil ? Brand.recording : Color(nsColor: WorkspaceTextColor.supporting))
+                        Text(CaptureStyle.hm(end.timeIntervalSince(meeting.startedAt)))
+                            .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
+                            .fixedSize()
+                    }
                 }
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 6) {
-                    Text(CaptureStyle.hm(end.timeIntervalSince(meeting.startedAt)))
-                        .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -907,7 +952,7 @@ private struct CaptureTrackView: View {
             onSelectMeeting(meeting.id)
         } label: {
             RoundedRectangle(cornerRadius: 4)
-                .fill(Brand.teal.opacity(isSelected ? 1 : 0.85))
+                .fill(Brand.tealFill.opacity(isSelected ? 1 : 0.85))
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {

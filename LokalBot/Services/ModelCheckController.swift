@@ -145,8 +145,8 @@ final class ModelCheckController: ObservableObject {
 extension ModelRole {
     var settingsTitle: String {
         switch self {
-        case .transcribe: "Transcription"
-        case .think: "Assistant"
+        case .transcribe: "Transcribe"
+        case .think: "Think"
         case .autocomplete: "Autocomplete"
         }
     }

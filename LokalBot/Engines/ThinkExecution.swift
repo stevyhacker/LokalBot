@@ -196,7 +196,7 @@ final class ThinkExecution {
 
         case .appleIntelligence:
             return .unsupported(
-                reason: "Apple Intelligence doesn't expose a local endpoint Agent Mode can use. Switch the Main LLM engine to Built-in (on-device), Ollama, or an OpenAI-compatible server under Settings → Models.")
+                reason: "Apple Intelligence doesn't expose a local endpoint Agent Mode can use. Switch the Think model to Built-in (on-device), Ollama, or an OpenAI-compatible server under Settings → Models.")
 
         case .ollama:
             guard let base = URL(string: settings.ollamaBaseURL) else {

@@ -19,11 +19,19 @@ struct MeetingNotesEditor: View {
                 Spacer()
                 Text(status).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             }
-            Text("Notes are saved automatically. Add context, reminders or your own wording.")
-                .workspaceTextRole(.supporting)
             SearchableNotesEditor(text: $text, query: searchQuery, occurrence: activeMatchIndex)
                 .font(WorkspaceTypography.body)
-                .frame(minHeight: 280)
+                .frame(minHeight: 460)
+                .overlay(alignment: .topLeading) {
+                    if text.isEmpty {
+                        Text("Add context, reminders, or your own wording. Notes save automatically.")
+                            .font(WorkspaceTypography.body)
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 5)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
+                }
                 .padding(12).workspaceControl()
                 .accessibilityIdentifier("meeting.notes.editor")
                 .id(MeetingPageSearchMatch.Location.notes)

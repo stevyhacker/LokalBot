@@ -8,6 +8,9 @@ struct NeedsAttentionSection: View {
     let threads: [ActionThread]
     var title = "Needs attention"
     var limit = 4
+    /// Today offers planning the open threads with Agent; Timeline's day view
+    /// keeps the section to review only.
+    var showsPlanInAgent = false
 
     /// Nothing to act on means no card at all — an empty "Needs attention"
     /// section is dead weight on a glanceable page (the Timeline test pins the
@@ -21,13 +24,39 @@ struct NeedsAttentionSection: View {
                         if thread.id != threads.prefix(limit).last?.id { Divider() }
                     }
                 }
-                Button("Review all actions") {
-                    app.openActions()
+                HStack(spacing: 8) {
+                    Button("Review all actions") {
+                        app.openActions()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("outcomes.review")
+                    if showsPlanInAgent {
+                        Button {
+                            planInAgent()
+                        } label: {
+                            Label("Plan in Agent", systemImage: "wand.and.sparkles")
+                        }
+                        .buttonStyle(.bordered)
+                        .help("Open a new Agent task with these action threads")
+                        .accessibilityIdentifier("outcomes.planInAgent")
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("outcomes.review")
             }
         }
+    }
+
+    private func planInAgent() {
+        let lines = threads.prefix(8).map { thread in
+            let sources = thread.meetingCount == 1
+                ? "" : " (mentioned in \(thread.meetingCount) meetings)"
+            return "- \(thread.text)\(sources)"
+        }
+        app.openAgent(.init(
+            title: "Today's action threads",
+            prompt: "Help me plan today's open meeting action threads:\n"
+                + lines.joined(separator: "\n"),
+            meetingID: threads.first?.latestReference.meetingID,
+            actionID: threads.first?.latestReference.action.id))
     }
 }
 
@@ -142,8 +171,11 @@ struct ActionThreadRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
             .accessibilityLabel("Action thread options")
             .accessibilityIdentifier("outcome.thread.status.\(thread.id)")
@@ -226,7 +258,7 @@ private struct ActionThreadSourcesView: View {
                             }
                             HStack(spacing: 6) {
                                 if let owner = reference.owner {
-                                    Text("Owner: \(owner)")
+                                    Text("Owner: \(SpeakerDisplayName.label(owner))")
                                 }
                                 if let due = reference.due {
                                     Text("Due: \(due)")
@@ -331,9 +363,13 @@ struct OutcomeOverviewActionRow: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
+                    .frame(width: 28, height: 24)
+                    .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
             .fixedSize()
+            .accessibilityLabel("Action options")
             .accessibilityIdentifier("outcome.action.status.\(reference.id)")
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)

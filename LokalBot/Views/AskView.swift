@@ -52,6 +52,10 @@ private struct AskContent: View {
     @State private var screenWasEnabledBeforePins: Bool?
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
+    @State private var searchedQuery = ""
+    @State private var pendingQuestion: String?
+    /// Arrow keys mean "open this result", so Return then opens even a question.
+    @State private var pickedResultWithKeyboard = false
     @State private var showingTimeScope = false
     @FocusState private var inputFocused: Bool
 
@@ -81,13 +85,22 @@ private struct AskContent: View {
         .onChange(of: query) {
             model.preserveSelectionDuringHistoryLoad()
             selectedResult = 0
-            runSearch()
+            pickedResultWithKeyboard = false
+            // Return can arrive before this observer. Preserve only a request
+            // for this exact text; editing a queued question cancels it.
+            if pendingQuestion != query { pendingQuestion = nil }
+            runSearch(cancelPendingQuestion: false)
         }
         .onReceive(NotificationCenter.default.publisher(for: .retainedScreenTextChanged)) { _ in
-            runSearch()
+            runSearch(cancelPendingQuestion: false)
         }
-        .onDisappear { searchTask?.cancel() }
+        .onDisappear {
+            searchTask?.cancel()
+            pendingQuestion = nil
+        }
         .onChange(of: facet) { runSearch() }
+        .onChange(of: meetingScope) { runSearch() }
+        .onChange(of: screenScope) { runSearch() }
         .onChange(of: app.askDateScope) {
             reconcilePinnedScreenScope()
             runSearch()
@@ -104,11 +117,15 @@ private struct AskContent: View {
         .onKeyPress(.downArrow) {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = min(selectedResult + 1, resultCount - 1)
+            pickedResultWithKeyboard = true
+            pendingQuestion = nil
             return .handled
         }
         .onKeyPress(.upArrow) {
             guard phase == .searching, resultCount > 0 else { return .ignored }
             selectedResult = max(0, selectedResult - 1)
+            pickedResultWithKeyboard = true
+            pendingQuestion = nil
             return .handled
         }
         .onChange(of: app.navigationHandoff.revision) { consumeNavigationHandoff() }
@@ -136,6 +153,7 @@ private struct AskContent: View {
     @discardableResult
     private func consumeNavigationHandoff() -> Bool {
         guard let handoff = app.navigationHandoff.consumeAsk() else { return false }
+        pendingQuestion = nil
         app.askDayScope = handoff.dayScope.map(Calendar.current.startOfDay(for:))
         mode = handoff.mode
         app.recallState.selectEvidence(meetingIDs: handoff.meetingIDs,
@@ -243,8 +261,23 @@ private struct AskContent: View {
     private var groupedMeetings: [MeetingRecallGroup] { RecallSearch.groups(hits) }
     private var resultCount: Int { groupedMeetings.count + screenGroups.count }
 
+    /// Return: keywords open the highlighted result; a question asks through
+    /// `askAboutResults`, the same scoped path as Command-Return.
     private func submitQuery() {
         guard phase == .searching else { return }
+        switch returnAction {
+        case .ask: askAboutResults()
+        case .openResult: openSelectedResult()
+        case .none: break
+        }
+    }
+
+    private var returnAction: AskReturnAction {
+        AskReturnAction.resolve(query: query, resultCount: resultCount,
+                                pickedWithKeyboard: pickedResultWithKeyboard)
+    }
+
+    private func openSelectedResult() {
         if groupedMeetings.indices.contains(selectedResult) {
             app.openSearchHit(groupedMeetings[selectedResult].primary)
         } else {
@@ -270,7 +303,7 @@ private struct AskContent: View {
                             Text("Meeting · \(meetingTitle(group.id)) · \(meetingDate(group.id) ?? "")")
                         }
                         ForEach(screenGroups) { group in
-                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(group.matches.count) moments")
+                            Text("Screen · \(group.primary.app) · \(group.primary.ts.formatted(date: .abbreviated, time: .shortened)) · \(CountLabel.format(group.matches.count, "moment"))")
                         }
                         ForEach(pinnedScreens) { pin in
                             Text("Attached screen · \(pin.app) · \(pin.timestamp.formatted(date: .abbreviated, time: .shortened))")
@@ -284,7 +317,7 @@ private struct AskContent: View {
             }
         } label: {
             Text(isSearching ? "Finding sources…" : resultCount > 0
-                 ? "Answer sources: \(groupedMeetings.count) meetings · \(answerScreenIDs.count) screen moments"
+                 ? "Answer sources: \(CountLabel.format(groupedMeetings.count, "meeting")) · \(CountLabel.format(answerScreenIDs.count, "screen moment"))"
                  : "Answer sources: \(sourceSummary) · \(timeScopeLabel)")
         }
         .font(WorkspaceTypography.metadata)
@@ -293,7 +326,16 @@ private struct AskContent: View {
     }
 
     private func askAboutResults() {
-        guard !isSearching else { return }
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !model.isResponding else { return }
+        // Never submit rows belonging to the previous text if Return beats
+        // onChange. Completion below uses the same scoped submission path.
+        if searchedQuery != query { runSearch() }
+        if isSearching {
+            pendingQuestion = query
+            return
+        }
+        pendingQuestion = nil
         if resultCount > 0 {
             app.recallState.selectEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
@@ -304,13 +346,13 @@ private struct AskContent: View {
 
     private func submitButton(canSubmit: Bool) -> some View {
         Button(action: askAboutResults) {
-            Label(resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
+            Label(pendingQuestion != nil ? "Waiting for sources…"
+                  : resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
                 .font(WorkspaceTypography.control)
         }
-        .buttonStyle(.borderedProminent)
+        .primaryActionButton()
         .controlSize(.regular)
-        .tint(Brand.teal)
-        .disabled(!canSubmit || isSearching)
+        .disabled(!canSubmit || pendingQuestion != nil)
         .keyboardShortcut(.return, modifiers: [.command])
         .accessibilityIdentifier("ask.submit")
         .help("Ask using the displayed results (Command-Return)")
@@ -604,6 +646,7 @@ private struct AskContent: View {
     }
 
     private func openSelectedConversation() {
+        pendingQuestion = nil
         query = ""
         mode = .ask
         if model.messages.isEmpty { resetAskScope() } else { restoreAskScope() }
@@ -675,7 +718,9 @@ private struct AskContent: View {
         ScrollViewReader { proxy in
             List {
                 if isSearching { LoadingStateLabel("Searching local sources…") }
-                Text("Showing \(resultCount) source \(resultCount == 1 ? "group" : "groups") · Return opens · ⌘Return asks")
+                Text(CountLabel.format(resultCount, "result") + (returnAction == .ask
+                     ? " · Return asks · ↓ to pick a result"
+                     : " · Return opens · ⌘Return asks"))
                     .workspaceTextRole(.metadata)
                 if resultCount == 0 && !isSearching {
                     noMatchesRow(sources == [.today]
@@ -700,11 +745,9 @@ private struct AskContent: View {
                 }
                 ForEach(Array(screenGroups.enumerated()), id: \.element.id) { index, group in
                     VStack(alignment: .leading) {
-                        Text(group.primary.ts.formatted(date: .abbreviated, time: .omitted))
-                            .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                         screenResult(group.primary)
                         if group.matches.count > 1 {
-                            DisclosureGroup("\(group.matches.count - 1) more moments in this session") {
+                            DisclosureGroup("\(CountLabel.format(group.matches.count - 1, "more moment")) in this session") {
                                 ForEach(group.matches.dropFirst()) { screenResult($0) }
                             }
                         }
@@ -714,6 +757,10 @@ private struct AskContent: View {
                 }
             }
             .listStyle(.inset)
+            .scrollContentBackground(.hidden)
+            // Results share the composer's reading column.
+            .frame(maxWidth: WorkspaceMetric.readingMaxWidth)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("search.results")
             .accessibilityLabel("Search results")
             .onChange(of: selectedResult) { proxy.scrollTo(selectedResult) }
@@ -725,7 +772,7 @@ private struct AskContent: View {
         Button { app.openSearchHit(hit) } label: {
             ResultRow(title: meetingTitle(hit.meetingID), kind: kindLabel(hit), snippet: hit.snippet,
                       timestamp: meetingDate(hit.meetingID),
-                      matchLabel: hit.isSemantic ? "Related by meaning" : "Keyword match")
+                      matchLabel: hit.isSemantic ? "Related by meaning" : nil)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -756,18 +803,26 @@ private struct AskContent: View {
         switch hit.kind {
         case .title: "Title"
         case .summary: "Summary"
-        case .segment: "▶ \(Transcript.stamp(hit.start))\(hit.speaker.isEmpty ? "" : " · \(hit.speaker)")"
+        case .segment: "▶ \(Transcript.stamp(hit.start))\(hit.speaker.isEmpty ? "" : " · \(SpeakerDisplayName.label(hit.speaker))")"
         }
     }
 
-    private func runSearch() {
+    private func runSearch(cancelPendingQuestion: Bool = true) {
+        if cancelPendingQuestion { pendingQuestion = nil }
         searchTask?.cancel()
         let q = query, request = app.recallState, dateScope = app.askDateScope
+        searchedQuery = q
         // Never leave rows from a previous query available to Return.
         hits = []; ocrHits = []; screenGroups = []
         isSearching = !q.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
+            #if LOKALBOT_UI_TEST_HOST
+            // Hold retrieval in flight for deterministic hosted Return tests.
+            if let delay = Int(ProcessInfo.processInfo.environment["LOKALBOT_ASK_SEARCH_DELAY_MS"] ?? "") {
+                try? await Task.sleep(for: .milliseconds(min(max(delay, 0), 10_000)))
+            }
+            #endif
             guard !Task.isCancelled else { return }
             let result = await RecallSearch.search(q, state: request, dateScope: dateScope, app: app) { lexical in
                 guard !Task.isCancelled, q == query else { return }
@@ -776,6 +831,7 @@ private struct AskContent: View {
             guard !Task.isCancelled, q == query else { return }
             publishSearch(result)
             isSearching = false
+            if pendingQuestion == q { askAboutResults() }
         }
     }
 
@@ -814,7 +870,7 @@ private struct AskContent: View {
                 .font(WorkspaceTypography.display)
                 .foregroundStyle(.primary)
             VStack(spacing: 10) {
-                Text("Type to find meetings and screen moments. Press Return to open a result, or ⌘Return to ask about what you found.")
+                Text("Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.")
                     .font(WorkspaceTypography.editorialBody)
                     .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.center)

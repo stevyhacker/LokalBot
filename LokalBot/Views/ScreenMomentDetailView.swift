@@ -31,7 +31,7 @@ struct ScreenMomentDetailView: View {
                         cornerRadius: Brand.Radius.panel)
                         .background(.black.opacity(0.82),
                                     in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
-                    Button("Open image · zoom and actual size") { showingImage = true }
+                    Button("View full size") { showingImage = true }
                 } else {
                     Label("This moment retained text context without screen pixels.",
                           systemImage: "text.viewfinder")
@@ -87,33 +87,45 @@ struct ScreenMomentDetailView: View {
         }
     }
 
+    /// "Back to day digest" → "Day digest" for the visible button text.
+    private var backTitle: String {
+        let destination = backLabel.hasPrefix("Back to ") ? String(backLabel.dropFirst(8)) : backLabel
+        return destination.prefix(1).uppercased() + destination.dropFirst()
+    }
+
     private var header: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Button(action: onClear) {
-                Image(systemName: "arrow.left")
-            }
-            .buttonStyle(.plain)
-            .help(backLabel)
-            .accessibilityLabel(backLabel)
-            .accessibilityIdentifier("timeline.screenDetail.backToDayOverview")
-            IconTile(systemImage: screenshot.hasPixels ? "camera.viewfinder" : "text.viewfinder",
-                     tint: Brand.teal, size: 30)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(screenshot.app)
-                    .font(WorkspaceTypography.conversationTitle)
-                    .accessibilityIdentifier("timeline.screenDetail.\(screenshot.id)")
-                Text(screenshot.ts.formatted(date: .abbreviated, time: .standard))
-                    .font(WorkspaceTypography.metadata.monospacedDigit())
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-            if let onDismiss {
-                Button(action: onDismiss) {
-                    Image(systemName: "xmark")
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Button(action: onClear) {
+                    Label(backTitle, systemImage: "chevron.left")
+                        .font(WorkspaceTypography.control)
                 }
-                .buttonStyle(.plain)
-                .help("Close context panel")
-                .accessibilityLabel("Close context panel")
+                .buttonStyle(.workspaceLink)
+                .help(backLabel)
+                .accessibilityLabel(backLabel)
+                .accessibilityIdentifier("timeline.screenDetail.backToDayOverview")
+                Spacer()
+                if let onDismiss {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .help("Close context panel")
+                    .accessibilityLabel("Close context panel")
+                }
+            }
+            HStack(alignment: .top, spacing: 8) {
+                IconTile(systemImage: screenshot.hasPixels ? "camera.viewfinder" : "text.viewfinder",
+                         tint: Brand.tealFill, size: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(screenshot.app)
+                        .font(WorkspaceTypography.conversationTitle)
+                        .accessibilityIdentifier("timeline.screenDetail.\(screenshot.id)")
+                    Text(screenshot.ts.formatted(date: .abbreviated, time: .shortened))
+                        .font(WorkspaceTypography.metadata.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
             }
         }
     }
@@ -214,6 +226,7 @@ struct ScreenMomentDetailView: View {
                 Image(systemName: "trash")
             }
             .help("Delete context moment")
+            .accessibilityLabel("Delete context moment")
         }
     }
 

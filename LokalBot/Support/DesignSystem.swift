@@ -86,11 +86,6 @@ enum AgentPalette {
         scheme == .dark ? Color(white: 0.20) : Color(white: 0.975)
     }
 
-    static func accent(for scheme: ColorScheme) -> Color {
-        scheme == .dark
-            ? Color(red: 0.34, green: 0.76, blue: 0.70)
-            : Color(red: 0.08, green: 0.39, blue: 0.35)
-    }
 }
 
 // MARK: - Semantic text and inference roles
@@ -621,4 +616,44 @@ extension View {
             .background(selected == id ? Brand.teal.opacity(0.14) : Color.clear,
                         in: RoundedRectangle(cornerRadius: Brand.Radius.control))
     }
+}
+
+// MARK: - Button roles
+
+/// Three button weights: `primaryActionButton()` for the one filled call to
+/// action on a surface, `.bordered` for secondary actions, and
+/// `.workspaceLink` for quiet inline actions.
+extension View {
+    /// The one filled call to action on a surface: white on the deep accent
+    /// fill in both appearances.
+    func primaryActionButton() -> some View {
+        buttonStyle(.borderedProminent).tint(Brand.tealFill)
+    }
+}
+
+/// Inline navigation and utility actions rendered as accent text. Replaces
+/// `.link`, whose system-blue color ignores the app accent.
+struct WorkspaceLinkButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        WorkspaceLinkButton(configuration: configuration)
+    }
+}
+
+private struct WorkspaceLinkButton: View {
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovered = false
+    let configuration: ButtonStyleConfiguration
+
+    var body: some View {
+        configuration.label
+            .foregroundStyle(Brand.teal)
+            .underline(hovered && isEnabled)
+            .opacity(isEnabled ? (configuration.isPressed ? 0.7 : 1) : 0.45)
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
+    }
+}
+
+extension ButtonStyle where Self == WorkspaceLinkButtonStyle {
+    static var workspaceLink: WorkspaceLinkButtonStyle { .init() }
 }

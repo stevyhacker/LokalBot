@@ -382,7 +382,7 @@ enum DictationComposeError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyOutput:
-            "The Main LLM returned no text."
+            "The Think model returned no text."
         }
     }
 }

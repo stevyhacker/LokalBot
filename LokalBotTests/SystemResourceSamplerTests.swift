@@ -162,7 +162,7 @@ final class ResourceMonitorPresentationTests: XCTestCase {
         )
 
         XCTAssertEqual(models.count, 2)
-        XCTAssertEqual(models.first { $0.id == residency.id }?.role, "Main LLM")
+        XCTAssertEqual(models.first { $0.id == residency.id }?.role, "Think")
         XCTAssertEqual(
             ResourceMonitorPresentation.modelMemorySummary(models: models, snapshot: snapshot),
             "≈3.0 GB"

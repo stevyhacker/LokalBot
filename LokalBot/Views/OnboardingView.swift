@@ -66,17 +66,17 @@ struct OnboardingView: View {
                 }
                 Spacer()
                 if mode == .permissions {
-                    Button("Done") { dismiss() }.buttonStyle(.borderedProminent)
+                    Button("Done") { dismiss() }.primaryActionButton()
                 } else if step == .review {
                     Button("Apply choices and start") {
                         app.settings = draft.applying(to: app.settings)
                         UserDefaults.standard.set(true, forKey: AppState.onboardingShownKey)
                         dismiss()
-                    }.buttonStyle(.borderedProminent).accessibilityIdentifier("onboarding.finish")
+                    }.primaryActionButton().accessibilityIdentifier("onboarding.finish")
                 } else {
                     Button(step == .permissions ? "Continue with current access" : "Continue") {
                         step = Step(rawValue: step.rawValue + 1) ?? .review
-                    }.buttonStyle(.borderedProminent).keyboardShortcut(.defaultAction)
+                    }.primaryActionButton().keyboardShortcut(.defaultAction)
                 }
             }.padding(24)
         }
@@ -132,12 +132,12 @@ struct OnboardingView: View {
 
     private var modelChoices: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Meeting processing needs speech recognition and a Main LLM. Downloads can be deferred; captured meetings wait for their selected models.")
+            Text("Meeting processing needs a Transcribe model and a Think model. Downloads can be deferred; captured meetings wait for their selected models.")
                 .workspaceTextRole(.trust)
             modelRow("Speech recognition", model: app.settings.transcriptionModelDisplayName, role: .transcribe)
             modelRow("Summaries and Ask", model: app.settings.thinkModelDisplayName, role: .think)
             InferenceDisclosure(settings: app.settings,
-                                localText: "The configured Main LLM processes selected context on this Mac.",
+                                localText: "The configured Think model processes selected context on this Mac.",
                                 remoteText: "Selected transcript and work context is sent to the approved model server.")
             Toggle("Also prepare Autocomplete (optional)", isOn: $includeAutocomplete)
                 .accessibilityLabel("Also prepare Autocomplete (optional)")
@@ -165,7 +165,7 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             LabeledContent("Meeting recording", value: draft.meetingMode.rawValue)
             LabeledContent("Day memory", value: draft.dayMemory ? draft.contextMode.rawValue : "Off")
-            LabeledContent("Main LLM", value: InferencePresentation(settings: app.settings).label)
+            LabeledContent("Think model", value: InferencePresentation(settings: app.settings).label)
             LabeledContent("Meeting models", value: app.modelRoles.snapshot.meetingReady ? "Ready to use · not a test result" : "Preparation can continue later")
             let missing = relevantPermissions.filter { permissions.granted[$0] != true }
             if !missing.isEmpty {

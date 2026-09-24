@@ -115,7 +115,7 @@ struct DreamReport: Codable, Equatable, Sendable {
                 return "Dreamed by \(engineName) using approved remote inference\(destination). "
                     + "The report was saved in your local library."
             case nil:
-                return "Dreamed by \(engineName) using your configured Main LLM. "
+                return "Dreamed by \(engineName) using your configured Think model. "
                     + "The report was saved in your local library."
             }
         }

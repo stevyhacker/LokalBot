@@ -3,6 +3,7 @@ import AppKit
 
 struct AgentSessionView: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.colorScheme) private var agentColorScheme
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
@@ -22,7 +23,7 @@ struct AgentSessionView: View {
             conversation(width: geometry.size.width)
                 .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .background(AgentPalette.conversation)
+        .background(WorkspacePalette.canvas(for: agentColorScheme))
         .toolbar { ToolbarItemGroup(placement: .primaryAction) { taskActions } }
         .inspector(isPresented: $showingResults) {
             AgentResultsPanel(controller: controller, selection: $preview)

@@ -78,6 +78,13 @@ frame.
 5. Stage only the intended docs and generated assets; keep video outputs and
    unrelated worktree files out unless they were explicitly part of the refresh.
 
+In-process captures render selected sidebar rows as solid black because
+`cacheDisplay` does not draw the vibrancy selection material, and controls
+appear in their inactive-window colors. Judge selection and accent styling in
+a live window. Accent text contrast in both appearances is covered by
+`BrandContrastTests`; rerun it after changing `Brand.teal` or a workspace
+surface color.
+
 The README uses `today.png`, `meetings-summary.png`, `quick-recall.png`,
 `timeline.png`, `cotyping.png`, and `models.png`, plus the separately produced
 real-app video poster. [Capture notes](../Assets/screenshots/README.md) and

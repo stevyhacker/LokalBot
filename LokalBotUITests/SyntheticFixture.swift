@@ -16,13 +16,17 @@ enum SyntheticFixture {
     static let todayDigestMarker = "Current-day digest marker"
     static let previousDayDigestMarker = "Previous-day digest marker"
 
-    static func plantActivityMoment(in library: Library) throws {
+    static func plantActivityMoment(in library: Library, count: Int = 1) throws {
         var db: OpaquePointer?
         guard sqlite3_open(library.root.appendingPathComponent("lokalbotv3.sqlite").path, &db) == SQLITE_OK else {
             throw CocoaError(.fileWriteUnknown)
         }
         defer { sqlite3_close(db) }
         let timestamp = library.designReview.startedAt.addingTimeInterval(-105 * 60).timeIntervalSince1970
+        let rows = (0..<count).map { index in
+            "INSERT INTO screenshots (id, ts, path, app, window_title) "
+                + "VALUES (\(9001 + index), \(timestamp + Double(index) * 60), '', 'Xcode', 'TimelineView.swift');"
+        }.joined(separator: "\n")
         let sql = """
             CREATE TABLE IF NOT EXISTS screenshots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, ts REAL NOT NULL, path TEXT NOT NULL, app TEXT NOT NULL,
@@ -30,8 +34,7 @@ enum SyntheticFixture {
                 perceptual_hash TEXT NOT NULL DEFAULT '', similarity_group INTEGER NOT NULL DEFAULT 0,
                 source_url TEXT NOT NULL DEFAULT '', document_name TEXT NOT NULL DEFAULT '',
                 meeting_id TEXT NOT NULL DEFAULT '', privacy_redactions INTEGER NOT NULL DEFAULT 0);
-            INSERT INTO screenshots (id, ts, path, app, window_title)
-                VALUES (9001, \(timestamp), '', 'Xcode', 'TimelineView.swift');
+            \(rows)
             """
         guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else { throw CocoaError(.fileWriteUnknown) }
     }

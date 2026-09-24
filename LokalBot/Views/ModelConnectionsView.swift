@@ -29,7 +29,6 @@ struct ModelConnectionsView: View {
     }
 
     private var hasChanges: Bool {
-        if draft.generationBudgetPreset != app.settings.generationBudgetPreset { return true }
         if connection == .ollama {
             return draft.ollamaBaseURL != app.settings.ollamaBaseURL || draft.ollamaModel != app.settings.ollamaModel
         }
@@ -91,32 +90,9 @@ struct ModelConnectionsView: View {
                 }
                 if let listError { Text(listError).font(.system(size: 12)).foregroundStyle(.orange) }
             }
-            Divider()
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Notes processing budget").font(.system(size: 13, weight: .medium))
-                Picker("Notes processing budget", selection: $draft.generationBudgetPreset) {
-                    ForEach(GenerationBudgetPreset.allCases) { Text($0.displayName).tag($0) }
-                }
-                .labelsHidden().pickerStyle(.segmented).frame(maxWidth: 380)
-                .accessibilityIdentifier("models.generationBudget")
-                .settingTarget("settings.generationBudgetPreset", selected: app.focusedSettingID)
-                Text("Applies to every backend — built-in, Apple Intelligence, and servers. "
-                     + draft.generationBudgetPreset.detail)
-                    .font(.system(size: 12)).settingsSecondary()
-                    .fixedSize(horizontal: false, vertical: true)
-                if draft.generationBudgetPreset == .unlimited {
-                    Label("Unlimited removes practical caps: a single meeting can process for up to "
-                          + "6 hours. On a paid API this can run up significant token costs; on a "
-                          + "local model it can keep this Mac busy and hot for a long time.",
-                          systemImage: "exclamationmark.triangle")
-                        .font(.system(size: 12)).foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .accessibilityIdentifier("models.generationBudget.warning")
-                }
-            }
             HStack(spacing: 12) {
                 Button("Save connection") { saveConnection() }
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     .disabled(!hasChanges || testing)
                     .accessibilityIdentifier("models.connection.save")
                 Button(testing ? "Checking…" : "Check connection") {
@@ -146,7 +122,7 @@ struct ModelConnectionsView: View {
                 .accessibilityIdentifier("models.generationTest.issue")
             }
         }
-        .frame(maxWidth: 760, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .settingsPanel()
         .onAppear {
@@ -173,7 +149,6 @@ struct ModelConnectionsView: View {
             next.openAIModel = draft.openAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
             next.openRouterDataPolicy = draft.openRouterDataPolicy
         }
-        next.generationBudgetPreset = draft.generationBudgetPreset
         app.settings = next
         draft = next
         savedMessage = "Saved"

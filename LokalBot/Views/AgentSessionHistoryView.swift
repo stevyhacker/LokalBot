@@ -127,7 +127,7 @@ struct AgentSessionHistoryView: View {
                                 Label(openButtonTitle(for: session), systemImage: openButtonIcon(for: session))
                             }
                         }
-                        .buttonStyle(.borderedProminent)
+                        .primaryActionButton()
                         .disabled(!canOpen(session) || openingID != nil)
                         .accessibilityIdentifier("agent.history.open")
 

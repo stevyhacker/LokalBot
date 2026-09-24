@@ -64,7 +64,7 @@ struct LiveMeetingDetailView: View {
                     Label("Stop Recording", systemImage: "stop.circle.fill")
                 }
                 .tint(.red)
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("live.stop")
             }
             RecordingHealthStrip(recording: app.recording)
@@ -86,8 +86,9 @@ struct LiveMeetingDetailView: View {
                 BrandChip(icon: "calendar",
                           text: meeting.startedAt.formatted(date: .omitted, time: .shortened))
                 BrandChip(icon: "video", text: meeting.appName)
-                BrandChip(icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "mic.fill",
+                BrandChip(icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "exclamationmark.triangle.fill",
                           text: meeting.hasSystemTrack ? "Mic + system" : "Mic only")
+                    .help(meeting.hasSystemTrack ? "" : "Only your microphone is being recorded.")
             }
         }
     }

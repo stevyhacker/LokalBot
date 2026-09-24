@@ -28,8 +28,8 @@ struct AgentView: View {
                 .task { await sessions.refreshHistory() }
             } else { installCard }
         }
-        .navigationTitle(installer.phase == .installed ? "" : "Agent")
-        .tint(AgentPalette.accent(for: colorScheme))
+        .navigationTitle("Agent")
+        .tint(Brand.teal)
         .alert("Agent tasks", isPresented: Binding(get: { sessions.error != nil }, set: { if !$0 { sessions.error = nil } })) {
             Button("OK") { sessions.error = nil }
         } message: { Text(sessions.error ?? "") }
@@ -62,7 +62,7 @@ struct AgentView: View {
                 Button("Download & Enable Agent Mode") {
                     Task { await installer.installIfNeeded() }
                 }
-                .buttonStyle(.borderedProminent)
+                .primaryActionButton()
                 .accessibilityIdentifier("agent.install")
             case .downloading(let name, let progress):
                 ProgressView(value: progress >= 0 ? progress : nil)
@@ -85,7 +85,7 @@ struct AgentView: View {
     private var installDescription: String {
         let inference = InferencePresentation(settings: app.settings).detail(
             local: "Model inference runs on this Mac.",
-            remote: "Prompts and approved context are sent to your configured remote Main LLM.")
-        return "A local coding and file agent powered by your selected Main LLM. Setup downloads about 50 MB and uses about 225 MB after installation. \(inference) Session history stays local; commands you approve run with your Mac user permissions and may access files or the network."
+            remote: "Prompts and approved context are sent to your configured remote Think model.")
+        return "A local coding and file agent powered by your selected Think model. Setup downloads about 50 MB and uses about 225 MB after installation. \(inference) Session history stays local; commands you approve run with your Mac user permissions and may access files or the network."
     }
 }

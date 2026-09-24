@@ -26,7 +26,8 @@ final class PerformanceReadPathTests: XCTestCase {
         }, engine: "test")
         let keys = (0..<20).map { "them \($0)" }
         let start = Date()
-        let previousNames = keys.map { transcript.displaySpeaker(for: $0) }
+        // The presentation adds display-only names ("Them 3" → "Speaker 3").
+        let previousNames = keys.map { SpeakerDisplayName.label(transcript.displaySpeaker(for: $0)) }
         let previousSeconds = Date().timeIntervalSince(start)
         let cachedStart = Date()
         let presentation = MeetingSpeakerPresentation(transcript: transcript)

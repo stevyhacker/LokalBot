@@ -225,7 +225,7 @@ struct MenuBarView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
-                .tint((app.isRecording || app.dictation.state.isRecording) ? .red : Brand.teal)
+                .tint((app.isRecording || app.dictation.state.isRecording) ? .red : Brand.tealFill)
 
                 if app.isRecording {
                     Button {

@@ -51,7 +51,7 @@ struct AgentComposer: View {
                 .padding(14)
                 .background(AgentPalette.composer(for: colorScheme), in: RoundedRectangle(cornerRadius: 16))
                 .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(
-                    focused ? AgentPalette.accent(for: colorScheme) : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
+                    focused ? Brand.teal : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
                     lineWidth: focused || contrast == .increased ? 1.5 : 1))
                 .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
                 .dropDestination(for: URL.self) { urls, _ in
@@ -146,7 +146,7 @@ struct AgentComposer: View {
             Button(controller.state == .running ? "Queue follow-up" : "Send", systemImage: controller.state == .running ? "text.badge.plus" : "arrow.up") {
                 submit(steer: false)
             }
-            .buttonStyle(.borderedProminent).controlSize(.large)
+            .primaryActionButton().controlSize(.large)
             .font(.system(size: 13, weight: .semibold))
             .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
             .accessibilityIdentifier("agent.send")
@@ -200,13 +200,20 @@ struct AgentComposer: View {
     private var accessDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("This task’s access").font(.headline)
-            Label(controller.workspace.path, systemImage: "folder").textSelection(.enabled)
-            Text(controller.approvalMode.detail)
-            Text("Meeting Library: scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant.")
-            Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
-            if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
-                Text("New tasks use the model selected in Settings.")
+            Label(controller.workspace.path, systemImage: "folder")
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .help(controller.workspace.path)
+                .textSelection(.enabled)
+            Group {
+                Text(controller.approvalMode.detail)
+                Text("Meeting Library: scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant.")
+                Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
+                if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
+                    Text("New tasks use the model selected in Settings.")
+                }
             }
+            .fixedSize(horizontal: false, vertical: true)
         }.font(.callout).padding(18).frame(width: 360)
     }
 

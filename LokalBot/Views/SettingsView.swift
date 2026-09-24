@@ -53,24 +53,14 @@ struct SettingsView: View {
             .accessibilityLabel("Settings navigation")
             .splitPaneAccessibilityLabel("Settings navigation", autosaveName: "LokalBot.settings")
             VStack(alignment: .leading, spacing: 0) {
-                if !queryIsEmpty || app.settingsTab != .models {
-                    settingsHeaderTitle.padding(20)
-                    SettingsSeparator()
-                }
+                settingsHeaderTitle.padding(20)
+                SettingsSeparator()
                 if !queryIsEmpty {
                     searchResults
                 } else if app.settingsTab == .models {
                     ModelsView()
                     .settingTarget("settings.models", selected: app.focusedSettingID)
                 } else {
-                    if app.settingsTab == .writing {
-                        Picker("Writing tool", selection: $writingSection) {
-                            ForEach(WritingSection.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal, 20).padding(.vertical, 12)
-                        .accessibilityIdentifier("settings.writing.sections")
-                    }
                     ScrollViewReader { proxy in
                         Form { sections(for: app.settingsTab) }
                             .formStyle(.grouped)
@@ -162,7 +152,7 @@ struct SettingsView: View {
         case .writing:
             "Dictation, autocomplete, and your writing profile."
         case .models:
-            "Choose and prepare local or remote model backends."
+            "Choose the models behind Transcribe, Think, and Autocomplete."
         case .privacy:
             "Control retention, exclusions, encryption, and remote processing."
         case .advanced:
@@ -181,6 +171,13 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .writing:
+            Section {
+                Picker("Writing tool", selection: $writingSection) {
+                    ForEach(WritingSection.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings.writing.sections")
+            }
             if writingSection == .autocomplete {
                 Section("Try autocomplete") {
                     AutocompleteExperienceView()
@@ -268,23 +265,29 @@ struct SettingsView: View {
                                  "window", "background", "tray", "quick recall", "shortcut",
                                  "hotkey", "global search"]) {
                 Section("General") {
-                    LaunchAtLogin.Toggle("Launch LokalBot at login")
-                    Text("Start LokalBot automatically so it's ready to catch meetings.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                    LaunchAtLogin.Toggle {
+                        SettingsLabel("Launch LokalBot at login",
+                                      help: "Start automatically so it's ready to catch meetings.")
+                    }
+                    .accessibilityLabel("Launch LokalBot at login")
+                    .accessibilityHint("Start automatically so it's ready to catch meetings.")
 
-                    Toggle("Menu bar only (hide Dock icon)", isOn: $app.settings.menuBarOnly)
+                    Toggle(isOn: $app.settings.menuBarOnly) {
+                        SettingsLabel("Menu bar only (hide Dock icon)",
+                                      help: "Run from the menu bar with a live recording timer. Takes full effect once open windows close.")
+                    }
                     .settingTarget("settings.menuBarOnly", selected: app.focusedSettingID)
                         .onChange(of: app.settings.menuBarOnly) { _, menuBarOnly in
                             DockPolicy.sync()
                             if !menuBarOnly { openWindow(id: "main") }
                         }
-                    Text("Run from the menu bar with a live recording timer — no Dock icon, no window at launch. The window stays one click away. Takes full effect once open windows are closed.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
-                    Divider()
-                    Toggle("Enable the system-wide Ask shortcut", isOn: $app.settings.quickRecallEnabled)
+                }
+                Section("Shortcut") {
+                    Toggle(isOn: $app.settings.quickRecallEnabled) {
+                        SettingsLabel("Enable the system-wide Ask shortcut",
+                                      help: "Press \(QuickRecallHotKeyController.shortcutLabel) in any app to search your work memory or ask a question. LokalBot registers only this shortcut and never reads other keystrokes.")
+                    }
                     .settingTarget("settings.quickRecallEnabled", selected: app.focusedSettingID)
-                    Text("Press \(QuickRecallHotKeyController.shortcutLabel) from any app to search meetings, captured screen text, and saved moments—or ask the assistant without opening the main window. LokalBot registers only this shortcut and does not inspect other keystrokes.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                 }
             }
 
@@ -305,14 +308,20 @@ struct SettingsView: View {
                 Toggle("Allow multi-line suggestions", isOn: $app.settings.cotypingMultiLine)
                     .settingTarget("settings.cotypingMultiLine", selected: app.focusedSettingID)
                 LabeledContent("Pause before suggesting") {
-                    Text("\(app.settings.cotypingDebounceMs) ms").settingsSecondary()
+                    HStack(spacing: 10) {
+                        Slider(value: Binding(
+                            get: { Double(app.settings.cotypingDebounceMs) },
+                            set: { app.settings.cotypingDebounceMs = Int($0) }),
+                            in: 20...1_000, step: 20)
+                            .frame(maxWidth: 220)
+                            .accessibilityLabel("Pause before suggesting")
+                        Text("\(app.settings.cotypingDebounceMs) ms")
+                            .monospacedDigit()
+                            .settingsSecondary()
+                            .frame(minWidth: 56, alignment: .trailing)
+                    }
                 }
-                Slider(value: Binding(
-                    get: { Double(app.settings.cotypingDebounceMs) },
-                    set: { app.settings.cotypingDebounceMs = Int($0) }),
-                    in: 20...1_000, step: 20)
-                    .accessibilityLabel("Pause before suggesting")
-                    .settingTarget("settings.cotypingDebounceMs", selected: app.focusedSettingID)
+                .settingTarget("settings.cotypingDebounceMs", selected: app.focusedSettingID)
                 Picker("Accept next", selection: $app.settings.cotypingAcceptKey) {
                     ForEach(CotypingAcceptKey.allCases) { Text($0.label).tag($0) }
                 }
@@ -321,21 +330,27 @@ struct SettingsView: View {
                     ForEach(CotypingAcceptGranularity.allCases) { Text($0.label).tag($0) }
                 }
                     .settingTarget("settings.cotypingAcceptGranularity", selected: app.focusedSettingID)
-                Divider()
+            }
+            Section("Context and profile") {
                 Toggle("Use app and window context", isOn: $app.settings.cotypingUseAppContext)
                     .settingTarget("settings.cotypingUseAppContext", selected: app.focusedSettingID)
                 Toggle("Use clipboard as temporary context", isOn: $app.settings.cotypingUseClipboard)
                     .settingTarget("settings.cotypingUseClipboard", selected: app.focusedSettingID)
-                Toggle("Learn locally from accepted completions",
-                       isOn: $app.settings.cotypingUseLocalLearning)
+                Toggle(isOn: $app.settings.cotypingUseLocalLearning) {
+                    SettingsLabel("Learn locally from accepted completions",
+                                  help: "Preview runs are excluded from stats and learning.")
+                }
                     .settingTarget("settings.cotypingUseLocalLearning", selected: app.focusedSettingID)
-                TextField("Your name (optional)", text: $app.settings.cotypingUserName)
+                profileField("Your name", prompt: "Optional", text: $app.settings.cotypingUserName)
                     .settingTarget("settings.cotypingUserName", selected: app.focusedSettingID)
-                TextField("Writing style (optional)", text: $app.settings.cotypingStyleNote)
+                profileField("Writing style", prompt: "Optional, e.g. concise and friendly",
+                             text: $app.settings.cotypingStyleNote)
                     .settingTarget("settings.cotypingStyleNote", selected: app.focusedSettingID)
-                TextField("Languages (optional)", text: $app.settings.cotypingLanguages)
+                profileField("Languages", prompt: "Optional, e.g. English, German",
+                             text: $app.settings.cotypingLanguages)
                     .settingTarget("settings.cotypingLanguages", selected: app.focusedSettingID)
-                Divider()
+            }
+            Section("Exclusions") {
                 ExclusionRulesEditor(title: "Never suggest in these apps", value: $app.settings.cotypingExcludedApps, kind: .applications)
                     .settingTarget("settings.cotypingExcludedApps", selected: app.focusedSettingID)
                 ExclusionRulesEditor(title: "Never suggest on these sites", value: $app.settings.cotypingExcludedDomains, kind: .writingDomains)
@@ -343,6 +358,8 @@ struct SettingsView: View {
                 Toggle("Suggest in integrated terminals",
                        isOn: $app.settings.cotypingSuggestInIntegratedTerminals)
                     .settingTarget("settings.cotypingSuggestInIntegratedTerminals", selected: app.focusedSettingID)
+            }
+            Section {
                 DisclosureGroup("Advanced", isExpanded: Binding(
                     get: { writingAdvancedExpanded || app.focusedSettingID != nil },
                     set: { writingAdvancedExpanded = $0 })) {
@@ -363,9 +380,17 @@ struct SettingsView: View {
                     Toggle("Macros", isOn: $app.settings.cotypingMacros)
                     .settingTarget("settings.cotypingMacros", selected: app.focusedSettingID)
                 }
-                Text("Preview runs are excluded from production stats and local learning.")
-                    .font(WorkspaceTypography.editorialBody).settingsSecondary()
             }
+        }
+    }
+
+    /// A labeled, visibly editable text field for optional profile values.
+    private func profileField(_ title: String, prompt: String, text: Binding<String>) -> some View {
+        LabeledContent(title) {
+            TextField(title, text: text, prompt: Text(prompt))
+                .labelsHidden()
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 280)
         }
     }
 
@@ -382,8 +407,7 @@ struct SettingsView: View {
                     PermissionRow(permission: .inputMonitoring,
                                   why: "Optional — powers the dictation and autocomplete shortcuts.")
                     HStack {
-                        Text("Accessibility and Input Monitoring grants apply at launch.")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                        SettingsHelp("Accessibility and Input Monitoring grants apply at launch.")
                         Spacer()
                         Button("Relaunch") { PermissionManager.relaunch() }
                     }
@@ -396,14 +420,15 @@ struct SettingsView: View {
             if shows("Meetings", ["meeting", "auto record", "detect", "debounce", "stop debounce",
                                   "recording", "calendar", "calendar access", "browser", "google meet"]) {
                 Section("Meetings") {
-                    Picker("When a meeting is detected", selection: $app.settings.autoRecordMode) {
+                    Picker(selection: $app.settings.autoRecordMode) {
                         ForEach(AppSettings.AutoRecordMode.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
                         }
+                    } label: {
+                        SettingsLabel("When a meeting is detected",
+                                      help: "Only record when everyone has been informed and any consent the meeting or location requires is in place.")
                     }
                     .settingTarget("settings.autoRecordMode", selected: app.focusedSettingID)
-                    Text("Only record when everyone has been informed and you have any consent required for the meeting and location.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                     LabeledContent("Detected apps") {
                         Text(Set(MeetingDetector.knownApps.values).sorted().joined(separator: ", ")
                              + " + browser meetings (Meet, Jitsi, Whereby)")
@@ -418,23 +443,26 @@ struct SettingsView: View {
                         }
                     }
                     .settingTarget("settings.stopDebounceSeconds", selected: app.focusedSettingID)
-                    Divider()
-                    Toggle("Use calendar to improve detection", isOn: $app.settings.calendarDetectionEnabled)
+                }
+                Section("Calendar") {
+                    Toggle(isOn: $app.settings.calendarDetectionEnabled) {
+                        SettingsLabel("Use calendar to improve detection",
+                                      help: "Reads your Mac Calendar to confirm meetings and suggest attendee names for speakers. Attendee emails stay in local meeting metadata.")
+                    }
                     .settingTarget("settings.calendarDetectionEnabled", selected: app.focusedSettingID)
                         .onChange(of: app.settings.calendarDetectionEnabled) { _, enabled in
                             if enabled, app.calendar.authorizationStatus == .notDetermined {
                                 app.calendar.requestAccess { _ in }
                             }
                         }
-                    Text("Reads your Mac Calendar (including synced Google/Exchange accounts) to confirm meetings and suggest attendee names when labeling speakers. Attendee emails stay in local meeting metadata and are used only to distinguish candidates.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                     if app.settings.calendarDetectionEnabled {
                         Toggle("Use calendar titles for recordings", isOn: $app.settings.useCalendarTitles)
                     .settingTarget("settings.useCalendarTitles", selected: app.focusedSettingID)
-                        Toggle("Require a calendar match for browser auto-recording", isOn: $app.settings.requireCalendarForBrowser)
+                        Toggle(isOn: $app.settings.requireCalendarForBrowser) {
+                            SettingsLabel("Require a calendar match for browser auto-recording",
+                                          help: "Only auto-record a browser tab while a scheduled event with a meeting link is in progress.")
+                        }
                     .settingTarget("settings.requireCalendarForBrowser", selected: app.focusedSettingID)
-                        Text("Stricter: only auto-record a browser tab when a scheduled event with a meeting link is in progress.")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
                         LabeledContent("Calendar access") { calendarAccessControl }
                     }
                 }
@@ -452,16 +480,18 @@ struct SettingsView: View {
                     .settingTarget("settings.autoTranscribe", selected: app.focusedSettingID)
                     Toggle("Summarize automatically after transcription", isOn: $app.settings.autoSummarize)
                     .settingTarget("settings.autoSummarize", selected: app.focusedSettingID)
-                    Text("Choose transcription and main LLM models in the Models tab.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
-                    Divider()
-                    Toggle("Remove the other side from your microphone track",
-                           isOn: $app.settings.echoCancellation)
+                    LabeledContent("Transcribe and Think models") {
+                        Button("Manage in Models…") { app.openSettings(tab: .models) }
+                    }
+                }
+                Section("Speakers and echo") {
+                    Toggle(isOn: $app.settings.echoCancellation) {
+                        SettingsLabel("Remove the other side from your microphone track",
+                                      help: "Use on speakers, where the other side reaches your microphone and would be transcribed twice. Also cleans meetings already recorded.")
+                    }
                     .settingTarget("settings.echoCancellation", selected: app.focusedSettingID)
-                    Text("On speakers the other side reaches your microphone too and gets transcribed a second time as you. Subtracts the system-audio track before transcription — including for meetings already recorded. No effect on headphones.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
-                    Text("Needs the microphone mode for LokalBot itself set to Standard (Control Center → microphone icon → LokalBot's row) — macOS Voice Isolation removes the very echo this looks for. The meeting app can stay on Voice Isolation; the mode is set per app, not on the microphone.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                    SettingsDetails("Microphone mode requirement",
+                                    "Set LokalBot's microphone mode to Standard (Control Center → microphone icon → LokalBot's row). macOS Voice Isolation removes the echo this feature looks for. The meeting app can stay on Voice Isolation; the mode is set per app, not per microphone. Headphones need no echo removal.")
                 }
             }
 
@@ -471,14 +501,14 @@ struct SettingsView: View {
             if shows("Summarization", ["summary", "summarize", "notes", "template", "language",
                                        "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote"]) {
                 Section("Summarization") {
-                    Picker("Notes template", selection: $app.settings.noteTemplate) {
+                    Picker(selection: $app.settings.noteTemplate) {
                         ForEach(NoteTemplate.allCases) { template in
                             Text("\(template.displayName)").tag(template)
                         }
+                    } label: {
+                        SettingsLabel("Notes template", help: app.settings.noteTemplate.description)
                     }
                     .settingTarget("settings.noteTemplate", selected: app.focusedSettingID)
-                    Text(app.settings.noteTemplate.description)
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                     Picker("Notes language", selection: $app.settings.summaryLanguage) {
                         Text("Match transcript (auto)").tag(SummaryLanguage.matchTranscript)
                         Divider()
@@ -487,20 +517,22 @@ struct SettingsView: View {
                         }
                     }
                     .settingTarget("settings.summaryLanguage", selected: app.focusedSettingID)
+                }
+                Section("Speaker names") {
                     Toggle("Separate voices by speaker",
                            isOn: $app.settings.multiSpeakerDiarization)
                         .accessibilityLabel("Separate voices by speaker")
                         .accessibilityIdentifier("settings.multiSpeakerDiarization")
-                    Picker("Speaker model", selection: $app.settings.diarizationModel) {
+                    Picker(selection: $app.settings.diarizationModel) {
                         ForEach(DiarizationModel.allCases) { model in
                             Text(model.displayName).tag(model)
                         }
+                    } label: {
+                        SettingsLabel("Speaker model", help: app.settings.diarizationModel.description)
                     }
                     .disabled(!app.settings.multiSpeakerDiarization)
                     .accessibilityLabel("Speaker model")
                     .accessibilityIdentifier("settings.diarizationModel")
-                    Text(app.settings.diarizationModel.description)
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                     SpeakerIdentitySettingsControls()
                 }
             }
@@ -514,7 +546,7 @@ struct SettingsView: View {
                                       "logseq", "markdown", "daily note", "vault", "digest",
                                       "journal", "schedule", "prompt"]) {
                 Section("Day Memory") {
-                    Toggle("Track app & window activity", isOn: Binding(
+                    Toggle(isOn: Binding(
                         get: { app.settings.trackingEnabled },
                         set: { app.settings.trackingEnabled = $0
                                if $0 {
@@ -523,7 +555,10 @@ struct SettingsView: View {
                                } else {
                                    app.settings.screenContextCaptureMode = .activityOnly
                                    app.settings.screenshotsEnabled = false
-                               } }))
+                               } })) {
+                        SettingsLabel("Track app & window activity",
+                                      help: "Records which app and window you're using for the Timeline and day digest.")
+                    }
                     .settingTarget("settings.trackingEnabled", selected: app.focusedSettingID)
                     LabeledContent("Window titles") {
                         if ActivitySampler.hasAccessibility {
@@ -535,7 +570,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    Picker("Screen context", selection: Binding(
+                    Picker(selection: Binding(
                         get: { app.settings.effectiveScreenContextCaptureMode },
                         set: { mode in
                             app.settings.screenContextCaptureMode = mode
@@ -553,10 +588,11 @@ struct SettingsView: View {
                         ForEach(AppSettings.ScreenContextCaptureMode.allCases) { mode in
                             Text(mode.rawValue).tag(mode)
                         }
+                    } label: {
+                        SettingsLabel("Screen context",
+                                      help: app.settings.effectiveScreenContextCaptureMode.detail)
                     }
                     .settingTarget("settings.effectiveScreenContextCaptureMode", selected: app.focusedSettingID)
-                    Text(app.settings.effectiveScreenContextCaptureMode.detail)
-                        .workspaceTextRole(.supporting)
                     if app.settings.effectiveScreenContextCaptureMode.capturesText {
                         Slider(value: Binding(
                             get: { app.settings.screenshotIntervalMinutes },
@@ -568,46 +604,49 @@ struct SettingsView: View {
                         Button("Manage retention and cleanup…") { app.openSettings(tab: .privacy) }
                         Button("Manage capture exclusions…") { app.openSettings(tab: .privacy) }
                         if app.settings.effectiveScreenContextCaptureMode.capturesPixels {
-                            Toggle("Capture low-frequency visual context during meetings",
-                                   isOn: $app.settings.meetingVisualContextEnabled)
+                            Toggle(isOn: $app.settings.meetingVisualContextEnabled) {
+                                SettingsLabel("Capture low-frequency visual context during meetings",
+                                              help: "Off by default. Captures the focused display at most once a minute on meaningful changes and links each frame to the meeting.")
+                            }
                     .settingTarget("settings.meetingVisualContextEnabled", selected: app.focusedSettingID)
-                            Text("Off by default. When enabled, captures the focused display at most once per minute on meaningful changes and links each frame to the active meeting.")
-                                .workspaceTextRole(.trust)
                         }
+                        SettingsDetails("How screen context is captured",
+                                        "Captures context after app or window changes, clicks, typing pauses, settled "
+                                            + "scrolls, or a clipboard change, without storing raw keys, "
+                                            + "pointer positions, or clipboard contents. Accessible text is preferred; "
+                                            + "local OCR fills gaps. Private windows, excluded domains, secure fields, "
+                                            + "and detected credentials are never captured. Visuals are encrypted "
+                                            + "with a key kept in your Mac's Keychain; extracted text follows the same retention "
+                                            + "(see Privacy). Saved moments keep their encrypted frame and text "
+                                            + "until you unsave or delete them. Excluded apps log as “Private”.")
                     }
-                    Text(
-                        "Captures context after app/window changes, clicks, typing pauses, settled "
-                            + "scrolls, or a clipboard-generation change without storing raw keys, "
-                            + "pointer positions, or clipboard contents. Accessible text is preferred; "
-                            + "local OCR fills gaps. Private windows, excluded domains, secure fields, "
-                            + "and detected credentials fail closed. Visuals are encrypted "
-                            + "with a key kept in your Mac's Keychain; extracted text follows the same retention "
-                            + "(see Privacy). Saved moments retain their encrypted frame and text "
-                            + "until you unsave or delete them. Excluded apps log as “Private”."
-                    )
-                        .workspaceTextRole(.trust)
-                    Divider()
-                    Toggle("Generate the day digest automatically",
-                           isOn: $app.settings.dayDigestAutoEnabled)
+                }
+                Section("Day digest") {
+                    Toggle(isOn: $app.settings.dayDigestAutoEnabled) {
+                        SettingsLabel("Generate the day digest automatically",
+                                      help: "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included.")
+                    }
                     .settingTarget("settings.dayDigestAutoEnabled", selected: app.focusedSettingID)
                     if app.settings.dayDigestAutoEnabled {
                         Stepper(
-                            "Generate at \(String(format: "%02d:00", app.settings.dayDigestHour))",
+                            "Generate at \(HourLabel.format(app.settings.dayDigestHour))",
                             value: $app.settings.dayDigestHour,
                             in: 0...23)
                     }
                     digestInstructionsField.settingTarget("settings.dayDigestCustomPrompt", selected: app.focusedSettingID)
-                    Text("Writes a detailed Timeline digest to your local journal at the chosen hour, then finalizes yesterday once after the date changes so late activity is included. Instructions shape scheduled and manual generation alike.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
-                    Divider()
-                    Toggle("Export a daily memory note", isOn: Binding(
+                }
+                Section("Daily note export") {
+                    Toggle(isOn: Binding(
                         get: { app.settings.dailyMemoryExportEnabled },
                         set: { enabled in
                             app.settings.dailyMemoryExportEnabled = enabled
                             if enabled && app.settings.dailyMemoryExportFolder.isEmpty {
                                 chooseDailyExportFolder()
                             }
-                        }))
+                        })) {
+                        SettingsLabel("Export a daily memory note",
+                                      help: "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. Existing non-LokalBot content is never overwritten.")
+                    }
                     .settingTarget("settings.dailyMemoryExportEnabled", selected: app.focusedSettingID)
                     if app.settings.dailyMemoryExportEnabled {
                         Picker("Format", selection: $app.settings.dailyMemoryExportFormat) {
@@ -626,12 +665,10 @@ struct SettingsView: View {
                             .foregroundStyle(Brand.teal)
                         }
                         Stepper(
-                            "Refresh at \(String(format: "%02d:00", app.settings.dailyMemoryExportHour))",
+                            "Refresh at \(HourLabel.format(app.settings.dailyMemoryExportHour))",
                             value: $app.settings.dailyMemoryExportHour,
                             in: 0...23)
                     }
-                    Text("Writes one idempotent, unencrypted Markdown file per day with the digest, meeting links, app-time totals, and saved moments. Existing non-LokalBot content is never overwritten.")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
                 }
             }
 
@@ -639,7 +676,8 @@ struct SettingsView: View {
 
     private var digestInstructionsField: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text("Digest instructions (optional)")
+            SettingsLabel("Digest instructions (optional)",
+                          help: "Shapes both scheduled and manual digests.")
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $app.settings.dayDigestCustomPrompt)
                     .font(WorkspaceTypography.editorialBody)
@@ -677,14 +715,17 @@ struct SettingsView: View {
                               "follow-up", "follow up", "unfinished actions", "journal",
                               "schedule", "history", "local output"]) {
             Section("Routines") {
-                Toggle("Enable safe local routines", isOn: Binding(
+                Toggle(isOn: Binding(
                     get: { app.settings.memoryRoutinesEnabled },
                     set: { enabled in
                         app.settings.memoryRoutinesEnabled = enabled
                         if enabled && app.settings.memoryRoutineFolder.isEmpty {
                             chooseMemoryRoutineFolder()
                         }
-                    }))
+                    })) {
+                    SettingsLabel("Enable safe local routines",
+                                  help: "Routines write Markdown into a folder you choose. They can't run scripts, contact services, send messages, or change meetings.")
+                }
                     .settingTarget("settings.memoryRoutinesEnabled", selected: app.focusedSettingID)
                 if app.settings.memoryRoutinesEnabled {
                     LabeledContent("Output folder") {
@@ -697,7 +738,7 @@ struct SettingsView: View {
                         .foregroundStyle(Brand.teal)
                     }
                     Stepper(
-                        "Daily time: \(String(format: "%02d:00", app.settings.memoryRoutineHour))",
+                        "Daily time: \(HourLabel.format(app.settings.memoryRoutineHour))",
                         value: $app.settings.memoryRoutineHour,
                         in: 0...23)
                     Picker("Weekly log day", selection: $app.settings.memoryRoutineWeekday) {
@@ -707,12 +748,11 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.memoryRoutineWeekday", selected: app.focusedSettingID)
                     ForEach(AppSettings.MemoryRoutineKind.allCases) { kind in
-                        Toggle(kind.displayName, isOn: Binding(
+                        Toggle(isOn: Binding(
                             get: { app.settings.enabledMemoryRoutines.contains(kind) },
-                            set: { enabled in setRoutine(kind, enabled: enabled) }))
-                        Text(kind.detail)
-                            .font(WorkspaceTypography.editorialBody)
-                            .settingsSecondary()
+                            set: { enabled in setRoutine(kind, enabled: enabled) })) {
+                            SettingsLabel(kind.displayName, help: kind.detail)
+                        }
                     }
                     HStack {
                         Menu("Run now") {
@@ -737,8 +777,8 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Text("Each routine has a fixed local read scope and writes Markdown only inside the chosen folder. Missed daily/weekly runs catch up after wake, each run stops after 30 seconds, and every attempt is recorded in the local database. Routines cannot execute scripts, contact services, send messages, or change source meetings.")
-                    .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                SettingsDetails("How routines run",
+                                "Each routine has a fixed local read scope and writes Markdown only inside the chosen folder. Missed daily or weekly runs catch up after wake, each run stops after 30 seconds, and every attempt is recorded in the local database.")
             }
         }
     }
@@ -748,13 +788,16 @@ struct SettingsView: View {
                               "brief", "memory", "projects", "goals", "pin", "pinned",
                               "downtime", "sleep"]) {
             Section("Overnight review") {
-                Toggle("Review the day overnight", isOn: Binding(
+                Toggle(isOn: Binding(
                     get: { app.settings.dreamingEnabled },
-                    set: { app.setDreamingEnabled($0) }))
+                    set: { app.setDreamingEnabled($0) })) {
+                    SettingsLabel("Review the day overnight",
+                                  help: "While your Mac is idle after the chosen time, LokalBot turns the previous day into a morning retrospective on Today. It uses your Think model; if that model is remote, the compiled evidence is sent to it.")
+                }
                     .settingTarget("settings.dreamingEnabled", selected: app.focusedSettingID)
                 if app.settings.dreamingEnabled {
                     Stepper(
-                        "Review after \(String(format: "%02d:00", app.settings.dreamingHour))",
+                        "Review after \(HourLabel.format(app.settings.dreamingHour))",
                         value: $app.settings.dreamingHour,
                         in: 0...23)
                     HStack(spacing: 8) {
@@ -763,8 +806,7 @@ struct SettingsView: View {
                         if app.dreaming.isDreaming {
                             LoadingStateLabel("Reviewing…", font: .caption)
                         } else if let last = app.dreaming.lastDreamedAt {
-                            Text("Last reviewed " + last.formatted(.relative(presentation: .named)))
-                                .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                            SettingsHelp("Last reviewed " + last.formatted(.relative(presentation: .named)))
                         }
                     }
                     if let error = app.dreaming.lastError {
@@ -775,9 +817,7 @@ struct SettingsView: View {
                 if let memory = app.dreamMemory,
                    !memory.activeProjects.isEmpty || !memory.workGoals.isEmpty {
                     DisclosureGroup("Projects and goals") {
-                        Text("Pin items to keep them during automatic memory cleanup.")
-                            .font(WorkspaceTypography.editorialBody)
-                            .settingsSecondary()
+                        SettingsHelp("Pin items to keep them during automatic memory cleanup.")
                         if !memory.activeProjects.isEmpty {
                             Text("Active projects")
                                 .font(.caption.weight(.semibold))
@@ -804,9 +844,9 @@ struct SettingsView: View {
                         }
                     }
                 }
-                Text("While your Mac is otherwise idle after the chosen hour, LokalBot compiles the previous day — meetings, outcomes, the day digest, and time totals — into a morning retrospective and an evolving structured memory of active projects and goals, shown on Today. "
-                     + "Nights the Mac slept through catch up at the next launch. Evidence and generated files stay in the local library. Generation uses your configured Main LLM, so an approved remote backend receives the compiled evidence; if no model is reachable, a plain evidence summary is written instead.")
-                    .workspaceTextRole(.trust)
+                SettingsDetails("What the review uses",
+                                "It compiles meetings, outcomes, the day digest, and time totals, and keeps an evolving memory of active projects and goals. "
+                                    + "Nights the Mac slept through catch up at the next launch. Evidence and generated files stay in the local library. If no model is reachable, a plain evidence summary is written instead.")
             }
         }
     }
@@ -822,9 +862,7 @@ struct SettingsView: View {
             set: { app.setDreamMemoryPinned($0, for: entry) })) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                    Text(detail)
-                        .font(WorkspaceTypography.editorialBody)
-                        .settingsSecondary()
+                    SettingsHelp(detail)
                 }
             }
             .disabled(app.dreaming.isDreaming)
@@ -838,7 +876,7 @@ struct SettingsView: View {
                     InferenceDisclosure(
                         settings: app.settings,
                         localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
-                        remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Main LLM (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                        remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
                     RetentionSettingsControls()
                     AgentAccessToggleRow(manager: app.agentAccess)
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
@@ -846,7 +884,9 @@ struct SettingsView: View {
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
                     HStack(spacing: 16) {
                         Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
+                            .buttonStyle(.workspaceLink)
                         Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
+                            .buttonStyle(.workspaceLink)
                     }
                     .font(WorkspaceTypography.editorialBody)
                 }
@@ -883,10 +923,9 @@ struct SettingsView: View {
                         AppUpdateManager.shared.checkForUpdates()
                     }
                     .disabled(!updates.isStarted)
-                    Text(updates.isStarted
-                         ? "Updates are signed and delivered via Sparkle. LokalBot stays local-first — only the appcast and the chosen download are fetched."
-                         : "Updater inactive — set the appcast feed URL and Sparkle public key before shipping (see RELEASING.md).")
-                        .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                    SettingsHelp(updates.isStarted
+                         ? "Updates are signed and delivered via Sparkle. Only the update feed and the chosen download are fetched."
+                         : Self.inactiveUpdaterNote)
                 }
             }
 
@@ -903,14 +942,15 @@ struct SettingsView: View {
                     }
                     if power.isLowPower {
                         Label("Low Power Mode is on — summaries may run slower.", systemImage: "bolt.slash")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                            .font(.system(size: 12)).settingsSecondary()
                     } else if power.isOnBattery {
                         Label("Running on battery.", systemImage: "battery.75")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                            .font(.system(size: 12)).settingsSecondary()
                     }
                     if metrics.recent.isEmpty {
-                        Text("No model generations recorded yet.")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                        LabeledContent("Recent generations") {
+                            Text("None yet").settingsSecondary()
+                        }
                     } else {
                         ForEach(Array(metrics.recent.reversed().prefix(5))) { metric in
                             LabeledContent(metric.label) {
@@ -931,8 +971,7 @@ struct SettingsView: View {
                 Section("Agent CLI") {
                     let installer = LokalBotCLIInstaller.bundled
                     if installer.bundledBinary == nil {
-                        Text("The command-line helper is not included in this build. Install a current LokalBot release to use Agent CLI access.")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                        SettingsHelp("The command-line helper is not included in this build. Install a current LokalBot release to use Agent CLI access.")
                     } else {
                         LabeledContent("Status") {
                             if installer.isInstalled {
@@ -982,14 +1021,22 @@ struct SettingsView: View {
                             }
                         }
                         if let cliMessage {
-                            Text(cliMessage).font(WorkspaceTypography.editorialBody).settingsSecondary()
+                            SettingsHelp(cliMessage)
                         }
-                        Text("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design.")
-                            .font(WorkspaceTypography.editorialBody).settingsSecondary()
+                        SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design.")
                     }
                 }
             }
 
+    }
+
+    /// Release builds explain the state; only dev builds point at release setup.
+    private static var inactiveUpdaterNote: String {
+        #if LOKALBOT_DEV
+        "Updater inactive — set the appcast feed URL and Sparkle public key before shipping (see RELEASING.md)."
+        #else
+        "Automatic updates are unavailable in this build."
+        #endif
     }
 
     /// Calendar permission state + action for the Meetings section.
@@ -1003,7 +1050,7 @@ struct SettingsView: View {
                 Button("Grant Calendar Access…") { app.calendar.requestAccess { _ in } }
                 if let error = app.calendar.accessRequestError {
                     Text(error)
-                        .font(WorkspaceTypography.editorialBody)
+                        .font(.system(size: 12))
                         .foregroundStyle(Brand.error)
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 320, alignment: .trailing)
@@ -1091,14 +1138,12 @@ private struct AgentAccessToggleRow: View {
 
     var body: some View {
         Group {
-            Toggle(
-                "Allow external agents to read your meeting library",
-                isOn: Binding(
-                    get: { manager.isEnabled },
-                    set: { manager.setEnabled($0) }))
-            Text("Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, and search your meetings, and ask questions answered by your local model — read-only, localhost only. Off by default; while off, agent tools return an error explaining how to enable this.")
-                .font(WorkspaceTypography.editorialBody)
-                .settingsSecondary()
+            Toggle(isOn: Binding(
+                get: { manager.isEnabled },
+                set: { manager.setEnabled($0) })) {
+                SettingsLabel("Allow external agents to read your meeting library",
+                              help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
+            }
         }
     }
 }
@@ -1108,26 +1153,23 @@ private struct ScreenMemoryAccessToggleRow: View {
 
     var body: some View {
         Group {
-            Toggle(
-                "Allow external agents to read screen memory",
-                isOn: Binding(
-                    get: { manager.isEnabled },
-                    set: { manager.setEnabled($0) }))
+            Toggle(isOn: Binding(
+                get: { manager.isEnabled },
+                set: { manager.setEnabled($0) })) {
+                SettingsLabel("Allow external agents to read screen memory",
+                              help: "Separate, scoped, read-only access to captured text and metadata. Screenshot pixels are never returned.")
+            }
             if manager.isEnabled {
-                Picker("Granted history", selection: Binding(
+                Picker(selection: Binding(
                     get: { manager.profile.scope },
                     set: { manager.setScope($0) })) {
                     ForEach(ScreenMemoryAccessProfile.Scope.allCases) { scope in
                         Text(scope.displayName).tag(scope)
                     }
+                } label: {
+                    SettingsLabel("Granted history", help: manager.profile.scope.detail)
                 }
-                Text(manager.profile.scope.detail)
-                    .font(WorkspaceTypography.editorialBody)
-                    .settingsSecondary()
             }
-            Text("Separately grants scoped, read-only MCP access to captured text and metadata. Decrypted screenshot pixels are never returned, out-of-scope ids appear missing, and meeting access remains independently controlled above.")
-                .font(WorkspaceTypography.editorialBody)
-                .settingsSecondary()
         }
     }
 }

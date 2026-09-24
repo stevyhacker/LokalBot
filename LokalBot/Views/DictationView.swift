@@ -58,27 +58,25 @@ struct DictationView: View {
                 Spacer()
                 Button(actionTitle) { app.dictation.toggle(source: "rehearsal") }
                     .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.teal)
+                    .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.tealFill)
             }
-            Picker("Intent", selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
+            Picker(selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
                 ForEach(DictationIntent.allCases) { Text($0.rawValue).tag($0) }
+            } label: {
+                SettingsLabel("Intent", help: operation.dictationIntent.detail)
             }.pickerStyle(.segmented).disabled(app.dictation.state != .idle || app.dictation.isStarting)
-            Text(operation.dictationIntent.detail)
             if operation.dictationIntent == .compose {
                 Toggle("Use the focused window as context", isOn: Binding(
                     get: { operation.dictationUseScreenContext }, set: { app.settings.dictationUseScreenContext = $0 }))
                     .disabled(app.dictation.state != .idle || app.dictation.isStarting)
             }
-            Text("Try here shows the result below. It never inserts into another app or changes your clipboard.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            SettingsHelp("Trying here shows the result below. It never inserts into another app or changes your clipboard; the shortcut uses the output setting above.")
         }
     }
 
     private var modelSection: some View {
         Section("Model") {
-            LabeledContent("Transcription") {
+            LabeledContent("Transcribe model") {
                 Text(operation.transcriptionModelDisplayName)
                     .foregroundStyle(.secondary)
             }
@@ -95,8 +93,8 @@ struct DictationView: View {
             // case reads as a first-class notice, not caption fine print.
             InferenceDisclosure(
                 settings: operation.dictationCompositionTextEngineSettings,
-                localText: "Speech uses the meeting ASR model; final wording uses your configured local composition model and writing profile. Everything stays on this Mac.",
-                remoteText: "Final wording uses your approved remote Main LLM (\(operation.summarizerBackend.displayName)). What you dictate — and any screen context it composes with — is sent to that server.")
+                localText: "Speech uses the meeting ASR model; final wording uses your local composition model and writing profile. Everything stays on this Mac.",
+                remoteText: "Final wording uses your approved remote Think model (\(operation.summarizerBackend.displayName)). What you dictate — and any screen context it composes with — is sent to that server.")
                 .accessibilityIdentifier("dictation.remoteNotice")
             } else {
                 Label("Speech recognition runs on this Mac. No screen context or rewrite model is used.", systemImage: "desktopcomputer")

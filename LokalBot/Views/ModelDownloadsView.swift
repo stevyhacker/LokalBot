@@ -81,7 +81,7 @@ struct ModelDownloadsView: View {
                 }
             }
             if !transcriptionChoices.isEmpty {
-                sectionTitle("Transcription")
+                sectionTitle("Transcribe")
                 VStack(spacing: 0) {
                     ForEach(transcriptionChoices) { choice in
                         transcriptionRow(choice)
@@ -178,7 +178,8 @@ struct ModelDownloadsView: View {
             VStack(alignment: .leading, spacing: 5) {
                 Text(choice == .graniteSpeech ? app.settings.graniteSpeechModel.displayName : choice.displayName)
                     .font(.system(size: 14, weight: .medium))
-                Text(choice == app.settings.transcriptionModel ? "Used by Transcription" : "Not assigned")
+                Text(([choice.sizeLabel] + [choice == app.settings.transcriptionModel ? "Used by Transcribe" : "Not assigned"])
+                     .compactMap { $0 }.joined(separator: " · "))
                     .font(.system(size: 12)).settingsSecondary()
                 if let error = status.errorMessage {
                     Text(error).font(.system(size: 12)).foregroundStyle(.orange)

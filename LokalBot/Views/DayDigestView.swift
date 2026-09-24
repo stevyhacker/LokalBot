@@ -216,7 +216,7 @@ struct DayDigestView: View {
                         Button { app.openScreenSnapshot(id) } label: {
                             Label("\(shot.documentName.isEmpty ? shot.app : shot.documentName) · \(shot.ts.formatted(date: .omitted, time: .shortened))", systemImage: "doc.text.magnifyingglass")
                                 .font(WorkspaceTypography.metadata)
-                        }.buttonStyle(.link)
+                        }.buttonStyle(.workspaceLink)
                     } else {
                         Text("Source moment unavailable").font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
                     }

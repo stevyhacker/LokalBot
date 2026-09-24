@@ -581,8 +581,9 @@ private struct MeetingWorkspaceDetail: View {
                 onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
                 onReview: beginRenameSpeaker)
             VStack(alignment: .leading, spacing: 8) {
-                Text("2. Review action owners").font(WorkspaceTypography.sectionTitle)
-                Text("These are all actions from this meeting. Only actions assigned to you appear in My actions. Select an owner to correct it; use a timestamp to inspect the source.")
+                Label("2. Review action owners", systemImage: "person.crop.circle.badge.checkmark")
+                    .font(WorkspaceTypography.sectionTitle)
+                Text("All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.")
                     .workspaceTextRole(.supporting)
                 if projection == nil, previousReviewProjection != nil {
                     Text("These actions are from the previous notes. Review their owners, then refresh to regenerate notes from the corrected transcript.")
@@ -689,7 +690,7 @@ private struct MeetingWorkspaceDetail: View {
                     ForEach(actions) { reference in
                         OutcomeActionRow(
                             reference: reference,
-                            displayOwner: reference.owner.map { speakerNames.text($0) },
+                            displayOwner: reference.owner.map { speakerNames.owner($0) },
                             searchQuery: visibleSearchQuery,
                             activeMatch: activeSearchMatch,
                             onStatus: { status in
@@ -898,7 +899,7 @@ private struct MeetingWorkspaceDetail: View {
                     let id = reference.action.id
                     append(reference.text, at: .action(id: id, field: .text))
                     append(
-                        reference.owner.map { speakerNames.text($0) } ?? "Owner unclear",
+                        reference.owner.map { speakerNames.owner($0) } ?? "Owner unclear",
                         at: .action(id: id, field: .owner))
                     append(reference.due, at: .action(id: id, field: .due))
                     if let citation = reference.action.citations.first {
@@ -1423,6 +1424,8 @@ private struct MeetingWorkspaceMetadataItem {
     let field: MeetingPageSearchMatch.MeetingMetadataField
     let icon: String
     let text: String
+    /// A capture limitation people should notice, not neutral metadata.
+    var warning: String?
 }
 
 private func meetingWorkspaceMetadataItems(
@@ -1437,8 +1440,10 @@ private func meetingWorkspaceMetadataItems(
         .init(field: .app, icon: "video", text: meeting.appName),
         .init(
             field: .audioSource,
-            icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "mic.fill",
-            text: meeting.hasSystemTrack ? "Mic + system" : "Mic only"),
+            icon: meeting.hasSystemTrack ? "speaker.wave.2.fill" : "exclamationmark.triangle.fill",
+            text: meeting.hasSystemTrack ? "Mic + system" : "Mic only",
+            warning: meeting.hasSystemTrack ? nil
+                : "Only your microphone was recorded. Other participants are captured only if your mic picked them up."),
     ]
     return items.filter { !meeting.isMergedMeeting || $0.field != .app }
 }
@@ -1481,7 +1486,8 @@ private struct MeetingWorkspaceHeader: View {
                 MeetingSearchChip(
                     icon: item.icon, text: item.text, searchQuery: searchQuery,
                     activeMatchIndex: activeOccurrence(at: .meetingMetadata(item.field)),
-                    location: .meetingMetadata(item.field))
+                    location: .meetingMetadata(item.field),
+                    warning: item.warning)
             }
         }
     }
@@ -1501,6 +1507,7 @@ private struct MeetingSearchChip: View {
     let searchQuery: String
     let activeMatchIndex: Int?
     let location: MeetingPageSearchMatch.Location
+    var warning: String?
 
     var body: some View {
         Group {
@@ -1516,8 +1523,10 @@ private struct MeetingSearchChip: View {
             }
         }
         .font(size.font.monospacedDigit())
-        .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
+        .foregroundStyle(Color(nsColor: warning == nil ? WorkspaceTextColor.supporting : WorkspaceTextColor.warning))
         .chipChrome(size)
+        .help(warning ?? "")
+        .accessibilityHint(warning ?? "")
     }
 
     private var highlightedText: some View {
@@ -1664,6 +1673,8 @@ private struct OutcomeActionRow: View {
                         meetingID: reference.meetingID,
                         actionID: reference.action.id))
                 })])
+            .frame(minWidth: 32, minHeight: 24)
+            .fixedSize()
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
@@ -1757,8 +1768,8 @@ private struct ActionCorrectionSheet: View {
             HStack {
                 Text("Owner")
                 Spacer()
-                Menu(draft.owner.isEmpty ? "Unassigned" : draft.owner) {
-                    Button("Me") { draft.owner = "Me" }
+                Menu(draft.owner.isEmpty ? "Unassigned" : SpeakerDisplayName.label(draft.owner)) {
+                    Button("You") { draft.owner = "Me" }
                     ForEach(Array(Set(ownerSuggestions)).sorted(), id: \.self) { owner in
                         Button(owner) { draft.owner = owner }
                     }
@@ -1776,7 +1787,7 @@ private struct ActionCorrectionSheet: View {
                 Spacer()
                 Button("Cancel", action: onCancel)
                 Button("Save correction") { onSave(draft.text, draft.owner, draft.due) }
-                    .buttonStyle(.borderedProminent)
+                    .primaryActionButton()
                     .accessibilityIdentifier("meeting.action.correction.save")
             }
         }
@@ -1960,6 +1971,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     @State private var profileID: UUID?
     @State private var name: String
     @State private var selectedCalendarIdentityID: String?
+    @FocusState private var nameFocused: Bool
 
     init(
         draft: WorkspaceSpeakerRenameDraft,
@@ -1998,7 +2010,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.onSave = onSave
         self.onReset = onReset
         self.onCancel = onCancel
-        _name = State(initialValue: draft.currentName)
+        // Placeholder labels ("Them", "Local speaker") are not names; start
+        // empty so typing a name doesn't begin by deleting one.
+        _name = State(initialValue: Transcript.isPlaceholderSpeakerName(draft.currentName) ? "" : draft.currentName)
         _selectedCalendarIdentityID = State(
             initialValue: draft.currentCalendarIdentityID)
     }
@@ -2006,7 +2020,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Rename Speaker").font(.headline)
+                Text("Rename speaker").font(.headline)
                 Spacer()
                 if let sample = draft.sample {
                     Button("Play voice") { onPlay(sample) }
@@ -2019,8 +2033,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 Text("No clear voice excerpt available. Check the transcript before confirming this speaker.")
                     .workspaceTextRole(.supporting)
             }
-            TextField("Speaker name", text: $name)
+            TextField("Speaker name", text: $name, prompt: Text("Name this speaker"))
                 .textFieldStyle(.roundedBorder)
+                .focused($nameFocused)
                 .accessibilityIdentifier("speaker.rename.name")
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -2052,7 +2067,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
 
             HStack {
                 Button("Leave unidentified", action: onReset)
-                    .help("Clear the saved name and return to \(draft.defaultName)")
+                    .help("Clear the saved name and return to \(SpeakerDisplayName.label(draft.defaultName))")
                     .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel)
@@ -2066,6 +2081,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
         .frame(width: 500)
         .disabled(busy)
         .onAppear {
+            nameFocused = true
             uiTestDiagnosticLog(
                 "speaker.rename sheet appear candidates=\(calendarCandidates.count)")
         }
@@ -2186,6 +2202,10 @@ struct EvidencePill: View {
             }
                 .font(WorkspaceTypography.metadata.monospacedDigit())
                 .foregroundStyle(Color.primary)
+                // A comfortable click target around the small timestamp.
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.borderless)
         .help(citation.excerpt)
@@ -2219,6 +2239,8 @@ struct WorkspaceSection<Content: View>: View {
             .font(WorkspaceTypography.sectionTitle)
             content
         }
+        // Sections share one width even when their content is short.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .workspacePanel()
     }
 }

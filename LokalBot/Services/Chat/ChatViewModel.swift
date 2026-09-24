@@ -876,7 +876,7 @@ final class ChatViewModel: ObservableObject {
         if let engineError = error as? TextEngineError {
             switch engineError {
             case .noModel:
-                return "No Main LLM is selected. Choose one in Settings → Models, then try again."
+                return "No Think model is selected. Choose one in Settings → Models, then try again."
             case .serverUnreachable:
                 return "The selected assistant could not be reached. Check its settings, then try again."
             case .httpStatus(let code, _, _):
