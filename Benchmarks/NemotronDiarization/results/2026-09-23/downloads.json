@@ -1,0 +1,314 @@
+[
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Embedding.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Embedding.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "8d6706436639b53830b4dbe8aaf9c9a843f7f582d63e16f3cb8bb7c6ccd58682"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Embedding.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Embedding.mlmodelc/coremldata.bin",
+    "bytes": 704,
+    "sha256": "4a705bac27d151d9642f37609296042a15602a42253039e0921dc9e75da7e004"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Embedding.mlmodelc/metadata.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Embedding.mlmodelc/metadata.json",
+    "bytes": 2818,
+    "sha256": "1854371eb6b438fb8aeac96afb45c999af7902581c06afdfcd7ff3cb1ce66be5"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Embedding.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Embedding.mlmodelc/model.mil",
+    "bytes": 78432,
+    "sha256": "22fa958aef72a561c21f874a07cbdcd30fdf40ee961c0bc2fb67c119273b46d3"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Embedding.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Embedding.mlmodelc/weights/weight.bin",
+    "bytes": 13412288,
+    "sha256": "99356b2985b8d43880a657024d941d450b38820451ccff903f76ed4e52d1868b"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/FBank.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/FBank.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "0e8bd3a8b82ac123580989f490e4d9245127c535857630b543311268accc3f0a"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/FBank.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/FBank.mlmodelc/coremldata.bin",
+    "bytes": 853,
+    "sha256": "57ac436bb0671cbb5527a339134d695f752eb77f7a18966b93c6835335595759"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/FBank.mlmodelc/metadata.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/FBank.mlmodelc/metadata.json",
+    "bytes": 3409,
+    "sha256": "2623785f5d186893b82d01e84aa33a7704ef763c3309e02055f22dc9d871ce9a"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/FBank.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/FBank.mlmodelc/model.mil",
+    "bytes": 15667,
+    "sha256": "27aaeb21569e81bdbe2eef87789f50a37cfea800039bd134448a9417de2f30ed"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/FBank.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/FBank.mlmodelc/weights/weight.bin",
+    "bytes": 1776896,
+    "sha256": "9e83fdd3ea78064b078069e4d9141603c61c47a27fd19e7e3142ff7476f8db36"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/PldaRho.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/PldaRho.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "8940ea6044dbcbefa22da8cc41e0b485e1fb5ed89aecaf37c6e0c483a97ddcd7"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/PldaRho.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/PldaRho.mlmodelc/coremldata.bin",
+    "bytes": 763,
+    "sha256": "4d9741477f721c79b09fcdfe455110c4b7d4272e2de3496bf1729d966d3ee418"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/PldaRho.mlmodelc/metadata.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/PldaRho.mlmodelc/metadata.json",
+    "bytes": 2749,
+    "sha256": "b314cf25a93e46b4076883a6f5a2f8848b73c3851bd9d36074d067f35a1c7945"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/PldaRho.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/PldaRho.mlmodelc/model.mil",
+    "bytes": 7613,
+    "sha256": "83aee2e5310d19b5f202aea97d07a0e12102556d1b32ef3ed08b36f7f9725041"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/PldaRho.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/PldaRho.mlmodelc/weights/weight.bin",
+    "bytes": 200192,
+    "sha256": "80f7d229202636d372428c90596f11a91545f07da77259f07153aaf225914a36"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Segmentation.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Segmentation.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "64265f8e7ad41a5f68d630c15288c2499cca5892ad49e20096819cdeac004cdb"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Segmentation.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Segmentation.mlmodelc/coremldata.bin",
+    "bytes": 812,
+    "sha256": "ea51481b8bd3e496ad3cf16f066ddaa37f20e8772eaac76b3393c28de20e06bc"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Segmentation.mlmodelc/metadata.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Segmentation.mlmodelc/metadata.json",
+    "bytes": 3410,
+    "sha256": "88dbf0b07208fe142e1729c2b4c974ad3599fcb2ae5d5f18fce782b225384124"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Segmentation.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Segmentation.mlmodelc/model.mil",
+    "bytes": 43063,
+    "sha256": "d37e4ce30b406a6b34f765f769b9baed3178cc0c2b2e299c641daa43a052dd3f"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/Segmentation.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/Segmentation.mlmodelc/weights/weight.bin",
+    "bytes": 5959360,
+    "sha256": "c3189a64946c75bc24fcb98afe89ad78c52bdbadfdf65e857fb1b81e2cc9fbb2"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/config.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/config.json",
+    "bytes": 2,
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/plda-parameters.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/plda-parameters.json",
+    "bytes": 89416,
+    "sha256": "38ee28d4269c076cef254ee760bbd811f0738a92e0f01f9699ad372828c5de8f"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/speaker-diarization-coreml/resolve/df2625ac79a7ac6b65ad868fee6d80f320da4232/xvector-transform.json",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/baseline/speaker-diarization/xvector-transform.json",
+    "bytes": 177499,
+    "sha256": "f7cd5cc16e63e2d89db052a23018ecfc47a311998ed1e9e39838fbac65048688"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/BENCHMARKS.md",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/BENCHMARKS.md",
+    "bytes": 7328,
+    "sha256": "9c8706f915daa4fdc5e170c5ac9a4f9ae93ed66b91d65b4e3e53138356a3242e"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/CONVERSION_NOTES.md",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/CONVERSION_NOTES.md",
+    "bytes": 16803,
+    "sha256": "2caef2025f0cadee7a7cce1643f9f2af17c6293418bd3d016c377cbeb947dfa1"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/README.md",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/README.md",
+    "bytes": 7572,
+    "sha256": "3532904c71372d3f5fb8703c605977965e3e834ff35189336b31c95ebd1787df"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/learnable_sil_emb.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/learnable_sil_emb.bin",
+    "bytes": 2048,
+    "sha256": "d4417b3c0eabdf7c47032fac2b5b5a7ee83d819a6ddda8fd8eaf74e2b5cc4ac7"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_fast128.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_fast128.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "e837982e7173f73efad6aec704b0437160a127e338b4960d739f890a4b13b217"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_fast128.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_fast128.mlmodelc/coremldata.bin",
+    "bytes": 755,
+    "sha256": "2c8b777795d9436d9e278271c633ad16928a11b0047c6d26a850e72562efc0cc"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_fast128.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_fast128.mlmodelc/model.mil",
+    "bytes": 505238,
+    "sha256": "b967d4dd85ddea36c01b7ca345d29b20e4d37815ea9dc8cf55423f341b8b5f75"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_fast128.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_fast128.mlmodelc/weights/weight.bin",
+    "bytes": 198590592,
+    "sha256": "e8c90d2d0e16787a420de6805fd5b7a95c116fac0163208b5bc4d8a9ae459ca4"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_low.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_low.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "73e22be5edb6acb09880a31df622f520535aed4d106d6ce7ebf7ef9c39d8d2e0"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_low.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_low.mlmodelc/coremldata.bin",
+    "bytes": 752,
+    "sha256": "efeb0c023820a69d0786ca278fb06cc96bdaa9f3d234c6526967dac6ada83052"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_low.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_low.mlmodelc/model.mil",
+    "bytes": 506285,
+    "sha256": "6375e8675d98d79c32659ea9228be1a90272e5a22fab5c5351eae09eff262494"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_low.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_low.mlmodelc/weights/weight.bin",
+    "bytes": 198617472,
+    "sha256": "88307e2c51d1877de59803299354f689e70cad7f8892a197764d5f3626089495"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_offline.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_offline.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "013d4b137d9b21ca20d0877dc9c848de12ff2cb98957471d9adcd7e90677cf7d"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_offline.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_offline.mlmodelc/coremldata.bin",
+    "bytes": 758,
+    "sha256": "c20dbb6f4b3ca4aca043b8d04c73a3bc8c112f001c5318ce9c2de1e7dafc3fa7"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_offline.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_offline.mlmodelc/model.mil",
+    "bytes": 507718,
+    "sha256": "a29018338c9d07a886e37549b0171cb9379dee21be5934a48c23317582eded88"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/monolithic/Nemotron3Diarizer_offline.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_offline.mlmodelc/weights/weight.bin",
+    "bytes": 198654080,
+    "sha256": "bab76e5f190d0e4a4e174e7fcb1e9beea58c6b2be56e665e2cac8fba6d10f7f1"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/pre_encode_proj_t.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/pre_encode_proj_t.bin",
+    "bytes": 2097152,
+    "sha256": "eb15b89e7af9813331a7d8db02e83e30bf97463d272c748e72086bafd4e81c60"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/split/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/analytics/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/analytics/coremldata.bin",
+    "bytes": 243,
+    "sha256": "9522ac23edf90deb9bc4d3ef97ca435a90df499d346c4806351784b5a8decb60"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/split/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/coremldata.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/coremldata.bin",
+    "bytes": 605,
+    "sha256": "777c6c6240baef5973b99b6984e9bb3a1f6a4812de28d3c65317be8911491421"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/split/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/model.mil",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/model.mil",
+    "bytes": 759134,
+    "sha256": "fdc429dae043fd0e10c9c91408a6002df6b90c71ef5c30877c56f7796abb6c53"
+  },
+  {
+    "url": "https://huggingface.co/FluidInference/nemotron-3-diarization-coreml/resolve/53445f72d5735e33406ccce7b92116bce7ab1ab7/split/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/weights/weight.bin",
+    "path": "/private/tmp/lokalbot-nemotron-bench/models/nemotron/Nemotron3Diarizer_c128_split_w8a8.mlmodelc/weights/weight.bin",
+    "bytes": 99249792,
+    "sha256": "9a4c5de6ba011560713206b76c357d99ee596d1f1a58c66368b82834f9e12f95"
+  },
+  {
+    "url": "https://huggingface.co/datasets/FluidInference/ami-corpus-mirror/resolve/722d8891643e1e4dc62cfd0d198fa05a1646c3cc/sdm/EN2002a.Mix-Headset.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/EN2002a.Mix-Headset.wav",
+    "bytes": 68566744,
+    "sha256": "a15017d0d3c871866971ee178052a0ce3a7e44d6fbf89fc23dcab326511b65f5"
+  },
+  {
+    "url": "https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/EN2002a/audio/EN2002a.Array1-01.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/EN2002a.Array1-01.wav",
+    "bytes": 68566744,
+    "sha256": "6c0644431679e59adc70129f2ba6c2fb737fa731cf1ffe8a033cd7f0c441170e"
+  },
+  {
+    "url": "https://huggingface.co/datasets/FluidInference/ami-corpus-mirror/resolve/722d8891643e1e4dc62cfd0d198fa05a1646c3cc/sdm/ES2004a.Mix-Headset.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/ES2004a.Mix-Headset.wav",
+    "bytes": 33579394,
+    "sha256": "3e2560b19bee6952c7c7ce041b0f1ea8a7ea9468044c4eea79d2a2c67e24ab0f"
+  },
+  {
+    "url": "https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/ES2004a/audio/ES2004a.Array1-01.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/ES2004a.Array1-01.wav",
+    "bytes": 33579394,
+    "sha256": "6936edac5d0904fc5c4ab175546c5cc5366601fdc1b1e5183a6ea2c10f05d150"
+  },
+  {
+    "url": "https://huggingface.co/datasets/FluidInference/ami-corpus-mirror/resolve/722d8891643e1e4dc62cfd0d198fa05a1646c3cc/sdm/IS1009a.Mix-Headset.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/IS1009a.Mix-Headset.wav",
+    "bytes": 26844093,
+    "sha256": "6eb5a0ede0d9e72794f976ce7bea5b78133eae969f99b4c5418b43c2468d25b1"
+  },
+  {
+    "url": "https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/IS1009a/audio/IS1009a.Array1-01.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/IS1009a.Array1-01.wav",
+    "bytes": 26849383,
+    "sha256": "23fd54fd6dbe23870f10317b256f7c648fe0fd587e56d2f940840309f1578b60"
+  },
+  {
+    "url": "https://huggingface.co/datasets/FluidInference/ami-corpus-mirror/resolve/722d8891643e1e4dc62cfd0d198fa05a1646c3cc/sdm/TS3003a.Mix-Headset.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/TS3003a.Mix-Headset.wav",
+    "bytes": 48180608,
+    "sha256": "b6ce59ff735c234afdd94b13744aa26f6785af746170543fd03b33160e920a6d"
+  },
+  {
+    "url": "https://groups.inf.ed.ac.uk/ami/AMICorpusMirror/amicorpus/TS3003a/audio/TS3003a.Array1-01.wav",
+    "path": "/private/tmp/lokalbot-nemotron-bench/audio/TS3003a.Array1-01.wav",
+    "bytes": 48183678,
+    "sha256": "46f81fb403e40a98c1b694c842404c0db24f3a6c67397b247faf0d3f42cf9163"
+  }
+]
