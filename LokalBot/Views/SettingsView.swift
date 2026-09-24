@@ -979,15 +979,11 @@ struct SettingsView: View {
                     } else {
                         LabeledContent("Status") {
                             if installer.isInstalled {
-                                Label("Installed", systemImage: "checkmark.circle.fill")
-                                    .foregroundStyle(.green)
+                                MemoryHealthStatus(value: "Installed", tone: .good)
                             } else if !installer.isBundleLocationStable {
-                                Label("Move LokalBot.app to /Applications first",
-                                      systemImage: "exclamationmark.triangle.fill")
-                                    .foregroundStyle(Brand.error)
+                                MemoryHealthStatus(value: "Move LokalBot.app to /Applications first", tone: .attention)
                             } else {
-                                Label("Not installed", systemImage: "circle")
-                                    .settingsSecondary()
+                                MemoryHealthStatus(value: "Not installed", tone: .idle)
                             }
                         }
                         HStack {
