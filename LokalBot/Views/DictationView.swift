@@ -45,21 +45,23 @@ struct DictationView: View {
     private var statusSection: some View {
         Section {
             HStack(alignment: .center, spacing: 12) {
-                Image(systemName: "mic.badge.plus")
-                    .font(.system(size: 26))
-                    .foregroundStyle(.tint)
-                    .frame(width: 34)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Dictation").font(.headline)
+                IconTile(systemImage: "mic", tint: Brand.tealFill, size: 32)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dictation").font(WorkspaceTypography.bodyEmphasis)
                     Text(statusText)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(WorkspaceTypography.metadata)
+                        .settingsSecondary()
                 }
                 Spacer()
                 Button(actionTitle) { app.dictation.toggle(source: "rehearsal") }
                     .buttonStyle(.borderedProminent)
                     .tint(app.dictation.state.isRecording || app.dictation.isStarting ? .red : Brand.tealFill)
             }
+            .padding(.vertical, 4)
+            // The Dictation command lands on this row; highlight it alone,
+            // never every row of the sections below.
+            .settingTarget("settings.dictationPreview", selected: embedded ? app.focusedSettingID : nil)
             Picker(selection: Binding(get: { operation.dictationIntent }, set: { app.settings.dictationIntent = $0 })) {
                 ForEach(DictationIntent.allCases) { Text($0.rawValue).tag($0) }
             } label: {
@@ -71,6 +73,8 @@ struct DictationView: View {
                     .disabled(app.dictation.state != .idle || app.dictation.isStarting)
             }
             SettingsHelp("Trying here shows the result below. It never inserts into another app or changes your clipboard; the shortcut uses the output setting above.")
+        } header: {
+            if embedded { Text("Try dictation") }
         }
     }
 
@@ -115,9 +119,7 @@ struct DictationView: View {
             }
             if !app.dictation.isShortcutMonitoringActive {
                 HStack {
-                    Text("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    SettingsHelp("Relaunch after granting Input Monitoring if the shortcut is still inactive.")
                     Spacer()
                     Button("Relaunch") { PermissionManager.relaunch() }
                         .controlSize(.small)
@@ -129,19 +131,14 @@ struct DictationView: View {
     private func lastResultSection(_ result: String) -> some View {
         Section("Last result") {
             Text(result)
-                .font(.callout)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let spoken = app.dictation.lastTranscript {
-                Text("Spoken request: \(spoken)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsHelp("Spoken request: \(spoken)")
                     .textSelection(.enabled)
             }
             if let engine = app.dictation.lastEngine {
-                Text(engine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                SettingsHelp(engine)
             }
         }
     }
@@ -149,7 +146,6 @@ struct DictationView: View {
     private func lastSpokenRequestSection(_ transcript: String) -> some View {
         Section("Last spoken request") {
             Text(transcript)
-                .font(.callout)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }

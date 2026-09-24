@@ -183,15 +183,11 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings.writing.sections")
             }
             if writingSection == .autocomplete {
-                Section("Try autocomplete") {
-                    AutocompleteExperienceView()
-                        .settingTarget("settings.autocompletePreview", selected: app.focusedSettingID)
-                }
+                AutocompleteExperienceView()
                 cotypingSection
             } else {
                 Section("Dictation") { DictationSettingsControls() }
                 DictationView(dictation: app.dictation, embedded: true)
-                    .settingTarget("settings.dictationPreview", selected: app.focusedSettingID)
             }
         case .models:
             EmptyView() // handled by the ModelsView branch in body

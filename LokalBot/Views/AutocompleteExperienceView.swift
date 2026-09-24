@@ -40,82 +40,100 @@ struct AutocompleteExperienceView: View {
 #endif
     }
 
+    /// Returns Form sections: readiness rows, then the live preview. Both use
+    /// the Settings row type scale instead of nested workspace panels.
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            readiness
-            preview
-            DisclosureGroup("Lifetime usage") {
-                HStack {
-                    StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
-                    StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
-                }.padding(.top, 8)
+        Group {
+            Section("Readiness") {
+                summary
+                LabeledContent("Model") {
+                    HStack(spacing: 8) {
+                        Text(selectedModel?.displayName ?? "LFM2.5 1.2B Instruct")
+                            .settingsSecondary()
+                            .lineLimit(1)
+                        MemoryHealthStatus(value: modelReady ? "Ready" : "Download needed",
+                                           tone: modelReady ? .good : .attention)
+                    }
+                }
+                permissionRow("Accessibility", .accessibility)
+                permissionRow("Input Monitoring", .inputMonitoring)
+                if !modelReady {
+                    CotypingModelPreparationView(compact: true)
+                }
+            }
+            Section("Try the real autocomplete") {
+                preview
+                    .settingTarget("settings.autocompletePreview", selected: app.focusedSettingID)
+                DisclosureGroup("Lifetime usage") {
+                    HStack {
+                        StatTile(icon: "text.badge.plus", value: "\(stats.stats.generations)", label: "suggested")
+                        StatTile(icon: "checkmark", value: "\(stats.stats.accepts)", label: "accepted")
+                    }.padding(.top, 8)
+                }
             }
         }
         .onDisappear { task?.cancel() }
+    }
+
+    private var summary: some View {
+        HStack(alignment: .center, spacing: 12) {
+            IconTile(systemImage: "text.cursor",
+                     tint: app.settings.cotypingEnabled ? Brand.tealFill : Color(nsColor: .systemGray),
+                     size: 32)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(app.settings.cotypingEnabled ? "Autocomplete on" : "Autocomplete off")
+                    .font(WorkspaceTypography.bodyEmphasis)
+                Text(summaryDetail)
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 4)
         .accessibilityIdentifier("autocomplete.home")
     }
 
-    private var readiness: some View {
-        WorkspaceSection(title: app.settings.cotypingEnabled ? "Autocomplete on" : (modelReady ? "Off · model ready" : "Off · model needed"), icon: "checkmark.circle") {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 16) { readinessItems }
-                VStack(alignment: .leading, spacing: 10) { readinessItems }
-            }
-            if !modelReady {
-                CotypingModelPreparationView(compact: true)
-            }
+    private var summaryDetail: String {
+        if app.settings.cotypingEnabled { return "Suggestions appear as you type in other apps." }
+        return modelReady
+            ? "The model is ready. Turn on autocomplete below to start."
+            : "Download the Autocomplete model to try it."
+    }
+
+    private func permissionRow(_ title: String, _ permission: AppPermission) -> some View {
+        let granted = demoReady || (permissions.granted[permission] ?? false)
+        return LabeledContent(title) {
+            MemoryHealthStatus(value: granted ? "Granted" : "Needs permission",
+                               tone: granted ? .good : .attention)
         }
-    }
-
-    @ViewBuilder private var readinessItems: some View {
-        readinessItem("Model", selectedModel?.displayName ?? "LFM2.5 1.2B Instruct", ready: modelReady)
-        readinessItem("Accessibility", permissionLabel(.accessibility),
-                      ready: demoReady || (permissions.granted[.accessibility] ?? false))
-        readinessItem("Input Monitoring", permissionLabel(.inputMonitoring),
-                      ready: demoReady || (permissions.granted[.inputMonitoring] ?? false))
-    }
-
-    private func readinessItem(_ title: String, _ detail: String, ready: Bool) -> some View {
-        HStack(spacing: 8) {
-            StatusDot(color: ready ? .green : .orange)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
-                Text(detail).font(WorkspaceTypography.rowTitle).lineLimit(1)
-            }
-        }
-    }
-
-    private func permissionLabel(_ permission: AppPermission) -> String {
-        (demoReady || (permissions.granted[permission] ?? false)) ? "Granted" : "Needs permission"
     }
 
     private var preview: some View {
-        WorkspaceSection(title: "Try the real autocomplete", icon: "text.cursor") {
-            VStack(alignment: .leading, spacing: 10) {
-                RehearsalTextEditor(text: $text, suggestion: suggestion,
-                                    acceptKey: app.settings.cotypingAcceptKey,
-                                    focusRevision: focusRevision,
-                                    onAccept: { accept() },
-                                    onReject: { task?.cancel(); suggestion = ""; generating = false })
-                    .frame(minHeight: 120)
-                    .padding(8)
-                    .workspaceControl()
-                    .onChange(of: text) { _, _ in schedule() }
+        VStack(alignment: .leading, spacing: 10) {
+            RehearsalTextEditor(text: $text, suggestion: suggestion,
+                                acceptKey: app.settings.cotypingAcceptKey,
+                                focusRevision: focusRevision,
+                                onAccept: { accept() },
+                                onReject: { task?.cancel(); suggestion = ""; generating = false })
+                .frame(minHeight: 120)
+                .padding(8)
+                .workspaceControl()
+                .onChange(of: text) { _, _ in schedule() }
 
-                HStack {
-                    Text("\(app.settings.cotypingAcceptKey.label) accepts · Esc dismisses")
-                        .font(WorkspaceTypography.metadataEmphasis)
-                        .foregroundStyle(.secondary)
-                    if generating { ProgressView().controlSize(.small) }
-                    Spacer()
-                    Button("Insert suggestion") { accept() }
-                        .primaryActionButton()
-                        .disabled(suggestion.isEmpty)
-                }
-                if let error {
-                    Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.callout).foregroundStyle(Brand.error)
-                }
+            HStack {
+                Text("\(app.settings.cotypingAcceptKey.label) accepts · Esc dismisses")
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
+                if generating { ProgressView().controlSize(.small) }
+                Spacer()
+                Button("Insert suggestion") { accept() }
+                    .primaryActionButton()
+                    .disabled(suggestion.isEmpty)
+            }
+            if let error {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(WorkspaceTypography.metadata).foregroundStyle(Brand.error)
             }
         }
     }
