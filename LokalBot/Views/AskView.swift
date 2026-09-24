@@ -71,10 +71,9 @@ private struct AskContent: View {
 
     private var layout: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
             if model.isLoadingHistory { LoadingStateLabel("Loading conversations…") }
             retrievalBody
+            composerDock
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(nil, value: phase)
@@ -198,40 +197,63 @@ private struct AskContent: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            composerPanel
-            askScopeControls
+    /// Docked at the bottom like Agent's composer. Rows that come and go with
+    /// the query stack above the field, so arriving results never move it.
+    private var composerDock: some View {
+        VStack(alignment: .leading, spacing: 8) {
             activeSearchFilters
             selectedEvidenceControl
             if phase == .searching { answerScopePreview }
             if !pinnedScreens.isEmpty {
                 pinnedContextRow
             }
+            composerPanel
+            inferenceStatus
         }
         .padding(.horizontal, WorkspaceMetric.pagePadding)
-        .padding(.vertical, 16)
+        .padding(.top, 10)
+        .padding(.bottom, 14)
         .workspaceReadingWidth()
-        .frame(maxWidth: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity)
     }
 
     private var composerPanel: some View {
         let canSubmit = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !model.isResponding
 
-        return HStack(alignment: .top, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             TextField(
                 "Search or ask about your work…",
                 text: queryBinding,
                 axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(WorkspaceTypography.body)
-                .lineLimit(1...3)
-                .frame(minWidth: 60, maxWidth: .infinity, minHeight: 32, alignment: .topLeading)
+                .lineLimit(1...4)
+                .frame(minWidth: 60, maxWidth: .infinity, alignment: .topLeading)
                 .focused($inputFocused)
                 .onSubmit { submitQuery() }
                 .accessibilityLabel("Question or search")
                 .accessibilityIdentifier("search.field")
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 10) {
+                    askScopeControls
+                    Spacer(minLength: 4)
+                    sendControls(canSubmit: canSubmit)
+                }
+                VStack(alignment: .leading, spacing: 10) {
+                    askScopeControls
+                    HStack { Spacer(); sendControls(canSubmit: canSubmit) }
+                }
+            }
+        }
+        .padding(14)
+        .composerChrome(focused: inputFocused)
+    }
+
+    /// A fixed-width slot, so the changing Ask label never reflows the
+    /// composer between its wide and stacked layouts.
+    private func sendControls(canSubmit: Bool) -> some View {
+        HStack(spacing: 8) {
             if model.isResponding {
                 Button(action: model.stop) {
                     Image(systemName: "stop.circle.fill")
@@ -244,18 +266,8 @@ private struct AskContent: View {
                 .accessibilityIdentifier("chat.stop")
             }
             submitButton(canSubmit: canSubmit)
-                .frame(width: 184, height: 32, alignment: .trailing)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(minHeight: 56, alignment: .top)
-        .background(.quaternary.opacity(0.26),
-                    in: RoundedRectangle(cornerRadius: Brand.Radius.panel,
-                                         style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: Brand.Radius.panel, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.11))
-        }
+        .frame(width: 196, alignment: .trailing)
     }
 
     private var groupedMeetings: [MeetingRecallGroup] { RecallSearch.groups(hits) }
@@ -348,10 +360,10 @@ private struct AskContent: View {
         Button(action: askAboutResults) {
             Label(pendingQuestion != nil ? "Waiting for sources…"
                   : resultCount > 0 ? "Ask about results" : "Ask", systemImage: "sparkles")
-                .font(WorkspaceTypography.control)
+                .font(.system(size: 13, weight: .semibold))
         }
         .primaryActionButton()
-        .controlSize(.regular)
+        .controlSize(.large)
         .disabled(!canSubmit || pendingQuestion != nil)
         .keyboardShortcut(.return, modifiers: [.command])
         .accessibilityIdentifier("ask.submit")
@@ -361,25 +373,12 @@ private struct AskContent: View {
     // MARK: - Ask and Search controls
 
     private var askScopeControls: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 8) {
-                sourceScopeControl
-                dateScopeControls
-                Spacer(minLength: 8)
-                processingDestination
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) { sourceScopeControl; dateScopeControls }
-                    .frame(minHeight: 28)
-                processingDestination
-            }
+        HStack(spacing: 10) {
+            sourceScopeControl
+            dateScopeControls
         }
-        .font(WorkspaceTypography.control)
+        .font(WorkspaceTypography.metadataEmphasis)
         .controlSize(.small)
-    }
-
-    private var processingDestination: some View {
-        inferenceStatus.frame(minHeight: 28)
     }
 
     @ViewBuilder private var selectedEvidenceControl: some View {
@@ -398,7 +397,8 @@ private struct AskContent: View {
     }
 
     private var sourceScopeControl: some View {
-        WorkspaceMenu(title: sourceSummary, label: "Sources", identifier: "ask.sources", items: sourceMenuItems)
+        WorkspaceMenu(title: sourceSummary, label: "Sources", identifier: "ask.sources", items: sourceMenuItems,
+                      font: .systemFont(ofSize: 13, weight: .semibold))
             .fixedSize()
             .help("Choose sources and result filters")
     }
@@ -495,7 +495,8 @@ private struct AskContent: View {
         Button { showingTimeScope.toggle() } label: {
             Label(timeScopeLabel, systemImage: "calendar")
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(.borderless)
+        .foregroundStyle(.primary)
         .fixedSize()
         .popover(isPresented: $showingTimeScope, arrowEdge: .bottom) { timeScopePopover }
         .help("One date scope for meeting, activity, and screen search and answers")
@@ -553,17 +554,15 @@ private struct AskContent: View {
         Button {
             app.openSettings(tab: .models)
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: 5) {
                 Image(systemName: inferenceState.icon)
                     .foregroundStyle(inferenceState.isBlocked ? Brand.error : inferenceState.isRemote ? Brand.teal : .secondary)
                 Text(inferenceState.label)
                     .foregroundStyle(inferenceState.isRemote || inferenceState.isBlocked ? .primary : .secondary)
             }
-            .font(WorkspaceTypography.metadataEmphasis)
-            .padding(.horizontal, 8)
-            .frame(minHeight: 28)
-            .background(.quaternary.opacity(0.18), in: Capsule())
-            .contentShape(Capsule())
+            .font(WorkspaceTypography.metadata)
+            .frame(minHeight: 24)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .fixedSize()

@@ -286,6 +286,24 @@ private struct WorkspaceControlModifier: ViewModifier {
     }
 }
 
+/// The raised input surface shared by Agent and Ask, docked at the bottom of
+/// each pane. Its border takes the accent while the field has focus.
+private struct ComposerChromeModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.colorSchemeContrast) private var contrast
+    let focused: Bool
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 16)
+        content
+            .background(AgentPalette.composer(for: colorScheme), in: shape)
+            .overlay(shape.strokeBorder(
+                focused ? Brand.teal : Color.primary.opacity(contrast == .increased ? 0.6 : 0.22),
+                lineWidth: focused || contrast == .increased ? 1.5 : 1))
+            .shadow(color: .black.opacity(colorScheme == .dark ? 0.16 : 0.06), radius: 8, y: 3)
+    }
+}
+
 extension View {
     /// Insets a detail pane into the soft canvas used by the main workspace.
     func workspaceSurface() -> some View {
@@ -295,6 +313,11 @@ extension View {
     /// Quiet control chrome for search and other shell-level fields.
     func workspaceControl() -> some View {
         modifier(WorkspaceControlModifier())
+    }
+
+    /// The docked composer surface used by Agent and Ask.
+    func composerChrome(focused: Bool) -> some View {
+        modifier(ComposerChromeModifier(focused: focused))
     }
 
     /// Applies a semantic foreground and minimum readable type size.

@@ -20,6 +20,8 @@ struct WorkspaceMenu: NSViewRepresentable {
     var label: String?
     var identifier = ""
     let items: [Item]
+    /// Composer rows match their neighboring SwiftUI controls' type.
+    var font: NSFont = .systemFont(ofSize: NSFont.smallSystemFontSize)
     @Environment(\.isEnabled) private var isEnabled
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -28,7 +30,7 @@ struct WorkspaceMenu: NSViewRepresentable {
         let button = PopUpButton(frame: .zero, pullsDown: true)
         button.isBordered = false
         button.controlSize = .small
-        button.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        button.font = font
         return button
     }
 
@@ -72,6 +74,7 @@ struct WorkspaceMenu: NSViewRepresentable {
             append(items, to: menu)
             button.menu = menu
         }
+        if button.font != font { button.font = font }
         button.isEnabled = isEnabled
         button.setAccessibilityLabel(label ?? title)
         button.setAccessibilityTitle(label ?? title)
