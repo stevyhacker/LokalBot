@@ -58,10 +58,10 @@ final class RecallInteractionUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Waiting for sources…"].waitForExistence(timeout: 3))
         XCTAssertFalse(element("chat.message.user").exists)
         XCTAssertTrue(element("chat.message.user").waitForExistence(timeout: 10))
-        // The row identifier is inherited by its metadata; the question's
-        // accessibility value also includes its source scope.
+        // The row identifier and scoped value are inherited by its metadata;
+        // only the question text has this label.
         let questions = app.staticTexts.matching(NSPredicate(
-            format: "identifier == %@ AND value BEGINSWITH %@", "chat.message.user", "failover benchmark?"))
+            format: "identifier == %@ AND label == %@", "chat.message.user", "failover benchmark?"))
         XCTAssertTrue(questions.firstMatch.waitForExistence(timeout: 4), app.debugDescription)
         XCTAssertEqual(questions.count, 1, questions.debugDescription)
         XCTAssertEqual(field.value as? String, "")
