@@ -42,3 +42,15 @@ jobs:
         # Strict: any violation fails the check. The ruleset (.swiftlint.yml,
         # auto-discovered at the repo root) is tuned to be clean on this code.
         run: swiftlint lint --strict --reporter github-actions-logging
+
+  generated-web:
+    # Comparison pages, guides, /guides, and sitemap.xml are rendered from
+    # Scripts/*_pages.py and Scripts/*.template.html. Fail when someone edits
+    # the HTML under web/ directly or forgets to re-render after a data change.
+    name: Generated web pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check web/ matches Scripts/render_web.py output
+        run: python3 Scripts/render_web.py --check

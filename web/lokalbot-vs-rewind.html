@@ -8,23 +8,25 @@
   <meta name="theme-color" content="#0b1119" />
 
   <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-rewind" />
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-rewind" />
   <meta property="og:title" content="LokalBot vs Rewind — a local timeline that's still alive" />
-  <meta property="og:description" content="Rewind is gone. LokalBot's day timeline carries the idea forward: screenshots, OCR, and meetings — on your Mac, open source." />
+  <meta property="og:description" content="Rewind is gone. LokalBot's day timeline carries the idea forward: activity, opt-in screen text, and meetings — on your Mac, open source." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="LokalBot vs Rewind — a local timeline that's still alive" />
-  <meta name="twitter:description" content="Rewind is gone. LokalBot's day timeline carries the idea forward: screenshots, OCR, and meetings — on your Mac, open source." />
+  <meta name="twitter:description" content="Rewind is gone. LokalBot's day timeline carries the idea forward: activity, opt-in screen text, and meetings — on your Mac, open source." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
 
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/lokalbot-icon.svg" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs Rewind","description":"Compare discontinued Rewind with LokalBot's local day timeline, searchable meeting notes, encrypted screenshots, and open-source Mac app.","datePublished":"2026-07-01","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-rewind","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","applicationCategory":"BusinessApplication","operatingSystem":"macOS 15+"},{"@type":"SoftwareApplication","name":"Rewind"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Rewind","item":"https://www.lokalbot.com/lokalbot-vs-rewind"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-rewind#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot a drop-in Rewind replacement?","acceptedAnswer":{"@type":"Answer","text":"Not entirely, and it doesn't try to be. Rewind recorded your screen continuously and let you scrub it like a video. LokalBot tracks app and window activity by default, and adds periodic screenshots with OCR only if you opt in — lighter on disk, easier to reason about, and combined with full meeting capture. You get the search and the timeline, not the video scrubber."}},{"@type":"Question","name":"What actually happened to Rewind?","acceptedAnswer":{"@type":"Answer","text":"The company behind it shifted to Limitless, a wearable pendant with cloud-hosted memory, and stopped developing the Mac app. Meta acquired Limitless in December 2025. The rewind.ai domain now hosts an unrelated service — the original app is simply gone."}},{"@type":"Question","name":"How is this different from Windows Recall?","acceptedAnswer":{"@type":"Answer","text":"Recall is Windows-only and drew heavy privacy scrutiny. LokalBot is for the Mac. Out of the box it logs only which app and window you had open; screen text and screenshots stay off until you turn them on. Screenshots are encrypted at rest, captures are deleted after 14 days by default, and the code that does all of that is open for you to audit."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -68,15 +70,20 @@
     <!-- ─────────────────────── HEAD ─────────────────────── -->
     <section class="section compare-head">
       <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs Rewind</span></nav>
         <p class="eyebrow">Compare</p>
         <h1 class="section__title">LokalBot vs Rewind</h1>
         <p class="section__lead">Rewind pioneered &ldquo;search everything you've seen on your Mac.&rdquo; Its app is now discontinued: the team pivoted to the Limitless wearable, Meta acquired Limitless in December 2025, and rewind.ai today hosts an unrelated site. LokalBot's day timeline carries the idea forward — smaller, open source, and processed on your Mac with the built-in backend.</p>
-        <p class="compare-updated">Last verified July 2026 · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-09-24">September 24, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
       </header>
     </section>
 
     <!-- ─────────────────────── TABLE ─────────────────────── -->
-    <section class="section section--tight" aria-label="Feature comparison">
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
       <div class="compare-wrap reveal">
         <table class="compare">
           <thead>
@@ -94,7 +101,7 @@
             </tr>
             <tr>
               <th scope="row">Screen memory</th>
-              <td>Periodic screenshots + OCR, selected by default but permission-gated, searchable by every word</td>
+              <td>App and window activity by default; opt-in screen text and encrypted screenshots, searchable by every word</td>
               <td>Continuous compressed screen recording, always on</td>
             </tr>
             <tr>
@@ -111,6 +118,11 @@
               <th scope="row">Encryption at rest</th>
               <td><i class="ph ph-check" aria-hidden="true"></i>Screenshots are AES-GCM encrypted on disk</td>
               <td>Stored locally on disk</td>
+            </tr>
+            <tr>
+              <th scope="row">Connect AI tools</th>
+              <td>Read-only CLI and MCP server, off until you enable Agent Access</td>
+              <td><span class="dim">None</span></td>
             </tr>
             <tr>
               <th scope="row">System-wide dictation</th>
@@ -143,7 +155,11 @@
     </section>
 
     <!-- ─────────────────────── PICKS ─────────────────────── -->
-    <section class="section section--tight" aria-label="Which one is for you">
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
       <div class="pick-grid">
         <article class="pick reveal">
           <h3>Pick Limitless (Meta) if&hellip;</h3>
@@ -159,7 +175,7 @@
           <p>You want the Rewind workflow on today's Mac — with source you can read.</p>
           <ul class="checklist">
             <li><i class="ph ph-check" aria-hidden="true"></i> A colour-coded day timeline with time-by-app totals</li>
-            <li><i class="ph ph-check" aria-hidden="true"></i> Search every word you've seen — permission-gated screenshots + OCR</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Search every word you've seen once you opt into screen text or screenshots</li>
             <li><i class="ph ph-check" aria-hidden="true"></i> Ask your day questions and get answers from a local model, not a cloud API</li>
             <li><i class="ph ph-check" aria-hidden="true"></i> It cleans up after itself: 14-day retention by default, encrypted at rest</li>
           </ul>
@@ -176,7 +192,7 @@
       <div class="faq__list reveal">
         <details class="qa">
           <summary>Is LokalBot a drop-in Rewind replacement?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Not entirely, and it doesn't try to be. Rewind recorded your screen continuously and let you scrub it like a video. LokalBot takes periodic screenshots with OCR plus app and window tracking — lighter on disk, easier to reason about, and combined with full meeting capture. You get the search and the timeline, not the video scrubber.</p>
+          <p>Not entirely, and it doesn't try to be. Rewind recorded your screen continuously and let you scrub it like a video. LokalBot tracks app and window activity by default, and adds periodic screenshots with OCR only if you opt in — lighter on disk, easier to reason about, and combined with full meeting capture. You get the search and the timeline, not the video scrubber.</p>
         </details>
         <details class="qa">
           <summary>What actually happened to Rewind?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -184,7 +200,7 @@
         </details>
         <details class="qa">
           <summary>How is this different from Windows Recall?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Recall is Windows-only and drew heavy privacy scrutiny. LokalBot's timeline is for the Mac, off until you turn it on, encrypted at rest, auto-deleting after 14 days by default — and the code that does all of that is open for you to audit.</p>
+          <p>Recall is Windows-only and drew heavy privacy scrutiny. LokalBot is for the Mac. Out of the box it logs only which app and window you had open; screen text and screenshots stay off until you turn them on. Screenshots are encrypted at rest, captures are deleted after 14 days by default, and the code that does all of that is open for you to audit.</p>
         </details>
       </div>
     </section>
@@ -200,18 +216,22 @@
           <i class="ph ph-download-simple" aria-hidden="true"></i>
           Download for macOS
         </a>
-        <p class="download__sub">.dmg installer &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+        <p class="download__sub">.dmg installer &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
       </div>
     </section>
 
     <!-- ─────────────────────── MORE ─────────────────────── -->
     <section class="section section--tight" aria-label="More comparisons">
-      <nav class="compare-more">
+      <nav class="compare-more" aria-label="More comparisons">
         <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
-        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
         <a href="lokalbot-vs-hyprnote">LokalBot vs Hyprnote</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
+        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
       </nav>
-      <p class="compare-disclaimer">Rewind and Limitless are trademarks of their owners; LokalBot is not affiliated with or endorsed by them. Details are based on public reporting as of July 2026 — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+      <p class="compare-disclaimer">Rewind and Limitless are trademarks of their owners; LokalBot is not affiliated with or endorsed by them. Details are based on public reporting as of September 2026 and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
     </section>
   </main>
 
@@ -222,28 +242,34 @@
         <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Your private AI memory for work — meetings, recall, writing, and local automation on macOS.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+</p>
+      <p>Find what you said or saw on your Mac.</p>
+      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
+      <a href="system-requirements">System requirements</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
       <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-otter">vs Otter</a>
+      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
       <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="about">About</a>
       <a href="/guides">Guides</a>
+      <a href="benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/stevyhacker/lokalbot#build--run" target="_blank" rel="noopener">Build from source</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>
       <a href="support">Support</a>

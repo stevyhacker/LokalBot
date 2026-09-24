@@ -8,16 +8,21 @@
   <meta name="theme-color" content="#0b1119" />
   <link rel="canonical" href="https://www.lokalbot.com/enshittification-proof" />
   <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/enshittification-proof" />
   <meta property="og:title" content="Enshittification-Proof: A Proof" />
   <meta property="og:description" content="Theorem: LokalBot cannot be enshittified. Proof: by exhaustion of the standard playbook. Q.E.D." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-enshittification-proof.png" />
+  <meta property="og:image:width" content="2400" />
+  <meta property="og:image:height" content="1260" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Enshittification-Proof: A Proof" />
   <meta name="twitter:description" content="Theorem: LokalBot cannot be enshittified. Proof: by exhaustion of the standard playbook. Q.E.D." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-enshittification-proof.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://www.lokalbot.com/enshittification-proof#article","headline":"Enshittification-proof: a proof","description":"A short proof that LokalBot cannot get worse on purpose: no account to gate, no server to ransom, no data to hold hostage, no telemetry to optimize, and a GPLv3 antidote shipped with every build.","datePublished":"2026-07-15","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/enshittification-proof","image":"https://www.lokalbot.com/assets/og-enshittification-proof.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}}]}</script>
 </head>
 <body>
   <div class="bg-field" aria-hidden="true"></div>
@@ -63,7 +68,7 @@
       <p>To gate features behind an account, an account system must exist. LokalBot has none: there is no server that could check who you are, and no identity to check. The wall has nowhere to stand.<span class="qed">∎</span></p>
 
       <h3>Lemma 2 — The feature ransom</h3>
-      <p>Moving a free feature behind a paywall requires the vendor to operate that feature. Every LokalBot feature — transcription, summaries, search, autocomplete — executes on your CPU and Neural Engine, from a binary on your disk. We cannot repossess what we do not host.<span class="qed">∎</span></p>
+      <p>Moving a free feature behind a paywall requires the vendor to operate that feature. Every LokalBot feature — transcription, summaries, search, autocomplete — executes on your Mac's CPU, GPU, and Neural Engine, from a binary on your disk. We cannot repossess what we do not host.<span class="qed">∎</span></p>
 
       <h3>Lemma 3 — The data hostage</h3>
       <p>Raising switching costs requires custody of your data. Your meetings are Markdown and SQLite under your own user account. The export feature is <code>cp</code>. Custody was never transferred, so it cannot be leveraged.<span class="qed">∎</span></p>
@@ -105,11 +110,13 @@
   <footer class="footer footer--legal">
     <div class="footer__brand">
       <a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Your private AI memory for work on macOS.</p>
+      <p>Find what you said or saw on your Mac.</p>
     </div>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub</a>
+      <a href="about">About</a>
+      <a href="benchmarks">Benchmarks</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>
       <a href="support">Support</a>

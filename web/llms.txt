@@ -1,0 +1,51 @@
+# LokalBot
+
+> Find what you said or saw on your Mac. LokalBot is a free, open-source (GPLv3) macOS app that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and the screen text you choose to save. Processing runs locally by default, with no account, analytics, or hosted AI service.
+
+Key facts:
+
+- Platform: macOS 15.0 or later on Apple Silicon (M1 or later). No Intel, Windows, iOS, or web version.
+- Price and license: free, GNU GPL v3. Source: https://github.com/stevyhacker/lokalbot
+- Install: download LokalBot.dmg from https://github.com/stevyhacker/lokalbot/releases/latest or run `brew install --cask stevyhacker/tap/lokalbot`.
+- Meetings: records the microphone and the meeting app's audio on separate tracks without joining the call. On a fresh install it asks through a notification before recording a detected meeting.
+- Local models: Qwen3-ASR 1.7B is the default speech model (since 0.8.1); Parakeet, IBM Granite Speech, and Whisper large-v3 turbo are alternatives. Summaries use Qwen3.5 4B on a bundled llama.cpp runtime. Search uses Harrier 0.6B embeddings.
+- Optional backends: Apple Intelligence (macOS 26+), Ollama, and OpenAI-compatible servers. A non-local server must be explicitly approved before it receives meeting or workday context.
+- Workday memory: day tracking starts with app names and window titles only. Saved screen text and encrypted screenshots are opt-in; screenshots are deleted after 14 days by default.
+- Also includes: hold-to-talk dictation (⌥ Space), optional local autocomplete, Markdown/Obsidian/Logseq export, and a read-only CLI and MCP server that stay off until Agent Access is enabled.
+- Not supported: importing existing audio files; syncing between devices.
+
+## Product
+
+- [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
+- [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
+- [System requirements](https://www.lokalbot.com/system-requirements): macOS version, Apple Silicon, memory, disk, and permissions
+- [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, search, summary, autocomplete, and OCR results with methods and known gaps
+- [Privacy policy](https://www.lokalbot.com/privacy): what stays on the Mac and exactly when the app uses the network
+
+## Guides
+
+- [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free capture, on-device transcription, private summaries, trade-offs, and setup
+- [Offline meeting transcription on Mac](https://www.lokalbot.com/offline-meeting-transcription-mac): local speech models, two-track audio, timestamps, and no cloud upload
+- [Record both sides of a Mac meeting without a bot](https://www.lokalbot.com/record-both-sides-mac-meeting-without-bot): microphone plus meeting-app audio as synchronized tracks
+- [Local transcription models for Mac](https://www.lokalbot.com/local-transcription-models-mac): Granite Speech, Parakeet, Qwen3-ASR, and Whisper compared
+- [Open-source AI meeting notes: what to verify](https://www.lokalbot.com/open-source-ai-meeting-notes): license, local processing, network boundaries, storage, builds, and updates
+
+## Comparisons
+
+- [LokalBot vs Granola](https://www.lokalbot.com/lokalbot-vs-granola)
+- [LokalBot vs Otter.ai](https://www.lokalbot.com/lokalbot-vs-otter)
+- [LokalBot vs Fireflies.ai](https://www.lokalbot.com/lokalbot-vs-fireflies)
+- [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
+- [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
+- [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
+- [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
+- [LokalBot vs Rewind](https://www.lokalbot.com/lokalbot-vs-rewind)
+
+## Optional
+
+- [Source code and README](https://github.com/stevyhacker/lokalbot)
+- [Release notes](https://github.com/stevyhacker/lokalbot/releases)
+- [Benchmark data and scripts](https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks)
+- [Benchmarks Space on Hugging Face](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks)
+- [Enshittification-proof](https://www.lokalbot.com/enshittification-proof): why the project cannot get worse on purpose
+- [Support](https://www.lokalbot.com/support) and [Terms](https://www.lokalbot.com/terms)

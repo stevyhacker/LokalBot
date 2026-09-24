@@ -3,12 +3,26 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Support — LokalBot</title>
-  <meta name="description" content="Get help with LokalBot, report a bug safely, or privately disclose a security vulnerability." />
+  <title>LokalBot Support: Troubleshooting, Bug Reports &amp; Security</title>
+  <meta name="description" content="Fix common LokalBot problems on Mac, such as one-sided recordings, missed meeting prompts, and model downloads, then report a bug safely or disclose a security issue privately." />
   <meta name="theme-color" content="#0b1119" />
   <link rel="canonical" href="https://www.lokalbot.com/support" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/support" />
+  <meta property="og:title" content="LokalBot Support: Troubleshooting, Bug Reports &amp; Security" />
+  <meta property="og:description" content="Fix common LokalBot problems on Mac, such as one-sided recordings, missed meeting prompts, and model downloads, then report a bug safely or disclose a security issue privately." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot Support: Troubleshooting, Bug Reports &amp; Security" />
+  <meta name="twitter:description" content="Fix common LokalBot problems on Mac, such as one-sided recordings, missed meeting prompts, and model downloads, then report a bug safely or disclose a security issue privately." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/support#page","url":"https://www.lokalbot.com/support","name":"LokalBot Support: Troubleshooting, Bug Reports & Security","description":"Fix common LokalBot problems on Mac, such as one-sided recordings, missed meeting prompts, and model downloads, then report a bug safely or disclose a security issue privately.","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/support#faq","mainEntity":[{"@type":"Question","name":"Only my side of the call was recorded","acceptedAnswer":{"@type":"Answer","text":"LokalBot records the other side through macOS system-audio capture. Without that permission the app warns that the recording is microphone-only. Open System Settings → Privacy & Security → Screen & System Audio Recording, allow LokalBot to record system audio, then make a short test recording in the meeting app you use."}},{"@type":"Question","name":"A meeting started but LokalBot did not ask to record","acceptedAnswer":{"@type":"Answer","text":"On a fresh install, LokalBot asks through a notification before it records a detected meeting, so allow its notifications in System Settings → Notifications. Browser meetings are detected through Accessibility, and calendar access helps match scheduled meetings. You can always start a recording yourself or switch to automatic recording in Settings."}},{"@type":"Question","name":"A model download failed or stalled","acceptedAnswer":{"@type":"Answer","text":"Models download from Hugging Face or the publisher's host the first time you use them. Check your connection and free disk space (speech models range from about 0.7 GB to 3.2 GB), then retry from Settings → Models."}},{"@type":"Question","name":"The transcript is in the wrong language or misses words","acceptedAnswer":{"@type":"Answer","text":"Try another speech model in Settings → Models. Qwen3-ASR 1.7B is the default and covers 52 languages and dialects; Whisper large-v3 turbo covers 99. The choice matters most on noisy or multilingual recordings."}},{"@type":"Question","name":"Where is my data, and how do I remove it?","acceptedAnswer":{"@type":"Answer","text":"By default the library lives in ~/Library/Application Support/me.dotenv.LokalBot/: recordings, transcripts, summaries, the search index, downloaded models, and debug.log. Delete individual meetings in the app, or quit LokalBot and remove that folder to erase everything."}},{"@type":"Question","name":"Does LokalBot run on an Intel Mac or macOS 14?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot needs Apple Silicon (M1 or later) and macOS 15.0 or later. See the system requirements."}}]}]}</script>
 </head>
 <body>
   <div class="bg-field" aria-hidden="true"></div>
@@ -31,16 +45,30 @@
     <header class="legal-page__head">
       <p class="eyebrow">Help and feedback</p>
       <h1>Support</h1>
-      <p>LokalBot is an open-source community project. The issue tracker is the public support desk.</p>
+      <p>LokalBot is an open-source community project. Start with the fixes below; the GitHub issue tracker is the public support desk.</p>
     </header>
 
     <article class="legal-card">
+      <h2>Common problems</h2>
+      <h3>Only my side of the call was recorded</h3>
+      <p>LokalBot records the other side through macOS system-audio capture. Without that permission the app warns that the recording is microphone-only. Open System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording, allow LokalBot to record system audio, then make a short test recording in the meeting app you use.</p>
+      <h3>A meeting started but LokalBot did not ask to record</h3>
+      <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting, so allow its notifications in System Settings → Notifications. Browser meetings are detected through Accessibility, and calendar access helps match scheduled meetings. You can always start a recording yourself or switch to automatic recording in Settings.</p>
+      <h3>A model download failed or stalled</h3>
+      <p>Models download from Hugging Face or the publisher's host the first time you use them. Check your connection and free disk space (speech models range from about 0.7 GB to 3.2 GB), then retry from Settings → Models.</p>
+      <h3>The transcript is in the wrong language or misses words</h3>
+      <p>Try another speech model in Settings → Models. Qwen3-ASR 1.7B is the default and covers 52 languages and dialects; Whisper large-v3 turbo covers 99. The choice matters most on noisy or multilingual recordings.</p>
+      <h3>Where is my data, and how do I remove it?</h3>
+      <p>By default the library lives in <code>~/Library/Application Support/me.dotenv.LokalBot/</code>: recordings, transcripts, summaries, the search index, downloaded models, and <code>debug.log</code>. Delete individual meetings in the app, or quit LokalBot and remove that folder to erase everything.</p>
+      <h3>Does LokalBot run on an Intel Mac or macOS 14?</h3>
+      <p>No. LokalBot needs Apple Silicon (M1 or later) and macOS 15.0 or later. See the <a href="system-requirements">system requirements</a>.</p>
+
       <h2>Before opening an issue</h2>
-      <p>Check the <a href="https://github.com/stevyhacker/lokalbot#readme">README</a>, install the latest release, and retry the smallest failing flow.</p>
+      <p>Install the <a href="https://github.com/stevyhacker/lokalbot/releases/latest">latest release</a>, retry the smallest failing flow, and check the <a href="https://github.com/stevyhacker/lokalbot#readme">README</a>.</p>
 
       <h2>Report a bug or request a feature</h2>
       <p><a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener">Open a GitHub issue</a></p>
-      <p>Include the LokalBot version, macOS version, Mac model, exact action that failed, and reproducible steps. A redacted debug-log excerpt can help.</p>
+      <p>Include the LokalBot version, macOS version, Mac model and memory, the selected models, the exact action that failed, and reproducible steps. A redacted excerpt from <code>debug.log</code> can help.</p>
       <p><strong>Never post meeting audio, transcripts, screenshots, API keys, tokens, model-server credentials, or other private material.</strong></p>
 
       <h2>Security reports</h2>
@@ -54,11 +82,13 @@
   <footer class="footer footer--legal">
     <div class="footer__brand">
       <a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Your private AI memory for work on macOS.</p>
+      <p>Find what you said or saw on your Mac.</p>
     </div>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub</a>
+      <a href="about">About</a>
+      <a href="benchmarks">Benchmarks</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>
       <a href="support">Support</a>

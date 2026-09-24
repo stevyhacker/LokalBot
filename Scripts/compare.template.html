@@ -8,7 +8,8 @@
   <meta name="theme-color" content="#0b1119" />
 
   <link rel="canonical" href="https://www.lokalbot.com/{{SLUG}}" />
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/{{SLUG}}" />
   <meta property="og:title" content="{{OG_TITLE}}" />
   <meta property="og:description" content="{{OG_DESCRIPTION}}" />
@@ -21,10 +22,11 @@
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
 
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="assets/lokalbot-icon.svg" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{{STRUCTURED_DATA}}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -68,15 +70,20 @@
     <!-- ─────────────────────── HEAD ─────────────────────── -->
     <section class="section compare-head">
       <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>{{H1}}</span></nav>
         <p class="eyebrow">Compare</p>
         <h1 class="section__title">{{H1}}</h1>
         <p class="section__lead">{{LEAD}}</p>
-        <p class="compare-updated">Last verified July 2026 · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+        <p class="compare-updated">Last verified <time datetime="{{VERIFIED_DATE}}">{{VERIFIED_LABEL}}</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
       </header>
     </section>
 
     <!-- ─────────────────────── TABLE ─────────────────────── -->
-    <section class="section section--tight" aria-label="Feature comparison">
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
       <div class="compare-wrap reveal">
         <table class="compare">
           <thead>
@@ -94,7 +101,11 @@
     </section>
 
     <!-- ─────────────────────── PICKS ─────────────────────── -->
-    <section class="section section--tight" aria-label="Which one is for you">
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
       <div class="pick-grid">
         <article class="pick reveal">
           <h3>{{COMPETITOR_PICK_TITLE}}</h3>
@@ -135,53 +146,20 @@
           <i class="ph ph-download-simple" aria-hidden="true"></i>
           Download for macOS
         </a>
-        <p class="download__sub">.dmg installer &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+        <p class="download__sub">.dmg installer &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
       </div>
     </section>
 
     <!-- ─────────────────────── MORE ─────────────────────── -->
     <section class="section section--tight" aria-label="More comparisons">
-      <nav class="compare-more">
+      <nav class="compare-more" aria-label="More comparisons">
 {{MORE_LINKS}}
       </nav>
-      <p class="compare-disclaimer">{{DISCLAIMER}}</p>
+      <p class="compare-disclaimer">{{DISCLAIMER}} as of {{VERIFIED_MONTH}} and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
     </section>
   </main>
 
   <!-- ───────────────────────── FOOTER ───────────────────────── -->
-  <footer class="footer">
-    <div class="footer__brand">
-      <a class="brand" href="/">
-        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
-        <span class="brand__name">LokalBot</span>
-      </a>
-      <p>Your private AI memory for work — meetings, recall, writing, and local automation on macOS.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+</p>
-    </div>
-    <nav class="footer__col" aria-label="Product">
-      <h3>Product</h3>
-      <a href="/#features">Features</a>
-      <a href="/#how">How it works</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
-    </nav>
-    <nav class="footer__col" aria-label="Compare">
-      <h3>Compare</h3>
-      <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
-      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
-    </nav>
-    <nav class="footer__col" aria-label="Project">
-      <h3>Project</h3>
-      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
-      <a href="/guides">Guides</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="https://github.com/stevyhacker/lokalbot#build--run" target="_blank" rel="noopener">Build from source</a>
-      <a href="privacy">Privacy</a>
-      <a href="terms">Terms</a>
-      <a href="support">Support</a>
-    </nav>
-    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
-  </footer>
+{{FOOTER}}
 </body>
 </html>

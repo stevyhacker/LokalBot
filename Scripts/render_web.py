@@ -6,6 +6,7 @@ nothing runs at deploy time.
 
 To change a page:
 1. edit the relevant *_pages.py content or *.template.html markup
+   (footer.partial.html is shared by every generated page)
 2. run `python3 Scripts/render_web.py`
 3. commit the regenerated files under web/
 
@@ -17,17 +18,43 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import html
 import json
+import re
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from comparison_pages import PAGES  # noqa: E402
-from guide_pages import GUIDES  # noqa: E402
+from comparison_pages import PAGES, VERIFIED  # noqa: E402
+from guide_pages import GUIDES, GUIDES_INDEX, REFERENCES  # noqa: E402
 
 TOKEN_OPEN = "{{"
 
 CHECK_ICON = '<i class="ph ph-check" aria-hidden="true"></i>'
+
+SITE = "https://www.lokalbot.com"
+OG_IMAGE = f"{SITE}/assets/og-image.png"
+GUIDES_PUBLISHED = "2026-07-13"
+
+# Defined in full by the home page's structured data; other pages reference
+# the same @id so search engines merge them into one entity.
+ORGANIZATION = {
+    "@type": "Organization",
+    "@id": f"{SITE}/#organization",
+    "name": "LokalBot project",
+    "url": f"{SITE}/",
+}
+
+# Hand-written pages outside the generator, with the date each last changed.
+# Bump a date when you edit that page so the sitemap's lastmod stays honest.
+STATIC_PAGES = {
+    "": "2026-09-24",
+    "privacy": "2026-09-24",
+    "terms": "2026-09-24",
+    "support": "2026-09-24",
+    "enshittification-proof": "2026-09-24",
+}
 
 
 def repo_root() -> Path:
@@ -44,6 +71,75 @@ def parse_args() -> argparse.Namespace:
         help="Verify the checked-in HTML matches the template + data without writing.",
     )
     return parser.parse_args()
+
+
+def long_date(iso: str) -> str:
+    day = date.fromisoformat(iso)
+    return f"{day:%B} {day.day}, {day.year}"
+
+
+def month_year(iso: str) -> str:
+    return f"{date.fromisoformat(iso):%B %Y}"
+
+
+def plain_text(fragment: str) -> str:
+    """Strip tags and entities from an HTML fragment for structured data."""
+
+    text = html.unescape(re.sub(r"<[^>]+>", "", fragment))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def json_ld(graph: list[dict]) -> str:
+    data = {"@context": "https://schema.org", "@graph": graph}
+    # A literal "</" would close the surrounding <script> element early.
+    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+
+
+def breadcrumb_list(items: list[tuple[str, str]]) -> dict:
+    return {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {"@type": "ListItem", "position": position, "name": name, "item": url}
+            for position, (name, url) in enumerate(items, start=1)
+        ],
+    }
+
+
+def faq_page(entries: list[tuple[str, str]], url: str) -> dict:
+    return {
+        "@type": "FAQPage",
+        "@id": f"{url}#faq",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": plain_text(question),
+                "acceptedAnswer": {"@type": "Answer", "text": plain_text(answer)},
+            }
+            for question, answer in entries
+        ],
+    }
+
+
+def fill_template(template: str, replacements: dict[str, str], label: str) -> str:
+    rendered = template
+    for token, value in replacements.items():
+        if token not in rendered:
+            raise SystemExit(f"{label} template is missing the {token} placeholder.")
+        rendered = rendered.replace(token, value)
+    if TOKEN_OPEN in rendered:
+        line = next(line for line in rendered.splitlines() if TOKEN_OPEN in line)
+        raise SystemExit(f"Unreplaced placeholder in {label.lower()} output: {line.strip()}")
+    return rendered
+
+
+def render_footer(partial: str) -> str:
+    """The shared footer, with a Compare link for every comparison page."""
+
+    links = "\n".join(
+        f'      <a href="{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>'
+        for page in PAGES
+    )
+    return fill_template(partial, {"{{COMPARE_LINKS}}": links}, "Footer").rstrip("\n")
 
 
 def render_table_rows(rows: list[tuple[str, str, str]]) -> str:
@@ -118,55 +214,113 @@ def render_guide_cards() -> str:
     )
 
 
+def render_compact_cards(cards: list[tuple[str, str, str, str]]) -> str:
+    """(slug, eyebrow, heading, description) cards for the /guides sections."""
+
+    return "\n".join(
+        f'        <a class="guide-card" href="{slug}">\n'
+        f'          <span class="guide-card__eyebrow">{eyebrow}</span>\n'
+        f"          <strong>{heading}</strong>\n"
+        f"          <span>{description}</span>\n"
+        "        </a>"
+        for slug, eyebrow, heading, description in cards
+    )
+
+
 def guide_structured_data(page: dict) -> str:
-    url = f'https://www.lokalbot.com/{page["slug"]}'
-    graph = {
-        "@context": "https://schema.org",
-        "@graph": [
+    url = f"{SITE}/{page['slug']}"
+    return json_ld(
+        [
             {
                 "@type": "Article",
                 "headline": page["h1"],
                 "description": page["description"],
-                "datePublished": "2026-07-13",
-                "dateModified": page.get("updated", "2026-07-13"),
+                "datePublished": GUIDES_PUBLISHED,
+                "dateModified": page.get("updated", GUIDES_PUBLISHED),
                 "mainEntityOfPage": url,
-                "image": "https://www.lokalbot.com/assets/og-image.png",
-                "author": {
-                    "@type": "Organization",
-                    "name": "LokalBot project",
-                    "url": "https://www.lokalbot.com/",
-                },
-                "publisher": {
-                    "@type": "Organization",
-                    "name": "LokalBot project",
-                    "url": "https://www.lokalbot.com/",
-                },
+                "image": OG_IMAGE,
+                "author": ORGANIZATION,
+                "publisher": ORGANIZATION,
             },
+            breadcrumb_list([("Home", f"{SITE}/"), ("Guides", f"{SITE}/guides"), (page["h1"], url)]),
+            faq_page(page["faq"], url),
+        ]
+    )
+
+
+def comparison_structured_data(page: dict) -> str:
+    url = f"{SITE}/{page['slug']}"
+    return json_ld(
+        [
             {
-                "@type": "BreadcrumbList",
-                "itemListElement": [
-                    {"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.lokalbot.com/"},
-                    {"@type": "ListItem", "position": 2, "name": "Guides", "item": "https://www.lokalbot.com/guides"},
-                    {"@type": "ListItem", "position": 3, "name": page["h1"], "item": url},
-                ],
-            },
-            {
-                "@type": "FAQPage",
-                "mainEntity": [
+                "@type": "Article",
+                "headline": page["h1"],
+                "description": page["description"],
+                "datePublished": page["published"],
+                "dateModified": VERIFIED,
+                "mainEntityOfPage": url,
+                "image": OG_IMAGE,
+                "author": ORGANIZATION,
+                "publisher": ORGANIZATION,
+                "about": [
                     {
-                        "@type": "Question",
-                        "name": question,
-                        "acceptedAnswer": {"@type": "Answer", "text": answer},
-                    }
-                    for question, answer in page["faq"]
+                        "@type": "SoftwareApplication",
+                        "@id": f"{SITE}/#software",
+                        "name": "LokalBot",
+                        "url": f"{SITE}/",
+                        "applicationCategory": "BusinessApplication",
+                        "operatingSystem": "macOS 15+",
+                    },
+                    {"@type": "SoftwareApplication", "name": page["competitor_name"]},
                 ],
             },
-        ],
-    }
-    return json.dumps(graph, ensure_ascii=False, separators=(",", ":"))
+            breadcrumb_list([("Home", f"{SITE}/"), ("Guides", f"{SITE}/guides"), (page["h1"], url)]),
+            faq_page(page["faq"], url),
+        ]
+    )
 
 
-def render_guide_page(template: str, page: dict) -> str:
+def guides_index_updated() -> str:
+    return max(
+        [VERIFIED]
+        + [guide.get("updated", GUIDES_PUBLISHED) for guide in GUIDES]
+        + [reference["updated"] for reference in REFERENCES]
+    )
+
+
+def guides_index_structured_data() -> str:
+    url = f"{SITE}/guides"
+    listed = (
+        [(guide["slug"], guide["h1"]) for guide in GUIDES]
+        + [(page["slug"], page["h1"]) for page in PAGES]
+        + [(reference["slug"], reference["h1"]) for reference in REFERENCES]
+    )
+    return json_ld(
+        [
+            {
+                "@type": "CollectionPage",
+                "@id": f"{url}#page",
+                "url": url,
+                "name": GUIDES_INDEX["title"],
+                "description": GUIDES_INDEX["description"],
+                "dateModified": guides_index_updated(),
+                "isPartOf": {"@id": f"{SITE}/#website"},
+                "publisher": {"@id": ORGANIZATION["@id"]},
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "numberOfItems": len(listed),
+                    "itemListElement": [
+                        {"@type": "ListItem", "position": position, "url": f"{SITE}/{slug}", "name": name}
+                        for position, (slug, name) in enumerate(listed, start=1)
+                    ],
+                },
+            },
+            breadcrumb_list([("Home", f"{SITE}/"), ("Guides", url)]),
+        ]
+    )
+
+
+def render_guide_page(template: str, page: dict, footer: str) -> str:
     replacements = {
         "{{SLUG}}": page["slug"],
         "{{TITLE}}": page["title"],
@@ -175,56 +329,50 @@ def render_guide_page(template: str, page: dict) -> str:
         "{{H1}}": page["h1"],
         "{{LEAD}}": page["lead"],
         "{{READ_TIME}}": page["read_time"],
-        "{{UPDATED_DATE}}": page.get("updated", "2026-07-13"),
-        "{{UPDATED_LABEL}}": page.get("updated_label", "July 13, 2026"),
+        "{{UPDATED_DATE}}": page.get("updated", GUIDES_PUBLISHED),
+        "{{UPDATED_LABEL}}": page.get("updated_label", long_date(GUIDES_PUBLISHED)),
         "{{BODY}}": page["body"].strip(),
         "{{FAQ_ITEMS}}": render_faq_items(page["faq"]),
         "{{RELATED_LINKS}}": render_related_links(page),
         "{{STRUCTURED_DATA}}": guide_structured_data(page),
+        "{{FOOTER}}": footer,
     }
-    rendered = template
-    for token, value in replacements.items():
-        if token not in rendered:
-            raise SystemExit(f"Guide template is missing the {token} placeholder.")
-        rendered = rendered.replace(token, value)
-    if TOKEN_OPEN in rendered:
-        line = next(line for line in rendered.splitlines() if TOKEN_OPEN in line)
-        raise SystemExit(f"Unreplaced placeholder in guide output: {line.strip()}")
-    return rendered
+    return fill_template(template, replacements, "Guide")
 
 
-def render_guides_index(template: str) -> str:
-    token = "{{GUIDE_CARDS}}"
-    if token not in template:
-        raise SystemExit(f"Guides template is missing the {token} placeholder.")
-    rendered = template.replace(token, render_guide_cards())
-    if TOKEN_OPEN in rendered:
-        line = next(line for line in rendered.splitlines() if TOKEN_OPEN in line)
-        raise SystemExit(f"Unreplaced placeholder in guides output: {line.strip()}")
-    return rendered
+def render_guides_index(template: str, footer: str) -> str:
+    replacements = {
+        "{{TITLE}}": GUIDES_INDEX["title"],
+        "{{META_DESCRIPTION}}": GUIDES_INDEX["description"],
+        "{{STRUCTURED_DATA}}": guides_index_structured_data(),
+        "{{GUIDE_CARDS}}": render_guide_cards(),
+        "{{COMPARE_CARDS}}": render_compact_cards(
+            [(page["slug"], "Compare", page["h1"], page["description"]) for page in PAGES]
+        ),
+        "{{REFERENCE_CARDS}}": render_compact_cards(
+            [(ref["slug"], ref["eyebrow"], ref["h1"], ref["description"]) for ref in REFERENCES]
+        ),
+        "{{FOOTER}}": footer,
+    }
+    return fill_template(template, replacements, "Guides")
 
 
 def render_sitemap() -> str:
-    paths = [
-        "",
-        "guides",
-        *(guide["slug"] for guide in GUIDES),
-        "privacy",
-        "terms",
-        "support",
-        "enshittification-proof",
-        *(page["slug"] for page in PAGES),
+    pages = [
+        ("", STATIC_PAGES[""]),
+        ("guides", guides_index_updated()),
+        *((guide["slug"], guide.get("updated", GUIDES_PUBLISHED)) for guide in GUIDES),
+        *((reference["slug"], reference["updated"]) for reference in REFERENCES),
+        *((path, updated) for path, updated in STATIC_PAGES.items() if path),
+        *((page["slug"], VERIFIED) for page in PAGES),
     ]
-    entries = []
-    updated = {guide["slug"]: guide.get("updated", "2026-07-13") for guide in GUIDES}
-    for path in paths:
-        url = f"https://www.lokalbot.com/{path}"
-        entries.append(
-            "  <url>\n"
-            f"    <loc>{url}</loc>\n"
-            f"    <lastmod>{updated.get(path, '2026-07-13')}</lastmod>\n"
-            "  </url>"
-        )
+    entries = [
+        "  <url>\n"
+        f"    <loc>{SITE}/{path}</loc>\n"
+        f"    <lastmod>{updated}</lastmod>\n"
+        "  </url>"
+        for path, updated in pages
+    ]
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -233,15 +381,19 @@ def render_sitemap() -> str:
     )
 
 
-def render_page(template: str, page: dict) -> str:
+def render_page(template: str, page: dict, footer: str) -> str:
     replacements = {
         "{{SLUG}}": page["slug"],
         "{{TITLE}}": page["title"],
         "{{META_DESCRIPTION}}": page["description"],
         "{{OG_TITLE}}": page["og_title"],
         "{{OG_DESCRIPTION}}": page["og_description"],
+        "{{STRUCTURED_DATA}}": comparison_structured_data(page),
         "{{H1}}": page["h1"],
         "{{LEAD}}": page["lead"],
+        "{{VERIFIED_DATE}}": VERIFIED,
+        "{{VERIFIED_LABEL}}": long_date(VERIFIED),
+        "{{VERIFIED_MONTH}}": month_year(VERIFIED),
         "{{COMPETITOR_COLUMN}}": page["competitor_column"],
         "{{TABLE_ROWS}}": render_table_rows(page["table_rows"]),
         "{{COMPETITOR_PICK_TITLE}}": page["competitor_pick_title"],
@@ -253,16 +405,9 @@ def render_page(template: str, page: dict) -> str:
         "{{CTA_TITLE}}": page["cta_title"],
         "{{MORE_LINKS}}": render_more_links(page),
         "{{DISCLAIMER}}": page["disclaimer"],
+        "{{FOOTER}}": footer,
     }
-    rendered = template
-    for token, value in replacements.items():
-        if token not in rendered:
-            raise SystemExit(f"Template is missing the {token} placeholder.")
-        rendered = rendered.replace(token, value)
-    if TOKEN_OPEN in rendered:
-        line = next(l for l in rendered.splitlines() if TOKEN_OPEN in l)
-        raise SystemExit(f"Unreplaced placeholder in rendered output: {line.strip()}")
-    return rendered
+    return fill_template(template, replacements, "Comparison")
 
 
 def main() -> int:
@@ -273,6 +418,7 @@ def main() -> int:
         "compare": scripts_dir / "compare.template.html",
         "guide": scripts_dir / "guide.template.html",
         "guides": scripts_dir / "guides.template.html",
+        "footer": scripts_dir / "footer.partial.html",
     }
     for template_path in template_paths.values():
         if not template_path.is_file():
@@ -281,33 +427,28 @@ def main() -> int:
         name: path.read_text(encoding="utf-8")
         for name, path in template_paths.items()
     }
+    footer = render_footer(templates["footer"])
 
     web_dir = repo_root() / "web"
     if not web_dir.is_dir():
         raise SystemExit(f"Output directory does not exist: {web_dir}")
 
-    stale = []
-    for page in PAGES:
-        output_path = web_dir / f"{page['slug']}.html"
-        rendered = render_page(templates["compare"], page)
-        if args.check:
-            on_disk = output_path.read_text(encoding="utf-8") if output_path.is_file() else None
-            if on_disk != rendered:
-                stale.append(output_path)
-            continue
-        output_path.write_text(rendered, encoding="utf-8")
-        print(f"Rendered {output_path.relative_to(repo_root())}")
-
     generated_pages = [
-        (web_dir / f"{guide['slug']}.html", render_guide_page(templates["guide"], guide))
-        for guide in GUIDES
+        (web_dir / f"{page['slug']}.html", render_page(templates["compare"], page, footer))
+        for page in PAGES
     ]
     generated_pages.extend(
+        (web_dir / f"{guide['slug']}.html", render_guide_page(templates["guide"], guide, footer))
+        for guide in GUIDES
+    )
+    generated_pages.extend(
         [
-            (web_dir / "guides.html", render_guides_index(templates["guides"])),
+            (web_dir / "guides.html", render_guides_index(templates["guides"], footer)),
             (web_dir / "sitemap.xml", render_sitemap()),
         ]
     )
+
+    stale = []
     for output_path, rendered in generated_pages:
         if args.check:
             on_disk = output_path.read_text(encoding="utf-8") if output_path.is_file() else None
@@ -323,8 +464,7 @@ def main() -> int:
             f"Out of date: {names}. Run `python3 Scripts/render_web.py` and commit."
         )
     if args.check:
-        count = len(PAGES) + len(GUIDES) + 2
-        print(f"All {count} generated web files are up to date.")
+        print(f"All {len(generated_pages)} generated web files are up to date.")
     return 0
 
 

@@ -98,6 +98,16 @@
   font-size: clamp(1.3rem, 3vw, 1.7rem);
 }
 .legal-card h2:first-child { margin-top: 0; }
+.legal-card h3 {
+  margin: 1.5rem 0 0.35rem;
+  font-size: 1.08rem;
+}
+.legal-card code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
 .legal-card p,
 .legal-card li {
   color: var(--text-dim);
@@ -974,6 +984,7 @@ kbd {
 .download__sub { margin-top: 16px; color: var(--text-faint); font-size: 0.9rem; }
 .download__sub a { color: var(--teal-bright); }
 .download__sub a:hover { text-decoration: underline; }
+.download__sub code { font-family: var(--mono); font-size: 0.86em; color: var(--text-dim); overflow-wrap: anywhere; }
 .reqs {
   display: flex; flex-wrap: wrap; justify-content: center;
   gap: 10px 24px;
@@ -1354,6 +1365,7 @@ kbd {
    ========================================================================= */
 .compare-head { padding-bottom: 8px; }
 .compare-head .section__head { margin-bottom: 0; }
+.compare-head .breadcrumbs { margin-bottom: 24px; }
 .compare-updated { margin-top: 20px; font-size: 0.88rem; color: var(--text-faint); }
 .compare-updated a { color: var(--text-dim); text-decoration: underline; text-underline-offset: 3px; }
 .compare-updated a:hover { color: var(--teal-bright); }

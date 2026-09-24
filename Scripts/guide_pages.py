@@ -4,6 +4,12 @@ Rendered by Scripts/render_web.py. Keep claims aligned with the checked-in
 README and implementation; these pages intentionally avoid competitor claims.
 """
 
+# Head and structured-data copy for web/guides.html.
+GUIDES_INDEX = {
+    "title": "LokalBot Guides — Private AI Meeting Notes on Mac",
+    "description": "Practical guides to local AI meeting notes, offline transcription, bot-free recording, open-source privacy, model choice, Mac requirements, and comparisons.",
+}
+
 GUIDES = [
     {
         "slug": "local-ai-meeting-notes-mac",
@@ -50,8 +56,8 @@ GUIDES = [
     },
     {
         "slug": "offline-meeting-transcription-mac",
-        "updated": "2026-09-12",
-        "updated_label": "September 12, 2026",
+        "updated": "2026-09-24",
+        "updated_label": "September 24, 2026",
         "title": "Offline Meeting Transcription on Mac",
         "description": "Set up offline meeting transcription on Apple Silicon with local speech models, two-track audio, timestamps, and no cloud upload.",
         "eyebrow": "Offline transcription",
@@ -76,7 +82,7 @@ GUIDES = [
 
         <h2>What happens during an offline meeting</h2>
         <p>LokalBot writes your microphone and the meeting application's output to synchronized local tracks. When the meeting ends, the chosen speech engine turns those files into text on the Mac. The built-in language-model backend can then write a recap without a server request. The transcript, recap, audio references, and search index remain in the local library.</p>
-        <p>Offline mode does not weaken recording-consent requirements. The app starts with manual recording as the default, and optional detection modes still leave the decision and legal responsibility with you.</p>
+        <p>Offline mode does not weaken recording-consent requirements. On a fresh install, LokalBot asks through a notification before it records a detected meeting. Automatic recording is opt-in, and the decision and legal responsibility stay with you.</p>
 
         <h2>What still uses the network</h2>
         <p>Model files and application updates have to come from somewhere, so those downloads require a connection. Optional Agent Mode setup also downloads its pinned runtime. Finally, if you replace the built-in inference backend with a non-loopback OpenAI-compatible URL, that configured service naturally needs the network and receives the request context. Loopback services such as a local Ollama instance can remain entirely on the Mac.</p>
@@ -99,6 +105,8 @@ GUIDES = [
     },
     {
         "slug": "open-source-ai-meeting-notes",
+        "updated": "2026-09-24",
+        "updated_label": "September 24, 2026",
         "title": "Open-Source AI Meeting Notes: What to Verify",
         "description": "A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.",
         "eyebrow": "Open source",
@@ -119,7 +127,7 @@ GUIDES = [
           <li>A downloaded speech engine creates the transcript on Apple Silicon.</li>
           <li>The built-in llama.cpp backend can generate a summary locally.</li>
           <li>SQLite stores the library and full-text search index.</li>
-          <li>Fresh installs select encrypted visual context by default; capture remains permission-gated, encrypted at rest, and deleted after 14 days by default.</li>
+          <li>Day tracking starts activity-only: app names and window titles. Visible text and encrypted screenshots are opt-in, permission-gated, and deleted after 14 days by default.</li>
         </ol>
         <p>Then identify the exceptions. LokalBot connects to download models and updates, to set up optional Agent Mode, and to call any non-loopback inference origin you explicitly approve. That distinction is more useful than an absolute “never connects” claim.</p>
 
@@ -150,6 +158,8 @@ GUIDES = [
     },
     {
         "slug": "record-both-sides-mac-meeting-without-bot",
+        "updated": "2026-09-24",
+        "updated_label": "September 24, 2026",
         "title": "Record Both Sides of a Mac Meeting Without a Bot",
         "description": "How LokalBot captures your microphone and meeting-app audio as synchronized tracks on macOS without adding a bot participant.",
         "eyebrow": "Bot-free capture",
@@ -171,8 +181,8 @@ GUIDES = [
         <ul>
           <li><strong>Microphone access</strong> captures your side.</li>
           <li><strong>System-audio access</strong> enables the process tap for the other side.</li>
-          <li><strong>Manual recording</strong> is the fresh-install default.</li>
-          <li><strong>Ask-first or automatic modes</strong> can react to supported meeting apps after you enable them.</li>
+          <li><strong>Ask via notification</strong> is the fresh-install default: LokalBot asks before it records a detected meeting.</li>
+          <li><strong>Automatic or never-auto-record modes</strong> can be chosen in Settings.</li>
           <li><strong>Calendar access</strong> is optional and can help detect and title scheduled meetings.</li>
         </ul>
 
@@ -250,6 +260,8 @@ GUIDES = [
     },
     {
         "slug": "system-requirements",
+        "updated": "2026-09-24",
+        "updated_label": "September 24, 2026",
         "title": "LokalBot System Requirements for Mac",
         "description": "Check LokalBot's macOS version, Apple Silicon, memory, disk, permissions, model downloads, and offline requirements before installing.",
         "eyebrow": "Compatibility",
@@ -287,7 +299,7 @@ GUIDES = [
           <li><strong>Calendar</strong> helps detect and title scheduled meetings.</li>
           <li><strong>Accessibility</strong> supports meeting detection, Cotyping, dictation insertion, and approved agent interaction.</li>
         </ul>
-        <p>Automatic meeting recording and encrypted visual context are selected on a fresh install. Both remain gated by macOS permissions; visual captures are deleted after 14 days by default.</p>
+        <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting, and day tracking saves only app names and window titles. Visible text and encrypted screenshots are opt-in, gated by macOS permissions, and deleted after 14 days by default.</p>
 
         <h2>Before an important meeting</h2>
         <ol>
@@ -304,5 +316,25 @@ GUIDES = [
             ("Do I need 32 GB of memory?", "No. Smaller models run on lower-memory Apple Silicon Macs. The 32 GB recommendation applies to the largest local language-model choices."),
         ],
         "related": ["local-transcription-models-mac", "offline-meeting-transcription-mac", "record-both-sides-mac-meeting-without-bot"],
+    },
+]
+
+# Hand-written reference pages (web/about.html, web/benchmarks.html). The
+# renderer lists them on /guides and in the sitemap but does not generate them,
+# so bump "updated" here whenever you edit one of those pages.
+REFERENCES = [
+    {
+        "slug": "about",
+        "eyebrow": "Fact sheet",
+        "h1": "About LokalBot",
+        "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source Mac app for bot-free meeting notes, local transcription, and search.",
+        "updated": "2026-09-24",
+    },
+    {
+        "slug": "benchmarks",
+        "eyebrow": "Benchmarks",
+        "h1": "LokalBot local model benchmarks",
+        "description": "Measured speech recognition, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.",
+        "updated": "2026-09-24",
     },
 ]

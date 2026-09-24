@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: July 21, 2026
+Effective: September 24, 2026
 
 LokalBot is a local-first macOS application. It has no LokalBot account,
 analytics service, advertising SDK, or telemetry backend. The project does not
@@ -125,8 +125,9 @@ grant optional permissions until you approve them:
 - Screen Recording when visual screen context is selected. Meeting-speaker
   observation uses Accessibility only and does not require Screen Recording.
 
-Recording defaults to automatic detection on a fresh install. You are
-responsible for informing participants and obtaining any consent required
+On a fresh install, LokalBot asks through a notification before it records a
+detected meeting. You can switch to automatic recording or turn auto-record
+off. You are responsible for informing participants and obtaining any consent required
 before recording other people.
 
 ## External-agent access

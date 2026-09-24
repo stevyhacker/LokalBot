@@ -3,28 +3,41 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LokalBot Guides — Private AI Meeting Notes on Mac</title>
-  <meta name="description" content="Practical guides to local AI meeting notes, offline transcription, bot-free recording, open-source privacy, model choice, and Mac requirements." />
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{META_DESCRIPTION}}" />
   <meta name="theme-color" content="#0b1119" />
+
   <link rel="canonical" href="https://www.lokalbot.com/guides" />
   <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/guides" />
-  <meta property="og:title" content="LokalBot Guides — Private AI Meeting Notes on Mac" />
-  <meta property="og:description" content="Practical guides to local meeting notes, offline transcription, bot-free recording, model choice, and Mac requirements." />
+  <meta property="og:title" content="{{TITLE}}" />
+  <meta property="og:description" content="{{META_DESCRIPTION}}" />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{TITLE}}" />
+  <meta name="twitter:description" content="{{META_DESCRIPTION}}" />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{{STRUCTURED_DATA}}</script>
+  <script src="app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#guides">Skip to guides</a>
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="guides" aria-current="page">Guides</a><a href="/#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="guides" aria-current="page">Guides</a><a href="#compare">Compare</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
-  <main class="guides-page">
+  <main class="guides-page" id="guides">
     <header class="guide-hero guide-hero--index">
       <p class="eyebrow">LokalBot guides</p>
       <h1>Private meeting notes, explained.</h1>
@@ -33,18 +46,21 @@
     <section class="guide-card-grid guide-card-grid--index" aria-label="All guides">
 {{GUIDE_CARDS}}
     </section>
-    <section class="guide-related guide-related--compare" aria-labelledby="compare-title">
+    <section class="guide-related guide-related--compare" id="compare" aria-labelledby="compare-title">
       <p class="eyebrow">Compare</p>
       <h2 id="compare-title">See how LokalBot differs</h2>
-      <nav class="compare-more" aria-label="Product comparisons"><a href="lokalbot-vs-granola">LokalBot vs Granola</a><a href="lokalbot-vs-rewind">LokalBot vs Rewind</a><a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a><a href="lokalbot-vs-hyprnote">LokalBot vs Hyprnote</a></nav>
+      <div class="guide-card-grid">
+{{COMPARE_CARDS}}
+      </div>
+    </section>
+    <section class="guide-related guide-related--compare" aria-labelledby="reference-title">
+      <p class="eyebrow">Reference</p>
+      <h2 id="reference-title">Facts and measurements</h2>
+      <div class="guide-card-grid">
+{{REFERENCE_CARDS}}
+      </div>
     </section>
   </main>
-  <footer class="footer">
-    <div class="footer__brand"><a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a><p>Your private AI memory for work on macOS.</p><p class="footer__meta">Apple Silicon · macOS 15.0+</p></div>
-    <nav class="footer__col" aria-label="Product"><h3>Product</h3><a href="/#features">Features</a><a href="/#how">How it works</a><a href="https://github.com/stevyhacker/lokalbot/releases">Download</a></nav>
-    <nav class="footer__col" aria-label="Learn"><h3>Learn</h3><a href="local-ai-meeting-notes-mac">Local meeting notes</a><a href="offline-meeting-transcription-mac">Offline transcription</a><a href="system-requirements">Requirements</a></nav>
-    <nav class="footer__col" aria-label="Project"><h3>Project</h3><a href="https://github.com/stevyhacker/lokalbot">GitHub</a><a href="privacy">Privacy</a><a href="terms">Terms</a><a href="support">Support</a></nav>
-    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
-  </footer>
+{{FOOTER}}
 </body>
 </html>

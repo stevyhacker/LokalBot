@@ -4,7 +4,7 @@ cask "lokalbot" do
 
   url "https://github.com/stevyhacker/lokalbot/releases/download/v#{version}/LokalBot.dmg"
   name "LokalBot"
-  desc "Local LLM workhorse that keeps a private memory of your workday"
+  desc "Find what you said or saw on your Mac"
   homepage "https://www.lokalbot.com/"
 
   livecheck do
