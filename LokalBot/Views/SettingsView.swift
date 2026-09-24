@@ -35,8 +35,7 @@ struct SettingsView: View {
                     if let category = $0 { app.settingsTab = category; settingsQuery = ""; app.focusedSettingID = nil }
                 })) {
                     ForEach(AppState.SettingsTab.allCases, id: \.self) { category in
-                        Label(category.displayName, systemImage: category.icon)
-                            .font(.system(size: 14))
+                        SettingsCategoryLabel(category: category)
                             .padding(.vertical, 5)
                             .tag(category)
                     }
@@ -107,14 +106,19 @@ struct SettingsView: View {
     /// Search field + tab strip, above the tabbed content so search works
     /// from any tab (including Models).
     private var settingsHeaderTitle: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
-                .font(WorkspaceTypography.pageTitle)
-                .tracking(-0.35)
-            Text(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value.")
-                .font(WorkspaceTypography.body)
-                .settingsSecondary()
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(alignment: .center, spacing: 12) {
+            IconTile(systemImage: queryIsEmpty ? app.settingsTab.icon : "magnifyingglass",
+                     tint: Brand.tealFill, size: 34)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
+                    .font(WorkspaceTypography.pageTitle)
+                    .tracking(-0.35)
+                Text(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value.")
+                    .font(WorkspaceTypography.metadata)
+                    .settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -1129,6 +1133,24 @@ struct SettingsView: View {
         return symbols[weekday - 1]
     }
 
+}
+
+/// Category glyphs carry the accent like Agent's starters. A selected row on
+/// the prominent accent highlight falls back to the row's own foreground so
+/// the glyph never disappears into a teal fill.
+private struct SettingsCategoryLabel: View {
+    @Environment(\.backgroundProminence) private var prominence
+    let category: AppState.SettingsTab
+
+    var body: some View {
+        Label {
+            Text(category.displayName)
+        } icon: {
+            Image(systemName: category.icon)
+                .foregroundStyle(prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(Brand.teal))
+        }
+        .font(.system(size: 14))
+    }
 }
 
 /// Observes the nested manager directly so its published marker state keeps

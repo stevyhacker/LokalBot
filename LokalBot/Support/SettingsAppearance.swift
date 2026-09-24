@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Flat neutral surfaces, teal actions, and indigo remote model badges.
+/// Workspace surfaces, teal actions, and indigo remote model badges.
 enum SettingsPalette {
-    static func canvas(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xF4F4F4, dark: 0x1C1C1E) }
-    static func navigation(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xE9E9E9, dark: 0x242426) }
-    static func panel(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xFFFFFF, dark: 0x2C2C2E) }
+    /// Settings sits on the same warm canvas and secondary column as Agent
+    /// and Ask, so moving between them never changes the backdrop.
+    static func canvas(_ scheme: ColorScheme) -> Color { WorkspacePalette.canvas(for: scheme) }
+    static func navigation(_ scheme: ColorScheme) -> Color { WorkspacePalette.conversationColumn(for: scheme) }
+    static func panel(_ scheme: ColorScheme) -> Color { WorkspacePalette.surface(for: scheme) }
     static func hover(_ scheme: ColorScheme) -> Color { color(scheme, light: 0xECECEE, dark: 0x39393D) }
     /// The shared brand accent; kept as a palette entry so Settings call sites
     /// read uniformly.

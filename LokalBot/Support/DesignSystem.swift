@@ -79,10 +79,12 @@ enum WorkspaceMetric {
 enum AgentPalette {
     static let conversation = Color(nsColor: .textBackgroundColor)
     static func tasks(for scheme: ColorScheme) -> Color {
-        scheme == .dark ? Color(white: 0.16) : Color(white: 0.96)
+        WorkspacePalette.conversationColumn(for: scheme)
     }
 
     static func composer(for scheme: ColorScheme) -> Color {
+    /// The task list shares the secondary-column tone of Ask's conversations
+    /// and Settings' categories.
         scheme == .dark ? Color(white: 0.20) : Color(white: 0.975)
     }
 
