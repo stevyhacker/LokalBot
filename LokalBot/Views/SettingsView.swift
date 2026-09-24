@@ -499,7 +499,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var summarizationSection: some View {
             if shows("Summarization", ["summary", "summarize", "notes", "template", "language",
-                                       "diarization", "speaker", "split speaker", "neural"]) {
+                                       "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote"]) {
                 Section("Summarization") {
                     Picker(selection: $app.settings.noteTemplate) {
                         ForEach(NoteTemplate.allCases) { template in
@@ -519,10 +519,20 @@ struct SettingsView: View {
                     .settingTarget("settings.summaryLanguage", selected: app.focusedSettingID)
                 }
                 Section("Speaker names") {
-                    Toggle(isOn: $app.settings.multiSpeakerDiarization) {
-                        SettingsLabel("Separate other speakers by voice",
-                                      help: "Adds 30–60 s of processing per meeting. The first run downloads ~100 MB of speaker models from Hugging Face.")
+                    Toggle("Separate voices by speaker",
+                           isOn: $app.settings.multiSpeakerDiarization)
+                        .accessibilityLabel("Separate voices by speaker")
+                        .accessibilityIdentifier("settings.multiSpeakerDiarization")
+                    Picker(selection: $app.settings.diarizationModel) {
+                        ForEach(DiarizationModel.allCases) { model in
+                            Text(model.displayName).tag(model)
+                        }
+                    } label: {
+                        SettingsLabel("Speaker model", help: app.settings.diarizationModel.description)
                     }
+                    .disabled(!app.settings.multiSpeakerDiarization)
+                    .accessibilityLabel("Speaker model")
+                    .accessibilityIdentifier("settings.diarizationModel")
                     SpeakerIdentitySettingsControls()
                 }
             }

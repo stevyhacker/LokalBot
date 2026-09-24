@@ -1,0 +1,2117 @@
+{
+  "perFile": [
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 625082368,
+      "processingSeconds": 12.563016166,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 170.55692253257902,
+      "score_0": {
+        "correct": 1340.273219619752,
+        "false alarm": 304.02449931335514,
+        "missed detection": 362.70799917602415,
+        "total": 1907.9019999999978,
+        "confusion": 204.92078120422167,
+        "diarization error rate": 0.45686480736096613
+      },
+      "score_0.25": {
+        "correct": 991.6980271148648,
+        "false alarm": 146.77334645080296,
+        "missed detection": 158.20490222167803,
+        "total": 1244.044999999993,
+        "confusion": 94.14207066345033,
+        "diarization error rate": 0.3208246641688472
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 662945792,
+      "processingSeconds": 10.306181584,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 5,
+      "rtfx": 207.90526127799689,
+      "score_0": {
+        "correct": 1320.6416637725824,
+        "false alarm": 292.00923269653265,
+        "missed detection": 368.84283135986084,
+        "total": 1907.9019999999978,
+        "confusion": 218.4175048675545,
+        "diarization error rate": 0.46085677824330024
+      },
+      "score_0.25": {
+        "correct": 981.8896210021937,
+        "false alarm": 136.07377854919247,
+        "missed detection": 160.96171179199013,
+        "total": 1244.044999999993,
+        "confusion": 101.19366720580913,
+        "diarization error rate": 0.32010832208400336
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 668745728,
+      "processingSeconds": 4.613996417,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 227.4285874244969,
+      "score_0": {
+        "correct": 584.067679016113,
+        "false alarm": 136.98174967956595,
+        "missed detection": 82.52056610107388,
+        "total": 708.4929999999991,
+        "confusion": 41.904754882812284,
+        "diarization error rate": 0.36896210783092065
+      },
+      "score_0.25": {
+        "correct": 457.5004443969731,
+        "false alarm": 71.469187149048,
+        "missed detection": 33.45936273193295,
+        "total": 508.4599999999993,
+        "confusion": 17.50019287109326,
+        "diarization error rate": 0.24078342987073592
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 669270016,
+      "processingSeconds": 4.220154083,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 248.6531692591756,
+      "score_0": {
+        "correct": 549.4077411499022,
+        "false alarm": 137.54244628906287,
+        "missed detection": 109.32902157592723,
+        "total": 708.4929999999991,
+        "confusion": 49.756237274169614,
+        "diarization error rate": 0.4186741508231699
+      },
+      "score_0.25": {
+        "correct": 434.47218716430694,
+        "false alarm": 75.03524548339873,
+        "missed detection": 50.582351196288386,
+        "total": 508.4599999999993,
+        "confusion": 23.405461639403946,
+        "diarization error rate": 0.2930870831905976
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 669270016,
+      "processingSeconds": 3.808646709,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 220.24445336917177,
+      "score_0": {
+        "correct": 490.7489698486325,
+        "false alarm": 84.2601694793702,
+        "missed detection": 89.75482000732421,
+        "total": 612.8969999999999,
+        "confusion": 32.3932101440432,
+        "diarization error rate": 0.33677469400362153
+      },
+      "score_0.25": {
+        "correct": 405.67002856445254,
+        "false alarm": 42.97230570983895,
+        "missed detection": 51.274489318847344,
+        "total": 470.23399999999884,
+        "confusion": 13.289482116698956,
+        "diarization error rate": 0.2286867328721137
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 669270016,
+      "processingSeconds": 3.464170875,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 242.19281980424824,
+      "score_0": {
+        "correct": 483.07689916992126,
+        "false alarm": 87.32439399719246,
+        "missed detection": 93.2603248901367,
+        "total": 612.8969999999999,
+        "confusion": 36.55977593994198,
+        "diarization error rate": 0.35429198515781796
+      },
+      "score_0.25": {
+        "correct": 399.59832678222585,
+        "false alarm": 44.25429487609894,
+        "missed detection": 53.39158044433559,
+        "total": 470.23399999999884,
+        "confusion": 17.244092773437366,
+        "diarization error rate": 0.24432509791693532
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 708050944,
+      "processingSeconds": 5.847082875,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 257.5032126596974,
+      "score_0": {
+        "correct": 609.0960912170417,
+        "false alarm": 246.59652652740454,
+        "missed detection": 39.787814971924256,
+        "total": 704.4470000000007,
+        "confusion": 55.56309381103479,
+        "diarization error rate": 0.48541257938548
+      },
+      "score_0.25": {
+        "correct": 484.8188051757808,
+        "false alarm": 149.549259689332,
+        "missed detection": 15.18351464843819,
+        "total": 531.3669999999998,
+        "confusion": 31.36468017578084,
+        "diarization error rate": 0.36904334389141796
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 13.122492875,
+      "peakRSSBytes": 735100928,
+      "processingSeconds": 5.2390695,
+      "variant": "baseline",
+      "engine": "baseline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 287.38741202039785,
+      "score_0": {
+        "correct": 585.739891288757,
+        "false alarm": 224.0875459518433,
+        "missed detection": 60.75853925323558,
+        "total": 704.4470000000007,
+        "confusion": 57.94856945800815,
+        "diarization error rate": 0.48661525233706254
+      },
+      "score_0.25": {
+        "correct": 471.50096945190353,
+        "false alarm": 130.02256275177086,
+        "missed detection": 25.991315338135255,
+        "total": 531.3669999999998,
+        "confusion": 33.87471520996106,
+        "diarization error rate": 0.35735864910667625
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 597164032,
+      "processingSeconds": 10.062359417,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 212.94303713500517,
+      "score_0": {
+        "correct": 1542.498368679046,
+        "false alarm": 459.3211347656272,
+        "missed detection": 147.98649908065826,
+        "total": 1907.9019999999978,
+        "confusion": 217.41713224029345,
+        "diarization error rate": 0.4322678869703894
+      },
+      "score_0.25": {
+        "correct": 1093.5612854347178,
+        "false alarm": 211.29038351440127,
+        "missed detection": 49.10871848678539,
+        "total": 1244.044999999993,
+        "confusion": 101.37499607848977,
+        "diarization error rate": 0.29080467192077336
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 635076608,
+      "processingSeconds": 10.293087833,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 5,
+      "rtfx": 208.1697358231413,
+      "score_0": {
+        "correct": 1511.0800816116323,
+        "false alarm": 452.9605759372719,
+        "missed detection": 167.01016919708144,
+        "total": 1907.9019999999978,
+        "confusion": 229.8117491912841,
+        "diarization error rate": 0.44540154280756483
+      },
+      "score_0.25": {
+        "correct": 1073.0340658264122,
+        "false alarm": 205.75989007568126,
+        "missed detection": 62.39878025817759,
+        "total": 1244.044999999993,
+        "confusion": 108.61215391540333,
+        "diarization error rate": 0.30285948197152374
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 647675904,
+      "processingSeconds": 4.652564833,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 225.54327025323153,
+      "score_0": {
+        "correct": 611.8858135375973,
+        "false alarm": 169.48763688659818,
+        "missed detection": 51.308191589356106,
+        "total": 708.4929999999991,
+        "confusion": 45.298994873045736,
+        "diarization error rate": 0.375578620182557
+      },
+      "score_0.25": {
+        "correct": 468.3402839965824,
+        "false alarm": 85.79288955688509,
+        "missed detection": 20.183269714355248,
+        "total": 508.4599999999993,
+        "confusion": 19.936446289061635,
+        "diarization error rate": 0.24763522314499103
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 648183808,
+      "processingSeconds": 4.238315292,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 247.58768878773634,
+      "score_0": {
+        "correct": 574.6851964721681,
+        "false alarm": 163.9188689346322,
+        "missed detection": 79.93294418334959,
+        "total": 708.4929999999991,
+        "confusion": 53.874859344481536,
+        "diarization error rate": 0.4202252844593577
+      },
+      "score_0.25": {
+        "correct": 445.82933486938526,
+        "false alarm": 86.86887601471008,
+        "missed detection": 37.660528686522895,
+        "total": 508.4599999999993,
+        "confusion": 24.97013644409112,
+        "diarization error rate": 0.29402419294600224
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 648183808,
+      "processingSeconds": 3.707801875,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 226.2346643049799,
+      "score_0": {
+        "correct": 519.7035418701169,
+        "false alarm": 102.85387489318833,
+        "missed detection": 45.78499163818335,
+        "total": 612.8969999999999,
+        "confusion": 47.40846649169976,
+        "diarization error rate": 0.3198699504534554
+      },
+      "score_0.25": {
+        "correct": 422.0701286621087,
+        "false alarm": 51.17658329772969,
+        "missed detection": 24.334085021972314,
+        "total": 470.23399999999884,
+        "confusion": 23.829786315917808,
+        "diarization error rate": 0.21125749017642295
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 648183808,
+      "processingSeconds": 3.457829708,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 242.6369669272331,
+      "score_0": {
+        "correct": 512.6556255493159,
+        "false alarm": 108.57450135803234,
+        "missed detection": 44.0688581542969,
+        "total": 612.8969999999999,
+        "confusion": 56.17251629638708,
+        "diarization error rate": 0.34070304767149506
+      },
+      "score_0.25": {
+        "correct": 415.4329151611322,
+        "false alarm": 53.69237178039579,
+        "missed detection": 22.885579711914033,
+        "total": 470.23399999999884,
+        "confusion": 31.915505126952603,
+        "diarization error rate": 0.2307222715058092
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 687079424,
+      "processingSeconds": 5.854494292,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 257.1772299884924,
+      "score_0": {
+        "correct": 616.76329574585,
+        "false alarm": 255.8339076385493,
+        "missed detection": 31.30005551147478,
+        "total": 704.4470000000007,
+        "confusion": 56.38364874267588,
+        "diarization error rate": 0.48764152859292414
+      },
+      "score_0.25": {
+        "correct": 487.5406129150386,
+        "false alarm": 152.83741215515215,
+        "missed detection": 12.025939941406882,
+        "total": 531.3669999999998,
+        "confusion": 31.80044714355437,
+        "diarization error rate": 0.3701091698206954
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 0.097199625,
+      "peakRSSBytes": 736542720,
+      "processingSeconds": 5.085049333,
+      "variant": "baseline-overlap",
+      "engine": "baseline-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 296.09203891670484,
+      "score_0": {
+        "correct": 589.780079154968,
+        "false alarm": 228.50672942352276,
+        "missed detection": 54.32887628936816,
+        "total": 704.4470000000007,
+        "confusion": 60.33804455566454,
+        "diarization error rate": 0.4871532567653139
+      },
+      "score_0.25": {
+        "correct": 473.1995143737788,
+        "false alarm": 131.42689673614558,
+        "missed detection": 22.982201202392925,
+        "total": 531.3669999999998,
+        "confusion": 35.18528442382813,
+        "diarization error rate": 0.35680496222453917
+      }
+    },
+    {
+      "audioLoadSeconds": 0.038349958,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 499613696,
+      "processingSeconds": 4.519193917,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 474.13530252368673,
+      "score_0": {
+        "correct": 1704.4119189615237,
+        "false alarm": 86.30020281362579,
+        "missed detection": 175.47498871326323,
+        "total": 1907.9019999999978,
+        "confusion": 28.015092325211054,
+        "diarization error rate": 0.15188950158451556
+      },
+      "score_0.25": {
+        "correct": 1169.3412245635916,
+        "false alarm": 27.129067687988005,
+        "missed detection": 60.719850128173526,
+        "total": 1244.044999999993,
+        "confusion": 13.983925308227864,
+        "diarization error rate": 0.08185623761551228
+      }
+    },
+    {
+      "audioLoadSeconds": 0.031999541,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 502202368,
+      "processingSeconds": 4.465460916,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 479.8405842771013,
+      "score_0": {
+        "correct": 1655.5393926348675,
+        "false alarm": 84.48326188278173,
+        "missed detection": 206.60859572076578,
+        "total": 1907.901999580381,
+        "confusion": 45.754011224747735,
+        "diarization error rate": 0.17655302468490533
+      },
+      "score_0.25": {
+        "correct": 1139.0813766555727,
+        "false alarm": 25.886346313475773,
+        "missed detection": 77.99025864410336,
+        "total": 1244.044999999993,
+        "confusion": 26.97336470031691,
+        "diarization error rate": 0.10518105828800146
+      }
+    },
+    {
+      "audioLoadSeconds": 0.015240709,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 631472128,
+      "processingSeconds": 2.194946417,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 478.07758739469944,
+      "score_0": {
+        "correct": 661.3220860748285,
+        "false alarm": 23.26440809631447,
+        "missed detection": 45.427835723877074,
+        "total": 708.4929993896476,
+        "confusion": 1.7430775909420184,
+        "diarization error rate": 0.09941569143493607
+      },
+      "score_0.25": {
+        "correct": 490.31785107421814,
+        "false alarm": 6.345791908264246,
+        "missed detection": 17.579158691406064,
+        "total": 508.4599999999993,
+        "confusion": 0.5629902343750928,
+        "diarization error rate": 0.04816099758888691
+      }
+    },
+    {
+      "audioLoadSeconds": 0.015705667,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 631521280,
+      "processingSeconds": 2.208102584,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 5,
+      "rtfx": 475.2291379502321,
+      "score_0": {
+        "correct": 561.6498691678048,
+        "false alarm": 29.593585212708064,
+        "missed detection": 100.62617180204361,
+        "total": 708.4929993896476,
+        "confusion": 46.21695841979923,
+        "diarization error rate": 0.24903099337120843
+      },
+      "score_0.25": {
+        "correct": 427.2300404477127,
+        "false alarm": 15.195842643737636,
+        "missed detection": 48.35495589017791,
+        "total": 508.4599999999993,
+        "confusion": 32.875003662108654,
+        "diarization error rate": 0.18964284741380705
+      }
+    },
+    {
+      "audioLoadSeconds": 0.0127225,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 674512896,
+      "processingSeconds": 1.758605958,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 476.98764392563265,
+      "score_0": {
+        "correct": 518.3686864318848,
+        "false alarm": 22.581962905883337,
+        "missed detection": 52.64853573608344,
+        "total": 612.8969999999999,
+        "confusion": 41.879777832031714,
+        "diarization error rate": 0.19107660255148662
+      },
+      "score_0.25": {
+        "correct": 413.06702883911026,
+        "false alarm": 9.164820480346592,
+        "missed detection": 28.91307308959952,
+        "total": 470.23399999999884,
+        "confusion": 28.253898071289058,
+        "diarization error rate": 0.14106124108685322
+      }
+    },
+    {
+      "audioLoadSeconds": 0.013031166,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 674562048,
+      "processingSeconds": 1.760454416,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 476.57996985023897,
+      "score_0": {
+        "correct": 560.5827076416019,
+        "false alarm": 28.68538513183544,
+        "missed detection": 41.95231539916933,
+        "total": 612.8969999999999,
+        "confusion": 10.361976959228642,
+        "diarization error rate": 0.13215871099097143
+      },
+      "score_0.25": {
+        "correct": 444.6259430847155,
+        "false alarm": 14.048883880615236,
+        "missed detection": 19.197060577392563,
+        "total": 470.23399999999884,
+        "confusion": 6.410996337890737,
+        "diarization error rate": 0.08433448197258946
+      }
+    },
+    {
+      "audioLoadSeconds": 0.022776,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 674562048,
+      "processingSeconds": 3.1398315,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 479.5297534278511,
+      "score_0": {
+        "correct": 654.9378436660759,
+        "false alarm": 17.2993216247564,
+        "missed detection": 47.316019577027575,
+        "total": 704.4469999618536,
+        "confusion": 2.193136718750214,
+        "diarization error rate": 0.09483818928060155
+      },
+      "score_0.25": {
+        "correct": 515.4790677490231,
+        "false alarm": 4.070861221313361,
+        "missed detection": 15.37891027832043,
+        "total": 531.3669999999998,
+        "confusion": 0.5090219726563383,
+        "diarization error rate": 0.03756122128828123
+      }
+    },
+    {
+      "audioLoadSeconds": 0.02322875,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 28.775405625,
+      "peakRSSBytes": 674562048,
+      "processingSeconds": 3.152310375,
+      "variant": "c128-split-w8a8",
+      "engine": "c128-split-w8a8",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 477.6314657784927,
+      "score_0": {
+        "correct": 625.1133661880472,
+        "false alarm": 19.902105918885972,
+        "missed detection": 64.41859158325434,
+        "total": 704.4470000000007,
+        "confusion": 14.915042228699186,
+        "diarization error rate": 0.1408704128640471
+      },
+      "score_0.25": {
+        "correct": 501.7733735351561,
+        "false alarm": 5.263949951171874,
+        "missed detection": 20.96774121093784,
+        "total": 531.3669999999998,
+        "confusion": 8.625885253905931,
+        "diarization error rate": 0.06559981409461946
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 542392320,
+      "processingSeconds": 8.111945083,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 264.1424902506333,
+      "score_0": {
+        "correct": 1483.1730401382436,
+        "false alarm": 435.76749144745094,
+        "missed detection": 210.81710306549076,
+        "total": 1907.9019999999978,
+        "confusion": 213.91185679626344,
+        "diarization error rate": 0.4510171126762308
+      },
+      "score_0.25": {
+        "correct": 1064.811293251033,
+        "false alarm": 207.55601535033966,
+        "missed detection": 77.03483884429862,
+        "total": 1244.044999999993,
+        "confusion": 102.19886790466141,
+        "diarization error rate": 0.31091296705448906
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 607879168,
+      "processingSeconds": 7.533759125,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 5,
+      "rtfx": 284.4143726190609,
+      "score_0": {
+        "correct": 1451.702667701721,
+        "false alarm": 419.57263685226485,
+        "missed detection": 231.93994361114352,
+        "total": 1907.9019999999978,
+        "confusion": 224.25938868713322,
+        "diarization error rate": 0.4590235605133505
+      },
+      "score_0.25": {
+        "correct": 1042.5308029861421,
+        "false alarm": 192.472943645476,
+        "missed detection": 92.86373606109377,
+        "total": 1244.044999999993,
+        "confusion": 108.65046095275731,
+        "diarization error rate": 0.3166984640100071
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 607879168,
+      "processingSeconds": 3.395203834,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 309.06971681394486,
+      "score_0": {
+        "correct": 592.5709043273923,
+        "false alarm": 161.5276333999646,
+        "missed detection": 68.95077389526404,
+        "total": 708.4929999999991,
+        "confusion": 46.97132177734276,
+        "diarization error rate": 0.3916054626828659
+      },
+      "score_0.25": {
+        "correct": 460.1443627929695,
+        "false alarm": 84.93648299408017,
+        "missed detection": 27.796039794921533,
+        "total": 508.4599999999993,
+        "confusion": 20.51959741210827,
+        "diarization error rate": 0.2620700157359677
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 613515264,
+      "processingSeconds": 3.5504465,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 295.555696304676,
+      "score_0": {
+        "correct": 566.286543899536,
+        "false alarm": 154.35717449188334,
+        "missed detection": 92.91807133483901,
+        "total": 708.4929999999991,
+        "confusion": 49.28838476562409,
+        "diarization error rate": 0.4185837130251771
+      },
+      "score_0.25": {
+        "correct": 443.4784295196538,
+        "false alarm": 82.99341606903151,
+        "missed detection": 43.161141281127534,
+        "total": 508.4599999999993,
+        "confusion": 21.820429199217976,
+        "diarization error rate": 0.29102581628717544
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 613515264,
+      "processingSeconds": 2.615146375,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 320.7596027966121,
+      "score_0": {
+        "correct": 503.343973144531,
+        "false alarm": 92.87140695190413,
+        "missed detection": 66.97387036132787,
+        "total": 612.8969999999999,
+        "confusion": 42.57915649414105,
+        "diarization error rate": 0.3302747995297302
+      },
+      "score_0.25": {
+        "correct": 413.4012913818352,
+        "false alarm": 47.88141549682622,
+        "missed detection": 34.80320605468724,
+        "total": 470.23399999999884,
+        "confusion": 22.02950256347639,
+        "diarization error rate": 0.22268513998347653
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 613515264,
+      "processingSeconds": 2.626909708,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 319.3856682416281,
+      "score_0": {
+        "correct": 499.7420684814447,
+        "false alarm": 105.85390216064471,
+        "missed detection": 59.871309265136794,
+        "total": 612.8969999999999,
+        "confusion": 53.28362225341842,
+        "diarization error rate": 0.35733383207814684
+      },
+      "score_0.25": {
+        "correct": 409.3133162841792,
+        "false alarm": 54.92656744384777,
+        "missed detection": 31.826917968749584,
+        "total": 470.23399999999884,
+        "confusion": 29.09376574707006,
+        "diarization error rate": 0.24636085684928716
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 649871360,
+      "processingSeconds": 4.583384209,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 328.50019905455406,
+      "score_0": {
+        "correct": 601.1491890258799,
+        "false alarm": 243.76017642211832,
+        "missed detection": 60.82210180664049,
+        "total": 704.4470000000007,
+        "confusion": 42.475709167480346,
+        "diarization error rate": 0.49266728000295096
+      },
+      "score_0.25": {
+        "correct": 482.38863549804665,
+        "false alarm": 148.81165447998075,
+        "missed detection": 25.17224218750037,
+        "total": 531.3669999999998,
+        "confusion": 23.806122314452836,
+        "diarization error rate": 0.3722286460806448
+      }
+    },
+    {
+      "audioLoadSeconds": 0,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 0.0780915,
+      "peakRSSBytes": 708280320,
+      "processingSeconds": 3.862181375,
+      "variant": "community-overlap",
+      "engine": "community-overlap",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 2,
+      "rtfx": 389.8425472055931,
+      "score_0": {
+        "correct": 576.1253272476195,
+        "false alarm": 223.7107599792479,
+        "missed detection": 66.4598029403692,
+        "total": 704.4470000000007,
+        "confusion": 61.86186981201203,
+        "diarization error rate": 0.49972876984589154
+      },
+      "score_0.25": {
+        "correct": 465.7295066528312,
+        "false alarm": 130.46683676147518,
+        "missed detection": 27.636754699707442,
+        "total": 531.3669999999998,
+        "confusion": 38.00073864746122,
+        "diarization error rate": 0.36905628333834034
+      }
+    },
+    {
+      "audioLoadSeconds": 0.033576917,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 513310720,
+      "processingSeconds": 6.23207425,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 343.8196159168033,
+      "score_0": {
+        "correct": 1714.1174674901947,
+        "false alarm": 90.19826494169318,
+        "missed detection": 165.3427371110905,
+        "total": 1907.9019999999978,
+        "confusion": 28.44179539871276,
+        "diarization error rate": 0.14884558926585162
+      },
+      "score_0.25": {
+        "correct": 1173.1760394592213,
+        "false alarm": 31.150129066466583,
+        "missed detection": 56.55094032287552,
+        "total": 1244.044999999993,
+        "confusion": 14.318020217896091,
+        "diarization error rate": 0.08200594802216862
+      }
+    },
+    {
+      "audioLoadSeconds": 0.026052167,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 514310144,
+      "processingSeconds": 5.860508542,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 365.61833493527564,
+      "score_0": {
+        "correct": 1682.5008712887745,
+        "false alarm": 96.65942439031645,
+        "missed detection": 193.64228673601002,
+        "total": 1907.901999580381,
+        "confusion": 31.758841555596618,
+        "diarization error rate": 0.16880350917015455
+      },
+      "score_0.25": {
+        "correct": 1156.358025321953,
+        "false alarm": 32.57521644210724,
+        "missed detection": 73.05599081420932,
+        "total": 1244.044999999993,
+        "confusion": 14.630983863830675,
+        "diarization error rate": 0.0966702901584331
+      }
+    },
+    {
+      "audioLoadSeconds": 0.012709667,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 642809856,
+      "processingSeconds": 2.874230042,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 365.09071026542415,
+      "score_0": {
+        "correct": 663.874239044189,
+        "false alarm": 24.608781936646093,
+        "missed detection": 42.44193307495088,
+        "total": 708.4929993896476,
+        "confusion": 2.1768272705076726,
+        "diarization error rate": 0.09771097574957378
+      },
+      "score_0.25": {
+        "correct": 491.6477747802729,
+        "false alarm": 6.460852027893175,
+        "missed detection": 16.086243530273265,
+        "total": 508.4599999999993,
+        "confusion": 0.7259816894531355,
+        "diarization error rate": 0.04577169737564333
+      }
+    },
+    {
+      "audioLoadSeconds": 0.012936125,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 642809856,
+      "processingSeconds": 2.873858291,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 365.13793696308596,
+      "score_0": {
+        "correct": 638.1070148925784,
+        "false alarm": 38.53550941944155,
+        "missed detection": 56.83916691350883,
+        "total": 708.4929993896476,
+        "confusion": 13.546817583560339,
+        "diarization error rate": 0.15373686685732166
+      },
+      "score_0.25": {
+        "correct": 481.3977915649413,
+        "false alarm": 19.56884951019279,
+        "missed detection": 20.23630208349193,
+        "total": 508.4599999999993,
+        "confusion": 6.825906351566044,
+        "diarization error rate": 0.09171037632311455
+      }
+    },
+    {
+      "audioLoadSeconds": 0.0101745,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 685801472,
+      "processingSeconds": 2.289219542,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 366.42763924998854,
+      "score_0": {
+        "correct": 522.8375208740235,
+        "false alarm": 23.33059669494562,
+        "missed detection": 58.047502929686736,
+        "total": 612.8969999999999,
+        "confusion": 32.01197619628955,
+        "diarization error rate": 0.18500673982891402
+      },
+      "score_0.25": {
+        "correct": 415.01289852905154,
+        "false alarm": 10.12189601135249,
+        "missed detection": 32.50503005981429,
+        "total": 470.23399999999884,
+        "confusion": 22.716071411133015,
+        "diarization error rate": 0.13895847063866065
+      }
+    },
+    {
+      "audioLoadSeconds": 0.009743709,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 686555136,
+      "processingSeconds": 2.291622375,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 366.11499418616035,
+      "score_0": {
+        "correct": 561.1945719909671,
+        "false alarm": 28.798520172118877,
+        "missed detection": 41.70535827636683,
+        "total": 612.8969999999999,
+        "confusion": 9.997069732666048,
+        "diarization error rate": 0.13134498648411033
+      },
+      "score_0.25": {
+        "correct": 445.5647932434071,
+        "false alarm": 14.134933166503906,
+        "missed detection": 19.18317745971683,
+        "total": 470.23399999999884,
+        "confusion": 5.486029296874875,
+        "diarization error rate": 0.08252091495531098
+      }
+    },
+    {
+      "audioLoadSeconds": 0.0175265,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 691372032,
+      "processingSeconds": 4.132445,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 364.34668216999864,
+      "score_0": {
+        "correct": 656.5272819366446,
+        "false alarm": 18.180140655518155,
+        "missed detection": 44.27661762237675,
+        "total": 704.4469999618536,
+        "confusion": 3.6431004028323475,
+        "diarization error rate": 0.093832266564137
+      },
+      "score_0.25": {
+        "correct": 515.4338553466794,
+        "false alarm": 4.4709398803707465,
+        "missed detection": 14.573204467773575,
+        "total": 531.3669999999998,
+        "confusion": 1.3599401855469182,
+        "diarization error rate": 0.038399231667926775
+      }
+    },
+    {
+      "audioLoadSeconds": 0.01819575,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 5.560992625,
+      "peakRSSBytes": 691372032,
+      "processingSeconds": 4.121556458,
+      "variant": "fast128",
+      "engine": "fast128",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 365.30923216580624,
+      "score_0": {
+        "correct": 627.4755029830912,
+        "false alarm": 20.602121673585344,
+        "missed detection": 62.888677413942474,
+        "total": 704.4470000000007,
+        "confusion": 14.082819602966886,
+        "diarization error rate": 0.13851094360611174
+      },
+      "score_0.25": {
+        "correct": 502.38713092040996,
+        "false alarm": 5.50911734008799,
+        "missed detection": 20.724057067871524,
+        "total": 531.3669999999998,
+        "confusion": 8.255812011718358,
+        "diarization error rate": 0.06490615040015259
+      }
+    },
+    {
+      "audioLoadSeconds": 0.041515458,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 105.64483375,
+      "variant": "low",
+      "engine": "low",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.282197424538044,
+      "score_0": {
+        "correct": 1700.5546543946257,
+        "false alarm": 90.12736024141354,
+        "missed detection": 173.7808977432236,
+        "total": 1907.9019999999978,
+        "confusion": 33.56644786214855,
+        "diarization error rate": 0.15591718329703835
+      },
+      "score_0.25": {
+        "correct": 1165.362026565545,
+        "false alarm": 31.408766708374326,
+        "missed detection": 60.73775103759701,
+        "total": 1244.044999999993,
+        "confusion": 17.945222396850987,
+        "diarization error rate": 0.08849498220950443
+      },
+      "chunkMedianSeconds": 0.035343416,
+      "chunkP95Seconds": 0.035572709,
+      "chunkMaxSeconds": 0.287925917,
+      "chunkCount": 2975
+    },
+    {
+      "audioLoadSeconds": 0.02911925,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 105.502689541,
+      "variant": "low",
+      "engine": "low",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.309523712827335,
+      "score_0": {
+        "correct": 1667.0719299364064,
+        "false alarm": 88.11723098421174,
+        "missed detection": 205.88929490184668,
+        "total": 1907.901999580381,
+        "confusion": 34.94077474212797,
+        "diarization error rate": 0.17241310124971523
+      },
+      "score_0.25": {
+        "correct": 1147.986232635491,
+        "false alarm": 27.643947384593943,
+        "missed detection": 77.68005110168437,
+        "total": 1244.044999999993,
+        "confusion": 18.378716262817857,
+        "diarization error rate": 0.099435884352332
+      },
+      "chunkMedianSeconds": 0.035356458,
+      "chunkP95Seconds": 0.03558475,
+      "chunkMaxSeconds": 0.037246333,
+      "chunkCount": 2975
+    },
+    {
+      "audioLoadSeconds": 0.017182459,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 51.730131667,
+      "variant": "low",
+      "engine": "low",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.285173334855642,
+      "score_0": {
+        "correct": 662.6099024353024,
+        "false alarm": 24.06256701660223,
+        "missed detection": 43.70619064331034,
+        "total": 708.4929993896476,
+        "confusion": 2.1769063110348412,
+        "diarization error rate": 0.09872456613008765
+      },
+      "score_0.25": {
+        "correct": 490.3907747802729,
+        "false alarm": 6.901866065979142,
+        "missed detection": 17.625267944335818,
+        "total": 508.4599999999993,
+        "confusion": 0.4439572753905736,
+        "diarization error rate": 0.0491112207168815
+      },
+      "chunkMedianSeconds": 0.035378541,
+      "chunkP95Seconds": 0.035586959,
+      "chunkMaxSeconds": 0.038139958,
+      "chunkCount": 1456
+    },
+    {
+      "audioLoadSeconds": 0.014140041,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 51.695055791,
+      "variant": "low",
+      "engine": "low",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.298937131289264,
+      "score_0": {
+        "correct": 532.8513628311159,
+        "false alarm": 35.871772056579616,
+        "missed detection": 67.2847012557975,
+        "total": 708.4929993896476,
+        "confusion": 108.3569353027342,
+        "diarization error rate": 0.2985398709617821
+      },
+      "score_0.25": {
+        "correct": 396.21975944519033,
+        "false alarm": 19.956605712890607,
+        "missed detection": 25.367190734863023,
+        "total": 508.4599999999993,
+        "confusion": 86.87304981994589,
+        "diarization error rate": 0.25999458417122234
+      },
+      "chunkMedianSeconds": 0.035353167,
+      "chunkP95Seconds": 0.035589084,
+      "chunkMaxSeconds": 0.036964667,
+      "chunkCount": 1456
+    },
+    {
+      "audioLoadSeconds": 0.012093666,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 41.337687208,
+      "variant": "low",
+      "engine": "low",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.29221684027021,
+      "score_0": {
+        "correct": 524.0975172119145,
+        "false alarm": 25.218390319823747,
+        "missed detection": 44.88571121215764,
+        "total": 612.8969999999999,
+        "confusion": 43.91377157592783,
+        "diarization error rate": 0.1860310510704233
+      },
+      "score_0.25": {
+        "correct": 413.2048216247547,
+        "false alarm": 11.397871063232245,
+        "missed detection": 21.943244903564363,
+        "total": 470.23399999999884,
+        "confusion": 35.08593347167975,
+        "diarization error rate": 0.14551701799205613
+      },
+      "chunkMedianSeconds": 0.035378958,
+      "chunkP95Seconds": 0.035621042,
+      "chunkMaxSeconds": 0.036239584,
+      "chunkCount": 1164
+    },
+    {
+      "audioLoadSeconds": 0.01101475,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 41.374151333,
+      "variant": "low",
+      "engine": "low",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.278296604740657,
+      "score_0": {
+        "correct": 557.2915889282231,
+        "false alarm": 28.804629272460417,
+        "missed detection": 44.04145776367126,
+        "total": 612.8969999999999,
+        "confusion": 11.563953308105567,
+        "diarization error rate": 0.1377230437483578
+      },
+      "score_0.25": {
+        "correct": 442.57978195190316,
+        "false alarm": 15.073963531494108,
+        "missed detection": 20.607178070068386,
+        "total": 470.23399999999884,
+        "confusion": 7.047039978027286,
+        "diarization error rate": 0.09086578507634473
+      },
+      "chunkMedianSeconds": 0.035393417,
+      "chunkP95Seconds": 0.035598667,
+      "chunkMaxSeconds": 0.036077541,
+      "chunkCount": 1164
+    },
+    {
+      "audioLoadSeconds": 0.023767041,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 74.241923041,
+      "variant": "low",
+      "engine": "low",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.2802212460002,
+      "score_0": {
+        "correct": 656.6589160690303,
+        "false alarm": 17.547817016601947,
+        "missed detection": 44.64517872619736,
+        "total": 704.4469996566779,
+        "confusion": 3.1429048614502726,
+        "diarization error rate": 0.09274778746462393
+      },
+      "score_0.25": {
+        "correct": 515.1477448730467,
+        "false alarm": 4.036948730468605,
+        "missed detection": 14.74234667968748,
+        "total": 531.3669999999998,
+        "confusion": 1.4769084472657106,
+        "diarization error rate": 0.03812092933400418
+      },
+      "chunkMedianSeconds": 0.035379583,
+      "chunkP95Seconds": 0.035612958,
+      "chunkMaxSeconds": 0.036063417,
+      "chunkCount": 2090
+    },
+    {
+      "audioLoadSeconds": 0.020937167,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 6.220244709,
+      "peakRSSBytes": 439697408,
+      "processingSeconds": 74.247267625,
+      "variant": "low",
+      "engine": "low",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 20.278761403106916,
+      "score_0": {
+        "correct": 599.5938344573954,
+        "false alarm": 19.87957894134658,
+        "missed detection": 69.17646541595664,
+        "total": 704.4470000000007,
+        "confusion": 35.67670012664863,
+        "diarization error rate": 0.17706476780219338
+      },
+      "score_0.25": {
+        "correct": 483.46627923583975,
+        "false alarm": 5.595657135009585,
+        "missed detection": 24.796647674560774,
+        "total": 531.3669999999998,
+        "confusion": 23.104073089599343,
+        "diarization error rate": 0.10067689167594095
+      },
+      "chunkMedianSeconds": 0.035386125,
+      "chunkP95Seconds": 0.035616083,
+      "chunkMaxSeconds": 0.03712175,
+      "chunkCount": 2090
+    },
+    {
+      "audioLoadSeconds": 0.034172917,
+      "duration": 2142.709375,
+      "id": "EN2002a_mhm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 546226176,
+      "processingSeconds": 6.395060667,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 335.0569269900563,
+      "score_0": {
+        "correct": 1718.6155975198728,
+        "false alarm": 91.72998209500389,
+        "missed detection": 161.665215698241,
+        "total": 1907.9019999570824,
+        "confusion": 27.621186738968625,
+        "diarization error rate": 0.14729078565803427
+      },
+      "score_0.25": {
+        "correct": 1177.3720620422298,
+        "false alarm": 31.474008731842254,
+        "missed detection": 55.14083702087361,
+        "total": 1244.044999999993,
+        "confusion": 11.532100936889744,
+        "diarization error rate": 0.0788934055356568
+      }
+    },
+    {
+      "audioLoadSeconds": 0.027462625,
+      "duration": 2142.709375,
+      "id": "EN2002a_sdm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 546832384,
+      "processingSeconds": 4.248859833,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 504.3022032306237,
+      "score_0": {
+        "correct": 1692.6056620106685,
+        "false alarm": 98.27515632438741,
+        "missed detection": 187.18935293912776,
+        "total": 1907.9019999999978,
+        "confusion": 28.106985050201594,
+        "diarization error rate": 0.16435408858196968
+      },
+      "score_0.25": {
+        "correct": 1162.4276080932555,
+        "false alarm": 32.29009196853558,
+        "missed detection": 69.0195699005122,
+        "total": 1244.044999999993,
+        "confusion": 12.597822006225446,
+        "diarization error rate": 0.09156218937037958
+      }
+    },
+    {
+      "audioLoadSeconds": 0.012811625,
+      "duration": 1049.3546875,
+      "id": "ES2004a_mhm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 674512896,
+      "processingSeconds": 2.104412375,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 498.6449899107821,
+      "score_0": {
+        "correct": 664.7410323638909,
+        "false alarm": 24.798052703858524,
+        "missed detection": 41.761148300171115,
+        "total": 708.4929999999991,
+        "confusion": 1.9908193359371609,
+        "diarization error rate": 0.09675468965814325
+      },
+      "score_0.25": {
+        "correct": 492.3247500610346,
+        "false alarm": 6.900881858825819,
+        "missed detection": 15.555285339355342,
+        "total": 508.4599999999993,
+        "confusion": 0.5799645996093545,
+        "diarization error rate": 0.04530569129880531
+      }
+    },
+    {
+      "audioLoadSeconds": 0.012508625,
+      "duration": 1049.3546875,
+      "id": "ES2004a_sdm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 674512896,
+      "processingSeconds": 2.098220042,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 500.11660669286465,
+      "score_0": {
+        "correct": 615.1867094345089,
+        "false alarm": 34.96362622070389,
+        "missed detection": 81.44647294974317,
+        "total": 708.4929993896476,
+        "confusion": 11.859817005395502,
+        "diarization error rate": 0.18104613071172826
+      },
+      "score_0.25": {
+        "correct": 462.3347835540767,
+        "false alarm": 17.602754371643094,
+        "missed detection": 40.83919760131844,
+        "total": 508.4599999999993,
+        "confusion": 5.286018844604124,
+        "diarization error rate": 0.12533526888558735
+      }
+    },
+    {
+      "audioLoadSeconds": 0.01023825,
+      "duration": 838.8333125,
+      "id": "IS1009a_mhm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 717488128,
+      "processingSeconds": 1.670446625,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 502.1610986822162,
+      "score_0": {
+        "correct": 517.4077996520999,
+        "false alarm": 23.95062797546342,
+        "missed detection": 46.15720782470649,
+        "total": 612.8969999999999,
+        "confusion": 49.33199252319348,
+        "diarization error rate": 0.19487748891471715
+      },
+      "score_0.25": {
+        "correct": 408.58211093139573,
+        "false alarm": 11.47488014221166,
+        "missed detection": 23.266976348876653,
+        "total": 470.23399999999884,
+        "confusion": 38.38491271972643,
+        "diarization error rate": 0.15551144581381807
+      }
+    },
+    {
+      "audioLoadSeconds": 0.010087375,
+      "duration": 838.9973125,
+      "id": "IS1009a_sdm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 717488128,
+      "processingSeconds": 1.669218125,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 502.6289254437613,
+      "score_0": {
+        "correct": 562.3776414184571,
+        "false alarm": 29.29560699462869,
+        "missed detection": 40.06227786254852,
+        "total": 612.8969999999999,
+        "confusion": 10.457080718994305,
+        "diarization error rate": 0.13022574033837908
+      },
+      "score_0.25": {
+        "correct": 446.0658780822743,
+        "false alarm": 14.89098596191402,
+        "missed detection": 18.216166473388682,
+        "total": 470.23399999999884,
+        "confusion": 5.951955444335823,
+        "diarization error rate": 0.08306313001535112
+      }
+    },
+    {
+      "audioLoadSeconds": 0.020364834,
+      "duration": 1505.642625,
+      "id": "TS3003a_mhm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 722337792,
+      "processingSeconds": 3.011087167,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "mhm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 500.0328922726268,
+      "score_0": {
+        "correct": 656.9927425613397,
+        "false alarm": 19.10637106323296,
+        "missed detection": 43.96208280182007,
+        "total": 704.4469999618536,
+        "confusion": 3.492174598693966,
+        "diarization error rate": 0.09448635378864742
+      },
+      "score_0.25": {
+        "correct": 515.8902734374997,
+        "false alarm": 4.917897613525174,
+        "missed detection": 14.366748535156443,
+        "total": 531.3669999999998,
+        "confusion": 1.1099780273437432,
+        "diarization error rate": 0.038381427856877384
+      }
+    },
+    {
+      "audioLoadSeconds": 0.018475709,
+      "duration": 1505.642625,
+      "id": "TS3003a_sdm",
+      "modelLoadSeconds": 7.068019583,
+      "peakRSSBytes": 722354176,
+      "processingSeconds": 3.010075125,
+      "variant": "offline",
+      "engine": "offline",
+      "condition": "sdm",
+      "referenceSpeakers": 4,
+      "predictedSpeakers": 4,
+      "rtfx": 500.2010124248975,
+      "score_0": {
+        "correct": 639.0731504669169,
+        "false alarm": 22.520154708863757,
+        "missed detection": 58.936775985719905,
+        "total": 704.4470000000007,
+        "confusion": 6.4370735473638945,
+        "diarization error rate": 0.12477021584583009
+      },
+      "score_0.25": {
+        "correct": 510.0841342773433,
+        "false alarm": 6.60694308471691,
+        "missed detection": 18.74883795166067,
+        "total": 531.3669999999998,
+        "confusion": 2.5340277709959054,
+        "diarization error rate": 0.052486904168632026
+      }
+    }
+  ],
+  "aggregate": [
+    {
+      "engine": "baseline",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 50.062318209000004,
+      "rtfx": 221.18919770697505,
+      "peakRSSBytes": 735100928,
+      "correctSpeakerCounts": 5,
+      "der0": 43.435169553084506,
+      "der250": 30.449328584425743,
+      "components0": {
+        "correct": 5963.052155082702,
+        "false alarm": 1512.8265639343272,
+        "missed detection": 1206.9619173355068,
+        "total": 7867.477999999996,
+        "confusion": 697.4639275817863
+      }
+    },
+    {
+      "engine": "baseline",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 26.832742167,
+      "rtfx": 206.3352290102151,
+      "peakRSSBytes": 708050944,
+      "correctSpeakerCounts": 3,
+      "der0": 42.74345566134803,
+      "der250": 29.96191118812945,
+      "components0": {
+        "correct": 3024.185959701539,
+        "false alarm": 771.8629449996959,
+        "missed detection": 574.7712002563464,
+        "total": 3933.7389999999973,
+        "confusion": 334.7818400421119
+      }
+    },
+    {
+      "engine": "baseline",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 23.229576042,
+      "rtfx": 238.3471824879377,
+      "peakRSSBytes": 735100928,
+      "correctSpeakerCounts": 2,
+      "der0": 44.126883444821,
+      "der250": 30.93674598072204,
+      "components0": {
+        "correct": 2938.866195381163,
+        "false alarm": 740.9636189346313,
+        "missed detection": 632.1907170791603,
+        "total": 3933.7389999999973,
+        "confusion": 362.6820875396742
+      }
+    },
+    {
+      "engine": "baseline-overlap",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 47.351502583,
+      "rtfx": 233.8520088267586,
+      "peakRSSBytes": 736542720,
+      "correctSpeakerCounts": 5,
+      "der0": 42.324658895985785,
+      "der250": 29.19366868762372,
+      "components0": {
+        "correct": 6479.052002620694,
+        "false alarm": 1941.4572298374223,
+        "missed detection": 621.7205856437686,
+        "total": 7867.477999999996,
+        "confusion": 766.705411735532
+      }
+    },
+    {
+      "engine": "baseline-overlap",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 24.277220417,
+      "rtfx": 228.05493812310846,
+      "peakRSSBytes": 687079424,
+      "correctSpeakerCounts": 3,
+      "der0": 41.44617968684124,
+      "der250": 28.455366551458596,
+      "components0": {
+        "correct": 3290.8510198326103,
+        "false alarm": 987.4965541839631,
+        "missed detection": 276.3797378196725,
+        "total": 3933.7389999999973,
+        "confusion": 366.5082423477148
+      }
+    },
+    {
+      "engine": "baseline-overlap",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 23.074282166,
+      "rtfx": 239.95129990038623,
+      "peakRSSBytes": 736542720,
+      "correctSpeakerCounts": 2,
+      "der0": 43.20313810513034,
+      "der250": 29.931970823788838,
+      "components0": {
+        "correct": 3188.2009827880843,
+        "false alarm": 953.9606756534591,
+        "missed detection": 345.3408478240961,
+        "total": 3933.7389999999973,
+        "confusion": 400.1971693878172
+      }
+    },
+    {
+      "engine": "c128-split-w8a8",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 23.198906083,
+      "rtfx": 477.31750628166026,
+      "peakRSSBytes": 674562048,
+      "correctSpeakerCounts": 7,
+      "der0": 15.731373655010309,
+      "der250": 9.338813722815974,
+      "components0": {
+        "correct": 6941.925870766634,
+        "false alarm": 312.1102335867912,
+        "missed detection": 734.4730542554844,
+        "total": 7867.477998321529,
+        "confusion": 191.0790732994098
+      }
+    },
+    {
+      "engine": "c128-split-w8a8",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 11.612577792,
+      "rtfx": 476.77097188654943,
+      "peakRSSBytes": 674562048,
+      "correctSpeakerCounts": 4,
+      "der0": 13.83275198856538,
+      "der250": 7.719796154249719,
+      "components0": {
+        "correct": 3539.040535134313,
+        "false alarm": 149.44589544058,
+        "missed detection": 320.86737975025136,
+        "total": 3933.738999351499,
+        "confusion": 73.831084466935
+      }
+    },
+    {
+      "engine": "c128-split-w8a8",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 11.586328291,
+      "rtfx": 477.86527888224845,
+      "peakRSSBytes": 674562048,
+      "correctSpeakerCounts": 3,
+      "der0": 17.629995321639356,
+      "der250": 10.957831291382227,
+      "components0": {
+        "correct": 3402.885335632321,
+        "false alarm": 162.6643381462112,
+        "missed detection": 413.6056745052331,
+        "total": 3933.738998970029,
+        "confusion": 117.24798883247479
+      }
+    },
+    {
+      "engine": "community-overlap",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 36.278976209,
+      "rtfx": 305.22482046373113,
+      "peakRSSBytes": 708280320,
+      "correctSpeakerCounts": 5,
+      "der0": 43.60743643311247,
+      "der250": 30.43564216254484,
+      "components0": {
+        "correct": 6274.093713966368,
+        "false alarm": 1837.421181705479,
+        "missed detection": 858.7529762802117,
+        "total": 7867.477999999996,
+        "confusion": 734.6313097534155
+      }
+    },
+    {
+      "engine": "community-overlap",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 18.705679501,
+      "rtfx": 295.9817631700585,
+      "peakRSSBytes": 649871360,
+      "correctSpeakerCounts": 3,
+      "der0": 42.896303023291324,
+      "der250": 29.866170198145458,
+      "components0": {
+        "correct": 3180.2371066360465,
+        "false alarm": 933.926708221438,
+        "missed detection": 407.5638491287232,
+        "total": 3933.7389999999973,
+        "confusion": 345.9380442352276
+      }
+    },
+    {
+      "engine": "community-overlap",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 17.573296708,
+      "rtfx": 315.0634790955013,
+      "peakRSSBytes": 708280320,
+      "correctSpeakerCounts": 2,
+      "der0": 44.31856984293361,
+      "der250": 31.00511412694421,
+      "components0": {
+        "correct": 3093.856607330321,
+        "false alarm": 903.4944734840408,
+        "missed detection": 451.1891271514885,
+        "total": 3933.7389999999973,
+        "confusion": 388.6932655181878
+      }
+    },
+    {
+      "engine": "fast128",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 30.6755145,
+      "rtfx": 360.97989489304246,
+      "peakRSSBytes": 691372032,
+      "correctSpeakerCounts": 8,
+      "der0": 14.512362004049026,
+      "der250": 8.191871051423252,
+      "components0": {
+        "correct": 7066.634470500463,
+        "false alarm": 340.9133598842652,
+        "missed detection": 665.1842800779331,
+        "total": 7867.477998321529,
+        "confusion": 135.65924774313223
+      }
+    },
+    {
+      "engine": "fast128",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 15.527968834,
+      "rtfx": 356.55275066480084,
+      "peakRSSBytes": 691372032,
+      "correctSpeakerCounts": 4,
+      "der0": 13.54183066855908,
+      "der250": 7.662713376712787,
+      "components0": {
+        "correct": 3557.356509345052,
+        "false alarm": 156.31778422880305,
+        "missed detection": 310.1087907381049,
+        "total": 3933.738999351499,
+        "confusion": 66.27369926834233
+      }
+    },
+    {
+      "engine": "fast128",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 15.147545666,
+      "rtfx": 365.51822467369215,
+      "peakRSSBytes": 691372032,
+      "correctSpeakerCounts": 4,
+      "der0": 15.482893339633097,
+      "der250": 8.721028726133715,
+      "components0": {
+        "correct": 3509.2779611554115,
+        "false alarm": 184.59557565546223,
+        "missed detection": 355.0754893398282,
+        "total": 3933.738998970029,
+        "confusion": 69.38554847478989
+      }
+    },
+    {
+      "engine": "low",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 545.773739956,
+      "rtfx": 20.289074371538504,
+      "peakRSSBytes": 439697408,
+      "correctSpeakerCounts": 8,
+      "der0": 16.47767731829994,
+      "der250": 10.454757464309345,
+      "components0": {
+        "correct": 6900.729706264013,
+        "false alarm": 329.62934584903985,
+        "missed detection": 693.409897662161,
+        "total": 7867.477998016353,
+        "confusion": 273.33839409017787
+      }
+    },
+    {
+      "engine": "low",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 272.954575666,
+      "rtfx": 20.283741301976818,
+      "peakRSSBytes": 439697408,
+      "correctSpeakerCounts": 4,
+      "der0": 13.899604006835462,
+      "der250": 8.124091255907606,
+      "components0": {
+        "correct": 3543.9209901108725,
+        "false alarm": 156.95613459444147,
+        "missed detection": 307.01797832488893,
+        "total": 3933.7389990463234,
+        "confusion": 82.8000306105615
+      }
+    },
+    {
+      "engine": "low",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 272.81916429,
+      "rtfx": 20.29441008812204,
+      "peakRSSBytes": 439697408,
+      "correctSpeakerCounts": 4,
+      "der0": 19.055750629814423,
+      "der250": 12.785423672711083,
+      "components0": {
+        "correct": 3356.8087161531403,
+        "false alarm": 172.67321125459836,
+        "missed detection": 386.39191933727204,
+        "total": 3933.738998970029,
+        "confusion": 190.53836347961638
+      }
+    },
+    {
+      "engine": "offline",
+      "condition": "all",
+      "files": 8,
+      "audioSeconds": 11073.243999999999,
+      "processingSeconds": 24.207379959,
+      "rtfx": 457.43256885936165,
+      "peakRSSBytes": 722354176,
+      "correctSpeakerCounts": 8,
+      "der0": 14.555073964841156,
+      "der250": 8.33825646605629,
+      "components0": {
+        "correct": 7067.000335427754,
+        "false alarm": 344.6395780861426,
+        "missed detection": 661.180534362078,
+        "total": 7867.477999308582,
+        "confusion": 139.2971295187485
+      }
+    },
+    {
+      "engine": "offline",
+      "condition": "mhm",
+      "files": 4,
+      "audioSeconds": 5536.54,
+      "processingSeconds": 13.181006834,
+      "rtfx": 420.03923294529113,
+      "peakRSSBytes": 722337792,
+      "correctSpeakerCounts": 4,
+      "der0": 13.61470249221739,
+      "der250": 7.79579550947701,
+      "components0": {
+        "correct": 3557.7571720972032,
+        "false alarm": 159.5850338375588,
+        "missed detection": 293.54565462493866,
+        "total": 3933.738999918935,
+        "confusion": 82.43617319679322
+      }
+    },
+    {
+      "engine": "offline",
+      "condition": "sdm",
+      "files": 4,
+      "audioSeconds": 5536.704,
+      "processingSeconds": 11.026373125,
+      "rtfx": 502.132835269893,
+      "peakRSSBytes": 722354176,
+      "correctSpeakerCounts": 4,
+      "der0": 15.495445437591451,
+      "der250": 8.880717422635573,
+      "components0": {
+        "correct": 3509.2431633305514,
+        "false alarm": 185.05454424858374,
+        "missed detection": 367.6348797371394,
+        "total": 3933.738999389646,
+        "confusion": 56.8609563219553
+      }
+    }
+  ]
+}

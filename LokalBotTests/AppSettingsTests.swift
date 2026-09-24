@@ -2,6 +2,49 @@ import XCTest
 @testable import LokalBot
 
 final class AppSettingsTests: XCTestCase {
+    func testFreshInstallDefaultsToNemotronAndPersistsItWithoutEnablingIdentityFeatures() throws {
+        let suiteName = "AppSettingsTests.Nemotron.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertEqual(AppSettings().diarizationModel, .nemotron3)
+        let settings = AppSettings.load(from: defaults)
+        XCTAssertEqual(settings.diarizationModel, .nemotron3)
+        XCTAssertTrue(settings.multiSpeakerDiarization)
+        XCTAssertFalse(settings.rememberSpeakersOnMac)
+        XCTAssertFalse(settings.identifySpeakersFromVisuals)
+        settings.save(to: defaults)
+        XCTAssertEqual(AppSettings.load(from: defaults).diarizationModel, .nemotron3)
+    }
+
+    func testDiarizationModelPreservesLegacyBackendWhenSelectionIsMissingOrInvalid() throws {
+        for json in ["{}", #"{"diarizationModel":"future-model"}"#, #"{"diarizationModel":null}"#] {
+            let settings = try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
+            XCTAssertEqual(settings.diarizationModel, .community1)
+            XCTAssertFalse(settings.rememberSpeakersOnMac)
+            let reloaded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+            XCTAssertEqual(reloaded.diarizationModel, .community1)
+        }
+    }
+
+    func testExplicitDiarizationChoicesSurviveReloadWithoutReenablingDiarization() throws {
+        let suiteName = "AppSettingsTests.DiarizationChoice.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        for model in DiarizationModel.allCases {
+            var settings = AppSettings()
+            settings.diarizationModel = model
+            settings.multiSpeakerDiarization = false
+            settings.save(to: defaults)
+            let loaded = AppSettings.load(from: defaults)
+            XCTAssertEqual(loaded.diarizationModel, model)
+            XCTAssertFalse(loaded.multiSpeakerDiarization)
+            XCTAssertFalse(loaded.rememberSpeakersOnMac)
+        }
+        XCTAssertNotEqual(DiarizationModel.community1.checkpointIdentity, DiarizationModel.nemotron3.checkpointIdentity)
+    }
+
     func testDecodesLegacyLanguageHintIntoTypedLanguage() throws {
         let data = #"{"languageHint":"fr"}"#.data(using: .utf8)!
 

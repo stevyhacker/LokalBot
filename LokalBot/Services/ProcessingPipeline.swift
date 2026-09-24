@@ -727,7 +727,7 @@ final class ProcessingPipeline: ObservableObject {
         }
         // Reject missing or unreadable recordings before any model download.
         guard !sources.isEmpty else { throw PipelineError.noAudio }
-        if config.multiSpeakerDiarization { await prepareDiarizationModels() }
+        if config.multiSpeakerDiarization { try await prepareDiarizationModels(config: config) }
         let language = config.transcriptionLanguage.code
         var tracks: [Transcript] = []
         var voiceSamples: [SpeakerVoiceSample] = []
@@ -748,6 +748,7 @@ final class ProcessingPipeline: ObservableObject {
                 let checkpointInput = try JSONEncoder().encode([audioRevision, name, engine.displayName,
                     language ?? "", config.transcriptionPrompt,
                     String(config.multiSpeakerDiarization), String(config.echoCancellation),
+                    config.diarizationModel.checkpointIdentity,
                     meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"])
                 let prepared = track == .mic
                     ? try await Self.echoCancelledMicrophone(in: folder, microphone: url, config: config)
@@ -756,7 +757,8 @@ final class ProcessingPipeline: ObservableObject {
                 defer { if let cleaned = prepared.0 { try? FileManager.default.removeItem(at: cleaned) } }
                 let audio = prepared.0 ?? url
                 let diarization = config.multiSpeakerDiarization
-                    ? await diarizer.diarizeDetailed(url: audio, includeVoiceSamples: config.rememberSpeakersOnMac)
+                    ? try await diarizer.diarizeDetailed(url: audio, model: config.diarizationModel,
+                        includeVoiceSamples: config.rememberSpeakersOnMac)
                     : SpeakerDiarizationResult(segments: [], samples: [])
                 var result: Transcript?
                 if let data = try? Data(contentsOf: checkpoint),
@@ -859,14 +861,8 @@ final class ProcessingPipeline: ObservableObject {
     /// Shared by recording-time prewarm and the post-meeting stage. The
     /// `NeuralDiarizationEngine` instance is retained by this pipeline, so the
     /// downloaded/prepared models are reused instead of rebuilt per job.
-    func prepareDiarizationModels() async {
-        await diarizer.prepareModels()
-        // A recording-time prewarm may already own the engine's preparation.
-        // `prepareModels()` is idempotent and returns for secondary callers, so
-        // wait for that retained instance to finish before entering diarization.
-        while diarizer.isPreparing, !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(100))
-        }
+    func prepareDiarizationModels(config: AppSettings) async throws {
+        try await diarizer.prepareModels(model: config.diarizationModel, includeVoiceSamples: config.rememberSpeakersOnMac)
     }
 
     private func write(_ transcript: Transcript, to folder: URL) throws {

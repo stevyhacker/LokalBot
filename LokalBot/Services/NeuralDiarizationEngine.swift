@@ -1,31 +1,49 @@
 import FluidAudio
 import Foundation
-import os.log
-
-private let logger = Logger(subsystem: AppIdentifiers.appBundleID, category: "NeuralDiarization")
 
 /// Acoustic speaker clustering for microphone and system-audio tracks.
 /// Clusters identify distinct voices within a track; confirmation and identity
 /// evidence determine whether a voice belongs to the user or someone else.
 ///
-/// Wraps FluidAudio's pyannote-community-1 offline pipeline with the tuned
-/// config Seminarly arrived at (threshold 0.70, finer step ratio, low minimum
-/// segment duration). Models (~100 MB) are downloaded from Hugging Face on
-/// first use and cached by FluidAudio.
-@MainActor
-final class NeuralDiarizationEngine: ObservableObject {
-    @Published private(set) var isPreparing = false
-    @Published private(set) var isReady = false
-    @Published private(set) var statusMessage = ""
-
+/// Owns CoreML buffers off the main actor. Nemotron's mutable prediction buffers
+/// are used synchronously here and a fresh diarizer resets speaker state per track.
+actor NeuralDiarizationEngine {
     private var models: OfflineDiarizerModels?
+    private var nemotron: Nemotron3Models?
+    private let communityPreparation = AsyncSingleFlight()
+    private let nemotronPreparation = AsyncSingleFlight()
+    private let communityLoader: @Sendable () async throws -> OfflineDiarizerModels
+    private let nemotronLoader: @Sendable () async throws -> Nemotron3Models
+
+    init(
+        communityLoader: @escaping @Sendable () async throws -> OfflineDiarizerModels = {
+            try await OfflineDiarizerModels.load()
+        },
+        nemotronLoader: @escaping @Sendable () async throws -> Nemotron3Models = {
+            let directory = try await NemotronDiarizationModels.prepare()
+            return try await Nemotron3Models.load(config: .offline, directory: directory)
+        }
+    ) {
+        self.communityLoader = communityLoader
+        self.nemotronLoader = nemotronLoader
+    }
+
+    enum Failure: LocalizedError {
+        case processing(DiarizationModel, String)
+        var errorDescription: String? {
+            switch self {
+            case let .processing(model, reason):
+                "\(model.displayName) speaker processing failed: \(reason). Retry, or choose another speaker model in Settings → Recording."
+            }
+        }
+    }
 
     nonisolated private static func configuration(includeVoiceSamples: Bool) -> OfflineDiarizerConfig {
         // Start from `community-1` defaults, override the knobs that matter
         // for meeting recordings (short interjections, conservative cluster
         // merging, never collapse to one speaker).
         var clustering = OfflineDiarizerConfig.Clustering.community
-        clustering.threshold = 0.70     // ↑ stricter merging → more speakers preserved
+        clustering.threshold = 0.70     // preserve the existing app tuning
         clustering.warmStartFa = 0.07   // pyannote default; VBx precision
 
         var embedding = OfflineDiarizerConfig.Embedding.community
@@ -46,62 +64,105 @@ final class NeuralDiarizationEngine: ObservableObject {
         return config
     }
 
-    /// Download (and cache) the CoreML models. Idempotent — safe to call before
-    /// every recording; only the first call hits the network.
-    func prepareModels() async {
-        guard !isReady, !isPreparing else { return }
-        isPreparing = true
-        statusMessage = "Downloading speaker models…"
-        defer { isPreparing = false }
+    /// Coalesce recording-time prewarm and processing; failed loads remain retryable.
+    func prepareModels(model: DiarizationModel, includeVoiceSamples: Bool) async throws {
+        try Task.checkCancellation()
         do {
-            models = try await OfflineDiarizerModels.load()
-            isReady = true
-            statusMessage = "Speaker models ready"
-            ModelRuntimeRegistry.shared.register(
-                id: "diarization:pyannote-community-1",
-                role: "Speaker diarization",
-                label: "Pyannote Community-1",
-                estimatedBytes: ModelRuntimeRegistry.gibibytes(0.1)
-            )
+            if model == .nemotron3 {
+                try await nemotronPreparation.run { try await self.loadNemotron() }
+            }
+            if model == .community1 || includeVoiceSamples {
+                try await communityPreparation.run { try await self.loadCommunity() }
+            }
+            try Task.checkCancellation()
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
-            statusMessage = "Speaker model load failed: \(error.localizedDescription)"
-            logger.error("prepareModels failed: \(error.localizedDescription)")
+            throw Failure.processing(model, error.localizedDescription)
         }
     }
 
-    /// Run diarization on an audio file. Returns the timeline of speaker
-    /// segments FluidAudio identified; an empty list if anything goes wrong
-    /// (we never crash the pipeline because of diarization).
-    func diarize(url: URL) async -> [DiarizedSegment] {
-        await diarizeDetailed(url: url, includeVoiceSamples: false).segments
+    private func loadCommunity() async throws {
+        guard models == nil else { return }
+        let id = "diarization:pyannote-community-1"
+        await ModelRuntimeRegistry.shared.reserve(id: id, role: "Speaker diarization / voice samples",
+            label: DiarizationModel.community1.displayName, estimatedBytes: ModelRuntimeRegistry.gibibytes(0.1))
+        do {
+            models = try await communityLoader()
+        } catch {
+            await ModelRuntimeRegistry.shared.unregister(id: id)
+            throw error
+        }
     }
 
-    func diarizeDetailed(url: URL, includeVoiceSamples: Bool) async -> SpeakerDiarizationResult {
-        guard let models else { return .init(segments: [], samples: []) }
-        let config = Self.configuration(includeVoiceSamples: includeVoiceSamples)
-        return await Task.detached(priority: .utility) {
-            do {
-                // A light manager per job shares the retained model objects. The
-                // opt-in flag affects export only, never segmentation/clustering.
-                let manager = OfflineDiarizerManager(config: config)
-                manager.initialize(models: models)
-                let result = try await manager.process(url)
-                let segments = result.segments.map {
-                    DiarizedSegment(start: TimeInterval($0.startTimeSeconds),
-                                    end: TimeInterval($0.endTimeSeconds), speakerId: $0.speakerId)
-                }
-                let samples = includeVoiceSamples ? (result.chunkEmbeddings ?? []).map {
-                    SpeakerVoiceSample(speaker: $0.speakerId,
-                        range: .init(start: $0.startTimeSeconds, end: $0.endTimeSeconds), vector: $0.embedding256)
-                } : []
-                return SpeakerDiarizationResult(segments: segments, samples: samples)
-            } catch {
-                logger.error("diarize failed: \(error.localizedDescription)")
-                return SpeakerDiarizationResult(segments: [], samples: [])
+    private func loadNemotron() async throws {
+        guard nemotron == nil else { return }
+        let id = "diarization:nemotron-3"
+        await ModelRuntimeRegistry.shared.reserve(id: id, role: "Speaker diarization",
+            label: DiarizationModel.nemotron3.displayName, estimatedBytes: ModelRuntimeRegistry.gibibytes(0.3))
+        do {
+            nemotron = try await nemotronLoader()
+        } catch {
+            await ModelRuntimeRegistry.shared.unregister(id: id)
+            throw error
+        }
+    }
+
+    /// Errors are surfaced to the retry UI, never saved as successful generic-speaker checkpoints.
+    func diarizeDetailed(url: URL, model: DiarizationModel, includeVoiceSamples: Bool) async throws -> SpeakerDiarizationResult {
+        try await prepareModels(model: model, includeVoiceSamples: includeVoiceSamples)
+        do {
+            let result: SpeakerDiarizationResult
+            switch model {
+            case .community1:
+                result = try await communityResult(url: url, includeVoiceSamples: includeVoiceSamples)
+            case .nemotron3:
+                guard let nemotron else { throw TranscriptionEngineError.notLoaded }
+                let audio = try AudioConverter(sampleRate: 16_000).resampleAudioFile(url)
+                try Task.checkCancellation()
+                let diarizer = Nemotron3Diarizer(config: .offline, models: nemotron)
+                let output = try diarizer.processComplete(audio)
+                try Task.checkCancellation()
+                let segments = Self.nemotronSegments(probabilities: output.probabilities, frameCount: output.frameCount)
+                // Nemotron slots are anonymous, not identity embeddings. Preserve the
+                // existing 256-D voice space. AttributedTrackTranscriber maps these
+                // samples by clean temporal coverage, never by a cross-model slot ID.
+                let samples = includeVoiceSamples
+                    ? try await communityResult(url: url, includeVoiceSamples: true).samples : []
+                result = SpeakerDiarizationResult(segments: segments, samples: samples)
             }
-        }.value
+            try Task.checkCancellation()
+            return result
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw Failure.processing(model, error.localizedDescription)
+        }
     }
 
+    nonisolated static func nemotronSegments(probabilities: [Float], frameCount: Int) -> [DiarizedSegment] {
+        Nemotron3Diarizer.segments(probabilities: probabilities, frameCount: frameCount,
+            threshold: 0.5, minDurationSeconds: 0.2).map {
+            DiarizedSegment(start: TimeInterval($0.startSeconds), end: TimeInterval($0.endSeconds),
+                            speakerId: "S\($0.speakerIndex)")
+        }
+    }
+
+    private func communityResult(url: URL, includeVoiceSamples: Bool) async throws -> SpeakerDiarizationResult {
+        guard let models else { throw TranscriptionEngineError.notLoaded }
+        let manager = OfflineDiarizerManager(config: Self.configuration(includeVoiceSamples: includeVoiceSamples))
+        manager.initialize(models: models)
+        let result = try await manager.process(url)
+        try Task.checkCancellation()
+        let segments = result.segments.map {
+            DiarizedSegment(start: TimeInterval($0.startTimeSeconds), end: TimeInterval($0.endTimeSeconds), speakerId: $0.speakerId)
+        }
+        let samples = includeVoiceSamples ? (result.chunkEmbeddings ?? []).map {
+            SpeakerVoiceSample(speaker: $0.speakerId,
+                range: .init(start: $0.startTimeSeconds, end: $0.endTimeSeconds), vector: $0.embedding256)
+        } : []
+        return SpeakerDiarizationResult(segments: segments, samples: samples)
+    }
 }
 
 /// FluidAudio's segment, distilled to what the pipeline actually uses (start,
