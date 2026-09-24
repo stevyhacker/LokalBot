@@ -1,6 +1,42 @@
 import AudioToolbox
 import Foundation
 
+/// Meeting files use elapsed meeting time, including periods with no captured
+/// audio. Each recorder fills to the same monotonic origin before writing a
+/// buffer; late attachments and recovered devices therefore cannot move later
+/// speech to the beginning of a file. Small clock/resampler jitter is tolerated
+/// without repeatedly inserting sub-buffer silence.
+struct RecordingAudioTimeline: Sendable {
+    let originHostTime: Double
+    let originInstant: ContinuousClock.Instant
+    static let jitterTolerance: TimeInterval = 0.02
+
+    init(originHostTime: Double, originInstant: ContinuousClock.Instant = .now) {
+        self.originHostTime = originHostTime
+        self.originInstant = originInstant
+    }
+
+    /// Core Audio host time can pause during sleep. The continuous meeting
+    /// clock retains that gap, while the buffer's age on the host clock keeps
+    /// callback/queue latency out of the placement. Capture both observations
+    /// together in the callback and perform this work on the writer queue.
+    func hostTimeOnTimeline(bufferHostTime: Double, callbackHostTime: Double,
+                            callbackInstant: ContinuousClock.Instant) -> Double {
+        let elapsed = originInstant.duration(to: callbackInstant).components
+        let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+        return originHostTime + seconds - max(0, callbackHostTime - bufferHostTime)
+    }
+
+    func silenceFrames(before hostTime: Double, framesWritten: Int64, sampleRate: Double) -> Int64 {
+        guard originHostTime.isFinite, hostTime.isFinite,
+              sampleRate.isFinite, sampleRate > 0, framesWritten >= 0 else { return 0 }
+        let target = ((hostTime - originHostTime) * sampleRate).rounded()
+        guard target > Double(framesWritten), target < Double(Int64.max) else { return 0 }
+        let missing = Int64(target) - framesWritten
+        return Double(missing) > Self.jitterTolerance * sampleRate ? missing : 0
+    }
+}
+
 struct AudioClockSpan: Codable, Equatable, Sendable {
     var hostStart: Double
     var hostEnd: Double
@@ -106,6 +142,11 @@ struct RecordingAudioTiming: Codable, Sendable {
     var version = 1
     var microphone: [AudioClockSpan]
     var system: [AudioClockSpan]
+    /// Version 2 captures pad both primary audio and preview CAFs to this
+    /// origin. Version 1 remains decodable: its spans still map raw file time
+    /// for echo/identity evidence. Never reinterpret those existing files or
+    /// their saved transcripts as padded audio merely by loading the sidecar.
+    var timelineOriginHostTime: Double?
 
     func nextBoundary(after position: Double) -> Double? {
         var boundary = Double.infinity

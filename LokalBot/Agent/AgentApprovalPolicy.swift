@@ -135,7 +135,7 @@ struct AgentApprovalPolicy: Equatable {
     /// not-yet-created suffix. This matches the bundled extension's path rule
     /// and prevents a symlinked parent from turning an apparently local write
     /// into an external one.
-    private static func canonicalFileURL(_ url: URL) -> URL? {
+    static func canonicalFileURL(_ url: URL) -> URL? {
         var ancestor = url.standardizedFileURL
         var suffix: [String] = []
         while !FileManager.default.fileExists(atPath: ancestor.path) {
@@ -155,4 +155,20 @@ struct AgentApprovalPolicy: Equatable {
         sessionAllowedTools.removeAll()
         automationApprovesWorkspaceFileChanges = false
     }
+}
+
+/// Private app data is never an implicit working folder. File tools may still
+/// request individual reads, and explicit attachments keep their own scope.
+struct AgentWorkspacePolicy {
+    let privateRoots: [URL]
+
+    func containsPrivateWorkspace(_ workspace: URL) -> Bool {
+        guard let workspace = AgentApprovalPolicy.canonicalFileURL(workspace) else { return true }
+        return privateRoots.contains { root in
+            guard let root = AgentApprovalPolicy.canonicalFileURL(root) else { return true }
+            return workspace.pathComponents.starts(with: root.pathComponents)
+        }
+    }
+
+    static let privateWorkspaceNotice = "This task uses an older working folder inside LokalBot’s private data. Its saved history is still available, but it cannot run here. Choose a folder outside LokalBot’s private data to start a new task; attach specific sources or use the scoped library tools."
 }

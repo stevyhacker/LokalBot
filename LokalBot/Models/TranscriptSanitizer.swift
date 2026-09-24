@@ -14,8 +14,8 @@ enum TranscriptSanitizer {
     }
 
     private struct Word: Equatable {
-        var original: String
         var normalized: String
+        var range: Range<String.Index>
     }
 
     private struct Loop {
@@ -42,19 +42,15 @@ enum TranscriptSanitizer {
             let duration = max(0.25, segment.end - segment.start)
             let wordsPerSecond = Double(originalWords.count) / duration
             if originalWords.count >= 32, wordsPerSecond >= 6 {
-                let collapsed = collapseRepeatedCycles(originalWords)
-                let removed = originalWords.count - collapsed.count
+                let collapsed = collapseRepeatedCycles(originalWords, in: characterCleaned)
+                let removed = collapsed.removedWords
                 let impossibleRate = originalWords.count >= 80 && wordsPerSecond >= 12
                 // Timestamp-less ASR can place 135 identical filler words in
                 // a 15-second VAD window: below the old 12 words/sec gate.
                 let dominatedByLoop = Double(removed) / Double(originalWords.count) >= 0.8
                 if removed > 0, impossibleRate || dominatedByLoop {
-                    finalText = collapsed.map(\.original).joined(separator: " ")
-                    if let punctuation = terminalPunctuation(in: characterCleaned),
-                       finalText.last != punctuation {
-                        finalText.append(punctuation)
-                    }
-                    removedWords += originalWords.count - collapsed.count
+                    finalText = collapsed.text
+                    removedWords += removed
                 }
             }
 
@@ -77,27 +73,34 @@ enum TranscriptSanitizer {
             !character.isLetter && !character.isNumber
                 && character != "'" && character != "’"
         }).map {
-            let original = String($0)
-            return Word(original: original, normalized: original.lowercased())
+            Word(normalized: $0.lowercased(), range: $0.startIndex..<$0.endIndex)
         }
     }
 
-    private static func collapseRepeatedCycles(_ input: [Word]) -> [Word] {
-        guard input.count >= 8 else { return input }
-        var output: [Word] = []
+    private static func collapseRepeatedCycles(
+        _ input: [Word], in text: String
+    ) -> (text: String, removedWords: Int) {
+        guard input.count >= 8 else { return (text, 0) }
+        var removals: [Range<String.Index>] = []
+        var removedWords = 0
         var index = 0
 
         while index < input.count {
             if let loop = longestLoop(in: input, startingAt: index) {
                 let keptWords = loop.period * 2
-                output.append(contentsOf: input[index..<(index + keptWords)])
+                // Delete only the repeated span. Rebuilding from word tokens
+                // would also rewrite unrelated amounts, signs and decimals.
+                let removalStart = input[index + keptWords - 1].range.upperBound
+                removals.append(removalStart..<input[index + loop.span - 1].range.upperBound)
+                removedWords += loop.span - keptWords
                 index += loop.span
             } else {
-                output.append(input[index])
                 index += 1
             }
         }
-        return output
+        var output = text
+        for range in removals.reversed() { output.removeSubrange(range) }
+        return (output, removedWords)
     }
 
     private static func longestLoop(in words: [Word], startingAt start: Int) -> Loop? {
@@ -140,9 +143,8 @@ enum TranscriptSanitizer {
         return true
     }
 
-    /// Eight identical characters cannot add meaning to a transcript. Keeping
-    /// three retains audible emphasis ("ummm", "sooo") without allowing one
-    /// hallucinated token to dominate a prompt.
+    /// Collapse extreme verbal emphasis, but never numeric runs: repeated
+    /// digits can be an amount, identifier, or exact quoted evidence.
     private static func collapseExtremeCharacterRuns(in text: String) -> String {
         guard !text.isEmpty else { return text }
         var output = ""
@@ -151,7 +153,7 @@ enum TranscriptSanitizer {
         func appendRun() {
             guard let character = run.first else { return }
             let shouldCollapse = run.count >= 8
-                && (character.isLetter || character.isNumber || character.isPunctuation)
+                && (character.isLetter || character.isPunctuation)
             let retained = shouldCollapse ? Array(run.prefix(3)) : run
             output.append(contentsOf: retained)
             run.removeAll(keepingCapacity: true)
@@ -168,9 +170,4 @@ enum TranscriptSanitizer {
         return output
     }
 
-    private static func terminalPunctuation(in text: String) -> Character? {
-        guard let final = text.last(where: { !$0.isWhitespace }),
-              ".!?…".contains(final) else { return nil }
-        return final
-    }
 }

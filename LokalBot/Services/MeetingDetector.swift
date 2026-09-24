@@ -163,7 +163,7 @@ final class MeetingDetector {
 
     var onMeetingStarted: ((MeetingDetectionContext) -> Void)?
     var onMeetingSwitched: ((MeetingDetectionContext) -> Void)?
-    var onMeetingEnded: (() -> Void)?
+    var onMeetingEnded: ((MeetingDetectionEnd) -> Void)?
     var stopDebounce: TimeInterval = AppSettings.defaultStopDebounceSeconds
     /// Extra grace before stopping while a calendar-backed meeting is still in
     /// its scheduled window — brief audio drops mid-meeting shouldn't end it.
@@ -190,6 +190,7 @@ final class MeetingDetector {
     var requireCalendarForBrowser = false
 
     private(set) var activeApp: DetectedApp?
+    private(set) var activeSessionID: UUID?
     /// The calendar event matched when the current session started — drives the
     /// extended stop grace and is carried into the recording's metadata.
     private var activeCalendarEvent: CalendarMeetingCandidate?
@@ -264,6 +265,9 @@ final class MeetingDetector {
         browserObservationLostAt = nil
         detectedContentEnd = nil
         endedMeetingURL = nil
+        activeSessionID = nil
+        activeApp = nil
+        activeCalendarEvent = nil
         let center = NSWorkspace.shared.notificationCenter
         for observer in workspaceObservers { center.removeObserver(observer) }
         workspaceObservers.removeAll()
@@ -415,7 +419,8 @@ final class MeetingDetector {
                             calendarEvent: calendarEvent,
                             confidence: MeetingMatcher.confidence(
                                 hasApp: true, hasCalendar: calendarEvent != nil),
-                            reason: "meeting-app-handoff"))
+                            reason: "meeting-app-handoff",
+                            detectorSessionID: activeSessionID))
                     }
                     return
                 }
@@ -436,7 +441,8 @@ final class MeetingDetector {
                         detectedApp: app,
                         calendarEvent: calendarEvent,
                         confidence: MeetingMatcher.confidence(hasApp: true, hasCalendar: true),
-                        reason: "calendar-handoff"))
+                        reason: "calendar-handoff",
+                        detectorSessionID: activeSessionID))
                 }
             }
             return
@@ -512,6 +518,7 @@ final class MeetingDetector {
     }
 
     private func beginMeeting(app: DetectedApp, calendarEvent: CalendarMeetingCandidate?, now: Date) {
+        activeSessionID = UUID()
         detectedContentEnd = nil
         endedMeetingURL = nil
         browserObservationLostAt = nil
@@ -527,7 +534,17 @@ final class MeetingDetector {
             detectedApp: app,
             calendarEvent: calendarEvent,
             confidence: MeetingMatcher.confidence(hasApp: true, hasCalendar: calendarEvent != nil),
-            reason: "detector"))
+            reason: "detector",
+            detectorSessionID: activeSessionID))
+    }
+
+    /// The complementary native audio monitor uses the same lifecycle identity
+    /// as normal detection, so its recording can be stopped by its own end event.
+    func acceptNativeAudioStart(app: DetectedApp, calendarEvent: CalendarMeetingCandidate?) {
+        guard activeApp == nil, Self.knownApps[app.bundleID] != nil,
+              Self.shouldAutoRecordNativeAudioMonitor(
+                bundleID: app.bundleID, calendarBacked: calendarEvent != nil) else { return }
+        beginMeeting(app: app, calendarEvent: calendarEvent, now: Date())
     }
 
     /// Tracks how long the start candidate's audio has been continuously
@@ -632,7 +649,7 @@ final class MeetingDetector {
         immediately: Bool = false,
         reason: String? = nil
     ) {
-        guard activeApp != nil, pendingStop == nil else { return }
+        guard activeApp != nil, let sessionID = activeSessionID, pendingStop == nil else { return }
         // Native app audio gaps may use calendar grace. A browser call uses
         // only its bound document state and never receives that extension.
         let isBrowser = activeApp.map { Self.browsers.contains($0.bundleID) } ?? false
@@ -641,15 +658,22 @@ final class MeetingDetector {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             if let reason { lokalbotLog("detector ending meeting reason=\(reason)") }
-            self.endedMeetingURL = self.activeApp?.meetingURL
-            self.activeApp = nil
-            self.activeCalendarEvent = nil
-            self.continuationLease.reset()
-            self.pendingStop = nil
-            self.onMeetingEnded?()
+            self.completeMeetingEnd(sessionID: sessionID)
         }
         pendingStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + debounce, execute: work)
+    }
+
+    func completeMeetingEnd(sessionID: UUID) {
+        guard activeSessionID == sessionID else { return }
+        let event = MeetingDetectionEnd(sessionID: sessionID, contentEndedAt: detectedContentEnd)
+        endedMeetingURL = activeApp?.meetingURL
+        activeApp = nil
+        activeSessionID = nil
+        activeCalendarEvent = nil
+        continuationLease.reset()
+        pendingStop = nil
+        onMeetingEnded?(event)
     }
 
     /// A browser-wide audio stream is never evidence that the bound call is

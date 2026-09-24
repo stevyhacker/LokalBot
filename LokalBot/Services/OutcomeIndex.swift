@@ -118,6 +118,7 @@ final class OutcomeIndex: ObservableObject {
     @Published private(set) var userActionThreads: [ActionThread] = []
 
     private let storage: StorageManager
+    private let mutateEvidence: ([Meeting], () throws -> Void) throws -> Void
     private let onEvidenceChanged: ([Meeting]) -> Void
     @Published private(set) var lastError: String?
     struct StatusChange {
@@ -130,9 +131,11 @@ final class OutcomeIndex: ObservableObject {
 
     init(
         storage: StorageManager,
+        mutateEvidence: @escaping ([Meeting], () throws -> Void) throws -> Void = { _, mutation in try mutation() },
         onEvidenceChanged: @escaping ([Meeting]) -> Void = { _ in }
     ) {
         self.storage = storage
+        self.mutateEvidence = mutateEvidence
         self.onEvidenceChanged = onEvidenceChanged
     }
 
@@ -335,8 +338,10 @@ final class OutcomeIndex: ObservableObject {
         next.seeded = false
         next.sourceMeetingID = meetingID
         do {
-            try MeetingOutcomeStore.writeFollowUp(
-                next, to: projection.meeting.folderURL(in: storage))
+            try mutateEvidence([projection.meeting]) {
+                try MeetingOutcomeStore.writeFollowUp(
+                    next, to: projection.meeting.folderURL(in: storage))
+            }
             projection.followUp = next
             projections[meetingID] = projection
             projectionRevisions[meetingID, default: 0] &+= 1
@@ -373,11 +378,17 @@ final class OutcomeIndex: ObservableObject {
         actionState.updatedAt = Date().outcomePersistedTimestamp
         projection.state.actions[actionID] = actionState
         do {
-            try MeetingOutcomeStore.writeState(
-                projection.state, to: projection.meeting.folderURL(in: storage))
-            if !projection.isArchived,
-               previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
-                try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
+            // The host holds its evidence-revocation lock through these writes.
+            // A failed preflight cannot change either the source correction or
+            // its derived narrative, and another process cannot regenerate
+            // memory between revocation and the durable source mutation.
+            try mutateEvidence([projection.meeting]) {
+                try MeetingOutcomeStore.writeState(
+                    projection.state, to: projection.meeting.folderURL(in: storage))
+                if !projection.isArchived,
+                   previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
+                    try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
+                }
             }
             // Archived extraction stays out of Today, Ask, and action threads.
             // Review can still persist corrections for the explicit refresh.

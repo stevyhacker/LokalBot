@@ -19,25 +19,30 @@ struct DreamService {
     /// same seam as chat/dictation (`ThinkExecution.makeTextEngine`).
     var makeEngine: () async throws -> EngineSelection
     var now: () -> Date = Date.init
+    var compileEvidence: @Sendable (DreamScheduler.Target, URL) throws -> DreamEvidence = { target, root in
+        try DreamCompiler.compile(day: target.day, storageRoot: root, calendar: target.calendar)
+    }
 
     @discardableResult
     func dream(target: DreamScheduler.Target) async throws -> DreamReport {
         let root = storageRoot
+        let store = DreamStore(root: root)
+        // Read before the detached compilation: cancellation alone cannot
+        // detect a source mutation while the library snapshot is being read.
+        let revision = try store.evidenceRevision()
+        let compileEvidence = compileEvidence
         // Evidence compilation walks the whole meeting library; keep that off
         // the main actor (the scheduler calls this from a MainActor task).
         let evidence = try await Task.detached(priority: .utility) {
-            try DreamCompiler.compile(
-                day: target.day,
-                storageRoot: root,
-                calendar: target.calendar)
+            try compileEvidence(target, root)
         }.value
         try Task.checkCancellation()
         guard evidence.dayKey == target.dayKey else {
             throw TargetError.dayKeyMismatch(expected: target.dayKey, actual: evidence.dayKey)
         }
 
-        let store = DreamStore(root: storageRoot)
         let memory = try store.loadMemory() ?? DreamMemory(updatedAt: now())
+        guard try store.evidenceRevision() == revision else { throw CancellationError() }
         // A missing/corrupt historical report may need regeneration after
         // later days have already advanced durable memory. Rebuild that report
         // from its own evidence, but never replay an older synthesis over newer
@@ -51,6 +56,8 @@ struct DreamService {
             : DreamMemory(updatedAt: target.day)
         var report: DreamReport
         var updatedMemory = memory
+        var provenance = DreamMemory(updatedAt: now()).provenance(
+            adding: evidence.sources, revision: revision)
 
         if evidence.isSubstantivelyEmpty {
             // Nothing happened that day. Don't wake a model to say so — write
@@ -64,6 +71,8 @@ struct DreamService {
         } else {
             do {
                 let selection = try await makeEngine()
+                try Task.checkCancellation()
+                guard try store.evidenceRevision() == revision else { throw CancellationError() }
                 let output = try await selection.engine.generate(
                     system: DreamPrompts.system,
                     prompt: DreamPrompts.prompt(evidence: evidence),
@@ -71,6 +80,7 @@ struct DreamService {
                     schema: DreamPrompts.schema)
                 try Task.checkCancellation()
                 if let synthesis = DreamPrompts.parse(output) {
+                    provenance = contextMemory.provenance(adding: evidence.sources, revision: revision)
                     report = synthesis.report(dayKey: evidence.dayKey,
                                               generatedAt: now(),
                                               engineName: selection.engine.displayName,
@@ -79,7 +89,8 @@ struct DreamService {
                         updatedMemory = memory.merging(synthesis.memory,
                                                        dreamDay: evidence.dayKey,
                                                        at: now(),
-                                                       calendar: target.calendar)
+                                                       calendar: target.calendar,
+                                                       provenance: provenance)
                     }
                 } else {
                     lokalbotLog("dreaming: model reply was unparseable, writing evidence-only brief")
@@ -103,15 +114,16 @@ struct DreamService {
             }
         }
 
+        report.evidenceProvenance = provenance
         report = report.redacted()
         try Task.checkCancellation()
         if advancesMemory {
             updatedMemory.lastDreamDay = evidence.dayKey
             updatedMemory.updatedAt = now()
             updatedMemory = updatedMemory.redacted()
-            try store.save(report: report, memory: updatedMemory)
+            try store.saveGenerated(report: report, memory: updatedMemory, basedOnRevision: revision)
         } else {
-            try store.save(report)
+            try store.saveGenerated(report: report, memory: nil, basedOnRevision: revision)
         }
         return report
     }

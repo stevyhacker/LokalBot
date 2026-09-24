@@ -291,19 +291,17 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         let plan = try XCTUnwrap(gate.consumeAfterCapturedBuffer(forElapsed: 2.5))
 
         XCTAssertEqual(plan.duration, 2.5, accuracy: 0.000_001)
-        XCTAssertFalse(plan.wasCapped)
         XCTAssertFalse(gate.isPending)
         XCTAssertNil(gate.consumeAfterCapturedBuffer(forElapsed: 2.5))
     }
 
-    func testRecoveredMicrophoneGapRetainsPlannerCap() throws {
+    func testRecoveredMicrophoneGapPreservesTheEntireOutage() throws {
         var gate = AudioRecoverySilenceCommitGate()
         gate.stage()
 
         let plan = try XCTUnwrap(gate.consumeAfterCapturedBuffer(forElapsed: 90))
 
-        XCTAssertEqual(plan.duration, AudioRecoverySilencePlanner.maximumDuration)
-        XCTAssertTrue(plan.wasCapped)
+        XCTAssertEqual(plan.duration, 90)
     }
 
     private func assertLosslessMicrophoneCopy(

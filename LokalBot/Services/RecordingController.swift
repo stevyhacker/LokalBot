@@ -209,6 +209,9 @@ final class RecordingController: ObservableObject {
     @Published private(set) var status: Status = .idle
     /// The live recording (shown at the top of the library while running).
     @Published private(set) var currentMeeting: Meeting?
+    /// Only lifecycle events from this detector session own the recording.
+    /// A manual recording has no owner even when the detector remains active.
+    private(set) var detectorSessionID: UUID?
     /// Drives `elapsed`; bumped each second by `recordingTick`.
     @Published private(set) var now = Date()
     /// True only around the synchronous stop/start boundary of a calendar split.
@@ -238,6 +241,7 @@ final class RecordingController: ObservableObject {
     private let systemRecorder = SystemAudioRecorder()
     private let speakerObserver: MeetingSpeakerObserver?
     private var speakerAudioClock: RecordingAudioClock?
+    private var audioTimeline: RecordingAudioTimeline?
     private var microphoneAudioClock: RecordingAudioClock?
 
     private struct SystemAudioTarget {
@@ -430,6 +434,7 @@ final class RecordingController: ObservableObject {
             return
         }
         status = .starting
+        detectorSessionID = context?.detectorSessionID
         activeSystemAudioPolicy = systemAudioPolicy
         audioMonitor.isRecordingActive = true
         audioMonitor.accept()
@@ -441,6 +446,7 @@ final class RecordingController: ObservableObject {
                 self.startTask = nil
                 if case .starting = self.status {
                     self.status = .idle
+                    self.detectorSessionID = nil
                     self.activeSystemAudioPolicy = nil
                 }
             }
@@ -494,13 +500,22 @@ final class RecordingController: ObservableObject {
                 created = meeting
                 speakerAudioClock = RecordingAudioClock()
                 microphoneAudioClock = RecordingAudioClock()
+                // Match meeting.startedAt once, then use monotonic capture
+                // timestamps. The same origin survives late system attachment
+                // and every microphone/process-tap recovery.
+                let elapsedSinceCreation = max(0, Date().timeIntervalSince(meeting.startedAt))
+                let timeline = RecordingAudioTimeline(
+                    originHostTime: RecordingAudioClock.now - elapsedSinceCreation,
+                    originInstant: ContinuousClock.now.advanced(by: .seconds(-elapsedSinceCreation)))
+                audioTimeline = timeline
                 systemRecorder.speakerAudioClock = speakerAudioClock
                 micRecorder.speakerAudioClock = microphoneAudioClock
                 try Task.checkCancellation()
                 try micRecorder.start(
                     writingTo: meeting.folderURL(in: storage).appendingPathComponent("mic.m4a"),
                     previewTee: meeting.folderURL(in: storage)
-                        .appendingPathComponent(AudioPreviewTee.micFileName))
+                        .appendingPathComponent(AudioPreviewTee.micFileName),
+                    timeline: timeline)
                 startRecordingHealthWatchdog()
                 try Task.checkCancellation()
 
@@ -563,6 +578,7 @@ final class RecordingController: ObservableObject {
             pendingSystemAudioCaptureTask = nil
             activeSystemAudioPolicy = nil
             status = .idle
+            detectorSessionID = nil
             audioMonitor.isRecordingActive = false
             audioMonitor.reseed()
             return
@@ -581,8 +597,10 @@ final class RecordingController: ObservableObject {
         stopRecordingHealthWatchdog()
         micRecorder.stop()
         systemRecorder.stop()
-        let timing = RecordingAudioTiming(microphone: microphoneAudioClock?.archive() ?? [],
-                                          system: speakerAudioClock?.archive() ?? [])
+        let timing = RecordingAudioTiming(version: 2,
+                                          microphone: microphoneAudioClock?.archive() ?? [],
+                                          system: speakerAudioClock?.archive() ?? [],
+                                          timelineOriginHostTime: audioTimeline?.originHostTime)
         do {
             try JSONEncoder().encode(timing).write(to: meeting.folderURL(in: storage)
                 .appendingPathComponent(RecordingAudioTiming.fileName), options: .atomic)
@@ -623,6 +641,7 @@ final class RecordingController: ObservableObject {
         lastCalendarEventEndedAt = endedAt
         currentMeeting = nil
         status = .idle
+        detectorSessionID = nil
         onMeetingFinished(meeting)
         let willTranscribe = process && settings.autoTranscribe
         // The pipeline parks automatic jobs whose models are missing instead
@@ -681,7 +700,8 @@ final class RecordingController: ObservableObject {
                 capturingPID: pid,
                 writingTo: meeting.folderURL(in: storage).appendingPathComponent("system.m4a"),
                 previewTee: meeting.folderURL(in: storage)
-                    .appendingPathComponent(AudioPreviewTee.systemFileName))
+                    .appendingPathComponent(AudioPreviewTee.systemFileName),
+                timeline: audioTimeline)
             meeting.hasSystemTrack = true
             systemAudioTarget = SystemAudioTarget(bundleID: captureApp.bundleID, pid: pid)
             systemAudioTapLedger.attached(to: pid, audibleDuration: 0)
@@ -769,11 +789,13 @@ final class RecordingController: ObservableObject {
         microphoneAudioClock?.invalidate()
         speakerAudioClock = nil
         microphoneAudioClock = nil
+        audioTimeline = nil
         systemRecorder.speakerAudioClock = nil
         micRecorder.speakerAudioClock = nil
     }
 
     private func cleanupCancelledStart(created: Meeting?) {
+        detectorSessionID = nil
         speakerObserver?.stop()
         pendingSystemAudioCaptureTask?.cancel()
         pendingSystemAudioCaptureTask = nil

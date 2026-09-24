@@ -4,6 +4,56 @@ import XCTest
 @testable import LokalBot
 
 final class AppIdentifiersTests: XCTestCase {
+    func testDevelopmentAndUITestHostsHaveSeparateLibraryAndSecretIdentities() {
+        let parent = URL(fileURLWithPath: "/synthetic/Application Support", isDirectory: true)
+        let release = AppDirectories.applicationSupport(for: .release, under: parent)
+        let development = AppDirectories.applicationSupport(for: .development, under: parent)
+        let uiTestHost = AppDirectories.applicationSupport(for: .uiTestHost, under: parent)
+
+        XCTAssertEqual(release.lastPathComponent, "me.dotenv.LokalBot")
+        XCTAssertEqual(development.lastPathComponent, "me.dotenv.LokalBot.dev")
+        XCTAssertEqual(uiTestHost.lastPathComponent, "me.dotenv.LokalBot.uitesthost")
+        XCTAssertEqual(Set([release, development, uiTestHost]).count, 3)
+        XCTAssertNotEqual(AppIdentifiers.Identity.release.bundleID, AppIdentifiers.Identity.development.bundleID,
+                          "KeychainSecrets must select the same isolated identity as library storage")
+        XCTAssertEqual(AppDirectories.resolveLibraryRoot(applicationSupport: development, storageOverride: nil), development)
+        XCTAssertNotEqual(AppDirectories.agentWorkspace(forLibraryRoot: release),
+                          AppDirectories.agentWorkspace(forLibraryRoot: development))
+    }
+
+    func testExplicitFixtureRootWinsAndAgentWorkspaceIsASibling() {
+        let support = URL(fileURLWithPath: "/synthetic/Application Support/me.dotenv.LokalBot.dev", isDirectory: true)
+        let fixture = URL(fileURLWithPath: "/synthetic/fixtures/library", isDirectory: true)
+        let resolved = AppDirectories.resolveLibraryRoot(applicationSupport: support, storageOverride: fixture.path)
+        XCTAssertEqual(resolved, fixture)
+        let workspace = AppDirectories.agentWorkspace(forLibraryRoot: resolved)
+        XCTAssertEqual(workspace, fixture.deletingLastPathComponent()
+            .appendingPathComponent("library.agent-workspace", isDirectory: true))
+        XCTAssertFalse(workspace.path.hasPrefix(fixture.path + "/"))
+        XCTAssertNotEqual(workspace, fixture)
+        XCTAssertEqual(AppDirectories.resolveLibraryRoot(applicationSupport: support, storageOverride: ""), support)
+    }
+
+    func testEmbeddedHelperAndInstalledSymlinkUseEnclosingDevIdentity() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = root.appendingPathComponent("LokalBot Dev.app", isDirectory: true)
+        let contents = app.appendingPathComponent("Contents", isDirectory: true)
+        let helper = contents.appendingPathComponent("Helpers/lokalbot-cli")
+        try FileManager.default.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let plist: [String: Any] = ["CFBundleIdentifier": "me.dotenv.LokalBot.dev", "CFBundlePackageType": "APPL"]
+        try PropertyListSerialization.data(fromPropertyList: plist, format: .xml, options: 0)
+            .write(to: contents.appendingPathComponent("Info.plist"))
+        try Data().write(to: helper)
+        let symlink = root.appendingPathComponent("lokalbot-cli")
+        try FileManager.default.createSymbolicLink(at: symlink, withDestinationURL: helper)
+
+        XCTAssertEqual(AppIdentifiers.identity(forExecutable: helper, bundleIdentifier: "me.dotenv.lokalbot-cli"), .development)
+        XCTAssertEqual(AppIdentifiers.identity(forExecutable: symlink, bundleIdentifier: nil), .development)
+        XCTAssertEqual(AppIdentifiers.identity(forExecutable: nil, bundleIdentifier: nil), .release)
+        XCTAssertEqual(AppIdentifiers.identity(forExecutable: nil, bundleIdentifier: "me.dotenv.LokalBot.uitesthost"), .uiTestHost)
+    }
+
     private final class FakeEncryptionKeyStore {
         var readStatuses: [OSStatus]
         var storedData: Data?

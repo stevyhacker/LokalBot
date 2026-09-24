@@ -249,12 +249,7 @@ enum OpenAIStrictSchemaValidator {
 }
 
 /// Generation can legitimately take minutes for a long meeting on a laptop.
-private let llmSession: URLSession = {
-    let config = URLSessionConfiguration.ephemeral
-    config.timeoutIntervalForRequest = 600
-    config.timeoutIntervalForResource = 900
-    return URLSession(configuration: config)
-}()
+private let llmSession = InferenceURLSession.make(requestTimeout: 600, resourceTimeout: 900)
 
 /// Strips `<think>…</think>` reasoning blocks that models like Qwen 3 and
 /// DeepSeek R1 emit before the actual answer.
@@ -287,12 +282,7 @@ struct CompletionRequest: Sendable {
 /// Cotyping must feel instant, so completions use a short timeout rather than
 /// `generate`'s minutes-long budget. Swift `Task` cancellation (the coordinator
 /// supersedes stale keystrokes) surfaces here as `URLError.cancelled`.
-private let completionSession: URLSession = {
-    let config = URLSessionConfiguration.ephemeral
-    config.timeoutIntervalForRequest = 12
-    config.timeoutIntervalForResource = 15
-    return URLSession(configuration: config)
-}()
+private let completionSession = InferenceURLSession.make(requestTimeout: 12, resourceTimeout: 15)
 
 func cotypingCompletionSend(_ request: URLRequest, base: URL) async throws -> (Data, URLResponse) {
     do {

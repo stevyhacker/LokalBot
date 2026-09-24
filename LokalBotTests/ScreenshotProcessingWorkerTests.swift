@@ -105,6 +105,172 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(store.ocrText(snapshotID: savedID), "saved private text")
     }
 
+    func testAutomaticRetentionRevokesExactEvidenceBeforeDeletingAndFailsClosed() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RetentionRevocationTests-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let store = ActivityStore(databaseURL: root.appendingPathComponent("activity.sqlite"))
+        let sampler = ActivitySampler(store: store, notificationCenter: NotificationCenter())
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let expired = now.addingTimeInterval(-2 * 86_400)
+        var settings = AppSettings()
+        settings.retentionDays = 1
+        settings.keepOCRTextForever = false
+        let service = ScreenshotService(store: store, storage: storage, sampler: sampler,
+                                        now: { now }, settings: { settings })
+        let pixels = root.appendingPathComponent("expired.heic.enc")
+        try Data("fixture pixels".utf8).write(to: pixels)
+        let expiredID = try store.insertScreenshot(
+            ts: expired, path: pixels.path, app: "Notes", ocr: "expired evidence")
+        let savedID = try store.insertScreenshot(
+            ts: expired.addingTimeInterval(-86_400), path: "", app: "Notes", ocr: "saved evidence")
+        try store.saveMoment(snapshotID: savedID)
+        var callbacks = 0
+        service.mutateEvidence = { dates, _ in
+            callbacks += 1
+            XCTAssertEqual(dates, [expired])
+            throw CocoaError(.fileWriteNoPermission)
+        }
+
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded())
+        XCTAssertEqual(callbacks, 1)
+        XCTAssertNotNil(service.lastRetentionError)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: pixels.path))
+        XCTAssertEqual(store.ocrText(snapshotID: expiredID), "expired evidence")
+
+        var lateID: Int64 = 0
+        service.mutateEvidence = { dates, mutation in
+            callbacks += 1
+            XCTAssertEqual(dates, [expired])
+            XCTAssertTrue(FileManager.default.fileExists(atPath: pixels.path))
+            XCTAssertEqual(store.ocrText(snapshotID: expiredID), "expired evidence")
+            // Data discovered after the revocation scope was established must
+            // wait for its own reviewed pass, not a broader cutoff deletion.
+            lateID = try store.insertScreenshot(
+                ts: expired.addingTimeInterval(-3 * 86_400), path: "",
+                app: "Notes", ocr: "later discovered evidence")
+            try mutation()
+        }
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded(force: true))
+        XCTAssertEqual(callbacks, 2)
+        XCTAssertNil(service.lastRetentionError)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: pixels.path))
+        XCTAssertNil(store.ocrText(snapshotID: expiredID))
+        XCTAssertEqual(store.ocrText(snapshotID: savedID), "saved evidence")
+        XCTAssertEqual(store.ocrText(snapshotID: lateID), "later discovered evidence")
+    }
+
+    func testAutomaticRetentionDoesNotDeleteWhenEvidenceScopeCannotBeRead() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RetentionScopeFailureTests-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let databaseURL = root.appendingPathComponent("activity.sqlite")
+        let store = ActivityStore(databaseURL: databaseURL)
+        let sampler = ActivitySampler(store: store, notificationCenter: NotificationCenter())
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let pixels = root.appendingPathComponent("expired.heic.enc")
+        try Data("fixture pixels".utf8).write(to: pixels)
+        let id = try store.insertScreenshot(
+            ts: now.addingTimeInterval(-30 * 86_400), path: pixels.path,
+            app: "Notes", ocr: "must remain")
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        try database.execute("DROP TABLE ocr_metadata")
+        let service = ScreenshotService(store: store, storage: storage, sampler: sampler,
+                                        now: { now }, settings: { AppSettings() })
+        service.mutateEvidence = { _, _ in XCTFail("A failed scope read must stop before revocation") }
+
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded())
+        XCTAssertNotNil(service.lastRetentionError)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: pixels.path))
+        try OCRMetadataIndex.migrate(database)
+        XCTAssertEqual(store.ocrText(snapshotID: id), "must remain")
+    }
+
+    func testAutomaticRetentionRevokesAndExpiresOrphanTextUnlessKeptForever() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OrphanRetentionTests-\(UUID())", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let databaseURL = root.appendingPathComponent("activity.sqlite")
+        let store = ActivityStore(databaseURL: databaseURL)
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        let sampler = ActivitySampler(store: store, notificationCenter: NotificationCenter())
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let old = now.addingTimeInterval(-2 * 86_400)
+        let vectorDay = old.addingTimeInterval(-86_400)
+        for (rowID, snapshotID, date) in [(501, 0, old), (502, 9_001, old), (503, 9_002, now)] {
+            try database.runChecked("""
+                INSERT INTO ocr_fts (rowid, text, window_title, ts, app, text_source, snapshot_id)
+                VALUES (?1, 'orphan fixture', '', ?2, 'Notes', 'ocr', ?3)
+                """, bind: [rowID, date.timeIntervalSince1970, snapshotID])
+            try database.runChecked("INSERT INTO ocr_metadata (rowid, snapshot_id, ts) VALUES (?1, ?2, ?3)",
+                                    bind: [rowID, snapshotID, date.timeIntervalSince1970])
+        }
+        try database.runChecked("""
+            INSERT INTO ocr_fts (rowid, text, window_title, ts, app, text_source, snapshot_id)
+            VALUES (505, 'legacy missing identity', '', ?1, 'Notes', 'ocr', NULL)
+            """, bind: [old.timeIntervalSince1970])
+        try database.runChecked("INSERT INTO ocr_metadata (rowid, snapshot_id, ts) VALUES (505, 0, ?1)",
+                                bind: [old.timeIntervalSince1970])
+        try database.execute("""
+            CREATE TABLE screen_embeddings (
+                snapshot_id INTEGER PRIMARY KEY, ts REAL NOT NULL,
+                app TEXT NOT NULL, text TEXT NOT NULL, vec BLOB NOT NULL,
+                model_id TEXT NOT NULL DEFAULT '');
+            """)
+        for (snapshotID, date) in [(9_001, old), (9_002, now), (9_003, vectorDay)] {
+            try database.runChecked("""
+                INSERT INTO screen_embeddings (snapshot_id, ts, app, text, vec)
+                VALUES (?1, ?2, 'Notes', 'orphan vector', ?3)
+                """, bind: [snapshotID, date.timeIntervalSince1970, Data([0])])
+        }
+        var settings = AppSettings()
+        settings.retentionDays = 1
+        settings.keepOCRTextForever = true
+        let service = ScreenshotService(store: store, storage: storage, sampler: sampler,
+                                        now: { now }, settings: { settings })
+        service.mutateEvidence = { _, _ in XCTFail("Keeping text forever must preserve orphan evidence too") }
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded())
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 501"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9003"))
+
+        settings.keepOCRTextForever = false
+        service.mutateEvidence = { dates, _ in
+            XCTAssertEqual(dates, [vectorDay, old])
+            throw CocoaError(.fileWriteNoPermission)
+        }
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded(force: true))
+        XCTAssertNotNil(service.lastRetentionError)
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 501"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9003"))
+
+        var revoked = false
+        service.mutateEvidence = { dates, mutation in
+            XCTAssertEqual(dates, [vectorDay, old])
+            XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 501"))
+            XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9003"))
+            // Even expired orphan rows added after review require their own
+            // revocation scope and cannot be swept into this mutation.
+            try database.runChecked("""
+                INSERT INTO ocr_fts (rowid, text, window_title, ts, app, text_source, snapshot_id)
+                VALUES (504, 'late orphan', '', ?1, 'Notes', 'ocr', 0)
+                """, bind: [old.addingTimeInterval(-2 * 86_400).timeIntervalSince1970])
+            revoked = true
+            try mutation()
+        }
+        XCTAssertTrue(service.runRetentionMaintenanceIfNeeded(force: true))
+        XCTAssertTrue(revoked)
+        XCTAssertNil(service.lastRetentionError)
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid IN (501, 502, 505)"))
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM ocr_metadata WHERE rowid IN (501, 502, 505)"))
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id IN (9001, 9003)"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 503"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 504"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9002"))
+    }
+
     func testAutomaticDedupSkipsWorkButManualCaptureStillStoresEncryptedImage() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ScreenshotProcessingWorkerTests-\(UUID().uuidString)",

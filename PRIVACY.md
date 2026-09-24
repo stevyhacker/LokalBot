@@ -33,6 +33,17 @@ it. Saved moments remain until you unsave or delete them. Dictation scratch
 audio is deleted after transcription by default. You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
+Development and UI-test builds use separate default libraries and Keychain
+namespaces from the release app. Their retention settings do not apply to the
+release library. An explicit storage-root override still selects that folder.
+
+Dream reports and durable work memory record their source dependencies.
+Deleting or correcting those sources retracts dependent facts, including pinned
+entries. Older memory without source attribution is conservatively retracted
+when evidence changes. If cleanup fails, a durable revocation record blocks
+that memory from further use until cleanup succeeds. Exported copies remain
+where you saved them.
+
 Browser meeting detection checks the Meet document URL and call controls through Accessibility. These transient lifecycle checks do not retain page text, participant names, or pixels. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
 **Meeting speaker identification** is a separate, off-by-default setting. It
@@ -94,7 +105,10 @@ The app may make these outbound connections:
 - **Optional remote inference:** an Ollama or OpenAI-compatible URL that you
   configure. Loopback URLs stay on your Mac. Before a non-loopback server can
   receive meeting, workday, or agent context, LokalBot requires approval for
-  that exact origin. The operator of that server controls its privacy terms.
+  that exact origin. Native inference requests may redirect only within that
+  origin; Agent inference rejects redirects entirely. Configure the final
+  endpoint URL when a server redirects. The operator of that server controls
+  its privacy terms.
 - **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
@@ -105,6 +119,12 @@ The app may make these outbound connections:
   retained in its local conversation history. Drafts, queued messages, and
   attachment references are also saved locally. Archiving preserves this data;
   **Clear saved Agent history** deletes conversations and task metadata.
+  New tasks default to a working folder outside the private library. Raw reads
+  of protected library/runtime files enter the tool-approval flow even when
+  a broader parent folder is selected; the selected approval mode still applies.
+  Existing tasks rooted inside the private
+  library remain readable but cannot run. Shell commands whose complete text
+  cannot be reviewed are rejected.
 
 Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not
@@ -155,6 +175,12 @@ and routine outputs are ordinary unencrypted Markdown files written only to
 folders you choose and remain there until you remove them. Routines have fixed
 local read scopes and cannot run scripts, contact services, send messages, or
 modify source meetings.
+
+Visual capture includes only the focused window checked through Accessibility;
+background and child windows are excluded. If the focused window or its privacy
+state cannot be established, text and pixels are skipped. Activity-only tracking
+uses the same exclusions and records denied or unknown samples as anonymous
+“Private” duration blocks.
 
 ## Security and changes
 

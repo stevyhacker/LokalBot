@@ -23,6 +23,14 @@ struct AgentApprovalRequest: Equatable, Identifiable {
     let summary: String?
     let isTruncated: Bool
 
+    /// Also enforced in the extension before an approval is requested. Keep
+    /// the host fail-closed for old, malformed, or locally bounded payloads.
+    var canApprove: Bool {
+        guard ["bash", "shell"].contains(tool.lowercased()) else { return true }
+        guard let command, !command.isEmpty else { return false }
+        return !isTruncated && command.utf16.count <= 64 * 1_024
+    }
+
     var hasStructuredDetails: Bool {
         workspace != nil || path != nil || command != nil || content != nil || !edits.isEmpty
     }

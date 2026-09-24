@@ -44,6 +44,7 @@ final class ThinkExecution {
 
     func makeTextEngine(
         _ settings: AppSettings,
+        includingCredentials: Bool = true,
         server: LlamaServer = .shared,
         priority: InferencePriority = .background,
         purpose: String = "summary",
@@ -53,7 +54,7 @@ final class ThinkExecution {
         case .builtIn:
             let entry = try builtInEntry(settings)
             let modelURL = try await prepareBuiltInModel(settings)
-            let authenticationToken = await server.authenticationToken()
+            let authenticationToken = includingCredentials ? await server.authenticationToken() : nil
             let engine = OpenAICompatibleEngine(
                 baseURL: server.baseURL,
                 model: entry.id,
@@ -104,7 +105,7 @@ final class ThinkExecution {
             return OpenAICompatibleEngine(
                 baseURL: url,
                 model: settings.openAIModel,
-                apiKey: settings.openAIAPIKey,
+                apiKey: includingCredentials ? settings.openAIAPIKey : nil,
                 chatDialect: .inferred(from: url),
                 openRouterDataPolicy: settings.openRouterDataPolicy)
         }
@@ -142,10 +143,11 @@ final class ThinkExecution {
     /// encrypted-transport policy as the rest of the Think role.
     func prepareAgentConnection(
         settings: AppSettings,
+        includingCredentials: Bool = true,
         broker: InferenceBroker = .shared,
         server: LlamaServer = .shared
     ) async throws -> AgentLLMConnection {
-        switch Self.agentResolution(settings: settings) {
+        switch Self.agentResolution(settings: settings, includingCredentials: includingCredentials) {
         case .ready(let endpoint):
             return AgentLLMConnection(endpoint: endpoint, lease: nil)
 
@@ -164,7 +166,7 @@ final class ThinkExecution {
                 model: modelURL,
                 priority: .interactive,
                 purpose: "agent session")
-            let authenticationToken = await server.authenticationToken()
+            let authenticationToken = includingCredentials ? await server.authenticationToken() : nil
             let endpoint = AgentLLMEndpoint(
                 baseURL: server.baseURL,
                 model: entry.id,

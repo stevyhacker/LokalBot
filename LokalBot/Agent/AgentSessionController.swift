@@ -95,6 +95,7 @@ final class AgentSessionController: ObservableObject {
     private let storage: StorageManager
     private let runtimeRoot: URL
     private let sessionsDirectory: URL
+    private let defaultWorkspace: URL
     private let broker: InferenceBroker
     private let thinkExecution: ThinkExecution
     private let makeTransport: ((PiLaunchPlan) async throws -> PiLineTransport)?
@@ -128,6 +129,7 @@ final class AgentSessionController: ObservableObject {
          storage: StorageManager,
          runtimeRoot: URL = AgentRuntimeLayout.defaultRoot,
          sessionsDirectory: URL = AgentRuntimeLayout.sessionsDirectory,
+         defaultWorkspace: URL? = nil,
          broker: InferenceBroker = .shared,
          thinkExecution: ThinkExecution? = nil,
          accessGate: AgentAccessGate? = nil,
@@ -140,6 +142,7 @@ final class AgentSessionController: ObservableObject {
         self.storage = storage
         self.runtimeRoot = runtimeRoot
         self.sessionsDirectory = sessionsDirectory
+        self.defaultWorkspace = defaultWorkspace ?? AppDirectories.agentWorkspace(forLibraryRoot: storage.rootURL)
         self.broker = broker
         self.thinkExecution = thinkExecution ?? ThinkExecution(storage: storage)
         self.accessGate = accessGate ?? AgentAccessGate(root: storage.rootURL)
@@ -147,7 +150,7 @@ final class AgentSessionController: ObservableObject {
         self.approvalModeDefaults = defaults
         self.approvalMode = restoredMode
         self.policy = AgentApprovalPolicy(mode: restoredMode)
-        self.workspace = storage.rootURL
+        self.workspace = self.defaultWorkspace
     }
 
     private static var defaultApprovalModeDefaults: UserDefaults {
@@ -163,6 +166,10 @@ final class AgentSessionController: ObservableObject {
     func start() async {
         guard !failureTeardownInProgress,
               state == .idle || isFailed else { return }
+        do { try prepareWorkspace() } catch {
+            composerError = error.localizedDescription
+            return
+        }
         let configuration = settings()
         modelContext = ModelContext(settings: configuration)
 #if LOKALBOT_UI_TEST_HOST
@@ -545,6 +552,7 @@ final class AgentSessionController: ObservableObject {
     func respondToApproval(id: String, approved: Bool, scope: ApprovalScope) async {
         guard let client else { return }
         guard let request = pendingApprovalRequest(requestID: id) else { return }
+        let approved = approved && request.canApprove
         if approved, scope == .session {
             policy.allowForSession(
                 tool: request.tool,
@@ -627,6 +635,11 @@ final class AgentSessionController: ObservableObject {
             return
         }
         let approval = Self.parseApprovalPayload(request)
+        guard approval.canApprove else {
+            folder.appendNotice("The shell command could not be reviewed in full and was declined. Nothing ran.", isError: true)
+            try? await client.sendResponse(.uiConfirmResponse(requestID: request.id, confirmed: false))
+            return
+        }
         switch policy.verdict(
             tool: approval.tool,
             path: approval.path,
@@ -664,6 +677,9 @@ final class AgentSessionController: ObservableObject {
         releaseLLMLease()
         let connection = try await thinkExecution.prepareAgentConnection(
             settings: configuration,
+            // Injected transports never contact the configured service and
+            // must not prompt for real Keychain or local-server credentials.
+            includingCredentials: makeTransport == nil,
             broker: broker)
         llmLease = connection.lease
         return connection.endpoint
@@ -687,6 +703,7 @@ final class AgentSessionController: ObservableObject {
             workspace: workspace,
             endpoint: endpoint,
             helpersDirectory: FileManager.default.fileExists(atPath: helpers.path) ? helpers : nil,
+            privateRoots: privateWorkspaceRoots,
             agentAccessCapability: capabilityToken,
             continuePreviousSession: launchMode.isContinueRecent,
             specificSession: launchMode.specificSession)
@@ -799,7 +816,7 @@ final class AgentSessionController: ObservableObject {
     }
 
     func canAllowForSession(_ request: AgentApprovalRequest) -> Bool {
-        AgentApprovalPolicy.canPersistApproval(
+        request.canApprove && AgentApprovalPolicy.canPersistApproval(
             tool: request.tool,
             path: request.path,
             requestWorkspace: request.workspace,
@@ -911,8 +928,11 @@ final class AgentSessionController: ObservableObject {
     }
 
     func workspaceDisplayName(for workspace: URL) -> String {
-        if workspace.standardizedFileURL == storage.rootURL.standardizedFileURL {
-            return "Meeting Library"
+        if AgentWorkspacePolicy(privateRoots: privateWorkspaceRoots).containsPrivateWorkspace(workspace) {
+            return "Private Library · read-only"
+        }
+        if workspace.standardizedFileURL == defaultWorkspace.standardizedFileURL {
+            return "Agent Workspace"
         }
         return workspace.lastPathComponent.isEmpty ? workspace.path : workspace.lastPathComponent
     }
@@ -933,10 +953,50 @@ final class AgentSessionController: ObservableObject {
     }
 
     var canResumePreviousSession: Bool {
-        Self.hasResumableSession(in: sessionsDirectory, workspace: workspace)
+        workspaceAccessNotice == nil && Self.hasResumableSession(in: sessionsDirectory, workspace: workspace)
     }
 
     var sessionStorageDirectory: URL { sessionsDirectory }
+
+    private var privateWorkspaceRoots: [URL] {
+        [storage.rootURL, AppDirectories.applicationSupport, sessionsDirectory, runtimeRoot]
+    }
+
+    var workspaceAccessNotice: String? { workspaceAccessNotice(for: workspace) }
+
+    func workspaceAccessNotice(for proposed: URL) -> String? {
+        AgentWorkspacePolicy(privateRoots: privateWorkspaceRoots).containsPrivateWorkspace(proposed)
+            ? AgentWorkspacePolicy.privateWorkspaceNotice : nil
+    }
+
+    /// Used before model loading or capability issuance, including resumed
+    /// sessions and headless entry points. Never migrate an old cwd silently.
+    func prepareWorkspace() throws {
+        if let notice = workspaceAccessNotice {
+            throw WorkspaceError.unavailable(notice)
+        }
+        if workspace.standardizedFileURL == defaultWorkspace.standardizedFileURL {
+            try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true,
+                                                    attributes: [.posixPermissions: 0o700])
+        }
+        guard workspaceAccessNotice == nil else {
+            throw WorkspaceError.unavailable(AgentWorkspacePolicy.privateWorkspaceNotice)
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: workspace.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw WorkspaceError.unavailable("The task’s working folder no longer exists. Choose a new folder before sending.")
+        }
+    }
+
+    private enum WorkspaceError: LocalizedError {
+        case unavailable(String)
+        var errorDescription: String? {
+            switch self {
+            case .unavailable(let message): message
+            }
+        }
+    }
 
     static func hasResumableSession(in directory: URL, workspace: URL) -> Bool {
         guard let files = try? FileManager.default.contentsOfDirectory(

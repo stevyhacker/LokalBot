@@ -226,10 +226,8 @@ final class AgentSessionTabs: ObservableObject {
                 do { try await tab.controller.loadSavedPreview(saved) } catch { self.error = error.localizedDescription; return false }
             }
         }
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: tab.controller.workspace.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else {
-            error = AgentSavedSessionOpenError.missingWorkspace.localizedDescription
+        do { try tab.controller.prepareWorkspace() } catch {
+            self.error = error.localizedDescription
             return false
         }
         guard tabs.contains(where: { $0.id == id }), !Task.isCancelled else { return false }

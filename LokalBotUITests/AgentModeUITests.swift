@@ -96,6 +96,34 @@ final class AgentModeUITests: XCTestCase {
         snapshot("agent-attached-context")
     }
 
+    func testLegacyPrivateLibraryTaskKeepsHistoryAndDraftWithoutStartingRuntime() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        let directory = fixture.root.appendingPathComponent("agent/sessions")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let records: [[String: Any]] = [
+            ["type": "session", "version": 3, "id": "private-root", "cwd": fixture.root.path],
+            ["type": "message", "id": "question", "message": ["role": "user", "content": "Legacy private library task"]],
+            ["type": "message", "id": "answer", "parentId": "question",
+             "message": ["role": "assistant", "content": "Saved history stays readable."]],
+        ]
+        let lines = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
+        try Data((lines.joined(separator: "\n") + "\n").utf8)
+            .write(to: directory.appendingPathComponent("private-root.jsonl"))
+        try launch(approval: true)
+        let search = app.textFields["agent.taskSearch"]
+        search.click(); search.typeText("Legacy private library task")
+        XCTAssertTrue(taskRow.waitForExistence(timeout: 4)); taskRow.click()
+        XCTAssertTrue(app.descendants(matching: .any)["agent.assistant"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.descendants(matching: .any)["agent.workspaceNotice"].exists)
+        composer.click(); composer.typeText("Keep this draft")
+        app.buttons["agent.send"].click()
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (try? self.taskRecords().contains { $0["draft"] as? String == "Keep this draft" }) == true
+        })
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+        snapshot("agent-private-library-task")
+    }
+
     func testFindAndResultsKeyboardCommands() throws {
         app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         try launch(approval: true)

@@ -60,7 +60,7 @@ final class AgentLLMEndpointTests: XCTestCase {
         var s = settings(.openAICompatible)
         s.openAIBaseURL = "http://localhost:1234/v1"
         s.openAIModel = "my-model"
-        guard case .ready(let endpoint) = ThinkExecution.agentResolution(settings: s) else {
+        guard case .ready(let endpoint) = ThinkExecution.agentResolution(settings: s, includingCredentials: false) else {
             return XCTFail("expected ready OpenAI-compatible endpoint")
         }
         XCTAssertEqual(endpoint.baseURL.absoluteString, "http://localhost:1234/v1")
@@ -92,7 +92,7 @@ final class AgentLLMEndpointTests: XCTestCase {
         s.openAIModel = "private-model"
         s.approvedRemoteInferenceOrigins = ["https://inference.example.com"]
 
-        guard case .ready(let endpoint) = ThinkExecution.agentResolution(settings: s) else {
+        guard case .ready(let endpoint) = ThinkExecution.agentResolution(settings: s, includingCredentials: false) else {
             return XCTFail("expected approved remote endpoint")
         }
         XCTAssertEqual(endpoint.baseURL.absoluteString, "https://inference.example.com/v1")

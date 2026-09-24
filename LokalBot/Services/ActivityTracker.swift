@@ -532,32 +532,16 @@ final class ActivityStore {
                                PARTITION BY deduplication_key
                                ORDER BY match_rank, captured_at DESC, snapshot_id
                            ) AS evidence_rank,
-                           FIRST_VALUE(snapshot_id) OVER (
-                               PARTITION BY deduplication_key
-                               ORDER BY captured_at DESC, snapshot_id DESC
-                           ) AS latest_snapshot_id,
-                           FIRST_VALUE(captured_at) OVER (
-                               PARTITION BY deduplication_key
-                               ORDER BY captured_at DESC, snapshot_id DESC
-                           ) AS latest_captured_at,
-                           FIRST_VALUE(app) OVER (
-                               PARTITION BY deduplication_key
-                               ORDER BY captured_at DESC, snapshot_id DESC
-                           ) AS latest_app,
-                           FIRST_VALUE(window_title) OVER (
-                               PARTITION BY deduplication_key
-                               ORDER BY captured_at DESC, snapshot_id DESC
-                           ) AS latest_window_title,
                            COUNT(*) OVER (
                                PARTITION BY deduplication_key
                            ) AS capture_count
                     FROM candidates
                 )
-                SELECT \(groupResults ? "latest_snapshot_id, latest_captured_at, latest_app, latest_window_title" : "snapshot_id, captured_at, app, window_title"),
-                       snippet_text, similarity_group_id, \(groupResults ? "capture_count" : "1")
+                SELECT snapshot_id, captured_at, app, window_title,
+                       snippet_text, similarity_group_id, capture_count
                 FROM grouped
-                WHERE \(groupResults ? "evidence_rank = 1" : "1 = 1")
-                ORDER BY match_rank, latest_captured_at DESC, latest_snapshot_id
+                WHERE evidence_rank = 1
+                ORDER BY match_rank, captured_at DESC, snapshot_id
                 LIMIT \(limit)
                 """, bind: bindings) { statement in
                 OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
@@ -802,6 +786,91 @@ final class ActivityStore {
                 }
             }
             try OCRMetadataIndex.removeDeletedRows(database)
+        }
+        NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
+    }
+
+    /// Legacy OCR can have snapshot_id = 0, or point at a screenshot row that
+    /// no longer exists. Its own timestamp still establishes the evidence day.
+    /// Keep exact row identities so revocation never authorizes a broad cutoff.
+    struct OrphanedScreenEvidence {
+        struct TextRow {
+            let rowID: Int64
+            let snapshotID: Int64
+            let timestampSeconds: TimeInterval
+            var timestamp: Date { Date(timeIntervalSince1970: timestampSeconds) }
+        }
+        struct VectorRow {
+            let snapshotID: Int64
+            let timestampSeconds: TimeInterval
+            var timestamp: Date { Date(timeIntervalSince1970: timestampSeconds) }
+        }
+        var text: [TextRow] = []
+        var vectors: [VectorRow] = []
+        var timestamps: [Date] { text.map(\.timestamp) + vectors.map(\.timestamp) }
+        var isEmpty: Bool { text.isEmpty && vectors.isEmpty }
+    }
+
+    func orphanedScreenEvidence(olderThan cutoff: Date) throws -> OrphanedScreenEvidence {
+        let database = try requiredDatabase()
+        let text: [OrphanedScreenEvidence.TextRow] = try database.queryChecked("""
+            SELECT rowid, COALESCE(CAST(snapshot_id AS INTEGER), 0), CAST(ts AS REAL)
+            FROM ocr_fts AS ocr
+            WHERE CAST(ocr.ts AS REAL) < ?1
+              AND NOT EXISTS (SELECT 1 FROM screenshots WHERE id = CAST(ocr.snapshot_id AS INTEGER))
+              AND NOT EXISTS (SELECT 1 FROM screen_bookmarks WHERE snapshot_id = CAST(ocr.snapshot_id AS INTEGER))
+            ORDER BY CAST(ts AS REAL), rowid
+            """, bind: [cutoff.timeIntervalSince1970]) { statement in
+                .init(rowID: sqlite3_column_int64(statement, 0),
+                      snapshotID: sqlite3_column_int64(statement, 1),
+                      timestampSeconds: sqlite3_column_double(statement, 2))
+            }
+        var vectors: [OrphanedScreenEvidence.VectorRow] = []
+        if try database.hasRowChecked("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_embeddings'") {
+            vectors = try database.queryChecked("""
+                SELECT snapshot_id, ts FROM screen_embeddings AS vector
+                WHERE ts < ?1
+                  AND NOT EXISTS (SELECT 1 FROM screenshots WHERE id = vector.snapshot_id)
+                  AND NOT EXISTS (SELECT 1 FROM screen_bookmarks WHERE snapshot_id = vector.snapshot_id)
+                ORDER BY ts, snapshot_id
+                """, bind: [cutoff.timeIntervalSince1970]) { statement in
+                    .init(snapshotID: sqlite3_column_int64(statement, 0),
+                          timestampSeconds: sqlite3_column_double(statement, 1))
+                }
+        }
+        let review = OrphanedScreenEvidence(text: text, vectors: vectors)
+        guard review.timestamps.allSatisfy({ $0.timeIntervalSince1970.isFinite }) else {
+            throw SQLiteDatabase.DatabaseError.step(
+                sql: nil, code: SQLITE_CORRUPT, message: "Retained orphan evidence has an invalid timestamp")
+        }
+        return review
+    }
+
+    func clearOrphanedScreenEvidence(_ review: OrphanedScreenEvidence) throws {
+        guard !review.isEmpty else { return }
+        let database = try requiredDatabase()
+        try database.withTransaction {
+            for row in review.text {
+                // Backfill, new screenshots and new bookmarks can make a
+                // reviewed orphan live again. Recheck before deleting it.
+                let stillOrphan = try database.hasRowChecked("""
+                    SELECT 1 FROM ocr_fts AS ocr
+                    WHERE rowid = ?1 AND COALESCE(CAST(snapshot_id AS INTEGER), 0) = ?2 AND CAST(ts AS REAL) = ?3
+                      AND NOT EXISTS (SELECT 1 FROM screenshots WHERE id = CAST(ocr.snapshot_id AS INTEGER))
+                      AND NOT EXISTS (SELECT 1 FROM screen_bookmarks WHERE snapshot_id = CAST(ocr.snapshot_id AS INTEGER))
+                    """, bind: [row.rowID, row.snapshotID, row.timestampSeconds])
+                guard stillOrphan else { continue }
+                try database.runChecked("DELETE FROM ocr_fts WHERE rowid = ?1", bind: [row.rowID])
+                try database.runChecked("DELETE FROM ocr_metadata WHERE rowid = ?1", bind: [row.rowID])
+            }
+            for row in review.vectors {
+                try database.runChecked("""
+                    DELETE FROM screen_embeddings
+                    WHERE snapshot_id = ?1 AND ts = ?2
+                      AND NOT EXISTS (SELECT 1 FROM screenshots WHERE id = screen_embeddings.snapshot_id)
+                      AND NOT EXISTS (SELECT 1 FROM screen_bookmarks WHERE snapshot_id = screen_embeddings.snapshot_id)
+                    """, bind: [row.snapshotID, row.timestampSeconds])
+            }
         }
         NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
@@ -1116,15 +1185,20 @@ final class FocusedWindowTitleLookup: @unchecked Sendable {
 final class ActivitySampler: ObservableObject {
 
     @Published var isPaused = false {
-        didSet { if isPaused { closeCurrentBlock() } }
+        didSet {
+            samplingGeneration &+= 1
+            if isPaused { closeCurrentBlock() }
+        }
     }
     @Published private(set) var currentApp: String?
     @Published private(set) var lastSampleAt: Date?
 
     private let store: ActivityStore
-    private let windowTitleLookup: FocusedWindowTitleLookup
+    private let accessibilityReader: ScreenAccessibilityReader
     /// Injected by AppState; apps matching these are logged as "Private".
     var excludedApps: () -> [String] = { [] }
+    var excludedDomains: () -> [String] = { [] }
+    var capturePrivateWindows: () -> Bool = { false }
     /// Event-driven capture hook: fired when the sampled (app, title) pair
     /// changes — i.e. at the same boundaries that close activity blocks.
     /// `appChanged` distinguishes an app switch from a window/tab change
@@ -1135,17 +1209,19 @@ final class ActivitySampler: ObservableObject {
     private var terminationObserver: NSObjectProtocol?
     private var current: (app: String, title: String, start: Date)?
     private var lastSeen = Date()
+    private var isSampling = false
+    private var samplingGeneration = 0
     private static let idleLimit: TimeInterval = 180
     private static let minBlock: TimeInterval = 5
 
     init(
         store: ActivityStore,
         notificationCenter: NotificationCenter = .default,
-        windowTitleLookup: FocusedWindowTitleLookup = .shared
+        accessibilityReader: ScreenAccessibilityReader = .metadataOnly
     ) {
         self.store = store
         self.notificationCenter = notificationCenter
-        self.windowTitleLookup = windowTitleLookup
+        self.accessibilityReader = accessibilityReader
     }
 
     var hasTerminationObserver: Bool { terminationObserver != nil }
@@ -1163,6 +1239,7 @@ final class ActivitySampler: ObservableObject {
     }
 
     func stop() {
+        samplingGeneration &+= 1
         timer?.invalidate()
         timer = nil
         if let terminationObserver {
@@ -1178,11 +1255,14 @@ final class ActivitySampler: ObservableObject {
         }
     }
 
-    /// Window titles need Accessibility; we degrade to app-name-only.
+    /// Window titles need Accessibility; unknown privacy state is anonymized.
     nonisolated static var hasAccessibility: Bool { AXIsProcessTrusted() }
 
     private func sample() async {
-        guard !isPaused else { return }
+        guard !isPaused, !isSampling else { return }
+        isSampling = true
+        let generation = samplingGeneration
+        defer { isSampling = false }
 
         // Idle: any input event type, session-wide.
         let idle = CGEventSource.secondsSinceLastEventType(
@@ -1194,36 +1274,45 @@ final class ActivitySampler: ObservableObject {
         lastSeen = Date()
 
         guard let frontmost = NSWorkspace.shared.frontmostApplication,
-              var appName = frontmost.localizedName else { return }
+              let appName = frontmost.localizedName else { return }
         let processID = frontmost.processIdentifier
         let isExcluded = ScreenshotCaptureLayout.isExcluded(
             appName: appName, excludedApps: excludedApps())
-        let titleResult = isExcluded
-            ? FocusedWindowTitleLookupResult(title: nil, timedOut: false)
-            : await windowTitleLookup.title(for: processID)
-        guard !titleResult.timedOut,
-              NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else { return }
-        lastSampleAt = Date()
-        currentApp = appName
-        var title = titleResult.title ?? ""
-        // Exclusion list (design §3.4): time still counts, content doesn't.
-        if isExcluded {
-            appName = "Private"
-            title = ""
-        } else {
-            // Window titles are part of screen-memory metadata and external
-            // timeline reads. Scrub recognizable credentials before the block
-            // ever reaches SQLite, even when richer context capture is off.
-            title = ScreenContextPrivacy.redact(title).text
+        let accessibility = isExcluded
+            ? ScreenAccessibilityCaptureResult(snapshot: nil, timedOut: false)
+            : await accessibilityReader.capture(processID: processID)
+        guard !isPaused, generation == samplingGeneration else { return }
+        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == processID else {
+            closeCurrentBlock()
+            return
         }
+        recordSample(appName: appName, bundleIdentifier: frontmost.bundleIdentifier,
+                     accessibility: accessibility)
+    }
+
+    /// Shared ingestion path for live samples and synthetic regression tests.
+    /// Exclusions and unknown AX state preserve duration without title or URL.
+    func recordSample(appName: String, bundleIdentifier: String?,
+                      accessibility: ScreenAccessibilityCaptureResult, at timestamp: Date = Date()) {
+        let observation = accessibility.snapshot?.privacyObservation(
+            appName: appName, bundleIdentifier: bundleIdentifier)
+        let allowed = !accessibility.timedOut && observation.map {
+            ScreenContextPrivacy.permitsContent(
+                $0, excludedApps: excludedApps(), excludedDomains: excludedDomains(),
+                capturePrivateWindows: capturePrivateWindows())
+        } == true
+        let storedApp = allowed ? appName : "Private"
+        let title = allowed ? ScreenContextPrivacy.redact(observation?.windowTitle ?? "").text : ""
+        lastSampleAt = timestamp
+        currentApp = storedApp
 
         if let current {
-            if current.app == appName && current.title == title { return }
-            let appChanged = current.app != appName
-            closeCurrentBlock()
-            onActivityBoundary?(appName, title, appChanged)
+            if current.app == storedApp && current.title == title { return }
+            let appChanged = current.app != storedApp
+            closeCurrentBlock(at: timestamp)
+            onActivityBoundary?(storedApp, title, appChanged)
         }
-        current = (appName, title, Date())
+        current = (storedApp, title, timestamp)
     }
 
     private func closeCurrentBlock(at end: Date = Date()) {

@@ -3,14 +3,47 @@ import Security
 import CryptoKit
 
 enum AppIdentifiers {
-    /// The host LokalBot app's bundle id, used to resolve its Application
-    /// Support directory and Keychain consistently from any binary that
-    /// belongs to the app (the app itself, the embedded `lokalbot-cli`, …).
-    /// Hard-coded so the CLI process — whose own bundle id differs from
-    /// the app's — still reads/writes the same paths.
+    /// The release identity is frozen for existing libraries and Keychain items.
     static let appBundleID = "me.dotenv.LokalBot"
 
-    static var bundleID: String { appBundleID }
+    enum Identity: String {
+        case release = "me.dotenv.LokalBot"
+        case development = "me.dotenv.LokalBot.dev"
+        case uiTestHost = "me.dotenv.LokalBot.uitesthost"
+
+        var bundleID: String { rawValue }
+    }
+
+    static var identity: Identity {
+#if LOKALBOT_UI_TEST_HOST
+        .uiTestHost
+#elseif LOKALBOT_DEV
+        .development
+#else
+        // The shared CLI target is embedded in both app variants. Resolve its
+        // enclosing app even when invoked through the installed command symlink.
+        identity(forExecutable: Bundle.main.executableURL,
+                 bundleIdentifier: Bundle.main.bundleIdentifier)
+#endif
+    }
+
+    static var bundleID: String { identity.bundleID }
+
+    static func identity(forExecutable executable: URL?, bundleIdentifier: String?) -> Identity {
+        if let bundleIdentifier, let identity = Identity(rawValue: bundleIdentifier) {
+            return identity
+        }
+        var directory = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
+        while let candidate = directory, candidate.path != "/" {
+            if candidate.pathExtension == "app",
+               let identifier = Bundle(url: candidate)?.bundleIdentifier,
+               let identity = Identity(rawValue: identifier) {
+                return identity
+            }
+            directory = candidate.deletingLastPathComponent()
+        }
+        return .release
+    }
 }
 
 enum UITestRuntime {

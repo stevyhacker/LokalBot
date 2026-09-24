@@ -39,6 +39,8 @@ final class SystemAudioRecorder {
     private var previewTeeURL: URL?
     private var tapFormat: AVAudioFormat?
     private var outputURL: URL?
+    /// Accessed on the writer queue and preserved across process handoffs.
+    private var timeline: RecordingAudioTimeline?
     /// Set before starting a tap, cleared only after the writer drains.
     var speakerAudioClock: RecordingAudioClock?
     private var framesWritten: AVAudioFramePosition = 0
@@ -48,8 +50,6 @@ final class SystemAudioRecorder {
     private var audibleFramesWritten: AVAudioFramePosition = 0
     private var recordingSampleRate: Double = 0
     private var lastAudioWriteAt: Date?
-    private var lastAudioWriteInstant: ContinuousClock.Instant?
-    private var captureStartedInstant: ContinuousClock.Instant?
     private var lastAudibleWriteAt: Date?
     private var lastRMSLevel: Float = 0
     private var peakRMSLevel: Float = 0
@@ -91,7 +91,8 @@ final class SystemAudioRecorder {
 
     /// `previewTee` mirrors the capture into a snapshot-safe PCM `.caf` for
     /// the live meeting transcript — best-effort, never fails the recording.
-    func start(capturingPID pid: pid_t, writingTo url: URL, previewTee previewURL: URL? = nil) throws {
+    func start(capturingPID pid: pid_t, writingTo url: URL, previewTee previewURL: URL? = nil,
+               timeline: RecordingAudioTimeline? = nil) throws {
         // 1. Translate the PID to its Core Audio process object.
         guard let processObject = CoreAudioUtils.translatePIDToProcessObject(pid: pid) else {
             throw RecorderError.processNotFound
@@ -100,15 +101,14 @@ final class SystemAudioRecorder {
         do {
             outputURL = url
             previewTeeURL = previewURL
-            let startedInstant = ContinuousClock.now
+            let captureTimeline = timeline ?? RecordingAudioTimeline(originHostTime: RecordingAudioClock.now)
             ioQueue.sync {
+                self.timeline = captureTimeline
                 framesWritten = 0
                 framesSinceAttach = 0
                 audibleFramesWritten = 0
                 recordingSampleRate = 0
                 lastAudioWriteAt = nil
-                lastAudioWriteInstant = nil
-                captureStartedInstant = startedInstant
                 lastAudibleWriteAt = nil
                 lastRMSLevel = 0
                 peakRMSLevel = 0
@@ -142,9 +142,6 @@ final class SystemAudioRecorder {
             framesSinceAttach = 0
         }
         do {
-            try appendRecoverySilence(
-                until: ContinuousClock.now,
-                wallDate: Date())
             try attachTap(processObject: processObject, writingTo: outputURL)
             installTerminationObserver(for: pid)
         } catch {
@@ -262,6 +259,11 @@ final class SystemAudioRecorder {
             }
             let sourceHostTime = inputTime.pointee.mHostTime
             let sourceHostValid = inputTime.pointee.mFlags.contains(.hostTimeValid)
+            let capturedAt = ContinuousClock.now
+            let callbackHostTime = RecordingAudioClock.now
+            let bufferHostStart = sourceHostValid
+                ? RecordingAudioClock.hostSeconds(sourceHostTime)
+                : callbackHostTime - Double(frameLength) / fmt.sampleRate
             self.ioQueue.async {
                 defer { self.returnBuffer(copy) }
                 guard let fileRef = self.file else { return }
@@ -269,17 +271,19 @@ final class SystemAudioRecorder {
                     // The real-time callback only performs one bounded copy.
                     // RMS traversal, AAC encoding, preview conversion, and I/O
                     // all stay on this serial writer queue.
+                    let timelineHostStart = self.timeline?.hostTimeOnTimeline(
+                        bufferHostTime: bufferHostStart, callbackHostTime: callbackHostTime,
+                        callbackInstant: capturedAt) ?? bufferHostStart
+                    try self.appendTimelineSilence(before: timelineHostStart, file: fileRef, format: fmt)
                     let rmsLevel = Self.measureRMS(of: copy)
                     try fileRef.write(from: copy)
                     self.speakerAudioClock?.record(hostTime: sourceHostTime, valid: sourceHostValid,
                         startFrame: self.framesWritten, frames: Int64(copy.frameLength), sampleRate: fmt.sampleRate)
                     self.previewTee?.write(copy)
                     let now = Date()
-                    let nowInstant = ContinuousClock.now
                     self.framesWritten += AVAudioFramePosition(copy.frameLength)
                     self.framesSinceAttach += AVAudioFramePosition(copy.frameLength)
                     self.lastAudioWriteAt = now
-                    self.lastAudioWriteInstant = nowInstant
                     self.lastRMSLevel = rmsLevel
                     self.peakRMSLevel = max(self.peakRMSLevel, rmsLevel)
                     if rmsLevel >= Self.audibleRMSThreshold {
@@ -367,8 +371,7 @@ final class SystemAudioRecorder {
             audibleFramesWritten = 0
             recordingSampleRate = 0
             lastAudioWriteAt = nil
-            lastAudioWriteInstant = nil
-            captureStartedInstant = nil
+            timeline = nil
             lastAudibleWriteAt = nil
             lastRMSLevel = 0
             peakRMSLevel = 0
@@ -381,44 +384,18 @@ final class SystemAudioRecorder {
         bufferPoolLock.unlock()
     }
 
-    /// Fill the elapsed-time hole left by a process-helper handoff. Keeping the
-    /// original writer open preserves the samples already captured; padding
-    /// the missing interval keeps both tracks and transcript timestamps aligned
-    /// instead of compressing everything after the interruption earlier.
-    private func appendRecoverySilence(
-        until now: ContinuousClock.Instant,
-        wallDate: Date
-    ) throws {
-        try ioQueue.sync {
-            guard let file, let format = tapFormat,
-                  let anchor = lastAudioWriteInstant ?? captureStartedInstant,
-                  let plan = AudioRecoverySilencePlanner.plan(
-                      forElapsed: anchor.duration(to: now)),
-                  format.sampleRate > 0 else { return }
-            var remaining = AVAudioFramePosition(plan.duration * format.sampleRate)
-            while remaining > 0 {
-                let count = AVAudioFrameCount(min(remaining, 4_096))
-                guard let silence = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else {
-                    throw RecorderError.badTapFormat
-                }
-                silence.frameLength = count
-                let buffers = UnsafeMutableAudioBufferListPointer(silence.mutableAudioBufferList)
-                for buffer in buffers where buffer.mData != nil {
-                    memset(buffer.mData!, 0, Int(buffer.mDataByteSize))
-                }
-                try file.write(from: silence)
-                previewTee?.write(silence)
-                framesWritten += AVAudioFramePosition(count)
-                remaining -= AVAudioFramePosition(count)
-            }
-            self.lastAudioWriteAt = wallDate
-            lastAudioWriteInstant = now
-            lastRMSLevel = 0
-            if plan.wasCapped {
-                NSLog(
-                    "SystemAudioRecorder recovery gap capped at "
-                        + "\(AudioRecoverySilencePlanner.maximumDuration)s")
-            }
+    /// Commit missing meeting time only when a tap actually delivers a buffer.
+    /// This includes initial late attachment, handoffs, and dropped callbacks;
+    /// unsuccessful/dead reattachments cannot inflate capture health.
+    private func appendTimelineSilence(before hostTime: Double, file: AVAudioFile,
+                                       format: AVAudioFormat) throws {
+        guard let timeline else { return }
+        let frames = timeline.silenceFrames(before: hostTime, framesWritten: framesWritten,
+                                            sampleRate: format.sampleRate)
+        try AudioTimelinePadding.write(frames: frames, format: format) { silence in
+            try file.write(from: silence)
+            previewTee?.write(silence)
+            framesWritten += Int64(silence.frameLength)
         }
     }
 

@@ -14,6 +14,18 @@ struct MeetingDetectionContext: Equatable {
     let calendarEvent: CalendarMeetingCandidate?
     let confidence: Confidence
     let reason: String
+    var detectorSessionID: UUID?
+}
+
+/// An end event has authority over only the recording started by this exact
+/// detector lifecycle. A manual recording has no detector owner.
+struct MeetingDetectionEnd {
+    let sessionID: UUID
+    let contentEndedAt: Date?
+
+    func ownsRecording(detectorSessionID: UUID?) -> Bool {
+        detectorSessionID == sessionID
+    }
 }
 
 /// The matching layer between detection and recording. Pure policy — no

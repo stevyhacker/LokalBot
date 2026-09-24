@@ -118,11 +118,13 @@ enum MeetingMergeService {
             try writeManifest(sources, to: folder)
             try storage.saveMeta(merged)
 
-            for source in sources {
-                var folded = source.meeting
-                folded.mergedIntoMeetingID = merged.id
-                try storage.saveMeta(folded)
-                foldedSources.append(folded)
+            try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: sources.map(\.meeting)) {
+                for source in sources {
+                    var folded = source.meeting
+                    folded.mergedIntoMeetingID = merged.id
+                    try storage.saveMeta(folded)
+                    foldedSources.append(folded)
+                }
             }
 
             return Result(

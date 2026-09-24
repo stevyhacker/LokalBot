@@ -545,7 +545,7 @@ final class ProcessingPipeline: ObservableObject {
                             + "\(mergedSanitization.removedCharacters)")
                 }
                 transcript = speakerIdentity?.applyingLatestDecision(to: transcript, meetingID: meeting.id) ?? transcript
-                try write(transcript, to: folder)
+                try write(transcript, for: meeting)
                 // A finalized AAC track makes its CAF duplicate redundant. A
                 // crash-recovery CAF remains when the AAC container is broken,
                 // preserving playable audio after the transcript is written.
@@ -590,18 +590,18 @@ final class ProcessingPipeline: ObservableObject {
                             "speaker identity recovery skipped meeting=\(meeting.id): \(error.localizedDescription)")
                     }
                     transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
-                    try write(transcript, to: folder)
+                    try write(transcript, for: meeting)
                 }
                 if let range = meeting.contentRange { transcript = range.applying(to: transcript) }
                 // Persist normalized provenance even on summary-only retries.
                 for index in transcript.segments.indices {
                     transcript.segments[index].attribution = transcript.segments[index].resolvedAttribution
                 }
-                try write(transcript, to: folder)
+                try write(transcript, for: meeting)
                 let sanitization = TranscriptSanitizer.sanitize(transcript)
                 if sanitization.changed {
                     transcript = sanitization.transcript
-                    try write(transcript, to: folder)
+                    try write(transcript, for: meeting)
                     lokalbotLog(
                         "transcript cleanup before summary changedSegments="
                             + "\(sanitization.changedSegments) removedWords="
@@ -619,20 +619,22 @@ final class ProcessingPipeline: ObservableObject {
                     let outcomes = generated.outcomes
                     let previous = MeetingOutcomes.load(from: folder) ?? MeetingAttributionArtifacts.previous(in: folder)
                     let previousState = MeetingOutcomeStore.loadState(from: folder)
-                    try outcomes.write(to: folder)
-                    if let previous {
-                        let reconciled = MeetingOutcomeStore.reconcileState(previousState, from: previous, to: outcomes)
-                        try MeetingOutcomeStore.writeState(reconciled, to: folder)
+                    try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+                        try outcomes.write(to: folder)
+                        if let previous {
+                            let reconciled = MeetingOutcomeStore.reconcileState(previousState, from: previous, to: outcomes)
+                            try MeetingOutcomeStore.writeState(reconciled, to: folder)
+                        }
+                        // Explicit user edits remain the authority for both cards
+                        // and the action/decision sections rendered beside them.
+                        let authoritative = MeetingOutcomeProjection.load(for: meeting, storage: storage)?.correctedOutcomes
+                            ?? outcomes
+                        let summary = MeetingSummaryOutcomeSynchronizer.synchronize(
+                            generated.body, outcomes: authoritative, template: config.noteTemplate)
+                        try MeetingAttributionArtifacts.requireCurrent(transcript, in: folder)
+                        try SummaryClaimEvidence.commit(transcript: transcript, in: folder)
+                        try Data(summary.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
                     }
-                    // Explicit user edits remain the authority for both cards
-                    // and the action/decision sections rendered beside them.
-                    let authoritative = MeetingOutcomeProjection.load(for: meeting, storage: storage)?.correctedOutcomes
-                        ?? outcomes
-                    let summary = MeetingSummaryOutcomeSynchronizer.synchronize(
-                        generated.body, outcomes: authoritative, template: config.noteTemplate)
-                    try MeetingAttributionArtifacts.requireCurrent(transcript, in: folder)
-                    try SummaryClaimEvidence.commit(transcript: transcript, in: folder)
-                    try Data(summary.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
                     MeetingSummaryGenerator.removeCheckpoint(in: folder)
                     MeetingOutcomesGenerator.removeCheckpoint(in: folder)
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
@@ -658,6 +660,9 @@ final class ProcessingPipeline: ObservableObject {
             // that ends up parked still explains itself after a relaunch.
             jobStore?.markFailed(meetingID: meeting.id, message: error.localizedDescription)
             stages[meeting.id] = .failed(error.localizedDescription)
+            // A failed write may have persisted only part of an artifact. Drop
+            // cached derived memory even when the complete job did not finish.
+            onArtifactsWritten?(meeting)
         }
     }
 
@@ -865,16 +870,19 @@ final class ProcessingPipeline: ObservableObject {
         try await diarizer.prepareModels(model: config.diarizationModel, includeVoiceSamples: config.rememberSpeakersOnMac)
     }
 
-    private func write(_ transcript: Transcript, to folder: URL) throws {
-        if let old = try? loadTranscript(from: folder), old.evidenceRevision != transcript.evidenceRevision {
-            try MeetingAttributionArtifacts.invalidate(in: folder)
+    private func write(_ transcript: Transcript, for meeting: Meeting) throws {
+        let folder = meeting.folderURL(in: storage)
+        try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+            if let old = try? loadTranscript(from: folder), old.evidenceRevision != transcript.evidenceRevision {
+                try MeetingAttributionArtifacts.invalidate(in: folder)
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(transcript).write(
+                to: folder.appendingPathComponent("transcript.json"), options: .atomic)
+            try transcript.markdown.data(using: .utf8)?.write(
+                to: folder.appendingPathComponent("transcript.md"), options: .atomic)
         }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(transcript).write(
-            to: folder.appendingPathComponent("transcript.json"), options: .atomic)
-        try transcript.markdown.data(using: .utf8)?.write(
-            to: folder.appendingPathComponent("transcript.md"), options: .atomic)
     }
 
     func loadTranscript(from folder: URL) throws -> Transcript {
@@ -884,7 +892,7 @@ final class ProcessingPipeline: ObservableObject {
     }
 
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
-        try write(meeting.contentRange?.applying(to: transcript) ?? transcript, to: meeting.folderURL(in: storage))
+        try write(meeting.contentRange?.applying(to: transcript) ?? transcript, for: meeting)
     }
 
     // MARK: - Summarization

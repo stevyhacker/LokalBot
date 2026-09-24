@@ -9,6 +9,32 @@ final class AgentWorkspaceTests: XCTestCase {
     }
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: root) }
 
+    func testPrivateLibraryWorkspaceIsRejectedIncludingDescendantsAndSymlinks() throws {
+        let library = root.appendingPathComponent("library")
+        let alias = root.appendingPathComponent("library-link")
+        try FileManager.default.createDirectory(at: library, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: library)
+        let policy = AgentWorkspacePolicy(privateRoots: [library])
+        XCTAssertTrue(policy.containsPrivateWorkspace(library))
+        XCTAssertTrue(policy.containsPrivateWorkspace(library.appendingPathComponent("meetings/new")))
+        XCTAssertTrue(policy.containsPrivateWorkspace(alias.appendingPathComponent("journal")))
+        XCTAssertFalse(policy.containsPrivateWorkspace(root.appendingPathComponent("library.agent-workspace")))
+        XCTAssertFalse(policy.containsPrivateWorkspace(root), "a deliberately chosen parent remains usable; private reads are gated by the extension")
+    }
+
+    func testShellApprovalRequiresTheCompleteCommandUsingTheExtensionsUTF16Limit() {
+        func request(_ command: String?, truncated: Bool = false) -> AgentApprovalRequest {
+            .init(id: "shell", tool: "bash", workspace: root.path, path: nil,
+                  command: command, content: nil, edits: [], summary: nil, isTruncated: truncated)
+        }
+        XCTAssertTrue(request(String(repeating: "x", count: 65_536)).canApprove)
+        XCTAssertFalse(request(String(repeating: "x", count: 65_537)).canApprove)
+        XCTAssertFalse(request(String(repeating: "😀", count: 32_769)).canApprove)
+        XCTAssertFalse(request("visible prefix", truncated: true).canApprove)
+        XCTAssertFalse(request(nil).canApprove)
+        XCTAssertFalse(request("").canApprove)
+    }
+
     func testArchiveUsesOnlySelectedBranchAndForkPreservesOriginal() throws {
         let file = root.appendingPathComponent("original.jsonl")
         try write([

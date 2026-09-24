@@ -10,12 +10,15 @@ final class PiLaunchPlannerTests: XCTestCase {
         apiKey: nil)
 
     private func makePlan(apiKey: String? = nil,
+                          inheritedAPIKey: String? = nil,
                           skill: URL? = URL(fileURLWithPath: "/app/Resources/pi/lokalbot-cli-skill"),
                           helpers: URL? = URL(fileURLWithPath: "/app/Contents/Helpers"),
                           capability: String? = nil,
                           continuePrevious: Bool = false,
                           specificSession: URL? = nil) -> PiLaunchPlan {
-        PiLaunchPlanner.plan(
+        var environment = ["PATH": "/usr/bin:/bin", "HOME": "/Users/x"]
+        environment["LOKALBOT_LLM_API_KEY"] = inheritedAPIKey
+        return PiLaunchPlanner.plan(
             bun: URL(fileURLWithPath: "/rt/bun/bun"),
             piCLI: URL(fileURLWithPath: "/rt/pi/node_modules/@earendil-works/pi-coding-agent/dist/cli.js"),
             extensionDirectory: URL(fileURLWithPath: "/app/Resources/pi/lokalbot-extension"),
@@ -25,10 +28,11 @@ final class PiLaunchPlannerTests: XCTestCase {
             endpoint: AgentLLMEndpoint(baseURL: endpoint.baseURL, model: endpoint.model,
                                        contextTokens: endpoint.contextTokens, apiKey: apiKey),
             helpersDirectory: helpers,
+            privateRoots: [URL(fileURLWithPath: "/store"), URL(fileURLWithPath: "/app-support")],
             agentAccessCapability: capability,
             continuePreviousSession: continuePrevious,
             specificSession: specificSession,
-            baseEnvironment: ["PATH": "/usr/bin:/bin", "HOME": "/Users/x"])
+            baseEnvironment: environment)
     }
 
     func testArgumentsMatchTheSpecContract() {
@@ -62,6 +66,19 @@ final class PiLaunchPlannerTests: XCTestCase {
 
     func testAPIKeyIsPassedWhenPresent() {
         XCTAssertEqual(makePlan(apiKey: "sk-test").environment["LOKALBOT_LLM_API_KEY"], "sk-test")
+    }
+
+    func testCredentialFreeEndpointCannotInheritAnotherServiceKey() {
+        XCTAssertNil(makePlan(inheritedAPIKey: "unrelated-fixture-key").environment["LOKALBOT_LLM_API_KEY"])
+        XCTAssertEqual(makePlan(apiKey: "selected-fixture-key", inheritedAPIKey: "unrelated-fixture-key")
+            .environment["LOKALBOT_LLM_API_KEY"], "selected-fixture-key")
+    }
+
+    func testPrivateRootsArePassedSeparatelyFromTheWorkingFolder() throws {
+        let plan = makePlan()
+        let json = try XCTUnwrap(plan.environment["LOKALBOT_AGENT_PRIVATE_ROOTS"])
+        XCTAssertEqual(try JSONDecoder().decode([String].self, from: Data(json.utf8)), ["/store", "/app-support"])
+        XCTAssertEqual(plan.workingDirectory.path, "/work")
     }
 
     func testNoSkillDirectoryOmitsSkillFlagButKeepsNoSkills() {

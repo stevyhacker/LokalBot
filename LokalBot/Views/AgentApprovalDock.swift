@@ -93,6 +93,7 @@ struct AgentApprovalDock: View {
                     id: request.id, approved: true, scope: .once)
             }
         }
+        .disabled(!request.canApprove)
         .accessibilityIdentifier("agent.approve.once")
     }
 

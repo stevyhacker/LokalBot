@@ -373,6 +373,10 @@ final class AppState: ObservableObject {
     let storage = StorageManager()
     private(set) lazy var outcomeIndex = OutcomeIndex(
         storage: storage,
+        mutateEvidence: { [weak self] meetings, mutation in
+            guard let self else { throw CancellationError() }
+            try self.withPrimaryEvidenceChange(for: meetings, mutation)
+        },
         onEvidenceChanged: { [weak self] meetings in
             self?.primaryEvidenceDidChange(for: meetings)
         })
@@ -713,6 +717,8 @@ final class AppState: ObservableObject {
         systemAudioPolicy: RecordingSystemAudioPolicy = .meetingAppWhenAvailable
     ) {
         RecordingNotifier.shared.invalidateMeetingDetections()
+        if let sessionID = context?.detectorSessionID,
+           detector.activeSessionID != sessionID { return }
         guard !dictation.isStarting, !dictation.state.isWorking else {
             lastError = "Finish or cancel dictation before starting a meeting recording."
             return
@@ -886,6 +892,8 @@ final class AppState: ObservableObject {
             switch self.settings.autoRecordMode {
             case .automatic:
                 RecordingNotifier.shared.invalidateMeetingDetections()
+                guard let sessionID = context.detectorSessionID,
+                      self.recording.detectorSessionID == sessionID else { return }
                 self.recording.splitForCalendarHandoff(context)
             case .ask:
                 if self.recording.isRecording || self.recording.isStarting {
@@ -897,12 +905,14 @@ final class AppState: ObservableObject {
                 RecordingNotifier.shared.invalidateMeetingDetections()
             }
         }
-        detector.onMeetingEnded = { [weak self] in
+        detector.onMeetingEnded = { [weak self] event in
             RecordingNotifier.shared.invalidateMeetingDetections()
             guard let self else { return }
-            if self.detector.endedMeetingURL != nil,
-               self.recording.currentMeeting?.meetingURL != self.detector.endedMeetingURL { return }
-            self.recording.stop(contentEndedAt: self.detector.detectedContentEnd)
+            if self.pendingRecordingStart?.context?.detectorSessionID == event.sessionID {
+                self.pendingRecordingStart = nil
+            }
+            guard event.ownsRecording(detectorSessionID: self.recording.detectorSessionID) else { return }
+            self.recording.stop(contentEndedAt: event.contentEndedAt)
         }
         detector.stopDebounce = settings.stopDebounceSeconds
         detector.calendar = calendar
@@ -1207,19 +1217,11 @@ final class AppState: ObservableObject {
                 return
             }
             let detected = MeetingDetector.DetectedApp(name: name, bundleID: bundleID, pid: process.id)
-            startRecording(context: detectionContext(detected, calendarEvent), source: "audio-monitor")
+            detector.acceptNativeAudioStart(app: detected, calendarEvent: calendarEvent)
             return
         }
         guard MeetingDetector.hostBrowserBundleID(forAudioBundleID: bundleID) != nil else { return }
         detector.checkNow()
-    }
-
-    private func detectionContext(_ app: MeetingDetector.DetectedApp,
-                                  _ event: CalendarMeetingCandidate?) -> MeetingDetectionContext {
-        MeetingDetectionContext(
-            detectedApp: app, calendarEvent: event,
-            confidence: MeetingMatcher.confidence(hasApp: true, hasCalendar: event != nil),
-            reason: "audio-monitor")
     }
 
     private func notifyMeetingDetected(_ context: MeetingDetectionContext) {
@@ -1231,6 +1233,7 @@ final class AppState: ObservableObject {
         RecordingNotifier.shared.meetingDetected(title: title) { [weak self] in
             guard let self,
                   self.settings.autoRecordMode == .ask,
+                  context.detectorSessionID == self.detector.activeSessionID,
                   !self.recording.isRecording,
                   !self.recording.isStarting else { return }
             self.startRecording(context: context, source: "notification")
@@ -1252,6 +1255,9 @@ final class AppState: ObservableObject {
                 throw MeetingMergeService.MergeError.processingInProgress(meeting.displayTitle)
             }
         }
+        // Folding can partially write before rollback fails. Reopen derived
+        // consumers even when merge cannot return a complete result.
+        defer { primaryEvidenceDidChange(for: sourceMeetings) }
         let result = try await MeetingMergeService.merge(
             meetings: sourceMeetings,
             title: title,
@@ -1322,7 +1328,9 @@ final class AppState: ObservableObject {
             do {
                 pipeline.forget(meetingIDs: [mergedMeeting.id])
                 try await speakerIdentity.prepareDeletion(meeting: mergedMeeting)
-                try storage.deleteMeeting(mergedMeeting)
+                try withPrimaryEvidenceChange(for: [mergedMeeting]) {
+                    try storage.deleteMeeting(mergedMeeting)
+                }
                 meetings.removeAll { $0.id == mergedMeeting.id }
                 selectedMeetingIDs.remove(mergedMeeting.id)
                 outcomeIndex.refresh(meetings: meetings)
@@ -1383,9 +1391,11 @@ final class AppState: ObservableObject {
         let folder = updated.folderURL(in: storage)
         let existing = try pipeline.loadTranscript(from: folder)
         // Invalidate derived claims even when no complete segment survives.
-        try MeetingAttributionArtifacts.invalidate(in: folder)
-        try pipeline.saveTranscript(range.applying(to: existing), for: updated)
-        try storage.saveMeta(updated)
+        try withPrimaryEvidenceChange(for: [updated]) {
+            try MeetingAttributionArtifacts.invalidate(in: folder)
+            try pipeline.saveTranscript(range.applying(to: existing), for: updated)
+            try storage.saveMeta(updated)
+        }
         if let index = meetings.firstIndex(where: { $0.id == updated.id }) { meetings[index] = updated }
         outcomeIndex.refresh(meeting: updated)
         primaryEvidenceDidChange(for: updated)
@@ -1428,7 +1438,9 @@ final class AppState: ObservableObject {
 
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
         let transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
-        try pipeline.saveTranscript(transcript, for: meeting)
+        try withPrimaryEvidenceChange(for: [meeting]) {
+            try pipeline.saveTranscript(transcript, for: meeting)
+        }
         outcomeIndex.refresh(meeting: meeting)
         primaryEvidenceDidChange(for: meeting)
         reindexSearchInBackground(meeting)
@@ -1457,7 +1469,7 @@ final class AppState: ObservableObject {
     }
 
     private func primaryEvidenceDidChange(for meetings: [Meeting]) {
-        primaryEvidenceDidChange(on: meetings.map(\.startedAt))
+        primaryEvidenceDidChange(on: meetings.map(\.startedAt), meetingIDs: Set(meetings.map(\.id)))
     }
 
     func primaryEvidenceDidChange(on day: Date) {
@@ -1465,11 +1477,25 @@ final class AppState: ObservableObject {
     }
 
     func primaryEvidenceDidChange(on days: [Date]) {
+        primaryEvidenceDidChange(on: days, meetingIDs: [])
+    }
+
+    private func primaryEvidenceDidChange(on days: [Date], meetingIDs: Set<UUID>) {
         guard !days.isEmpty else { return }
         dayDigest.reconsiderEvidence(for: days)
         dailyMemoryExportScheduler.reconsider(days: days)
         memoryRoutines.reconsiderEvidence()
-        invalidateDreams(affectedDays: days)
+        invalidateDreams(affectedDays: days, affectedMeetingIDs: meetingIDs)
+    }
+
+    func withPrimaryEvidenceChange<T>(on days: [Date], _ mutation: () throws -> T) throws -> T {
+        defer { primaryEvidenceDidChange(on: days) }
+        return try dreamStore.withScreenEvidenceMutation(on: days, mutation)
+    }
+
+    private func withPrimaryEvidenceChange<T>(for meetings: [Meeting], _ mutation: () throws -> T) throws -> T {
+        defer { primaryEvidenceDidChange(for: meetings) }
+        return try dreamStore.withMeetingEvidenceMutation(for: meetings, mutation)
     }
 
     private func dayDigestDidChange(on day: Date) {
@@ -1481,25 +1507,35 @@ final class AppState: ObservableObject {
     }
 
     private func invalidateDreams(
-        affectedDays: [Date], comparisonWindowDays: Int = DreamCompiler.comparisonWindowDays
+        affectedDays: [Date], affectedMeetingIDs: Set<UUID> = [],
+        comparisonWindowDays: Int = DreamCompiler.comparisonWindowDays
     ) {
         let calendar = Calendar.current
         let affectedKeys = DreamEvidenceInvalidation.dayKeys(
             affectedDays: affectedDays, through: Date(), calendar: calendar,
             comparisonWindowDays: comparisonWindowDays)
-        for key in affectedKeys.sorted() {
-            do {
-                try dreamStore.invalidateReport(forDayKey: key)
-            } catch {
-                lastError = "Could not refresh the dream for \(key): " + error.localizedDescription
-            }
+        var invalidatedKeys = affectedKeys
+        do {
+            invalidatedKeys = try dreamStore.invalidateEvidence(
+                affectedDayKeys: DreamEvidenceInvalidation.sourceDayKeys(for: affectedDays),
+                affectedMeetingIDs: affectedMeetingIDs,
+                reportDayKeys: affectedKeys)
+        } catch {
+            lastError = "Could not retract changed evidence from Dream memory: " + error.localizedDescription
         }
+        refreshDreamMemory()
         latestDreamReport = dreamStore.latestReport()
-        dreaming.reconsiderReports(invalidating: affectedKeys)
+        dreaming.reconsiderReports(invalidating: invalidatedKeys, cancellingInFlight: true)
     }
 
     func applyTrackingSetting() {
+        screenshots.mutateEvidence = { [weak self] days, mutation in
+            guard let self else { throw CancellationError() }
+            try self.withPrimaryEvidenceChange(on: days, mutation)
+        }
         sampler.excludedApps = { [weak self] in self?.settings.excludedAppList ?? [] }
+        sampler.excludedDomains = { [weak self] in self?.settings.excludedScreenDomainList ?? [] }
+        sampler.capturePrivateWindows = { [weak self] in self?.settings.capturePrivateWindows ?? false }
         if settings.trackingEnabled { sampler.start() } else { sampler.stop() }
         screenshots.restart()
     }
@@ -1776,7 +1812,9 @@ final class AppState: ObservableObject {
                         // not just those of the generated parent. Delete the
                         // parent last so partial failure cannot restore sources.
                         try await speakerIdentity.prepareDeletion(meeting: item)
-                        try storage.deleteMeeting(item)
+                        try withPrimaryEvidenceChange(for: [item]) {
+                            try storage.deleteMeeting(item)
+                        }
                         embeddingIndexTasks.removeValue(forKey: item.id)?.task.cancel()
                         excludedMeetingIDs.insert(item.id)
                         cachedSearchIndex?.noteDeletion(item.id)

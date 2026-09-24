@@ -99,13 +99,8 @@ struct ScreenshotRetentionSchedule {
 
 /// Pure capture-layout selection. ScreenCaptureKit objects cannot be created
 /// in unit tests, so production metadata is reduced to these value types before
-/// choosing the focused display and every privacy-excluded window on it.
+/// binding pixels to the one focused window whose privacy metadata was read.
 struct ScreenshotCaptureLayout {
-    struct Display {
-        let id: CGDirectDisplayID
-        let frame: CGRect
-    }
-
     struct Window {
         let id: CGWindowID
         let processID: pid_t
@@ -115,68 +110,35 @@ struct ScreenshotCaptureLayout {
     }
 
     struct Selection: Equatable {
-        let displayID: CGDirectDisplayID
-        let excludedWindowIDs: Set<CGWindowID>
+        let windowID: CGWindowID
     }
 
     static func selection(
-        displays: [Display],
         windows: [Window],
         frontmostProcessID: pid_t,
         focusedWindowTitle: String,
+        focusedWindowFrame: CGRect?,
         excludedApps: [String],
-        excludePrivateWindows: Bool = true,
-        mainDisplayID: CGDirectDisplayID = CGMainDisplayID()
+        excludePrivateWindows: Bool = true
     ) -> Selection? {
-        guard !displays.isEmpty else { return nil }
-
-        let frontmostWindows = windows.filter {
-            $0.processID == frontmostProcessID && !$0.frame.isEmpty && !$0.frame.isNull
+        guard let focusedWindowFrame, !focusedWindowFrame.isEmpty,
+              !focusedWindowFrame.isNull else { return nil }
+        let matches = windows.filter {
+            $0.processID == frontmostProcessID
+                && $0.title == focusedWindowTitle
+                && $0.frame == focusedWindowFrame
         }
-        let focusedWindow: Window?
-        if focusedWindowTitle.isEmpty {
-            focusedWindow = frontmostWindows.first
-        } else {
-            focusedWindow = frontmostWindows.first {
-                $0.title.compare(focusedWindowTitle, options: [.caseInsensitive, .diacriticInsensitive])
-                    == .orderedSame
-            } ?? frontmostWindows.first
-        }
-
-        let selectedDisplay: Display
-        if let focusedWindow,
-           let overlappingDisplay = displays.max(by: {
-               intersectionArea($0.frame, focusedWindow.frame)
-                   < intersectionArea($1.frame, focusedWindow.frame)
-           }), intersectionArea(overlappingDisplay.frame, focusedWindow.frame) > 0 {
-            selectedDisplay = overlappingDisplay
-        } else {
-            selectedDisplay = displays.first(where: { $0.id == mainDisplayID }) ?? displays[0]
-        }
-
-        let excludedWindowIDs = Set(windows.compactMap { window -> CGWindowID? in
-            let excludedForApp = isExcluded(
-                appName: window.appName, excludedApps: excludedApps)
-            let excludedForPrivacy = excludePrivateWindows
-                && ScreenContextPrivacy.isPrivateWindow(title: window.title)
-            guard excludedForApp || excludedForPrivacy,
-                  intersectionArea(window.frame, selectedDisplay.frame) > 0 else { return nil }
-            return window.id
-        })
-        return Selection(displayID: selectedDisplay.id, excludedWindowIDs: excludedWindowIDs)
+        // A title alone can identify several windows. Never guess another
+        // window or fall back to the display when AX cannot bind the source.
+        guard matches.count == 1, let window = matches.first,
+              !isExcluded(appName: window.appName, excludedApps: excludedApps),
+              !(excludePrivateWindows && ScreenContextPrivacy.isPrivateWindow(title: window.title))
+        else { return nil }
+        return Selection(windowID: window.id)
     }
 
     static func isExcluded(appName: String, excludedApps: [String]) -> Bool {
-        excludedApps.contains { rawTerm in
-            let term = rawTerm.trimmingCharacters(in: .whitespacesAndNewlines)
-            return !term.isEmpty && appName.localizedCaseInsensitiveContains(term)
-        }
-    }
-
-    private static func intersectionArea(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
-        let intersection = lhs.intersection(rhs)
-        guard !intersection.isNull, !intersection.isEmpty else { return 0 }
-        return intersection.width * intersection.height
+        ScreenContextPrivacy.isExcluded(appName: appName, rules: excludedApps)
     }
 }
 
@@ -226,13 +188,17 @@ struct ScreenshotCaptureGate {
 
 enum ScreenshotWindowFocusValidation {
     static func matches(
-        expectedTitle: String,
-        current: FocusedWindowTitleLookupResult
+        expected: ScreenAccessibilitySnapshot,
+        current: ScreenAccessibilityCaptureResult
     ) -> Bool {
-        guard !current.timedOut else { return false }
-        return (current.title ?? "").compare(
-            expectedTitle,
-            options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        guard !current.timedOut, let snapshot = current.snapshot,
+              expected.windowTitle != nil, expected.windowFrame != nil,
+              expected.focusedSecureField == false,
+              snapshot.focusedSecureField == false else { return false }
+        return snapshot.windowTitle == expected.windowTitle
+            && snapshot.windowFrame == expected.windowFrame
+            && snapshot.sourceURL == expected.sourceURL
+            && snapshot.hasWebContent == expected.hasWebContent
     }
 }
 
@@ -517,7 +483,7 @@ private enum ScreenshotImageProcessing {
 }
 
 /// Event-driven screen context: read bounded visible Accessibility text first,
-/// optionally pair it with an encrypted active-display image, and invoke local
+/// optionally pair it with an encrypted focused-window image, and invoke local
 /// OCR only when the accessible text is thin. Captured text is indexed; pixels
 /// and, by default, text are retention-pruned. Privacy checks fail closed for
 /// idle/lock states, excluded sources, secure fields, and detected credentials.
@@ -534,6 +500,12 @@ final class ScreenshotService: ObservableObject {
     @Published private(set) var isCapturing = false
     @Published private(set) var lastError: String?
 
+    /// AppState revokes derived evidence before the synchronous deletion runs.
+    /// Throwing here leaves both pixels and retained text untouched.
+    var mutateEvidence: ([Date], () throws -> Void) throws -> Void = { _, mutation in
+        try mutation()
+    }
+
     private let store: ActivityStore
     private let storage: StorageManager
     private let settings: () -> AppSettings
@@ -542,7 +514,6 @@ final class ScreenshotService: ObservableObject {
     private let isHighPriorityInteractionActive: () -> Bool
     private let now: () -> Date
     private let sampler: ActivitySampler
-    private let windowTitleLookup: FocusedWindowTitleLookup
     private let accessibilityReader: ScreenAccessibilityReader
     private let processingWorker = ScreenshotProcessingWorker()
     private let eventMonitor = ScreenContextEventMonitor()
@@ -557,7 +528,6 @@ final class ScreenshotService: ObservableObject {
     private var lastMeetingCapture: Date?
 
     init(store: ActivityStore, storage: StorageManager, sampler: ActivitySampler,
-         windowTitleLookup: FocusedWindowTitleLookup = .shared,
          accessibilityReader: ScreenAccessibilityReader = .shared,
          isMeetingRecordingActive: @escaping () -> Bool = { false },
          activeMeetingID: @escaping () -> UUID? = { nil },
@@ -567,7 +537,6 @@ final class ScreenshotService: ObservableObject {
         self.store = store
         self.storage = storage
         self.sampler = sampler
-        self.windowTitleLookup = windowTitleLookup
         self.accessibilityReader = accessibilityReader
         self.isMeetingRecordingActive = isMeetingRecordingActive
         self.activeMeetingID = activeMeetingID
@@ -709,44 +678,30 @@ final class ScreenshotService: ObservableObject {
             isCapturing = false
         }
 
-        let initialTitle = await windowTitleLookup.title(
-            for: frontmostApp.processIdentifier)
-        guard !initialTitle.timedOut,
-              NSWorkspace.shared.frontmostApplication?.processIdentifier
-                == frontmostApp.processIdentifier else {
-            lokalbotLog("context skip: focused-window lookup timed out or focus changed")
-            return
-        }
-        let windowTitle = initialTitle.title ?? ""
-        if !config.capturePrivateWindows,
-           ScreenContextPrivacy.isPrivateWindow(title: windowTitle) {
-            policy.noteCheck(at: current)
-            lokalbotLog("context skip: private browsing window")
-            return
-        }
-
         let accessibility = await accessibilityReader.capture(
             processID: frontmostApp.processIdentifier)
-        if !accessibility.timedOut { lastAccessibilityCapture = current }
-        if accessibility.snapshot?.focusedSecureField == true {
+        guard !accessibility.timedOut, let snapshot = accessibility.snapshot,
+              NSWorkspace.shared.frontmostApplication?.processIdentifier
+                == frontmostApp.processIdentifier,
+              ScreenContextPrivacy.permitsContent(
+                snapshot.privacyObservation(
+                    appName: frontmost, bundleIdentifier: frontmostApp.bundleIdentifier),
+                excludedApps: config.excludedAppList,
+                excludedDomains: config.excludedScreenDomainList,
+                capturePrivateWindows: config.capturePrivateWindows),
+              let windowTitle = snapshot.windowTitle else {
             policy.noteCheck(at: current)
-            lokalbotLog("context skip: focused secure field")
+            lokalbotLog("context skip: excluded or unavailable focused-window privacy metadata")
             return
         }
-        let sourceURL = accessibility.snapshot?.sourceURL
-        if ScreenContextPrivacy.isExcluded(
-            sourceURL: sourceURL,
-            rules: config.excludedScreenDomainList) {
-            policy.noteCheck(at: current)
-            lokalbotLog("context skip: excluded domain")
-            return
-        }
+        lastAccessibilityCapture = current
+        let sourceURL = ScreenContextPrivacy.sanitizedURL(snapshot.sourceURL)
         let redactedAccessibility = ScreenContextPrivacy.redact(
-            accessibility.snapshot?.text ?? "")
+            snapshot.text)
         let redactedWindowTitle = ScreenContextPrivacy.redact(windowTitle)
         let redactedSourceURL = ScreenContextPrivacy.redact(sourceURL ?? "")
         let redactedDocumentName = ScreenContextPrivacy.redact(
-            accessibility.snapshot?.documentName ?? "")
+            snapshot.documentName ?? "")
         let preCaptureRedactions = redactedAccessibility.count
             + redactedWindowTitle.count
             + redactedSourceURL.count
@@ -775,9 +730,12 @@ final class ScreenshotService: ObservableObject {
                 try await capture(
                     frontApp: frontmost,
                     frontmostProcessID: frontmostApp.processIdentifier,
+                    bundleIdentifier: frontmostApp.bundleIdentifier,
                     windowTitle: windowTitle,
+                    accessibilitySnapshot: snapshot,
                     storedWindowTitle: redactedWindowTitle.text,
                     excludedApps: config.excludedAppList,
+                    excludedDomains: config.excludedScreenDomainList,
                     excludePrivateWindows: !config.capturePrivateWindows,
                     trigger: trigger,
                     accessibleText: redactedAccessibility.text,
@@ -838,9 +796,12 @@ final class ScreenshotService: ObservableObject {
         lokalbotLog("context ok: text-only (\(clipped.count) chars, app: \(frontApp), trigger: \(trigger.rawValue))")
     }
 
-    private func capture(frontApp: String, frontmostProcessID: pid_t, windowTitle: String,
+    private func capture(frontApp: String, frontmostProcessID: pid_t,
+                         bundleIdentifier: String?, windowTitle: String,
+                         accessibilitySnapshot: ScreenAccessibilitySnapshot,
                          storedWindowTitle: String,
                          excludedApps: [String],
+                         excludedDomains: [String],
                          excludePrivateWindows: Bool,
                          trigger: ScreenCaptureTrigger,
                          accessibleText: String,
@@ -855,9 +816,6 @@ final class ScreenshotService: ObservableObject {
             return
         }
         let layout = ScreenshotCaptureLayout.selection(
-            displays: content.displays.map {
-                .init(id: $0.displayID, frame: CGDisplayBounds($0.displayID))
-            },
             windows: content.windows.compactMap { window in
                 guard let application = window.owningApplication else { return nil }
                 return .init(
@@ -869,37 +827,43 @@ final class ScreenshotService: ObservableObject {
             },
             frontmostProcessID: frontmostProcessID,
             focusedWindowTitle: windowTitle,
+            focusedWindowFrame: accessibilitySnapshot.windowFrame,
             excludedApps: excludedApps,
             excludePrivateWindows: excludePrivateWindows)
         guard let layout,
-              let display = content.displays.first(where: { $0.displayID == layout.displayID })
+              let window = content.windows.first(where: { $0.windowID == layout.windowID })
         else { return }
-        let excludedWindows = content.windows.filter {
-            layout.excludedWindowIDs.contains($0.windowID)
-        }
 
         // Bound the source frame before ScreenCaptureKit allocates it. Vision
         // receives this same readable 1,500 px frame in the worker; requesting
         // a native 5K/6K IOSurface only inflated transient memory.
         let configuration = SCStreamConfiguration()
-        let mode = CGDisplayCopyDisplayMode(display.displayID)
+        // This filter contains only the AX-checked window. Display capture,
+        // even with app exclusions, can include unchecked background domains.
+        let filter = SCContentFilter(desktopIndependentWindow: window)
         let dimensions = ScreenshotCaptureDimensions.bounded(
-            pixelWidth: mode?.pixelWidth ?? display.width * 2,
-            pixelHeight: mode?.pixelHeight ?? display.height * 2)
+            pixelWidth: Int(filter.contentRect.width * CGFloat(filter.pointPixelScale)),
+            pixelHeight: Int(filter.contentRect.height * CGFloat(filter.pointPixelScale)))
         configuration.width = dimensions.width
         configuration.height = dimensions.height
         configuration.showsCursor = false
-        let filter = SCContentFilter(display: display, excludingWindows: excludedWindows)
+        configuration.includeChildWindows = false
+        configuration.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: configuration)
-        let currentTitle = await windowTitleLookup.title(for: frontmostProcessID)
+        let currentAccessibility = await accessibilityReader.capture(processID: frontmostProcessID)
         guard NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID,
               ScreenshotWindowFocusValidation.matches(
-                expectedTitle: windowTitle,
-                current: currentTitle) else {
-            // ScreenCaptureKit requests suspend. Do not persist a display image
-            // under stale app/window metadata if the user switches meanwhile.
-            lokalbotLog("shot skip: focus changed during capture")
+                expected: accessibilitySnapshot,
+                current: currentAccessibility),
+              let currentSnapshot = currentAccessibility.snapshot,
+              ScreenContextPrivacy.permitsContent(
+                currentSnapshot.privacyObservation(appName: frontApp, bundleIdentifier: bundleIdentifier),
+                excludedApps: excludedApps, excludedDomains: excludedDomains,
+                capturePrivateWindows: !excludePrivateWindows) else {
+            // The focused window, browser URL or secure-field state can change
+            // while ScreenCaptureKit suspends. Discard its pixels on any change.
+            lokalbotLog("shot skip: focused source or privacy state changed during capture")
             return
         }
 
@@ -1130,25 +1094,61 @@ final class ScreenshotService: ObservableObject {
     }
 
     private func performRetentionPrune(at current: Date) {
-        let cutoff = current.addingTimeInterval(-Double(settings().retentionDays) * 86_400)
         var firstError: String?
-        for path in store.screenshotPaths(olderThan: cutoff) {
-            do {
-                if FileManager.default.fileExists(atPath: path) {
-                    try FileManager.default.removeItem(atPath: path)
+        do {
+            let configuration = settings()
+            // Establish the exact affected source timestamps before revoking
+            // memory or removing files. A failed read must never look empty.
+            let review = try store.retentionReview(
+                days: configuration.retentionDays,
+                keepTextForever: configuration.keepOCRTextForever,
+                now: current)
+            let orphaned = configuration.keepOCRTextForever
+                ? ActivityStore.OrphanedScreenEvidence()
+                : try store.orphanedScreenEvidence(olderThan:
+                    current.addingTimeInterval(-Double(configuration.retentionDays) * 86_400))
+            if !review.candidates.isEmpty || !orphaned.isEmpty {
+                let dates = Array(Set(review.candidates.map(\.timestamp) + orphaned.timestamps)).sorted()
+                try mutateEvidence(dates) {
+                    // Delete only the reviewed IDs; a broad cutoff query could
+                    // remove additional evidence whose days were not revoked.
+                    for candidate in review.candidates {
+                        do {
+                            guard try !store.isBookmarked(snapshotID: candidate.id) else { continue }
+                        } catch {
+                            if firstError == nil { firstError = error.localizedDescription }
+                            continue
+                        }
+                        if !candidate.path.isEmpty {
+                            do {
+                                if FileManager.default.fileExists(atPath: candidate.path) {
+                                    try FileManager.default.removeItem(atPath: candidate.path)
+                                }
+                                try store.clearScreenshotPath(candidate.path)
+                            } catch {
+                                // Preserve failed file references for retry;
+                                // text still follows its own retention policy.
+                                if firstError == nil { firstError = error.localizedDescription }
+                            }
+                        }
+                        if candidate.removeText || candidate.removeVector {
+                            do {
+                                try store.clearRetainedText(ids: [candidate.id])
+                            } catch {
+                                if firstError == nil { firstError = error.localizedDescription }
+                            }
+                        }
+                    }
+                    do {
+                        try store.clearOrphanedScreenEvidence(orphaned)
+                    } catch {
+                        if firstError == nil { firstError = error.localizedDescription }
+                    }
                 }
-                try store.clearScreenshotPath(path)
-            } catch {
-                // Keep the database path when deletion fails, so a later
-                // retention pass can retry instead of orphaning the file.
-                lokalbotLog("shot retention failed path=\(path): \(error.localizedDescription)")
-                if firstError == nil { firstError = error.localizedDescription }
             }
-        }
-        if !settings().keepOCRTextForever {
-            if !store.clearOCRText(olderThan: cutoff), firstError == nil {
-                firstError = "Could not prune expired screen text."
-            }
+        } catch {
+            firstError = error.localizedDescription
+            lokalbotLog("screen retention stopped before mutation: \(error.localizedDescription)")
         }
         lastRetentionRun = current
         lastRetentionError = firstError

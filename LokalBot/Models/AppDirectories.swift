@@ -13,18 +13,23 @@ enum AppDirectories {
             ?? FileManager.default.temporaryDirectory
     }
 
-    /// The app's real Application Support home:
-    /// `~/Library/Application Support/me.dotenv.LokalBot`.
+    /// The app identity's Application Support home. Development builds use
+    /// `me.dotenv.LokalBot.dev`; their retention settings cannot affect release
+    /// data. Identity-scoped runtimes and mutable process markers are separate too.
     ///
     /// Deliberately NOT redirected by the storage-root override: the installed
     /// llama-server binary, its PID markers, transcription model stores, and
     /// the agent runtime live here even under `LOKALBOT_STORAGE_ROOT`
-    /// isolation, so hermetic test runs share them with the real install.
+    /// isolation, so fixture runs share them only with their app identity.
     /// Catalog GGUFs are the exception — they download under the overridable
     /// library root (`ModelCatalog.localURL`); `Scripts/e2e.sh` symlinks the
     /// real models/ into its temp root to keep those shared too.
     static var applicationSupport: URL {
-        userApplicationSupport.appendingPathComponent(AppIdentifiers.bundleID, isDirectory: true)
+        applicationSupport(for: AppIdentifiers.identity, under: userApplicationSupport)
+    }
+
+    static func applicationSupport(for identity: AppIdentifiers.Identity, under parent: URL) -> URL {
+        parent.appendingPathComponent(identity.bundleID, isDirectory: true)
     }
 
     /// FluidAudio's own cache root (`~/Library/Application Support/FluidAudio`)
@@ -53,9 +58,24 @@ enum AppDirectories {
     /// tests, hermetic e2e runs, and the CLI all resolve the same isolated
     /// library as the app.
     static var libraryRoot: URL {
-        if let override = UITestRuntime.storageRoot {
-            return URL(fileURLWithPath: override, isDirectory: true)
+        resolveLibraryRoot(applicationSupport: applicationSupport,
+                           storageOverride: UITestRuntime.storageRoot)
+    }
+
+    static func resolveLibraryRoot(applicationSupport: URL, storageOverride: String?) -> URL {
+        if let storageOverride, !storageOverride.isEmpty {
+            return URL(fileURLWithPath: storageOverride, isDirectory: true)
         }
         return applicationSupport
+    }
+
+    /// Agent tools start in an empty workspace beside the private library, so
+    /// selecting the default workspace does not expose recordings or settings.
+    static var agentWorkspace: URL { agentWorkspace(forLibraryRoot: libraryRoot) }
+
+    static func agentWorkspace(forLibraryRoot root: URL) -> URL {
+        let resolvedRoot = root.standardizedFileURL.resolvingSymlinksInPath()
+        return resolvedRoot.deletingLastPathComponent()
+            .appendingPathComponent(resolvedRoot.lastPathComponent + ".agent-workspace", isDirectory: true)
     }
 }

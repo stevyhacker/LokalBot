@@ -119,8 +119,10 @@ final class DreamScheduler: ObservableObject {
 
     /// A generated artifact changed behind the in-memory scan cursor. Reset
     /// the high-water mark so the next tick can find and repair the hole.
-    func reconsiderReports(invalidating dayKeys: Set<String> = []) {
-        if let activeDayKey, dayKeys.contains(activeDayKey) {
+    func reconsiderReports(invalidating dayKeys: Set<String> = [], cancellingInFlight: Bool = false) {
+        // A newer dream can depend on an old source through durable memory,
+        // even when its own day is outside the direct comparison window.
+        if let activeDayKey, cancellingInFlight || dayKeys.contains(activeDayKey) {
             generation &+= 1
             dreamTask?.cancel()
             dreamTask = nil

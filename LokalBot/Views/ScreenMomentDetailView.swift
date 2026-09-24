@@ -255,11 +255,14 @@ struct ScreenMomentDetailView: View {
 
     private func toggleSaved() {
         do {
-            if screenshot.isBookmarked {
-                try app.activityStore.removeSavedMoment(snapshotID: screenshot.id)
-            } else {
-                try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
+            try app.withPrimaryEvidenceChange(on: [screenshot.ts]) {
+                if screenshot.isBookmarked {
+                    try app.activityStore.removeSavedMoment(snapshotID: screenshot.id)
+                } else {
+                    try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
+                }
             }
+            app.primaryEvidenceDidChange(on: screenshot.ts)
             onReload()
         } catch {
             app.lastError = "Could not update saved moment: \(error.localizedDescription)"
@@ -268,7 +271,10 @@ struct ScreenMomentDetailView: View {
 
     private func saveNote() {
         do {
-            try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
+            try app.withPrimaryEvidenceChange(on: [screenshot.ts]) {
+                try app.activityStore.saveMoment(snapshotID: screenshot.id, note: note)
+            }
+            app.primaryEvidenceDidChange(on: screenshot.ts)
             onReload()
         } catch {
             app.lastError = "Could not save moment note: \(error.localizedDescription)"
@@ -277,7 +283,9 @@ struct ScreenMomentDetailView: View {
 
     private func deleteCapture() {
         do {
-            try app.screenshots.deleteCapture(id: screenshot.id)
+            try app.withPrimaryEvidenceChange(on: [screenshot.ts]) {
+                try app.screenshots.deleteCapture(id: screenshot.id)
+            }
             app.primaryEvidenceDidChange(on: screenshot.ts)
             onClear()
             onReload()

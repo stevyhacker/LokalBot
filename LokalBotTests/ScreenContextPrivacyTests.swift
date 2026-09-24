@@ -49,4 +49,71 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertFalse(ScreenContextPrivacy.hasRichAccessibleText("Save Cancel Name"))
         XCTAssertTrue(ScreenContextPrivacy.hasRichAccessibleText(String(repeating: "context ", count: 12)))
     }
+
+    func testContentPolicyRejectsUnknownBrowserURLAndSecureFieldState() {
+        var observation = ScreenContextPrivacy.Observation(
+            appName: "Safari", bundleIdentifier: "com.apple.Safari",
+            windowTitle: "Account", sourceURL: nil, focusedSecureField: false)
+        func allowed(_ value: ScreenContextPrivacy.Observation) -> Bool {
+            ScreenContextPrivacy.permitsContent(
+                value, excludedApps: [], excludedDomains: ["private.test"],
+                capturePrivateWindows: false)
+        }
+        XCTAssertFalse(allowed(observation), "An unreadable browser address cannot establish domain consent")
+        observation.sourceURL = "https://private.test/account"
+        XCTAssertFalse(allowed(observation))
+        observation.sourceURL = "https://public.test/document"
+        XCTAssertTrue(allowed(observation))
+        observation.focusedSecureField = nil
+        XCTAssertFalse(allowed(observation), "AX failures must not become a safe-field result")
+        observation.focusedSecureField = true
+        XCTAssertFalse(allowed(observation))
+        observation.focusedSecureField = false
+        observation.windowTitle = nil
+        XCTAssertFalse(allowed(observation))
+        observation.windowTitle = ""
+        XCTAssertFalse(allowed(observation), "An empty browser title cannot establish private-window status")
+    }
+
+    func testDomainRulesAllowNativeDocumentsButRejectUnknownEmbeddedWebOrigins() {
+        var observation = ScreenContextPrivacy.Observation(
+            appName: "Editor", bundleIdentifier: "test.editor",
+            windowTitle: "Work.swift", sourceURL: nil, focusedSecureField: false)
+        XCTAssertTrue(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: ["private.test"],
+            capturePrivateWindows: false))
+        observation.hasWebContent = true
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: ["private.test"],
+            capturePrivateWindows: false))
+    }
+
+    func testPrivateWindowOptInDoesNotBypassAppDomainOrSecureFieldExclusions() {
+        var observation = ScreenContextPrivacy.Observation(
+            appName: "Safari", bundleIdentifier: "com.apple.Safari",
+            windowTitle: "Private Window", sourceURL: "https://public.test", focusedSecureField: false)
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: false))
+        XCTAssertTrue(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: ["Safari"], excludedDomains: [], capturePrivateWindows: true))
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: ["public.test"], capturePrivateWindows: true))
+        observation.focusedSecureField = true
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+    }
+
+    func testScreenAccessibilityReaderTimeoutReturnsNoPartialPrivacySnapshot() async {
+        let reader = ScreenAccessibilityReader(deadlineMilliseconds: 10) { _ in
+            Thread.sleep(forTimeInterval: 0.1)
+            return .init(text: "Late", sourceURL: "https://public.test", documentName: nil,
+                         focusedSecureField: false, windowTitle: "Late", windowFrame: nil)
+        }
+        let result = await reader.capture(processID: 42)
+
+        XCTAssertTrue(result.timedOut)
+        XCTAssertNil(result.snapshot)
+    }
 }

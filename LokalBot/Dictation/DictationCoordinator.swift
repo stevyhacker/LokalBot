@@ -83,6 +83,7 @@ final class DictationCoordinator: ObservableObject {
         var generation: Int
     }
     private var pendingTranscriptionRetry: PendingTranscriptionRetry?
+    private var pendingAudioHandoff: DictationAudioHandoff?
     private var activeAudioURL: URL?
     private var pausedMediaSession: MediaPlaybackController.PauseSession?
     private var deliveryTarget: DictationDeliveryTarget?
@@ -423,11 +424,19 @@ final class DictationCoordinator: ObservableObject {
             scheduleMediaResume($0, reason: "dictation capture finished")
         }
         transcribeTask?.cancel()
+        pendingAudioHandoff?.discard()
+        let handoff = DictationAudioHandoff(audioURL: audioURL)
+        pendingAudioHandoff = handoff
         transcribeTask = Task { [weak self] in
             if let mediaCleanup { await mediaCleanup.value }
-            guard !Task.isCancelled else { return }
-            await self?.transcribeAndDeliver(audioURL: audioURL, startedAt: startedAt,
-                                             source: source, generation: session)
+            guard !Task.isCancelled, let self, self.generation == session else {
+                handoff.discard()
+                return
+            }
+            guard let ownedURL = handoff.take() else { return }
+            if self.pendingAudioHandoff === handoff { self.pendingAudioHandoff = nil }
+            await self.transcribeAndDeliver(audioURL: ownedURL, startedAt: startedAt,
+                                           source: source, generation: session)
         }
     }
 
@@ -441,6 +450,8 @@ final class DictationCoordinator: ObservableObject {
         generation += 1
         transcribeTask?.cancel()
         transcribeTask = nil
+        pendingAudioHandoff?.discard()
+        pendingAudioHandoff = nil
         prewarmTask?.cancel()
         prewarmTask = nil
         discardPendingTranscriptionRetry()
