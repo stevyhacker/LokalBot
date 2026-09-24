@@ -7,24 +7,31 @@ import SwiftUI
 private struct SplitPaneAccessibility: NSViewRepresentable {
     let label: String
     var autosaveName: String?
+    var initialWidth: CGFloat?
 
     func makeNSView(context: Context) -> PaneAnchor {
         let anchor = PaneAnchor()
         anchor.setAccessibilityElement(false)
         anchor.label = label
         anchor.autosaveName = autosaveName
+        anchor.initialWidth = initialWidth
         return anchor
     }
 
     func updateNSView(_ anchor: PaneAnchor, context: Context) {
         anchor.label = label
         anchor.autosaveName = autosaveName
+        anchor.initialWidth = initialWidth
         anchor.updatePaneLabel()
     }
 
     final class PaneAnchor: NSView {
         var label = ""
         var autosaveName: String?
+        var initialWidth: CGFloat?
+        /// Cleared once the pane has its opening width, or once a divider
+        /// position the user saved earlier has been restored instead.
+        private var initialWidthPending = true
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -51,8 +58,12 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
                         // never borrow a sibling workspace's split position.
                         if let name = self.autosaveName,
                            split.autosaveName != name {
+                            // Check before naming: assigning the name restores
+                            // a saved position, which must win over the default.
+                            if Self.hasSavedFrames(name) { self.initialWidthPending = false }
                             split.autosaveName = name
                         }
+                        self.applyInitialWidth(of: child, in: split)
                         child.setAccessibilityLabel(self.label)
                         // NSSplitView exposes pane proxies separately from
                         // its arranged NSViews. The proxy, rather than the
@@ -71,11 +82,47 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
                 }
             }
         }
+
+        /// HSplitView splits two flexible panes evenly. A pane with an opening
+        /// width gets it once, and then holds its width while the window
+        /// resizes so the sibling pane absorbs the change instead.
+        private func applyInitialWidth(of pane: NSView, in split: NSSplitView) {
+            guard let width = initialWidth, split.isVertical, split.arrangedSubviews.count == 2,
+                  let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }) else { return }
+            // HSplitView's split view belongs to a split view controller, which
+            // owns holding priorities through its items.
+            let holding = NSLayoutConstraint.Priority.defaultLow + 10
+            if let controller = split.delegate as? NSSplitViewController {
+                if controller.splitViewItems.indices.contains(index),
+                   controller.splitViewItems[index].holdingPriority != holding {
+                    controller.splitViewItems[index].holdingPriority = holding
+                }
+            } else if split.holdingPriorityForSubview(at: index) != holding {
+                split.setHoldingPriority(holding, forSubviewAt: index)
+            }
+            guard initialWidthPending, split.bounds.width > width + split.dividerThickness else { return }
+            initialWidthPending = false
+            let position = index == 0 ? width : split.bounds.width - width - split.dividerThickness
+            split.setPosition(position, ofDividerAt: 0)
+        }
+
+        private static func hasSavedFrames(_ autosaveName: String) -> Bool {
+            UserDefaults.standard.object(forKey: "NSSplitView Subview Frames \(autosaveName)") != nil
+        }
     }
 }
 
 extension View {
-    func splitPaneAccessibilityLabel(_ label: String, autosaveName: String? = nil) -> some View {
-        background { SplitPaneAccessibility(label: label, autosaveName: autosaveName) }
+    /// Names a split pane for VoiceOver. `autosaveName` gives the split its own
+    /// saved divider position; `initialWidth` sets this pane's width the first
+    /// time the split appears without one.
+    func splitPaneAccessibilityLabel(
+        _ label: String,
+        autosaveName: String? = nil,
+        initialWidth: CGFloat? = nil
+    ) -> some View {
+        background {
+            SplitPaneAccessibility(label: label, autosaveName: autosaveName, initialWidth: initialWidth)
+        }
     }
 }

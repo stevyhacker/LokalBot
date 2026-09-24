@@ -72,19 +72,24 @@ enum WorkspaceMetric {
     static let timelineContextMinWidth: CGFloat = 420
     static let timelineDrawerBreakpoint: CGFloat = 820
     static let timelineDrawerMaxWidth: CGFloat = 520
+    /// The work-session rail is user-resizable against the digest. It opens
+    /// at a readable width and can take up to about half of a large window.
+    static let timelineRailMinWidth: CGFloat = 260
+    static let timelineRailIdealWidth: CGFloat = 360
+    static let timelineRailMaxWidth: CGFloat = 640
 }
 
 /// Agent's three working surfaces remain neutral; accent marks focus and
 /// available primary actions. All colors adapt to the system appearance.
 enum AgentPalette {
     static let conversation = Color(nsColor: .textBackgroundColor)
+    /// The task list shares the secondary-column tone of Ask's conversations
+    /// and Settings' categories.
     static func tasks(for scheme: ColorScheme) -> Color {
         WorkspacePalette.conversationColumn(for: scheme)
     }
 
     static func composer(for scheme: ColorScheme) -> Color {
-    /// The task list shares the secondary-column tone of Ask's conversations
-    /// and Settings' categories.
         scheme == .dark ? Color(white: 0.20) : Color(white: 0.975)
     }
 

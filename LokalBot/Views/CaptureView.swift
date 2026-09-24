@@ -303,12 +303,17 @@ struct TimelineContentView: View {
                                    maxWidth: .infinity, maxHeight: .infinity)
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("timeline.evidencePane")
-                            .splitPaneAccessibilityLabel("Timeline evidence", autosaveName: "LokalBot.timeline.reading.v3")
+                            .splitPaneAccessibilityLabel("Timeline evidence")
                         CaptureDayView(model: model, onOpenContext: {})
-                            .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
+                            .frame(minWidth: WorkspaceMetric.timelineRailMinWidth,
+                                   idealWidth: WorkspaceMetric.timelineRailIdealWidth,
+                                   maxWidth: WorkspaceMetric.timelineRailMaxWidth)
                             .accessibilityElement(children: .contain)
                             .accessibilityIdentifier("timeline.sessionRail")
-                            .splitPaneAccessibilityLabel("Work sessions")
+                            .splitPaneAccessibilityLabel(
+                                "Work sessions",
+                                autosaveName: "LokalBot.timeline.reading.v4",
+                                initialWidth: WorkspaceMetric.timelineRailIdealWidth)
                     }
                     .id("workspace.timeline")
                 }
@@ -556,7 +561,7 @@ struct CaptureDayView: View {
     ) -> some View {
         let items = TimelineDayItem.items(sessions: sessions, meetings: meetings, now: now)
         return ScrollView {
-            LazyVStack(spacing: 8) {
+            LazyVStack(spacing: 6) {
                 if items.isEmpty {
                     ContentUnavailableView(
                         "No meaningful sessions",
@@ -602,16 +607,16 @@ struct CaptureDayView: View {
             model.showsRawCapture = willSelect
             if willSelect { onOpenContext() }
         } label: {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: TimelineRailStyle.spacing) {
                 Image(systemName: "waveform.path.ecg.rectangle")
-                    .font(.system(size: 17))
+                    .font(.system(size: 15))
                     .foregroundStyle(.secondary)
-                    .frame(width: 32)
+                    .frame(width: TimelineRailStyle.iconSize)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Browse raw capture")
-                        .font(WorkspaceTypography.bodyEmphasis)
+                        .font(TimelineRailStyle.title)
                     Text("\(CountLabel.format(model.blocks.count, "activity entry", plural: "activity entries")) · \(CountLabel.format(model.rewindFrames.count, "screen moment"))")
-                        .font(WorkspaceTypography.metadata.monospacedDigit())
+                        .font(TimelineRailStyle.detail.monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -619,7 +624,7 @@ struct CaptureDayView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(12)
+            .padding(TimelineRailStyle.padding)
             .contentShape(Rectangle())
             .background(
                 isSelected ? Brand.teal.opacity(0.11) : Color.primary.opacity(0.035),
@@ -703,6 +708,18 @@ struct TimelineRawCaptureView: View {
 
 }
 
+/// The work-session rail is a scannable index beside the digest, so its rows
+/// use list-sized medium titles and a small tile instead of page-body weight.
+private enum TimelineRailStyle {
+    static let title = Font.system(size: 13, weight: .medium)
+    static let detail = Font.system(size: 12)
+    static let detailEmphasis = Font.system(size: 12, weight: .semibold)
+    static let iconSize: CGFloat = 24
+    static let timeWidth: CGFloat = 60
+    static let padding: CGFloat = 10
+    static let spacing: CGFloat = 10
+}
+
 private struct TimelineWorkSessionRow: View {
     let session: TimelineWorkSession
     let sceneCount: Int
@@ -711,24 +728,24 @@ private struct TimelineWorkSessionRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: TimelineRailStyle.spacing) {
                 timeRange(start: session.start, end: session.end)
                 IconTile(systemImage: "briefcase", tint: CaptureStyle.color(for: session.primaryApp),
-                         size: 32)
-                VStack(alignment: .leading, spacing: 4) {
+                         size: TimelineRailStyle.iconSize)
+                VStack(alignment: .leading, spacing: 3) {
                     Text(session.title)
-                        .font(WorkspaceTypography.bodyEmphasis)
+                        .font(TimelineRailStyle.title)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(session.title)
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Text(appSummary)
-                            .font(WorkspaceTypography.metadata)
+                            .font(TimelineRailStyle.detail)
                             .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                             .lineLimit(1)
                         Text(CaptureStyle.hm(session.activeDuration))
-                            .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
+                            .font(TimelineRailStyle.detailEmphasis.monospacedDigit())
                             .fixedSize()
                     }
                 }
@@ -737,7 +754,7 @@ private struct TimelineWorkSessionRow: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(12)
+            .padding(TimelineRailStyle.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
@@ -780,8 +797,9 @@ private struct TimelineWorkSessionRow: View {
             Text(end.formatted(date: .omitted, time: .shortened))
                 .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
         }
-        .font(WorkspaceTypography.metadata.monospacedDigit())
-        .frame(width: 60, alignment: .trailing)
+        .font(TimelineRailStyle.detail.monospacedDigit())
+        .lineLimit(1)
+        .frame(width: TimelineRailStyle.timeWidth, alignment: .trailing)
     }
 }
 
@@ -793,31 +811,32 @@ private struct TimelineSessionMeetingRow: View {
 
     var body: some View {
         Button(action: onSelect) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: TimelineRailStyle.spacing) {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(meeting.startedAt.formatted(date: .omitted, time: .shortened))
                         .foregroundStyle(.primary)
                     Text(end.formatted(date: .omitted, time: .shortened))
                         .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                 }
-                .font(WorkspaceTypography.metadata.monospacedDigit())
-                .frame(width: 60, alignment: .trailing)
-                IconTile(systemImage: "waveform", tint: Brand.tealFill, size: 32)
+                .font(TimelineRailStyle.detail.monospacedDigit())
+                .lineLimit(1)
+                .frame(width: TimelineRailStyle.timeWidth, alignment: .trailing)
+                IconTile(systemImage: "waveform", tint: Brand.tealFill, size: TimelineRailStyle.iconSize)
                 // Same anatomy as work sessions: one-line title, kind and
                 // duration beneath, chevron centered on the trailing edge.
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(meeting.displayTitle)
-                        .font(WorkspaceTypography.bodyEmphasis)
+                        .font(TimelineRailStyle.title)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                         .help(meeting.displayTitle)
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Text(meeting.endedAt == nil ? "Meeting · Recording" : "Meeting")
-                            .font(WorkspaceTypography.metadata)
+                            .font(TimelineRailStyle.detail)
                             .foregroundStyle(meeting.endedAt == nil ? Brand.recording : Color(nsColor: WorkspaceTextColor.supporting))
                         Text(CaptureStyle.hm(end.timeIntervalSince(meeting.startedAt)))
-                            .font(WorkspaceTypography.metadataEmphasis.monospacedDigit())
+                            .font(TimelineRailStyle.detailEmphasis.monospacedDigit())
                             .fixedSize()
                     }
                 }
@@ -826,7 +845,7 @@ private struct TimelineSessionMeetingRow: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
-            .padding(12)
+            .padding(TimelineRailStyle.padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .background(
