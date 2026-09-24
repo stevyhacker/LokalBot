@@ -45,11 +45,9 @@ struct ExclusionRulesEditor: View {
             }
             if let error { Text(error).workspaceTextRole(.warning) }
             if kind == .writingDomains {
-                Text("Matches this domain and its subdomains. A pasted URL applies to its whole domain.")
-                    .workspaceTextRole(.supporting)
+                SettingsHelp("Matches this domain and its subdomains. A pasted URL applies to its whole domain.")
             } else if kind == .domains {
-                Text("A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them.")
-                    .workspaceTextRole(.supporting)
+                SettingsHelp("A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them.")
             }
         }
     }

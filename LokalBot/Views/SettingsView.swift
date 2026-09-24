@@ -192,7 +192,7 @@ struct SettingsView: View {
         case .models:
             EmptyView() // handled by the ModelsView branch in body
         case .privacy:
-            privacySection; exclusionsSection; permissionsSection; storageSection
+            privacySection; exclusionsSection; permissionsSection; privacyLinksSection
         case .advanced:
             memoryHealthSection; resourceMonitorSection; systemSection; agentCLISection
         }
@@ -872,41 +872,51 @@ struct SettingsView: View {
             if shows("Privacy", ["privacy", "retention", "ocr", "text", "screen text", "history",
                                  "delete", "prune", "forever", "keep", "local", "network",
                                  "data", "security", "agents", "mcp", "claude", "cli"]) {
-                Section("Privacy") {
+                Section("Where your data lives") {
                     InferenceDisclosure(
                         settings: app.settings,
                         localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
                         remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                    storageLocationRow
+                }
+                Section("Screen memory retention") {
                     RetentionSettingsControls()
+                }
+                Section("External agents") {
                     AgentAccessToggleRow(manager: app.agentAccess)
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
                     ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
-                    HStack(spacing: 16) {
-                        Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
-                            .buttonStyle(.workspaceLink)
-                        Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
-                            .buttonStyle(.workspaceLink)
-                    }
-                    .font(WorkspaceTypography.editorialBody)
                 }
             }
 
     }
 
-    @ViewBuilder private var storageSection: some View {
-            if shows("Storage", ["storage", "location", "files", "folder", "finder", "disk"]) {
-                Section("Storage") {
-                    LabeledContent("Location") {
-                        Button(app.storage.rootURL.path(percentEncoded: false)) {
-                            NSWorkspace.shared.activateFileViewerSelecting([app.storage.rootURL])
-                        }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(Brand.teal)
-                    }
-                }
+    private var storageLocationRow: some View {
+        LabeledContent {
+            Button(app.storage.rootURL.path(percentEncoded: false)) {
+                NSWorkspace.shared.activateFileViewerSelecting([app.storage.rootURL])
             }
+            .buttonStyle(.workspaceLink)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .help("Show in Finder")
+        } label: {
+            SettingsLabel("Library location", help: "Meetings, day memory, and the search index.")
+        }
+    }
 
+    /// Policy and support links close the Privacy & Data page.
+    private var privacyLinksSection: some View {
+        Section {
+            HStack(spacing: 16) {
+                Link("Privacy Policy", destination: URL(string: "https://www.lokalbot.com/privacy")!)
+                    .buttonStyle(.workspaceLink)
+                Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
+                    .buttonStyle(.workspaceLink)
+            }
+            .font(WorkspaceTypography.control)
+        }
     }
 
     @ViewBuilder private var updatesSection: some View {

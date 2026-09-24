@@ -6,26 +6,37 @@ struct RetentionSettingsControls: View {
     @State private var error: String?
     @State private var completion: String?
 
+    /// Separate Form rows: how long screen context lasts, the text exception,
+    /// and the reviewed cleanup that any shortening goes through.
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Stepper("Keep screen context \(app.settings.retentionDays) days", value: Binding(
+        Group {
+            Stepper(value: Binding(
                 get: { app.settings.retentionDays },
-                set: { propose(days: $0, forever: app.settings.keepOCRTextForever) }), in: 1...90)
+                set: { propose(days: $0, forever: app.settings.keepOCRTextForever) }), in: 1...90) {
+                SettingsLabel("Keep screen context \(app.settings.retentionDays) days",
+                              help: "Screenshots and their text older than this are removed. Saved moments are kept until you unsave or delete them.")
+            }
                 .settingTarget("settings.retentionDays", selected: app.focusedSettingID)
-            Toggle("Keep screen text forever", isOn: Binding(
+                .accessibilityIdentifier("settings.retention")
+            Toggle(isOn: Binding(
                 get: { app.settings.keepOCRTextForever },
-                set: { propose(days: app.settings.retentionDays, forever: $0) }))
+                set: { propose(days: app.settings.retentionDays, forever: $0) })) {
+                SettingsLabel("Keep screen text forever",
+                              help: "Images still expire; their searchable text stays.")
+            }
                 .settingTarget("settings.keepOCRTextForever", selected: app.focusedSettingID)
-            SettingsHelp("Saved moments keep their images and text until you unsave or delete them. Shortening retention opens a cleanup review first.")
-            Button("Review expired context…") {
-                loadReview(days: app.settings.retentionDays, forever: app.settings.keepOCRTextForever)
+            LabeledContent {
+                Button("Review expired context…") {
+                    loadReview(days: app.settings.retentionDays, forever: app.settings.keepOCRTextForever)
+                }
+            } label: {
+                SettingsLabel("Cleanup", help: "Shortening retention opens this review before anything is deleted.")
+            }
+            .sheet(item: $review) { proposal in
+                RetentionReviewSheet(review: proposal, error: error, onCancel: { review = nil }, onApply: { apply(proposal) })
             }
             if let error { Text(error).workspaceTextRole(.warning) }
             if let completion { Text(completion).workspaceTextRole(.supporting) }
-        }
-        .accessibilityIdentifier("settings.retention")
-        .sheet(item: $review) { proposal in
-            RetentionReviewSheet(review: proposal, error: error, onCancel: { review = nil }, onApply: { apply(proposal) })
         }
     }
 
