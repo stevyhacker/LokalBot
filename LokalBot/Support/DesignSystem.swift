@@ -68,6 +68,9 @@ enum WorkspaceMetric {
     static let contentMaxWidth: CGFloat = 1360
     /// Long-form answers and summaries stay within a comfortable reading line.
     static let readingMaxWidth: CGFloat = 780
+    /// Today is a glanceable page: wide enough for a row of session cards,
+    /// with prose still held to `readingMaxWidth`.
+    static let todayMaxWidth: CGFloat = 1120
     /// Timeline context remains useful beside the chronology before it drawers.
     static let timelineContextMinWidth: CGFloat = 420
     static let timelineDrawerBreakpoint: CGFloat = 820
