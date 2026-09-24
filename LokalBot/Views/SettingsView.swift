@@ -489,6 +489,7 @@ struct SettingsView: View {
                     .settingTarget("settings.summaryLanguage", selected: app.focusedSettingID)
                     Toggle("Separate voices by speaker",
                            isOn: $app.settings.multiSpeakerDiarization)
+                        .accessibilityLabel("Separate voices by speaker")
                         .accessibilityIdentifier("settings.multiSpeakerDiarization")
                     Picker("Speaker model", selection: $app.settings.diarizationModel) {
                         ForEach(DiarizationModel.allCases) { model in
@@ -496,6 +497,7 @@ struct SettingsView: View {
                         }
                     }
                     .disabled(!app.settings.multiSpeakerDiarization)
+                    .accessibilityLabel("Speaker model")
                     .accessibilityIdentifier("settings.diarizationModel")
                     Text(app.settings.diarizationModel.description)
                         .font(WorkspaceTypography.editorialBody).settingsSecondary()

@@ -1128,6 +1128,7 @@ final class MainWindowUITests: XCTestCase {
         let picker = app.popUpButtons["settings.diarizationModel"]
         UITestHarness.scrollTo(picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 4))
+        XCTAssertEqual(picker.label, "Speaker model")
         // The harness seeds legacy saved settings without a model-selection key.
         XCTAssertEqual(picker.value as? String, "Pyannote Community-1")
         picker.click()
