@@ -6,51 +6,28 @@ struct MeetingSpeakerSuggestion: Identifiable {
     let name: String?
     var calendar: CalendarParticipantIdentity?
     var calendarIndex: Int?
-    var participant: MeetingParticipantName?
 
     var sources: [String] {
-        var labels: [String] = []
-        if let participant {
-            labels.append(participant.source == .ocr ? "Screen" : "Meet")
-            if participant.isSelf { labels.append("You") }
-        }
-        if let calendar {
-            labels.append("Calendar")
-            if calendar.name == nil, calendar.suggestedSpeakerName != nil { labels.append("Name from email") }
-        }
-        return labels.isEmpty ? ["Suggested name"] : labels
+        guard let calendar else { return ["Suggested name"] }
+        var labels = ["Calendar"]
+        if calendar.name == nil, calendar.suggestedSpeakerName != nil { labels.append("Name from email") }
+        return labels
     }
 
     var accessibilityID: String {
         if let calendarIndex { return "speaker.rename.calendarCandidate.\(calendarIndex)" }
-        if let participant { return "speaker.rename.meetParticipant.\(participant.id)" }
         return "speaker.rename.suggestion.\(id)"
     }
 
     static func choices(
         calendar: [CalendarParticipantIdentity],
-        participants: [MeetingParticipantName],
         hints: [String]
     ) -> [Self] {
-        let participants = MeetingParticipantName.merging([], participants)
-        var usedCalendar = Set<Int>()
-        var result: [Self] = participants.map { participant in
-            let key = nameKey(participant.name)
-            // Only an unambiguous, supplied display name can combine sources.
-            // Email-derived guesses, historical OCR and self tiles stay separate.
-            let matches = calendar.indices.filter { calendar[$0].name.map(nameKey) == key }
-            let sameLabelCount = calendar.filter { $0.suggestedSpeakerName.map(nameKey) == key }.count
-            let uniqueParticipant = participants.filter { nameKey($0.name) == key }.count == 1
-            let index = !participant.isSelf && participant.source == .accessibility
-                && uniqueParticipant && matches.count == 1 && sameLabelCount == 1 ? matches.first : nil
-            if let index { usedCalendar.insert(index) }
-            return Self(id: "participant:\(participant.id)", name: participant.name,
-                        calendar: index.map { calendar[$0] }, calendarIndex: index, participant: participant)
-        }
-        for index in calendar.indices where !usedCalendar.contains(index) {
+        // Same-named guests stay separate: each keeps its own calendar identity.
+        var result: [Self] = calendar.indices.map { index in
             let candidate = calendar[index]
-            result.append(Self(id: "calendar:\(candidate.id)", name: candidate.suggestedSpeakerName,
-                               calendar: candidate, calendarIndex: index))
+            return Self(id: "calendar:\(candidate.id)", name: candidate.suggestedSpeakerName,
+                        calendar: candidate, calendarIndex: index)
         }
         var knownNames = Set(result.compactMap(\.name).map(nameKey))
         for hint in hints {

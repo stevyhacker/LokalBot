@@ -143,10 +143,8 @@ private struct MeetingWorkspaceDetail: View {
     @State private var returningToReview = false
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
-    @State private var observedParticipants: [MeetingParticipantName] = []
     @State private var speakerProfiles: [SpeakerVoiceProfile] = []
     @State private var speakerIdentityNotice: String?
-    @State private var speakerObservationDiagnostics: SpeakerObservationDiagnostics?
     @State private var savingSpeakerIdentity = false
     @State private var speakerSummaryNeedsRefresh = false
     @State private var speakerNameHints: [String] = []
@@ -351,7 +349,6 @@ private struct MeetingWorkspaceDetail: View {
                 calendarCandidates: calendarCandidates(for: draft.speaker),
                 assignedCalendarIdentityIDs: assignedCalendarIdentityIDs,
                 identityState: speakerIdentityState,
-                observedParticipants: observedParticipants,
                 profiles: speakerProfiles,
                 rememberingEnabled: app.settings.rememberSpeakersOnMac,
                 notice: speakerIdentityNotice,
@@ -569,11 +566,6 @@ private struct MeetingWorkspaceDetail: View {
 
     private var speakerAndActionReview: some View {
         VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
-            if let explanation = speakerObservationDiagnostics?.missingSpeakerNamesExplanation,
-               !unnamedRemoteSpeakers.isEmpty {
-                Text(explanation).workspaceTextRole(.supporting)
-                    .accessibilityIdentifier("meeting.speakerCaptureUnavailable")
-            }
             if !calendarSpeakerCandidates.isEmpty, !unnamedRemoteSpeakers.isEmpty {
                 Text("\(calendarSpeakerCandidates.count) calendar guests are available as name suggestions. Attendance alone does not identify a voice.")
                     .workspaceTextRole(.supporting)
@@ -1109,10 +1101,8 @@ private struct MeetingWorkspaceDetail: View {
     private func refreshSpeakerIdentity(recover: Bool = false) async {
         let sidecar = folder.appendingPathComponent("speaker-evidence/identity.sealed")
         guard FileManager.default.fileExists(atPath: sidecar.path)
-                || app.settings.identifySpeakersFromVisuals || app.settings.rememberSpeakersOnMac else { return }
+                || app.settings.rememberSpeakersOnMac else { return }
         do {
-            speakerObservationDiagnostics = try await app.speakerIdentity.observationDiagnostics(for: meeting)
-            observedParticipants = try await app.speakerIdentity.participants(for: meeting)
             speakerIdentityState = try await app.speakerIdentity.state(for: meeting)
             speakerProfiles = try await app.speakerIdentity.profiles()
             let latestChoice = speakerIdentityState?.decisions.filter {
@@ -2013,7 +2003,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
     let calendarCandidates: [CalendarParticipantIdentity]
     let assignedCalendarIdentityIDs: Set<String>
     let identityState: MeetingSpeakerIdentityState?
-    let observedParticipants: [MeetingParticipantName]
     let profiles: [SpeakerVoiceProfile]
     let rememberingEnabled: Bool
     let notice: String?
@@ -2038,7 +2027,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
         calendarCandidates: [CalendarParticipantIdentity],
         assignedCalendarIdentityIDs: Set<String>,
         identityState: MeetingSpeakerIdentityState?,
-        observedParticipants: [MeetingParticipantName],
         profiles: [SpeakerVoiceProfile],
         rememberingEnabled: Bool,
         notice: String?,
@@ -2056,7 +2044,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.calendarCandidates = calendarCandidates
         self.assignedCalendarIdentityIDs = assignedCalendarIdentityIDs
         self.identityState = identityState
-        self.observedParticipants = observedParticipants
         self.profiles = profiles
         self.rememberingEnabled = rememberingEnabled
         self.notice = notice
@@ -2147,7 +2134,7 @@ private struct WorkspaceSpeakerRenameSheet: View {
     }
 
     private var suggestions: [MeetingSpeakerSuggestion] {
-        MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, participants: observedParticipants, hints: hints)
+        MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, hints: hints)
     }
 
     private func suggestionRow(_ suggestion: MeetingSpeakerSuggestion) -> some View {

@@ -1171,7 +1171,11 @@ final class FocusedWindowTitleLookup: @unchecked Sendable {
     }
 
     func title(for processID: pid_t) async -> FocusedWindowTitleLookupResult {
-        guard processID > 0 else { return .init(title: nil, timedOut: false) }
+        // Reading LokalBot's own window from this worker would run SwiftUI off
+        // the main actor; see ScreenAccessibilityReader.isOwnProcess.
+        guard processID > 0, !ScreenAccessibilityReader.isOwnProcess(processID) else {
+            return .init(title: nil, timedOut: false)
+        }
         return await withCheckedContinuation { continuation in
             stateQueue.async { [self] in
                 nextIdentifier &+= 1
@@ -1231,7 +1235,8 @@ final class FocusedWindowTitleLookup: @unchecked Sendable {
     }
 
     static func resolveTitle(processID: pid_t) -> String? {
-        guard AXIsProcessTrusted(), processID > 0 else { return nil }
+        guard AXIsProcessTrusted(), processID > 0,
+              !ScreenAccessibilityReader.isOwnProcess(processID) else { return nil }
         let appElement = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(appElement, perElementMessagingTimeout)
         var rawWindow: CFTypeRef?

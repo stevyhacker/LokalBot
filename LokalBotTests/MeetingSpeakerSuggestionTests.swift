@@ -2,72 +2,43 @@ import XCTest
 @testable import LokalBot
 
 final class MeetingSpeakerSuggestionTests: XCTestCase {
-    func testMatchingSuppliedNamesShareOneChoiceAndPreserveCalendarIdentity() throws {
+    func testCalendarGuestsKeepTheirIdentityAndMatchingHintsDoNotDuplicateThem() throws {
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "ana", name: "Ana Petrović", emailAddress: "ana@example.com"))
-        let result = MeetingSpeakerSuggestion.choices(calendar: [guest],
-            participants: [.init(name: "ANA   Petrović", source: .accessibility)], hints: ["Ana Petrović"])
+        let result = MeetingSpeakerSuggestion.choices(calendar: [guest], hints: ["ANA   Petrović"])
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.first?.calendar, guest)
-        XCTAssertEqual(result.first?.sources, ["Meet", "Calendar"])
+        XCTAssertEqual(result.first?.sources, ["Calendar"])
         XCTAssertEqual(result.first?.accessibilityID, "speaker.rename.calendarCandidate.0")
     }
 
-    func testSameNameGuestsWithDifferentEmailsRemainSeparateFromMeetSuggestion() throws {
+    func testSameNameGuestsWithDifferentEmailsRemainSeparate() throws {
         let guests = try ["alex@one.example", "alex@two.example"].enumerated().map { index, email in
             try XCTUnwrap(CalendarParticipantIdentity(id: "guest-\(index)", name: "Alex Kim", emailAddress: email))
         }
-        let result = MeetingSpeakerSuggestion.choices(calendar: guests,
-            participants: [.init(name: "Alex Kim", source: .accessibility)], hints: ["Alex Kim"])
-        XCTAssertEqual(result.count, 3)
-        XCTAssertNil(result[0].calendar)
+        let result = MeetingSpeakerSuggestion.choices(calendar: guests, hints: ["Alex Kim"])
         XCTAssertEqual(result.compactMap { $0.calendar?.id }, guests.map(\.id))
-        XCTAssertEqual(result.map(\.sources), [["Meet"], ["Calendar"], ["Calendar"]])
+        XCTAssertEqual(result.map(\.sources), [["Calendar"], ["Calendar"]])
     }
 
-    func testEmailDerivedNameDoesNotCombineWithObservedName() throws {
+    func testEmailDerivedNameIsLabelled() throws {
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "ana", name: nil, emailAddress: "ana.petrovic@example.com"))
-        let result = MeetingSpeakerSuggestion.choices(calendar: [guest],
-            participants: [.init(name: "Ana Petrovic", source: .accessibility)], hints: [])
-        XCTAssertEqual(result.count, 2)
-        XCTAssertNil(result[0].calendar)
-        XCTAssertEqual(result[1].sources, ["Calendar", "Name from email"])
-        XCTAssertNil(result[1].calendar?.name)
+        let result = MeetingSpeakerSuggestion.choices(calendar: [guest], hints: [])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].sources, ["Calendar", "Name from email"])
+        XCTAssertNil(result[0].calendar?.name)
     }
 
-    func testEmailGuessMakesOtherwiseMatchingCalendarChoiceAmbiguous() throws {
-        let guests = try [
-            XCTUnwrap(CalendarParticipantIdentity(id: "named", name: "Alex Kim", emailAddress: "alex@one.example")),
-            XCTUnwrap(CalendarParticipantIdentity(id: "guessed", name: nil, emailAddress: "alex.kim@two.example")),
-        ]
-        let result = MeetingSpeakerSuggestion.choices(calendar: guests,
-            participants: [.init(name: "Alex Kim", source: .accessibility)], hints: [])
-        XCTAssertEqual(result.count, 3)
-        XCTAssertNil(result[0].calendar)
-    }
-
-    func testHistoricalOCRAndSelfAreNotLinkedToRemoteCalendarGuests() throws {
-        let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "ana", name: "Ana Petrović", emailAddress: "ana@example.com"))
-        for participant in [MeetingParticipantName(name: "Ana Petrović", source: .ocr),
-                            .init(name: "Ana Petrović", source: .accessibility, isSelf: true)] {
-            let result = MeetingSpeakerSuggestion.choices(calendar: [guest], participants: [participant], hints: [])
-            XCTAssertEqual(result.count, 2)
-            XCTAssertNil(result[0].calendar)
-            XCTAssertEqual(result[0].sources, participant.isSelf ? ["Meet", "You"] : ["Screen"])
-        }
-    }
-
-    func testSimilarNamesDoNotMerge() throws {
+    func testSimilarHintsDoNotMergeWithAGuest() throws {
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "ana", name: "Ana Petrović", emailAddress: "ana@example.com"))
         for name in ["Ana", "Ana Petrovic", "Anna Petrović"] {
-            let result = MeetingSpeakerSuggestion.choices(calendar: [guest],
-                participants: [.init(name: name, source: .accessibility)], hints: [])
+            let result = MeetingSpeakerSuggestion.choices(calendar: [guest], hints: [name])
             XCTAssertEqual(result.count, 2, name)
         }
     }
 
     func testHintsJoinSameListWithoutDuplicatingExistingChoices() throws {
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "ana", name: "Ana Petrović", emailAddress: "ana@example.com"))
-        let result = MeetingSpeakerSuggestion.choices(calendar: [guest], participants: [],
+        let result = MeetingSpeakerSuggestion.choices(calendar: [guest],
             hints: ["Ana Petrović", " Sam Lee ", "sam lee", "", "   "])
         XCTAssertEqual(result.compactMap(\.name), ["Ana Petrović", "Sam Lee"])
         XCTAssertEqual(result[1].sources, ["Suggested name"])
@@ -76,8 +47,8 @@ final class MeetingSpeakerSuggestionTests: XCTestCase {
 
     func testUnnamedMailboxRemainsSelectableAndOrderHasStableIDs() throws {
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "room", name: nil, emailAddress: "room123@example.com"))
-        let first = MeetingSpeakerSuggestion.choices(calendar: [guest], participants: [], hints: [])
-        let second = MeetingSpeakerSuggestion.choices(calendar: [guest], participants: [], hints: [])
+        let first = MeetingSpeakerSuggestion.choices(calendar: [guest], hints: [])
+        let second = MeetingSpeakerSuggestion.choices(calendar: [guest], hints: [])
         XCTAssertEqual(first.map(\.id), second.map(\.id))
         XCTAssertEqual(first.first?.calendar?.emailAddress, "room123@example.com")
         XCTAssertNil(first.first?.name)

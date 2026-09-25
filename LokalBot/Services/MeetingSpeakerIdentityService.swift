@@ -15,7 +15,6 @@ final class MeetingSpeakerIdentityService: ObservableObject {
     private let settings: () -> AppSettings
     private let keyProvider: @MainActor () throws -> SymmetricKey
     private var cachedStore: MeetingSpeakerEvidenceStore?
-    private var sealing: [UUID: Task<Void, Never>] = [:]
     private var deleted = Set<UUID>()
     private var retentionTask: Task<Void, Never>?
     private var latestStates: [UUID: MeetingSpeakerIdentityState] = [:]
@@ -35,18 +34,8 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         return created
     }
 
-    func finalize(meetingID: UUID, task: Task<Void, Never>) { sealing[meetingID] = task }
-
     func state(for meeting: Meeting) async throws -> MeetingSpeakerIdentityState {
         try await store().state(meeting: meeting)
-    }
-
-    func observationDiagnostics(for meeting: Meeting) async throws -> SpeakerObservationDiagnostics? {
-        try await store().observationDiagnostics(meeting: meeting, retentionDays: settings().retentionDays)
-    }
-
-    func participants(for meeting: Meeting) async throws -> [MeetingParticipantName] {
-        try await store().participants(meeting: meeting, retentionDays: settings().retentionDays)
     }
 
     nonisolated static func audioRevision(url: URL) throws -> String {
@@ -126,27 +115,17 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         let config = settings()
         do {
             let store = try store()
-            if sealing.removeValue(forKey: meeting.id) != nil {
-                for _ in 0..<20 {
-                    if await !store.isCollecting(meetingID: meeting.id) { break }
-                    try await Task.sleep(for: .milliseconds(100))
-                }
-            }
             let folder = meeting.folderURL(in: storage)
             let audioRevision = try await Task.detached(priority: .utility) { try Self.recordingRevision(folder: folder, fallback: audioURL) }.value
             let usableTurns = timeline(transcript)
-            // ASR spans are not independent acoustic observations. Only the
-            // supplied diarization turns may support automatic visual naming.
-            let remoteTurns = turns.filter { $0.resolvedSource == .system }
-            var (evidence, evidenceRevision) = try await store.matchingInput(meeting: meeting, retentionDays: config.retentionDays)
-            var visual = config.identifySpeakersFromVisuals
-                ? VisualSpeakerMatcher.matches(turns: remoteTurns, intervals: evidence?.intervals ?? []) : [:]
+            var evidenceRevision = try await store.state(meeting: meeting).evidenceRevision
             var remembered = config.rememberSpeakersOnMac && settings().rememberSpeakersOnMac
             var database = remembered ? try await store.profiles() : SpeakerVoiceProfileDatabase()
             let microphoneSelection = remembered
                 ? await SpeakerMicrophoneEvidence.select(samples: samples, transcript: transcript, turns: turns, folder: folder)
                 : SpeakerMicrophoneEvidence.Selection()
-            var compatibleSamples = microphoneSelection.samples
+            // Only this Mac's microphone voices are remembered or matched.
+            var compatibleSamples = microphoneSelection.samples.filter { $0.source == .microphone }
             for _ in 0..<3 {
                 try Task.checkCancellation()
                 guard !deleted.contains(meeting.id) else { return transcript }
@@ -157,12 +136,9 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                 next.transcriptSignature = Self.transcriptSignature(transcript)
                 next.timeline = usableTurns
                 next.acousticTimeline = turns
-                next.providerVerified = evidence?.providerVerified == true || previous.providerVerified
                 next.microphoneSampleDiagnostics = settings().rememberSpeakersOnMac ? microphoneSelection.counts : nil
                 next.voiceSamples = settings().rememberSpeakersOnMac ? Set(usableTurns.map(\.speaker)).sorted().prefix(60).flatMap {
-                    SpeakerVoiceMatcher.eligible(compatibleSamples.filter { sample in
-                        sample.source == .microphone || next.providerVerified
-                    }, turns: turns, speaker: $0)
+                    SpeakerVoiceMatcher.eligible(compatibleSamples, turns: turns, speaker: $0)
                 } : []
                 next.suggestions = [:]
                 next.analyzedAt = Date()
@@ -185,9 +161,8 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                     }
                     guard let index = next.assignments.firstIndex(where: { $0.label == label }) else { continue }
                     next.assignments[index].source = speakerTurns.first?.resolvedSource
-                    var candidates = settings().identifySpeakersFromVisuals ? visual[label, default: []] : []
-                    if remembered, settings().rememberSpeakersOnMac,
-                       next.providerVerified || speakerTurns.first?.resolvedSource == .microphone {
+                    var candidates: [SpeakerNameMatch] = []
+                    if remembered, settings().rememberSpeakersOnMac, speakerTurns.first?.resolvedSource == .microphone {
                         let eligible = SpeakerVoiceMatcher.eligible(next.voiceSamples, turns: usableTurns, speaker: label)
                         candidates += SpeakerVoiceMatcher.matches(samples: eligible, profiles: database.profiles)
                     }
@@ -228,8 +203,6 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                 } catch MeetingSpeakerEvidenceStore.Failure.evidenceExpired {
                     // Keep durable human choices and historical aliases when a
                     // deletion races processing, but discard all pending evidence.
-                    evidence = nil
-                    visual = [:]
                     compatibleSamples = []
                     remembered = false
                     evidenceRevision = try await store.state(meeting: meeting).evidenceRevision
@@ -341,13 +314,10 @@ final class MeetingSpeakerIdentityService: ObservableObject {
             assignment.id = UUID()
         }
         if choice.action == .resume {
-            let evidence = try await store.evidence(meeting: meeting, retentionDays: settings().retentionDays)
             let acousticTurns = current.acousticTimeline ?? []
-            let remoteTurns = acousticTurns.filter { $0.resolvedSource == .system }
-            var candidates = settings().identifySpeakersFromVisuals
-                ? VisualSpeakerMatcher.matches(turns: remoteTurns, intervals: evidence?.intervals ?? [])[label, default: []] : []
+            var candidates: [SpeakerNameMatch] = []
             let profiles = settings().rememberSpeakersOnMac ? try await store.profiles().profiles : []
-            if settings().rememberSpeakersOnMac, current.providerVerified || assignment.source == .microphone {
+            if settings().rememberSpeakersOnMac, assignment.source == .microphone {
                 candidates += SpeakerVoiceMatcher.matches(samples: SpeakerVoiceMatcher.eligible(current.voiceSamples, turns: acousticTurns, speaker: label), profiles: profiles)
             }
             current.suggestions[label] = SpeakerIdentityResolver.apply(candidates: candidates, to: &assignment, profiles: profiles)
@@ -370,8 +340,7 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         unverifiedProcessing.remove(meeting.id)
         notice = nil
         if choice.action == .assign || choice.action.confirmsIdentity,
-           choice.remember, settings().rememberSpeakersOnMac,
-           committed.providerVerified || assignment.source == .microphone {
+           choice.remember, settings().rememberSpeakersOnMac, assignment.source == .microphone {
             let samples = SpeakerVoiceMatcher.eligible(committed.voiceSamples, turns: committed.timeline, speaker: label)
             if SpeakerVoiceMatcher.canEnroll(samples) {
                 do {
@@ -384,7 +353,7 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                 notice = "Meeting name saved. Remembering this voice needs three separate clear turns totaling 15 seconds."
             }
         } else if choice.remember, choice.action == .assign {
-            notice = "Meeting name saved. This recording does not have verified Meet voice material for remembering."
+            notice = "Meeting name saved. Only voices recorded by this Mac's microphone can be remembered."
         }
         revision += 1
         // Another correction could arrive while enrollment was suspended.

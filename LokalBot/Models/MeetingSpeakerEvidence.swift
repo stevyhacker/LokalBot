@@ -21,17 +21,8 @@ struct SpeakerAudioTurn: Codable, Equatable, Sendable {
     }
 }
 
-struct ParticipantObservation: Codable, Equatable, Sendable {
-    var reference: String
-    var displayName: String
-    var layoutEpoch: String
-    var hostStart: Double
-    var hostEnd: Double
-    var active: Bool
-    var muted: Bool = false
-    var isSelf: Bool = false
-    var unique: Bool = true
-
+/// Speaker display-name rules shared by assignments, profiles and suppression.
+enum ParticipantObservation {
     static func safeName(_ raw: String) -> String? {
         let name = raw.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -48,61 +39,9 @@ struct ParticipantObservation: Codable, Equatable, Sendable {
     }
 }
 
-struct SpeakerActivityInterval: Codable, Equatable, Sendable {
-    var id: UUID = UUID()
-    var participantReference: String
-    var displayName: String
-    var range: SpeakerTurnAnchor
-    var uncertainty: Double
-    var layoutEpoch: String
-}
-
-/// Presence is a manual name suggestion, never evidence that this person spoke.
-struct MeetingParticipantName: Codable, Equatable, Identifiable, Sendable {
-    // OCR remains decodable for names retained by earlier app versions.
-    enum Source: String, Codable, Sendable { case accessibility, ocr }
-    var name: String
-    var source: Source
-    var isSelf = false
-    var id: String { ParticipantObservation.nameKey(name) }
-
-    static func merging(_ existing: [Self], _ incoming: [Self]) -> [Self] {
-        var names = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        for var item in incoming {
-            guard let safe = ParticipantObservation.safeName(item.name) else { continue }
-            item.name = safe
-            if let prior = names[item.id] {
-                item.isSelf = item.isSelf || prior.isSelf
-                if prior.source == .ocr { item.source = .ocr }
-            }
-            names[item.id] = item
-        }
-        return Array(names.values.sorted { $0.id < $1.id }.prefix(60))
-    }
-}
-
-struct MeetingSpeakerEvidenceSession: Codable, Sendable {
-    var schemaVersion = 1
-    var meetingID: UUID
-    var generation: UUID
-    var provider = "google-meet-chrome-ax-v1"
-    var openedAt = Date()
-    var sealed = false
-    var failed = false
-    var providerVerified = false
-    var intervals: [SpeakerActivityInterval] = []
-    var clockSpans: [AudioClockSpan] = []
-    var diagnostics: SpeakerObservationDiagnostics?
-    var participants: [MeetingParticipantName]?
-}
-
-struct MeetingSpeakerEvidenceChunk: Codable, Sendable {
-    var intervals: [SpeakerActivityInterval]
-    var clockSpans: [AudioClockSpan]
-}
-
 struct SpeakerNameMatch: Codable, Equatable, Identifiable, Sendable {
     enum Tier: String, Codable, Sendable { case automatic, suggested }
+    /// `visual` came from the retired Google Meet naming; saved meetings still decode it.
     enum Source: String, Codable, Sendable { case visual, profile }
     var id: String { source.rawValue + ":" + (profileID?.uuidString ?? participantReference) }
     var name: String
@@ -183,6 +122,5 @@ struct MeetingSpeakerIdentityState: Codable, Sendable {
     var suggestions: [String: [SpeakerNameMatch]] = [:]
     var analyzedAt = Date()
     var voiceSamples: [SpeakerVoiceSample] = []
-    var providerVerified = false
     var microphoneSampleDiagnostics: [String: Int]?
 }

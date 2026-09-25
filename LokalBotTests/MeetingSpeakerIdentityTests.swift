@@ -56,61 +56,6 @@ final class RecordingSpeakerClockTests: XCTestCase {
     }
 }
 
-final class VisualSpeakerMatcherTests: XCTestCase {
-    private func turns(_ count: Int = 4, speaker: String = "them 1") -> [SpeakerAudioTurn] {
-        (0..<count).map { .init(speaker: speaker, range: .init(start: Double($0 * 15), end: Double($0 * 15 + 10))) }
-    }
-    private func intervals(_ turns: [SpeakerAudioTurn], name: String = "Alex", reference: String = "alex") -> [SpeakerActivityInterval] {
-        turns.map { .init(participantReference: reference, displayName: name, range: $0.range, uncertainty: 0.1, layoutEpoch: "grid") }
-    }
-    func testRepeatedIndependentTurnsAutomaticallyNameTheRemoteVoice() throws {
-        let result = VisualSpeakerMatcher.matches(turns: turns(), intervals: intervals(turns()))
-        let candidate = try XCTUnwrap(result["them 1"]?.first)
-        XCTAssertEqual(candidate.name, "Alex")
-        XCTAssertEqual(candidate.tier, .automatic)
-        XCTAssertEqual(candidate.independentTurns, 4)
-        XCTAssertGreaterThan(candidate.supportSeconds, 15)
-    }
-    func testManyFramesFromOneLongTurnAreOnlyOneVote() throws {
-        let turn = SpeakerAudioTurn(speaker: "them", range: .init(start: 0, end: 90))
-        let repeated = Array(repeating: intervals([turn])[0], count: 100)
-        let candidate = try XCTUnwrap(VisualSpeakerMatcher.matches(turns: [turn], intervals: repeated)["them"]?.first)
-        XCTAssertEqual(candidate.independentTurns, 1)
-        XCTAssertEqual(candidate.tier, .suggested)
-        XCTAssertLessThan(candidate.supportSeconds, 90)
-    }
-    func testOneClearTurnOffersSuggestionAndShortOrMissingEvidenceAbstains() {
-        XCTAssertEqual(VisualSpeakerMatcher.matches(turns: turns(1), intervals: intervals(turns(1)))["them 1"]?.first?.tier, .suggested)
-        let brief = [SpeakerAudioTurn(speaker: "them", range: .init(start: 0, end: 1))]
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: brief, intervals: intervals(brief))["them", default: []].isEmpty)
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: turns(), intervals: []).isEmpty)
-    }
-    func testLaterCompetingTurnBlocksAutomaticEvenWithLongerPositiveCoverage() throws {
-        let original = turns(12)
-        let competitor = SpeakerAudioTurn(speaker: "them 1", range: .init(start: 200, end: 206))
-        let candidates = VisualSpeakerMatcher.matches(turns: original + [competitor],
-            intervals: intervals(original) + intervals([competitor], name: "Sam", reference: "sam"))
-        XCTAssertEqual(try XCTUnwrap(candidates["them 1"]?.first).tier, .suggested)
-        XCTAssertEqual(candidates["them 1"]?.count, 2)
-    }
-    func testOverlapDuplicateNamesAndSelfNeverCreateAttribution() {
-        let remote = turns()
-        let overlapping = turns(speaker: "them 2")
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: remote + overlapping, intervals: intervals(remote)).isEmpty)
-        let duplicate = intervals(remote, reference: "second-alex")
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: remote, intervals: intervals(remote) + duplicate).isEmpty)
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: turns(speaker: "me"), intervals: intervals(remote)).isEmpty)
-    }
-    func testInvalidTimingAndUntrustedNamesAbstain() {
-        var evidence = intervals(turns())
-        evidence[0].uncertainty = .nan
-        evidence[1].displayName = "private@example.com"
-        evidence[2].range.end = .infinity
-        evidence[3].uncertainty = 2
-        XCTAssertTrue(VisualSpeakerMatcher.matches(turns: turns(), intervals: evidence).isEmpty)
-    }
-}
-
 final class SpeakerIdentityResolverTests: XCTestCase {
     private func assignment(_ label: String, name: String, start: Double, end: Double) -> SpeakerIdentityAssignment {
         .init(label: label, name: name, origin: .userConfirmed, audioRevision: "same-audio", anchors: [.init(start: start, end: end)])

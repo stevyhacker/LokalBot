@@ -498,9 +498,6 @@ final class AppState: ObservableObject {
     private(set) lazy var thinkExecution = ThinkExecution(storage: storage)
     private(set) lazy var speakerIdentity = MeetingSpeakerIdentityService(
         storage: storage, settings: { [store = settingsStore] in store.current })
-    private(set) lazy var speakerObserver = MeetingSpeakerObserver(
-        identity: speakerIdentity, settings: { [store = settingsStore] in store.current },
-        capturePaused: { [weak self] in self?.sampler.isPaused ?? true })
     private(set) lazy var pipeline = ProcessingPipeline(
         storage: storage,
         jobStore: pipelineJobStore,
@@ -566,7 +563,6 @@ final class AppState: ObservableObject {
         settingsStore: settingsStore,
         audioMonitor: audioMonitor,
         pipeline: pipeline,
-        speakerObserver: speakerObserver,
         isInteractive: { [weak self] in self?.interactive ?? false },
         onError: { [weak self] message in
             guard let message else {

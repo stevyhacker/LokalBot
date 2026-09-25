@@ -17,76 +17,29 @@ import XCTest
     }
     override func tearDown() async throws { try? FileManager.default.removeItem(at: root) }
 
-    func testEncryptedAuthenticatedChunksRecoverWithoutPersistingNamesInCleartext() async throws {
-        let generation = UUID()
-        try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
-        let interval = SpeakerActivityInterval(participantReference: "alex", displayName: "Alex Fixture",
-            range: .init(start: 10, end: 15), uncertainty: 0.1, layoutEpoch: "grid")
-        try await store.append([interval], meeting: meeting, generation: generation)
+    func testRetiredMeetObservationFilesAreRemovedWithoutLosingRecentVoiceSamples() async throws {
+        var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
+        saved.voiceSamples = enrollment().2
+        _ = try await store.commit(saved, meeting: meeting, expectedRevision: 0)
         let folder = meeting.folderURL(in: storage).appendingPathComponent("speaker-evidence")
-        let ciphertext = try Data(contentsOf: folder.appendingPathComponent("chunk-0.sealed"))
-        XCTAssertNil(ciphertext.range(of: Data("Alex Fixture".utf8)))
-        let recovered = MeetingSpeakerEvidenceStore(root: root, key: key)
-        let evidence = try await recovered.evidence(meeting: meeting, retentionDays: 14)
-        XCTAssertEqual(evidence?.intervals.count, 1)
-        XCTAssertEqual(evidence?.intervals.first?.range, interval.range)
-        // Incomplete trailing record is discarded, never turned into a speaking interval.
-        try ciphertext.prefix(12).write(to: folder.appendingPathComponent("chunk-1.sealed"))
-        let partial = try await recovered.evidence(meeting: meeting, retentionDays: 14)
-        XCTAssertEqual(partial?.intervals.count, 1)
+        for name in ["session.sealed", "chunk-0.sealed"] {
+            try Data("retired Meet observation".utf8).write(to: folder.appendingPathComponent(name))
+        }
+
+        try await store.expire(meetings: [meeting], retentionDays: 14)
+
+        let remaining = try FileManager.default.contentsOfDirectory(atPath: folder.path)
+        XCTAssertEqual(remaining, ["identity.sealed"])
+        let recent = try await store.state(meeting: meeting)
+        XCTAssertEqual(recent.revision, 1)
+        XCTAssertEqual(recent.voiceSamples.count, 3, "Recent microphone samples stay available for remembering")
+
+        try await store.expire(meetings: [meeting], retentionDays: 0)
+        let expired = try await store.state(meeting: meeting)
+        XCTAssertTrue(expired.voiceSamples.isEmpty)
     }
 
-    func testFailureOnlyObservationSessionRetainsDiagnosticsAfterRestart() async throws {
-        let generation = UUID()
-        try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
-        var diagnostics = SpeakerObservationDiagnostics()
-        diagnostics.record(.accessibilityPermission)
-        diagnostics.record(.layoutUnavailable)
-        try await store.recordDiagnostics(diagnostics, meeting: meeting, generation: generation)
-        try await store.seal(meeting: meeting, generation: generation, failed: false)
-        let reopened = MeetingSpeakerEvidenceStore(root: root, key: key)
-        let evidence = try await reopened.evidence(meeting: meeting, retentionDays: 14)
-        XCTAssertEqual(evidence?.intervals.count, 0)
-        XCTAssertEqual(evidence?.diagnostics, diagnostics)
-        let status = try await reopened.observationDiagnostics(meeting: meeting, retentionDays: 14)
-        XCTAssertEqual(status, diagnostics)
-        try await store.eraseEvidence(meeting: meeting)
-        let deletedStatus = try await reopened.observationDiagnostics(meeting: meeting, retentionDays: 14)
-        XCTAssertNil(deletedStatus)
-        do {
-            try await store.recordDiagnostics(diagnostics, meeting: meeting, generation: generation)
-            XCTFail("Diagnostics resurrected deleted evidence")
-        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
-    }
-
-    func testSilentParticipantNamesSurviveRestartButExpireWithEvidence() async throws {
-        let generation = UUID()
-        try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
-        let names = [MeetingParticipantName(name: "Jonathan", source: .ocr)]
-        do {
-            try await store.recordParticipants(names, meeting: meeting, generation: generation)
-            XCTFail("Unverified source supplied participant names")
-        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
-        try await store.verifyProvider(meeting: meeting, generation: generation)
-        try await store.recordParticipants(names, meeting: meeting, generation: generation)
-        try await store.seal(meeting: meeting, generation: generation, failed: false)
-        let reopened = MeetingSpeakerEvidenceStore(root: root, key: key)
-        let restored = try await reopened.participants(meeting: meeting, retentionDays: 14)
-        XCTAssertEqual(restored, names)
-        let evidence = try await reopened.evidence(meeting: meeting, retentionDays: 14)
-        XCTAssertTrue(evidence?.intervals.isEmpty == true)
-        let ciphertext = try Data(contentsOf: meeting.folderURL(in: storage).appendingPathComponent("speaker-evidence/session.sealed"))
-        XCTAssertNil(ciphertext.range(of: Data("Jonathan".utf8)))
-        try await store.eraseEvidence(meeting: meeting)
-        let erased = try await reopened.participants(meeting: meeting, retentionDays: 14)
-        XCTAssertTrue(erased.isEmpty)
-        do {
-            try await store.recordParticipants(names, meeting: meeting, generation: generation)
-            XCTFail("Late roster resurrected erased evidence")
-        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
-    }
-
-    func testManualDecisionSurvivesRestartAndVisualEvidenceExpiry() async throws {
+    func testManualDecisionSurvivesRestartAndEvidenceExpiry() async throws {
         var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
         saved.audioRevision = "audio"
         let assignment = SpeakerIdentityAssignment(label: "them", name: "Alex", origin: .userConfirmed,
@@ -117,12 +70,12 @@ import XCTest
         } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
         let current = try await store.state(meeting: meeting)
         XCTAssertEqual(current.assignments.first?.name, "Sam")
-        let snapshot = try await store.matchingInput(meeting: meeting, retentionDays: 14)
+        let snapshot = try await store.state(meeting: meeting).evidenceRevision
         try await store.eraseEvidence(meeting: meeting)
         let afterDeletion = try await store.state(meeting: meeting)
         do {
             _ = try await store.commit(afterDeletion, meeting: meeting, expectedRevision: afterDeletion.revision,
-                expectedEvidenceRevision: snapshot.1)
+                expectedEvidenceRevision: snapshot)
             XCTFail("An old matching task survived explicit evidence deletion")
         } catch MeetingSpeakerEvidenceStore.Failure.evidenceExpired {
             // Even a writer refreshed to the latest assignment revision cannot
@@ -130,13 +83,14 @@ import XCTest
         }
     }
 
-    func testGenerationMismatchAndDeletionRejectLateEvidence() async throws {
-        let generation = UUID()
-        try await store.begin(.init(meetingID: meeting.id, generation: generation), meeting: meeting)
-        do { try await store.append([], meeting: meeting, generation: UUID()); XCTFail("Wrong generation") } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
+    func testDeletedMeetingRejectsLateIdentityWrites() async throws {
+        let saved = try await store.state(meeting: meeting)
         try await store.revoke(meetingID: meeting.id, deletingMeeting: true)
         try storage.deleteMeeting(meeting)
-        do { try await store.seal(meeting: meeting, generation: generation, failed: false); XCTFail("Resurrected source") } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
+        do {
+            _ = try await store.commit(saved, meeting: meeting, expectedRevision: saved.revision)
+            XCTFail("Resurrected a deleted meeting")
+        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
         XCTAssertFalse(FileManager.default.fileExists(atPath: meeting.folderURL(in: storage).path))
     }
 
