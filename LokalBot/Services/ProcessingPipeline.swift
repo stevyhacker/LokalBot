@@ -574,9 +574,8 @@ final class ProcessingPipeline: ObservableObject {
                 if let speakerIdentity,
                    let audioURL = MeetingAudioFiles.transcribableURL(for: .system, in: folder)
                     ?? MeetingAudioFiles.transcribableURL(for: .mic, in: folder) {
-                    let safeSamples = [SpeakerAttribution.Source.microphone, .system].flatMap {
-                        AttributedTrackTranscriber.samples(batch.samples, transcript: transcript, source: $0)
-                    }
+                    // Remote participants' voices are never remembered.
+                    let safeSamples = AttributedTrackTranscriber.samples(batch.samples, transcript: transcript, source: .microphone)
                     transcript = await speakerIdentity.process(transcript: transcript, meeting: meeting,
                         turns: batch.turns, samples: safeSamples, audioURL: audioURL)
                 } else {

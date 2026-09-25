@@ -2,7 +2,7 @@
 
 Implementation plan · 7 September 2026 · Source baseline: `c50621168add`
 
-Historical plan: PR #84 removes the screenshot/OCR and pixel-indicator fallback. Current speaker observation is Accessibility-only; a browser extension is not implemented. The visual-capture design below is retained as historical context, not current behavior. See [DEVELOPMENT.md](../DEVELOPMENT.md#transcription--speakers).
+Historical plan: PR #84 removed the screenshot/OCR and pixel-indicator fallback, and the Accessibility-only Meet observer that followed was removed in LokalBot 0.9.1. The visual-capture design below is retained as historical context, not current behavior. See [DEVELOPMENT.md](../DEVELOPMENT.md#transcription--speakers).
 
 Status: local implementation available for review. Automatic naming, uncertain suggestions, durable user choices, and optional local voice profiles are implemented behind separate off-by-default settings. The native checks pass; live provider, held-out accuracy, Release performance, and hosted UI validation remain open. See the [implementation and validation report](meeting-speaker-identification-validation-2026-09-07.md) for the measured checks and each unmet release gate.
 

@@ -58,33 +58,23 @@ delete those existing copies.
 
 Browser meeting detection checks the Meet document URL and call controls through Accessibility. These transient lifecycle checks do not retain page text, participant names, or pixels. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
-**Meeting speaker identification** is a separate, off-by-default setting. It
-locates the recording-bound Google Meet document across Chrome windows during recording, at most
-twice per second. Accessibility associates structured participant names with
-tiles and reads explicit speaking labels when Meet exposes them. Participant
-names are retained as manual name suggestions, including for silent participants.
-Presence alone never identifies a voice. Speaker identification does not capture
-screenshots, run OCR, or inspect pixel-based speaking indicators.
-The observer stays bound to one Chrome window; changing tabs cannot redirect it
-to another meeting or Chrome profile. Speaker-name suggestions are shown locally
-in the rename sheet and become transcript aliases only when confirmed or when
-separate speaking evidence satisfies the automatic matching rules.
-Private windows, excluded
-apps/domains, locked sessions, explicit pause, unsupported layouts, and missing
-permissions cause gaps rather than guessed observations. Missing speaking labels
-do not trigger screen capture. It does not use face recognition. Separate
-screen-memory and meeting visual-context settings are unchanged.
+LokalBot does not read Google Meet participant names or speaking activity.
+Earlier versions offered an off-by-default **Meeting speaker identification**
+setting that did; it has been removed. Files it left behind are deleted
+automatically, while names you already applied to transcripts remain.
 
-Compact speaker evidence is AES-GCM encrypted with a per-install Keychain key.
-Meeting observation evidence and unaccepted suggestions expire under the screen retention
-period, even when capture is disabled. Applied names, user corrections,
-suppression choices, and the audio-turn anchors needed to remember those
-choices remain with the meeting. Deleting meeting speaker evidence keeps those choices.
-Names and evidence retained by earlier screenshot-based versions remain readable.
+Compact speaker evidence, such as microphone voice samples and unaccepted name
+suggestions, is AES-GCM encrypted with a per-install Keychain key. It expires
+under the screen retention period, even when capture is disabled. Applied
+names, user corrections, suppression choices, and the audio-turn anchors needed
+to remember those choices remain with the meeting. Deleting meeting speaker
+evidence keeps those choices.
 
-**Remember speakers on this Mac** is another separate, off-by-default setting.
-When you explicitly confirm a name, enough clear speech can enroll a local
-voice profile. The profile stores bounded speaker vectors with their source
+**Remember speakers on this Mac** is a separate, off-by-default setting.
+When you explicitly confirm who spoke into this Mac's microphone, enough clear
+speech can enroll a local voice profile. Remote participants' voices are never
+enrolled or matched; profiles earlier versions created from them remain until
+forgotten. The profile stores bounded speaker vectors with their source
 recording and confirmation, not extra audio clips. Automatic guesses never
 train profiles. You can choose **This meeting only**, select an existing person
 explicitly, or create a distinct person with the same name. Profiles remain

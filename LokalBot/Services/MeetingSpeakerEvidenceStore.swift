@@ -18,9 +18,7 @@ actor MeetingSpeakerEvidenceStore {
     }
     private let root: URL
     private let key: SymmetricKey
-    private var sessions: [UUID: (generation: UUID, chunks: Int, bytes: Int)] = [:]
     private var deleted = Set<UUID>()
-    private var erasedEvidence = Set<UUID>()
     init(root: URL, key: SymmetricKey) {
         self.root = root.standardizedFileURL.resolvingSymlinksInPath()
         self.key = key
@@ -66,119 +64,6 @@ actor MeetingSpeakerEvidenceStore {
         else { throw Failure.deleted }
     }
 
-    func begin(_ session: MeetingSpeakerEvidenceSession, meeting: Meeting) throws {
-        try checkMeeting(meeting)
-        guard !erasedEvidence.contains(meeting.id), sessions[meeting.id] == nil else { throw Failure.stale }
-        let folder = evidenceFolder(meeting)
-        guard !FileManager.default.fileExists(atPath: folder.appendingPathComponent("session.sealed").path) else { throw Failure.stale }
-        try write(session, at: folder.appendingPathComponent("session.sealed"))
-        sessions[meeting.id] = (session.generation, 0, 0)
-    }
-
-    func append(_ intervals: [SpeakerActivityInterval], meeting: Meeting, generation: UUID, clockSpans: [AudioClockSpan] = []) throws {
-        try checkMeeting(meeting)
-        guard !erasedEvidence.contains(meeting.id), var session = sessions[meeting.id], session.generation == generation else { throw Failure.stale }
-        guard intervals.count <= 128, clockSpans.count <= 64, session.chunks < 3_000, session.bytes < 8 * 1_024 * 1_024 else { throw Failure.tooLarge }
-        guard !intervals.isEmpty else { return }
-        session.bytes += try write(MeetingSpeakerEvidenceChunk(intervals: intervals, clockSpans: clockSpans),
-            at: evidenceFolder(meeting).appendingPathComponent("chunk-\(session.chunks).sealed"))
-        session.chunks += 1
-        sessions[meeting.id] = session
-    }
-
-    func seal(meeting: Meeting, generation: UUID, failed: Bool) throws {
-        try checkMeeting(meeting)
-        guard sessions[meeting.id]?.generation == generation, !erasedEvidence.contains(meeting.id) else { throw Failure.stale }
-        let url = evidenceFolder(meeting).appendingPathComponent("session.sealed")
-        guard var session = try read(MeetingSpeakerEvidenceSession.self, at: url), session.generation == generation else { throw Failure.stale }
-        session.sealed = true
-        session.failed = failed
-        try write(session, at: url)
-        sessions.removeValue(forKey: meeting.id)
-    }
-
-    func verifyProvider(meeting: Meeting, generation: UUID) throws {
-        try checkMeeting(meeting)
-        guard sessions[meeting.id]?.generation == generation else { throw Failure.stale }
-        let url = evidenceFolder(meeting).appendingPathComponent("session.sealed")
-        guard var session = try read(MeetingSpeakerEvidenceSession.self, at: url) else { throw Failure.stale }
-        if !session.providerVerified {
-            session.providerVerified = true
-            try write(session, at: url)
-        }
-    }
-
-    func recordDiagnostics(_ diagnostics: SpeakerObservationDiagnostics, meeting: Meeting, generation: UUID) throws {
-        try checkMeeting(meeting)
-        guard !erasedEvidence.contains(meeting.id), sessions[meeting.id]?.generation == generation else { throw Failure.stale }
-        let url = evidenceFolder(meeting).appendingPathComponent("session.sealed")
-        guard var session = try read(MeetingSpeakerEvidenceSession.self, at: url), session.generation == generation else { throw Failure.stale }
-        session.diagnostics = diagnostics
-        try write(session, at: url)
-    }
-
-    func recordParticipants(_ participants: [MeetingParticipantName], meeting: Meeting, generation: UUID) throws {
-        try checkMeeting(meeting)
-        guard !erasedEvidence.contains(meeting.id), sessions[meeting.id]?.generation == generation else { throw Failure.stale }
-        let url = evidenceFolder(meeting).appendingPathComponent("session.sealed")
-        guard var session = try read(MeetingSpeakerEvidenceSession.self, at: url),
-              session.generation == generation, session.providerVerified else { throw Failure.stale }
-        let merged = MeetingParticipantName.merging(session.participants ?? [], participants)
-        if merged != session.participants {
-            session.participants = merged
-            try write(session, at: url)
-        }
-    }
-
-    func participants(meeting: Meeting, retentionDays: Int) throws -> [MeetingParticipantName] {
-        guard let session = try retainedSession(meeting: meeting, retentionDays: retentionDays),
-              session.providerVerified, !session.failed else { return [] }
-        return session.participants ?? []
-    }
-
-    private func retainedSession(meeting: Meeting, retentionDays: Int) throws -> MeetingSpeakerEvidenceSession? {
-        try checkMeeting(meeting)
-        guard sessions[meeting.id] == nil else { return nil }
-        let folder = evidenceFolder(meeting)
-        guard let session = try read(MeetingSpeakerEvidenceSession.self, at: folder.appendingPathComponent("session.sealed")),
-              session.meetingID == meeting.id else { return nil }
-        if session.openedAt < Date().addingTimeInterval(-Double(max(0, retentionDays)) * 86_400) {
-            try eraseEvidence(meeting: meeting)
-            return nil
-        }
-        return session
-    }
-
-    /// Read only the bounded session header. Opening a meeting's status should
-    /// not decode all private visual intervals and clock chunks.
-    func observationDiagnostics(meeting: Meeting, retentionDays: Int) throws -> SpeakerObservationDiagnostics? {
-        try retainedSession(meeting: meeting, retentionDays: retentionDays)?.diagnostics
-    }
-
-    func evidence(meeting: Meeting, retentionDays: Int) throws -> MeetingSpeakerEvidenceSession? {
-        guard var session = try retainedSession(meeting: meeting, retentionDays: retentionDays), !session.failed else { return nil }
-        let folder = evidenceFolder(meeting)
-        // After an interrupted recording only authenticated, completed chunks
-        // survive. There is no inferred interval from its last observation to stop.
-        let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
-            .filter { $0.lastPathComponent.hasPrefix("chunk-") && $0.pathExtension == "sealed" }
-        guard files.count <= 3_000 else { throw Failure.tooLarge }
-        for file in files.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
-            if let chunk = try? read(MeetingSpeakerEvidenceChunk.self, at: file) {
-                session.intervals += chunk.intervals
-                session.clockSpans += chunk.clockSpans
-            }
-        }
-        return session
-    }
-
-    func isCollecting(meetingID: UUID) -> Bool { sessions[meetingID] != nil }
-
-    func matchingInput(meeting: Meeting, retentionDays: Int) throws -> (MeetingSpeakerEvidenceSession?, Int) {
-        let source = try evidence(meeting: meeting, retentionDays: retentionDays)
-        return (source, try state(meeting: meeting).evidenceRevision)
-    }
-
     func state(meeting: Meeting) throws -> MeetingSpeakerIdentityState {
         try checkMeeting(meeting)
         let value = try read(MeetingSpeakerIdentityState.self, at: evidenceFolder(meeting).appendingPathComponent("identity.sealed"))
@@ -201,17 +86,20 @@ actor MeetingSpeakerEvidenceStore {
         return next
     }
 
+    /// Everything beside the identity journal is retired Google Meet speaker
+    /// observation (participant names and speaking intervals).
+    private func removeRetiredObservations(_ meeting: Meeting) throws {
+        let folder = evidenceFolder(meeting)
+        guard FileManager.default.fileExists(atPath: folder.path) else { return }
+        for url in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+        where url.lastPathComponent != "identity.sealed" {
+            try FileManager.default.removeItem(at: url)
+        }
+    }
+
     func eraseEvidence(meeting: Meeting) throws {
         try checkMeeting(meeting)
-        erasedEvidence.insert(meeting.id)
-        sessions.removeValue(forKey: meeting.id)
-        let folder = evidenceFolder(meeting)
-        if FileManager.default.fileExists(atPath: folder.path) {
-            for url in try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
-            where url.lastPathComponent != "identity.sealed" {
-                try FileManager.default.removeItem(at: url)
-            }
-        }
+        try removeRetiredObservations(meeting)
         var saved = try state(meeting: meeting)
         saved.evidenceRevision += 1
         saved.suggestions = [:]
@@ -229,10 +117,15 @@ actor MeetingSpeakerEvidenceStore {
 
     func expire(meetings: [Meeting], retentionDays: Int) throws {
         let cutoff = Date().addingTimeInterval(-Double(max(0, retentionDays)) * 86_400)
-        for meeting in meetings where meeting.startedAt < cutoff {
+        for meeting in meetings {
             let folder = evidenceFolder(meeting)
             guard FileManager.default.fileExists(atPath: folder.path) else { continue }
-            try eraseEvidence(meeting: meeting)
+            if meeting.startedAt < cutoff {
+                try eraseEvidence(meeting: meeting)
+            } else {
+                // Recent microphone voice samples stay available for remembering.
+                try removeRetiredObservations(meeting)
+            }
         }
     }
 
@@ -285,7 +178,7 @@ actor MeetingSpeakerEvidenceStore {
 
     func revoke(meetingID: UUID, speakerID: UUID? = nil, deletingMeeting: Bool = false) throws {
         var database = try profiles()
-        if deletingMeeting { database.deletedMeetings.insert(meetingID); deleted.insert(meetingID); sessions.removeValue(forKey: meetingID) }
+        if deletingMeeting { database.deletedMeetings.insert(meetingID); deleted.insert(meetingID) }
         for index in database.profiles.indices {
             let before = database.profiles[index].contributions.count
             database.revokedDecisionIDs.formUnion(database.profiles[index].contributions.filter {

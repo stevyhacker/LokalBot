@@ -22,6 +22,15 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertFalse(gate.observe(.init(url: url, state: .minimized), at: start.addingTimeInterval(20)))
     }
 
+    func testOnlyExactMeetRoomURLsIdentifyACallDocument() {
+        XCTAssertEqual(BrowserMeetingSession.meetURL("https://meet.google.com/abc-defg-hij?authuser=0"),
+                       "https://meet.google.com/abc-defg-hij")
+        for bad in ["http://meet.google.com/abc-defg-hij", "https://meet.google.com.evil.test/abc-defg-hij",
+                    "https://meet.google.com/landing", "https://evil@meet.google.com/abc-defg-hij"] {
+            XCTAssertNil(BrowserMeetingSession.meetURL(bad))
+        }
+    }
+
     func testBrowserRequiresCallControlsAndSustainedSameDocument() {
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Join now", "Turn off microphone"], messages: []), .unavailable)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone (⌘D)"], messages: []), .inCall)

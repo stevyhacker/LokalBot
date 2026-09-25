@@ -12,7 +12,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.diarizationModel, .nemotron3)
         XCTAssertTrue(settings.multiSpeakerDiarization)
         XCTAssertFalse(settings.rememberSpeakersOnMac)
-        XCTAssertFalse(settings.identifySpeakersFromVisuals)
         settings.save(to: defaults)
         XCTAssertEqual(AppSettings.load(from: defaults).diarizationModel, .nemotron3)
     }
@@ -205,6 +204,16 @@ final class AppSettingsTests: XCTestCase {
         let settings = try JSONDecoder().decode(AppSettings.self, from: data)
 
         XCTAssertTrue(settings.corruptedSettingsKeys.isEmpty)
+    }
+
+    func testRetiredMeetSpeakerNamingKeyDecodesSilentlyAndIsDropped() throws {
+        let data = #"{"identifySpeakersFromVisuals":true,"rememberSpeakersOnMac":true}"#.data(using: .utf8)!
+        let settings = try JSONDecoder().decode(AppSettings.self, from: data)
+
+        XCTAssertTrue(settings.rememberSpeakersOnMac)
+        XCTAssertTrue(settings.corruptedSettingsKeys.isEmpty)
+        let saved = String(decoding: try JSONEncoder().encode(settings), as: UTF8.self)
+        XCTAssertFalse(saved.contains("identifySpeakersFromVisuals"))
     }
 
     func testCorruptFieldFallsBackToDefaultAndIsReported() throws {

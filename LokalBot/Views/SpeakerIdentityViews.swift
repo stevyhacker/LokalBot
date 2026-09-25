@@ -5,22 +5,14 @@ struct SpeakerIdentitySettingsControls: View {
     @State private var managingProfiles = false
 
     var body: some View {
-        Toggle(isOn: $app.settings.identifySpeakersFromVisuals) {
-            SettingsLabel("Identify speakers from Google Meet",
-                          help: "For new recordings, reads participant names and speaking labels from the recorded Meet tab in Chrome through Accessibility. No screenshots are taken.")
-        }
-            .accessibilityLabel("Identify speakers from Google Meet")
-            .accessibilityIdentifier("settings.speakerVisuals")
-        SettingsDetails("How Meet identification works",
-                        "Keep the recorded Google Meet tab selected in Chrome. When a speaking label is missing, names stay available for you to assign. Applied names become part of your transcript and its summaries.")
         Toggle(isOn: $app.settings.rememberSpeakersOnMac) {
             SettingsLabel("Remember speakers on this Mac",
-                          help: "When you confirm a name, eligible voice samples can create an encrypted local profile for future Meet recordings. Automatic guesses never train profiles.")
+                          help: "When you confirm who spoke into this Mac's microphone, eligible voice samples can create an encrypted local profile that suggests the name in later recordings. Remote participants' voices are never remembered, and automatic guesses never train profiles.")
         }
             .accessibilityLabel("Remember speakers on this Mac")
             .accessibilityIdentifier("settings.rememberSpeakers")
         if !app.settings.multiSpeakerDiarization {
-            SettingsHelp("Turn on “Separate other speakers by voice” to match names to individual remote voices.")
+            SettingsHelp("Turn on “Separate voices by speaker” to collect the voice samples remembering needs.")
         }
         Button("Manage remembered people…") { managingProfiles = true }
             .sheet(isPresented: $managingProfiles) {
@@ -102,34 +94,6 @@ private struct SpeakerVoiceProfileRow: View {
     }
 }
 
-struct MeetingSpeakerObserverStatus: View {
-    @ObservedObject var observer: MeetingSpeakerObserver
-    var body: some View {
-        HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Label(message, systemImage: "person.text.rectangle")
-                if observer.participantCount > 0 {
-                    Text("\(observer.participantCount) names seen · \(Int(observer.coveredSeconds))s speaking evidence")
-                }
-            }
-            .font(.caption).foregroundStyle(.secondary)
-            Spacer()
-            if observer.state != .off {
-                Button(observer.isPaused ? "Resume" : "Pause") { observer.isPaused.toggle() }
-                    .controlSize(.small)
-            }
-        }
-        .accessibilityIdentifier("live.speakerObservation")
-    }
-    private var message: String {
-        switch observer.state {
-        case .off: "Speaker observation off for this recording"
-        case .observing: "Observing meeting speakers locally"
-        case .paused(let reason), .unavailable(let reason): reason
-        }
-    }
-}
-
 /// Lives inside the existing native rename sheet; evidence never joins the
 /// ordinary transcript model or its search/export paths.
 struct SpeakerIdentityReview: View {
@@ -146,6 +110,10 @@ struct SpeakerIdentityReview: View {
     var canConfirmIdentity = false
     var microphoneIsUser = false
     private var assignment: SpeakerIdentityAssignment? { state?.assignments.first { $0.label == speaker } }
+    /// Only voices recorded by this Mac's microphone can be remembered.
+    private var isMicrophoneVoice: Bool {
+        (assignment?.source ?? state?.timeline.first { $0.speaker == speaker }?.resolvedSource) == .microphone
+    }
 
     private var identityDescription: String {
         if let isUser = assignment?.isLocalUser { return isUser ? "Confirmed as you" : "Confirmed as someone else" }
@@ -192,7 +160,7 @@ struct SpeakerIdentityReview: View {
                     }
                 }
             }
-            if rememberingEnabled && speaker != "me" {
+            if rememberingEnabled && speaker != "me" && isMicrophoneVoice {
                 Picker("Remember this choice", selection: $remember) {
                     Text("This meeting only").tag(false)
                     Text("Remember on this Mac").tag(true)

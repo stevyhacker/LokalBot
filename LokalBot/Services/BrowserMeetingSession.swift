@@ -1,13 +1,23 @@
 import AppKit
 import ApplicationServices
 
-/// Call lifecycle evidence is independent of audio and experimental speaker
-/// observation. Only a supported meeting document and its call controls count.
+/// Call lifecycle evidence is independent of audio. Only a supported meeting
+/// document and its call controls count.
 enum BrowserMeetingSession {
     enum State: Equatable, Sendable { case inCall, minimized, ended, unavailable }
     struct Snapshot: Equatable, Sendable {
         var url: URL
         var state: State
+    }
+
+    /// The canonical meeting-room URL, or nil for anything that is not an
+    /// exact https://meet.google.com/abc-defg-hij document.
+    nonisolated static func meetURL(_ raw: String) -> String? {
+        guard let components = URLComponents(string: raw), components.scheme == "https",
+              components.host?.lowercased() == "meet.google.com", components.user == nil, components.password == nil,
+              components.port == nil || components.port == 443,
+              components.path.range(of: #"^/[a-z]{3}-[a-z]{4}-[a-z]{3}$"#, options: .regularExpression) != nil else { return nil }
+        return "https://meet.google.com" + components.path
     }
     private static let observationQueue = DispatchQueue(
         label: "me.dotenv.LokalBot.browser-observation", qos: .utility)
@@ -200,7 +210,7 @@ enum BrowserMeetingSession {
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
         AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
-        let expected = expectedURL.flatMap { GoogleMeetSpeakerObservationProvider.meetURL($0.absoluteString) }
+        let expected = expectedURL.flatMap { meetURL($0.absoluteString) }
         guard expectedURL == nil || expected != nil,
               let windows = value(app, kAXWindowsAttribute) as? [AXUIElement], windows.count <= 32 else { return nil }
         var matches: [Window] = []
@@ -227,7 +237,7 @@ enum BrowserMeetingSession {
                     if inside { continue }
                     let raw = fields[kAXURLAttribute]
                     let text = (raw as? URL)?.absoluteString ?? (raw as? String) ?? ""
-                    guard let valid = GoogleMeetSpeakerObservationProvider.meetURL(text),
+                    guard let valid = meetURL(text),
                           expected == nil || valid == expected else { continue }
                     guard url == nil else { continue windowLoop }
                     url = valid
