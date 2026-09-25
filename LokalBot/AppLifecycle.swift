@@ -191,6 +191,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.titlebarAppearsTransparent = true
         }
         window.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window")
+#if LOKALBOT_UI_TEST_HOST
+        // A capture size is an outer-window size. Apply it before the content
+        // exists so the first layout happens at the final size; macOS 15 grows
+        // split panes proportionally when a window is widened afterwards.
+        let captureSize = (ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_SIZE"] ?? "")
+            .split(separator: "x").compactMap { Double($0) }
+        if captureSize.count == 2 {
+            window.setFrame(NSRect(origin: .zero, size: NSSize(width: captureSize[0], height: captureSize[1])),
+                            display: false)
+        }
+#endif
         let hostingView = NSHostingView(rootView: uiTestRootView(app: app, windowKind: windowKind))
         hostingView.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window.host")
         hostingView.setAccessibilityLabel(showsOnboarding ? "LokalBot setup" : (showsQuickRecall ? "Quick Recall" : "LokalBot workspace"))
@@ -272,6 +283,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if env["LOKALBOT_DISMISS_ONBOARDING"] == "1" {
             UserDefaults.standard.set(true, forKey: "lokalbotv3.gettingStartedDismissed")
         }
+        #if LOKALBOT_UI_TEST_HOST
+        // Native split views autosave divider positions in this host's own
+        // defaults, shared by every test. A fresh test launch starts from each
+        // pane's opening width; windows are created after this point.
+        if env["LOKALBOT_RESET_SPLIT_VIEWS"] == "1" {
+            for key in UserDefaults.standard.dictionaryRepresentation().keys
+            where key.hasPrefix("NSSplitView Subview Frames") {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        #endif
         if let name = env["LOKALBOT_INITIAL_SETTINGS_CATEGORY"], let category = AppState.SettingsTab(captureName: name) {
             app.settingsTab = category
         }
