@@ -741,9 +741,15 @@ final class RedesignUITests: XCTestCase {
             "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
         ]
         var verified = Set<String>()
+        let content = app.scrollViews["meeting.content.scroll"]
         for label in labels {
             let text = app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).firstMatch
             guard text.exists, app.windows.firstMatch.frame.contains(text.frame) else { continue }
+            // Scrolled meeting content can report a frame under the pinned
+            // header; its pixels there belong to the header, not this text.
+            if content.exists,
+               content.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).count > 0,
+               !content.frame.insetBy(dx: -1, dy: -1).contains(text.frame) { continue }
             let screenshot = text.screenshot()
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
             let ratio = try renderedTextContrast(bitmap)
