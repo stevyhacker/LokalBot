@@ -691,7 +691,9 @@ private struct MeetingWorkspaceDetail: View {
                     ForEach(actions) { reference in
                         OutcomeActionRow(
                             reference: reference,
-                            displayOwner: reference.owner.map { speakerNames.owner($0) },
+                            displayOwner: reference.owner.map {
+                                speakerNames.owner($0, isForUser: reference.isForUser)
+                            },
                             searchQuery: visibleSearchQuery,
                             activeMatch: activeSearchMatch,
                             onStatus: { status in
@@ -900,7 +902,9 @@ private struct MeetingWorkspaceDetail: View {
                     let id = reference.action.id
                     append(reference.text, at: .action(id: id, field: .text))
                     append(
-                        reference.owner.map { speakerNames.owner($0) } ?? "Owner unclear",
+                        reference.owner.map {
+                            speakerNames.owner($0, isForUser: reference.isForUser)
+                        } ?? "Owner unclear",
                         at: .action(id: id, field: .owner))
                     append(reference.due, at: .action(id: id, field: .due))
                     if let citation = reference.action.citations.first {
@@ -1788,6 +1792,11 @@ private struct ActionCorrectionDraft: Identifiable {
         ActionCorrectionFieldIntent.persistedValue(
             due, wasCorrected: dueWasCorrected, wasEdited: dueWasEdited)
     }
+
+    var ownerIsForUser: Bool {
+        owner.trimmingCharacters(in: .whitespacesAndNewlines)
+            .caseInsensitiveCompare("Me") == .orderedSame
+    }
 }
 
 private struct ActionCorrectionSheet: View {
@@ -1804,7 +1813,9 @@ private struct ActionCorrectionSheet: View {
             HStack {
                 Text("Owner")
                 Spacer()
-                Menu(draft.owner.isEmpty ? "Unassigned" : SpeakerDisplayName.label(draft.owner)) {
+                Menu(draft.owner.isEmpty ? "Unassigned" : SpeakerDisplayName.label(
+                    draft.owner,
+                    identity: draft.ownerIsForUser ? .user : .unresolved)) {
                     Button("You") { draft.owner = "Me"; draft.ownerWasEdited = true }
                     ForEach(Array(Set(ownerSuggestions)).sorted(), id: \.self) { owner in
                         Button(owner) { draft.owner = owner; draft.ownerWasEdited = true }

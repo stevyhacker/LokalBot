@@ -17,11 +17,13 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
     let meetingTitle: String
     let meetingDate: Date
     let owner: String?
+    let isForUser: Bool
     let due: String?
     let sourceMeetingCount: Int
 
     init(kind: Kind, text: String, meeting: Meeting, index: Int,
-         owner: String? = nil, due: String? = nil, sourceMeetingCount: Int = 1) {
+         owner: String? = nil, isForUser: Bool = false,
+         due: String? = nil, sourceMeetingCount: Int = 1) {
         id = "\(meeting.id.uuidString)-\(kind.rawValue)-\(index)"
         self.kind = kind
         self.text = text
@@ -29,6 +31,7 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
         meetingTitle = meeting.title
         meetingDate = meeting.startedAt
         self.owner = owner
+        self.isForUser = isForUser
         self.due = due
         self.sourceMeetingCount = sourceMeetingCount
     }
@@ -42,6 +45,7 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
         meetingTitle = source.meetingTitle
         meetingDate = source.meetingStartedAt
         owner = thread.owner
+        isForUser = thread.isForUser
         due = thread.due
         sourceMeetingCount = thread.meetingCount
     }
@@ -80,7 +84,8 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
     var signature: String {
         let meetingParts = relatedMeetings.map { $0.meeting.id.uuidString + $0.summary }
         let commitmentParts: [String] = commitments.map { commitment in
-            let fields = [commitment.text, commitment.owner ?? "", commitment.due ?? "",
+            let fields = [commitment.text, commitment.owner ?? "", String(commitment.isForUser),
+                          commitment.due ?? "",
                           String(commitment.sourceMeetingCount)]
             return ContentFingerprint.fields(fields)
         }
@@ -109,7 +114,12 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         }
         if let commitment = commitments.first {
             var detail = sentence(commitment.text)
-            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(SpeakerDisplayName.label(owner))." }
+            if let owner = nonEmpty(commitment.owner) {
+                let displayOwner = SpeakerDisplayName.label(
+                    owner,
+                    identity: commitment.isForUser ? .user : .unresolved)
+                detail += " Owner: \(displayOwner)."
+            }
             if let due = nonEmpty(commitment.due) { detail += " Due: \(due)." }
             sentences.append("Commitment to revisit: \(detail)")
         }

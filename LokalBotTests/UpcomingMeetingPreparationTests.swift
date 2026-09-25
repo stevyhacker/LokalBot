@@ -135,8 +135,10 @@ final class UpcomingMeetingPreparationTests: XCTestCase {
         XCTAssertEqual(evidence.decisions.map(\.text), ["Keep the Atlas rollout staged."])
         XCTAssertEqual(evidence.commitments.map(\.text), ["Send the rollout checklist"])
         XCTAssertEqual(evidence.commitments.first?.owner, "Me")
+        XCTAssertEqual(evidence.commitments.first?.isForUser, true)
         XCTAssertEqual(evidence.projects.map(\.name), ["Atlas"])
         XCTAssertTrue(evidence.fallbackBrief.contains("Keep the Atlas rollout staged"))
+        XCTAssertTrue(evidence.fallbackBrief.contains("Owner: You."))
         XCTAssertTrue(evidence.promptContext.contains("using saved corrections and status"))
     }
 

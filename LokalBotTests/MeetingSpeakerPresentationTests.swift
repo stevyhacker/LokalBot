@@ -59,8 +59,9 @@ final class MeetingSpeakerPresentationTests: XCTestCase {
         let display = MeetingSpeakerPresentation(transcript: transcript)
         XCTAssertEqual(display.speaker("them", in: transcript), "Other speaker")
         XCTAssertEqual(display.speaker("them 2", in: transcript), "Speaker 2")
-        XCTAssertEqual(display.owner("Me"), "Me")
-        XCTAssertEqual(display.owner("Them"), "Other speaker")
+        XCTAssertEqual(display.owner("Me", isForUser: false), "Me")
+        XCTAssertEqual(display.owner("Me", isForUser: true), "You")
+        XCTAssertEqual(display.owner("Them", isForUser: false), "Other speaker")
         XCTAssertTrue(transcript.promptSpeaker(for: "them").hasSuffix("] Them"))
     }
 
@@ -71,7 +72,7 @@ final class MeetingSpeakerPresentationTests: XCTestCase {
         ], engine: "fixture", speakerAliases: ["them": "Me"])
         let display = MeetingSpeakerPresentation(transcript: transcript)
         XCTAssertEqual(display.speaker("them", in: transcript), "Me")
-        XCTAssertEqual(display.owner("Me"), "Me")
+        XCTAssertEqual(display.owner("Me", isForUser: false), "Me")
         XCTAssertTrue(transcript.confirmedUserSpeakerIDs.isEmpty)
     }
 

@@ -72,8 +72,10 @@ struct MeetingSpeakerPresentation {
     }
 
     /// An action owner as people should read it ("You", "Other speaker").
-    func owner(_ value: String) -> String {
-        SpeakerDisplayName.label(text(value), identity: ownerIdentities[value.lowercased()] ?? .unresolved)
+    func owner(_ value: String, isForUser: Bool) -> String {
+        let key = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let identity = isForUser ? SpeakerAttribution.Identity.user : ownerIdentities[key] ?? .unresolved
+        return SpeakerDisplayName.label(text(value), identity: identity)
     }
 
     func text(_ value: String) -> String {
