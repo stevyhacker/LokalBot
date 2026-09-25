@@ -89,7 +89,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     }
 
     func capture(processID: pid_t) async -> ScreenAccessibilityCaptureResult {
-        guard processID > 0 else {
+        guard processID > 0, !Self.isOwnProcess(processID) else {
             return .init(snapshot: nil, timedOut: false)
         }
         return await withCheckedContinuation { continuation in
@@ -147,8 +147,16 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         }
     }
 
+    /// macOS answers an app's accessibility queries about itself in-process,
+    /// on the calling thread. From these background workers that walks
+    /// LokalBot's SwiftUI hierarchy off the main actor, which traps. LokalBot
+    /// never records its own window as screen context anyway.
+    static func isOwnProcess(_ processID: pid_t) -> Bool {
+        processID == ProcessInfo.processInfo.processIdentifier
+    }
+
     static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
-        guard AXIsProcessTrusted(), processID > 0 else { return nil }
+        guard AXIsProcessTrusted(), processID > 0, !isOwnProcess(processID) else { return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, perElementMessagingTimeout)
         guard let window = elementAttribute(app, kAXFocusedWindowAttribute as String) else {

@@ -151,4 +151,32 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertTrue(result.timedOut)
         XCTAssertNil(result.snapshot)
     }
+
+    /// macOS answers an app's accessibility queries about itself in-process on
+    /// the calling thread, which runs SwiftUI off the main actor and traps.
+    /// Sampling while LokalBot is frontmost must never reach the resolver.
+    func testScreenAccessibilityReaderNeverResolvesLokalBotItself() async {
+        let calls = LockedCounter()
+        let reader = ScreenAccessibilityReader(deadlineMilliseconds: 50) { _ in
+            calls.increment()
+            return .init(text: "Own UI", sourceURL: nil, documentName: nil,
+                         focusedSecureField: false, windowTitle: "LokalBot", windowFrame: nil)
+        }
+        let own = await reader.capture(processID: ProcessInfo.processInfo.processIdentifier)
+        XCTAssertNil(own.snapshot)
+        XCTAssertFalse(own.timedOut)
+        XCTAssertEqual(calls.value, 0)
+        XCTAssertNil(ScreenAccessibilityReader.resolve(processID: ProcessInfo.processInfo.processIdentifier))
+
+        let other = await reader.capture(processID: 42)
+        XCTAssertEqual(other.snapshot?.windowTitle, "LokalBot")
+        XCTAssertEqual(calls.value, 1)
+    }
+}
+
+private final class LockedCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int { lock.withLock { count } }
+    func increment() { lock.withLock { count += 1 } }
 }

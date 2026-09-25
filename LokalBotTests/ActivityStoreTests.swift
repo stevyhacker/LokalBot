@@ -768,6 +768,18 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertLessThan(started.duration(to: .now), .milliseconds(150))
     }
 
+    func testFocusedWindowTitleLookupNeverResolvesLokalBotItself() async {
+        let probe = ActivityResolverInvocationProbe()
+        let lookup = FocusedWindowTitleLookup(deadlineMilliseconds: 50) { _ in
+            probe.recordInvocation()
+            return "LokalBot"
+        }
+        let result = await lookup.title(for: ProcessInfo.processInfo.processIdentifier)
+        XCTAssertNil(result.title)
+        XCTAssertFalse(result.timedOut)
+        XCTAssertEqual(probe.invocationCount, 0)
+    }
+
     func testStalledWindowTitleLookupDoesNotQueueAnotherTarget() async {
         let blocker = DispatchSemaphore(value: 0)
         let probe = ActivityResolverInvocationProbe()
