@@ -1,8 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Show the next calendar event only when one exists. Calendar setup and
-/// permissions stay in Settings.
+/// The next calendar meeting leads, with the rest of today's meetings listed
+/// compactly below it. Calendar setup and permissions stay in Settings.
 struct UpcomingMeetingSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: UpcomingMeetingPreparationModel
@@ -10,7 +10,8 @@ struct UpcomingMeetingSection: View {
     var body: some View {
         if model.status == .ready {
             TimelineView(.periodic(from: .now, by: 30)) { context in
-                if let next = model.meetingsToday.first(where: { $0.endDate > context.date }) {
+                let upcoming = model.meetingsToday.filter { $0.endDate > context.date }
+                if let next = upcoming.first {
                     WorkspaceSection(title: "Next meeting", icon: "calendar") {
                         TodayMeetingRow(event: next)
                         if let evidence = model.evidence,
@@ -20,11 +21,67 @@ struct UpcomingMeetingSection: View {
                                 UpcomingMeetingCard(model: model, evidence: evidence)
                             }
                         }
+                        if upcoming.count > 1 {
+                            LaterTodayList(events: Array(upcoming.dropFirst()), now: context.date)
+                        }
                     }
                     .accessibilityIdentifier("today.meetings")
                 }
             }
         }
+    }
+}
+
+/// Later meetings stay visible without competing with the next meeting's
+/// single primary action.
+private struct LaterTodayList: View {
+    let events: [CalendarMeetingCandidate]
+    let now: Date
+    @State private var showsAll = false
+
+    private static let inlineLimit = 3
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Later today")
+                .font(WorkspaceTypography.metadataEmphasis)
+                .foregroundStyle(.secondary)
+            ForEach(showsAll ? events : Array(events.prefix(Self.inlineLimit)), id: \.externalID) { event in
+                row(event)
+            }
+            if events.count > Self.inlineLimit {
+                Button(showsAll ? "Show fewer" : "\(events.count - Self.inlineLimit) more today") {
+                    showsAll.toggle()
+                }
+                .buttonStyle(.plain)
+                .font(WorkspaceTypography.metadata)
+                .foregroundStyle(Brand.teal)
+                .accessibilityIdentifier("today.meetings.later.more")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("today.meetings.later")
+    }
+
+    private func row(_ event: CalendarMeetingCandidate) -> some View {
+        HStack(spacing: 12) {
+            Text(UpcomingMeetingPresentation.timeRange(event))
+                .font(WorkspaceTypography.metadata.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .frame(width: 118, alignment: .leading)
+            Text(event.title)
+                .font(WorkspaceTypography.body)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Text(UpcomingMeetingPresentation.statusLabel(event: event, now: now))
+                .font(WorkspaceTypography.metadata)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("today.meeting.later.\(event.externalID)")
     }
 }
 
@@ -60,7 +117,9 @@ private struct TodayMeetingRow: View {
                     .foregroundStyle(event.endDate < context.date ? .tertiary : .secondary)
                     .lineLimit(1)
 
-                if event.endDate >= context.date {
+                // A solo event without a link may not be a call at all; the
+                // user can still record from the toolbar.
+                if event.endDate >= context.date, UpcomingMeetingSelector.kind(of: event) == .meeting {
                     compactActions
                 }
             }

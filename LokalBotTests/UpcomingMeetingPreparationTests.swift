@@ -56,6 +56,42 @@ final class UpcomingMeetingPreparationTests: XCTestCase {
             "evening")
     }
 
+    func testTodayLeavesOutPersonalAppointmentsAndKeepsSoloMeetingsWithoutRecording() {
+        func solo(_ id: String, _ title: String, startsIn: TimeInterval) -> CalendarMeetingCandidate {
+            let start = now.addingTimeInterval(startsIn)
+            return CalendarMeetingCandidate(provider: "test", externalID: id, title: title, startDate: start,
+                endDate: start.addingTimeInterval(3_600), meetingURL: nil, sourceCalendarTitle: "Personal")
+        }
+        let dentist = solo("dentist", "12:15 zubar", startsIn: 600)
+        let doctor = solo("doctor", "Doktor Lena vakcina", startsIn: 900)
+        let standup = solo("standup", "Product Standup", startsIn: 1_800)
+        var invited = solo("invited", "Roadmap chat", startsIn: 7_200)
+        invited.participantNames = ["Ana"]
+        let demoDay = event(id: "demo", title: "Demo Day", startsIn: 16_200, duration: 3_600)
+
+        XCTAssertEqual(UpcomingMeetingSelector.kind(of: dentist), .personal)
+        XCTAssertEqual(UpcomingMeetingSelector.kind(of: doctor), .personal)
+        XCTAssertEqual(UpcomingMeetingSelector.kind(of: standup), .soloMeeting)
+        XCTAssertEqual(UpcomingMeetingSelector.kind(of: invited), .meeting)
+        XCTAssertEqual(UpcomingMeetingSelector.kind(of: demoDay), .meeting)
+
+        let schedule = UpcomingMeetingSelector.schedule(
+            from: [demoDay, invited, standup, doctor, dentist], on: now, calendar: utcCalendar)
+        XCTAssertEqual(schedule.map(\.externalID), ["standup", "invited", "demo"],
+                       "Personal appointments cannot hide the day's meetings")
+        XCTAssertEqual(UpcomingMeetingSelector.primary(from: schedule, now: now)?.externalID, "standup")
+    }
+
+    func testMeetingTitlesAreRecognizedWithoutMatchingInsideOtherWords() {
+        for title in ["Product Standup", "Sync on onchain roadmap", "1:1 with Ana", "Weekly planning",
+                      "Interview with Thrackle", "Team call", "Sastanak sa timom", "All-hands"] {
+            XCTAssertTrue(UpcomingMeetingSelector.looksLikeMeeting(title), title)
+        }
+        for title in ["12:15 zubar", "Doktor Lena vakcina", "Gym", "Lunch", "Recall groceries", "Pick up Demonstration kit"] {
+            XCTAssertFalse(UpcomingMeetingSelector.looksLikeMeeting(title), title)
+        }
+    }
+
     func testPresentationLabelsPastMeetingAsEnded() {
         let ended = event(id: "ended", title: "Ended", startsIn: -3_600, duration: 1_800)
 
