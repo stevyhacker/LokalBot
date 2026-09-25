@@ -218,7 +218,9 @@ final class ActionThreadRevisionTests: XCTestCase {
     func testThreadUndoRestoresEachSourceStatusAndInvalidatesEvidence() throws {
         let (storage, meetings, action) = try fixture()
         var notifications: [[Meeting.ID]] = []
-        let index = OutcomeIndex(storage: storage) { notifications.append($0.map(\.id)) }
+        let index = OutcomeIndex(
+            storage: storage,
+            onEvidenceChanged: { notifications.append($0.map(\.id)) })
         index.refresh(meetings: meetings)
         XCTAssertTrue(index.setStatus(.deferred, actionID: action.id, meetingID: meetings[0].id))
         notifications = []

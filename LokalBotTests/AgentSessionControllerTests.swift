@@ -172,6 +172,26 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
+    func testTerminalProviderFailurePausesTheHostQueue() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Dependent next task"
+        controller.queueDraft()
+        transport.inject(#"{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"401 Invalid API key"}}"#)
+        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertEqual(controller.turnError, "401 Invalid API key")
+        XCTAssertEqual(controller.taskStatus, "Needs attention")
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["Dependent next task"])
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        XCTAssertTrue(controller.items.contains { if case .notice(_, "401 Invalid API key", true) = $0 { true } else { false } })
+        await controller.shutdown()
+    }
+
     func testStopKeepsFollowUpsPausedAndUnsent() async throws {
         let controller = makeController()
         await controller.start()
@@ -602,7 +622,7 @@ final class AgentSessionControllerTests: XCTestCase {
         }
     }
 
-    func testReadEditModeAutoApprovesAllFileCallsButStillShowsShell() async throws {
+    func testReadEditModeAutoApprovesAddressedFileCallsButStillShowsAmbiguousEditAndShell() async throws {
         let controller = makeController()
         await controller.start()
         await controller.setApprovalMode(.approveReadsAndEdits)
@@ -620,15 +640,17 @@ final class AgentSessionControllerTests: XCTestCase {
             id: "bash", tool: "bash", workspace: root, path: nil, content: ""))
         try await pump()
 
-        for id in ["read", "write", "edit"] {
+        for id in ["read", "write"] {
             XCTAssertTrue(transport.sentLines.contains {
                 $0.contains("\"id\":\"\(id)\"") && $0.contains(#""confirmed":true"#)
             }, id)
         }
-        XCTAssertTrue(controller.items.contains {
-            if case .approval(let request) = $0 { return request.id == "bash" }
-            return false
-        })
+        for id in ["edit", "bash"] {
+            XCTAssertTrue(controller.items.contains {
+                if case .approval(let request) = $0 { return request.id == id }
+                return false
+            })
+        }
     }
 
     func testModeChangeResolvesAlreadyPendingRequestsItNowAllows() async throws {

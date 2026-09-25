@@ -750,7 +750,8 @@ final class ActivityStore {
         let candidates = try database.queryChecked("""
             SELECT shot.id, shot.ts, shot.path,
                    EXISTS(SELECT 1 FROM ocr_metadata WHERE snapshot_id = shot.id),
-                   \(vectorQuery)
+                   \(vectorQuery),
+                   (shot.window_title != '' OR shot.source_url != '' OR shot.document_name != '')
             FROM screenshots AS shot
             WHERE shot.ts < ?1 AND shot.id NOT IN (SELECT snapshot_id FROM screen_bookmarks)
             ORDER BY shot.ts
@@ -760,8 +761,21 @@ final class ActivityStore {
                     timestamp: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
                     path: String(cString: sqlite3_column_text(statement, 2)),
                     removeText: !keepTextForever && sqlite3_column_int(statement, 3) != 0,
-                    removeVector: !keepTextForever && sqlite3_column_int(statement, 4) != 0)
-            }.filter { !$0.path.isEmpty || $0.removeText || $0.removeVector }
+                    removeVector: !keepTextForever && sqlite3_column_int(statement, 4) != 0,
+                    removeMetadata: !keepTextForever && sqlite3_column_int(statement, 5) != 0)
+            }.filter { !$0.path.isEmpty || $0.removeText || $0.removeVector || $0.removeMetadata }
+        // App names and durations remain useful aggregate history. Window
+        // titles are content and expire even with the screen-text exception.
+        let activityTitles = try database.queryChecked("""
+            SELECT id, start, end, title FROM activity_blocks
+            WHERE end < ?1 AND title != '' ORDER BY start
+            """, bind: [cutoff.timeIntervalSince1970]) { statement in
+                RetentionReview.ActivityTitle(
+                    id: sqlite3_column_int64(statement, 0),
+                    start: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                    end: Date(timeIntervalSince1970: sqlite3_column_double(statement, 2)),
+                    title: String(cString: sqlite3_column_text(statement, 3)))
+            }
         let savedCounts = try database.queryChecked("""
             SELECT COUNT(*) FROM screen_bookmarks JOIN screenshots ON screenshots.id = snapshot_id
             WHERE screenshots.ts < ?1
@@ -771,7 +785,19 @@ final class ActivityStore {
             return sum + ((attributes?[.size] as? NSNumber)?.int64Value ?? 0)
         }
         return RetentionReview(days: days, keepTextForever: keepTextForever, reviewedAt: now,
-                               candidates: candidates, savedCount: savedCounts.first ?? 0, bytes: bytes)
+                               candidates: candidates, savedCount: savedCounts.first ?? 0,
+                               bytes: bytes, activityTitles: activityTitles)
+    }
+
+    func clearRetainedActivityTitles(_ reviewed: [RetentionReview.ActivityTitle]) throws {
+        let database = try requiredDatabase()
+        try database.withTransaction {
+            for row in reviewed {
+                try database.runChecked("""
+                    UPDATE activity_blocks SET title = '' WHERE id = ?1 AND start = ?2 AND end = ?3 AND title = ?4
+                    """, bind: [row.id, row.start.timeIntervalSince1970, row.end.timeIntervalSince1970, row.title])
+            }
+        }
     }
 
     func clearRetainedText(ids: [Int64]) throws {
@@ -784,6 +810,10 @@ final class ActivityStore {
                 if hasVectors {
                     try database.runChecked("DELETE FROM screen_embeddings WHERE \(condition)", bind: [id])
                 }
+                try database.runChecked("""
+                    UPDATE screenshots SET window_title = '', source_url = '', document_name = ''
+                    WHERE id = ?1 AND id NOT IN (SELECT snapshot_id FROM screen_bookmarks)
+                    """, bind: [id])
             }
             try OCRMetadataIndex.removeDeletedRows(database)
         }
@@ -1211,6 +1241,7 @@ final class ActivitySampler: ObservableObject {
     private var lastSeen = Date()
     private var isSampling = false
     private var samplingGeneration = 0
+    var capturePauseRevision: Int { samplingGeneration }
     private static let idleLimit: TimeInterval = 180
     private static let minBlock: TimeInterval = 5
 

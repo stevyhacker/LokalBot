@@ -137,14 +137,28 @@ if [ "$MODE" = "remote" ]; then
     exit 2
   fi
 
-  UPSTREAM="$(git -C "$(dirname "$PROJECT")" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
-  if [ -z "$UPSTREAM" ] \
-      || [ "$(git -C "$(dirname "$PROJECT")" rev-parse HEAD)" != "$(git -C "$(dirname "$PROJECT")" rev-parse "$UPSTREAM")" ]; then
+  UPSTREAM="$(git -C "$ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
+  if [ -z "$UPSTREAM" ] || [[ "$UPSTREAM" != */* ]]; then
+    echo "--remote requires an upstream remote branch." >&2
+    exit 2
+  fi
+  UPSTREAM_REMOTE="${UPSTREAM%%/*}"
+  UPSTREAM_BRANCH="${UPSTREAM#*/}"
+  # Refresh the actual remote ref before comparing it. If the branch advances
+  # again between this fetch and dispatch, candidate_sha makes the hosted job
+  # fail rather than reporting another commit as validation for this checkout.
+  git -C "$ROOT" fetch --quiet "$UPSTREAM_REMOTE" "$UPSTREAM_BRANCH"
+  HEAD_SHA="$(git -C "$ROOT" rev-parse HEAD)"
+  if [ "$HEAD_SHA" != "$(git -C "$ROOT" rev-parse "$UPSTREAM")" ]; then
     echo "--remote requires the current HEAD to be pushed to its upstream branch." >&2
     exit 2
   fi
 
-  exec gh workflow run ui-tests.yml --ref "$BRANCH" --raw-field "filter=${ONLY[0]:-}"
+  gh workflow run ui-tests.yml --ref "$UPSTREAM_BRANCH" \
+    --raw-field "filter=${ONLY[0]:-}" \
+    --raw-field "candidate_sha=$HEAD_SHA"
+  echo "Dispatched UI tests for exact candidate $HEAD_SHA"
+  exit 0
 fi
 
 cd "$ROOT"

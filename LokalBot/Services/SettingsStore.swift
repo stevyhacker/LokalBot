@@ -28,8 +28,8 @@ final class SettingsStore {
         }
     }
 
-    init() {
-        current = AppSettings.load()
+    init(initialSettings: AppSettings? = nil) {
+        current = initialSettings ?? AppSettings.load()
     }
 
     /// Flush debounced text-field edits before application termination.

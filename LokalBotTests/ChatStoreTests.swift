@@ -105,6 +105,28 @@ final class ChatStoreTests: XCTestCase {
         XCTAssertEqual(store.loadAll().first?.title, "Secret pricing strategy", "but it must decrypt back")
     }
 
+    func testLoadReportPreservesAndCountsUnreadableEncryptedFiles() throws {
+        let store = makeStore()
+        let readable = Conversation(
+            title: "Readable",
+            messages: [ChatMessage(role: .user, text: "Keep this")])
+        XCTAssertTrue(store.save(readable))
+        let chats = root.appendingPathComponent("chats", isDirectory: true)
+        let unknownKey = SymmetricKey(data: Data(repeating: 0xB6, count: 32))
+        let unreadable = try XCTUnwrap(try AES.GCM.seal(
+            Data(#"{"title":"wrong key"}"#.utf8),
+            using: unknownKey).combined)
+        try unreadable.write(to: chats.appendingPathComponent("unknown.json.enc"))
+
+        let report = store.loadAllReport()
+
+        XCTAssertEqual(report.conversations.map(\.id), [readable.id])
+        XCTAssertEqual(report.unreadableFileCount, 1)
+        XCTAssertTrue(report.failures.contains(.unreadableEncryptedFile("unknown.json.enc")))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: chats.appendingPathComponent("unknown.json.enc").path))
+    }
+
     func testLegacyPlaintextIsMigratedToEncrypted() throws {
         let chats = root.appendingPathComponent("chats", isDirectory: true)
         try FileManager.default.createDirectory(at: chats, withIntermediateDirectories: true)
@@ -570,6 +592,50 @@ final class ChatViewModelStateTests: XCTestCase {
     private var root: URL!
     private let encryptionKey = SymmetricKey(data: Data(repeating: 0xC7, count: 32))
 
+    func testSaveFailureKeepsConversationInMemoryAndCanRetry() async throws {
+        var keyAvailable = false
+        let store = ChatStore(rootURL: root, encryptionKey: { [encryptionKey] in
+            guard keyAvailable else { throw CocoaError(.fileReadNoPermission) }
+            return encryptionKey
+        })
+        let model = makeModel(engine: SequencedChatEngine(["Fixture answer"]), runner: BlockingChatRunner(), store: store)
+        let id = model.currentID
+        model.send("Fixture question")
+        await waitUntil("response did not finish") { !model.isResponding }
+        XCTAssertEqual(model.messages.last?.text, "Fixture answer")
+        XCTAssertEqual(model.unsavedConversationIDs, [id])
+        XCTAssertNotNil(model.persistenceError)
+        XCTAssertTrue(store.loadAll().isEmpty)
+        model.newConversation()
+        XCTAssertTrue(model.conversations.contains { $0.id == id && $0.messages.last?.text == "Fixture answer" })
+        keyAvailable = true
+        model.retryPersistence()
+        XCTAssertTrue(model.unsavedConversationIDs.isEmpty)
+        XCTAssertNil(model.persistenceError)
+        XCTAssertEqual(store.loadAll().first?.messages.last?.text, "Fixture answer")
+    }
+
+    func testFailedDeleteKeepsVisibleConversationAndRetriesDiskRemoval() {
+        var deletionAllowed = false
+        let store = ChatStore(rootURL: root, encryptionKey: { [encryptionKey] in encryptionKey }, removeFile: { url in
+            guard deletionAllowed else { throw CocoaError(.fileWriteNoPermission) }
+            try FileManager.default.removeItem(at: url)
+        })
+        let conversation = Conversation(messages: [.init(role: .user, text: "Retain on failure")])
+        XCTAssertTrue(store.save(conversation))
+        let model = makeModel(engine: SequencedChatEngine([]), runner: BlockingChatRunner(), store: store)
+        model.delete(conversation.id)
+        XCTAssertEqual(model.currentID, conversation.id)
+        XCTAssertEqual(model.messages.first?.text, "Retain on failure")
+        XCTAssertNotNil(model.persistenceError)
+        XCTAssertEqual(store.loadAll().map(\.id), [conversation.id])
+        deletionAllowed = true
+        model.retryPersistence()
+        XCTAssertFalse(model.conversations.contains { $0.id == conversation.id })
+        XCTAssertTrue(store.loadAll().isEmpty)
+        XCTAssertNil(model.persistenceError)
+    }
+
     func testExplicitNavigationEmitsWhenConversationIDDoesNotChange() {
         let model = makeModel(engine: SequencedChatEngine([]), runner: BlockingChatRunner())
         let id = model.currentID
@@ -595,6 +661,39 @@ final class ChatViewModelStateTests: XCTestCase {
         XCTAssertFalse(model.isLoadingHistory)
         XCTAssertEqual(model.currentID, saved.id)
         XCTAssertEqual(model.messages, saved.messages)
+    }
+
+    func testDeferredHistorySurfacesWrongKeyAndRetryRestoresConversation() async {
+        let legacyKey = SymmetricKey(data: Data(repeating: 0xD8, count: 32))
+        let legacyStore = ChatStore(rootURL: root, encryptionKey: { legacyKey })
+        let saved = Conversation(
+            title: "Recovered",
+            messages: [ChatMessage(
+                role: .user,
+                text: "Legacy private question",
+                createdAt: Date(timeIntervalSince1970: 1_700_000_000))])
+        XCTAssertTrue(legacyStore.save(saved))
+        var activeKey = SymmetricKey(data: Data(repeating: 0xE9, count: 32))
+        let recoveringStore = ChatStore(rootURL: root, encryptionKey: { activeKey })
+        let model = ChatViewModel(
+            makeEngine: { SequencedChatEngine([]) },
+            tools: BlockingChatRunner(),
+            store: recoveringStore,
+            deferHistoryLoading: true)
+
+        await model.waitForHistory()
+        XCTAssertEqual(model.unreadableConversationCount, 1)
+        XCTAssertNotNil(model.persistenceError)
+        XCTAssertFalse(model.conversations.contains { $0.id == saved.id })
+
+        activeKey = legacyKey
+        model.retryPersistence()
+        await model.waitForHistory()
+
+        XCTAssertEqual(model.currentID, saved.id)
+        XCTAssertEqual(model.messages, saved.messages)
+        XCTAssertEqual(model.unreadableConversationCount, 0)
+        XCTAssertNil(model.persistenceError)
     }
 
     func testDeferredHistoryPreservesInteractionAndDeletion() async {

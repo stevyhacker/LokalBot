@@ -53,6 +53,10 @@ final class ModelResidency: ObservableObject {
     private var registrationGenerations: [String: UUID] = [:]
     private var loadReservations: [UUID: LoadReservation] = [:]
     private var reservationExpiryTasks: [UUID: Task<Void, Never>] = [:]
+    private var directPins: [UUID: String] = [:]
+    private var brokerPins: Set<String> = []
+    private var evictingIDs: Set<String> = []
+    private var evictionWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
 
     /// Weights budget: half of physical RAM by default, leaving the other
     /// half for the app, transcription engines, and everything else.
@@ -96,8 +100,32 @@ final class ModelResidency: ObservableObject {
     }
 
     func setLeaseState(pinned: Set<String>, descriptions: [String: [String]]) {
-        pinnedIDs = pinned
+        brokerPins = pinned
+        pinnedIDs = pinned.union(directPins.values)
         leaseDescriptions = descriptions
+    }
+
+    /// Private runtimes participate in the same governor without requiring a
+    /// broker role. Publish the pin before preparing or using their weights.
+    func pin(id: String) async -> UUID {
+        let token = UUID()
+        directPins[token] = id
+        pinnedIDs = brokerPins.union(directPins.values)
+        await waitForEvictions(of: [id])
+        return token
+    }
+
+    func waitForEvictions(of ids: Set<String>) async {
+        for id in ids {
+            while evictingIDs.contains(id) {
+                await withCheckedContinuation { evictionWaiters[id, default: []].append($0) }
+            }
+        }
+    }
+
+    func unpin(_ token: UUID) {
+        directPins[token] = nil
+        pinnedIDs = brokerPins.union(directPins.values)
     }
 
     func unregister(id: String) {
@@ -118,29 +146,38 @@ final class ModelResidency: ObservableObject {
     /// on the same runtime replaces in place) until `bytes` fits the budget.
     /// Call right before loading new weights.
     @discardableResult
-    func willLoad(id: String, bytes: Int64, reservedBytes: Int64 = 0) async
+    func willLoad(id: String, bytes: Int64, reservedBytes: Int64 = 0,
+                  currentReservedBytes: (@MainActor () -> Int64)? = nil) async
         -> LoadReservation {
         let reservation = LoadReservation(
             id: UUID(), residencyID: id, bytes: max(0, bytes))
         loadReservations[reservation.id] = reservation
         scheduleReservationExpiry(reservation.id)
-        let otherPendingBytes = loadReservations.values
-            .filter { $0.id != reservation.id }
-            .reduce(Int64(0)) { Self.saturatingAdd($0, $1.bytes) }
-        let allReservedBytes = Self.saturatingAdd(max(0, reservedBytes), otherPendingBytes)
-        let victims = ModelResidencyPolicy.evictions(
-            residents: residents.map { .init(id: $0.id, bytes: $0.bytes, lastUsed: $0.lastUsed) },
-            incomingID: id, incomingBytes: bytes, reservedBytes: allReservedBytes,
-            pinned: pinnedIDs,
-            budgetBytes: budgetBytes)
-        for victim in victims {
+        while !Task.isCancelled {
+            await waitForEvictions(of: evictingIDs)
+            guard !Task.isCancelled else { break }
+            // Every unload suspends. Rebuild the plan so a new pin, a smaller
+            // replacement, or another admission cannot leave stale victims.
+            let otherPendingBytes = loadReservations.values
+                .filter { $0.id != reservation.id }
+                .reduce(Int64(0)) { Self.saturatingAdd($0, $1.bytes) }
+            let allReservedBytes = Self.saturatingAdd(
+                max(0, currentReservedBytes?() ?? reservedBytes), otherPendingBytes)
+            guard let victim = ModelResidencyPolicy.evictions(
+                residents: residents.map { .init(id: $0.id, bytes: $0.bytes, lastUsed: $0.lastUsed) },
+                incomingID: id, incomingBytes: bytes, reservedBytes: allReservedBytes,
+                pinned: pinnedIDs, budgetBytes: budgetBytes).first else { break }
             let unload = unloaders[victim]
             let label = residents.first { $0.id == victim }?.label ?? victim
             lokalbotLog("model residency: evicting \(label) to fit incoming load")
             // Drop the ledger row first so the victim's own unregister call
             // (from its unload path) is a harmless no-op.
+            evictingIDs.insert(victim)
             unregister(id: victim)
             await unload?()
+            evictingIDs.remove(victim)
+            let waiters = evictionWaiters.removeValue(forKey: victim) ?? []
+            waiters.forEach { $0.resume() }
         }
         return reservation
     }

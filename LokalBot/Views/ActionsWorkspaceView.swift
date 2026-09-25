@@ -279,6 +279,8 @@ private struct ActionEditorSheet: View {
     @State private var text: String
     @State private var owner: String
     @State private var due: String
+    @State private var ownerWasEdited = false
+    @State private var dueWasEdited = false
     @State private var resolvedDate = Date()
     @State private var error: String?
 
@@ -294,11 +296,24 @@ private struct ActionEditorSheet: View {
             Text("Correct action").font(WorkspaceTypography.pageTitle)
             Text("Action").font(WorkspaceTypography.metadataEmphasis)
             TextEditor(text: $text).frame(height: 100).padding(8).workspaceControl()
-            LabeledContent("Owner") { TextField("Me or named participant", text: $owner).textFieldStyle(.roundedBorder) }
-            LabeledContent("Due phrase") { TextField("Original wording or YYYY-MM-DD", text: $due).textFieldStyle(.roundedBorder) }
+            LabeledContent("Owner") {
+                TextField("Me or named participant", text: Binding(
+                    get: { owner },
+                    set: { owner = $0; ownerWasEdited = true }))
+                    .textFieldStyle(.roundedBorder)
+            }
+            LabeledContent("Due phrase") {
+                TextField("Original wording or YYYY-MM-DD", text: Binding(
+                    get: { due },
+                    set: { due = $0; dueWasEdited = true }))
+                    .textFieldStyle(.roundedBorder)
+            }
             HStack {
                 DatePicker("Resolve date", selection: $resolvedDate, displayedComponents: .date)
-                Button("Use date") { due = AskDayScope.key(for: resolvedDate) }
+                Button("Use date") {
+                    due = AskDayScope.key(for: resolvedDate)
+                    dueWasEdited = true
+                }
             }
             Text("The original action, due phrase and citations stay available.").workspaceTextRole(.supporting)
             if let error { Text(error).workspaceTextRole(.warning) }
@@ -306,8 +321,25 @@ private struct ActionEditorSheet: View {
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button("Save correction") {
-                    if app.outcomeIndex.correctAction(actionID: reference.action.id, meetingID: reference.meetingID,
-                                                     text: text, owner: owner, due: due) { dismiss() } else { error = app.outcomeIndex.lastError ?? "The correction could not be saved." }
+                    let ownerIntent = ActionCorrectionFieldIntent.persistedValue(
+                        owner,
+                        wasCorrected: reference.ownerWasCorrected,
+                        wasEdited: ownerWasEdited)
+                    let dueIntent = ActionCorrectionFieldIntent.persistedValue(
+                        due,
+                        wasCorrected: reference.dueWasCorrected,
+                        wasEdited: dueWasEdited)
+                    if app.outcomeIndex.correctAction(
+                        actionID: reference.action.id,
+                        meetingID: reference.meetingID,
+                        text: text,
+                        owner: ownerIntent,
+                        due: dueIntent
+                    ) {
+                        dismiss()
+                    } else {
+                        error = app.outcomeIndex.lastError ?? "The correction could not be saved."
+                    }
                 }.primaryActionButton().disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }.padding(24).frame(width: 530)

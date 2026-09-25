@@ -96,6 +96,7 @@ struct LokalBotCLIInstaller {
     enum InstallError: LocalizedError {
         case bundleNotShipped
         case bundleNotStable
+        case conflictingPath(String)
         case fileSystem(String)
 
         var errorDescription: String? {
@@ -104,6 +105,8 @@ struct LokalBotCLIInstaller {
                 "This build doesn't ship the lokalbot-cli — install the latest release."
             case .bundleNotStable:
                 "The app is running from a translocated or read-only location. Move LokalBot.app to /Applications and relaunch."
+            case .conflictingPath(let path):
+                "LokalBot did not replace \(path) because it is not owned by this installer. Move it to another location before installing."
             case .fileSystem(let message):
                 message
             }
@@ -116,32 +119,36 @@ struct LokalBotCLIInstaller {
         }
         guard isBundleLocationStable else { throw InstallError.bundleNotStable }
 
-        try ensureDirectory(binLink.deletingLastPathComponent())
-        try replaceSymlink(at: binLink, target: binary)
-        for link in [skillLink, claudeSkillLink] {
-            try ensureDirectory(link.deletingLastPathComponent())
-            switch skillMode {
-            case .symlink:
-                try replaceSymlink(at: link, target: skill)
-            case .copy:
-                try replaceWithCopy(at: link, of: skill)
+        let destinations = [binLink, skillLink, claudeSkillLink]
+        for destination in destinations {
+            try requireOwnedOrMissing(destination)
+        }
+        // Finish every copy/link before touching any current installation.
+        var prepared: [(destination: URL, staged: URL)] = []
+        defer {
+            for item in prepared { try? fileManager.removeItem(at: item.staged) }
+        }
+        for destination in destinations {
+            try ensureDirectory(destination.deletingLastPathComponent())
+            let staged = destination.deletingLastPathComponent()
+                .appendingPathComponent(".lokalbot-install-\(UUID().uuidString)")
+            prepared.append((destination, staged))
+            if destination == binLink || skillMode == .symlink {
+                try fileManager.createSymbolicLink(
+                    at: staged, withDestinationURL: destination == binLink ? binary : skill)
+            } else {
+                try fileManager.copyItem(at: skill, to: staged)
+                try Data().write(to: staged.appendingPathComponent(Self.copyMarkerName))
             }
         }
+        for item in prepared { try installPrepared(item.staged, at: item.destination) }
         logger.info("CLI installed at \(binLink.path) -> \(binary.path)")
     }
 
     /// Removes only LokalBot links and copies stamped by this installer.
     func uninstall() throws {
         for link in [binLink, skillLink, claudeSkillLink] {
-            if let destination = try? fileManager.destinationOfSymbolicLink(
-                atPath: link.path) {
-                if destination.contains("LokalBot.app/")
-                    || destination.contains("LokalBotV3.app/") {
-                    try fileManager.removeItem(at: link)
-                }
-            } else if isExistingDirectory(link),
-                      fileManager.fileExists(atPath: link
-                        .appendingPathComponent(Self.copyMarkerName).path) {
+            if isOwned(link) {
                 try fileManager.removeItem(at: link)
             }
         }
@@ -172,32 +179,48 @@ struct LokalBotCLIInstaller {
         }
     }
 
-    private func replaceSymlink(at link: URL, target: URL) throws {
-        if symlink(link, resolvesTo: target) { return }
-        if fileManager.fileExists(atPath: link.path)
-            || (try? fileManager.destinationOfSymbolicLink(atPath: link.path)) != nil {
-            try fileManager.removeItem(at: link)
-        }
-        do {
-            try fileManager.createSymbolicLink(at: link, withDestinationURL: target)
-        } catch {
-            throw InstallError.fileSystem(
-                "Could not create symlink at \(link.path): \(error.localizedDescription)")
-        }
+    private func exists(_ url: URL) -> Bool {
+        fileManager.fileExists(atPath: url.path)
+            || (try? fileManager.destinationOfSymbolicLink(atPath: url.path)) != nil
     }
 
-    private func replaceWithCopy(at destination: URL, of source: URL) throws {
-        if fileManager.fileExists(atPath: destination.path)
-            || (try? fileManager.destinationOfSymbolicLink(atPath: destination.path)) != nil {
-            try fileManager.removeItem(at: destination)
+    private func isOwned(_ url: URL) -> Bool {
+        if let destination = try? fileManager.destinationOfSymbolicLink(atPath: url.path) {
+            let target = URL(fileURLWithPath: destination, relativeTo: url.deletingLastPathComponent())
+                .standardizedFileURL.path
+            let suffix = url == binLink ? "/Contents/Helpers/lokalbot-cli" : "/Contents/Resources/lokalbot-cli"
+            return ["LokalBot.app", "LokalBotV3.app"].contains {
+                target.hasSuffix("/\($0)\(suffix)")
+            }
         }
+        return url != binLink && isExistingDirectory(url)
+            && fileManager.fileExists(atPath: url.appendingPathComponent(Self.copyMarkerName).path)
+    }
+
+    private func requireOwnedOrMissing(_ url: URL) throws {
+        if exists(url), !isOwned(url) { throw InstallError.conflictingPath(url.path) }
+    }
+
+    private func installPrepared(_ staged: URL, at destination: URL) throws {
+        try requireOwnedOrMissing(destination)
+        let backup = destination.deletingLastPathComponent()
+            .appendingPathComponent(".lokalbot-previous-\(UUID().uuidString)")
+        let hadPrevious = exists(destination)
+        if hadPrevious { try fileManager.moveItem(at: destination, to: backup) }
         do {
-            try fileManager.copyItem(at: source, to: destination)
-            try Data().write(to: destination.appendingPathComponent(Self.copyMarkerName))
+            try fileManager.moveItem(at: staged, to: destination)
         } catch {
+            if hadPrevious {
+                do {
+                    try fileManager.moveItem(at: backup, to: destination)
+                } catch {
+                    throw InstallError.fileSystem("Installation failed. Your previous installation is preserved at \(backup.path).")
+                }
+            }
             throw InstallError.fileSystem(
-                "Could not copy skill to \(destination.path): \(error.localizedDescription)")
+                "Could not install at \(destination.path): \(error.localizedDescription)")
         }
+        if hadPrevious { try fileManager.removeItem(at: backup) }
     }
 
     private func symlink(_ link: URL, resolvesTo target: URL) -> Bool {

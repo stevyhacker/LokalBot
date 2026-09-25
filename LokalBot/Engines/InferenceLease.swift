@@ -24,8 +24,8 @@ enum InferencePriority: Int, Comparable, CaseIterable, Sendable {
 }
 
 /// The three shared llama-server runtimes the broker owns in step 1.
-/// Granite's private ASR server (17875) and the in-process cotyping runtime
-/// deliberately stay outside — see the design spec §10.
+/// Granite's private ASR server (17875) holds direct ModelResidency pins during
+/// preparation/transcription; it does not need a broker role.
 enum InferenceRole: String, CaseIterable, Sendable {
     case mainLLM
     case embedder

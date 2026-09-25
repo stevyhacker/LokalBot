@@ -260,14 +260,13 @@ extension CotypingCoordinator {
             return nil
         }
         let identityKey = CotypingFieldIdentity.suggestionAnchor(for: field)
-        let changeCount = clipboardProvider.changeCount
+        let clipboardSnapshot = clipboardProvider.snapshot()
         let prefix = CotypingPrefixWindow.truncatedPrefix(
             from: field.precedingText,
             maxCharacters: config.maxPrefixCharacters,
             maxWords: config.maxPrefixWords)
         let resolution = CotypingClipboardPrefaceResolver.resolve(
-            rawClipboard: clipboardProvider.currentText,
-            pasteboardChangeCount: changeCount,
+            snapshot: clipboardSnapshot,
             precedingText: prefix,
             identityKey: identityKey,
             memo: clipboardPrefaceMemo,
@@ -280,11 +279,13 @@ extension CotypingCoordinator {
         let includeSurface = settings.cotypingUseAppContext
         let includeURL = !settings.cotypingExcludedDomainList.isEmpty
         let includeStyle = settings.cotypingMatchHostStyle
-        guard !includeSurface, !includeURL, !includeStyle else {
+        let includeLearningScope = settings.cotypingUseLocalLearning
+        guard !includeSurface, !includeURL, !includeStyle, !includeLearningScope else {
             return await focusTracker.refreshNow(
                 includeSurface: includeSurface,
                 includeURL: includeURL,
-                includeStyle: includeStyle)
+                includeStyle: includeStyle,
+                includeLearningScope: includeLearningScope)
         }
         return await focusTracker.refreshIfStale(
             maxAgeMilliseconds: Self.freshSnapshotReuseWindowMilliseconds)
@@ -299,10 +300,12 @@ extension CotypingCoordinator {
         let includeSurface = settings.cotypingUseAppContext
         let includeURL = !settings.cotypingExcludedDomainList.isEmpty
         let includeStyle = settings.cotypingMatchHostStyle
+        let includeLearningScope = settings.cotypingUseLocalLearning
         guard let focus = await focusTracker.refreshForValidation(
             includeSurface: includeSurface,
             includeURL: includeURL,
-            includeStyle: includeStyle) else {
+            includeStyle: includeStyle,
+            includeLearningScope: includeLearningScope) else {
             return nil
         }
         guard work == generation, isRunning else { return nil }
@@ -316,7 +319,8 @@ extension CotypingCoordinator {
             state = .disabled(reason)
             return nil
         }
-        guard CotypingSessionReconciler.isCurrentGenerationTarget(originalField, liveField: focus.field) else {
+        guard originalField.learningScopeKey == focus.field?.learningScopeKey,
+              CotypingSessionReconciler.isCurrentGenerationTarget(originalField, liveField: focus.field) else {
             return nil
         }
         return focus.field

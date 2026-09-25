@@ -25,6 +25,25 @@ struct ScreenAccessibilityCaptureResult: Equatable, Sendable {
     static let timeout = Self(snapshot: nil, timedOut: true)
 }
 
+enum ScreenVisibleTextPolicy {
+    /// Whole AXValue/selected-text/help strings can contain a complete hidden
+    /// document. Only visible-range text or fully visible static labels qualify.
+    static func text(role: String?, frame: CGRect?, viewport: CGRect?, hidden: Bool,
+                     title: String?, visibleRangeText: String?, staticValue: String?) -> [String] {
+        guard !hidden, let frame, let viewport,
+              !frame.isEmpty, !frame.isNull,
+              frame.intersects(viewport) else { return [] }
+        var result: [String] = []
+        if let visibleRangeText { result.append(visibleRangeText) }
+        let labels: Set<String> = ["AXStaticText", "AXButton", "AXCheckBox", "AXRadioButton", "AXMenuItem", "AXLink", "AXWindow"]
+        if let role, labels.contains(role), viewport.contains(frame) {
+            if let title { result.append(title) }
+            if role == "AXStaticText", let staticValue { result.append(staticValue) }
+        }
+        return result
+    }
+}
+
 /// A bounded, single-flight reader for visible Accessibility text. Cross-process
 /// AX calls never run on the main actor, and a wedged target can occupy only one
 /// worker rather than creating an unbounded queue of blocked snapshots.
@@ -141,7 +160,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         let focused = elementAttribute(app, kAXFocusedUIElementAttribute as String)
         let focusedSecureField = focused.flatMap(secureFieldStatus)
 
-        var queue: [AXUIElement] = [window]
+        var queue: [(element: AXUIElement, viewport: CGRect?)] = [(window, windowFrame)]
         var visited = Set<CFHashCode>()
         var parts: [String] = []
         var seenText = Set<String>()
@@ -162,22 +181,23 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
               visited.count < maximumNodes,
               totalCharacters < maximumCharacters,
               started.duration(to: .now) < maximumDuration {
-            let element = queue.removeFirst()
+            let next = queue.removeFirst()
+            let element = next.element
             let identity = CFHash(element)
             guard visited.insert(identity).inserted else { continue }
             AXUIElementSetMessagingTimeout(element, perElementMessagingTimeout)
 
             let role = textualAttribute(element, kAXRoleAttribute as String)
             let secure = includeText ? secureFieldStatus(element) : nil
+            let elementFrame = includeText ? frame(of: element) : nil
+            let hidden = attribute(element, "AXHidden") as? Bool == true
             if includeText, secure == false {
-                for attribute in [
-                    kAXTitleAttribute as String,
-                    kAXDescriptionAttribute as String,
-                    kAXHelpAttribute as String,
-                    kAXValueAttribute as String,
-                    kAXSelectedTextAttribute as String,
-                ] {
-                    guard let text = textualAttribute(element, attribute) else { continue }
+                let visibleText = ScreenVisibleTextPolicy.text(
+                    role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
+                    title: textualAttribute(element, kAXTitleAttribute as String),
+                    visibleRangeText: Self.visibleText(of: element),
+                    staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
+                for text in visibleText {
                     append(
                         text,
                         parts: &parts,
@@ -198,8 +218,12 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                     hasUnknownWebURL = true
                 }
             }
-            if let children = attribute(element, kAXChildrenAttribute as String) as? [AXUIElement] {
-                queue.append(contentsOf: children.prefix(80))
+            if !hidden, let children = (attribute(element, kAXVisibleChildrenAttribute as String)
+                ?? attribute(element, kAXChildrenAttribute as String)) as? [AXUIElement] {
+                let clipsChildren = ["AXScrollArea", "AXWebArea", "AXWindow"].contains(role ?? "")
+                let viewport = clipsChildren
+                    ? elementFrame.flatMap { next.viewport?.intersection($0) } : next.viewport
+                queue.append(contentsOf: children.prefix(80).map { ($0, viewport) })
             }
         }
 
@@ -238,6 +262,21 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         let clipped = String(value.prefix(remaining))
         parts.append(clipped)
         totalCharacters += clipped.count
+    }
+
+    private static func visibleText(of element: AXUIElement) -> String? {
+        guard let rawRange = attribute(element, kAXVisibleCharacterRangeAttribute as String),
+              CFGetTypeID(rawRange) == AXValueGetTypeID() else { return nil }
+        var range = CFRange()
+        guard AXValueGetValue(rawRange as! AXValue, .cfRange, &range),
+              range.location >= 0, range.length > 0 else { return nil }
+        range.length = min(range.length, 24_000)
+        guard let bounded = AXValueCreate(.cfRange, &range) else { return nil }
+        var value: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element, kAXStringForRangeParameterizedAttribute as CFString, bounded, &value) == .success
+        else { return nil }
+        return textualValue(value)
     }
 
     private static func secureFieldStatus(_ element: AXUIElement) -> Bool? {

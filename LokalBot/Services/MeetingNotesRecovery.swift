@@ -68,7 +68,7 @@ extension MeetingNotesGenerator {
             var userPrompt = prompt(units: job.units, roster: job.evidence.roster)
                 + (recovery.nextPage == 0 ? "" : try continuation(recovery.records))
             if extractionRecoveryRetryPending {
-                userPrompt += "\nThe previous extraction was not fully verifiable. Re-read only these supplied evidence rows. "
+                userPrompt += "\nThe previous extraction did not pass all source-link checks. Re-read only these supplied evidence rows. "
                     + "Return the exact top-level keys notes, actions, and has_more. Every note and action must "
                     + "copy one source ID from these rows and include all required fields. Omit an optional record "
                     + "rather than guessing or emitting a source-less object. If no grounded record remains, return "
@@ -80,7 +80,7 @@ extension MeetingNotesGenerator {
             let raw = try await request(engine: job.engine, system: system, prompt: userPrompt, context: job.context,
                 schema: MeetingNotesEvidence.schema(units: job.units, speakers: Array(job.evidence.speakers.keys),
                     template: job.template, maximumNotes: maximumNotes, maximumActions: maximumActions),
-                tokens: allowance, stage: stage, budget: job.budget)
+                tokens: allowance, stage: stage, contextTokens: job.contextTokens, budget: job.budget)
             let started = ProcessInfo.processInfo.systemUptime
             var validated = job.evidence.validate(raw.content, units: job.units, template: job.template,
                 meetingID: job.meetingID, maximumNotes: maximumNotes, maximumActions: maximumActions)
@@ -126,7 +126,7 @@ extension MeetingNotesGenerator {
             if validated.rejected.contains(where: {
                 !$0.sources.isEmpty && knownSources.isDisjoint(with: $0.sources)
             }) {
-                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs. Verified partial notes were saved. Choose a different summary model or provider before retrying."
+                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs. Source-linked partial notes were saved. Choose a different summary model or provider before retrying."
                 try checkpoint()
                 throw TextEngineError.badResponse(recovery.terminalFailure!)
             }
@@ -140,7 +140,7 @@ extension MeetingNotesGenerator {
                 if !raw.truncated && recovery.pending.isEmpty {
                     recovery.noProgressAttempts = (recovery.noProgressAttempts ?? 0) + 1
                     if recovery.noProgressAttempts! >= 2 {
-                        recovery.terminalFailure = "The summary provider made no further verifiable progress. Partial notes were saved. Choose a different summary model or provider before retrying."
+                        recovery.terminalFailure = "The summary provider made no further source-linked progress. Partial notes were saved. Choose a different summary model or provider before retrying."
                         try checkpoint()
                         throw TextEngineError.badResponse(recovery.terminalFailure!)
                     }
@@ -181,7 +181,7 @@ extension MeetingNotesGenerator {
             let raw = try await request(engine: job.engine, system: system, prompt: userPrompt, context: [],
                 schema: MeetingNotesEvidence.schema(units: repairUnits, speakers: Array(job.evidence.speakers.keys),
                     template: job.template, maximumNotes: noteLimit, maximumActions: actionLimit),
-                tokens: repairTokens, stage: stage, budget: job.budget)
+                tokens: repairTokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget)
             let started = ProcessInfo.processInfo.systemUptime
             let fixed = job.evidence.validate(raw.content, units: repairUnits, template: job.template,
                 meetingID: job.meetingID, maximumNotes: noteLimit, maximumActions: actionLimit)
@@ -189,7 +189,7 @@ extension MeetingNotesGenerator {
             await recordValidation(fixed, stage: stage, truncated: raw.truncated, budget: job.budget)
             let repairSources = Set(repairUnits.map(\.source))
             if fixed.rejected.contains(where: { repairSources.isDisjoint(with: $0.sources) }) {
-                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs during repair. Verified partial notes were saved. Choose a different summary model or provider before retrying."
+                recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs during repair. Source-linked partial notes were saved. Choose a different summary model or provider before retrying."
                 try checkpoint()
                 throw TextEngineError.badResponse(recovery.terminalFailure!)
             }
@@ -223,7 +223,8 @@ extension MeetingNotesGenerator {
     private static func requireInputRoom(system: String, prompt: String, context: [String], tokens: Int, job: PartJob) async throws {
         let input = try await tokenCount(([system] + context + [prompt]).joined(separator: "\n\n"), engine: job.engine)
         guard input + tokens + 1_536 <= job.contextTokens else {
-            throw TextEngineError.badResponse("Notes continuation cannot fit the model's input allowance. Verified progress was saved.")
+            throw TextEngineError.badResponse(
+                "Notes continuation cannot fit the model's input allowance. Source-linked progress was saved.")
         }
     }
 
@@ -268,7 +269,7 @@ extension MeetingNotesGenerator {
         let json = String(decoding: try JSONSerialization.data(withJSONObject: feedback), as: UTF8.self)
         return "This is a targeted repair. Repair at most \(noteLimit) notes and \(actionLimit) actions from the rejected sources. "
             + "Return empty arrays for unrequested kinds. Do not add a TL;DR or unrelated facts from neighboring context. "
-            + "Previously verified records are retained. Omit unsupported records. "
+            + "Previously accepted source-linked records are retained. Omit unsupported records. "
             + "For missing_user_commitment, extract the user's undertaking and its nearest relevant task context. "
             + "For distant_action_context, cite only sources within eight segments of the primary source. "
             + "has_more refers only to these requested repairs.\nValidation feedback: \(json)\n"

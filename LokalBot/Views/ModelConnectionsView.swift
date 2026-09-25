@@ -293,6 +293,13 @@ struct ModelConnectionsView: View {
                            isOn: remoteApprovalBinding(rawURL: rawURL))
                         .font(WorkspaceTypography.editorialBody)
                         .accessibilityIdentifier("models.remoteConsent")
+                    Toggle("Allow scheduled daily summaries and overnight review to send context to \(origin)",
+                           isOn: remoteAutomationApprovalBinding(rawURL: rawURL))
+                        .font(WorkspaceTypography.editorialBody)
+                        .disabled(!app.settings.approvedRemoteInferenceOrigins.contains(origin))
+                        .accessibilityIdentifier("models.remoteAutomationConsent")
+                    Text("Scheduled runs can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time. This approval applies only to this server origin.")
+                        .workspaceTextRole(.trust)
                     if connection == .openAICompatible && isOpenRouterEndpoint {
                         Divider()
                         openRouterDataPolicyControl
@@ -320,8 +327,22 @@ struct ModelConnectionsView: View {
             guard let url = URL(string: rawURL),
                   let origin = InferenceEndpointPolicy.origin(for: url) else { return }
             app.settings.approvedRemoteInferenceOrigins.removeAll { $0 == origin }
+            if !approved { app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin } }
             if approved {
                 app.settings.approvedRemoteInferenceOrigins.append(origin)
+            }
+        }
+    }
+
+    private func remoteAutomationApprovalBinding(rawURL: String) -> Binding<Bool> {
+        Binding {
+            guard let url = URL(string: rawURL), let origin = InferenceEndpointPolicy.origin(for: url) else { return false }
+            return app.settings.approvedRemoteAutomationOrigins.contains(origin)
+        } set: { approved in
+            guard let url = URL(string: rawURL), let origin = InferenceEndpointPolicy.origin(for: url) else { return }
+            app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin }
+            if approved && app.settings.approvedRemoteInferenceOrigins.contains(origin) {
+                app.settings.approvedRemoteAutomationOrigins.append(origin)
             }
         }
     }

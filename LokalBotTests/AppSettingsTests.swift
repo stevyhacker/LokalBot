@@ -139,6 +139,29 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertFalse(settings.usesRemoteMainLLM, "Apple Intelligence is on-device")
     }
 
+    func testAutomaticRemoteInferenceNeedsSeparateExactOriginApproval() throws {
+        var settings = AppSettings()
+        XCTAssertTrue(settings.allowsAutomaticMainInference)
+        settings.summarizerBackend = .openAICompatible
+        settings.openAIBaseURL = "https://models.example/v1"
+        settings.approvedRemoteInferenceOrigins = ["https://models.example"]
+        XCTAssertFalse(settings.allowsAutomaticMainInference)
+        settings.approvedRemoteAutomationOrigins = ["https://models.example"]
+        XCTAssertTrue(settings.allowsAutomaticMainInference)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(decoded.approvedRemoteAutomationOrigins, settings.approvedRemoteAutomationOrigins)
+        XCTAssertTrue(decoded.allowsAutomaticMainInference)
+        settings.openAIBaseURL = "https://models.example:9443/v1"
+        XCTAssertFalse(settings.allowsAutomaticMainInference)
+        settings.openAIBaseURL = "https://models.example/v1"
+        settings.approvedRemoteInferenceOrigins = []
+        XCTAssertFalse(settings.allowsAutomaticMainInference)
+        settings.openAIBaseURL = "http://localhost:1234/v1"
+        XCTAssertTrue(settings.allowsAutomaticMainInference)
+        let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertTrue(legacy.approvedRemoteAutomationOrigins.isEmpty)
+    }
+
     func testOpenRouterDataPolicyDefaultsPrivateForLegacySettings() throws {
         XCTAssertEqual(AppSettings().openRouterDataPolicy, .privateOnly)
 

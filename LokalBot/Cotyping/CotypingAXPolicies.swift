@@ -31,6 +31,12 @@ struct CotypingAcceptanceContentRanges: Equatable, Sendable {
     let trailing: NSRange
 }
 
+struct CotypingTextContext: Equatable, Sendable {
+    let preceding: String
+    let trailing: String
+    let precedingIsTruncated: Bool
+}
+
 /// Pure bounds for accept-time text reads. The event tap never needs the whole
 /// host document: it only needs the same 4,096/1,024 UTF-16 windows carried by
 /// `CotypingField`. Hosts that cannot provide bounded ranges are eligible for a
@@ -76,6 +82,28 @@ enum CotypingAcceptanceContentBounds {
 
     static func allowsWholeValueFallback(totalUTF16Length: Int) -> Bool {
         (0...maximumWholeValueUTF16Length).contains(totalUTF16Length)
+    }
+
+    /// Prediction and acceptance apply this same policy to identical UTF-16
+    /// ranges. Discard the outermost grapheme of a clipped range: AX can cut a
+    /// surrogate pair, combining sequence, or joined emoji at that boundary.
+    static func context(precedingText: String, trailingText: String,
+                        ranges: CotypingAcceptanceContentRanges,
+                        totalUTF16Length: Int) -> CotypingTextContext {
+        let precedingIsTruncated = ranges.preceding.location > 0
+        let trailingIsTruncated = NSMaxRange(ranges.trailing) < totalUTF16Length
+        return CotypingTextContext(
+            preceding: precedingIsTruncated ? String(precedingText.dropFirst()) : precedingText,
+            trailing: trailingIsTruncated ? String(trailingText.dropLast()) : trailingText,
+            precedingIsTruncated: precedingIsTruncated)
+    }
+
+    static func context(in value: String, selection: NSRange) -> CotypingTextContext? {
+        let text = value as NSString
+        guard let ranges = ranges(selection: selection, totalUTF16Length: text.length) else { return nil }
+        return context(precedingText: text.substring(with: ranges.preceding),
+                       trailingText: text.substring(with: ranges.trailing),
+                       ranges: ranges, totalUTF16Length: text.length)
     }
 }
 

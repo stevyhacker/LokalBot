@@ -62,6 +62,8 @@ targetTemplates:
       - path: LokalBot
         excludes:
           - Resources/pi
+          - Resources/ModelChecks
+          - Resources/ModelAssets
       - path: Vendor/llama-cpp
         type: folder
         buildPhase: resources
@@ -69,6 +71,12 @@ targetTemplates:
         type: folder
         buildPhase: resources
       - path: LokalBot/Resources/pi
+        type: folder
+        buildPhase: resources
+      - path: LokalBot/Resources/ModelChecks
+        type: folder
+        buildPhase: resources
+      - path: LokalBot/Resources/ModelAssets
         type: folder
         buildPhase: resources
       # Bundle SKILL.md inside the app at Contents/Resources/lokalbot-cli/

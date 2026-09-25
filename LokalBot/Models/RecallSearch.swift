@@ -50,8 +50,10 @@ enum RecallSearch {
         let matches = Dictionary(grouping: keyword + semantic, by: \.meetingID)
         let lexicalIDs = Set(lexical.map(\.id))
         let order = scores.keys.sorted {
-            if lexicalIDs.contains($0) != lexicalIDs.contains($1) { return lexicalIDs.contains($0) }
             if scores[$0] != scores[$1] { return scores[$0, default: 0] > scores[$1, default: 0] }
+            // Prefer lexical evidence only for equal fused relevance, never
+            // ahead of a higher-ranked semantic-only source.
+            if lexicalIDs.contains($0) != lexicalIDs.contains($1) { return lexicalIDs.contains($0) }
             if firstRanks[$0] != firstRanks[$1] { return firstRanks[$0, default: .max] < firstRanks[$1, default: .max] }
             return $0.uuidString < $1.uuidString
         }

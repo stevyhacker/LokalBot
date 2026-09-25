@@ -3,6 +3,39 @@ import XCTest
 
 @MainActor
 final class RecallSourceScopeTests: XCTestCase {
+    func testRemovingOrClearingPinsRestoresPreviousEvidenceBoundary() {
+        for original in [nil, Set<Int64>([41, 42])] {
+            var state = RecallWorkspaceState()
+            state.chooseSources([.meetings])
+            state.screenIDs = original
+            state.beginPinning()
+            state.pins = [ScreenAskContext(hit: .init(snapshotID: 42, ts: Date(), app: "Editor", windowTitle: "Notes", snippet: "Evidence"))]
+            state.reconcilePins()
+            XCTAssertEqual(state.screenIDs, [42])
+            XCTAssertTrue(state.sources.contains(.screen))
+            state.removePin(42)
+            XCTAssertEqual(state.screenIDs, original)
+            XCTAssertEqual(state.sources, [.meetings])
+
+            state.beginPinning()
+            state.pins = [ScreenAskContext(hit: .init(snapshotID: 42, ts: Date(), app: "Editor", windowTitle: "Notes", snippet: "Evidence"))]
+            state.reconcilePins()
+            state.clearPins(restoringScope: true)
+            XCTAssertEqual(state.screenIDs, original)
+        }
+    }
+
+    func testDateFilteringLastPinRestoresScopeWithoutWideningSelectedEvidence() {
+        var state = RecallWorkspaceState()
+        state.selectEvidence(meetingIDs: [], screenIDs: [41, 42])
+        state.beginPinning()
+        state.pins = [ScreenAskContext(hit: .init(snapshotID: 42, ts: Date(), app: "Editor", windowTitle: "Notes", snippet: "Evidence"))]
+        state.reconcilePins(dateScope: AskDateScope(day: .distantPast))
+        XCTAssertTrue(state.pins.isEmpty)
+        XCTAssertEqual(state.screenIDs, [41, 42])
+        XCTAssertEqual(state.meetingIDs, [])
+        XCTAssertEqual(state.sources, [.screen])
+    }
     func testClearingResultEvidenceRestoresExplicitSourceChoice() {
         var state = RecallWorkspaceState()
         state.chooseSources([.meetings, .screen])

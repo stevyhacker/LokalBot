@@ -12,16 +12,24 @@ struct ScreenshotRow {
 }
 
 func usage() -> Never {
-    fputs("Usage: ExportVisionBenchmark.swift <manifest.tsv> <output-dir>\n", stderr)
+    fputs("Usage: ExportVisionBenchmark.swift <manifest.tsv> <new-output-dir> --allow-decrypt-private-screen-data\n", stderr)
     exit(2)
 }
 
 let args = CommandLine.arguments
-guard args.count == 3 else { usage() }
+guard args.count == 4, args[3] == "--allow-decrypt-private-screen-data" else { usage() }
 
 let manifestURL = URL(fileURLWithPath: args[1])
 let outputDir = URL(fileURLWithPath: args[2], isDirectory: true)
-try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true)
+guard !FileManager.default.fileExists(atPath: outputDir.path) else {
+    fputs("Refusing an existing export directory. Choose a new private fixture directory.\n", stderr)
+    exit(2)
+}
+umask(0o077)
+try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectories: true,
+                                      attributes: [.posixPermissions: 0o700])
+try Data("Decrypted private screen fixtures. Delete this entire directory after review; application retention does not clean it.\n".utf8)
+    .write(to: outputDir.appendingPathComponent(".private-screen-fixtures"), options: .atomic)
 
 func keychainData(service: String, account: String) -> Data? {
     var query: [String: Any] = [
@@ -49,6 +57,10 @@ let rows = manifest.split(separator: "\n").compactMap { line -> ScreenshotRow? i
     let fields = line.split(separator: "\t", maxSplits: 2, omittingEmptySubsequences: false)
     guard fields.count == 3 else { return nil }
     return ScreenshotRow(id: String(fields[0]), app: String(fields[1]), path: String(fields[2]))
+}
+guard !rows.isEmpty, rows.allSatisfy({ $0.id.range(of: "^[0-9]+$", options: .regularExpression) != nil }) else {
+    fputs("Manifest must contain numeric screenshot IDs and explicit encrypted file paths.\n", stderr)
+    exit(2)
 }
 
 func recognizeText(in image: CGImage) throws -> String {

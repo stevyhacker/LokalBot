@@ -59,9 +59,21 @@ struct AgentAccessGate {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()
     ) -> Bool {
-        if isEnabled { return true }
-        guard let token = environment[Self.capabilityEnvironmentKey] else { return false }
-        return validateCapability(token, now: now)
+        authorizationID(environment: environment, now: now) != nil
+    }
+
+    /// A long-running read must retain the same grant through response delivery.
+    /// Re-enabling global access issues a new identity, so it cannot revive an
+    /// answer whose original grant was revoked while inference was pending.
+    func authorizationID(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        now: Date = Date()
+    ) -> String? {
+        if let marker = try? Data(contentsOf: accessMarkerURL) {
+            return "global:\(marker.base64EncodedString())"
+        }
+        guard let token = environment[Self.capabilityEnvironmentKey] else { return nil }
+        return validateCapability(token, now: now) ? "capability:\(Self.digest(token))" : nil
     }
 
     func requireAuthorized(
@@ -74,7 +86,7 @@ struct AgentAccessGate {
         try FileManager.default.createDirectory(
             at: controlDirectory,
             withIntermediateDirectories: true)
-        try Data().write(to: accessMarkerURL)
+        try Data(UUID().uuidString.utf8).write(to: accessMarkerURL, options: .atomic)
     }
 
     func disable() {

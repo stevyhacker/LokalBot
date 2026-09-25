@@ -19,12 +19,12 @@ struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
                 action: action,
                 status: userState.status,
                 text: userState.textCorrection ?? action.displayText,
-                owner: userState.ownerOverride ?? action.owner,
-                due: userState.dueOverride ?? action.due,
+                owner: userState.ownerWasCleared ? nil : (userState.ownerOverride ?? action.owner),
+                due: userState.dueWasCleared ? nil : (userState.dueOverride ?? action.due),
                 stateUpdatedAt: userState.userEdited ? userState.updatedAt : meeting.startedAt,
                 textWasCorrected: userState.textCorrection != nil,
-                ownerWasCorrected: userState.ownerOverride != nil,
-                dueWasCorrected: userState.dueOverride != nil,
+                ownerWasCorrected: userState.ownerOverride != nil || userState.ownerWasCleared,
+                dueWasCorrected: userState.dueOverride != nil || userState.dueWasCleared,
                 textCorrectedAt: userState.textCorrectedAt,
                 ownerCorrectedAt: userState.ownerCorrectedAt,
                 dueCorrectedAt: userState.dueCorrectedAt,
@@ -304,19 +304,23 @@ final class OutcomeIndex: ObservableObject {
         mutateAction(actionID: actionID, meetingID: meetingID, reviewing: meeting) { state in
             let now = Date().outcomePersistedTimestamp
             let text = Self.nilIfBlank(text)
-            let owner = Self.nilIfBlank(owner)
-            let due = Self.nilIfBlank(due)
+            let ownerValue = Self.nilIfBlank(owner)
+            let dueValue = Self.nilIfBlank(due)
+            let ownerWasCleared = owner != nil && ownerValue == nil
+            let dueWasCleared = due != nil && dueValue == nil
             if state.textCorrection != text {
                 state.textCorrection = text
                 state.textCorrectedAt = text == nil ? nil : now
             }
-            if state.ownerOverride != owner {
-                state.ownerOverride = owner
-                state.ownerCorrectedAt = owner == nil ? nil : now
+            if state.ownerOverride != ownerValue || state.ownerWasCleared != ownerWasCleared {
+                state.ownerOverride = ownerValue
+                state.ownerWasCleared = ownerWasCleared
+                state.ownerCorrectedAt = ownerValue == nil && !ownerWasCleared ? nil : now
             }
-            if state.dueOverride != due {
-                state.dueOverride = due
-                state.dueCorrectedAt = due == nil ? nil : now
+            if state.dueOverride != dueValue || state.dueWasCleared != dueWasCleared {
+                state.dueOverride = dueValue
+                state.dueWasCleared = dueWasCleared
+                state.dueCorrectedAt = dueValue == nil && !dueWasCleared ? nil : now
             }
             state.userEdited = true
         }
@@ -386,7 +390,9 @@ final class OutcomeIndex: ObservableObject {
                 try MeetingOutcomeStore.writeState(
                     projection.state, to: projection.meeting.folderURL(in: storage))
                 if !projection.isArchived,
-                   previous.ownerOverride != actionState.ownerOverride || previous.textCorrection != actionState.textCorrection {
+                   previous.ownerOverride != actionState.ownerOverride
+                    || previous.ownerWasCleared != actionState.ownerWasCleared
+                    || previous.textCorrection != actionState.textCorrection {
                     try MeetingAttributionArtifacts.invalidate(in: projection.meeting.folderURL(in: storage), preservingOutcomes: true)
                 }
             }

@@ -2,6 +2,7 @@ import SwiftUI
 import Combine
 import AVFoundation
 import CoreGraphics
+import AppKit
 
 /// Process entry point. Parses any headless subcommand before SwiftUI exists,
 /// and disables AppKit window restoration *before* SwiftUI launches when
@@ -13,14 +14,148 @@ import CoreGraphics
 enum LokalBotMain {
     @MainActor
     static func main() {
-        // Carry a prior LokalBotV2 install's data forward before anything reads
-        // a store: settings are loaded below (via lokalbotLaunchesMenuBarOnly),
-        // and AppState builds StorageManager/SearchIndex right after.
-        DataMigration.runIfNeeded()
-        HeadlessCommand.requested = HeadlessCommand.parse(CommandLine.arguments)
-        UserDefaults.standard.set(lokalbotLaunchesMenuBarOnly(),
-                                  forKey: "ApplePersistenceIgnoreState")
-        LokalBotApp.main()
+        routeStartup(
+            migrate: { DataMigration.runIfNeeded() },
+            launchApplication: {
+                HeadlessCommand.requested = HeadlessCommand.parse(CommandLine.arguments)
+                UserDefaults.standard.set(lokalbotLaunchesMenuBarOnly(),
+                                          forKey: "ApplePersistenceIgnoreState")
+                LokalBotApp.main()
+            },
+            launchRecovery: { outcome in
+                MigrationRecoveryApp.initialOutcome = outcome
+                MigrationRecoveryApp.main()
+            })
+    }
+
+    /// Never construct `AppState` after an incomplete migration: its stored
+    /// `StorageManager` creates the destination library and turns a transient
+    /// failure into a persistent old/new conflict on the next launch.
+    @discardableResult
+    static func routeStartup(
+        migrate: () -> DataMigration.StartupOutcome,
+        launchApplication: () -> Void,
+        launchRecovery: (DataMigration.StartupOutcome) -> Void
+    ) -> DataMigration.StartupOutcome {
+        let outcome = migrate()
+        switch outcome {
+        case .ready:
+            launchApplication()
+        case .retryRequired, .conflict:
+            launchRecovery(outcome)
+        }
+        return outcome
+    }
+}
+
+/// A minimal process mode for retained migration failures. It deliberately has
+/// no `AppState`, storage, indexes, capture services, or background workers.
+private struct MigrationRecoveryApp: App {
+    @MainActor static var initialOutcome: DataMigration.StartupOutcome =
+        .retryRequired("Migration has not completed.")
+
+    @StateObject private var recovery: MigrationRecoveryState
+
+    init() {
+        _recovery = StateObject(wrappedValue: MigrationRecoveryState(
+            outcome: Self.initialOutcome))
+    }
+
+    var body: some Scene {
+        Window("LokalBot Data Recovery", id: "migration-recovery") {
+            MigrationRecoveryView(recovery: recovery)
+        }
+        .defaultSize(width: 560, height: 360)
+        .windowResizability(.contentSize)
+    }
+}
+
+@MainActor
+private final class MigrationRecoveryState: ObservableObject {
+    @Published var outcome: DataMigration.StartupOutcome
+
+    init(outcome: DataMigration.StartupOutcome) {
+        self.outcome = outcome
+    }
+
+    func retry() {
+        outcome = DataMigration.runIfNeeded()
+    }
+
+    var conflictingDirectories: [URL] {
+        guard case .conflict(let conflict) = outcome else { return [] }
+        return [conflict.legacyDirectory, conflict.currentDirectory]
+    }
+}
+
+private struct MigrationRecoveryView: View {
+    @ObservedObject var recovery: MigrationRecoveryState
+
+    private var presentation: (title: String, detail: String, symbol: String) {
+        switch recovery.outcome {
+        case .ready:
+            return (
+                "Your library is ready",
+                "Migration completed safely. Quit and reopen LokalBot to load the recovered library.",
+                "checkmark.circle.fill")
+        case .retryRequired(let reason):
+            return (
+                "LokalBot could not finish data recovery",
+                reason + "\n\nYour existing library was preserved. Retry after resolving the error.",
+                "exclamationmark.arrow.triangle.2.circlepath")
+        case .conflict(let conflict):
+            return (
+                "Two LokalBot libraries need recovery",
+                "LokalBot preserved both \(conflict.identity) and the current library. "
+                    + "Review the folders below, then retry after keeping the library you want.\n\n"
+                    + "Legacy: \(conflict.legacyDirectory.path)\nCurrent: \(conflict.currentDirectory.path)",
+                "externaldrive.badge.exclamationmark")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .top, spacing: 16) {
+                Image(systemName: presentation.symbol)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(recovery.outcome == .ready ? .green : .orange)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(presentation.title)
+                        .font(.title2.weight(.semibold))
+                    Text(presentation.detail)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            HStack {
+                if !recovery.conflictingDirectories.isEmpty {
+                    Button("Show Libraries in Finder") {
+                        NSWorkspace.shared.activateFileViewerSelecting(
+                            recovery.conflictingDirectories)
+                    }
+                }
+                Spacer()
+                if recovery.outcome == .ready {
+                    Button("Quit LokalBot") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                    .keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                    Button("Retry Migration") {
+                        recovery.retry()
+                    }
+                    .keyboardShortcut(.defaultAction)
+                }
+            }
+        }
+        .padding(28)
+        .frame(width: 560, height: 360)
     }
 }
 

@@ -432,6 +432,46 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertEqual(MeetingOutcomeStore.loadFollowUp(from: folder), draft)
     }
 
+    @MainActor
+    func testBlankOwnerAndDuePersistAsExplicitClears() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-outcome-clear-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let meeting = try storage.createMeetingFolder(title: "Planning", appName: "Zoom")
+        let action = MeetingOutcomes.ActionItem(
+            id: "clear-fields", text: "Send the plan", owner: "Me", due: "Friday")
+        try MeetingOutcomes(actionItems: [action]).write(to: meeting.folderURL(in: storage))
+        let index = OutcomeIndex(storage: storage)
+        index.refresh(meeting: meeting)
+
+        XCTAssertTrue(index.correctAction(
+            actionID: action.id, meetingID: meeting.id,
+            text: nil, owner: "  ", due: ""))
+        let cleared = try XCTUnwrap(index.projection(for: meeting.id)?.actionReferences.first)
+        XCTAssertNil(cleared.owner)
+        XCTAssertNil(cleared.due)
+        XCTAssertTrue(cleared.ownerWasCorrected)
+        XCTAssertTrue(cleared.dueWasCorrected)
+
+        let reopened = OutcomeIndex(storage: storage)
+        reopened.refresh(meeting: meeting)
+        let persisted = try XCTUnwrap(reopened.projection(for: meeting.id)?.actionReferences.first)
+        XCTAssertNil(persisted.owner)
+        XCTAssertNil(persisted.due)
+        XCTAssertTrue(persisted.ownerWasCorrected)
+        XCTAssertTrue(persisted.dueWasCorrected)
+
+        XCTAssertTrue(reopened.correctAction(
+            actionID: action.id, meetingID: meeting.id,
+            text: nil, owner: nil, due: nil))
+        let inherited = try XCTUnwrap(reopened.projection(for: meeting.id)?.actionReferences.first)
+        XCTAssertEqual(inherited.owner, "Me")
+        XCTAssertEqual(inherited.due, "Friday")
+        XCTAssertFalse(inherited.ownerWasCorrected)
+        XCTAssertFalse(inherited.dueWasCorrected)
+    }
+
     func testReprocessingReconcilesEditedStateByEvidence() {
         let citation = OutcomeSourceCitation(
             segmentID: "segment-0000-0000001000-0000002000",

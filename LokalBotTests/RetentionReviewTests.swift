@@ -3,6 +3,38 @@ import XCTest
 
 @MainActor
 final class RetentionReviewTests: XCTestCase {
+    func testRetentionCoversMetadataAndExactActivityTitlesWithIndependentTextException() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("metadata-retention-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let store = ActivityStore(databaseURL: root.appendingPathComponent("activity.sqlite"))
+        let now = Date(timeIntervalSince1970: 2_000_000_000)
+        let old = now.addingTimeInterval(-20 * 86_400)
+        let expired = try store.insertScreenshot(ts: old, path: "", app: "Notes", windowTitle: "private title",
+                                                ocr: "private text", sourceURL: "https://example.test/private",
+                                                documentName: "private.md")
+        let saved = try store.insertScreenshot(ts: old, path: "", app: "Notes", windowTitle: "saved title", ocr: "saved text")
+        try store.saveMoment(snapshotID: saved)
+        XCTAssertTrue(store.insert(ActivityBlock(id: 0, app: "Notes", title: "old activity", start: old, end: old.addingTimeInterval(60))))
+        XCTAssertTrue(store.insert(ActivityBlock(id: 0, app: "Notes", title: "new activity", start: now, end: now.addingTimeInterval(60))))
+        let forever = try store.retentionReview(days: 7, keepTextForever: true, now: now)
+        XCTAssertEqual(forever.metadataCount, 0)
+        XCTAssertEqual(forever.activityTitles.count, 1, "Activity titles always follow the age window")
+        let review = try store.retentionReview(days: 7, keepTextForever: false, now: now)
+        XCTAssertEqual(review.metadataCount, 1)
+        XCTAssertEqual(review.activityTitles.count, 1)
+        let service = ScreenshotService(store: store, storage: storage, sampler: ActivitySampler(store: store),
+                                        now: { now }, settings: { AppSettings() })
+        XCTAssertTrue(try service.applyRetentionReview(review).isEmpty)
+        let cleared = try XCTUnwrap(store.screenshotChecked(id: expired))
+        XCTAssertEqual(cleared.windowTitle, "")
+        XCTAssertEqual(cleared.sourceURL, "")
+        XCTAssertEqual(cleared.documentName, "")
+        XCTAssertNil(store.ocrText(snapshotID: expired))
+        XCTAssertEqual(try store.screenshotChecked(id: saved)?.windowTitle, "saved title")
+        XCTAssertEqual(store.blocks(in: DateInterval(start: old, end: now.addingTimeInterval(120))).map(\.title), ["", "new activity"])
+    }
+
     func testFailedReadCannotBePresentedAsAnEmptyDeletionReview() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("invalid-review-\(UUID())")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: September 24, 2026
+Effective: September 25, 2026
 
 LokalBot is a local-first macOS application. It has no LokalBot account,
 analytics service, advertising SDK, or telemetry backend. The project does not
@@ -28,8 +28,10 @@ Fresh installs select activity-only day tracking. Visible text and encrypted
 screenshots are opt-in and require the applicable macOS Accessibility and
 Screen Recording permissions. You can switch to accessible text without pixels,
 visual context, or fully off. Pixels are deleted after 14 days by default, and
-captured text follows the same retention unless you explicitly choose to keep
-it. Saved moments remain until you unsave or delete them. Dictation scratch
+captured text, screenshot titles, URLs, and document names follow the same
+retention unless you explicitly choose to keep screen text and metadata forever.
+Activity titles expire on the configured schedule even with that exception;
+app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
 audio is deleted after transcription by default. You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
@@ -43,6 +45,16 @@ entries. Older memory without source attribution is conservatively retracted
 when evidence changes. If cleanup fails, a durable revocation record blocks
 that memory from further use until cleanup succeeds. Exported copies remain
 where you saved them.
+
+Unchanged, app-generated daily journals retract when their primary evidence is
+removed or corrected, including scheduled capture retention. Edited and legacy
+unsigned journals are user-owned files and remain in the library's `journal`
+folder until you remove them. Saved Ask conversations and Agent history also
+have independent lifetimes: delete conversations in Ask or use **Clear saved
+Agent history**. Source expiry does not erase text already copied into those
+conversations. Daily-memory exports and routine outputs remain in your chosen
+folders until removed. Disabling these features stops future runs; it does not
+delete those existing copies.
 
 Browser meeting detection checks the Meet document URL and call controls through Accessibility. These transient lifecycle checks do not retain page text, participant names, or pixels. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
@@ -109,6 +121,11 @@ The app may make these outbound connections:
   origin; Agent inference rejects redirects entirely. Configure the final
   endpoint URL when a server redirects. The operator of that server controls
   its privacy terms.
+  Scheduled daily summaries and overnight Dream runs require a separate approval
+  for that exact remote origin in Models settings. They may send activity titles,
+  captured screen text, meeting evidence, and retained Dream memory without a
+  prompt each time. This unattended approval is off for new and migrated settings;
+  changing or revoking the server approval cancels pending scheduled work.
 - **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside
@@ -181,6 +198,38 @@ background and child windows are excluded. If the focused window or its privacy
 state cannot be established, text and pixels are skipped. Activity-only tracking
 uses the same exclusions and records denied or unknown samples as anonymous
 “Private” duration blocks.
+
+Browser titles cannot reliably establish normal versus private mode. Browser and
+embedded-web windows with unverified mode are skipped unless **Allow private or
+unverified browser windows** is enabled. Known private-title markers are also
+skipped by default in other apps. App/domain exclusions and secure-field checks
+still apply after that opt-in. Accessibility text is limited to visible-character
+ranges and fully visible static labels within the window/scroll viewport; whole
+document values, selected text, help, and descriptions are not collected. If an
+app does not expose a usable visible range, text capture may be incomplete.
+Pausing, changing exclusions, or disabling capture invalidates pending work
+before any pixel file or text record is committed.
+
+Autocomplete learning stores encrypted accepted examples for at most 30 days
+and reuses them only in the same positively identified document. Mail, chat,
+and unknown document contexts do not learn or reuse examples. Settings →
+Autocomplete → **Forget learned text** removes the stored examples and cancels
+pending learning writes.
+
+Dictation Compose context has its own opt-in and also honors the shared
+app/domain/private-window policy. It requires the verified focused window and
+field to remain unchanged and redacts credentials before creating prompts; this
+context path does not save pixels or OCR. Optional media pause uses macOS
+Automation for audible supported players and browsers. It pauses finite
+prerecorded media, excludes live MediaStream/infinite streams and supported
+conference domains, and resumes only marked elements. macOS controls whether
+Automation is permitted.
+
+Manual OCR benchmark exports are separate from the app: they require an explicit
+decryption flag and produce owner-only ordinary image/text files. Private model
+runs require a pinned cached revision, safe tensor weights, disabled remote model
+code, and a network-denied macOS sandbox. Delete exported fixtures and results
+after review; application retention does not manage benchmark copies.
 
 ## Security and changes
 

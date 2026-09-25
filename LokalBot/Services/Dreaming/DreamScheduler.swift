@@ -35,6 +35,7 @@ final class DreamScheduler: ObservableObject {
         let day: Date
         let dayKey: String
         let calendar: Calendar
+        var isAutomatic: Bool = false
     }
 
     typealias Dream = @MainActor (_ target: Target) async throws -> Void
@@ -196,6 +197,8 @@ final class DreamScheduler: ObservableObject {
 
     private func start(target: Target, advancesScanCursor: Bool) {
         guard let dream else { return }
+        let target = Target(day: target.day, dayKey: target.dayKey,
+                            calendar: target.calendar, isAutomatic: advancesScanCursor)
         let runGeneration = generation
         isDreaming = true
         activeDayKey = target.dayKey

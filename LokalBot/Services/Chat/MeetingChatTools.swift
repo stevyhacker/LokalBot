@@ -174,6 +174,25 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
+    static func transcriptObservation(_ transcript: Transcript, maximumCharacters: Int = 6_000)
+        -> (text: String, seconds: [TimeInterval]) {
+        var text = ""
+        var seconds: [TimeInterval] = []
+        for display in Transcript.DisplayIndex(transcript: transcript).segments {
+            let start = display.segment.start
+            guard start.isFinite, start >= 0, Int(exactly: start.rounded(.towardZero)) != nil else { continue }
+            let header = "**[\(Transcript.stamp(start))] \(display.speakerLabel):** "
+            let separator = text.isEmpty ? "" : "\n\n"
+            let remaining = maximumCharacters - text.count - separator.count
+            guard remaining > header.count else { break }
+            let line = header + display.text
+            text += separator + String(line.prefix(remaining))
+            seconds.append(start)
+            if line.count > remaining { break }
+        }
+        return (text, seconds)
+    }
+
     // MARK: - Screen / activity formatters
 
     static func screenResults(query: String, hits: [ActivityStore.OCRHit]) -> String {
@@ -382,8 +401,11 @@ final class MeetingChatTools: ChatToolRunner {
         let text = MeetingChatFormat.searchResults(query: query, keyword: keyword,
                                                    semantic: semantic, meetings: meetings)
         let count = keyword.count + semantic.count
+        var evidence = ChatEvidence()
+        for hit in keyword.prefix(8) { evidence.addMeeting(hit.meetingID, seconds: hit.kind == .segment ? hit.start : nil) }
+        for hit in semantic.prefix(5) { evidence.addMeeting(hit.meetingID, seconds: hit.start > 0 ? hit.start : nil) }
         return ChatToolResult(text: text,
-                              summary: "“\(query)” — \(count) match\(count == 1 ? "" : "es")")
+                              summary: "“\(query)” — \(count) match\(count == 1 ? "" : "es")", evidence: evidence)
     }
 
     private func list(_ call: ChatToolCall) -> ChatToolResult {
@@ -393,8 +415,10 @@ final class MeetingChatTools: ChatToolRunner {
         }
         let limit = max(1, min(call.int("limit") ?? 15, 50))
         meetings = Array(meetings.prefix(limit))
+        var evidence = ChatEvidence()
+        for meeting in meetings { evidence.addMeeting(meeting.id) }
         return ChatToolResult(text: MeetingChatFormat.list(meetings),
-                              summary: "\(meetings.count) meeting\(meetings.count == 1 ? "" : "s")")
+                              summary: "\(meetings.count) meeting\(meetings.count == 1 ? "" : "s")", evidence: evidence)
     }
 
     private func get(_ call: ChatToolCall) -> ChatToolResult {
@@ -407,11 +431,20 @@ final class MeetingChatTools: ChatToolRunner {
         }
         let folder = meeting.folderURL(in: storage)
         let summary = try? String(contentsOf: folder.appendingPathComponent("summary.md"), encoding: .utf8)
-        let transcript = try? String(contentsOf: folder.appendingPathComponent("transcript.md"), encoding: .utf8)
+        var transcript = try? String(contentsOf: folder.appendingPathComponent("transcript.md"), encoding: .utf8)
         let include = call.string("include") ?? "summary"
+        var evidence = ChatEvidence()
+        evidence.addMeeting(meeting.id)
+        if include.lowercased().contains("all") || include.lowercased().contains("transcript"),
+           let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),
+           let structured = try? JSONDecoder().decode(Transcript.self, from: data) {
+            let observation = MeetingChatFormat.transcriptObservation(structured)
+            transcript = observation.text
+            for seconds in observation.seconds { evidence.addMeeting(meeting.id, seconds: seconds) }
+        }
         let text = MeetingChatFormat.meeting(meeting, summary: summary,
                                              transcript: transcript, include: include)
-        return ChatToolResult(text: text, summary: meeting.title)
+        return ChatToolResult(text: text, summary: meeting.title, evidence: evidence)
     }
 
     private func actionItems(_ call: ChatToolCall) -> ChatToolResult {
@@ -449,12 +482,19 @@ final class MeetingChatTools: ChatToolRunner {
         let projections = scoped.compactMap { meeting in
             MeetingOutcomeProjection.load(for: meeting, storage: storage)
         }
-        let count = ActionThreadClusterer.cluster(
+        let threads = ActionThreadClusterer.cluster(
             projections.flatMap(\.actionReferences))
             .filter(statusFilter.includes)
-            .count
+        let count = threads.count
+        var evidence = ChatEvidence()
+        for reference in threads.flatMap(\.references) { evidence.addMeeting(reference.meetingID) }
+        for projection in projections {
+            var nonActions = projection.outcomes
+            nonActions.actionItems = []
+            if !nonActions.isEmpty { evidence.addMeeting(projection.meeting.id) }
+        }
         return ChatToolResult(text: MeetingChatFormat.threadedOutcomes(projections, statusFilter: statusFilter),
-                              summary: "\(scopeLabel) — \(count) action item\(count == 1 ? "" : "s")")
+                              summary: "\(scopeLabel) — \(count) action item\(count == 1 ? "" : "s")", evidence: evidence)
     }
 
     private func searchScreen(_ call: ChatToolCall) -> ChatToolResult {
@@ -483,7 +523,8 @@ final class MeetingChatTools: ChatToolRunner {
         }
         return ChatToolResult(
             text: MeetingChatFormat.screenResults(query: query, hits: hits),
-            summary: "“\(query)” — \(hits.count) screen match\(hits.count == 1 ? "" : "es")")
+            summary: "“\(query)” — \(hits.count) screen match\(hits.count == 1 ? "" : "es")",
+            evidence: ChatEvidence(screenIDs: Set(hits.prefix(12).map(\.snapshotID))))
     }
 
     private func activitySummary(_ call: ChatToolCall) -> ChatToolResult {
@@ -501,10 +542,14 @@ final class MeetingChatTools: ChatToolRunner {
         let meetings = includeMeetings
             ? scopedMeetings(meetingsProvider(), call: call).filter { scope.contains($0.startedAt) } : []
         let label = scope.dateLabel
+        var evidence = ChatEvidence()
+        if !blocks.isEmpty {
+            for meeting in meetings { evidence.addMeeting(meeting.id) }
+        }
         return ChatToolResult(
             text: MeetingChatFormat.activitySummary(dayLabel: label, blocks: blocks,
                                                     meetings: meetings),
-            summary: "\(label) — \(blocks.count) activity block\(blocks.count == 1 ? "" : "s")")
+            summary: "\(label) — \(blocks.count) activity block\(blocks.count == 1 ? "" : "s")", evidence: evidence)
     }
 
     private func scopedMeetings(_ meetings: [Meeting], call: ChatToolCall) -> [Meeting] {

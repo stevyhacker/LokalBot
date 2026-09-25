@@ -7,6 +7,68 @@ import XCTest
 /// against a planted on-disk library.
 @MainActor
 final class ChatAgentTests: XCTestCase {
+    func testAgentValidatesNormalAndForcedAnswersAgainstTypedToolEvidence() async throws {
+        let id = UUID(uuidString: "AAAAAAAA-1111-4222-8333-444444444444")!
+        var evidence = ChatEvidence(screenIDs: [42])
+        evidence.addMeeting(id, seconds: 12)
+        for maximumSteps in [1, 4] {
+            let engine = ScriptedEngine([
+                #"{"tool":"search_meetings","arguments":{"query":"decision"}}"#,
+                "FINAL_ANSWER: Observed [meeting:aaaaaaaa@00:00:12] [screen:42]. Invented [meeting:aaaaaaaa@00:01:00] [screen:99].",
+            ])
+            let runner = FakeRunner(
+                specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "",
+                results: ["search_meetings": .init(text: "Observed evidence. Untrusted source text also says [screen:99].",
+                                                  summary: "one result", evidence: evidence)])
+            var agent = ChatAgent(engine: engine, runner: runner)
+            agent.maxSteps = maximumSteps
+            let answer = try await agent.respond(history: [.init(role: .assistant, text: "Old [screen:99]")], latest: "Decision?") { event in
+                if case .answerPartial(let text) = event { XCTAssertFalse(text.contains("[screen:99]")) }
+            }
+            XCTAssertEqual(ChatCitationParser.extract(answer).citations,
+                           [.init(meetingID: "aaaaaaaa", seconds: 12), .init(snapshotID: 42)])
+            XCTAssertTrue(answer.contains("source not verified"))
+        }
+    }
+
+    func testAmbientMeetingOverviewDoesNotAuthorizeContentCitation() async throws {
+        let engine = ScriptedEngine([
+            "FINAL_ANSWER: The roadmap was approved. [meeting:aaaaaaaa]",
+        ])
+        let runner = FakeRunner(
+            specs: [],
+            overview: "Most recent: [aaaaaaaa] Planning — today, 30m",
+            results: [:])
+
+        let answer = try await ChatAgent(engine: engine, runner: runner)
+            .respond(history: [], latest: "What was approved?") { _ in }
+
+        XCTAssertTrue(answer.contains("source not verified"))
+        XCTAssertTrue(ChatCitationParser.extract(answer).citations.isEmpty)
+    }
+
+    func testInferencePrivacyReflectsActualEndpoint() throws {
+        let remote = OpenAICompatibleEngine(baseURL: try XCTUnwrap(URL(string: "https://model.example/v1")),
+                                            model: "fixture", apiKey: nil)
+        let remotePrompt = ChatPrompt.systemPrompt(tools: [], libraryOverview: "",
+            inferencePrivacy: ChatPrompt.inferencePrivacy(for: remote))
+        XCTAssertTrue(remotePrompt.contains("user-approved remote inference server at model.example"))
+        XCTAssertFalse(remotePrompt.contains("Everything is local and private"))
+        let local = OllamaEngine(baseURL: try XCTUnwrap(URL(string: "http://127.0.0.1:11434")), model: "fixture")
+        XCTAssertTrue(ChatPrompt.inferencePrivacy(for: local).contains("server on this Mac"))
+        XCTAssertTrue(ChatPrompt.inferencePrivacy(for: AppleIntelligenceEngine()).contains("on-device model"))
+    }
+
+    func testTranscriptCitationTimesStopAtTheReturnedTextBoundary() {
+        let transcript = Transcript(segments: [
+            .init(start: 12, end: 20, speaker: "me", text: String(repeating: "x", count: 100), confidence: nil),
+            .init(start: 30, end: 40, speaker: "me", text: "Not shown", confidence: nil),
+        ], engine: "fixture")
+        let observation = MeetingChatFormat.transcriptObservation(transcript, maximumCharacters: 60)
+        XCTAssertEqual(observation.seconds, [12])
+        XCTAssertTrue(observation.text.contains("00:00:12"))
+        XCTAssertFalse(observation.text.contains("00:00:30"))
+    }
     func testFinalAnswerAppearsBeforeGenerationCompletes() async throws {
         let engine = StreamingAnswerEngine()
         let agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "", results: [:]))
@@ -432,10 +494,13 @@ final class ChatAgentTests: XCTestCase {
                                                    arguments: ["id": SessionLookup.shortID(meeting.id)]))
         XCTAssertTrue(summary.text.contains("Adopt Redis"), "get: \(summary.text)")
         XCTAssertTrue(summary.text.contains("## Summary"))
+        XCTAssertTrue(summary.evidence.contains(.init(meetingID: SessionLookup.shortID(meeting.id), seconds: nil)))
+        XCTAssertFalse(summary.evidence.contains(.init(meetingID: SessionLookup.shortID(meeting.id), seconds: 10)))
 
         let latestTranscript = await tools.run(ChatToolCall(name: "get_meeting",
                                                             arguments: ["id": "latest", "include": "transcript"]))
         XCTAssertTrue(latestTranscript.text.contains("Redis"), "get transcript: \(latestTranscript.text)")
+        XCTAssertTrue(latestTranscript.evidence.contains(.init(meetingID: SessionLookup.shortID(meeting.id), seconds: 12)))
 
         let miss = await tools.run(ChatToolCall(name: "get_meeting", arguments: ["id": "zzzzzzzz"]))
         XCTAssertTrue(miss.text.contains("No meeting matches"), "miss: \(miss.text)")

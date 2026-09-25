@@ -237,6 +237,7 @@ final class MicRecorder {
     /// (AirPods plug/unplug, default-input switch, sample-rate renegotiation).
     /// Without this, the engine silently stops itself and `mic.m4a` truncates.
     private var configChangeObserver: NSObjectProtocol?
+    private var deviceReconnectObserver: NSObjectProtocol?
 
     /// Audio taps run on a real-time Core Audio thread. Keep that callback to
     /// one bounded PCM copy, then serialize conversion, AAC encoding, preview
@@ -280,6 +281,12 @@ final class MicRecorder {
     static func reconfigurationRetryDelay(forAttempt attempt: Int) -> TimeInterval? {
         guard attempt > 0, attempt <= maximumReconfigurationAttempts else { return nil }
         return min(Double(attempt), 5)
+    }
+
+    static func shouldRearmAfterDeviceEvent(isRecording: Bool, recovery: RecoveryState) -> Bool {
+        guard isRecording else { return false }
+        if case .degraded = recovery { return true }
+        return false
     }
 
     struct CaptureHealth {
@@ -342,11 +349,13 @@ final class MicRecorder {
         resetCaptureHealth(sampleRate: recordingFormat.sampleRate)
 
         isRecording = true
+        observeDeviceReconnections()
         observeConfigurationChanges(for: engine)
         do {
             try installTapAndStart(inputFormat: inputFormat, recordingFormat: recordingFormat)
         } catch {
             isRecording = false
+            removeDeviceReconnectObserver()
             reconfigurationTask?.cancel()
             reconfigurationTask = nil
             removeConfigurationChangeObserver()
@@ -369,6 +378,7 @@ final class MicRecorder {
 
     func stop() {
         isRecording = false
+        removeDeviceReconnectObserver()
         reconfigurationTask?.cancel()
         reconfigurationTask = nil
         updateRecoveryState(.healthy)
@@ -423,6 +433,26 @@ final class MicRecorder {
     }
 
     // MARK: - Engine setup
+
+    /// This listener outlives failed engine graphs. Reconnecting an input
+    /// rearms the bounded recovery owner even after its fast retries expired.
+    private func observeDeviceReconnections() {
+        removeDeviceReconnectObserver()
+        deviceReconnectObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self, let device = notification.object as? AVCaptureDevice,
+                  device.hasMediaType(.audio),
+                  Self.shouldRearmAfterDeviceEvent(isRecording: self.isRecording,
+                                                  recovery: self.captureHealth().recoveryState) else { return }
+            self.scheduleReconfigurationRetry(lastError: "An audio input was reconnected.")
+        }
+    }
+
+    private func removeDeviceReconnectObserver() {
+        if let deviceReconnectObserver { NotificationCenter.default.removeObserver(deviceReconnectObserver) }
+        deviceReconnectObserver = nil
+    }
 
     /// Reconfiguration can leave `AVAudioEngine`'s input node pinned to the
     /// previous hardware rate. Reusing that graph makes every retry request the

@@ -14,7 +14,7 @@ enum MeetingNotesGenerator {
         var completed: Int
         var total: Int
         var errorDescription: String? {
-            "Partial notes saved (\(completed) of \(total) parts verified). Summarize again to continue."
+            "Partial notes saved (\(completed) of \(total) parts source-linked). Summarize again to continue."
         }
     }
 
@@ -147,7 +147,7 @@ enum MeetingNotesGenerator {
             let result = merged(checkpoint, transcript: transcript, template: template)
             try SummaryClaimEvidence.savePartial(result.claims, transcript: transcript, in: folder)
             let complete = checkpoint.parts.values.filter(\.complete).count
-            let partial = "# Partial notes — \(complete)/\(chunks.count) parts verified\n\n" + result.body
+            let partial = "# Partial notes — \(complete)/\(chunks.count) parts source-linked\n\n" + result.body
             try Data(partial.utf8).write(to: folder.appendingPathComponent("summary.partial.md"), options: .atomic)
             try encoder.encode(result.outcomes).write(to: folder.appendingPathComponent("outcomes.partial.json"), options: .atomic)
             try MeetingNotesPartial(transcriptRevision: transcript.evidenceRevision,
@@ -176,9 +176,13 @@ enum MeetingNotesGenerator {
 
     static func request(engine: TextEngine, system: String, prompt: String, context: [String],
                         schema: [String: Any], tokens: Int, stage: String,
-                        budget: MeetingGenerationBudget, attempt: Int = 0,
+                        contextTokens: Int, budget: MeetingGenerationBudget, attempt: Int = 0,
                         truncationRetry: Int = 0) async throws -> (content: String, truncated: Bool) {
         let input = try await tokenCount(([system] + context + [prompt]).joined(separator: "\n\n"), engine: engine) + 1_536
+        guard input + tokens <= contextTokens else {
+            throw TextEngineError.badResponse(
+                "Notes request cannot fit the model's input allowance. Source-linked progress was saved.")
+        }
         return try await MeetingGenerationBudget.$stage.withValue(stage) {
             try await MeetingGenerationBudget.$promptTokens.withValue(input) {
                 let reservation = engine.accountsForGenerationRequests ? nil : try await budget.reserve(input: input, output: tokens)
@@ -210,29 +214,36 @@ enum MeetingNotesGenerator {
                         // instead of consuming the job indefinitely.
                         if !stage.localizedCaseInsensitiveContains("repair"),
                            truncationRetry == 0,
-                           let expanded = expandedStructuredOutputTokens(from: tokens),
+                           let expanded = expandedStructuredOutputTokens(
+                            from: tokens, input: input, contextTokens: contextTokens),
                            expanded > tokens {
                             let expandedResult: (content: String, truncated: Bool)
                             do {
                                 expandedResult = try await request(
                                     engine: engine, system: system, prompt: prompt, context: context,
                                     schema: schema, tokens: expanded, stage: "expanded-" + stage,
-                                    budget: budget, attempt: attempt, truncationRetry: 1)
-                            } catch is MeetingGenerationBudget.Exhausted {
-                                // The first call may have consumed the last
-                                // shared allowance. Preserve its usable prefix
+                                    contextTokens: contextTokens, budget: budget,
+                                    attempt: attempt, truncationRetry: 1)
+                            } catch {
+                                if Task.isCancelled || error is CancellationError { throw error }
+                                // The first call may have consumed the remaining
+                                // allowance, or the provider may reject the
+                                // expanded request. Preserve its usable prefix
                                 // and let checkpointed recovery report the
-                                // incomplete part instead of replacing progress
-                                // with a budget error.
+                                // incomplete part instead of replacing progress.
                                 return (partial.content, true)
                             }
-                            // A provider may return a useful prefix on the
-                            // first call and an empty truncated body on the
-                            // larger retry. Preserve that prefix for the
-                            // validator instead of discarding it.
+                            // A larger completion ceiling does not guarantee a
+                            // longer visible prefix: reasoning can consume the
+                            // extra allowance and leave fewer complete records.
+                            // When both calls truncate, keep the prefix with the
+                            // most recoverable structured records. Ties retain
+                            // the first response because the retry has not made
+                            // source-linked progress.
                             if expandedResult.truncated,
-                               expandedResult.content.isEmpty,
-                               !partial.content.isEmpty {
+                               prefersRecoverablePrefix(
+                                partial.content,
+                                over: expandedResult.content) {
                                 return (partial.content, true)
                             }
                             return expandedResult
@@ -242,13 +253,15 @@ enum MeetingNotesGenerator {
                     if case TextEngineError.outputTruncated = error {
                         if !stage.localizedCaseInsensitiveContains("repair"),
                            truncationRetry == 0,
-                           let expanded = expandedStructuredOutputTokens(from: tokens),
+                           let expanded = expandedStructuredOutputTokens(
+                            from: tokens, input: input, contextTokens: contextTokens),
                            expanded > tokens {
                             do {
                                 return try await request(
                                     engine: engine, system: system, prompt: prompt, context: context,
                                     schema: schema, tokens: expanded, stage: "expanded-" + stage,
-                                    budget: budget, attempt: attempt, truncationRetry: 1)
+                                    contextTokens: contextTokens, budget: budget,
+                                    attempt: attempt, truncationRetry: 1)
                             } catch is MeetingGenerationBudget.Exhausted {
                                 return ("", true)
                             }
@@ -263,7 +276,8 @@ enum MeetingNotesGenerator {
                         try await Task.sleep(for: .seconds(delay))
                         await budget.recordPhase("retryBackoff", seconds: ProcessInfo.processInfo.systemUptime - waiting)
                         return try await request(engine: engine, system: system, prompt: prompt, context: context,
-                            schema: schema, tokens: tokens, stage: "retry-" + stage, budget: budget, attempt: attempt + 1)
+                            schema: schema, tokens: tokens, stage: "retry-" + stage,
+                            contextTokens: contextTokens, budget: budget, attempt: attempt + 1)
                     }
                     throw error
                 }
@@ -274,9 +288,26 @@ enum MeetingNotesGenerator {
     /// One retry gives an always-reasoning provider room for visible JSON. The
     /// cap keeps a standard job bounded while still covering the common 4K
     /// reasoning + 4K visible-token split observed with GLM-5.3.
-    private static func expandedStructuredOutputTokens(from tokens: Int) -> Int? {
+    static func expandedStructuredOutputTokens(
+        from tokens: Int,
+        input: Int,
+        contextTokens: Int
+    ) -> Int? {
         guard tokens > 0 else { return nil }
-        return min(16_384, max(tokens * 2, 8_192))
+        let available = contextTokens - input
+        guard available > tokens else { return nil }
+        return min(available, min(16_384, max(tokens * 2, 8_192)))
+    }
+
+    static func prefersRecoverablePrefix(_ first: String, over second: String) -> Bool {
+        guard !first.isEmpty else { return false }
+        guard !second.isEmpty else { return true }
+        let keys: Set<String> = ["notes", "actions"]
+        let firstRecords = CompleteJSONRecords.parse(first, keys: keys)
+            .arrays.values.reduce(0) { $0 + $1.count }
+        let secondRecords = CompleteJSONRecords.parse(second, keys: keys)
+            .arrays.values.reduce(0) { $0 + $1.count }
+        return firstRecords >= secondRecords
     }
 
     static func distinctClaims(_ claims: [SummaryClaimEvidence.Claim]) -> [SummaryClaimEvidence.Claim] {
@@ -299,7 +330,7 @@ enum MeetingNotesGenerator {
         outcomes.transcriptRevision = transcript.evidenceRevision
         var renderedClaims = claims
         if !claims.contains(where: { $0.section == "TL;DR" }) {
-            // Rendering already-verified facts needs no further model call.
+            // Rendering already accepted, source-linked facts needs no further model call.
             let overview = overviewClaims(claims, outcomes: outcomes)
                 .map { claim in var value = claim; value.section = "TL;DR"; return value }
             renderedClaims = overview + claims

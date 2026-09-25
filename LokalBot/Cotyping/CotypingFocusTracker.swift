@@ -123,13 +123,15 @@ final class CotypingFocusTracker: ObservableObject {
     func refreshNow(
         includeSurface: Bool = false,
         includeURL: Bool = false,
-        includeStyle: Bool = false
+        includeStyle: Bool = false,
+        includeLearningScope: Bool = false
     ) async -> CotypingFocus {
         pollBackoff.reset()
         let latest = await captureFocus(
             includeSurface: includeSurface,
             includeURL: includeURL,
-            includeStyle: includeStyle).focus
+            includeStyle: includeStyle,
+            includeLearningScope: includeLearningScope).focus
         rescheduleTimerIfNeeded()
         return latest
     }
@@ -139,7 +141,8 @@ final class CotypingFocusTracker: ObservableObject {
         maxAgeMilliseconds: Int,
         includeSurface: Bool = false,
         includeURL: Bool = false,
-        includeStyle: Bool = false
+        includeStyle: Bool = false,
+        includeLearningScope: Bool = false
     ) async -> CotypingFocus {
         guard Self.shouldRefreshCapture(
             lastCaptureUptimeNanoseconds: lastCaptureUptimeNanoseconds,
@@ -150,7 +153,8 @@ final class CotypingFocusTracker: ObservableObject {
         return await refreshNow(
             includeSurface: includeSurface,
             includeURL: includeURL,
-            includeStyle: includeStyle)
+            includeStyle: includeStyle,
+            includeLearningScope: includeLearningScope)
     }
 
     /// A validation capture fails closed on a whole-snapshot timeout. Callers
@@ -159,24 +163,28 @@ final class CotypingFocusTracker: ObservableObject {
     func refreshForValidation(
         includeSurface: Bool = false,
         includeURL: Bool = false,
-        includeStyle: Bool = false
+        includeStyle: Bool = false,
+        includeLearningScope: Bool = false
     ) async -> CotypingFocus? {
         let capture = await captureFocus(
             includeSurface: includeSurface,
             includeURL: includeURL,
-            includeStyle: includeStyle)
+            includeStyle: includeStyle,
+            includeLearningScope: includeLearningScope)
         return capture.completed ? capture.focus : nil
     }
 
     private func captureFocus(
         includeSurface: Bool,
         includeURL: Bool,
-        includeStyle: Bool
+        includeStyle: Bool,
+        includeLearningScope: Bool = false
     ) async -> (focus: CotypingFocus, completed: Bool) {
         var options: CotypingAXCaptureOptions = []
         if includeSurface { options.insert(.surface) }
         if includeURL { options.insert(.url) }
         if includeStyle { options.insert(.style) }
+        if includeLearningScope { options.insert(.learningScope) }
         let lifecycleGeneration = captureLifecycleGeneration
         let capture = await snapshotExecutor.capture(options: options)
         guard lifecycleGeneration == captureLifecycleGeneration,

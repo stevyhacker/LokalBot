@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 import Security
 import Darwin
 import SQLite3
@@ -37,26 +38,76 @@ enum DataMigration {
     /// Generic-password accounts to carry over (service is the bundle id).
     /// `screenshot-key` is the AES-GCM key that decrypts the screenshot filmstrip
     /// — losing it makes existing shots unreadable, so it matters most.
-    private static let keychainAccounts = ["screenshot-key", "openai-compatible-api-key"]
+    private static let keychainAccounts = ["screenshot-key", "chat-key", "openai-compatible-api-key"]
 
     /// Set only after every migration phase succeeds. Retained conflicting
     /// libraries and failed operations remain recoverable on later launches.
     private static let migratedFromV2Flag = "lokalbotv3.migratedFromV2"
     private static let migratedFromV3Flag = "lokalbot.migratedFromDotenvV3"
+    private static let recoveredChatKeyFlag = "lokalbot.recoveredLegacyChatKey.v1"
+    private static let recoveredScreenshotKeyFlag = "lokalbot.recoveredLegacyScreenshotKey.v1"
+
+    struct MigrationConflict: Equatable {
+        var legacyDirectory: URL
+        var currentDirectory: URL
+        var identity: String
+    }
+
+    enum StartupOutcome: Equatable {
+        case ready
+        case retryRequired(String)
+        case conflict(MigrationConflict)
+    }
+
+    enum MigrationAttempt: Equatable {
+        case completed
+        case retryRequired(String)
+        case preservedConflict
+    }
+
+    /// Injectable secret storage keeps migration orchestration testable without
+    /// reading or mutating the login Keychain. Production always uses `live`.
+    struct SecretStore {
+        var read: (_ service: String, _ account: String) throws -> Data?
+        var write: (_ data: Data, _ service: String, _ account: String) throws -> Void
+
+        static let live = SecretStore(
+            read: { try readData(service: $0, account: $1) },
+            write: { try writeData($0, service: $1, account: $2) })
+    }
 
     /// Migrate old libraries/settings/secrets into the current identity exactly once.
+    @discardableResult
     static func runIfNeeded(environment: [String: String] = ProcessInfo.processInfo.environment,
                             defaults: UserDefaults = .standard,
                             identity: AppIdentifiers.Identity = AppIdentifiers.identity,
-                            arguments: [String] = ProcessInfo.processInfo.arguments) {
+                            arguments: [String] = ProcessInfo.processInfo.arguments,
+                            appSupport: URL = AppDirectories.userApplicationSupport,
+                            currentDirectory: URL = AppDirectories.applicationSupport,
+                            secrets: SecretStore = .live) -> StartupOutcome {
         guard shouldRun(environment: environment, defaults: defaults,
-                        identity: identity, arguments: arguments) else { return }
+                        identity: identity, arguments: arguments) else { return .ready }
 
-        let appSupport = AppDirectories.userApplicationSupport
-        let currentDir = AppDirectories.applicationSupport
+        let currentDir = currentDirectory
+        let oldV3Dir = appSupport.appendingPathComponent(oldV3BundleID, isDirectory: true)
+        let oldV2Dir = appSupport.appendingPathComponent(oldV2BundleID, isDirectory: true)
 
-        migrateFromV3IfNeeded(appSupport: appSupport, currentDir: currentDir, defaults: defaults)
-        migrateFromV2IfNeeded(appSupport: appSupport, currentDir: currentDir, defaults: defaults)
+        let v3 = migrateFromV3IfNeeded(
+            oldDir: oldV3Dir, currentDir: currentDir, defaults: defaults,
+            secrets: secrets)
+        guard v3 == .ready else { return v3 }
+        let v2 = migrateFromV2IfNeeded(
+            oldDir: oldV2Dir, currentDir: currentDir, defaults: defaults,
+            secrets: secrets)
+        guard v2 == .ready else { return v2 }
+        let screenshotRecovery = recoverLegacyScreenshotKeyIfNeeded(
+            currentDir: currentDir,
+            legacyDirectories: [oldV3Dir, oldV2Dir],
+            defaults: defaults,
+            secrets: secrets)
+        guard screenshotRecovery == .ready else { return screenshotRecovery }
+        return recoverLegacyChatKeyIfNeeded(
+            currentDir: currentDir, defaults: defaults, secrets: secrets)
     }
 
     static func shouldRun(environment: [String: String], defaults: UserDefaults,
@@ -81,11 +132,14 @@ enum DataMigration {
         return true
     }
 
-    private static func migrateFromV3IfNeeded(appSupport: URL, currentDir: URL, defaults: UserDefaults) {
-        guard !defaults.bool(forKey: migratedFromV3Flag) else { return }
-        let oldDir = appSupport.appendingPathComponent(oldV3BundleID, isDirectory: true)
-        guard !hasDatabaseConflict(from: oldDir, to: currentDir, fileManager: .default) else { return }
-        completeMigration(marker: migratedFromV3Flag, defaults: defaults) {
+    private static func migrateFromV3IfNeeded(
+        oldDir: URL,
+        currentDir: URL,
+        defaults: UserDefaults,
+        secrets: SecretStore
+    ) -> StartupOutcome {
+        guard !defaults.bool(forKey: migratedFromV3Flag) else { return .ready }
+        let attempt = completeMigration(marker: migratedFromV3Flag, defaults: defaults) {
             try migrateDataDirChecked(
                 from: oldDir,
                 to: currentDir, renamesDatabase: false,
@@ -97,23 +151,58 @@ enum DataMigration {
                                 onboardingKey: AppState.onboardingShownKey)
             }
         } migrateSecrets: {
-            try migrateKeychain(from: oldV3BundleID, to: AppIdentifiers.bundleID)
+            try migrateKeychain(
+                from: oldV3BundleID, to: AppIdentifiers.bundleID,
+                secrets: secrets)
         }
+        return startupOutcome(
+            for: attempt,
+            identity: "the previous LokalBot identity",
+            oldDir: oldDir,
+            currentDir: currentDir)
     }
 
-    private static func migrateFromV2IfNeeded(appSupport: URL, currentDir: URL, defaults: UserDefaults) {
-        guard !defaults.bool(forKey: migratedFromV2Flag) else { return }
-        let oldDir = appSupport.appendingPathComponent(oldV2BundleID, isDirectory: true)
-        if FileManager.default.fileExists(atPath: oldDir.path),
-           FileManager.default.fileExists(atPath: currentDir.path) { return }
-        completeMigration(marker: migratedFromV2Flag, defaults: defaults) {
+    private static func migrateFromV2IfNeeded(
+        oldDir: URL,
+        currentDir: URL,
+        defaults: UserDefaults,
+        secrets: SecretStore
+    ) -> StartupOutcome {
+        guard !defaults.bool(forKey: migratedFromV2Flag) else { return .ready }
+        let attempt = completeMigration(marker: migratedFromV2Flag, defaults: defaults) {
             try migrateDataDirChecked(from: oldDir, to: currentDir)
         } migratePreferences: {
             if let old = UserDefaults(suiteName: oldV2BundleID) {
                 migrateSettings(from: old, to: defaults)
             }
         } migrateSecrets: {
-            try migrateKeychain(from: oldV2BundleID, to: AppIdentifiers.bundleID)
+            try migrateKeychain(
+                from: oldV2BundleID, to: AppIdentifiers.bundleID,
+                secrets: secrets)
+        }
+        return startupOutcome(
+            for: attempt,
+            identity: "LokalBot V2",
+            oldDir: oldDir,
+            currentDir: currentDir)
+    }
+
+    private static func startupOutcome(
+        for attempt: MigrationAttempt,
+        identity: String,
+        oldDir: URL,
+        currentDir: URL
+    ) -> StartupOutcome {
+        switch attempt {
+        case .completed:
+            .ready
+        case .retryRequired(let reason):
+            .retryRequired(reason)
+        case .preservedConflict:
+            .conflict(MigrationConflict(
+                legacyDirectory: oldDir,
+                currentDirectory: currentDir,
+                identity: identity))
         }
     }
 
@@ -121,19 +210,24 @@ enum DataMigration {
 
     /// Separate phase completion from whether any files happened to move.
     /// Injection keeps failure tests away from the user's library and Keychain.
+    @discardableResult
     static func completeMigration(marker: String, defaults: UserDefaults,
                                   migrateData: () throws -> MigrationResult,
                                   migratePreferences: () throws -> Void,
-                                  migrateSecrets: () throws -> Void) {
+                                  migrateSecrets: () throws -> Void) -> MigrationAttempt {
         do {
             // Prepare identity-scoped keys before exposing migrated encrypted
             // files. A denied Keychain read must leave the old library in place.
             try migratePreferences()
             try migrateSecrets()
-            guard try migrateData() != .preservedConflict else { return }
+            guard try migrateData() != .preservedConflict else {
+                return .preservedConflict
+            }
             defaults.set(true, forKey: marker)
+            return .completed
         } catch {
             NSLog("DataMigration: incomplete migration; retained data for recovery: %@", error.localizedDescription)
+            return .retryRequired(error.localizedDescription)
         }
     }
 
@@ -334,12 +428,478 @@ enum DataMigration {
     /// read of a V2-created item triggers a one-time macOS "allow access" dialog;
     /// once copied, the V3 app owns its own item and reads it silently. Reads are
     /// non-destructive — the V2 items survive as a fallback.
-    static func migrateKeychain(from oldService: String, to newService: String) throws {
+    static func migrateKeychain(from oldService: String, to newService: String,
+                                secrets: SecretStore = .live) throws {
         for account in keychainAccounts {
-            guard try readData(service: newService, account: account) == nil,
-                  let data = try readData(service: oldService, account: account) else { continue }
-            try writeData(data, service: newService, account: account)
+            guard try secrets.read(newService, account) == nil,
+                  let data = try secrets.read(oldService, account) else { continue }
+            if account == "chat-key" || account == "screenshot-key" {
+                guard data.count == 32 else {
+                    throw EncryptionKeyRecoveryError.invalidKey(
+                        account: account, service: oldService)
+                }
+            }
+            try secrets.write(data, newService, account)
         }
+    }
+
+    // MARK: - Legacy encrypted screenshots
+
+    /// A successful directory move/copy is not sufficient when the destination
+    /// identity already owns a different screenshot key. Plan path rebases and
+    /// ciphertext rewrites together, validating every input before changing
+    /// either the database or a file.
+    private static func recoverLegacyScreenshotKeyIfNeeded(
+        currentDir: URL,
+        legacyDirectories: [URL],
+        defaults: UserDefaults,
+        secrets: SecretStore
+    ) -> StartupOutcome {
+        let migrationsComplete = defaults.bool(forKey: migratedFromV2Flag)
+            && defaults.bool(forKey: migratedFromV3Flag)
+        guard !defaults.bool(forKey: recoveredScreenshotKeyFlag) || !migrationsComplete else {
+            return .ready
+        }
+
+        do {
+            let databaseURL = currentDir.appendingPathComponent(currentDBName)
+            let pathPlan = try screenshotPathPlan(
+                databaseURL: databaseURL,
+                currentDirectory: currentDir,
+                legacyDirectories: legacyDirectories)
+            let discoveredFiles = try encryptedScreenshotFiles(in: currentDir)
+            let screenshotFiles = uniqueFiles(pathPlan.files + discoveredFiles)
+            var rewritePlan: [(url: URL, data: Data)] = []
+            if !screenshotFiles.isEmpty {
+                let currentService = AppIdentifiers.bundleID
+                var current = try secrets.read(currentService, "screenshot-key")
+                if let current, current.count != 32 {
+                    throw EncryptionKeyRecoveryError.invalidKey(
+                        account: "screenshot-key", service: currentService)
+                }
+                let legacy = try [oldV3BundleID, oldV2BundleID].compactMap { service -> Data? in
+                    guard let data = try secrets.read(service, "screenshot-key") else { return nil }
+                    guard data.count == 32 else {
+                        NSLog("DataMigration: ignored invalid legacy screenshot key for service %@", service)
+                        return nil
+                    }
+                    return data
+                }
+                if current == nil, let preferred = legacy.first {
+                    // The destination item is add-only. If a concurrent process
+                    // creates it first, its value wins and is re-read here.
+                    try secrets.write(preferred, currentService, "screenshot-key")
+                    current = try secrets.read(currentService, "screenshot-key")
+                }
+                guard let current else {
+                    throw EncryptionKeyRecoveryError.missingKey(account: "screenshot-key")
+                }
+                rewritePlan = try encryptedScreenshotRewritePlan(
+                    files: screenshotFiles,
+                    currentKeyData: current,
+                    legacyKeyData: legacy)
+            }
+
+            // Opening the writer and rechecking source rows are still preflight:
+            // neither ciphertext nor a stored path has changed yet.
+            let pathDatabase = try writableDatabase(
+                at: databaseURL, required: !pathPlan.updates.isEmpty)
+            try verifyScreenshotPathPlan(pathPlan, database: pathDatabase)
+            for rewrite in rewritePlan {
+                try rewrite.data.write(to: rewrite.url, options: .atomic)
+            }
+            try applyScreenshotPathPlan(pathPlan, database: pathDatabase)
+            defaults.set(true, forKey: recoveredScreenshotKeyFlag)
+            return .ready
+        } catch {
+            let reason = "Screenshot recovery is incomplete: \(error.localizedDescription)"
+            NSLog("DataMigration: %@", reason)
+            return .retryRequired(reason)
+        }
+    }
+
+    private enum EncryptionKeyRecoveryError: LocalizedError {
+        case invalidKey(account: String, service: String)
+        case missingKey(account: String)
+        case unreadableFile(String, account: String)
+        case unavailableDatabase(String)
+        case relativeScreenshotPath(String)
+        case externalScreenshotPath(String)
+        case missingScreenshotFile(String)
+        case ambiguousScreenshotPath(String)
+        case duplicateScreenshotDestination(String)
+        case changedScreenshotPath(Int64)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidKey(let account, let service):
+                "Invalid \(account) encryption key under service \(service)."
+            case .missingKey(let account):
+                "Encrypted data exists but no current or legacy \(account) is available."
+            case .unreadableFile(let name, let account):
+                "Encrypted file \(name) cannot be opened with any known \(account)."
+            case .unavailableDatabase(let path):
+                "The migrated screenshot database cannot be opened at \(path)."
+            case .relativeScreenshotPath(let path):
+                "Screenshot path is relative and cannot be migrated safely: \(path)"
+            case .externalScreenshotPath(let path):
+                "Screenshot path is outside the current and legacy libraries: \(path)"
+            case .missingScreenshotFile(let path):
+                "A screenshot row has no file at its migrated destination: \(path)"
+            case .ambiguousScreenshotPath(let path):
+                "Screenshot path matches more than one library root: \(path)"
+            case .duplicateScreenshotDestination(let path):
+                "More than one screenshot row resolves to the same file: \(path)"
+            case .changedScreenshotPath(let id):
+                "Screenshot path changed during migration for row \(id)."
+            }
+        }
+    }
+
+    private struct ScreenshotPathUpdate {
+        var id: Int64
+        var original: String
+        var destination: String
+    }
+
+    private struct ScreenshotPathPlan {
+        var files: [URL]
+        var updates: [ScreenshotPathUpdate]
+    }
+
+    private static func screenshotPathPlan(
+        databaseURL: URL,
+        currentDirectory: URL,
+        legacyDirectories: [URL],
+        fileManager fm: FileManager = .default
+    ) throws -> ScreenshotPathPlan {
+        guard fm.fileExists(atPath: databaseURL.path) else {
+            return ScreenshotPathPlan(files: [], updates: [])
+        }
+        guard let database = SQLiteDatabase(url: databaseURL, readOnly: true) else {
+            throw EncryptionKeyRecoveryError.unavailableDatabase(databaseURL.path)
+        }
+        let hasScreenshots = try database.queryChecked(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screenshots' LIMIT 1",
+            row: { sqlite3_column_int($0, 0) }).first != nil
+        guard hasScreenshots else {
+            return ScreenshotPathPlan(files: [], updates: [])
+        }
+
+        let rows: [(Int64, String)] = try database.queryChecked(
+            "SELECT id, path FROM screenshots WHERE path != '' ORDER BY id",
+            row: { statement in
+                guard let rawPath = sqlite3_column_text(statement, 1) else { return nil }
+                return (sqlite3_column_int64(statement, 0), String(cString: rawPath))
+            })
+        let currentRoot = currentDirectory.standardizedFileURL
+        let legacyRoots = legacyDirectories.map(\.standardizedFileURL)
+        var files: [URL] = []
+        var updates: [ScreenshotPathUpdate] = []
+        var destinationOwners: [String: Int64] = [:]
+
+        for (id, storedPath) in rows {
+            guard storedPath.hasPrefix("/") else {
+                throw EncryptionKeyRecoveryError.relativeScreenshotPath(storedPath)
+            }
+            let source = URL(fileURLWithPath: storedPath).standardizedFileURL
+            let roots = [currentRoot] + legacyRoots
+            let matches = roots.enumerated().compactMap { index, root -> (Int, String)? in
+                guard let relative = relativePath(of: source, under: root) else { return nil }
+                return (index, relative)
+            }
+            guard !matches.isEmpty else {
+                throw EncryptionKeyRecoveryError.externalScreenshotPath(storedPath)
+            }
+            guard matches.count == 1, let match = matches.first else {
+                throw EncryptionKeyRecoveryError.ambiguousScreenshotPath(storedPath)
+            }
+            let destination = match.0 == 0
+                ? source
+                : currentRoot.appendingPathComponent(match.1, isDirectory: false).standardizedFileURL
+            var isDirectory = ObjCBool(false)
+            guard fm.fileExists(atPath: destination.path, isDirectory: &isDirectory),
+                  !isDirectory.boolValue else {
+                throw EncryptionKeyRecoveryError.missingScreenshotFile(destination.path)
+            }
+            if destinationOwners[destination.path] != nil {
+                throw EncryptionKeyRecoveryError.duplicateScreenshotDestination(destination.path)
+            }
+            destinationOwners[destination.path] = id
+            files.append(destination)
+            if destination.path != storedPath {
+                updates.append(ScreenshotPathUpdate(
+                    id: id, original: storedPath, destination: destination.path))
+            }
+        }
+        return ScreenshotPathPlan(files: files, updates: updates)
+    }
+
+    private static func encryptedScreenshotFiles(
+        in currentDirectory: URL,
+        fileManager fm: FileManager = .default
+    ) throws -> [URL] {
+        let activity = currentDirectory.appendingPathComponent("activity", isDirectory: true)
+        guard fm.fileExists(atPath: activity.path) else { return [] }
+        var enumerationError: Error?
+        guard let enumerator = fm.enumerator(
+            at: activity,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles],
+            errorHandler: { _, error in
+                enumerationError = error
+                return false
+            }) else {
+            throw CocoaError(.fileReadUnknown)
+        }
+        var files: [URL] = []
+        for case let file as URL in enumerator
+        where file.lastPathComponent.hasSuffix(".heic.enc") {
+            files.append(file)
+        }
+        if let enumerationError { throw enumerationError }
+        return files.sorted { $0.path < $1.path }
+    }
+
+    private static func uniqueFiles(_ files: [URL]) -> [URL] {
+        var byPath: [String: URL] = [:]
+        for file in files {
+            let standardized = file.standardizedFileURL
+            byPath[standardized.path] = standardized
+        }
+        return byPath.values.sorted { $0.path < $1.path }
+    }
+
+    /// All envelopes are opened before any replacement. Each replacement uses
+    /// an atomic same-directory rename; interrupted retries safely accept the
+    /// resulting mix of current-key and legacy-key files.
+    @discardableResult
+    static func migrateEncryptedScreenshots(
+        files: [URL],
+        currentKeyData: Data,
+        legacyKeyData: [Data]
+    ) throws -> Int {
+        let rewrites = try encryptedScreenshotRewritePlan(
+            files: files,
+            currentKeyData: currentKeyData,
+            legacyKeyData: legacyKeyData)
+        for rewrite in rewrites {
+            try rewrite.data.write(to: rewrite.url, options: .atomic)
+        }
+        return rewrites.count
+    }
+
+    private static func encryptedScreenshotRewritePlan(
+        files: [URL],
+        currentKeyData: Data,
+        legacyKeyData: [Data]
+    ) throws -> [(url: URL, data: Data)] {
+        guard currentKeyData.count == 32 else {
+            throw EncryptionKeyRecoveryError.invalidKey(
+                account: "screenshot-key", service: AppIdentifiers.bundleID)
+        }
+        let currentKey = SymmetricKey(data: currentKeyData)
+        let legacyKeys = legacyKeyData
+            .filter { $0.count == 32 && $0 != currentKeyData }
+            .map(SymmetricKey.init(data:))
+        var rewrites: [(url: URL, data: Data)] = []
+        for file in files.sorted(by: { $0.path < $1.path }) {
+            let envelope = try Data(contentsOf: file)
+            guard let box = try? AES.GCM.SealedBox(combined: envelope) else {
+                throw EncryptionKeyRecoveryError.unreadableFile(
+                    file.lastPathComponent, account: "screenshot-key")
+            }
+            if (try? AES.GCM.open(box, using: currentKey)) != nil { continue }
+            guard let plaintext = legacyKeys.lazy.compactMap({
+                try? AES.GCM.open(box, using: $0)
+            }).first,
+            let resealed = try AES.GCM.seal(plaintext, using: currentKey).combined else {
+                throw EncryptionKeyRecoveryError.unreadableFile(
+                    file.lastPathComponent, account: "screenshot-key")
+            }
+            rewrites.append((file, resealed))
+        }
+        return rewrites
+    }
+
+    private static func writableDatabase(
+        at url: URL,
+        required: Bool
+    ) throws -> SQLiteDatabase? {
+        guard required else { return nil }
+        guard let database = SQLiteDatabase(url: url) else {
+            throw EncryptionKeyRecoveryError.unavailableDatabase(url.path)
+        }
+        return database
+    }
+
+    private static func verifyScreenshotPathPlan(
+        _ plan: ScreenshotPathPlan,
+        database: SQLiteDatabase?
+    ) throws {
+        guard !plan.updates.isEmpty, let database else { return }
+        for update in plan.updates {
+            let current = try database.queryChecked(
+                "SELECT path FROM screenshots WHERE id = ?1 LIMIT 1",
+                bind: [update.id],
+                row: { statement in
+                    sqlite3_column_text(statement, 0).map { String(cString: $0) }
+                }).first
+            guard current == update.original else {
+                throw EncryptionKeyRecoveryError.changedScreenshotPath(update.id)
+            }
+        }
+    }
+
+    private static func applyScreenshotPathPlan(
+        _ plan: ScreenshotPathPlan,
+        database: SQLiteDatabase?
+    ) throws {
+        guard !plan.updates.isEmpty, let database else { return }
+        try database.withTransaction {
+            for update in plan.updates {
+                let current = try database.queryChecked(
+                    "SELECT path FROM screenshots WHERE id = ?1 LIMIT 1",
+                    bind: [update.id],
+                    row: { statement in
+                        sqlite3_column_text(statement, 0).map { String(cString: $0) }
+                    }).first
+                guard current == update.original else {
+                    throw EncryptionKeyRecoveryError.changedScreenshotPath(update.id)
+                }
+                try database.runChecked(
+                    "UPDATE screenshots SET path = ?1 WHERE id = ?2",
+                    bind: [update.destination, update.id])
+            }
+        }
+    }
+
+    private static func relativePath(of child: URL, under parent: URL) -> String? {
+        let childPath = child.standardizedFileURL.path
+        let parentPath = parent.standardizedFileURL.path
+        if childPath == parentPath { return "" }
+        let prefix = parentPath.hasSuffix("/") ? parentPath : parentPath + "/"
+        guard childPath.hasPrefix(prefix) else { return nil }
+        return String(childPath.dropFirst(prefix.count))
+    }
+
+    // MARK: - Legacy encrypted chats
+
+    /// Chat encryption shipped before the last identity rename, while the old
+    /// migration omitted `chat-key`. This separate, versioned repair therefore
+    /// runs even for installations whose main migration marker is already set.
+    /// A still-conflicting legacy library keeps this check live so chats copied
+    /// during a later recovery are validated on the next launch.
+    private static func recoverLegacyChatKeyIfNeeded(
+        currentDir: URL,
+        defaults: UserDefaults,
+        secrets: SecretStore
+    ) -> StartupOutcome {
+        let migrationsComplete = defaults.bool(forKey: migratedFromV2Flag)
+            && defaults.bool(forKey: migratedFromV3Flag)
+        guard !defaults.bool(forKey: recoveredChatKeyFlag) || !migrationsComplete else {
+            return .ready
+        }
+        do {
+            let currentService = AppIdentifiers.bundleID
+            var current = try secrets.read(currentService, "chat-key")
+            if let current, current.count != 32 {
+                throw ChatKeyRecoveryError.invalidKey(service: currentService)
+            }
+            let legacy = try [oldV3BundleID, oldV2BundleID].compactMap { service -> Data? in
+                guard let data = try secrets.read(service, "chat-key") else { return nil }
+                guard data.count == 32 else {
+                    NSLog("DataMigration: ignored invalid legacy chat key for service %@", service)
+                    return nil
+                }
+                return data
+            }
+            let chatDir = currentDir.appendingPathComponent("chats", isDirectory: true)
+            let hasEncryptedChats = !(try encryptedChatFiles(in: chatDir)).isEmpty
+            if current == nil, let preferred = legacy.first {
+                // SecItemAdd is no-replace. If another process creates the key
+                // concurrently, that current key wins and legacy files are
+                // re-encrypted to it below.
+                try secrets.write(preferred, currentService, "chat-key")
+                current = try secrets.read(currentService, "chat-key")
+            }
+            guard let current else {
+                if hasEncryptedChats { throw ChatKeyRecoveryError.missingKey }
+                defaults.set(true, forKey: recoveredChatKeyFlag)
+                return .ready
+            }
+            guard current.count == 32 else {
+                throw ChatKeyRecoveryError.invalidKey(service: currentService)
+            }
+            _ = try migrateEncryptedChats(in: chatDir, currentKeyData: current,
+                                          legacyKeyData: legacy)
+            defaults.set(true, forKey: recoveredChatKeyFlag)
+            return .ready
+        } catch {
+            let reason = "Chat history recovery is incomplete: \(error.localizedDescription)"
+            NSLog("DataMigration: %@", reason)
+            return .retryRequired(reason)
+        }
+    }
+
+    private enum ChatKeyRecoveryError: LocalizedError {
+        case invalidKey(service: String)
+        case missingKey
+        case unreadableChat(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidKey(let service):
+                "Invalid chat encryption key under service \(service)."
+            case .missingKey:
+                "Encrypted chat history exists but no current or legacy key is available."
+            case .unreadableChat(let name):
+                "Encrypted chat \(name) cannot be opened with any known key."
+            }
+        }
+    }
+
+    private static func encryptedChatFiles(in directory: URL,
+                                           fileManager fm: FileManager = .default) throws -> [URL] {
+        guard fm.fileExists(atPath: directory.path) else { return [] }
+        return try fm.contentsOfDirectory(at: directory,
+                                          includingPropertiesForKeys: [.isRegularFileKey],
+                                          options: [.skipsHiddenFiles])
+            .filter { $0.pathExtension == "enc" && $0.deletingPathExtension().pathExtension == "json" }
+            .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    /// Re-seal only files that still use a legacy key. All files are decrypted
+    /// before any write, so an unknown or damaged envelope leaves the directory
+    /// untouched and the retry marker unset. Each replacement is atomic.
+    @discardableResult
+    static func migrateEncryptedChats(in directory: URL, currentKeyData: Data,
+                                      legacyKeyData: [Data],
+                                      fileManager fm: FileManager = .default) throws -> Int {
+        guard currentKeyData.count == 32 else {
+            throw ChatKeyRecoveryError.invalidKey(service: AppIdentifiers.bundleID)
+        }
+        let currentKey = SymmetricKey(data: currentKeyData)
+        let legacyKeys = legacyKeyData
+            .filter { $0.count == 32 && $0 != currentKeyData }
+            .map(SymmetricKey.init(data:))
+        var rewrites: [(url: URL, data: Data)] = []
+        for file in try encryptedChatFiles(in: directory, fileManager: fm) {
+            let envelope = try Data(contentsOf: file)
+            guard let box = try? AES.GCM.SealedBox(combined: envelope) else {
+                throw ChatKeyRecoveryError.unreadableChat(file.lastPathComponent)
+            }
+            if (try? AES.GCM.open(box, using: currentKey)) != nil { continue }
+            guard let plaintext = legacyKeys.lazy.compactMap({ try? AES.GCM.open(box, using: $0) }).first,
+                  let resealed = try AES.GCM.seal(plaintext, using: currentKey).combined else {
+                throw ChatKeyRecoveryError.unreadableChat(file.lastPathComponent)
+            }
+            rewrites.append((file, resealed))
+        }
+        for rewrite in rewrites {
+            try rewrite.data.write(to: rewrite.url, options: .atomic)
+        }
+        return rewrites.count
     }
 
     private struct KeychainMigrationError: LocalizedError {

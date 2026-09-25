@@ -132,6 +132,19 @@ final class ScreenMemoryReaderTests: XCTestCase {
         XCTAssertFalse(json.contains("path"))
     }
 
+    func testOverlappingActivityIsClampedToTheAuthorizedWindow() throws {
+        let start = dayStart.addingTimeInterval(1_800)
+        let end = dayStart.addingTimeInterval(5_400)
+        let timeline = try reader.timeline(from: start, to: end, limit: 100)
+        XCTAssertEqual(timeline.activity.map(\.startedAt), [start, dayStart.addingTimeInterval(3_600)])
+        XCTAssertEqual(timeline.activity.map(\.endedAt), [dayStart.addingTimeInterval(4_200), end])
+        XCTAssertEqual(timeline.activity.map(\.durationSeconds), [2_400, 1_800])
+        XCTAssertEqual(try reader.activityBlocks(from: start, to: end), timeline.activity)
+        let recent = try reader.recentActivity(since: start, limit: 10)
+        XCTAssertEqual(recent.last?.startedAt, start)
+        XCTAssertEqual(recent.last?.durationSeconds, 2_400)
+    }
+
     func testSavedMomentsAndDaySummary() throws {
         let end = dayStart.addingTimeInterval(86_400)
         let moments = try reader.savedMoments(from: dayStart, to: end, limit: 50)

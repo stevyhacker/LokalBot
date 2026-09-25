@@ -39,6 +39,7 @@ final class CotypingCoordinator: ObservableObject {
     let selfBundleID: String?
 
     var config = CotypingConfiguration.standard
+    var appliedPrivacySettings: CotypingPrivacySettings?
     var session: CotypingSession?
     var acceptedSuggestionBatch = CotypingAcceptedSuggestionBatch()
     var generation: UInt64 = 0
@@ -106,6 +107,19 @@ final class CotypingCoordinator: ObservableObject {
         var precedingText: String
     }
 
+}
+
+struct CotypingPrivacySettings: Equatable, Sendable {
+    let appReadPolicy: CotypingAppReadPolicy
+    let excludedDomains: [String]
+
+    init(settings: AppSettings, selfBundleID: String?) {
+        appReadPolicy = CotypingAppReadPolicy(
+            enabled: settings.cotypingEnabled,
+            excludedApps: settings.cotypingExcludedAppList,
+            selfBundleID: selfBundleID)
+        excludedDomains = settings.cotypingExcludedDomainList
+    }
 }
 
 /// Tracks whether the currently visible session is backed by an in-flight

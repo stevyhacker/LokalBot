@@ -177,3 +177,39 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
         XCTAssertTrue(healed.requiredPrefixUTF8.isEmpty)
     }
 }
+
+final class CotypingUTF8TokenDecoderTests: XCTestCase {
+    func testEveryByteSplitPreservesUnicodeScalars() throws {
+        for text in ["é", "€", "😀", "café 👩🏽‍💻 done"] {
+            let bytes = Array(text.utf8)
+            for split in 0...bytes.count {
+                var decoder = CotypingUTF8TokenDecoder()
+                let first = try XCTUnwrap(decoder.append(Array(bytes[..<split])))
+                let last = try XCTUnwrap(decoder.append(Array(bytes[split...])))
+                XCTAssertEqual(first + last, text)
+                XCTAssertFalse(first.contains("\u{FFFD}"))
+            }
+        }
+    }
+
+    func testHealingOvershootAndFreeDecodeShareThePendingScalar() throws {
+        let required = Array(" follo".utf8)
+        let piece = required + Array("w ".utf8) + [0xF0, 0x9F]
+        guard case .overshoots(let extra) = CotypingRequiredPrefixMatcher.match(
+            pieceBytes: piece, remaining: required[...]) else { return XCTFail("expected overshoot") }
+        var decoder = CotypingUTF8TokenDecoder()
+        XCTAssertEqual(decoder.append(extra), "w ")
+        XCTAssertEqual(decoder.append([0x98, 0x80]), "😀")
+    }
+
+    func testMalformedUTF8RejectsGenerationAndTruncatedTailIsWithheld() {
+        for bytes: [UInt8] in [[0xC0, 0xAF], [0xED, 0xA0, 0x80], [0xF4, 0x90, 0x80, 0x80], [0x80], [0xE2, 0x28]] {
+            var decoder = CotypingUTF8TokenDecoder()
+            XCTAssertNil(decoder.append(bytes))
+            XCTAssertNil(decoder.append([0x61]))
+        }
+        var decoder = CotypingUTF8TokenDecoder()
+        XCTAssertEqual(decoder.append([0x61, 0xE2, 0x82]), "a")
+        XCTAssertEqual(decoder.append([]), "")
+    }
+}

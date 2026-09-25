@@ -852,6 +852,7 @@ final class ActivityStoreTests: XCTestCase {
         excludedDomain.windowTitle = "Sensitive banking title"
         var unknownURL = safe
         unknownURL.sourceURL = nil
+        unknownURL.hasWebContent = true
         unknownURL.windowTitle = "Unverified browser title"
         var unknownSecureState = safe
         unknownSecureState.focusedSecureField = nil
@@ -866,7 +867,7 @@ final class ActivityStoreTests: XCTestCase {
             .init(snapshot: safe, timedOut: false),
         ]
         for (index, sample) in samples.enumerated() {
-            sampler.recordSample(appName: "Safari", bundleIdentifier: "com.apple.Safari",
+            sampler.recordSample(appName: "Notes", bundleIdentifier: "test.notes",
                                  accessibility: sample, at: base.addingTimeInterval(Double(index * 10)))
         }
         sampler.stop()
@@ -874,7 +875,7 @@ final class ActivityStoreTests: XCTestCase {
         let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
         XCTAssertEqual(blocks.count, 3)
         XCTAssertEqual(blocks.map(\.title), ["Public report", "", "Public report"])
-        XCTAssertEqual(blocks.map(\.app), ["Safari", "Private", "Safari"])
+        XCTAssertEqual(blocks.map(\.app), ["Notes", "Private", "Notes"])
         XCTAssertEqual(blocks[1].duration, 50)
     }
 

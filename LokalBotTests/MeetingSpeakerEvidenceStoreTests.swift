@@ -92,6 +92,7 @@ import XCTest
         let assignment = SpeakerIdentityAssignment(label: "them", name: "Alex", origin: .userConfirmed,
             audioRevision: "audio", anchors: [.init(start: 0, end: 20)])
         saved.assignments = [assignment]
+        saved.acousticTimeline = [.init(speaker: "them", range: .init(start: 0, end: 300))]
         saved.decisions = [.init(speakerID: assignment.id, action: .assign, sourceRevision: "audio", name: "Alex")]
         _ = try await store.commit(saved, meeting: meeting, expectedRevision: 0)
         try await store.eraseEvidence(meeting: meeting)
@@ -101,6 +102,8 @@ import XCTest
         XCTAssertEqual(after.assignments.first?.anchors, assignment.anchors)
         XCTAssertEqual(after.decisions.count, 1)
         XCTAssertTrue(after.suggestions.isEmpty)
+        XCTAssertTrue(after.acousticTimeline?.isEmpty == true)
+        XCTAssertTrue(after.timeline.isEmpty)
     }
 
     func testStaleAutomaticWriteCannotOverwriteCorrection() async throws {

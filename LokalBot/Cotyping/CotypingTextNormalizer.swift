@@ -78,7 +78,7 @@ enum CotypingTextNormalizer {
             if let blankLine = normalized.range(of: "\n\n") {
                 normalized = String(normalized[..<blankLine.lowerBound])
             }
-            normalized = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+            while normalized.last?.isWhitespace == true { normalized.removeLast() }
         } else if let firstLine = normalized.split(separator: "\n", maxSplits: 1).first {
             normalized = String(firstLine)
         }

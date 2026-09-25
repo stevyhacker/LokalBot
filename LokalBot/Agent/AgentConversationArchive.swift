@@ -62,6 +62,11 @@ enum AgentConversationArchive {
                 }
             case "assistant":
                 if !text.isEmpty { folder.appendAssistantMessage(text) }
+                if let failure = PiEvent.terminalFailure(
+                    stopReason: message["stopReason"] as? String,
+                    errorMessage: message["errorMessage"] as? String) {
+                    folder.appendNotice(failure, isError: true)
+                }
                 for block in message["content"] as? [[String: Any]] ?? [] where block["type"] as? String == "toolCall" {
                     let args = (try? JSONSerialization.data(withJSONObject: block["arguments"] ?? [:])) ?? Data()
                     folder.fold(.toolExecutionStart(callID: block["id"] as? String ?? UUID().uuidString,

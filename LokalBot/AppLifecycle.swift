@@ -119,7 +119,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         terminationCleanupStarted = true
         Task { @MainActor [weak self, weak sender] in
             if let app = Self.appState {
-                await app.prepareForTermination()
+                guard await app.prepareForTermination() else {
+                    self?.terminationCleanupStarted = false
+                    sender?.reply(toApplicationShouldTerminate: false)
+                    WindowAccess.shared.open("main")
+                    return
+                }
             } else {
                 await LlamaServer.shared.stop()
                 await LlamaServer.embedder.stop()

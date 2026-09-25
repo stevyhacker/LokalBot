@@ -1,10 +1,46 @@
 import XCTest
+import CryptoKit
+import SQLite3
 @testable import LokalBot
 
 /// Migration from old LokalBot identities. Exercises the data-loss-prone
 /// filesystem/settings halves with injected dirs/suites (the Keychain half talks
 /// to the real login keychain, so it's verified on install, not here).
 final class DataMigrationTests: XCTestCase {
+    private final class TestSecretStore {
+        enum Failure: Error { case transientRead }
+
+        var values: [String: Data] = [:]
+        var remainingReadFailures = 0
+
+        func set(_ data: Data, service: String, account: String) {
+            values[key(service, account)] = data
+        }
+
+        func get(service: String, account: String) -> Data? {
+            values[key(service, account)]
+        }
+
+        func operations() -> DataMigration.SecretStore {
+            DataMigration.SecretStore(
+                read: { [self] service, account in
+                    if remainingReadFailures > 0 {
+                        remainingReadFailures -= 1
+                        throw Failure.transientRead
+                    }
+                    return get(service: service, account: account)
+                },
+                write: { [self] data, service, account in
+                    let item = key(service, account)
+                    if values[item] == nil { values[item] = data }
+                })
+        }
+
+        private func key(_ service: String, _ account: String) -> String {
+            service + "\u{1f}" + account
+        }
+    }
+
     private final class ConcurrentCreateFileManager: FileManager, @unchecked Sendable {
         let databaseURL: URL
         private(set) var currentDatabase: SQLiteDatabase?
@@ -41,6 +77,42 @@ final class DataMigrationTests: XCTestCase {
         let name = "datamig.test.\(UUID().uuidString)"
         suites.append(name)
         return UserDefaults(suiteName: name)!
+    }
+
+    private func markIdentityMigrationsComplete(_ defaults: UserDefaults) {
+        defaults.set(true, forKey: "lokalbot.migratedFromDotenvV3")
+        defaults.set(true, forKey: "lokalbotv3.migratedFromV2")
+    }
+
+    private func runRecovery(
+        appSupport: URL,
+        currentDirectory: URL,
+        defaults: UserDefaults,
+        secrets: TestSecretStore
+    ) -> DataMigration.StartupOutcome {
+        DataMigration.runIfNeeded(
+            environment: [:],
+            defaults: defaults,
+            identity: .release,
+            arguments: [],
+            appSupport: appSupport,
+            currentDirectory: currentDirectory,
+            secrets: secrets.operations())
+    }
+
+    private func sealed(_ plaintext: String, keyData: Data) throws -> Data {
+        try XCTUnwrap(try AES.GCM.seal(
+            Data(plaintext.utf8), using: SymmetricKey(data: keyData)).combined)
+    }
+
+    private func screenshotPath(databaseURL: URL, id: Int64) throws -> String? {
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL, readOnly: true))
+        return try database.queryChecked(
+            "SELECT path FROM screenshots WHERE id = ?1",
+            bind: [id],
+            row: { statement in
+                sqlite3_column_text(statement, 0).map { String(cString: $0) }
+            }).first
     }
 
     private func makeDatabase(at url: URL, rows: Int = 0,
@@ -359,6 +431,292 @@ final class DataMigrationTests: XCTestCase {
         XCTAssertFalse(defaults.bool(forKey: "migration-completed"))
     }
 
+    func testStartupGateRetriesTransientMigrationBeforeLaunchingApplication() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let legacy = appSupport.appendingPathComponent("com.dotenv.LokalBotV3", isDirectory: true)
+        let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+        try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+        try Data("legacy".utf8).write(to: legacy.appendingPathComponent("library-marker"))
+        let defaults = freshSuite()
+        let secrets = TestSecretStore()
+        secrets.remainingReadFailures = 1
+        var applicationLaunches = 0
+        var recoveryOutcomes: [DataMigration.StartupOutcome] = []
+
+        let first = LokalBotMain.routeStartup(
+            migrate: {
+                self.runRecovery(
+                    appSupport: appSupport, currentDirectory: current,
+                    defaults: defaults, secrets: secrets)
+            },
+            launchApplication: { applicationLaunches += 1 },
+            launchRecovery: { recoveryOutcomes.append($0) })
+
+        guard case .retryRequired = first else {
+            return XCTFail("transient Keychain failure must retain the recovery gate")
+        }
+        XCTAssertEqual(applicationLaunches, 0)
+        XCTAssertEqual(recoveryOutcomes, [first])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: legacy.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: current.path),
+                       "AppState must not create the destination after a failed migration")
+
+        let second = LokalBotMain.routeStartup(
+            migrate: {
+                self.runRecovery(
+                    appSupport: appSupport, currentDirectory: current,
+                    defaults: defaults, secrets: secrets)
+            },
+            launchApplication: { applicationLaunches += 1 },
+            launchRecovery: { recoveryOutcomes.append($0) })
+
+        XCTAssertEqual(second, .ready)
+        XCTAssertEqual(applicationLaunches, 1)
+        XCTAssertEqual(recoveryOutcomes, [first])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: current.appendingPathComponent("library-marker").path))
+    }
+
+    func testScreenshotRecoveryResealsMixedCiphertextWhenIdentityKeysDiffer() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+        let shots = current.appendingPathComponent("activity/2026-09-25/shots", isDirectory: true)
+        try FileManager.default.createDirectory(at: shots, withIntermediateDirectories: true)
+        let currentKey = Data(repeating: 0x11, count: 32)
+        let legacyKey = Data(repeating: 0x22, count: 32)
+        let currentFile = shots.appendingPathComponent("current.heic.enc")
+        let legacyFile = shots.appendingPathComponent("legacy.heic.enc")
+        let currentEnvelope = try sealed("current", keyData: currentKey)
+        try currentEnvelope.write(to: currentFile)
+        try sealed("legacy", keyData: legacyKey).write(to: legacyFile)
+        let defaults = freshSuite()
+        markIdentityMigrationsComplete(defaults)
+        let secrets = TestSecretStore()
+        secrets.set(currentKey, service: "me.dotenv.LokalBot", account: "screenshot-key")
+        secrets.set(legacyKey, service: "com.dotenv.LokalBotV3", account: "screenshot-key")
+
+        XCTAssertEqual(runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets), .ready)
+        XCTAssertEqual(try Data(contentsOf: currentFile), currentEnvelope)
+        let migrated = try AES.GCM.SealedBox(combined: Data(contentsOf: legacyFile))
+        XCTAssertEqual(try AES.GCM.open(migrated, using: SymmetricKey(data: currentKey)),
+                       Data("legacy".utf8))
+        let migratedEnvelope = try Data(contentsOf: legacyFile)
+
+        XCTAssertEqual(runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets), .ready)
+        XCTAssertEqual(try Data(contentsOf: legacyFile), migratedEnvelope,
+                       "completed recovery must be idempotent")
+    }
+
+    func testScreenshotRecoveryRebasesAbsoluteLegacyPaths() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let legacy = appSupport.appendingPathComponent("com.dotenv.LokalBotV3", isDirectory: true)
+        let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+        let relative = "activity/2026-09-25/shots/legacy.heic.enc"
+        let migratedFile = current.appendingPathComponent(relative)
+        let currentFile = current.appendingPathComponent(
+            "activity/2026-09-25/shots/current.heic.enc")
+        try FileManager.default.createDirectory(
+            at: migratedFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let key = Data(repeating: 0x33, count: 32)
+        try sealed("pixels", keyData: key).write(to: migratedFile)
+        try sealed("current", keyData: key).write(to: currentFile)
+        let databaseURL = current.appendingPathComponent("lokalbotv3.sqlite")
+        try makeDatabase(at: databaseURL)
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        try database.runChecked(
+            "INSERT INTO screenshots (id, ts, path, app) VALUES (?1, ?2, ?3, ?4)",
+            bind: [Int64(41), 0.0, legacy.appendingPathComponent(relative).path, "Tests"])
+        try database.runChecked(
+            "INSERT INTO screenshots (id, ts, path, app) VALUES (?1, ?2, ?3, ?4)",
+            bind: [Int64(42), 0.0, currentFile.path, "Tests"])
+        let defaults = freshSuite()
+        markIdentityMigrationsComplete(defaults)
+        let secrets = TestSecretStore()
+        secrets.set(key, service: "me.dotenv.LokalBot", account: "screenshot-key")
+
+        XCTAssertEqual(runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets), .ready)
+        XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 41), migratedFile.path)
+        XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 42), currentFile.path,
+                       "paths already under the current root remain valid")
+    }
+
+    func testUnknownScreenshotKeyKeepsStartupPendingUntilRetryCanRecover() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+        let shots = current.appendingPathComponent("activity/2026-09-25/shots", isDirectory: true)
+        try FileManager.default.createDirectory(at: shots, withIntermediateDirectories: true)
+        let currentKey = Data(repeating: 0x44, count: 32)
+        let v3Key = Data(repeating: 0x55, count: 32)
+        let v2Key = Data(repeating: 0x66, count: 32)
+        let recoverable = shots.appendingPathComponent("a.heic.enc")
+        let initiallyUnknown = shots.appendingPathComponent("b.heic.enc")
+        try sealed("v3", keyData: v3Key).write(to: recoverable)
+        try sealed("v2", keyData: v2Key).write(to: initiallyUnknown)
+        let originalV3 = try Data(contentsOf: recoverable)
+        let originalV2 = try Data(contentsOf: initiallyUnknown)
+        let defaults = freshSuite()
+        markIdentityMigrationsComplete(defaults)
+        let secrets = TestSecretStore()
+        secrets.set(currentKey, service: "me.dotenv.LokalBot", account: "screenshot-key")
+        secrets.set(v3Key, service: "com.dotenv.LokalBotV3", account: "screenshot-key")
+
+        let first = runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets)
+        guard case .retryRequired = first else {
+            return XCTFail("unknown ciphertext must keep startup non-ready")
+        }
+        XCTAssertFalse(defaults.bool(forKey: "lokalbot.recoveredLegacyScreenshotKey.v1"))
+        XCTAssertEqual(try Data(contentsOf: recoverable), originalV3)
+        XCTAssertEqual(try Data(contentsOf: initiallyUnknown), originalV2,
+                       "ciphertext preflight must leave every file untouched")
+
+        secrets.set(v2Key, service: "com.dotenv.LokalBotV2", account: "screenshot-key")
+        XCTAssertEqual(runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets), .ready)
+        for (file, plaintext) in [(recoverable, "v3"), (initiallyUnknown, "v2")] {
+            let box = try AES.GCM.SealedBox(combined: Data(contentsOf: file))
+            XCTAssertEqual(try AES.GCM.open(box, using: SymmetricKey(data: currentKey)),
+                           Data(plaintext.utf8))
+        }
+    }
+
+    func testScreenshotPathPreflightRejectsRelativeExternalAndMissingDestinations() throws {
+        enum Fixture { case relative, external, missing }
+        for fixture in [Fixture.relative, .external, .missing] {
+            let fixtureRoot = tmp.appendingPathComponent(UUID().uuidString, isDirectory: true)
+            let appSupport = fixtureRoot.appendingPathComponent("Application Support", isDirectory: true)
+            let legacy = appSupport.appendingPathComponent("com.dotenv.LokalBotV3", isDirectory: true)
+            let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+            let relative = "activity/2026-09-25/shots/fixture.heic.enc"
+            let currentFile = current.appendingPathComponent(relative)
+            let externalFile = fixtureRoot.appendingPathComponent("external.heic.enc")
+            let key = Data(repeating: 0x71, count: 32)
+            var fileToPreserve: URL?
+            let storedPath: String
+            switch fixture {
+            case .relative:
+                try FileManager.default.createDirectory(
+                    at: currentFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try sealed("relative", keyData: key).write(to: currentFile)
+                fileToPreserve = currentFile
+                storedPath = relative
+            case .external:
+                try FileManager.default.createDirectory(
+                    at: externalFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try sealed("external", keyData: key).write(to: externalFile)
+                fileToPreserve = externalFile
+                storedPath = externalFile.path
+            case .missing:
+                try FileManager.default.createDirectory(at: current, withIntermediateDirectories: true)
+                storedPath = legacy.appendingPathComponent(relative).path
+            }
+            let originalFile = try fileToPreserve.map { try Data(contentsOf: $0) }
+            try FileManager.default.createDirectory(at: current, withIntermediateDirectories: true)
+            let databaseURL = current.appendingPathComponent("lokalbotv3.sqlite")
+            try makeDatabase(at: databaseURL)
+            do {
+                let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+                try database.runChecked(
+                    "INSERT INTO screenshots (id, ts, path, app) VALUES (?1, ?2, ?3, ?4)",
+                    bind: [Int64(51), 0.0, storedPath, "Tests"])
+            }
+            let defaults = freshSuite()
+            markIdentityMigrationsComplete(defaults)
+            let secrets = TestSecretStore()
+            secrets.set(key, service: "me.dotenv.LokalBot", account: "screenshot-key")
+
+            let outcome = runRecovery(
+                appSupport: appSupport, currentDirectory: current,
+                defaults: defaults, secrets: secrets)
+            guard case .retryRequired = outcome else {
+                return XCTFail("\(fixture) path must keep startup in recovery")
+            }
+            XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 51), storedPath)
+            if let fileToPreserve, let originalFile {
+                XCTAssertEqual(try Data(contentsOf: fileToPreserve), originalFile)
+            }
+        }
+    }
+
+    func testScreenshotPathPreflightRejectsDuplicateDestinationWithoutRewriting() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let legacy = appSupport.appendingPathComponent("com.dotenv.LokalBotV3", isDirectory: true)
+        let current = appSupport.appendingPathComponent("me.dotenv.LokalBot", isDirectory: true)
+        let relative = "activity/2026-09-25/shots/duplicate.heic.enc"
+        let currentFile = current.appendingPathComponent(relative)
+        try FileManager.default.createDirectory(
+            at: currentFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let key = Data(repeating: 0x72, count: 32)
+        try sealed("duplicate", keyData: key).write(to: currentFile)
+        let original = try Data(contentsOf: currentFile)
+        let legacyPath = legacy.appendingPathComponent(relative).path
+        let databaseURL = current.appendingPathComponent("lokalbotv3.sqlite")
+        try makeDatabase(at: databaseURL)
+        do {
+            let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+            for id in [Int64(61), 62] {
+                try database.runChecked(
+                    "INSERT INTO screenshots (id, ts, path, app) VALUES (?1, ?2, ?3, ?4)",
+                    bind: [id, 0.0, legacyPath, "Tests"])
+            }
+        }
+        let defaults = freshSuite()
+        markIdentityMigrationsComplete(defaults)
+        let secrets = TestSecretStore()
+        secrets.set(key, service: "me.dotenv.LokalBot", account: "screenshot-key")
+
+        guard case .retryRequired = runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets) else {
+            return XCTFail("duplicate path destinations must remain recoverable")
+        }
+        XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 61), legacyPath)
+        XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 62), legacyPath)
+        XCTAssertEqual(try Data(contentsOf: currentFile), original)
+    }
+
+    func testScreenshotPathPreflightRejectsAmbiguousNestedRoots() throws {
+        let appSupport = tmp.appendingPathComponent("Application Support", isDirectory: true)
+        let legacy = appSupport.appendingPathComponent("com.dotenv.LokalBotV3", isDirectory: true)
+        let current = legacy.appendingPathComponent("nested-current", isDirectory: true)
+        let file = current.appendingPathComponent(
+            "activity/2026-09-25/shots/ambiguous.heic.enc")
+        try FileManager.default.createDirectory(
+            at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let key = Data(repeating: 0x73, count: 32)
+        try sealed("ambiguous", keyData: key).write(to: file)
+        let original = try Data(contentsOf: file)
+        let databaseURL = current.appendingPathComponent("lokalbotv3.sqlite")
+        try makeDatabase(at: databaseURL)
+        do {
+            let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+            try database.runChecked(
+                "INSERT INTO screenshots (id, ts, path, app) VALUES (?1, ?2, ?3, ?4)",
+                bind: [Int64(71), 0.0, file.path, "Tests"])
+        }
+        let defaults = freshSuite()
+        markIdentityMigrationsComplete(defaults)
+        let secrets = TestSecretStore()
+        secrets.set(key, service: "me.dotenv.LokalBot", account: "screenshot-key")
+
+        guard case .retryRequired = runRecovery(
+            appSupport: appSupport, currentDirectory: current,
+            defaults: defaults, secrets: secrets) else {
+            return XCTFail("a path matching current and legacy roots must remain recoverable")
+        }
+        XCTAssertEqual(try screenshotPath(databaseURL: databaseURL, id: 71), file.path)
+        XCTAssertEqual(try Data(contentsOf: file), original)
+    }
+
     func testMigrateDataDirIsNoOpWhenV3AlreadyExists() throws {
         let fm = FileManager.default
         let oldDir = tmp.appendingPathComponent("com.dotenv.LokalBotV2", isDirectory: true)
@@ -428,6 +786,68 @@ final class DataMigrationTests: XCTestCase {
         let data = try XCTUnwrap(new.data(forKey: AppSettings.key))
         XCTAssertEqual(try JSONDecoder().decode(AppSettings.self, from: data).retentionDays, 42)
         XCTAssertTrue(new.bool(forKey: AppState.onboardingShownKey))
+    }
+
+    // MARK: - Legacy chat encryption key recovery
+
+    func testLegacyEncryptedChatsAreAtomicallyResealedWithCurrentKey() throws {
+        let chats = tmp.appendingPathComponent("chats", isDirectory: true)
+        try FileManager.default.createDirectory(at: chats, withIntermediateDirectories: true)
+        let oldKeyData = Data(repeating: 0x11, count: 32)
+        let currentKeyData = Data(repeating: 0x22, count: 32)
+        let plaintext = Data(#"{"title":"legacy chat"}"#.utf8)
+        let file = chats.appendingPathComponent("legacy.json.enc")
+        let oldKey = SymmetricKey(data: oldKeyData)
+        try XCTUnwrap(try AES.GCM.seal(plaintext, using: oldKey).combined).write(to: file)
+
+        XCTAssertEqual(try DataMigration.migrateEncryptedChats(
+            in: chats, currentKeyData: currentKeyData, legacyKeyData: [oldKeyData]), 1)
+
+        let migrated = try AES.GCM.SealedBox(combined: Data(contentsOf: file))
+        XCTAssertEqual(try AES.GCM.open(migrated, using: SymmetricKey(data: currentKeyData)), plaintext)
+        XCTAssertThrowsError(try AES.GCM.open(migrated, using: oldKey))
+    }
+
+    func testChatRecoveryKeepsCurrentKeyFilesAndMigratesMixedLegacyFiles() throws {
+        let chats = tmp.appendingPathComponent("chats", isDirectory: true)
+        try FileManager.default.createDirectory(at: chats, withIntermediateDirectories: true)
+        let oldKeyData = Data(repeating: 0x33, count: 32)
+        let currentKeyData = Data(repeating: 0x44, count: 32)
+        let currentFile = chats.appendingPathComponent("current.json.enc")
+        let legacyFile = chats.appendingPathComponent("legacy.json.enc")
+        let currentEnvelope = try XCTUnwrap(try AES.GCM.seal(
+            Data("current".utf8), using: SymmetricKey(data: currentKeyData)).combined)
+        try currentEnvelope.write(to: currentFile)
+        try XCTUnwrap(try AES.GCM.seal(
+            Data("legacy".utf8), using: SymmetricKey(data: oldKeyData)).combined).write(to: legacyFile)
+
+        XCTAssertEqual(try DataMigration.migrateEncryptedChats(
+            in: chats, currentKeyData: currentKeyData, legacyKeyData: [oldKeyData]), 1)
+        XCTAssertEqual(try Data(contentsOf: currentFile), currentEnvelope,
+                       "a newer current-key chat must not be rewritten")
+        let migrated = try AES.GCM.SealedBox(combined: Data(contentsOf: legacyFile))
+        XCTAssertEqual(try AES.GCM.open(migrated, using: SymmetricKey(data: currentKeyData)),
+                       Data("legacy".utf8))
+    }
+
+    func testUnknownEncryptedChatPreventsEveryRewriteForSafeRetry() throws {
+        let chats = tmp.appendingPathComponent("chats", isDirectory: true)
+        try FileManager.default.createDirectory(at: chats, withIntermediateDirectories: true)
+        let oldKeyData = Data(repeating: 0x55, count: 32)
+        let currentKeyData = Data(repeating: 0x66, count: 32)
+        let unknownKeyData = Data(repeating: 0x77, count: 32)
+        let recoverable = chats.appendingPathComponent("a-recoverable.json.enc")
+        let unknown = chats.appendingPathComponent("z-unknown.json.enc")
+        try XCTUnwrap(try AES.GCM.seal(Data("recoverable".utf8),
+            using: SymmetricKey(data: oldKeyData)).combined).write(to: recoverable)
+        try XCTUnwrap(try AES.GCM.seal(Data("unknown".utf8),
+            using: SymmetricKey(data: unknownKeyData)).combined).write(to: unknown)
+        let original = try Data(contentsOf: recoverable)
+
+        XCTAssertThrowsError(try DataMigration.migrateEncryptedChats(
+            in: chats, currentKeyData: currentKeyData, legacyKeyData: [oldKeyData]))
+        XCTAssertEqual(try Data(contentsOf: recoverable), original,
+                       "preflight must leave recoverable chats untouched when any envelope is unknown")
     }
 
     // MARK: - Test-host guard (regression: `xcodebuild test` must not move real data)

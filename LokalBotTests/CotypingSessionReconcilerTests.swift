@@ -258,7 +258,38 @@ final class CotypingContinuationTests: XCTestCase {
 
         XCTAssertEqual(advanced.consumedCount, 3)
         XCTAssertEqual(advanced.remainingText, " on the deck")
-        XCTAssertEqual(advanced.field.precedingText, "I wanted to follow up")
+        XCTAssertEqual(advanced.field.precedingText, "I wanted to follow")
+    }
+
+    func testSuccessiveHostPublishesNeverCountAcceptedPrefixTwice() throws {
+        for optimistic in [false, true] {
+            var current = session("I wanted to follow")
+            if optimistic { current = current.advanced(by: 3) }
+            for (suffix, count, remaining) in [(" up", 3, " on the deck"),
+                                               (" up on", 6, " the deck"),
+                                               (" up on the", 10, " deck")] {
+                current = try XCTUnwrap(CotypingSessionReconciler.sessionReconciledByPublishedTyping(
+                    current, liveField: field("I wanted to follow" + suffix)))
+                XCTAssertEqual(current.consumedCount, count)
+                XCTAssertEqual(current.remainingText, remaining)
+                XCTAssertEqual(current.field.precedingText, "I wanted to follow")
+            }
+        }
+    }
+
+    func testUnicodeCappedContextRemainsAnAcceptanceContinuation() throws {
+        let before = String(repeating: "e\u{301}", count: 3_000) + " please"
+        let oldContext = try XCTUnwrap(CotypingAcceptanceContentBounds.context(
+            in: before, selection: NSRange(location: before.utf16.count, length: 0)))
+        let after = before + " send"
+        let newContext = try XCTUnwrap(CotypingAcceptanceContentBounds.context(
+            in: after, selection: NSRange(location: after.utf16.count, length: 0)))
+        var oldField = field(oldContext.preceding)
+        oldField.precedingTextIsTruncated = oldContext.precedingIsTruncated
+        var live = field(newContext.preceding)
+        live.precedingTextIsTruncated = newContext.precedingIsTruncated
+        XCTAssertTrue(CotypingSessionReconciler.isContinuation(
+            of: CotypingSession(field: oldField, fullText: " send the contract"), liveField: live))
     }
 
     func testPublishedTypingHonorsAlreadyAcceptedPrefix() throws {
@@ -310,7 +341,7 @@ final class CotypingContinuationTests: XCTestCase {
 
         XCTAssertEqual(rebased.consumedCount, 3)
         XCTAssertEqual(rebased.remainingText, " on the deck")
-        XCTAssertEqual(rebased.field.precedingText, "I wanted to follow up")
+        XCTAssertEqual(rebased.field.precedingText, "I wanted to follow")
     }
 
     func testPublishedTypingCanAdvanceBeyondOptimisticConsumedPrefix() throws {

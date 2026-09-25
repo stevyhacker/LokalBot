@@ -9,6 +9,20 @@ extension CotypingCoordinator {
     /// call on launch and whenever the cotyping settings change.
     func applySettings() {
         let settings = settingsProvider()
+        let privacySettings = CotypingPrivacySettings(
+            settings: settings,
+            selfBundleID: selfBundleID)
+        let privacySettingsChanged = appliedPrivacySettings != privacySettings
+        appliedPrivacySettings = privacySettings
+        let appReadPolicyChanged = CotypingAXHelper.configureAppReadPolicy(
+            privacySettings.appReadPolicy)
+        let shouldRefreshFocus = isRunning
+            && (privacySettingsChanged || appReadPolicyChanged)
+        if privacySettingsChanged || appReadPolicyChanged {
+            cancelPendingGenerationWork()
+            acceptedSuggestionBatch.discardLearningRecord()
+            clearSuggestion()
+        }
         guard settings.cotypingEnabled else { stop(reason: "Cotyping is off."); return }
         guard CotypingAXHelper.isTrusted else {
             stop(reason: "Accessibility permission needed.")
@@ -18,7 +32,24 @@ extension CotypingCoordinator {
             stop(reason: "Input Monitoring permission needed.")
             return
         }
+        if shouldRefreshFocus {
+            // Drop any field snapshot captured under the previous boundary and
+            // invalidate an AX read that may still be in flight.
+            focusTracker.stop()
+            focusTracker.start()
+        }
         start()
+    }
+
+    func forgetLearnedText() async throws {
+        cancelPendingGenerationWork()
+        acceptedSuggestionBatch.discardLearningRecord()
+        clearSuggestion()
+        suggestionAnchorCache = CotypingSuggestionAnchorCache()
+        activeSuggestionRequestFingerprint = nil
+        lastSuggestion = nil
+        lastAcceptedTail = nil
+        try await learningStore.forgetAll()
     }
 
     private func start() {

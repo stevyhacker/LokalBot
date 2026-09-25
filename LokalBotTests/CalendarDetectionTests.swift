@@ -349,12 +349,8 @@ final class CalendarDetectionTests: XCTestCase {
             .abandoned)
     }
 
-    /// The two anomalous log lines — "lost the audio... after=12.3s" and
-    /// "after=12.7s" — show the total span already past the window at the
-    /// exact instant the tick found no fresh audio. A bridged gap must confirm
-    /// immediately in that case rather than waiting for evidence that both
-    /// sides have already provided.
-    func testATotalSpanPastTheWindowConfirmsEvenMidGap() {
+    /// A short sound cannot coast past the minimum duration during silence.
+    func testATotalSpanPastTheWindowWaitsForFreshAudio() {
         let firstSeen = Date()
         let lastAudioSeenAt = firstSeen.addingTimeInterval(11)
         let now = firstSeen.addingTimeInterval(
@@ -365,7 +361,26 @@ final class CalendarDetectionTests: XCTestCase {
                 firstSeenAt: firstSeen, lastAudioSeenAt: lastAudioSeenAt, now: now,
                 gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance,
                 minimumDuration: MeetingDetector.nativeAudioMinimumConfirmationDuration),
-            .confirmed)
+            .stillWaiting)
+    }
+
+    func testFalseStartSoundsCannotCompleteTheGateDuringQuietGrace() throws {
+        let first = Date(timeIntervalSince1970: 1_000)
+        for duration in [6.0, 7.6, 10.0, 10.8] {
+            var candidate = MeetingMatcher.StartConfirmationState()
+            for tick in stride(from: 0.0, through: duration, by: 1) {
+                candidate.observeAudio(bundleID: "com.microsoft.teams2",
+                    at: first.addingTimeInterval(tick), gapTolerance: 6)
+            }
+            candidate.observeAudio(bundleID: "com.microsoft.teams2",
+                at: first.addingTimeInterval(duration), gapTolerance: 6)
+            let window = try XCTUnwrap(candidate.window)
+            XCTAssertFalse(MeetingMatcher.sustainedAudioConfirmed(
+                firstSeenAt: window.firstSeenAt, now: window.lastAudioSeenAt, minimumDuration: 12))
+            XCTAssertEqual(MeetingMatcher.startConfirmationGapOutcome(
+                firstSeenAt: window.firstSeenAt, lastAudioSeenAt: window.lastAudioSeenAt,
+                now: first.addingTimeInterval(12), gapTolerance: 6, minimumDuration: 12), .stillWaiting)
+        }
     }
 
     /// The tolerance only ever bridges a gap in evidence that already exists;
@@ -434,6 +449,42 @@ final class CalendarDetectionTests: XCTestCase {
             firstSeenAt: restarted.firstSeenAt,
             now: restartedAt,
             minimumDuration: MeetingDetector.nativeAudioMinimumConfirmationDuration))
+    }
+
+    func testPendingNativeHandoffOutlivesShortStopDebounceButNotItsAudioLease() throws {
+        var state = MeetingMatcher.StartConfirmationState()
+        let first = Date(timeIntervalSince1970: 1_000)
+        state.observeAudio(
+            bundleID: "com.microsoft.teams2",
+            at: first,
+            gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance)
+        state.observeAudio(
+            bundleID: "com.microsoft.teams2",
+            at: first.addingTimeInterval(8),
+            gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance)
+        let window = try XCTUnwrap(state.window)
+
+        XCTAssertTrue(MeetingMatcher.shouldKeepActiveSessionForPendingHandoff(
+            confirmationWindow: window,
+            freshCandidateBundleID: "com.microsoft.teams2",
+            runningMeetingBundleIDs: ["com.microsoft.teams2"],
+            now: first.addingTimeInterval(10),
+            gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance),
+            "replacement confirmation must keep the current recording through a 5-10 second stop debounce")
+        XCTAssertFalse(MeetingMatcher.shouldKeepActiveSessionForPendingHandoff(
+            confirmationWindow: window,
+            freshCandidateBundleID: nil,
+            runningMeetingBundleIDs: ["com.microsoft.teams2"],
+            now: first.addingTimeInterval(14.1),
+            gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance),
+            "a quiet replacement must lose its bounded handoff lease")
+        XCTAssertFalse(MeetingMatcher.shouldKeepActiveSessionForPendingHandoff(
+            confirmationWindow: window,
+            freshCandidateBundleID: "com.tinyspeck.slackmacgap",
+            runningMeetingBundleIDs: ["com.microsoft.teams2", "com.tinyspeck.slackmacgap"],
+            now: first.addingTimeInterval(10),
+            gapTolerance: MeetingDetector.nativeAudioConfirmationGapTolerance),
+            "another app's audio cannot inherit the candidate's lease")
     }
 
     /// Canceling a submitted DispatchWorkItem is not the identity check: if an

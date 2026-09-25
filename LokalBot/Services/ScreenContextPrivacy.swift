@@ -25,9 +25,11 @@ enum ScreenContextPrivacy {
         guard !isExcluded(appName: observation.appName, rules: excludedApps),
               let title = observation.windowTitle,
               observation.focusedSecureField == false else { return false }
-        guard capturePrivateWindows || !isPrivateWindow(title: title) else { return false }
-        if !capturePrivateWindows, observation.hasWebContent || isBrowser(observation),
-           title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        // Absence of a localized title marker does not establish a normal
+        // browser window. Until a browser exposes a verified mode signal,
+        // private/unverified browser capture requires the explicit opt-in.
+        if !capturePrivateWindows,
+           isPrivateWindow(title: title) || isBrowser(observation) || observation.hasWebContent { return false }
         guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
             return false
         }

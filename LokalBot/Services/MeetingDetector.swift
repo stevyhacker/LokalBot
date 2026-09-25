@@ -202,6 +202,10 @@ final class MeetingDetector {
     private(set) var endedMeetingURL: URL?
     private var lastBrowserEvidenceAt: Date?
     private var browserObservationLostAt: Date?
+    /// True only while the exact previously verified browser window remains
+    /// present and minimized. This prevents later host/window loss from
+    /// retrospectively trimming the period that was deliberately preserved.
+    private var browserVisibilitySuspended = false
     /// The start candidate still waiting out
     /// `nativeAudioMinimumConfirmationDuration`: when its audio was first seen,
     /// and when it was last seen — the second lets a normal conversational gap
@@ -263,6 +267,7 @@ final class MeetingDetector {
         clearPendingStart()
         continuationLease.reset()
         browserObservationLostAt = nil
+        browserVisibilitySuspended = false
         detectedContentEnd = nil
         endedMeetingURL = nil
         activeSessionID = nil
@@ -399,20 +404,23 @@ final class MeetingDetector {
                 calendarBackedBrowserWithAudio: calendarBackedBrowserWithAudio)
 
             guard inMeeting, let app = continuingApp else {
-                if let replacementApp = Self.detectRunningMeetingApp(
+                let replacementApp = Self.detectRunningMeetingApp(
                     in: running,
                     calendarEvent: calendarEvent,
                     calendarEnabled: calendarEnabled,
-                    requireCalendarForBrowser: requireCalendarForBrowser, snapshots: browserSnapshots),
-                   !Self.browsers.contains(replacementApp.bundleID)
-                    || startConfirmed(app: replacementApp, calendarBacked: calendarEvent != nil, now: now) {
+                    requireCalendarForBrowser: requireCalendarForBrowser,
+                    snapshots: browserSnapshots)
+                if let replacementApp,
+                   startConfirmed(app: replacementApp, calendarBacked: calendarEvent != nil, now: now) {
                     pendingStop?.cancel()
                     pendingStop = nil
                     let previousApp = activeApp
                     activeApp = replacementApp
                     lastBrowserEvidenceAt = replacementApp.meetingURL == nil ? nil : now
+                    browserVisibilitySuspended = false
                     activeCalendarEvent = calendarEvent
                     continuationLease.recordReliableAudio(at: now)
+                    clearPendingStart(loggingLoss: false)
                     if previousApp != replacementApp {
                         onMeetingSwitched?(MeetingDetectionContext(
                             detectedApp: replacementApp,
@@ -422,6 +430,16 @@ final class MeetingDetector {
                             reason: "meeting-app-handoff",
                             detectorSessionID: activeSessionID))
                     }
+                    return
+                }
+                if keepsActiveSessionForPendingHandoff(
+                    in: running,
+                    freshCandidateBundleID: replacementApp?.bundleID,
+                    calendarBacked: calendarEvent != nil,
+                    now: now
+                ) {
+                    pendingStop?.cancel()
+                    pendingStop = nil
                     return
                 }
                 scheduleStopIfNeeded(now: now)
@@ -485,23 +503,18 @@ final class MeetingDetector {
         if let pendingStart = startConfirmation.window,
            Self.requiresSustainedAudioForStart(
                bundleID: pendingStart.bundleID, calendarBacked: calendarEvent != nil),
-           let app = Self.nativeApp(bundleID: pendingStart.bundleID, in: running) {
+           Self.nativeApp(bundleID: pendingStart.bundleID, in: running) != nil {
             switch MeetingMatcher.startConfirmationGapOutcome(
                 firstSeenAt: pendingStart.firstSeenAt,
                 lastAudioSeenAt: pendingStart.lastAudioSeenAt,
                 now: now,
                 gapTolerance: Self.nativeAudioConfirmationGapTolerance,
                 minimumDuration: Self.nativeAudioMinimumConfirmationDuration) {
-            case .confirmed:
-                logStartState("detector confirmed app=\(app.bundleID) (bridged gap)")
-                beginMeeting(app: app, calendarEvent: calendarEvent, now: now)
-                return
             case .stillWaiting:
-                let elapsed = now.timeIntervalSince(pendingStart.firstSeenAt)
                 let gapRemaining = Self.nativeAudioConfirmationGapTolerance
                     - now.timeIntervalSince(pendingStart.lastAudioSeenAt)
                 scheduleStartConfirmationRecheck(
-                    after: min(gapRemaining, Self.nativeAudioMinimumConfirmationDuration - elapsed),
+                    after: min(gapRemaining, 1),
                     generation: pendingStart.generation)
                 return
             case .abandoned:
@@ -522,6 +535,7 @@ final class MeetingDetector {
         detectedContentEnd = nil
         endedMeetingURL = nil
         browserObservationLostAt = nil
+        browserVisibilitySuspended = false
         lastBrowserEvidenceAt = app.meetingURL == nil ? nil : now
         browserStart = .init()
         clearPendingStart(loggingLoss: false)
@@ -585,6 +599,53 @@ final class MeetingDetector {
             after: Self.nativeAudioMinimumConfirmationDuration - elapsed,
             generation: pendingStart.generation)
         return false
+    }
+
+    /// Keep one recording alive while a specific running meeting app earns its
+    /// sustained-audio handoff confirmation. The lease exists only for the
+    /// candidate that supplied fresh meeting-app audio and only through its
+    /// bounded conversational gap; unrelated system audio cannot extend it.
+    private func keepsActiveSessionForPendingHandoff(
+        in running: [NSRunningApplication],
+        freshCandidateBundleID: String?,
+        calendarBacked: Bool,
+        now: Date
+    ) -> Bool {
+        // Browser replacements use `browserStart`; do not reset that separate
+        // gate merely because there is no native-audio confirmation window.
+        guard let pending = startConfirmation.window else { return false }
+        guard Self.requiresSustainedAudioForStart(
+                bundleID: pending.bundleID,
+                calendarBacked: calendarBacked),
+              Self.nativeApp(bundleID: pending.bundleID, in: running) != nil,
+              MeetingMatcher.shouldKeepActiveSessionForPendingHandoff(
+                confirmationWindow: pending,
+                freshCandidateBundleID: freshCandidateBundleID,
+                runningMeetingBundleIDs: Set(running.compactMap { app -> String? in
+                    guard let bundleID = app.bundleIdentifier,
+                          Self.knownApps[bundleID] != nil else { return nil }
+                    return bundleID
+                }),
+                now: now,
+                gapTolerance: Self.nativeAudioConfirmationGapTolerance) else {
+            clearPendingStart()
+            return false
+        }
+        let gapRemaining = Self.nativeAudioConfirmationGapTolerance
+            - now.timeIntervalSince(pending.lastAudioSeenAt)
+        let confirmationRemaining = Self.nativeAudioMinimumConfirmationDuration
+            - now.timeIntervalSince(pending.firstSeenAt)
+        // Replace the ordinary start recheck with the earlier handoff boundary.
+        // Otherwise a callback queued for the 12-second confirmation point can
+        // let a one-frame candidate hold the old recording past its 6-second
+        // audio-gap lease.
+        cancelPendingStartRecheck()
+        scheduleStartConfirmationRecheck(
+            after: confirmationRemaining > 0
+                ? min(gapRemaining, confirmationRemaining)
+                : gapRemaining,
+            generation: pending.generation)
+        return true
     }
 
     /// Logs a start-decision state once per change. The detector otherwise
@@ -673,6 +734,7 @@ final class MeetingDetector {
         activeCalendarEvent = nil
         continuationLease.reset()
         pendingStop = nil
+        browserVisibilitySuspended = false
         onMeetingEnded?(event)
     }
 
@@ -695,6 +757,17 @@ final class MeetingDetector {
             grace: max(Self.browserObservationGrace, max(0, stopDebounce)),
             hostReconnectGrace: Self.browserHostReconnectGrace)
         switch decision {
+        case .visibilitySuspended:
+            // A known minimized window belongs to the bound call, but it cannot
+            // expose live call controls. Preserve the session without treating
+            // the title/window observation as fresh call evidence.
+            browserVisibilitySuspended = true
+            if browserObservationLostAt == nil {
+                browserObservationLostAt = now
+                lokalbotLog("browser lifecycle observation suspended: bound window minimized")
+            }
+            pendingStop?.cancel()
+            pendingStop = nil
         case .inCall:
             if let lostAt = browserObservationLostAt {
                 lokalbotLog(
@@ -702,6 +775,7 @@ final class MeetingDetector {
                         + String(format: "%.1fs", now.timeIntervalSince(lostAt)))
             }
             browserObservationLostAt = nil
+            browserVisibilitySuspended = false
             pendingStop?.cancel()
             pendingStop = nil
             detectedContentEnd = nil
@@ -714,7 +788,8 @@ final class MeetingDetector {
             }
         case .endImmediately:
             browserObservationLostAt = nil
-            detectedContentEnd = lastBrowserEvidenceAt ?? now
+            detectedContentEnd = browserVisibilitySuspended ? now : (lastBrowserEvidenceAt ?? now)
+            browserVisibilitySuspended = false
             pendingStop?.cancel()
             pendingStop = nil
             scheduleStopIfNeeded(
@@ -722,7 +797,10 @@ final class MeetingDetector {
                 immediately: true,
                 reason: host == nil ? "browser-host-missing" : "browser-ended")
         case .endAfterGrace:
-            detectedContentEnd = lastBrowserEvidenceAt ?? browserObservationLostAt ?? now
+            detectedContentEnd = browserVisibilitySuspended
+                ? now
+                : (lastBrowserEvidenceAt ?? browserObservationLostAt ?? now)
+            browserVisibilitySuspended = false
             let reason = host == nil
                 ? "browser-host-reconnect-grace-expired"
                 : "browser-observation-grace-expired"

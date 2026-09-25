@@ -26,8 +26,6 @@ enum CotypingAXHelper {
     /// it so capped-window comparisons can never drift from the AX read path.
     static let maxPrecedingCharacters =
         CotypingAcceptanceContentBounds.maximumPrecedingUTF16Length
-    private static let maxTrailingCharacters =
-        CotypingAcceptanceContentBounds.maximumTrailingUTF16Length
 
     private static let selectedTextMarkerRangeAttribute = "AXSelectedTextMarkerRange" as CFString
     private static let markedTextMarkerRangeAttribute = "AXTextInputMarkedTextMarkerRange" as CFString
@@ -66,6 +64,7 @@ enum CotypingAXHelper {
     private final class CacheState: @unchecked Sendable {
         let lock = NSLock()
         var fieldStyles: [String: CotypingFieldStyle] = [:]
+        var appReadPolicy = CotypingAppReadPolicy()
         let surfaceCaptures = CotypingSurfaceCaptureSingleFlight()
         let urlCaptures = CotypingSurfaceCaptureSingleFlight()
         var primedWebAccessibilityPIDs: Set<pid_t> = []
@@ -81,6 +80,20 @@ enum CotypingAXHelper {
     }
 
     private static let cacheState = CacheState()
+
+    @discardableResult
+    static func configureAppReadPolicy(_ policy: CotypingAppReadPolicy) -> Bool {
+        cacheState.withLock {
+            let changed = cacheState.appReadPolicy != policy
+            cacheState.appReadPolicy = policy
+            return changed
+        }
+    }
+
+    private static var appReadPolicy: CotypingAppReadPolicy {
+        cacheState.withLock { cacheState.appReadPolicy }
+    }
+
     /// URL authorization is deliberately much fresher than prompt surface
     /// metadata. It is captured only when site exclusions are configured.
     private static let domainURLCaptureMaximumAgeSeconds: TimeInterval = 0.25
@@ -174,6 +187,7 @@ enum CotypingAXHelper {
 
         guard let frontmost = NSWorkspace.shared.frontmostApplication,
               frontmost.processIdentifier == cachedField.processID,
+              appReadPolicy.allows(appName: frontmost.localizedName ?? "", bundleID: frontmost.bundleIdentifier),
               cachedField.bundleID == nil || frontmost.bundleIdentifier == cachedField.bundleID,
               withinDeadline(),
               let element = focusedElementForAcceptance(processID: cachedField.processID),
@@ -200,16 +214,17 @@ enum CotypingAXHelper {
             return unavailable
         }
 
-        guard let content = boundedAcceptanceContent(
-            on: element,
-            withinDeadline: withinDeadline),
-              withinDeadline() else {
+        guard let content = appReadPolicy.readIfAllowed(
+            appName: frontmost.localizedName ?? "", bundleID: frontmost.bundleIdentifier, {
+                boundedAcceptanceContent(on: element, withinDeadline: withinDeadline)
+            }), withinDeadline() else {
             return unavailable
         }
         var liveField = cachedField
         liveField.focusIdentityKey = liveIdentity
         liveField.precedingText = content.precedingText
         liveField.trailingText = content.trailingText
+        liveField.precedingTextIsTruncated = content.precedingIsTruncated
         liveField.selectionLength = content.selectionLength
         return CotypingAXAcceptanceSnapshot(
             field: liveField,
@@ -221,21 +236,23 @@ enum CotypingAXHelper {
     /// synchronous inside this implementation, but routine callers isolate them
     /// behind `CotypingAXSnapshotExecutor`. Accept-key validation uses the bounded
     /// `resolveAcceptanceSnapshot(cachedField:)` path instead.
-    static func resolveFocus(includeSurface: Bool = false, includeURL: Bool = false, includeStyle: Bool = false) -> CotypingFocus {
+    static func resolveFocus(includeSurface: Bool = false, includeURL: Bool = false,
+                             includeStyle: Bool = false, includeLearningScope: Bool = false) -> CotypingFocus {
         guard isTrusted else {
             return CotypingFocus(appName: "", bundleID: nil,
                                  capability: .unsupported("Accessibility permission needed."),
                                  field: nil)
         }
-        if let frontmost = NSWorkspace.shared.frontmostApplication {
-            primeWebAccessibilityIfNeeded(application: frontmost)
-        }
-        guard let element = focusedElement() else { return .none }
-
-        let owner = owningApp(of: element)
-        let appName = owner?.name ?? ""
-        let bundleID = owner?.bundleID
-        let pid = owner?.pid ?? 0
+        guard let frontmost = NSWorkspace.shared.frontmostApplication,
+              appReadPolicy.allows(appName: frontmost.localizedName ?? "", bundleID: frontmost.bundleIdentifier)
+        else { return .none }
+        primeWebAccessibilityIfNeeded(application: frontmost)
+        guard let element = focusedElement(), let owner = owningApp(of: element),
+              owner.pid == frontmost.processIdentifier,
+              appReadPolicy.allows(appName: owner.name, bundleID: owner.bundleID) else { return .none }
+        let appName = owner.name
+        let bundleID = owner.bundleID
+        let pid = owner.pid
 
         let role = stringAttribute(element, kAXRoleAttribute as String) ?? ""
         let subrole = stringAttribute(element, kAXSubroleAttribute as String)
@@ -264,11 +281,18 @@ enum CotypingAXHelper {
                                  capability: .unsupported("Not an editable text field."), field: nil)
         }
 
-        let nativeSelection = selectionRange(element)
-        let markerSelection = nativeSelection == nil ? synthesizeMarkerSelection(on: element) : nil
+        let content = appReadPolicy.readIfAllowed(appName: appName, bundleID: bundleID) {
+            let native = selectionRange(element)
+            let marker = native == nil ? synthesizeMarkerSelection(on: element) : nil
+            return (native: native, marker: marker,
+                    value: marker?.text ?? stringAttribute(element, kAXValueAttribute as String))
+        }
+        guard let content else { return .none }
+        let nativeSelection = content.native
+        let markerSelection = content.marker
         let usesMarkerSelection = markerSelection != nil
 
-        guard let value = markerSelection?.text ?? stringAttribute(element, kAXValueAttribute as String) else {
+        guard let value = content.value else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Not an editable text field."), field: nil)
         }
@@ -286,10 +310,10 @@ enum CotypingAXHelper {
 
         let nsValue = value as NSString
         let caret = max(0, min(selection.location, nsValue.length))
-        let precedingFull = nsValue.substring(to: caret)
-        let trailingFull = nsValue.substring(from: caret)
-        let preceding = String(precedingFull.suffix(maxPrecedingCharacters))
-        let trailing = String(trailingFull.prefix(maxTrailingCharacters))
+        guard let context = markerSelection?.context ?? CotypingAcceptanceContentBounds.context(
+            in: value, selection: NSRange(location: caret, length: 0)) else { return .none }
+        let preceding = context.preceding
+        let trailing = context.trailing
 
         let (caretRect, exact) = CotypingAXGeometryResolver.caretRect(
             element,
@@ -332,7 +356,10 @@ enum CotypingAXHelper {
             selectionLength: selection.length, caretRect: caretRect,
             inputFrameRect: inputFrameRect,
             isSecure: false, isIntegratedTerminal: isIntegratedTerminal, caretIsExact: exact,
-            windowTitle: surfaceTitle, fieldPlaceholder: surfacePlaceholder, fieldStyle: resolvedStyle)
+            windowTitle: surfaceTitle, fieldPlaceholder: surfacePlaceholder, fieldStyle: resolvedStyle,
+            precedingTextIsTruncated: context.precedingIsTruncated,
+            learningScopeKey: includeLearningScope
+                ? learningScopeKey(near: element, bundleID: bundleID) : nil)
         return CotypingFocus(appName: appName, bundleID: bundleID, capability: .supported,
                              field: field, focusIdentityKey: focusIdentityKey, host: host)
     }
@@ -574,6 +601,35 @@ enum CotypingAXHelper {
         return stringAttribute(raw as! AXUIElement, kAXTitleAttribute as String)
     }
 
+    private static func learningScopeKey(near element: AXUIElement, bundleID: String?) -> String? {
+        let documentURL: String?
+        if CotypingLearningScope.nativeDocumentApps.contains(bundleID?.lowercased() ?? "") {
+            guard let raw = copyAttribute(element, kAXWindowAttribute as String),
+                  CFGetTypeID(raw) == AXUIElementGetTypeID(),
+                  let value = copyAttribute(raw as! AXUIElement, kAXDocumentAttribute as String) else { return nil }
+            documentURL = (value as? URL)?.absoluteString ?? (value as? String)
+        } else if CotypingSurfaceClassifier.classify(bundleID: bundleID) == .browser {
+            documentURL = learningDocumentURL(near: element)
+        } else {
+            return nil
+        }
+        return CotypingLearningScope.key(bundleID: bundleID, documentURLString: documentURL)
+    }
+
+    /// A link's AXURL is not the containing document's identity. Only a web
+    /// area's own URL can authorize learned text for a browser document.
+    private static func learningDocumentURL(near element: AXUIElement) -> String? {
+        var current = element
+        for _ in 0...6 {
+            if stringAttribute(current, kAXRoleAttribute as String) == "AXWebArea" {
+                return urlString(on: current)
+            }
+            guard let parent = parentElement(of: current) else { break }
+            current = parent
+        }
+        return nil
+    }
+
     private static func resolveSurfaceCapture(
         element: AXUIElement,
         processID: pid_t,
@@ -722,6 +778,14 @@ enum CotypingAXHelper {
         let precedingText: String
         let trailingText: String
         let selectionLength: Int
+        let precedingIsTruncated: Bool
+
+        init(context: CotypingTextContext) {
+            precedingText = context.preceding
+            trailingText = context.trailing
+            selectionLength = 0
+            precedingIsTruncated = context.precedingIsTruncated
+        }
     }
 
     /// Reads only the text windows needed for exact accept-time reconciliation.
@@ -771,10 +835,9 @@ enum CotypingAXHelper {
                precedingText: preceding,
                trailingText: trailing,
                ranges: ranges) {
-            return BoundedAcceptanceContent(
-                precedingText: preceding,
-                trailingText: trailing,
-                selectionLength: 0)
+            return BoundedAcceptanceContent(context: CotypingAcceptanceContentBounds.context(
+                precedingText: preceding, trailingText: trailing,
+                ranges: ranges, totalUTF16Length: totalLength))
         }
 
         // Some short native controls expose AXValue + AXSelectedTextRange but
@@ -793,10 +856,10 @@ enum CotypingAXHelper {
                   totalUTF16Length: nsValue.length) else {
             return nil
         }
-        return BoundedAcceptanceContent(
+        return BoundedAcceptanceContent(context: CotypingAcceptanceContentBounds.context(
             precedingText: nsValue.substring(with: ranges.preceding),
             trailingText: nsValue.substring(with: ranges.trailing),
-            selectionLength: 0)
+            ranges: ranges, totalUTF16Length: totalLength))
     }
 
     private static func boundedNativeString(
@@ -912,10 +975,9 @@ enum CotypingAXHelper {
                   ranges: ranges) else {
             return nil
         }
-        return BoundedAcceptanceContent(
-            precedingText: preceding,
-            trailingText: trailing,
-            selectionLength: 0)
+        return BoundedAcceptanceContent(context: CotypingAcceptanceContentBounds.context(
+            precedingText: preceding, trailingText: trailing,
+            ranges: ranges, totalUTF16Length: documentLength))
     }
 
     private static func textMarkerIndex(

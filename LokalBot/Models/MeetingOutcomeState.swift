@@ -11,12 +11,16 @@ enum OutcomeStatus: String, Codable, CaseIterable, Sendable {
 /// User-owned workflow state layered over immutable extracted outcomes.
 struct MeetingOutcomeState: Codable, Equatable, Sendable {
     static let fileName = "outcome-state.json"
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     struct ActionState: Codable, Equatable, Sendable {
         var status: OutcomeStatus
         var ownerOverride: String?
         var dueOverride: String?
+        /// Distinguish an explicit user clear from the absence of an override.
+        /// Nil overrides continue to inherit extracted values for legacy state.
+        var ownerWasCleared: Bool
+        var dueWasCleared: Bool
         var textCorrection: String?
         var textCorrectedAt: Date?
         var ownerCorrectedAt: Date?
@@ -29,15 +33,20 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
              dueOverride: String? = nil, textCorrection: String? = nil,
              updatedAt: Date = Date(), userEdited: Bool = false,
              textCorrectedAt: Date? = nil, ownerCorrectedAt: Date? = nil,
-             dueCorrectedAt: Date? = nil, isThreadExcluded: Bool = false) {
+             dueCorrectedAt: Date? = nil, isThreadExcluded: Bool = false,
+             ownerWasCleared: Bool = false, dueWasCleared: Bool = false) {
             self.status = status
             self.ownerOverride = ownerOverride
             self.dueOverride = dueOverride
+            self.ownerWasCleared = ownerWasCleared
+            self.dueWasCleared = dueWasCleared
             self.textCorrection = textCorrection
             self.updatedAt = updatedAt.outcomePersistedTimestamp
             self.textCorrectedAt = textCorrection.map { _ in (textCorrectedAt ?? updatedAt).outcomePersistedTimestamp }
-            self.ownerCorrectedAt = ownerOverride.map { _ in (ownerCorrectedAt ?? updatedAt).outcomePersistedTimestamp }
-            self.dueCorrectedAt = dueOverride.map { _ in (dueCorrectedAt ?? updatedAt).outcomePersistedTimestamp }
+            self.ownerCorrectedAt = (ownerOverride != nil || ownerWasCleared)
+                ? (ownerCorrectedAt ?? updatedAt).outcomePersistedTimestamp : nil
+            self.dueCorrectedAt = (dueOverride != nil || dueWasCleared)
+                ? (dueCorrectedAt ?? updatedAt).outcomePersistedTimestamp : nil
             self.isThreadExcluded = isThreadExcluded
             self.userEdited = userEdited
         }
@@ -45,6 +54,7 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
         private enum CodingKeys: String, CodingKey {
             case status, ownerOverride, dueOverride, textCorrection, updatedAt, userEdited
             case textCorrectedAt, ownerCorrectedAt, dueCorrectedAt, isThreadExcluded
+            case ownerWasCleared, dueWasCleared
         }
 
         init(from decoder: Decoder) throws {
@@ -52,6 +62,8 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
             status = try container.decodeIfPresent(OutcomeStatus.self, forKey: .status) ?? .open
             ownerOverride = try container.decodeIfPresent(String.self, forKey: .ownerOverride)
             dueOverride = try container.decodeIfPresent(String.self, forKey: .dueOverride)
+            ownerWasCleared = try container.decodeIfPresent(Bool.self, forKey: .ownerWasCleared) ?? false
+            dueWasCleared = try container.decodeIfPresent(Bool.self, forKey: .dueWasCleared) ?? false
             textCorrection = try container.decodeIfPresent(String.self, forKey: .textCorrection)
             updatedAt = (try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date())
                 .outcomePersistedTimestamp
@@ -60,12 +72,13 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
             textCorrectedAt = try container.decodeIfPresent(Date.self, forKey: .textCorrectedAt)
                 ?? (textCorrection == nil ? nil : updatedAt)
             ownerCorrectedAt = try container.decodeIfPresent(Date.self, forKey: .ownerCorrectedAt)
-                ?? (ownerOverride == nil ? nil : updatedAt)
+                ?? (ownerOverride == nil && !ownerWasCleared ? nil : updatedAt)
             dueCorrectedAt = try container.decodeIfPresent(Date.self, forKey: .dueCorrectedAt)
-                ?? (dueOverride == nil ? nil : updatedAt)
+                ?? (dueOverride == nil && !dueWasCleared ? nil : updatedAt)
             isThreadExcluded = try container.decodeIfPresent(Bool.self, forKey: .isThreadExcluded) ?? false
             userEdited = try container.decodeIfPresent(Bool.self, forKey: .userEdited)
                 ?? (status != .open || ownerOverride != nil || dueOverride != nil
+                    || ownerWasCleared || dueWasCleared
                     || textCorrection != nil || isThreadExcluded)
         }
     }

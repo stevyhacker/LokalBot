@@ -61,4 +61,15 @@ final class LibrarySearchTests: XCTestCase {
     func testNoMatchReturnsEmpty() throws {
         XCTAssertTrue(try LibrarySearch.hits(query: "zzzznotthere").isEmpty)
     }
+
+    func testUnicodeCaseExpansionUsesOriginalStringIndices() throws {
+        XCTAssertEqual(LibrarySearch.snippet(in: "İzmir budget", around: "BUDGET"), "İzmir budget")
+        XCTAssertEqual(LibrarySearch.snippet(in: "Cafe\u{301} and İZMİR Budget", around: "budget"),
+                       "Cafe\u{301} and İZMİR Budget")
+        try MeetingFixture.write([
+            .init(id: UUID(), title: "Unicode summary", startedAt: Date(),
+                  summary: "İzmir budget", transcriptLines: []),
+        ], under: root)
+        XCTAssertTrue(try LibrarySearch.hits(query: "BUDGET").contains { $0.snippet == "İzmir budget" })
+    }
 }

@@ -221,6 +221,13 @@ final class RecordingController: ObservableObject {
     private let settingsStore: SettingsStore
     private let audioMonitor: AudioSourceMonitor
     private let pipeline: ProcessingPipeline
+    private struct PendingFinalization {
+        var meeting: Meeting
+        var transcribe: Bool
+        var summarize: Bool
+        var metadataSaved = false
+    }
+    private var pendingFinalizations: [UUID: PendingFinalization] = [:]
     /// Surfaces user-facing problems (feeds `AppState.lastError`).
     /// Exposed so the presenter can withdraw exactly this message and never a
     /// newer, unrelated one.
@@ -371,7 +378,9 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    func prepareForTermination() {
+    @discardableResult
+    func prepareForTermination() -> Bool {
+        let retryable = Array(pendingFinalizations.values)
         transcriptionPrewarmTask?.cancel()
         transcriptionPrewarmTask = nil
         summaryPrewarmTask?.cancel()
@@ -380,7 +389,13 @@ final class RecordingController: ObservableObject {
         diarizationPrewarmTask = nil
         pendingSystemAudioCaptureTask?.cancel()
         pendingSystemAudioCaptureTask = nil
-        if isRecording || isStarting { stop(process: false) }
+        if isRecording || isStarting { stop(process: false, deferProcessing: true) }
+        for pending in retryable { _ = persistFinalization(pending, deferProcessing: true) }
+        return pendingFinalizations.isEmpty
+    }
+
+    func forgetFinalization(meetingIDs: Set<UUID>) {
+        for id in meetingIDs { pendingFinalizations.removeValue(forKey: id) }
     }
 
     // MARK: - Start / stop
@@ -571,7 +586,7 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    func stop(process: Bool = true, contentEndedAt: Date? = nil) {
+    func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false) {
         if isStarting {
             startTask?.cancel()
             pendingSystemAudioCaptureTask?.cancel()
@@ -636,14 +651,67 @@ final class RecordingController: ObservableObject {
            recordedDuration < wallDuration * 0.8 {
             onError("Recording saved, but only \(meeting.durationLabel) of audio was captured from a \(Self.formatMinutes(wallDuration)) session.")
         }
-        try? storage.saveMeta(meeting)
+        finalize(meeting, process: process, deferProcessing: deferProcessing)
+    }
+
+    /// Finalization is separate from device shutdown so persistence failures
+    /// and deferred work can be verified without opening a capture device.
+    @discardableResult
+    func finalize(_ meeting: Meeting, process: Bool, deferProcessing: Bool = false) -> Bool {
+        let endedAt = meeting.endedAt ?? Date()
+        let pending = PendingFinalization(meeting: meeting,
+            transcribe: (process || deferProcessing) && settings.autoTranscribe,
+            summarize: settings.autoSummarize)
+        pendingFinalizations[meeting.id] = pending
         lastCalendarEventID = meeting.calendarEventID
         lastCalendarEventEndedAt = endedAt
         currentMeeting = nil
         status = .idle
         detectorSessionID = nil
+        let saved = persistFinalization(pending, deferProcessing: deferProcessing)
         onMeetingFinished(meeting)
-        let willTranscribe = process && settings.autoTranscribe
+        return saved
+    }
+
+    private func persistFinalization(_ pending: PendingFinalization, deferProcessing: Bool) -> Bool {
+        var pending = pending
+        if let current = currentMetadata(for: pending.meeting) {
+            pending.meeting = Self.mergingFinalization(pending.meeting, into: current)
+            pendingFinalizations[pending.meeting.id] = pending
+        }
+        let meeting = pending.meeting
+        if !pending.metadataSaved {
+            do {
+                try storage.saveMeta(meeting)
+                pending.metadataSaved = true
+                pendingFinalizations[meeting.id] = pending
+            } catch {
+                onError("Capture stopped and audio was retained, but meeting details could not be saved: \(error.localizedDescription). Resolve the storage error, then retry quitting to save them.")
+                return false
+            }
+        }
+        if pending.transcribe {
+            let queued: Bool
+            if deferProcessing {
+                queued = pipeline.deferUntilNextLaunch(
+                    meeting,
+                    summarize: pending.summarize)
+            } else {
+                let outcome = pipeline.enqueue(
+                    meeting,
+                    transcribe: true,
+                    summarize: pending.summarize,
+                    origin: .automatic)
+                queued = outcome != .persistenceFailed && outcome != .revoked
+            }
+            guard queued else {
+                onError("Recording saved, but its processing job could not be saved. Resolve the storage error, then retry quitting to keep automatic processing queued.")
+                return false
+            }
+        }
+        pendingFinalizations.removeValue(forKey: meeting.id)
+        guard !deferProcessing else { return true }
+        let willTranscribe = pending.transcribe
         // The pipeline parks automatic jobs whose models are missing instead
         // of ambush-downloading them; the notification says so up front.
         let waitingForModels = willTranscribe
@@ -651,14 +719,41 @@ final class RecordingController: ObservableObject {
         if isInteractive() {
             RecordingNotifier.shared.recordingStopped(
                 title: meeting.title,
-                duration: meeting.recordedDuration ?? endedAt.timeIntervalSince(meeting.startedAt),
+                duration: meeting.recordedDuration ?? meeting.endedAt?.timeIntervalSince(meeting.startedAt) ?? 0,
                 willTranscribe: willTranscribe && !waitingForModels,
                 waitingForModels: waitingForModels)
         }
-        if willTranscribe {
-            pipeline.enqueue(meeting, transcribe: true, summarize: settings.autoSummarize,
-                             origin: .automatic)
+        return true
+    }
+
+    /// Reload the exact meeting before every retry. The retained value contains
+    /// stop-time facts, but its title, boundaries, and relationship metadata may
+    /// be older than edits made after the first persistence attempt failed.
+    private func currentMetadata(for meeting: Meeting) -> Meeting? {
+        let url = meeting.folderURL(in: storage).appendingPathComponent("meta.json")
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        guard let current = try? decoder.decode(Meeting.self, from: data),
+              current.id == meeting.id,
+              current.relativePath == meeting.relativePath else { return nil }
+        return current
+    }
+
+    /// Latest durable metadata wins for user-editable fields. Finalization fills
+    /// only capture facts that an older in-progress `meta.json` cannot know yet.
+    static func mergingFinalization(_ finalized: Meeting, into current: Meeting) -> Meeting {
+        guard finalized.id == current.id,
+              finalized.relativePath == current.relativePath else { return finalized }
+        var merged = current
+        let wasInProgress = merged.endedAt == nil
+        if wasInProgress {
+            merged.endedAt = finalized.endedAt
+            merged.hasSystemTrack = merged.hasSystemTrack || finalized.hasSystemTrack
+            if merged.recordedDuration == nil { merged.recordedDuration = finalized.recordedDuration }
+            if merged.contentRange == nil { merged.contentRange = finalized.contentRange }
         }
+        return merged
     }
 
     func splitForCalendarHandoff(_ context: MeetingDetectionContext) {

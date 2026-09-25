@@ -267,10 +267,24 @@ enum MediaPlaybackController {
         """
     }
 
-    private static func pauseHTMLMediaJavaScript(marker: String) -> String {
+    static func pauseHTMLMediaJavaScript(marker: String) -> String {
         let marker = javaScriptEscaped(marker)
         return """
-        (() => { let n = 0; for (const node of document.querySelectorAll('audio, video')) { try { if (!node.paused) { node.dataset.lokalbotDictationPaused = '\(marker)'; node.pause(); n++; } } catch (_) {} } return n; })()
+        (() => {
+          const host = location.hostname.toLowerCase();
+          const conferences = ['meet.google.com', 'teams.microsoft.com', 'teams.live.com',
+                               'zoom.us', 'webex.com', 'app.slack.com', 'discord.com'];
+          if (conferences.some(domain => host === domain || host.endsWith('.' + domain))) return 0;
+          let n = 0;
+          for (const node of document.querySelectorAll('audio, video')) {
+            try {
+              if (!node.paused && !node.srcObject && Number.isFinite(node.duration)) {
+                node.dataset.lokalbotDictationPaused = '\(marker)'; node.pause(); n++;
+              }
+            } catch (_) {}
+          }
+          return n;
+        })()
         """
         .replacingOccurrences(of: "\n", with: " ")
         .replacingOccurrences(of: "\"", with: "\\\"")

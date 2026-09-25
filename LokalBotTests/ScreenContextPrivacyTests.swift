@@ -57,7 +57,7 @@ final class ScreenContextPrivacyTests: XCTestCase {
         func allowed(_ value: ScreenContextPrivacy.Observation) -> Bool {
             ScreenContextPrivacy.permitsContent(
                 value, excludedApps: [], excludedDomains: ["private.test"],
-                capturePrivateWindows: false)
+                capturePrivateWindows: true)
         }
         XCTAssertFalse(allowed(observation), "An unreadable browser address cannot establish domain consent")
         observation.sourceURL = "https://private.test/account"
@@ -72,7 +72,42 @@ final class ScreenContextPrivacyTests: XCTestCase {
         observation.windowTitle = nil
         XCTAssertFalse(allowed(observation))
         observation.windowTitle = ""
-        XCTAssertFalse(allowed(observation), "An empty browser title cannot establish private-window status")
+        XCTAssertTrue(allowed(observation), "The browser opt-in explicitly accepts unverified private-window status")
+    }
+
+    func testUnknownBrowserModeRequiresExplicitOptInRegardlessOfTitleOrLocale() {
+        for title in ["Quarterly plan", "Privat", "Navigation privée", ""] {
+            let observation = ScreenContextPrivacy.Observation(
+                appName: "Safari", bundleIdentifier: "com.apple.Safari",
+                windowTitle: title, sourceURL: "https://public.test", focusedSecureField: false)
+            XCTAssertFalse(ScreenContextPrivacy.permitsContent(
+                observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: false))
+            XCTAssertTrue(ScreenContextPrivacy.permitsContent(
+                observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+        }
+    }
+
+    func testVisibleTextPolicyDoesNotReadWholeDocumentsOrClippedLabels() {
+        let viewport = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let frame = CGRect(x: 10, y: 10, width: 80, height: 80)
+        XCTAssertEqual(ScreenVisibleTextPolicy.text(
+            role: "AXTextArea", frame: frame, viewport: viewport, hidden: false,
+            title: "document title", visibleRangeText: "visible paragraph", staticValue: "entire document"),
+                       ["visible paragraph"])
+        XCTAssertEqual(ScreenVisibleTextPolicy.text(
+            role: "AXTextArea", frame: frame, viewport: viewport, hidden: false,
+            title: nil, visibleRangeText: nil, staticValue: "entire document"), [])
+        for bounds in [CGRect(x: 90, y: 90, width: 30, height: 30), CGRect(x: 200, y: 200, width: 30, height: 30)] {
+            XCTAssertEqual(ScreenVisibleTextPolicy.text(
+                role: "AXStaticText", frame: bounds, viewport: viewport, hidden: false,
+                title: "clipped", visibleRangeText: nil, staticValue: "hidden text"), [])
+        }
+        XCTAssertEqual(ScreenVisibleTextPolicy.text(
+            role: "AXStaticText", frame: frame, viewport: viewport, hidden: true,
+            title: "hidden", visibleRangeText: "hidden", staticValue: "hidden"), [])
+        XCTAssertEqual(ScreenVisibleTextPolicy.text(
+            role: "AXStaticText", frame: frame, viewport: nil, hidden: false,
+            title: "unknown viewport", visibleRangeText: nil, staticValue: "hidden"), [])
     }
 
     func testDomainRulesAllowNativeDocumentsButRejectUnknownEmbeddedWebOrigins() {

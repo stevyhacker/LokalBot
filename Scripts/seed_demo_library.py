@@ -13,15 +13,19 @@ Also seeds:
   - activity_blocks      several weekdays of day-timeline data
 
 Usage:
-    python3 Scripts/seed_demo_library.py <storage-root>
+    python3 Scripts/seed_demo_library.py [--reset] <storage-root>
+
+By default the destination must be new or empty. ``--reset`` is accepted only
+for a directory previously marked as a LokalBot demo library.
 
 Point the app at <storage-root> via LOKALBOT_STORAGE_ROOT. See
 Scripts/capture-screenshots.sh for the full capture flow.
 """
-import json, math, os, re, shutil, sqlite3, struct, subprocess, sys, time, wave, zlib
+import argparse, json, math, os, re, shutil, sqlite3, struct, subprocess, sys, time, wave, zlib
 from datetime import datetime, timezone, timedelta
 
 ENGINE = "on-device demo"
+OWNERSHIP_MARKER = ".lokalbot-demo-library"
 
 # Stable ids so chat citations and capture scripts can reference meetings.
 DESIGN_REVIEW = "11111111-1111-4111-8111-111111111111"
@@ -579,12 +583,24 @@ def seed_activity(root):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print(__doc__)
-        sys.exit(1)
-    root = sys.argv[1]
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--reset", action="store_true",
+                        help="replace an existing directory created by this script")
+    parser.add_argument("storage_root")
+    args = parser.parse_args()
+    root = os.path.abspath(args.storage_root)
+    marker = os.path.join(root, OWNERSHIP_MARKER)
     if os.path.exists(root):
-        shutil.rmtree(root)
+        entries = os.listdir(root)
+        if entries:
+            if not args.reset:
+                raise SystemExit(f"Refusing to overwrite populated directory: {root}")
+            if not os.path.isfile(marker):
+                raise SystemExit(f"Refusing to reset unowned directory: {root}")
+            shutil.rmtree(root)
+    os.makedirs(root, exist_ok=True)
+    with open(marker, "w", encoding="utf-8") as owned:
+        owned.write("LokalBot synthetic demo library\n")
     os.makedirs(os.path.join(root, "meetings"), exist_ok=True)
     now = datetime.now(timezone.utc)
     for mm in build(now):

@@ -55,6 +55,40 @@ final class LokalBotCLIInstallerTests: XCTestCase {
         XCTAssertTrue(installer.isInstalled)
     }
 
+    func testInstallPreservesForeignPathsBeforeChangingAnyDestination() throws {
+        for mode in [LokalBotCLIInstaller.SkillMode.symlink, .copy] {
+            try FileManager.default.createDirectory(at: installer.claudeSkillLink, withIntermediateDirectories: true)
+            let userScript = installer.claudeSkillLink.appendingPathComponent("my-script.sh")
+            try Data("my script".utf8).write(to: userScript)
+            XCTAssertThrowsError(try installer.install(skillMode: mode))
+            XCTAssertEqual(try String(contentsOf: userScript, encoding: .utf8), "my script")
+            XCTAssertFalse(isSymlink(installer.binLink))
+            XCTAssertFalse(isSymlink(installer.skillLink))
+        }
+    }
+
+    func testInstallPreservesForeignAndBrokenBinaryLinks() throws {
+        try FileManager.default.createDirectory(at: installer.binLink.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: installer.binLink.path, withDestinationPath: "/missing/user-helper")
+        XCTAssertThrowsError(try installer.install())
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: installer.binLink.path), "/missing/user-helper")
+    }
+
+    func testFailedPreparationKeepsExistingInstallation() throws {
+        try installer.install(skillMode: .copy)
+        let original = try Data(contentsOf: installer.skillLink.appendingPathComponent("SKILL.md"))
+        try FileManager.default.removeItem(at: skillDir)
+        XCTAssertThrowsError(try installer.install(skillMode: .copy))
+        XCTAssertEqual(try Data(contentsOf: installer.skillLink.appendingPathComponent("SKILL.md")), original)
+        XCTAssertTrue(isSymlink(installer.binLink))
+    }
+
+    func testOwnedCopiesCanBeUpgradedToLinks() throws {
+        try installer.install(skillMode: .copy)
+        try installer.install()
+        XCTAssertTrue(installer.isInstalled)
+    }
+
     func testCopyModeCopiesSkillDirsWithMarker() throws {
         try installer.install(skillMode: .copy)
         XCTAssertTrue(isSymlink(installer.binLink))

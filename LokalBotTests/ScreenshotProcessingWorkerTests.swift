@@ -6,6 +6,41 @@ import XCTest
 
 @MainActor
 final class ScreenshotProcessingWorkerTests: XCTestCase {
+    func testCaptureConsentRejectsPauseRoundTripAndSettingsChanges() {
+        var settings = AppSettings()
+        settings.trackingEnabled = true
+        settings.screenContextCaptureMode = .visualContext
+        let consent = ScreenshotCaptureConsent(generation: 1, pauseRevision: 4, settings: settings)
+        XCTAssertTrue(consent.permits(current: consent, paused: false, cancelled: false))
+        XCTAssertFalse(consent.permits(current: consent, paused: true, cancelled: false))
+        XCTAssertFalse(consent.permits(current: consent, paused: false, cancelled: true))
+        XCTAssertFalse(consent.permits(current: .init(generation: 2, pauseRevision: 4, settings: settings),
+                                       paused: false, cancelled: false))
+        XCTAssertFalse(consent.permits(current: .init(generation: 1, pauseRevision: 6, settings: settings),
+                                       paused: false, cancelled: false), "Resume does not revive a pre-pause capture")
+        settings.excludedApps += ",Notes"
+        XCTAssertFalse(consent.permits(current: .init(generation: 1, pauseRevision: 4, settings: settings),
+                                       paused: false, cancelled: false))
+    }
+
+    func testStagedCaptureEncryptsWithoutWritingBeforeConsentCommit() async throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("uncommitted-\(UUID()).enc")
+        let image = try XCTUnwrap(Self.onePixelImage())
+        let plaintext = Data("fixture pixels".utf8)
+        let key = SymmetricKey(size: .bits256)
+        let worker = ScreenshotProcessingWorker(dependencies: .init(
+            contentHash: { _ in Data(repeating: 1, count: 32) },
+            heicData: { _ in plaintext }, recognizeText: { _ in "fixture text" },
+            write: { _, _ in XCTFail("Staging must not persist before authorization is rechecked") }))
+        let outcome = try await worker.process(.init(
+            image: image, trigger: .manual, key: key, fileURL: file, stageOnly: true))
+        guard case .stored(let staged) = outcome else { return XCTFail("Expected staged pixels") }
+        let bytes = try XCTUnwrap(staged.sealedPixels)
+        XCTAssertNotEqual(bytes, plaintext)
+        XCTAssertEqual(try AES.GCM.open(AES.GCM.SealedBox(combined: bytes), using: key), plaintext)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
     func testRetentionScheduleRunsDailyAndRespondsToPrivacyChanges() {
         var schedule = ScreenshotRetentionSchedule()
         let start = Date(timeIntervalSince1970: 1_700_000_000)

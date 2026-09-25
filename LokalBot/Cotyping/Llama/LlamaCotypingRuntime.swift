@@ -139,7 +139,10 @@ actor LlamaCotypingRuntime {
         // if this load would push total resident weights past the budget.
         let loadReservation = await ModelResidency.shared.willLoad(
             id: Self.residencyID,
-            bytes: ModelResidency.weightBytes(at: URL(fileURLWithPath: modelPath)))
+            bytes: ModelResidency.weightBytes(at: URL(fileURLWithPath: modelPath)),
+            currentReservedBytes: {
+                Int64(clamping: ModelRuntimeRegistry.shared.totalEstimatedBytes)
+            })
         await postLoadAdmissionHook()
         do {
             try requireActiveLoad(epoch: loadEpoch)
@@ -367,10 +370,6 @@ actor LlamaCotypingRuntime {
         }
     }
 
-    private func piece(for token: Int32) -> String {
-        String(decoding: pieceBytes(for: token), as: UTF8.self)
-    }
-
     private func pieceBytes(for token: Int32) -> [UInt8] {
         guard let vocab else { return [] }
         var buf = [CChar](repeating: 0, count: 64)
@@ -514,6 +513,7 @@ actor LlamaCotypingRuntime {
         }
 
         var output = ""
+        var textDecoder = CotypingUTF8TokenDecoder()
         var pos = Int32(promptTokens.count)
 
         // Constrained phase: force-decode the healed word fragment. Each step
@@ -537,9 +537,9 @@ actor LlamaCotypingRuntime {
                 remaining = remaining.dropFirst(count)
             case .overshoots(let extraBytes):
                 remaining = remaining.dropFirst(remaining.count)
-                let text = String(decoding: extraBytes, as: UTF8.self)
+                guard let text = textDecoder.append(extraBytes) else { return "" }
                 output += text
-                if !onToken(text) { constraintStopped = true }
+                if !text.isEmpty, !onToken(text) { constraintStopped = true }
             case .mismatch:
                 return ""   // constrainedToken guarantees a match; defensive.
             }
@@ -556,9 +556,9 @@ actor LlamaCotypingRuntime {
             let tok = llama_sampler_sample(sampler, ctx, -1)
             if llama_vocab_is_eog(vocab, tok) { break }
             llama_sampler_accept(sampler, tok)
-            let text = piece(for: tok)
+            guard let text = textDecoder.append(pieceBytes(for: tok)) else { return "" }
             output += text
-            if !onToken(text) { break }
+            if !text.isEmpty, !onToken(text) { break }
             // A mid-generation decode failure discards the partial output and
             // propagates so the selector falls back to HTTP, rather than
             // surfacing a truncated ghost as if it were a complete suggestion.

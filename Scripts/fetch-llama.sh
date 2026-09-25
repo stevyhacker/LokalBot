@@ -13,6 +13,28 @@ SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
 SOURCE_SHA256=ef3d5b1907a391500ae11b5e61a8e2022e0deaac9790899cad9c4e02f03bfb9a
 SERVER_DIR=Vendor/llama-cpp
 BUILD_MARKER="$TAG-macos$DEPLOYMENT_TARGET-arm64-generic-loader-rpath"
+RUNTIME_MANIFEST=.lokalbot-runtime.sha256
+REQUIRED_RUNTIME_FILES=(
+  llama-server
+  libllama.dylib
+  libllama.0.dylib
+  libggml.dylib
+  libggml.0.dylib
+  libggml-base.dylib
+  libggml-base.0.dylib
+  libggml-cpu.dylib
+  libggml-cpu.0.dylib
+  libggml-blas.dylib
+  libggml-blas.0.dylib
+  libggml-metal.dylib
+  libggml-metal.0.dylib
+  libllama-common.dylib
+  libllama-common.0.dylib
+  libllama-server-impl.dylib
+  libmtmd.dylib
+  libmtmd.0.dylib
+  include/llama.h
+)
 
 verify_sha256() {
   local actual
@@ -25,10 +47,106 @@ verify_sha256() {
   fi
 }
 
+validate_runtime_layout() {
+  local root="$1"
+  local relative file minos
+  for relative in "${REQUIRED_RUNTIME_FILES[@]}"; do
+    if [ ! -s "$root/$relative" ]; then
+      echo "fetch-llama: required runtime file is missing: $relative" >&2
+      return 1
+    fi
+  done
+  if [ ! -x "$root/llama-server" ]; then
+    echo "fetch-llama: llama-server is not executable" >&2
+    return 1
+  fi
+
+  # Verify every runtime object advertises the same supported minimum before it
+  # enters the app bundle. This fails closed if a future CMake change ignores the
+  # deployment target.
+  for file in "$root/llama-server" "$root"/*.dylib; do
+    minos=$(otool -l "$file" | awk '/minos/{print $2; exit}')
+    if [ "$minos" != "$DEPLOYMENT_TARGET" ]; then
+      echo "fetch-llama: $file has minimum macOS $minos, expected $DEPLOYMENT_TARGET" >&2
+      return 1
+    fi
+
+    if ! otool -l "$file" | awk '
+      /cmd LC_RPATH/ { in_rpath = 1; next }
+      in_rpath && /path @loader_path / { found = 1 }
+      in_rpath && /path / { in_rpath = 0 }
+      END { exit found ? 0 : 1 }
+    '; then
+      echo "fetch-llama: $file does not use the bundle-relative @loader_path rpath" >&2
+      return 1
+    fi
+  done
+}
+
+write_runtime_receipt() {
+  local root="$1"
+  local manifest="$root/$RUNTIME_MANIFEST"
+  local digest
+  (
+    cd "$root"
+    find . \( -type f -o -type l \) \
+      ! -name .lokalbot-build ! -name "$RUNTIME_MANIFEST" -print \
+      | LC_ALL=C sort \
+      | while IFS= read -r file; do shasum -a 256 "$file"; done
+  ) > "$manifest"
+  test -s "$manifest"
+  digest=$(shasum -a 256 "$manifest" | cut -d' ' -f1)
+  printf '%s\n%s\n' "$BUILD_MARKER" "$digest" > "$root/.lokalbot-build"
+}
+
+validate_runtime_receipt() {
+  local root="$1"
+  local marker="$root/.lokalbot-build"
+  local manifest="$root/$RUNTIME_MANIFEST"
+  local expected actual listed_files runtime_files
+  [ "$(sed -n '1p' "$marker" 2>/dev/null || true)" = "$BUILD_MARKER" ] || return 1
+  expected=$(sed -n '2p' "$marker" 2>/dev/null || true)
+  [[ "$expected" =~ ^[0-9a-f]{64}$ ]] || {
+    echo "fetch-llama: runtime receipt is missing its manifest digest" >&2
+    return 1
+  }
+  [ -s "$manifest" ] || {
+    echo "fetch-llama: runtime content manifest is missing" >&2
+    return 1
+  }
+  actual=$(shasum -a 256 "$manifest" | cut -d' ' -f1)
+  [ "$actual" = "$expected" ] || {
+    echo "fetch-llama: runtime manifest does not match its build marker" >&2
+    return 1
+  }
+  if ! (cd "$root" && shasum -a 256 -c "$RUNTIME_MANIFEST" >/dev/null); then
+    echo "fetch-llama: cached runtime content failed verification" >&2
+    return 1
+  fi
+  listed_files=$(awk '{ sub(/^[0-9a-f]+[[:space:]]+/, ""); print }' "$manifest" | LC_ALL=C sort)
+  runtime_files=$(
+    cd "$root"
+    find . \( -type f -o -type l \) \
+      ! -name .lokalbot-build ! -name "$RUNTIME_MANIFEST" -print \
+      | LC_ALL=C sort
+  )
+  if [ "$listed_files" != "$runtime_files" ]; then
+    echo "fetch-llama: cached runtime inventory does not match its manifest" >&2
+    return 1
+  fi
+}
+
+validate_runtime() {
+  validate_runtime_layout "$1" && validate_runtime_receipt "$1"
+}
+
 if [ -x "$SERVER_DIR/llama-server" ] \
-   && [ "$(cat "$SERVER_DIR/.lokalbot-build" 2>/dev/null || true)" = "$BUILD_MARKER" ]; then
-  echo "fetch-llama: compatible vendor already present"
-  exit 0
+   && [ "$(sed -n '1p' "$SERVER_DIR/.lokalbot-build" 2>/dev/null || true)" = "$BUILD_MARKER" ]; then
+  if validate_runtime "$SERVER_DIR"; then
+    echo "fetch-llama: compatible vendor already present"
+    exit 0
+  fi
+  echo "fetch-llama: cached vendor is incomplete or changed; rebuilding" >&2
 fi
 
 command -v cmake >/dev/null || {
@@ -65,7 +183,10 @@ cmake -S "$tmp/source" -B "$tmp/build" \
   -DLLAMA_OPENSSL=OFF
 cmake --build "$tmp/build" --config Release --target llama-server --parallel
 
-rm -rf "$SERVER_DIR"
+FINAL_SERVER_DIR="$SERVER_DIR"
+mkdir -p "$(dirname "$SERVER_DIR")"
+SERVER_DIR=$(mktemp -d "$SERVER_DIR.staging.XXXXXX")
+trap 'rm -rf "$tmp" "$SERVER_DIR"' EXIT
 mkdir -p "$SERVER_DIR/include"
 cp "$tmp/build/bin/llama-server" "$SERVER_DIR/"
 cp "$tmp/build/bin"/*.dylib "$SERVER_DIR/"
@@ -98,27 +219,15 @@ module LlamaCore {
 }
 EOF
 
-printf '%s\n' "$BUILD_MARKER" > "$SERVER_DIR/.lokalbot-build"
-
-# Verify every runtime object advertises the same supported minimum before it
-# enters the app bundle. This fails closed if a future CMake change ignores the
-# deployment target.
-for file in "$SERVER_DIR/llama-server" "$SERVER_DIR"/*.dylib; do
-  minos=$(otool -l "$file" | awk '/minos/{print $2; exit}')
-  if [ "$minos" != "$DEPLOYMENT_TARGET" ]; then
-    echo "fetch-llama: $file has minimum macOS $minos, expected $DEPLOYMENT_TARGET" >&2
-    exit 1
-  fi
-
-  if ! otool -l "$file" | awk '
-    /cmd LC_RPATH/ { in_rpath = 1; next }
-    in_rpath && /path @loader_path / { found = 1 }
-    in_rpath && /path / { in_rpath = 0 }
-    END { exit found ? 0 : 1 }
-  '; then
-    echo "fetch-llama: $file does not use the bundle-relative @loader_path rpath" >&2
-    exit 1
-  fi
-done
+validate_runtime_layout "$SERVER_DIR"
+write_runtime_receipt "$SERVER_DIR"
+validate_runtime "$SERVER_DIR"
+# Publish only a fully validated build; a failed attempt leaves the prior
+# vendor directory and its marker untouched.
+if [ -e "$FINAL_SERVER_DIR" ]; then mv "$FINAL_SERVER_DIR" "$tmp/previous"; fi
+if ! mv "$SERVER_DIR" "$FINAL_SERVER_DIR"; then
+  if [ -e "$tmp/previous" ]; then mv "$tmp/previous" "$FINAL_SERVER_DIR"; fi
+  exit 1
+fi
 
 echo "fetch-llama: compatible vendor ready"

@@ -76,6 +76,7 @@ enum ChatAction: Equatable {
 struct ChatToolResult: Sendable {
     let text: String
     let summary: String
+    var evidence = ChatEvidence()
 }
 
 /// UI-facing progress events emitted while the agent runs.
@@ -111,13 +112,14 @@ enum ChatPrompt {
     }
 
     static func systemPrompt(tools: [ChatToolSpec], libraryOverview: String,
-                             workMemory: String = "") -> String {
+                             workMemory: String = "",
+                             inferencePrivacy: String = "Inference uses the selected backend, which may be local or remote. Do not claim that all processing stays on this Mac.") -> String {
         var lines: [String] = []
         lines.append("""
         You are LokalBot's assistant. You answer questions about the user's \
         on-device meeting recordings, transcripts and summaries, and about their \
-        workday context — text seen on screen and time spent in apps. Everything is \
-        local and private. Be concise and specific, and cite meetings by their title \
+        workday context — text seen on screen and time spent in apps. The source library \
+        is stored on this Mac. \(inferencePrivacy) Be concise and specific, and cite meetings by their title \
         and date. Never invent content — if the tools return nothing relevant, say \
         so plainly.
         """)
@@ -154,14 +156,15 @@ enum ChatPrompt {
         • When part of your final answer comes from a specific meeting, append a \
         citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] \
         to point at a moment in the transcript. Use the exact meeting id a tool returned \
-        — never invent one. The app renders markers as links; don't explain them.
+        — never invent one. Use only a timestamp explicitly returned in an observation. \
+        The app renders markers as links; don't explain them.
         • When part of your final answer comes from search_screen, append the exact \
         [screen:ID] marker that search_screen returned. The app renders it as a private, \
         local thumbnail linking to that captured moment. Never invent a screen id.
         """)
         if !libraryOverview.isEmpty {
             lines.append("")
-            lines.append("Current meeting library (for reference):")
+            lines.append("Current meeting library (navigation metadata only; call a tool before citing or describing meeting contents):")
             lines.append(libraryOverview)
         }
         if !workMemory.isEmpty {
@@ -174,6 +177,17 @@ enum ChatPrompt {
             lines.append(workMemory)
         }
         return lines.joined(separator: "\n")
+    }
+
+    static func inferencePrivacy(for engine: TextEngine) -> String {
+        if let leased = engine as? LeasedTextEngine { return inferencePrivacy(for: leased.base) }
+        if engine is AppleIntelligenceEngine { return "This response uses an on-device model." }
+        let url = (engine as? OpenAICompatibleEngine)?.baseURL ?? (engine as? OllamaEngine)?.baseURL
+        guard let url else { return "The inference location is unspecified; do not claim that all processing stays on this Mac." }
+        if InferenceEndpointPolicy.isLoopback(url) {
+            return "This response uses a server on this Mac. Its operator controls any onward processing."
+        }
+        return "This response uses the user-approved remote inference server at \(url.host ?? "the configured host"). Questions and supplied context are sent there; do not claim that all processing stays on this Mac."
     }
 
     /// Interpret one model turn. Treated as a tool call only when the output
@@ -504,6 +518,7 @@ struct ChatAgent {
     /// Ambient work-memory context (see `ChatPrompt.workMemoryContext`);
     /// empty when dreaming is off or has nothing yet.
     var workMemory = ""
+    var initialEvidence = ChatEvidence()
 
     struct Turn: Equatable {
         let role: ChatRole
@@ -517,13 +532,16 @@ struct ChatAgent {
         let toolNames = Set(runner.specs.map(\.name))
         let system = ChatPrompt.systemPrompt(tools: runner.specs,
                                              libraryOverview: runner.libraryOverview(),
-                                             workMemory: workMemory)
+                                             workMemory: workMemory,
+                                             inferencePrivacy: ChatPrompt.inferencePrivacy(for: engine))
+        var evidence = initialEvidence
         var transcript: [String] = history.suffix(historyWindow).map {
             "\($0.role == .user ? "User" : "Assistant"): \($0.text)"
         }
         transcript.append("User: \(latest)")
 
         for step in 0..<maxSteps {
+            let observedEvidence = evidence
             let directive = step == 0
                 ? "Decide how to respond to the user's last message. If you need meeting data, reply with a single tool-call JSON object; otherwise reply with your final answer."
                 : "Continue. Call another tool (one JSON object) if you still need data, or give your final answer in plain language."
@@ -532,7 +550,9 @@ struct ChatAgent {
                 prompt: directive + " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.",
                 context: transcript,
                 options: TextGenerationOptions(maxTokens: 2_048)) { partial in
-                    if let answer = ChatPrompt.streamingAnswer(partial) { onEvent(.answerPartial(answer)) }
+                    if let answer = ChatPrompt.streamingAnswer(partial) {
+                        onEvent(.answerPartial(ChatCitationParser.verified(answer, evidence: observedEvidence, streaming: true)))
+                    }
                 }
             try Task.checkCancellation()
 
@@ -558,12 +578,13 @@ struct ChatAgent {
 
             switch action {
             case .answer(let text):
-                return text
+                return ChatCitationParser.verified(text, evidence: evidence)
             case .call(let call):
                 onEvent(.answerPartial(""))
                 onEvent(.toolStarted(call))
                 let result = await runner.run(call)
                 try Task.checkCancellation()
+                evidence.merge(result.evidence)
                 onEvent(.toolFinished(name: call.name, summary: result.summary))
                 transcript.append("Assistant: \(call.json)")
                 transcript.append("Observation: \(result.text)")
@@ -571,13 +592,17 @@ struct ChatAgent {
         }
 
         // Out of tool budget — force a final answer from what we gathered.
+        let finalEvidence = evidence
         let forced = try await engine.generateStreaming(
             system: system,
             prompt: "Give your final answer now in plain language using the observations above. Begin with FINAL_ANSWER: on its own line. Do not call any more tools.",
             context: transcript,
             options: TextGenerationOptions(maxTokens: 2_048)) { partial in
-                if let answer = ChatPrompt.streamingAnswer(partial) { onEvent(.answerPartial(answer)) }
+                if let answer = ChatPrompt.streamingAnswer(partial) {
+                    onEvent(.answerPartial(ChatCitationParser.verified(answer, evidence: finalEvidence, streaming: true)))
+                }
             }
-        return ChatPrompt.finalText(forced)
+        try Task.checkCancellation()
+        return ChatCitationParser.verified(ChatPrompt.finalText(forced), evidence: evidence)
     }
 }

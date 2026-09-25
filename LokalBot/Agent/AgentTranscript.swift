@@ -67,6 +67,7 @@ struct AgentTranscriptFolder: Equatable {
 
     private(set) var items: [AgentTranscriptItem] = []
     private(set) var isAgentRunning = false
+    private(set) var terminalFailure: String?
     private var streamingAssistantID: String?
     private var streamingAssistantCharacters = 0
     private var retainedCharacterCount = 0
@@ -145,19 +146,25 @@ struct AgentTranscriptFolder: Equatable {
         switch event {
         case .agentStart:
             isAgentRunning = true
+            terminalFailure = nil
         case .agentSettled:
             isAgentRunning = false
             finishStreamingAssistant()
+            if let terminalFailure { appendNotice(terminalFailure, isError: true) }
         case .messageStart(let role):
             guard role == "assistant" else { return }
+            // A fresh attempt can recover from Pi's automatic retry. Only
+            // the outcome left when agent_settled arrives is terminal.
+            terminalFailure = nil
             let id = nextID("assistant")
             appendItem(.assistant(id: id, text: "", isStreaming: true))
             streamingAssistantID = id
             streamingAssistantCharacters = 0
         case .messageUpdate(.textDelta(let delta)):
             appendToStreamingAssistant(delta)
-        case .messageEnd(let role, let text):
+        case .messageEnd(let role, let text, let stopReason, let errorMessage):
             guard role == "assistant" else { return }
+            terminalFailure = PiEvent.terminalFailure(stopReason: stopReason, errorMessage: errorMessage)
             defer {
                 streamingAssistantID = nil
                 streamingAssistantCharacters = 0

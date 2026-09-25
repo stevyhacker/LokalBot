@@ -59,6 +59,7 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var messageAttachments: [String: [AgentAttachment]] = [:]
     @Published private(set) var queuedPrompts: [AgentQueuedPrompt] = []
     @Published private(set) var queueIsPaused = false
+    @Published private(set) var turnError: String?
     @Published private(set) var isSending = false
     @Published private(set) var isStopping = false
     @Published private(set) var failedPrompt: AgentQueuedPrompt?
@@ -74,6 +75,7 @@ final class AgentSessionController: ObservableObject {
     var hasLiveRuntime: Bool { state == .starting || state == .ready || state == .running }
     var taskStatus: String {
         if !pendingApprovals.isEmpty { return "Needs approval" }
+        if turnError != nil { return "Needs attention" }
         switch state {
         case .idle: return items.isEmpty ? "Ready to start" : "Saved"
         case .starting: return "Starting…"
@@ -149,7 +151,10 @@ final class AgentSessionController: ObservableObject {
         self.makeTransport = makeTransport
         self.approvalModeDefaults = defaults
         self.approvalMode = restoredMode
-        self.policy = AgentApprovalPolicy(mode: restoredMode)
+        self.policy = AgentApprovalPolicy(
+            mode: restoredMode,
+            protectedWriteRoots: [storage.rootURL, AppDirectories.applicationSupport,
+                                  sessionsDirectory, runtimeRoot, Bundle.main.bundleURL])
         self.workspace = self.defaultWorkspace
     }
 
@@ -208,6 +213,16 @@ final class AgentSessionController: ObservableObject {
             connectedEndpoint = endpoint.baseURL
             var capabilityToken: String?
             if makeTransport == nil {
+                let root = runtimeRoot
+                let integrityValid = await Task.detached(priority: .utility) {
+                    AgentRuntimeLayout.isIntegrityValid(under: root)
+                }.value
+                guard generation == lifecycleGeneration else { return }
+                guard integrityValid else {
+                    throw NSError(domain: "AgentRuntime", code: 1, userInfo: [
+                        NSLocalizedDescriptionKey: "The Agent runtime changed since installation. Repair it in Settings before starting this task.",
+                    ])
+                }
                 accessGate.removeExpiredCapabilities()
                 let capability = try accessGate.issueScopedCapability()
                 accessCapability = capability
@@ -301,7 +316,7 @@ final class AgentSessionController: ObservableObject {
         }
         queuedPrompts.append(.init(text: text, attachments: attachments))
         draft = ""; attachments = []
-        queueIsPaused = isStopping
+        queueIsPaused = queueIsPaused || isStopping || turnError != nil
     }
 
     func restoreSources(_ sources: [AgentAttachment]) { sourceAttachments = sources }
@@ -380,6 +395,7 @@ final class AgentSessionController: ObservableObject {
         isSending = true
         lastSubmittedPrompt = pending
         composerError = nil
+        turnError = nil
         queueIsPaused = false
         if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: prompt) }
         folder.noteUserPrompt(prompt)
@@ -405,7 +421,7 @@ final class AgentSessionController: ObservableObject {
                 publish()
                 return false
             }
-            failedPrompt = nil
+            if turnError == nil { failedPrompt = nil }
             return true
         } catch {
             guard generation == lifecycleGeneration else { return false }
@@ -609,6 +625,7 @@ final class AgentSessionController: ObservableObject {
         switch event {
         case .agentStart:
             state = .running
+            turnError = nil
         case .agentSettled:
             state = .ready
         case .extensionUIRequest(let request):
@@ -617,6 +634,11 @@ final class AgentSessionController: ObservableObject {
             break
         }
         folder.fold(event)
+        if event == .agentSettled, let failure = folder.terminalFailure {
+            turnError = failure
+            queueIsPaused = true
+            failedPrompt = lastSubmittedPrompt
+        }
         publish()
         // agent_end can precede automatic retry/compaction. The pinned Pi
         // runtime emits agent_settled only after the complete run is idle.
@@ -820,7 +842,8 @@ final class AgentSessionController: ObservableObject {
             tool: request.tool,
             path: request.path,
             requestWorkspace: request.workspace,
-            selectedWorkspace: workspace)
+            selectedWorkspace: workspace,
+            protectedWriteRoots: policy.protectedWriteRoots)
     }
 
     private func fail(with error: Error) async {
@@ -889,7 +912,8 @@ final class AgentSessionController: ObservableObject {
         // Session allowances are intentionally cleared at lifecycle
         // boundaries. The approval mode itself is an app-level preference and
         // must survive closing or resuming a session.
-        policy = AgentApprovalPolicy(mode: approvalMode)
+        policy.resetSession()
+        policy.mode = approvalMode
     }
 
     /// Our extension sends title "lokalbot_tool_approval" with exact structured
@@ -1084,7 +1108,8 @@ final class AgentSessionController: ObservableObject {
                     if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: message.text) }
                     folder.noteUserPrompt(AgentContextResolver.displayPrompt(message.text))
                 case "assistant":
-                    folder.appendAssistantMessage(message.text)
+                    if !message.text.isEmpty { folder.appendAssistantMessage(message.text) }
+                    if let failure = message.failure { folder.appendNotice(failure, isError: true) }
                 default:
                     break
                 }
@@ -1098,7 +1123,7 @@ final class AgentSessionController: ObservableObject {
         }
     }
 
-    private static func historyMessages(from dataJSON: String?) -> [(role: String, text: String)] {
+    private static func historyMessages(from dataJSON: String?) -> [(role: String, text: String, failure: String?)] {
         guard let dataJSON,
               let data = dataJSON.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1116,8 +1141,11 @@ final class AgentSessionController: ObservableObject {
             } else {
                 return nil
             }
-            guard !text.isEmpty else { return nil }
-            return (role, text)
+            let failure = role == "assistant" ? PiEvent.terminalFailure(
+                stopReason: message["stopReason"] as? String,
+                errorMessage: message["errorMessage"] as? String) : nil
+            guard !text.isEmpty || failure != nil else { return nil }
+            return (role, text, failure)
         }
     }
 

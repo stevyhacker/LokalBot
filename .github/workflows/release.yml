@@ -1,8 +1,8 @@
 # Tag-triggered release pipeline for LokalBot.
 #
-# Automates the manual flow in RELEASING.md: import the Developer ID
-# certificate into a temporary keychain, archive + export with Hardened
-# Runtime forced ON (the project.yml default is OFF for fast local builds),
+# Automates the manual flow in RELEASING.md: build an ad-hoc archive with
+# Hardened Runtime forced ON (the project.yml default is OFF for fast local
+# builds), briefly import Developer ID only to export/sign the finished bytes,
 # build the styled DMG, notarize + staple both the app and the DMG, Sparkle-
 # sign the DMG, render appcast.xml, and upload DMG + appcast to the GitHub
 # Release for the tag.
@@ -125,32 +125,6 @@ jobs:
             exit 1
           fi
 
-      # Developer ID signing needs the certificate in a keychain codesign can
-      # reach. A dedicated temp keychain keeps the runner's login keychain out
-      # of the picture and is deleted in the always() cleanup step below.
-      - name: Import Developer ID certificate
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
-        run: |
-          keychain="$RUNNER_TEMP/release.keychain-db"
-          security create-keychain -p "$KEYCHAIN_PWD" "$keychain"
-          security set-keychain-settings -lut 3600 "$keychain"
-          security unlock-keychain -p "$KEYCHAIN_PWD" "$keychain"
-          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
-          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" \
-            -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          rm "$RUNNER_TEMP/cert.p12"
-          security set-key-partition-list -S apple-tool:,apple: -s \
-            -k "$KEYCHAIN_PWD" "$keychain" > /dev/null
-          security list-keychains -d user -s "$keychain" login.keychain-db
-          if ! security find-identity -v -p codesigning "$keychain" | \
-            grep -F 'Developer ID Application'; then
-            echo '::error::The imported .p12 does not contain a usable Developer ID Application identity.' >&2
-            exit 1
-          fi
-
       - name: Install build tools
         if: steps.prepared.outputs.reused != 'true'
         run: |
@@ -186,6 +160,10 @@ jobs:
         if: steps.prepared.outputs.reused != 'true'
         run: bash Scripts/fetch-llama.sh
 
+      - name: Fetch sherpa-onnx vendor
+        if: steps.prepared.outputs.reused != 'true'
+        run: bash Scripts/fetch-sherpa.sh
+
       - name: Cache Swift packages
         if: steps.prepared.outputs.reused != 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
@@ -193,13 +171,22 @@ jobs:
           path: .build/SourcePackages
           key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('**/Package.resolved') }}
 
+      - name: Resolve Swift packages before unlocking signing authority
+        if: steps.prepared.outputs.reused != 'true'
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project LokalBot.xcodeproj \
+            -scheme LokalBot \
+            -clonedSourcePackagesDirPath .build/SourcePackages
+
       # Hardened Runtime must be ON for notarization; the project default is
       # OFF (project.yml) so local dev builds stay fast. LokalBot's bundled
       # llama.cpp/sherpa runtimes and speech stack are Apple Silicon only, so
       # keep the archive arm64-only instead of asking SwiftPM to compile an
-      # unsupported x86_64 slice. Overriding here is the release-time setup
-      # RELEASING.md step 2 documents.
-      - name: Archive (Release, Hardened Runtime ON)
+      # unsupported x86_64 slice. This archive is ad-hoc signed: package
+      # compilation, project build phases, and downloaded native validation
+      # all finish before the Developer ID certificate is imported.
+      - name: Archive release payload without Developer ID authority
         if: steps.prepared.outputs.reused != 'true'
         env:
           APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
@@ -214,13 +201,47 @@ jobs:
             ARCHS=arm64 \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Developer ID Application"
+            CODE_SIGN_IDENTITY="-"
 
-      - name: Export Developer ID app
+      # exportArchive does not compile code or run project build phases. Keep
+      # the temporary identity unlocked only while Xcode re-signs the finished
+      # archive and codesign seals the already validated vendored Mach-O files.
+      - name: Export and seal app with short-lived Developer ID authority
         if: steps.prepared.outputs.reused != 'true'
         env:
           APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
         run: |
+          umask 077
+          keychain="$RUNNER_TEMP/release-app-signing.keychain-db"
+          certificate="$RUNNER_TEMP/release-app-signing.p12"
+          cleanup_signing_authority() {
+            security lock-keychain "$keychain" >/dev/null 2>&1 || true
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            rm -f "$certificate"
+            security list-keychains -d user -s login.keychain-db >/dev/null 2>&1 || true
+          }
+          trap cleanup_signing_authority EXIT
+          cleanup_signing_authority
+          security create-keychain -p "$KEYCHAIN_PWD" "$keychain"
+          security set-keychain-settings -lut 300 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$certificate"
+          security import "$certificate" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          rm -f "$certificate"
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PWD" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          identity_hash="$(security find-identity -v -p codesigning "$keychain" | \
+            awk -v team="($APPLE_TEAM_ID)" '$0 ~ /Developer ID Application/ && index($0, team) {print $2}')"
+          if [[ ! "$identity_hash" =~ ^[0-9A-F]{40}$ ]]; then
+            echo '::error::The imported .p12 must contain exactly one usable Developer ID Application identity for this team.' >&2
+            exit 1
+          fi
+
           cat > build/exportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -228,7 +249,8 @@ jobs:
           <dict>
             <key>method</key><string>developer-id</string>
             <key>teamID</key><string>$APPLE_TEAM_ID</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>$identity_hash</string>
           </dict>
           </plist>
           PLIST
@@ -236,6 +258,22 @@ jobs:
             -archivePath build/LokalBot.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/exportOptions.plist
+
+          for root in \
+            build/export/LokalBot.app/Contents/Resources/llama-cpp \
+            build/export/LokalBot.app/Contents/Resources/sherpa-onnx; do
+            [[ -d "$root" ]] || continue
+            while IFS= read -r -d '' item; do
+              file -b "$item" | grep -q 'Mach-O' || continue
+              /usr/bin/codesign --force --sign "$identity_hash" --keychain "$keychain" \
+                --timestamp --options runtime "$item"
+            done < <(find "$root" -type f \( -perm -111 -o -name '*.dylib' \) -print0)
+          done
+          /usr/bin/codesign --force --sign "$identity_hash" --keychain "$keychain" \
+            --timestamp --options runtime --entitlements LokalBot/LokalBot.entitlements \
+            build/export/LokalBot.app
+          cleanup_signing_authority
+          trap - EXIT
 
       - name: Verify exported signatures and secure timestamps
         env:
@@ -303,14 +341,47 @@ jobs:
             --app build/export/LokalBot.app \
             --output build/LokalBot.dmg
 
-      - name: Notarize + staple the DMG
+      - name: Sign, notarize + staple the DMG
         if: github.event_name == 'push'
         env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
           NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
           NOTARY_APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
           NOTARY_APPLE_PWD: ${{ secrets.NOTARY_APPLE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
         run: |
-          codesign --force --sign "Developer ID Application" --timestamp build/LokalBot.dmg
+          umask 077
+          keychain="$RUNNER_TEMP/release-dmg-signing.keychain-db"
+          certificate="$RUNNER_TEMP/release-dmg-signing.p12"
+          cleanup_signing_authority() {
+            security lock-keychain "$keychain" >/dev/null 2>&1 || true
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            rm -f "$certificate"
+            security list-keychains -d user -s login.keychain-db >/dev/null 2>&1 || true
+          }
+          trap cleanup_signing_authority EXIT
+          cleanup_signing_authority
+          security create-keychain -p "$KEYCHAIN_PWD" "$keychain"
+          security set-keychain-settings -lut 300 "$keychain"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$keychain"
+          printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > "$certificate"
+          security import "$certificate" -k "$keychain" \
+            -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          rm -f "$certificate"
+          security set-key-partition-list -S apple-tool:,apple: -s \
+            -k "$KEYCHAIN_PWD" "$keychain" > /dev/null
+          identity_hash="$(security find-identity -v -p codesigning "$keychain" | \
+            awk -v team="($NOTARY_APPLE_TEAM_ID)" '$0 ~ /Developer ID Application/ && index($0, team) {print $2}')"
+          if [[ ! "$identity_hash" =~ ^[0-9A-F]{40}$ ]]; then
+            echo '::error::The imported .p12 must contain exactly one usable Developer ID Application identity for this team.' >&2
+            exit 1
+          fi
+          codesign --force --sign "$identity_hash" --keychain "$keychain" \
+            --timestamp build/LokalBot.dmg
+          cleanup_signing_authority
+          trap - EXIT
+
           codesign --verify --strict --verbose=2 build/LokalBot.dmg
           xcrun notarytool submit build/LokalBot.dmg \
             --apple-id "$NOTARY_APPLE_ID" \
@@ -343,6 +414,7 @@ jobs:
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
+          umask 077
           key_file="$RUNNER_TEMP/sparkle-ed25519.key"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
           # --release-tag: the DMG uploads to THIS tag's release, so the
@@ -398,5 +470,7 @@ jobs:
       - name: Delete temp keychain
         if: always()
         run: |
-          security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true
+          security delete-keychain "$RUNNER_TEMP/release-app-signing.keychain-db" || true
+          security delete-keychain "$RUNNER_TEMP/release-dmg-signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/release-app-signing.p12" "$RUNNER_TEMP/release-dmg-signing.p12"
           security list-keychains -d user -s login.keychain-db

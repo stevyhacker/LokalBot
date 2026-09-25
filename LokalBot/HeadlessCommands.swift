@@ -201,12 +201,21 @@ struct HeadlessCommandRunner {
             let before = Date()
             app.screenshots.captureNow()
             try? await Task.sleep(for: .seconds(8))
-            if let shot = app.activityStore.screenshots(on: Date()).last(where: { $0.ts >= before }) {
-                print("LokalBot --shot-test: ok (app: \(shot.app))")
-                exit(0)
+            guard let shot = app.activityStore.screenshots(on: Date()).last(where: { $0.ts >= before }) else {
+                print("LokalBot --shot-test: FAILED (no screenshot row — see debug.log)")
+                exit(1)
             }
-            print("LokalBot --shot-test: FAILED (no screenshot row — see debug.log)")
-            exit(1)
+            guard shot.hasPixels,
+                  FileManager.default.isReadableFile(atPath: shot.path),
+                  let key = try? ScreenshotService.encryptionKey(),
+                  let decrypted = ScreenshotService.decryptedData(path: shot.path, key: key),
+                  !decrypted.isEmpty,
+                  NSImage(data: decrypted) != nil else {
+                print("LokalBot --shot-test: FAILED (encrypted screenshot did not round-trip)")
+                exit(1)
+            }
+            print("LokalBot --shot-test: ok (encrypted image round-trip; app: \(shot.app))")
+            exit(0)
         }
     }
 

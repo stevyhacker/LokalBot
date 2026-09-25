@@ -11,6 +11,8 @@ struct SettingsView: View {
     @State private var cliMessage: String?
     @State private var writingAdvancedExpanded = false
     @State private var writingSection = WritingSection.autocomplete
+    @State private var forgettingCotypingLearning = false
+    @State private var cotypingLearningMessage: String?
 
     private enum WritingSection: String, CaseIterable {
         case autocomplete = "Autocomplete"
@@ -234,8 +236,9 @@ struct SettingsView: View {
                 .settingTarget("settings.excludedApps", selected: app.focusedSettingID)
             ExclusionRulesEditor(title: "Never capture these sites", value: $app.settings.excludedScreenDomains, kind: .domains)
                 .settingTarget("settings.excludedScreenDomains", selected: app.focusedSettingID)
-            Toggle("Allow private/incognito browser windows", isOn: $app.settings.capturePrivateWindows)
+            Toggle("Allow private or unverified browser windows", isOn: $app.settings.capturePrivateWindows)
                     .settingTarget("settings.capturePrivateWindows", selected: app.focusedSettingID)
+            SettingsHelp("Browser titles cannot reliably prove normal browsing mode. Browser windows are skipped unless you allow this; app and site exclusions still apply.")
         }
     }
 
@@ -338,9 +341,26 @@ struct SettingsView: View {
                     .settingTarget("settings.cotypingUseClipboard", selected: app.focusedSettingID)
                 Toggle(isOn: $app.settings.cotypingUseLocalLearning) {
                     SettingsLabel("Learn locally from accepted completions",
-                                  help: "Preview runs are excluded from stats and learning.")
+                                  help: "Kept for 30 days and reused only in the same identified document. Mail, chat, unknown documents, and preview runs are excluded.")
                 }
                     .settingTarget("settings.cotypingUseLocalLearning", selected: app.focusedSettingID)
+                Button(forgettingCotypingLearning ? "Forgetting…" : "Forget learned text") {
+                    forgettingCotypingLearning = true
+                    cotypingLearningMessage = nil
+                    Task {
+                        defer { forgettingCotypingLearning = false }
+                        do {
+                            try await app.cotyping.forgetLearnedText()
+                            cotypingLearningMessage = "Learned text deleted."
+                        } catch {
+                            cotypingLearningMessage = "Could not delete learned text. Please try again."
+                        }
+                    }
+                }
+                .disabled(forgettingCotypingLearning)
+                if let cotypingLearningMessage {
+                    Text(cotypingLearningMessage).settingsSecondary()
+                }
                 profileField("Your name", prompt: "Optional", text: $app.settings.cotypingUserName)
                     .settingTarget("settings.cotypingUserName", selected: app.focusedSettingID)
                 profileField("Writing style", prompt: "Optional, e.g. concise and friendly",

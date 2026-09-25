@@ -210,6 +210,10 @@ final class TranscriptionModelStoreTests: XCTestCase {
             .appendingPathComponent(folderName, isDirectory: true)
         try writeEmptyFile(directory.appendingPathComponent("model.int8.onnx"))
         try writeEmptyFile(directory.appendingPathComponent("tokens.txt"))
+        try Data("synthetic-weights".utf8).write(to: directory.appendingPathComponent("model.int8.onnx"))
+        try Data("synthetic-tokens".utf8).write(to: directory.appendingPathComponent("tokens.txt"))
+        let model: OnnxTranscriptionEngine.Model = folderName == OnnxTranscriptionEngine.Model.senseVoice.folderName ? .senseVoice : .gigaamRussian
+        try OnnxTranscriptionEngine.markInstalled(in: directory, model: model)
     }
 
     private func writeEmptyFile(_ url: URL) throws {

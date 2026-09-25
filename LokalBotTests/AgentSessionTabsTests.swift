@@ -6,6 +6,21 @@ final class AgentSessionTabsTests: XCTestCase {
 
     private var root: URL!
 
+    func testMetadataOverflowPreservesReadableHistoryAndAllowsRetry() throws {
+        let store = AgentTaskStore(directory: root, maximumBytes: 2_048)
+        var record = AgentTaskRecord(id: UUID(), title: "Saved task", workspace: root)
+        record.draft = "original draft"
+        try store.save([record])
+        let originalBytes = try Data(contentsOf: store.file)
+        record.draft = String(repeating: "😀", count: 1_000)
+        XCTAssertThrowsError(try store.save([record]))
+        XCTAssertEqual(try Data(contentsOf: store.file), originalBytes)
+        XCTAssertEqual(try store.load().first?.draft, "original draft")
+        record.draft = "shortened draft"
+        try store.save([record])
+        XCTAssertEqual(try store.load().first?.draft, record.draft)
+    }
+
     override func setUp() {
         super.setUp()
         root = FileManager.default.temporaryDirectory

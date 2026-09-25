@@ -52,6 +52,7 @@ actor QwenASREngine: TranscriptionEngine {
             guard let self else { return }
             try await self.performPreparation(progress: progress)
         }
+        await idle.bump()
         report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
 
@@ -65,22 +66,27 @@ actor QwenASREngine: TranscriptionEngine {
             id: runtimeID, role: "Transcribe", label: variant.displayName,
             estimatedBytes: estimatedBytes)
         do {
+            try Task.checkCancellation()
             let cacheDir = try Self.cacheDir(for: variant)
             try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+            let snapshot = variant == .accuracy ? PinnedModelSnapshot.qwenAccuracy : .qwenCompact
+            try await snapshot.prepare(in: cacheDir, progress: progress)
 
             model = try await Qwen3ASRModel.fromPretrained(
                 modelId: variant.modelID,
                 cacheDir: cacheDir,
-                offlineMode: false
+                offlineMode: true
             ) { fraction, status in
                 Task { @MainActor in
                     progress?(.init(fractionCompleted: fraction, status: status))
                 }
             }
+            try Task.checkCancellation()
             await ModelRuntimeRegistry.shared.register(
                 id: runtimeID, role: "Transcribe", label: variant.displayName,
                 estimatedBytes: estimatedBytes)
         } catch {
+            model = nil
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
             throw error
         }

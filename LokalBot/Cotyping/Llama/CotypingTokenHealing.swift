@@ -101,3 +101,52 @@ enum CotypingRequiredPrefixMatcher {
             || first == UInt8(ascii: "'")
     }
 }
+
+/// Token pieces are byte fragments, not necessarily complete Unicode scalars.
+/// Keep an unfinished scalar for the next piece and publish only validated UTF-8.
+/// An incomplete final scalar is withheld; malformed bytes reject the generation.
+struct CotypingUTF8TokenDecoder {
+    private var pending: [UInt8] = []
+    private var failed = false
+
+    mutating func append(_ bytes: [UInt8]) -> String? {
+        guard !failed else { return nil }
+        pending.append(contentsOf: bytes)
+        var end = 0
+        while end < pending.count {
+            let lead = pending[end]
+            let length: Int
+            switch lead {
+            case 0...0x7F: length = 1
+            case 0xC2...0xDF: length = 2
+            case 0xE0...0xEF: length = 3
+            case 0xF0...0xF4: length = 4
+            default: return reject()
+            }
+            let available = min(length, pending.count - end)
+            if available > 1 {
+                for offset in 1..<available {
+                    let byte = pending[end + offset]
+                    guard (0x80...0xBF).contains(byte) else { return reject() }
+                    if offset == 1 {
+                        if lead == 0xE0 && byte < 0xA0 { return reject() }
+                        if lead == 0xED && byte > 0x9F { return reject() }
+                        if lead == 0xF0 && byte < 0x90 { return reject() }
+                        if lead == 0xF4 && byte > 0x8F { return reject() }
+                    }
+                }
+            }
+            guard available == length else { break }
+            end += length
+        }
+        let complete = String(decoding: pending.prefix(end), as: UTF8.self)
+        pending.removeFirst(end)
+        return complete
+    }
+
+    private mutating func reject() -> String? {
+        failed = true
+        pending.removeAll()
+        return nil
+    }
+}

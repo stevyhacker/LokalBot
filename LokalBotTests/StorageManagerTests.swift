@@ -2,6 +2,18 @@ import XCTest
 @testable import LokalBot
 
 final class StorageManagerTests: XCTestCase {
+    func testMergeSourceEnumerationDoesNotRepairALiveRecording() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("live-enumeration-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let live = try storage.createMeetingFolder(title: "Live synthetic meeting", appName: "Fixture")
+        let metadata = live.folderURL(in: storage).appendingPathComponent("meta.json")
+        let before = try Data(contentsOf: metadata)
+        let meetings = try SessionLookup.loadAllMeetings(root: root, includeMergedSources: true)
+        XCTAssertNil(try XCTUnwrap(meetings.first { $0.id == live.id }).endedAt)
+        XCTAssertEqual(try Data(contentsOf: metadata), before)
+    }
+
     func testDeleteMeetingRemovesDurableFolder() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("StorageManagerTests-\(UUID().uuidString)", isDirectory: true)

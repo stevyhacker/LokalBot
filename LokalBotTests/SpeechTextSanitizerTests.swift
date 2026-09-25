@@ -29,3 +29,21 @@ final class SpeechTextSanitizerTests: XCTestCase {
         XCTAssertEqual(text, "Read this. Then this.")
     }
 }
+
+final class SpeechTemporaryOutputCleanupTests: XCTestCase {
+    func testCleanupStopsPlaybackBeforeRemovingPlaintextOutput() throws {
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("lokalbot-speech-cleanup-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: output) }
+        try Data("private summary".utf8).write(to: output)
+        var playbackStopped = false
+
+        SpeechTemporaryOutputCleanup.cleanup(output) {
+            XCTAssertTrue(FileManager.default.fileExists(atPath: output.path))
+            playbackStopped = true
+        }
+
+        XCTAssertTrue(playbackStopped)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+    }
+}

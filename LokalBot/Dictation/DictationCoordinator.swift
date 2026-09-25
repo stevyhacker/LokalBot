@@ -52,7 +52,7 @@ final class DictationCoordinator: ObservableObject {
     private let settingsProvider: () -> AppSettings
     private let makeTextEngine: (AppSettings) async throws -> TextEngine
     private let screenContextProvider:
-        (DictationScreenTarget, [String]) async -> DictationScreenContext?
+        (DictationScreenTarget, DictationScreenCapturePolicy) async -> DictationScreenContext?
     private let canStart: () -> Bool
     private let onBusy: () -> Void
     private let onError: (String) -> Void
@@ -101,10 +101,10 @@ final class DictationCoordinator: ObservableObject {
         focusSnapshotExecutor: DictationFocusSnapshotExecutor = .shared,
         screenContextProvider: @escaping (
             DictationScreenTarget,
-            [String]
-        ) async -> DictationScreenContext? = { target, excludedApps in
+            DictationScreenCapturePolicy
+        ) async -> DictationScreenContext? = { target, policy in
             await DictationScreenContextCapture.shared.capture(
-                target: target, excludedApps: excludedApps)
+                target: target, policy: policy)
         }
     ) {
         self.storageRoot = storageRoot
@@ -274,13 +274,18 @@ final class DictationCoordinator: ObservableObject {
         }
         discardScreenContext()
         if initialConfig.dictationIntent == .compose, initialConfig.dictationUseScreenContext, let screenTarget {
-            let excludedApps = initialConfig.excludedAppList
+            let policy = DictationScreenCapturePolicy(
+                excludedApps: initialConfig.excludedAppList,
+                excludedDomains: initialConfig.excludedScreenDomainList,
+                capturePrivateWindows: initialConfig.capturePrivateWindows)
             screenContextTask = Task { [screenContextProvider] in
                 let capture = await focusCaptureTask.value
                 guard DictationScreenPrivacy.allowsCapture(
                         focus: capture, target: screenTarget),
                       !Task.isCancelled else { return nil }
-                return await screenContextProvider(screenTarget, excludedApps)
+                var boundTarget = screenTarget
+                boundTarget.focusIdentityKey = capture.snapshot?.focusIdentityKey
+                return await screenContextProvider(boundTarget, policy)
             }
         }
         deliveryTarget = nil

@@ -160,6 +160,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var isReadingSummary = false
     @State private var speechPlayer: AVAudioPlayer?
     @State private var speechTask: Task<Void, Never>?
+    @State private var speechSessionID: UUID?
     @State private var searchQuery = ""
     private var tab: MeetingWorkspaceTab {
         get { app.meetingWorkspaceTabs[meeting.id] ?? .summary }
@@ -504,7 +505,7 @@ private struct MeetingWorkspaceDetail: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(partialNotes.progressLabel).font(.caption.weight(.medium))
                     .accessibilityIdentifier("meeting.notes.partial")
-                Text("Verified notes and actions are saved below. Actions become editable when the notes finish.")
+                Text("Source-linked notes and actions are saved below. Actions become editable when the notes finish.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         } else if notesNeedRefresh && tab == .summary {
@@ -1197,14 +1198,23 @@ private struct MeetingWorkspaceDetail: View {
               !text.isEmpty else { return }
         stopSpeech(clearError: false)
         speechError = nil
+        let sessionID = UUID()
+        speechSessionID = sessionID
         isReadingSummary = true
         speechTask = Task {
-            defer { stopSpeech(clearError: false) }
+            var temporaryOutputURL: URL?
+            defer {
+                SpeechTemporaryOutputCleanup.cleanup(
+                    temporaryOutputURL,
+                    afterPlaybackStops: { finishSpeech(sessionID) })
+            }
             do {
                 let url = try await synthesize(text, outputURL: nil)
+                temporaryOutputURL = url
                 try Task.checkCancellation()
                 let player = try AVAudioPlayer(contentsOf: url)
                 player.prepareToPlay()
+                guard speechSessionID == sessionID else { return }
                 speechPlayer = player
                 guard player.play() else {
                     throw NSError(
@@ -1250,12 +1260,22 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func stopSpeech(clearError: Bool = true) {
+        speechSessionID = nil
         speechTask?.cancel()
         speechTask = nil
         speechPlayer?.stop()
         speechPlayer = nil
         isReadingSummary = false
         if clearError { speechError = nil }
+    }
+
+    private func finishSpeech(_ sessionID: UUID) {
+        guard speechSessionID == sessionID else { return }
+        speechSessionID = nil
+        speechTask = nil
+        speechPlayer?.stop()
+        speechPlayer = nil
+        isReadingSummary = false
     }
 }
 
@@ -1744,6 +1764,10 @@ private struct ActionCorrectionDraft: Identifiable {
     var text: String
     var owner: String
     var due: String
+    let ownerWasCorrected: Bool
+    let dueWasCorrected: Bool
+    var ownerWasEdited = false
+    var dueWasEdited = false
 
     init(reference: OutcomeActionReference) {
         actionID = reference.action.id
@@ -1751,6 +1775,18 @@ private struct ActionCorrectionDraft: Identifiable {
         text = reference.text
         owner = reference.owner ?? ""
         due = reference.due ?? ""
+        ownerWasCorrected = reference.ownerWasCorrected
+        dueWasCorrected = reference.dueWasCorrected
+    }
+
+    var persistedOwner: String? {
+        ActionCorrectionFieldIntent.persistedValue(
+            owner, wasCorrected: ownerWasCorrected, wasEdited: ownerWasEdited)
+    }
+
+    var persistedDue: String? {
+        ActionCorrectionFieldIntent.persistedValue(
+            due, wasCorrected: dueWasCorrected, wasEdited: dueWasEdited)
     }
 }
 
@@ -1758,7 +1794,7 @@ private struct ActionCorrectionSheet: View {
     @State var draft: ActionCorrectionDraft
     var ownerSuggestions: [String] = []
     var error: String?
-    let onSave: (String, String, String) -> Void
+    let onSave: (String, String?, String?) -> Void
     let onCancel: () -> Void
 
     var body: some View {
@@ -1769,24 +1805,33 @@ private struct ActionCorrectionSheet: View {
                 Text("Owner")
                 Spacer()
                 Menu(draft.owner.isEmpty ? "Unassigned" : SpeakerDisplayName.label(draft.owner)) {
-                    Button("You") { draft.owner = "Me" }
+                    Button("You") { draft.owner = "Me"; draft.ownerWasEdited = true }
                     ForEach(Array(Set(ownerSuggestions)).sorted(), id: \.self) { owner in
-                        Button(owner) { draft.owner = owner }
+                        Button(owner) { draft.owner = owner; draft.ownerWasEdited = true }
                     }
-                    Button("Unresolved speaker") { draft.owner = "Unresolved speaker" }
-                    Button("Unassigned") { draft.owner = "" }
+                    Button("Unresolved speaker") {
+                        draft.owner = "Unresolved speaker"
+                        draft.ownerWasEdited = true
+                    }
+                    Button("Unassigned") { draft.owner = ""; draft.ownerWasEdited = true }
                 }
             }
-            TextField("Owner", text: $draft.owner)
+            TextField("Owner", text: Binding(
+                get: { draft.owner },
+                set: { draft.owner = $0; draft.ownerWasEdited = true }))
                 .accessibilityIdentifier("meeting.action.correction.owner")
-            TextField("Due date as agreed", text: $draft.due)
+            TextField("Due date as agreed", text: Binding(
+                get: { draft.due },
+                set: { draft.due = $0; draft.dueWasEdited = true }))
             Text("This correction is stored separately from the extracted source.")
                 .font(WorkspaceTypography.metadata).foregroundStyle(.secondary)
             if let error { Text(error).workspaceTextRole(.warning) }
             HStack {
                 Spacer()
                 Button("Cancel", action: onCancel)
-                Button("Save correction") { onSave(draft.text, draft.owner, draft.due) }
+                Button("Save correction") {
+                    onSave(draft.text, draft.persistedOwner, draft.persistedDue)
+                }
                     .primaryActionButton()
                     .accessibilityIdentifier("meeting.action.correction.save")
             }

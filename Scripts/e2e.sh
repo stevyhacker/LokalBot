@@ -109,12 +109,13 @@ echo "== T5: semantic search (embeddings, zero keyword overlap) =="
   && pass "meaning-only query finds the Redis discussion" || fail "semantic search"
 
 echo "== T6: screenshot + OCR + encryption =="
-"$BIN" --shot-test >/dev/null 2>&1
+SHOT_OUTPUT=$("$BIN" --shot-test 2>&1)
 case $? in
   0) LAST=$(sqlite3 "$ROOT/lokalbotv3.sqlite" "SELECT path FROM screenshots WHERE path!='' ORDER BY ts DESC LIMIT 1")
-     if [ -n "$LAST" ] && ! xxd -l 12 "$LAST" | grep -q ftyp; then
-       pass "capture ok, file encrypted (no HEIC magic)"
-     else fail "capture row exists but file looks wrong"; fi ;;
+     if [[ "$SHOT_OUTPUT" == *"encrypted image round-trip"* \
+          && "$LAST" == "$ROOT"/* && -f "$LAST" && -r "$LAST" && -s "$LAST" ]]; then
+       pass "capture ok, readable AES-GCM envelope decrypts to an image"
+     else fail "capture encryption round-trip failed: $SHOT_OUTPUT"; fi ;;
   3) skip "screen recording permission not granted yet" ;;
   *) fail "shot-test errored — see $ROOT/debug.log" ;;
 esac

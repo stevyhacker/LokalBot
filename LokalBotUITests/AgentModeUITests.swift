@@ -224,7 +224,8 @@ final class AgentModeUITests: XCTestCase {
             UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
             XCTAssertTrue(more.isHittable)
-            XCTAssertTrue(transcript.frame.contains(more.frame))
+            XCTAssertTrue(transcript.frame.contains(more.frame),
+                          "Response actions \(more.frame) must fit in transcript \(transcript.frame)")
             let composerSurface = app.descendants(matching: .any)["agent.composerSurface"]
             XCTAssertLessThanOrEqual(answer.frame.width, composerSurface.frame.width + 4)
             XCTAssertLessThanOrEqual(more.frame.maxX, app.windows["main.window"].frame.maxX - 10)
@@ -243,7 +244,8 @@ final class AgentModeUITests: XCTestCase {
             resizeWindow(to: 600)
             UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
-            XCTAssertTrue(transcript.frame.contains(more.frame))
+            XCTAssertTrue(transcript.frame.contains(more.frame),
+                          "Response actions \(more.frame) must fit in transcript \(transcript.frame)")
             XCTAssertTrue(composer.isHittable)
             XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-600-\(appearance)")

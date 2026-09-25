@@ -5,8 +5,8 @@ import CryptoKit
 /// One line in the chat transcript. `activity` holds the tool steps the
 /// assistant ran for this turn (shown as chips above its answer). Codable so
 /// conversations persist; `isPending` is transient and never written.
-struct ChatMessage: Identifiable, Equatable, Codable {
-    struct Activity: Identifiable, Equatable, Codable {
+struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
+    struct Activity: Identifiable, Equatable, Codable, Sendable {
         let id: UUID
         let tool: String
         let icon: String
@@ -132,7 +132,7 @@ struct ChatMessage: Identifiable, Equatable, Codable {
 }
 
 /// A saved chat conversation — the unit of history persisted to disk.
-struct Conversation: Identifiable, Codable, Equatable {
+struct Conversation: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var title: String
     var createdAt: Date
@@ -211,14 +211,48 @@ struct Conversation: Identifiable, Codable, Equatable {
 /// save rewrites a single small file atomically.
 @MainActor
 final class ChatStore {
+    enum LoadFailure: Equatable, Sendable {
+        case directoryUnavailable
+        case keyUnavailable
+        case unreadableEncryptedFile(String)
+        case unreadablePlaintextFile(String)
+        case plaintextMigrationFailed(String)
+
+        var isUnreadableFile: Bool {
+            switch self {
+            case .unreadableEncryptedFile, .unreadablePlaintextFile: true
+            default: false
+            }
+        }
+    }
+
+    struct LoadReport: Sendable {
+        var conversations: [Conversation] = []
+        var failures: [LoadFailure] = []
+
+        var unreadableFileCount: Int { failures.filter(\.isUnreadableFile).count }
+    }
+
+    private struct DecodedFiles: Sendable {
+        var conversations: [UUID: Conversation] = [:]
+        var legacyFiles: [UUID: URL] = [:]
+        var failures: [LoadFailure] = []
+    }
+
     private let dir: URL
     private let encryptionKey: @MainActor () throws -> SymmetricKey
+    private let removeFile: (URL) throws -> Void
 
-    init(rootURL: URL, encryptionKey: @escaping @MainActor () throws -> SymmetricKey = {
-        try KeychainSecrets.symmetricKey(account: "chat-key")
-    }) {
+    init(
+        rootURL: URL,
+        encryptionKey: @escaping @MainActor () throws -> SymmetricKey = {
+            try KeychainSecrets.symmetricKey(account: "chat-key")
+        },
+        removeFile: @escaping (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }
+    ) {
         dir = rootURL.appendingPathComponent("chats", isDirectory: true)
         self.encryptionKey = encryptionKey
+        self.removeFile = removeFile
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     }
 
@@ -238,70 +272,99 @@ final class ChatStore {
         dir.appendingPathComponent("\(id.uuidString).json.enc")
     }
 
-    func loadAll() -> [Conversation] {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: dir, includingPropertiesForKeys: nil) else { return [] }
-        let key = try? encryptionKey()
-        var result: [Conversation] = []
-        for file in files {
-            switch file.pathExtension {
-            case "enc":
-                guard let key,
-                      let data = try? Data(contentsOf: file),
-                      let box = try? AES.GCM.SealedBox(combined: data),
-                      let plain = try? AES.GCM.open(box, using: key),
-                      let convo = try? Self.decoder.decode(Conversation.self, from: plain)
-                else { continue }
-                result.append(convo)
-            case "json":
-                // Legacy plaintext (pre-encryption): load it, then migrate to a
-                // sealed file — deleting the plaintext only once the encrypted
-                // copy is safely written.
-                guard let data = try? Data(contentsOf: file),
-                      let convo = try? Self.decoder.decode(Conversation.self, from: data)
-                else { continue }
-                result.append(convo)
-                if save(convo) { try? FileManager.default.removeItem(at: file) }
-            default:
-                continue
-            }
+    func loadAll() -> [Conversation] { loadAllReport().conversations }
+
+    func loadAllReport() -> LoadReport {
+        let keyResult = Result { try encryptionKey() }
+        let decoded: DecodedFiles
+        do {
+            let files = try FileManager.default.contentsOfDirectory(
+                at: dir, includingPropertiesForKeys: nil)
+            decoded = Self.decode(files: files, keyResult: keyResult)
+        } catch {
+            return LoadReport(failures: [.directoryUnavailable])
         }
-        return result.sorted { $0.updatedAt > $1.updatedAt }
+        return finalize(decoded)
     }
 
-    func loadAllInBackground() async -> [Conversation] {
-        let dir = dir, key = try? encryptionKey()
-        let loaded = await Task.detached(priority: .userInitiated) {
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)) ?? []
-            var conversations: [UUID: Conversation] = [:]
-            var legacy: [UUID: URL] = [:]
-            // Encrypted copies win if an earlier migration left both files.
-            for file in files.sorted(by: { $0.pathExtension == "json" && $1.pathExtension != "json" }) {
-                guard let data = try? Data(contentsOf: file) else { continue }
-                let plain: Data
-                if file.pathExtension == "enc", let key,
-                   let box = try? AES.GCM.SealedBox(combined: data),
-                   let decrypted = try? AES.GCM.open(box, using: key) {
-                    plain = decrypted
-                } else if file.pathExtension == "json" {
-                    plain = data
-                } else { continue }
-                guard let conversation = try? decoder.decode(Conversation.self, from: plain) else { continue }
-                conversations[conversation.id] = conversation
-                if file.pathExtension == "json" { legacy[conversation.id] = file }
+    func loadAllInBackground() async -> LoadReport {
+        let dir = dir
+        let keyResult = Result { try encryptionKey() }
+        let decoded = await Task.detached(priority: .userInitiated) {
+            do {
+                let files = try FileManager.default.contentsOfDirectory(
+                    at: dir, includingPropertiesForKeys: nil)
+                return Self.decode(files: files, keyResult: keyResult)
+            } catch {
+                return DecodedFiles(failures: [.directoryUnavailable])
             }
-            return (conversations, legacy)
         }.value
+        return finalize(decoded)
+    }
+
+    nonisolated private static func decode(
+        files: [URL],
+        keyResult: Result<SymmetricKey, Error>
+    ) -> DecodedFiles {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let key = try? keyResult.get()
+        var result = DecodedFiles()
+        let encryptedFiles = files.filter { $0.pathExtension == "enc" }
+        if !encryptedFiles.isEmpty, key == nil {
+            result.failures.append(.keyUnavailable)
+        }
+        // Encrypted copies win if an earlier migration left both files.
+        for file in files.sorted(by: { $0.pathExtension == "json" && $1.pathExtension != "json" }) {
+            guard ["enc", "json"].contains(file.pathExtension) else { continue }
+            guard let data = try? Data(contentsOf: file) else {
+                result.failures.append(file.pathExtension == "enc"
+                    ? .unreadableEncryptedFile(file.lastPathComponent)
+                    : .unreadablePlaintextFile(file.lastPathComponent))
+                continue
+            }
+            let plain: Data
+            if file.pathExtension == "enc" {
+                guard let key,
+                      let box = try? AES.GCM.SealedBox(combined: data),
+                      let decrypted = try? AES.GCM.open(box, using: key) else {
+                    result.failures.append(.unreadableEncryptedFile(file.lastPathComponent))
+                    continue
+                }
+                plain = decrypted
+            } else {
+                plain = data
+            }
+            guard let conversation = try? decoder.decode(Conversation.self, from: plain) else {
+                result.failures.append(file.pathExtension == "enc"
+                    ? .unreadableEncryptedFile(file.lastPathComponent)
+                    : .unreadablePlaintextFile(file.lastPathComponent))
+                continue
+            }
+            result.conversations[conversation.id] = conversation
+            if file.pathExtension == "json" { result.legacyFiles[conversation.id] = file }
+        }
+        return result
+    }
+
+    private func finalize(_ decoded: DecodedFiles) -> LoadReport {
+        var failures = decoded.failures
         // Legacy writes remain on the store owner so they cannot race save/delete.
         // Verify the plaintext still exists: deletion during hydration wins.
-        for (id, file) in loaded.1 where FileManager.default.fileExists(atPath: file.path) {
-            if let conversation = loaded.0[id], save(conversation) {
-                try? FileManager.default.removeItem(at: file)
+        for (id, file) in decoded.legacyFiles where FileManager.default.fileExists(atPath: file.path) {
+            guard let conversation = decoded.conversations[id], save(conversation) else {
+                failures.append(.plaintextMigrationFailed(file.lastPathComponent))
+                continue
+            }
+            do {
+                try removeFile(file)
+            } catch {
+                failures.append(.plaintextMigrationFailed(file.lastPathComponent))
             }
         }
-        return loaded.0.values.sorted { $0.updatedAt > $1.updatedAt }
+        return LoadReport(
+            conversations: decoded.conversations.values.sorted { $0.updatedAt > $1.updatedAt },
+            failures: failures)
     }
 
     /// Encode → AES-GCM seal (per-install Keychain key) → atomic write. Returns
@@ -320,11 +383,19 @@ final class ChatStore {
         }
     }
 
-    func delete(_ id: UUID) {
-        try? FileManager.default.removeItem(at: fileURL(id))
-        // Drop any legacy plaintext that was never migrated.
-        try? FileManager.default.removeItem(
-            at: dir.appendingPathComponent("\(id.uuidString).json"))
+    @discardableResult
+    func delete(_ id: UUID) -> Bool {
+        // Remove the legacy copy first. A failure keeps the encrypted copy
+        // available and the caller retains the conversation for retry.
+        let files = [dir.appendingPathComponent("\(id.uuidString).json"), fileURL(id)]
+        do {
+            for file in files where FileManager.default.fileExists(atPath: file.path) {
+                try removeFile(file)
+            }
+            return true
+        } catch {
+            return false
+        }
     }
 }
 
@@ -356,7 +427,12 @@ final class ChatViewModel: ObservableObject {
     /// Explicit navigation also fires when selecting the current or empty question.
     @Published private(set) var navigationRevision = 0
     @Published private(set) var isLoadingHistory = false
+    @Published private(set) var persistenceError: String?
+    @Published private(set) var unreadableConversationCount = 0
+    @Published private(set) var unsavedConversationIDs: Set<UUID> = []
+    private var failedDeletionID: UUID?
     private var historyTask: Task<Void, Never>?
+    private var historyLoadFailures: [ChatStore.LoadFailure] = []
     private var historyTouched = false
     private var deletedDuringHydration: Set<UUID> = []
     var readingOffsets: [UUID: CGFloat] = [:]
@@ -393,6 +469,7 @@ final class ChatViewModel: ObservableObject {
         var scopes: Set<AskSourceScope>
         var dayScopeKey: String?
         var attachedScreenDayKeys: [String]
+        var attachedScreenIDs: Set<Int64>
         var meetingIDs: Set<UUID>?
         var screenSnapshotIDs: Set<Int64>?
     }
@@ -411,7 +488,8 @@ final class ChatViewModel: ObservableObject {
         self.tools = tools
         self.store = store
         self.workMemory = workMemory
-        let saved = deferHistoryLoading ? [] : store.loadAll()
+        let initialLoad = deferHistoryLoading ? ChatStore.LoadReport() : store.loadAllReport()
+        let saved = initialLoad.conversations
         if let latest = saved.first {
             conversations = saved
             currentID = latest.id
@@ -421,24 +499,11 @@ final class ChatViewModel: ObservableObject {
             conversations = [fresh]
             currentID = fresh.id
         }
+        historyLoadFailures = initialLoad.failures
+        unreadableConversationCount = initialLoad.unreadableFileCount
+        updatePersistenceError()
         if deferHistoryLoading {
-            isLoadingHistory = true
-            historyTask = Task { @MainActor [weak self, store] in
-                let saved = await store.loadAllInBackground()
-                guard let self else { return }
-                let retained = saved.filter { !self.deletedDuringHydration.contains($0.id) }
-                if !self.historyTouched, self.messages.isEmpty, self.draft.isEmpty, let latest = retained.first {
-                    self.conversations = retained
-                    self.currentID = latest.id
-                    self.messages = latest.messages
-                } else {
-                    let existing = Set(self.conversations.map(\.id))
-                    self.conversations += retained.filter { !existing.contains($0.id) }
-                    self.conversations.sort { $0.updatedAt > $1.updatedAt }
-                }
-                self.isLoadingHistory = false
-                self.deletedDuringHydration = []
-            }
+            startHistoryLoad()
         }
     }
 
@@ -452,6 +517,7 @@ final class ChatViewModel: ObservableObject {
               sourceScopes: Set<AskSourceScope> = AskSourceScope.defaults,
               dayScope: Date? = nil, dateScope: AskDateScope? = nil,
               attachedScreenDates: [Date] = [],
+              attachedScreenIDs: Set<Int64> = [],
               meetingIDs: Set<UUID>? = nil, screenSnapshotIDs: Set<Int64>? = nil) {
         sendResolved(
             prompt,
@@ -460,6 +526,7 @@ final class ChatViewModel: ObservableObject {
             dayScopeKey: dateScope?.storageKey ?? dayScope.map { AskDayScope.key(for: $0) },
             attachedScreenDayKeys: Array(Set(
                 attachedScreenDates.map { AskDayScope.key(for: $0) })).sorted(),
+            attachedScreenIDs: attachedScreenIDs,
             meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
     }
 
@@ -469,6 +536,7 @@ final class ChatViewModel: ObservableObject {
         sourceScopes: Set<AskSourceScope>,
         dayScopeKey: String?,
         attachedScreenDayKeys: [String],
+        attachedScreenIDs: Set<Int64>,
         meetingIDs: Set<UUID>?, screenSnapshotIDs: Set<Int64>?
     ) {
         let text = (prompt ?? draft).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -515,6 +583,7 @@ final class ChatViewModel: ObservableObject {
             prompt: text, displayText: visibleText, scopes: sourceScopes,
             dayScopeKey: dayScopeKey,
             attachedScreenDayKeys: attachedScreenDayKeys,
+            attachedScreenIDs: attachedScreenIDs,
             meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
         activeAssistantID = assistantID
         persist()
@@ -527,6 +596,7 @@ final class ChatViewModel: ObservableObject {
                 conversationID: conversationID,
                 scopes: sourceScopes,
                 dayScopeKey: dayScopeKey,
+                attachedScreenIDs: attachedScreenIDs,
                 meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
         }
     }
@@ -576,6 +646,7 @@ final class ChatViewModel: ObservableObject {
                     ? AskSourceScope.allCases : messages[userIndex].sourceScopes),
                 dayScopeKey: messages[userIndex].dayScopeKey,
                 attachedScreenDayKeys: [],
+                attachedScreenIDs: [],
                 meetingIDs: messages[userIndex].meetingIDs,
                 screenSnapshotIDs: messages[userIndex].screenSnapshotIDs)
         messages.remove(at: assistantIndex)
@@ -587,6 +658,7 @@ final class ChatViewModel: ObservableObject {
             sourceScopes: payload.scopes,
             dayScopeKey: payload.dayScopeKey,
             attachedScreenDayKeys: payload.attachedScreenDayKeys,
+            attachedScreenIDs: payload.attachedScreenIDs,
             meetingIDs: payload.meetingIDs, screenSnapshotIDs: payload.screenSnapshotIDs)
     }
 
@@ -618,14 +690,21 @@ final class ChatViewModel: ObservableObject {
     /// Delete a conversation from disk and the list.
     func delete(_ id: UUID) {
         historyTouched = true
-        if isLoadingHistory { deletedDuringHydration.insert(id) }
         let deletingCurrent = id == currentID
         if deletingCurrent { stop() }
+        guard store.delete(id) else {
+            failedDeletionID = id
+            persistenceError = "This conversation could not be deleted. It is still available; retry after checking disk access."
+            return
+        }
+        failedDeletionID = nil
+        unsavedConversationIDs.remove(id)
+        updatePersistenceError()
+        if isLoadingHistory { deletedDuringHydration.insert(id) }
         let deletedMessages = deletingCurrent
             ? messages
             : conversations.first(where: { $0.id == id })?.messages ?? []
         discardRetryPayloads(for: deletedMessages)
-        store.delete(id)
         conversations.removeAll { $0.id == id }
         guard deletingCurrent else { return }
         if let next = conversations.first {
@@ -668,7 +747,68 @@ final class ChatViewModel: ObservableObject {
         } else {
             conversations[index] = convo
         }
-        if !clean.isEmpty { store.save(convo) }
+        if !clean.isEmpty {
+            if store.save(convo) { unsavedConversationIDs.remove(convo.id) } else {
+                unsavedConversationIDs.insert(convo.id)
+            }
+            updatePersistenceError()
+        }
+    }
+
+    func retryPersistence() {
+        if let failedDeletionID { delete(failedDeletionID) }
+        for conversation in conversations where unsavedConversationIDs.contains(conversation.id) {
+            if store.save(conversation) { unsavedConversationIDs.remove(conversation.id) }
+        }
+        if !historyLoadFailures.isEmpty { startHistoryLoad() }
+        updatePersistenceError()
+    }
+
+    private func startHistoryLoad() {
+        guard !isLoadingHistory else { return }
+        isLoadingHistory = true
+        historyTask = Task { @MainActor [weak self, store] in
+            let report = await store.loadAllInBackground()
+            guard let self else { return }
+            let retained = report.conversations.filter {
+                !self.deletedDuringHydration.contains($0.id)
+            }
+            if !self.historyTouched,
+               self.messages.isEmpty,
+               self.draft.isEmpty,
+               let latest = retained.first {
+                self.conversations = retained
+                self.currentID = latest.id
+                self.messages = latest.messages
+            } else {
+                let existing = Set(self.conversations.map(\.id))
+                self.conversations += retained.filter { !existing.contains($0.id) }
+                self.conversations.sort { $0.updatedAt > $1.updatedAt }
+            }
+            self.historyLoadFailures = report.failures
+            self.unreadableConversationCount = report.unreadableFileCount
+            self.isLoadingHistory = false
+            self.deletedDuringHydration = []
+            self.updatePersistenceError()
+        }
+    }
+
+    private func updatePersistenceError() {
+        if failedDeletionID != nil {
+            persistenceError = "This conversation could not be deleted. It is still available; retry after checking disk access."
+        } else if !unsavedConversationIDs.isEmpty {
+            persistenceError = "Conversation changes are not saved. Keep LokalBot open and retry after checking disk space and Keychain access."
+        } else if !historyLoadFailures.isEmpty {
+            if unreadableConversationCount > 0 {
+                persistenceError = "\(unreadableConversationCount) saved conversation file"
+                    + "\(unreadableConversationCount == 1 ? "" : "s") could not be opened. "
+                    + "The files were preserved; retry after checking Keychain and disk access."
+            } else {
+                persistenceError = "Saved conversation history could not be read. Retry after checking Keychain and disk access."
+            }
+        } else {
+            persistenceError = nil
+        }
     }
 
     static func finalizedHistory(
@@ -802,7 +942,7 @@ final class ChatViewModel: ObservableObject {
 
     private func run(latest: String, history: [ChatAgent.Turn], assistantID: UUID,
                      conversationID: UUID, scopes: Set<AskSourceScope>,
-                     dayScopeKey: String?, meetingIDs: Set<UUID>?,
+                     dayScopeKey: String?, attachedScreenIDs: Set<Int64>, meetingIDs: Set<UUID>?,
                      screenSnapshotIDs: Set<Int64>?) async {
         defer {
             let stillOwnsGeneration = activeAssistantID == assistantID
@@ -831,6 +971,10 @@ final class ChatViewModel: ObservableObject {
                 dayScopeKey: dayScopeKey,
                 meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
             var agent = ChatAgent(engine: engine, runner: scopedTools)
+            if scopes.contains(.screen) {
+                agent.initialEvidence.screenIDs = screenSnapshotIDs.map { attachedScreenIDs.intersection($0) }
+                    ?? attachedScreenIDs
+            }
             // Dream memory is distilled from meetings, activity, and screen
             // context. Including it in a restricted question would bypass the
             // per-turn source/day boundary even though no tool could do so.

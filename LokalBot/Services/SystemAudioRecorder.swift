@@ -499,7 +499,7 @@ final class SystemAudioRecorder {
         copyBufferList(source.audioBufferList, into: destination)
     }
 
-    private static func copyBufferList(
+    static func copyBufferList(
         _ source: UnsafePointer<AudioBufferList>,
         into destination: AVAudioPCMBuffer
     ) -> Bool {
@@ -517,7 +517,7 @@ final class SystemAudioRecorder {
         return true
     }
 
-    private static func measureRMS(of buffer: AVAudioPCMBuffer) -> Float {
+    static func measureRMS(of buffer: AVAudioPCMBuffer) -> Float {
         let buffers = UnsafeMutableAudioBufferListPointer(
             UnsafeMutablePointer(mutating: buffer.audioBufferList))
         var sumSquares: Double = 0

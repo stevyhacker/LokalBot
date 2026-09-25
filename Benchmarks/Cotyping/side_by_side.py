@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import unicodedata
@@ -94,6 +95,56 @@ def parse_manifest(path: Path) -> list[tuple[str, str, str]]:
     return rows
 
 
+def completion_fields(path: Path) -> dict[str, str]:
+    if not path.is_file() or not path.stat().st_size:
+        raise ValueError(f"capture completion marker is missing: {path}")
+    fields = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if "=" not in line:
+            raise ValueError(f"malformed capture completion marker: {path}")
+        key, value = line.split("=", 1)
+        fields[key] = value
+    return fields
+
+
+def validate_capture_directory(directory: Path, target: str,
+                               rows: list[tuple[str, str, str]], manifest: Path) -> None:
+    fields = completion_fields(directory / "capture.complete")
+    if fields.get("target") != target:
+        raise ValueError(f"{target} capture marker names {fields.get('target')!r}")
+    try:
+        count = int(fields.get("prompt_count", ""))
+    except ValueError as error:
+        raise ValueError(f"{target} capture marker has an invalid prompt count") from error
+    if count != len(rows) or not rows:
+        raise ValueError(f"{target} capture is incomplete: {count}/{len(rows)} prompts")
+    if fields.get("input_mode") != "keys" or fields.get("accept") != "1":
+        raise ValueError(f"{target} capture lacks keyboard acceptance evidence")
+
+    copied_manifest = directory / "prompts.tsv"
+    if not copied_manifest.is_file():
+        raise ValueError(f"{target} capture has no copied manifest")
+    digest = hashlib.sha256(copied_manifest.read_bytes()).hexdigest()
+    if fields.get("manifest_sha256") != digest:
+        raise ValueError(f"{target} capture manifest does not match its completion marker")
+    if copied_manifest.read_bytes() != manifest.read_bytes():
+        raise ValueError(f"{target} capture used a different prompt manifest")
+
+    for slug, _, prompt in rows:
+        required = [f"{slug}.png", f"{slug}.rect", f"{slug}.txt",
+                    f"{slug}.document.txt", f"{slug}.accepted.txt"]
+        missing = [name for name in required
+                   if not (directory / name).is_file()
+                   or (name != f"{slug}.accepted.txt" and not (directory / name).stat().st_size)]
+        if missing:
+            raise ValueError(f"{target} capture is missing evidence for {slug}: {', '.join(missing)}")
+        capture = load_capture(directory, slug)
+        if capture is None or capture.prompt != prompt:
+            raise ValueError(f"{target} captured the wrong prompt for {slug}")
+        if capture.insertion is None:
+            raise ValueError(f"{target} acceptance evidence is unusable for {slug}")
+
+
 def word_completion_ok(insertion: str | None) -> bool | None:
     if insertion is None:
         return None
@@ -127,6 +178,12 @@ def main() -> int:
         print(f"manifest not found: {manifest}", file=sys.stderr)
         return 66
     rows = parse_manifest(manifest)
+    try:
+        validate_capture_directory(args.cotypist_dir, "cotypist", rows, manifest)
+        validate_capture_directory(args.lokalbot_dir, "lokalbot", rows, manifest)
+    except (OSError, ValueError) as error:
+        print(f"incomplete side-by-side evidence: {error}", file=sys.stderr)
+        return 65
 
     engine: dict[str, dict] = {}
     engine_summary: dict | None = None

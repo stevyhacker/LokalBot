@@ -107,3 +107,23 @@ enum CotypingSecureFieldDetector {
         "credit card",
     ]
 }
+
+/// App exclusions authorize the Accessibility read itself, before field text is
+/// available to the prediction pipeline. Unknown app owners fail closed.
+struct CotypingAppReadPolicy: Equatable, Sendable {
+    var enabled = false
+    var excludedApps: [String] = []
+    var selfBundleID: String?
+
+    func allows(appName: String, bundleID: String?) -> Bool {
+        guard enabled, !appName.isEmpty || bundleID?.isEmpty == false else { return false }
+        if let selfBundleID, bundleID == selfBundleID { return false }
+        return !CotypingAvailability.isExcluded(
+            appName: appName, bundleID: bundleID, excluded: excludedApps)
+    }
+
+    func readIfAllowed<Value>(appName: String, bundleID: String?, _ read: () -> Value?) -> Value? {
+        guard allows(appName: appName, bundleID: bundleID) else { return nil }
+        return read()
+    }
+}

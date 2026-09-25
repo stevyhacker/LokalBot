@@ -2,7 +2,7 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Regression tests for `SystemAudioRecorder.copyAndMeasureRMS(from:into:)`.
+/// Regression tests for the capture callback's raw-buffer copy and RMS path.
 ///
 /// The Core Audio process tap delivers *interleaved* stereo. An earlier
 /// implementation copied per-channel with contiguous `memcpy`s over
@@ -115,7 +115,9 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         let destination = makeBuffer(format: format, frames: frameCount)
         zero(destination)
 
-        let rms = SystemAudioRecorder.copyAndMeasureRMS(from: source, into: destination)
+        XCTAssertTrue(SystemAudioRecorder.copyBufferList(source.audioBufferList, into: destination),
+                      file: file, line: line)
+        let rms = SystemAudioRecorder.measureRMS(of: destination)
 
         // Byte-for-byte equality of every underlying AudioBuffer.
         let sourceList = UnsafeMutableAudioBufferListPointer(

@@ -7,12 +7,15 @@ struct AgentLLMConnection: Equatable, Sendable {
 
 enum ThinkExecutionError: LocalizedError, Sendable {
     case invalidConfiguration
+    case unknownBuiltInModel
     case agentConfiguration(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration:
             "Invalid LLM server URL in Settings → Models."
+        case .unknownBuiltInModel:
+            "The selected built-in model is no longer available. Pick a model under Settings → Models."
         case .agentConfiguration(let reason):
             reason
         }
@@ -189,10 +192,9 @@ final class ThinkExecution {
         case .builtIn:
             guard let entry = ModelCatalog.entry(
                 id: settings.builtInModelID,
-                custom: settings.customBuiltInModels)
-                    ?? ModelCatalog.entry(id: ModelCatalog.recommendedSummarizationID) else {
+                custom: settings.customBuiltInModels) else {
                 return .unsupported(
-                    reason: "No built-in model is configured. Pick one under Settings → Models.")
+                    reason: ThinkExecutionError.unknownBuiltInModel.localizedDescription)
             }
             return .builtIn(modelID: entry.id)
 
@@ -260,9 +262,8 @@ final class ThinkExecution {
     private func builtInEntry(_ settings: AppSettings) throws -> ModelCatalog.Entry {
         guard let entry = ModelCatalog.entry(
             id: settings.builtInModelID,
-            custom: settings.customBuiltInModels)
-                ?? ModelCatalog.entry(id: ModelCatalog.recommendedSummarizationID) else {
-            throw ThinkExecutionError.invalidConfiguration
+            custom: settings.customBuiltInModels) else {
+            throw ThinkExecutionError.unknownBuiltInModel
         }
         return entry
     }

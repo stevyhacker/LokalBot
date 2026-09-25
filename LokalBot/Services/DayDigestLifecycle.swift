@@ -21,8 +21,19 @@ final class DayDigestLifecycle {
 
     typealias Generator = @MainActor (
         _ evidence: DailyEvidenceSnapshot,
-        _ settings: AppSettings
+        _ settings: AppSettings,
+        _ validateEvidence: EvidenceValidator
     ) async throws -> DayDigestGenerationResult
+
+    typealias EvidenceValidator = @MainActor () throws -> Void
+
+    enum GenerationError: LocalizedError {
+        case evidenceChangedDuringGeneration
+
+        var errorDescription: String? {
+            "The day's source evidence changed while its digest was being generated. Generate it again to use the current evidence."
+        }
+    }
 
     private let storageRoot: URL
     private let blocks: (Date) -> [ActivityBlock]
@@ -75,16 +86,35 @@ final class DayDigestLifecycle {
             meetings: meetings,
             latestActivityEvidenceAt: { activityStore.latestEvidenceAt(on: $0) },
             settings: settings,
-            generator: { evidence, settings in
+            generator: { evidence, settings, validateEvidence in
                 try await pipeline.generateDayDigest(
                     from: evidence,
-                    config: settings)
+                    config: settings,
+                    validateEvidence: validateEvidence)
             },
             onGenerated: onGenerated)
     }
 
     func journalURL(for day: Date) -> URL {
         storageRoot.appendingPathComponent("journal/\(DreamDay.key(for: day, calendar: calendar)).md")
+    }
+
+    /// An unchanged generated digest is a derived copy of its evidence. Remove
+    /// it before withdrawing that evidence; edited and unsigned journals are
+    /// user-owned documents with an explicitly independent lifetime.
+    func retractGeneratedJournals(for days: [Date]) throws {
+        for day in Set(days.map { calendar.startOfDay(for: $0) }) {
+            let url = journalURL(for: day)
+            guard let metadata = DayDigestGenerationMetadataStore.load(for: url),
+                  DayDigestGenerationMetadataStore.journalMatches(metadata, at: url) else { continue }
+            try FileManager.default.removeItem(at: url)
+            for artifact in [
+                DayDigestGenerationMetadataStore.metadataURL(for: url),
+                DayDigestJournalWriter.transactionURL(for: url),
+            ] where FileManager.default.fileExists(atPath: artifact.path) {
+                try FileManager.default.removeItem(at: artifact)
+            }
+        }
     }
 
     func snapshot(for day: Date) -> Snapshot {
@@ -151,9 +181,12 @@ final class DayDigestLifecycle {
         settings override: AppSettings? = nil
     ) async throws -> DayDigestGenerationResult {
         let evidence = try evidenceInput(for: day)
+        let validateEvidence = evidenceValidator(for: evidence)
         let result = try await generator(
             evidence,
-            override ?? settings())
+            override ?? settings(),
+            validateEvidence)
+        try validateEvidence()
         onGenerated(evidence.day)
         return result
     }
@@ -180,7 +213,9 @@ final class DayDigestLifecycle {
                 guard let self else {
                     throw TextEngineError.unavailable("LokalBot is shutting down.")
                 }
+                guard self.settings().allowsAutomaticMainInference else { return .deferred }
                 let evidence = try self.evidenceInput(for: day)
+                let validateEvidence = self.evidenceValidator(for: evidence)
                 let url = self.journalURL(for: day)
                 let ownedJournal = DayDigestGenerationMetadataStore.load(for: url).map {
                     DayDigestGenerationMetadataStore.journalMatches($0, at: url)
@@ -188,7 +223,9 @@ final class DayDigestLifecycle {
                 guard !evidence.isEmpty || ownedJournal else { return .deferred }
                 let result = try await self.generator(
                     evidence,
-                    self.settings())
+                    self.settings(),
+                    validateEvidence)
+                try validateEvidence()
                 self.invalidatedDays.remove(DreamDay.key(for: day, calendar: self.calendar))
                 self.onGenerated(evidence.day)
                 return result.quality.needsRepair ? .needsRepair : .completed
@@ -219,6 +256,25 @@ final class DayDigestLifecycle {
             activityBlocks: blocks(day),
             screenContexts: screenContexts(day),
             includeScreenSummary: false)
+    }
+
+    /// Rebuild the same day's primary evidence at the final commit boundary.
+    /// The validator is synchronous and main-actor isolated, so evidence cannot
+    /// change between this check and the journal write that immediately follows.
+    private func evidenceValidator(for original: DailyEvidenceSnapshot) -> EvidenceValidator {
+        let expectedSignature = original.digestEvidence(calendar: calendar).contentSignature
+        let day = original.day
+        return { [weak self] in
+            guard let self else {
+                throw TextEngineError.unavailable("LokalBot is shutting down.")
+            }
+            let currentSignature = try self.evidenceInput(for: day)
+                .digestEvidence(calendar: self.calendar)
+                .contentSignature
+            guard currentSignature == expectedSignature else {
+                throw GenerationError.evidenceChangedDuringGeneration
+            }
+        }
     }
 
     /// Summaries, outcomes, and the user's outcome overlay are consumed by

@@ -11,6 +11,7 @@ struct DictationScreenTarget: Equatable, Sendable {
     let processID: pid_t
     let appName: String
     let bundleID: String?
+    var focusIdentityKey: String?
 
     @MainActor
     static func frontmost() -> Self? {
@@ -56,6 +57,44 @@ enum DictationScreenPrivacy {
             }
         }
     }
+
+    static func permits(_ snapshot: ScreenAccessibilitySnapshot, target: DictationScreenTarget,
+                        policy: DictationScreenCapturePolicy) -> Bool {
+        !isExcluded(target: target, excludedApps: policy.excludedApps)
+            && ScreenContextPrivacy.permitsContent(
+                snapshot.privacyObservation(appName: target.appName, bundleIdentifier: target.bundleID),
+                excludedApps: policy.excludedApps, excludedDomains: policy.excludedDomains,
+                capturePrivateWindows: policy.capturePrivateWindows)
+    }
+}
+
+struct DictationScreenCapturePolicy: Equatable, Sendable {
+    var excludedApps: [String] = []
+    var excludedDomains: [String] = []
+    var capturePrivateWindows = false
+}
+
+/// The exact Accessibility window whose metadata may be attached to a compose
+/// request. A process ID is too broad: switching documents inside the same app
+/// must invalidate the captured title and URL just like switching apps does.
+struct DictationScreenContextIdentity: Equatable, Sendable {
+    let windowTitle: String
+    let windowFrame: CGRect
+    let sourceURL: String?
+
+    init?(_ snapshot: ScreenAccessibilitySnapshot) {
+        guard let windowTitle = snapshot.windowTitle,
+              let windowFrame = snapshot.windowFrame else { return nil }
+        self.windowTitle = windowTitle
+        self.windowFrame = windowFrame
+        sourceURL = snapshot.sourceURL
+    }
+
+    func matches(_ snapshot: ScreenAccessibilitySnapshot) -> Bool {
+        snapshot.windowTitle == windowTitle
+            && snapshot.windowFrame == windowFrame
+            && snapshot.sourceURL == sourceURL
+    }
 }
 
 struct DictationWindowCandidate: Equatable, Sendable {
@@ -68,13 +107,14 @@ struct DictationWindowCandidate: Equatable, Sendable {
     }
 }
 
-/// Chooses the actual focused window where Accessibility supplied a title, and
-/// otherwise the largest normal window owned by the target application.
+/// A unique focused-window match is required. Missing/ambiguous identity must
+/// never substitute another document belonging to the same application.
 enum DictationWindowSelector {
     static func preferredIndex(
         in candidates: [DictationWindowCandidate],
         processID: pid_t,
-        focusedWindowTitle: String?
+        focusedWindowTitle: String?,
+        focusedWindowFrame: CGRect? = nil
     ) -> Int? {
         let eligible = candidates.indices.filter { index in
             let candidate = candidates[index]
@@ -85,27 +125,12 @@ enum DictationWindowSelector {
         guard !eligible.isEmpty else { return nil }
 
         let focused = normalizedTitle(focusedWindowTitle)
-        if !focused.isEmpty {
-            let exact = eligible.filter {
-                normalizedTitle(candidates[$0].title) == focused
-            }
-            if let best = largest(in: exact, candidates: candidates) { return best }
-
-            let partial = eligible.filter {
-                let title = normalizedTitle(candidates[$0].title)
-                return !title.isEmpty && (title.contains(focused) || focused.contains(title))
-            }
-            if let best = largest(in: partial, candidates: candidates) { return best }
+        guard !focused.isEmpty else { return nil }
+        let exact = eligible.filter {
+            normalizedTitle(candidates[$0].title) == focused
+                && (focusedWindowFrame == nil || candidates[$0].frame == focusedWindowFrame)
         }
-
-        return largest(in: eligible, candidates: candidates)
-    }
-
-    private static func largest(
-        in indices: [Int],
-        candidates: [DictationWindowCandidate]
-    ) -> Int? {
-        indices.max { lhs, rhs in candidates[lhs].area < candidates[rhs].area }
+        return exact.count == 1 ? exact.first : nil
     }
 
     private static func normalizedTitle(_ title: String?) -> String {
@@ -166,28 +191,35 @@ private enum DictationScreenCaptureFailure: Error {
 final class DictationScreenContextCapture {
     static let shared = DictationScreenContextCapture()
 
-    private let windowTitleLookup: FocusedWindowTitleLookup
+    private let privacyReader: ScreenAccessibilityReader
+    private let focusReader: DictationFocusSnapshotExecutor
     private let ocrWorker = DictationOCRWorker()
 
-    init(windowTitleLookup: FocusedWindowTitleLookup = .shared) {
-        self.windowTitleLookup = windowTitleLookup
+    init(privacyReader: ScreenAccessibilityReader = .metadataOnly,
+         focusReader: DictationFocusSnapshotExecutor = .shared) {
+        self.privacyReader = privacyReader
+        self.focusReader = focusReader
     }
 
     func capture(
         target: DictationScreenTarget,
-        excludedApps: [String]
+        policy: DictationScreenCapturePolicy
     ) async -> DictationScreenContext? {
         guard target.stillOwnsFocus,
               !DictationScreenPrivacy.isExcluded(
-                target: target, excludedApps: excludedApps) else { return nil }
+                target: target, excludedApps: policy.excludedApps),
+              await focusMatches(target) else { return nil }
 
-        let titleResult = await windowTitleLookup.title(for: target.processID)
-        guard !Task.isCancelled, target.stillOwnsFocus else { return nil }
-        let title = titleResult.timedOut ? "" : (titleResult.title ?? "")
+        let observation = await privacyReader.capture(processID: target.processID)
+        guard !Task.isCancelled, target.stillOwnsFocus, !observation.timedOut,
+              let snapshot = observation.snapshot, let title = snapshot.windowTitle,
+              let identity = DictationScreenContextIdentity(snapshot),
+              DictationScreenPrivacy.permits(snapshot, target: target, policy: policy),
+              await contextStillMatches(target, identity: identity, policy: policy) else { return nil }
         let metadata = DictationScreenContext(
             appName: target.appName,
             bundleID: target.bundleID,
-            windowTitle: title,
+            windowTitle: ScreenContextPrivacy.redact(title).text,
             visibleText: "")
 
         // Never prompt from a global shortcut. The Dictation permissions UI is
@@ -196,27 +228,34 @@ final class DictationScreenContextCapture {
 
         do {
             let text = try await captureVisibleText(
-                target: target, focusedWindowTitle: title)
+                target: target, snapshot: snapshot, identity: identity, policy: policy)
             guard !Task.isCancelled else { return nil }
             return DictationScreenContext(
                 appName: target.appName,
                 bundleID: target.bundleID,
-                windowTitle: title,
-                visibleText: text)
+                windowTitle: ScreenContextPrivacy.redact(title).text,
+                visibleText: ScreenContextPrivacy.redact(text).text)
         } catch {
             if Task.isCancelled { return nil }
             lokalbotLog("dictation screen context skipped: \(error.localizedDescription)")
+            // Screen Recording denial and capture errors are allowed to fall
+            // back to metadata only while it still belongs to the exact bound
+            // field and window. Never return a stale same-app document title.
+            guard await contextStillMatches(
+                target, identity: identity, policy: policy) else { return nil }
             return metadata
         }
     }
 
     private func captureVisibleText(
         target: DictationScreenTarget,
-        focusedWindowTitle: String
+        snapshot: ScreenAccessibilitySnapshot,
+        identity: DictationScreenContextIdentity,
+        policy: DictationScreenCapturePolicy
     ) async throws -> String {
         let content = try await SCShareableContent.excludingDesktopWindows(
             false, onScreenWindowsOnly: true)
-        guard !Task.isCancelled, target.stillOwnsFocus else {
+        guard !Task.isCancelled, await contextStillMatches(target, identity: identity, policy: policy) else {
             throw DictationScreenCaptureFailure.focusChanged
         }
 
@@ -229,7 +268,8 @@ final class DictationScreenContextCapture {
         guard let index = DictationWindowSelector.preferredIndex(
             in: candidates,
             processID: target.processID,
-            focusedWindowTitle: focusedWindowTitle) else {
+            focusedWindowTitle: snapshot.windowTitle,
+            focusedWindowFrame: snapshot.windowFrame), snapshot.windowFrame != nil else {
             throw DictationScreenCaptureFailure.noWindow
         }
 
@@ -248,10 +288,34 @@ final class DictationScreenContextCapture {
 
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: configuration)
-        guard !Task.isCancelled, target.stillOwnsFocus else {
+        guard !Task.isCancelled, await contextStillMatches(target, identity: identity, policy: policy) else {
             throw DictationScreenCaptureFailure.focusChanged
         }
-        return await ocrWorker.recognize(DictationOCRImage(image: image))
+        let text = await ocrWorker.recognize(DictationOCRImage(image: image))
+        guard !Task.isCancelled,
+              await contextStillMatches(target, identity: identity, policy: policy) else {
+            throw DictationScreenCaptureFailure.focusChanged
+        }
+        return text
+    }
+
+    private func focusMatches(_ target: DictationScreenTarget) async -> Bool {
+        guard target.stillOwnsFocus, let identity = target.focusIdentityKey else { return false }
+        let focus = await focusReader.capture()
+        return DictationScreenPrivacy.allowsCapture(focus: focus, target: target)
+            && focus.snapshot?.focusIdentityKey == identity && target.stillOwnsFocus
+    }
+
+    private func contextStillMatches(_ target: DictationScreenTarget, identity: DictationScreenContextIdentity,
+                                     policy: DictationScreenCapturePolicy) async -> Bool {
+        guard target.stillOwnsFocus else { return false }
+        let current = await privacyReader.capture(processID: target.processID)
+        guard !current.timedOut, let value = current.snapshot else { return false }
+        guard identity.matches(value),
+              DictationScreenPrivacy.permits(value, target: target, policy: policy) else { return false }
+        // Re-read the exact focused AX element after the awaited window capture.
+        // A same-process document change can happen while that reader is busy.
+        return await focusMatches(target)
     }
 }
 
@@ -307,9 +371,9 @@ enum DictationComposePrompt {
             let bundleID = PromptContextSanitizer.sanitize(
                 context.bundleID ?? "", maxCharacters: 200)
             let title = PromptContextSanitizer.sanitize(
-                context.windowTitle, maxCharacters: 500)
+                ScreenContextPrivacy.redact(context.windowTitle).text, maxCharacters: 500)
             let visibleText = PromptContextSanitizer.sanitize(
-                context.visibleText, maxCharacters: 12_000)
+                ScreenContextPrivacy.redact(context.visibleText).text, maxCharacters: 12_000)
             var contextLines = ["Application: \(app)"]
             if !bundleID.isEmpty { contextLines.append("Bundle ID: \(bundleID)") }
             if !title.isEmpty { contextLines.append("Window: \(title)") }

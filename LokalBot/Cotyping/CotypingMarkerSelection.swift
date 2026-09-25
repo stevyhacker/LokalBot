@@ -9,6 +9,7 @@ import Foundation
 struct CotypingMarkerSelection: Equatable, Sendable {
     let text: String
     let selection: NSRange
+    let context: CotypingTextContext?
 }
 
 enum CotypingMarkerSelectionSynthesizer {
@@ -28,7 +29,10 @@ enum CotypingMarkerSelectionSynthesizer {
             text: text,
             selection: NSRange(
                 location: (windowedBefore as NSString).length,
-                length: (selected as NSString).length))
+                length: (selected as NSString).length),
+            context: selected.isEmpty ? CotypingAcceptanceContentBounds.context(
+                in: beforeCaret + afterCaret,
+                selection: NSRange(location: (beforeCaret as NSString).length, length: 0)) : nil)
     }
 
     private static func suffix(of string: String, limit: Int) -> String {

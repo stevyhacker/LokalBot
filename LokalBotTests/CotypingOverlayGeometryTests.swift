@@ -271,6 +271,17 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         }
     }
 
+    func testMirrorWrapPreservesWordsAfterOversizedToken() {
+        let token = String(repeating: "W", count: 24)
+        let lines = CotypingGhostTextLayout.wrappedLines(
+            text: token + " contract approved", font: .systemFont(ofSize: 13), maxWidth: 80, maxLines: 20)
+        XCTAssertEqual(lines.joined().replacingOccurrences(of: " ", with: ""), token + "contractapproved")
+        XCTAssertFalse(lines.contains { $0.hasSuffix("...") })
+        let clipped = CotypingGhostTextLayout.wrappedLines(
+            text: token + " contract approved", font: .systemFont(ofSize: 13), maxWidth: 80, maxLines: 2)
+        XCTAssertTrue(clipped.last?.hasSuffix("...") == true)
+    }
+
     func testMirrorLayoutPreservesExplicitLineBoundaries() {
         let font = NSFont.systemFont(ofSize: 13)
         let lines = CotypingGhostTextLayout.wrappedLines(

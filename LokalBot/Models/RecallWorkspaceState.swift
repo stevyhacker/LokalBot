@@ -11,9 +11,15 @@ struct RecallWorkspaceState {
     var sources = AskSourceScope.defaults
     var pins: [ScreenAskContext] = []
     private(set) var sourcesBeforeEvidence: Set<AskSourceScope>?
+    private struct PinScope {
+        var screenIDs: Set<Int64>?
+        var screenWasEnabled: Bool
+    }
+    private var scopeBeforePins: PinScope?
 
     mutating func selectEvidence(meetingIDs: Set<UUID>?, screenIDs: Set<Int64>?,
                                  sources selectedSources: Set<AskSourceScope>? = nil) {
+        clearPins(restoringScope: true)
         guard meetingIDs != nil || screenIDs != nil else {
             clearEvidence()
             if let selectedSources { sources = selectedSources }
@@ -35,14 +41,45 @@ struct RecallWorkspaceState {
     /// An explicit source choice supersedes any earlier temporary narrowing.
     mutating func chooseSources(_ selection: Set<AskSourceScope>) {
         sources = selection
+        scopeBeforePins?.screenWasEnabled = selection.contains(.screen)
         sourcesBeforeEvidence = nil
     }
 
     mutating func clearEvidence() {
+        clearPins(restoringScope: true)
         meetingIDs = nil
         screenIDs = nil
         if let sourcesBeforeEvidence { sources = sourcesBeforeEvidence }
         sourcesBeforeEvidence = nil
+    }
+
+    mutating func beginPinning() {
+        guard scopeBeforePins == nil else { return }
+        scopeBeforePins = PinScope(screenIDs: screenIDs, screenWasEnabled: sources.contains(.screen))
+    }
+
+    mutating func reconcilePins(dateScope: AskDateScope? = nil) {
+        if let dateScope { pins = pins.filter { dateScope.contains($0.timestamp) } }
+        guard !pins.isEmpty else {
+            clearPins(restoringScope: true)
+            return
+        }
+        sources.insert(.screen)
+        screenIDs = Set(pins.map(\.snapshotID))
+    }
+
+    mutating func removePin(_ id: Int64) {
+        pins.removeAll { $0.id == id }
+        reconcilePins()
+    }
+
+    mutating func clearPins(restoringScope: Bool) {
+        pins = []
+        if restoringScope, let previous = scopeBeforePins {
+            screenIDs = previous.screenIDs
+            if !previous.screenWasEnabled, sources.count > 1 { sources.remove(.screen) }
+        }
+        scopeBeforePins = nil
     }
 }
 

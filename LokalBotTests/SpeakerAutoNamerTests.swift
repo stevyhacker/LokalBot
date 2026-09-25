@@ -1,9 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// Automatic speaker naming from calendar attendees: only the unambiguous
-/// single-speaker/single-attendee case gets an alias; everything else is left
-/// exactly as diarization produced it.
+/// Attendance never identifies a voice, including a single invited guest.
 final class SpeakerAutoNamerTests: XCTestCase {
 
     private func transcript(speakers: [String]) -> Transcript {
@@ -17,13 +15,13 @@ final class SpeakerAutoNamerTests: XCTestCase {
         names.compactMap { CalendarParticipantIdentity(name: $0, emailAddress: nil) }
     }
 
-    func testSingleRemoteSpeakerWithOneAttendeeGetsNamed() {
+    func testSingleRemoteTrackWithOneAttendeeRemainsUnnamed() {
         let named = SpeakerAutoNamer.applyingAliases(
             to: transcript(speakers: ["me", "them", "me", "them"]),
             participants: participants(["Ana Petrović"]))
-        XCTAssertEqual(named.speakerAliases["them"], "Ana Petrović")
-        XCTAssertNotNil(named.calendarIdentityID(for: "them"))
-        XCTAssertEqual(named.displaySpeaker(for: "them"), "Ana Petrović")
+        XCTAssertNil(named.speakerAliases["them"])
+        XCTAssertNil(named.calendarIdentityID(for: "them"))
+        XCTAssertEqual(named.displaySpeaker(for: "them"), "Them")
         // Raw labels stay untouched — only the alias layer changes.
         XCTAssertTrue(named.segments.allSatisfy { $0.speaker == "me" || $0.speaker == "them" })
     }
@@ -75,8 +73,8 @@ final class SpeakerAutoNamerTests: XCTestCase {
             to: transcript(speakers: ["me", "them"]),
             participants: [emailOnly, named])
 
-        XCTAssertEqual(result.displaySpeaker(for: "them"), "Ana Petrović")
-        XCTAssertEqual(result.calendarIdentityID(for: "them"), "first")
+        XCTAssertEqual(result.displaySpeaker(for: "them"), "Them")
+        XCTAssertNil(result.calendarIdentityID(for: "them"))
     }
 
     func testEmailWithoutDisplayNameIsNeverUsedAsTranscriptAlias() throws {

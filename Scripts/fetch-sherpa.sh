@@ -51,9 +51,56 @@ version_exceeds() {
      || (lhs_major == rhs_major && lhs_minor == rhs_minor && lhs_patch > rhs_patch) ))
 }
 
+validate_runtime() {
+  local file minos asr_help tts_help flag
+  test -s "$1/libonnxruntime.dylib" && test -s "$1/libsherpa-onnx-c-api.dylib" || return 1
+# A bundle that advertises macOS 15.0 cannot quietly include a runtime that
+# only loads on a later point release. Verify the architecture, deployment
+# target, and bundle-relative rpath for every native object before packaging.
+for file in "$1/sherpa-onnx-offline" "$1/sherpa-onnx-offline-tts" "$1"/*.dylib; do
+  if ! file -b "$file" | grep -q 'Mach-O 64-bit.*arm64'; then
+    echo "fetch-sherpa: $file is not an arm64 Mach-O runtime" >&2
+    return 1
+  fi
+  minos=$(otool -l "$file" | awk '/minos/{print $2; exit}')
+  if [ -z "$minos" ] || version_exceeds "$minos" "$DEPLOYMENT_TARGET"; then
+    echo "fetch-sherpa: $file requires macOS ${minos:-unknown}; app supports $DEPLOYMENT_TARGET" >&2
+    return 1
+  fi
+  if ! otool -l "$file" | awk '
+    /cmd LC_RPATH/ { in_rpath = 1; next }
+    in_rpath && /path @loader_path/ { found = 1 }
+    in_rpath && /path / { in_rpath = 0 }
+    END { exit found ? 0 : 1 }
+  '; then
+    echo "fetch-sherpa: $file has no bundle-relative @loader_path rpath" >&2
+    return 1
+  fi
+done
+
+# Fail closed if an older compatible release ever drops an option LokalBot
+# depends on for SenseVoice, GigaAM, or Kokoro.
+asr_help=$(DYLD_LIBRARY_PATH="$1" "$1/sherpa-onnx-offline" --help 2>&1)
+for flag in --model-type --nemo-ctc-model --sense-voice-model --sense-voice-use-itn; do
+  grep -q -- "$flag" <<< "$asr_help" || {
+    echo "fetch-sherpa: ASR runtime is missing required option $flag" >&2
+    return 1
+  }
+done
+tts_help=$(DYLD_LIBRARY_PATH="$1" "$1/sherpa-onnx-offline-tts" --help 2>&1)
+for flag in --kokoro-model --kokoro-voices --kokoro-tokens --kokoro-data-dir; do
+  grep -q -- "$flag" <<< "$tts_help" || {
+    echo "fetch-sherpa: TTS runtime is missing required option $flag" >&2
+    return 1
+  }
+done
+
+}
+
 if [ -x "$DEST/sherpa-onnx-offline" ] \
    && [ -x "$DEST/sherpa-onnx-offline-tts" ] \
    && [ "$(cat "$DEST/.lokalbot-build" 2>/dev/null || true)" = "$BUILD_MARKER" ]; then
+  validate_runtime "$DEST"
   echo "fetch-sherpa: compatible vendor already present"
   exit 0
 fi
@@ -70,8 +117,10 @@ verify_sha256 "$tmp/LICENSE.onnxruntime" "$ONNXRUNTIME_LICENSE_SHA256"
 tar -xjf "$tmp/sherpa.tar.bz2" -C "$tmp"
 src="$tmp/${ARTIFACT%.tar.bz2}"
 
-rm -rf "$DEST"
-mkdir -p "$DEST"
+FINAL_DEST="$DEST"
+mkdir -p "$(dirname "$DEST")"
+DEST=$(mktemp -d "$DEST.staging.XXXXXX")
+trap 'rm -rf "$tmp" "$DEST"' EXIT
 # Only the offline file-based recogniser, offline TTS, and dylibs. Microphone,
 # websocket, and other tools aren't needed. Flat layout; the app spawns the
 # binary with DYLD_LIBRARY_PATH pointed at this directory.
@@ -83,46 +132,12 @@ cp "$tmp/LICENSE.onnxruntime" "$DEST/"
 chmod +x "$DEST/sherpa-onnx-offline"
 chmod +x "$DEST/sherpa-onnx-offline-tts"
 
-# A bundle that advertises macOS 15.0 cannot quietly include a runtime that
-# only loads on a later point release. Verify the architecture, deployment
-# target, and bundle-relative rpath for every native object before packaging.
-for file in "$DEST/sherpa-onnx-offline" "$DEST/sherpa-onnx-offline-tts" "$DEST"/*.dylib; do
-  if ! file -b "$file" | grep -q 'Mach-O 64-bit.*arm64'; then
-    echo "fetch-sherpa: $file is not an arm64 Mach-O runtime" >&2
-    exit 1
-  fi
-  minos=$(otool -l "$file" | awk '/minos/{print $2; exit}')
-  if [ -z "$minos" ] || version_exceeds "$minos" "$DEPLOYMENT_TARGET"; then
-    echo "fetch-sherpa: $file requires macOS ${minos:-unknown}; app supports $DEPLOYMENT_TARGET" >&2
-    exit 1
-  fi
-  if ! otool -l "$file" | awk '
-    /cmd LC_RPATH/ { in_rpath = 1; next }
-    in_rpath && /path @loader_path/ { found = 1 }
-    in_rpath && /path / { in_rpath = 0 }
-    END { exit found ? 0 : 1 }
-  '; then
-    echo "fetch-sherpa: $file has no bundle-relative @loader_path rpath" >&2
-    exit 1
-  fi
-done
-
-# Fail closed if an older compatible release ever drops an option LokalBot
-# depends on for SenseVoice, GigaAM, or Kokoro.
-asr_help=$(DYLD_LIBRARY_PATH="$DEST" "$DEST/sherpa-onnx-offline" --help 2>&1)
-for flag in --model-type --nemo-ctc-model --sense-voice-model --sense-voice-use-itn; do
-  grep -q -- "$flag" <<< "$asr_help" || {
-    echo "fetch-sherpa: ASR runtime is missing required option $flag" >&2
-    exit 1
-  }
-done
-tts_help=$(DYLD_LIBRARY_PATH="$DEST" "$DEST/sherpa-onnx-offline-tts" --help 2>&1)
-for flag in --kokoro-model --kokoro-voices --kokoro-tokens --kokoro-data-dir; do
-  grep -q -- "$flag" <<< "$tts_help" || {
-    echo "fetch-sherpa: TTS runtime is missing required option $flag" >&2
-    exit 1
-  }
-done
+validate_runtime "$DEST"
 
 printf '%s\n' "$BUILD_MARKER" > "$DEST/.lokalbot-build"
-echo "fetch-sherpa: compatible vendor ready ($(du -sh "$DEST" | cut -f1))"
+if [ -e "$FINAL_DEST" ]; then mv "$FINAL_DEST" "$tmp/previous"; fi
+if ! mv "$DEST" "$FINAL_DEST"; then
+  if [ -e "$tmp/previous" ]; then mv "$tmp/previous" "$FINAL_DEST"; fi
+  exit 1
+fi
+echo "fetch-sherpa: compatible vendor ready"

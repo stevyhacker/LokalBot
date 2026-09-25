@@ -59,14 +59,14 @@ struct ActionThread: Identifiable, Equatable, Sendable {
             return $0.meetingStartedAt < $1.meetingStartedAt
         }
         text = (correctedText ?? descriptiveText ?? sorted[0]).text
-        owner = sorted
+        let correctedOwner = sorted
             .filter(\.ownerWasCorrected)
-            .max { ($0.ownerCorrectedAt ?? $0.stateUpdatedAt) < ($1.ownerCorrectedAt ?? $1.stateUpdatedAt) }?.owner
-            ?? sorted.compactMap(\.owner).first
-        let dueReference = sorted
-            .filter { $0.dueWasCorrected && $0.due != nil }
+            .max { ($0.ownerCorrectedAt ?? $0.stateUpdatedAt) < ($1.ownerCorrectedAt ?? $1.stateUpdatedAt) }
+        owner = correctedOwner.map(\.owner) ?? sorted.compactMap(\.owner).first
+        let correctedDue = sorted
+            .filter(\.dueWasCorrected)
             .max { ($0.dueCorrectedAt ?? $0.stateUpdatedAt) < ($1.dueCorrectedAt ?? $1.stateUpdatedAt) }
-            ?? sorted.first { $0.due != nil }
+        let dueReference = correctedDue ?? sorted.first { $0.due != nil }
         due = dueReference?.due
         dueSourceMeetingDate = dueReference?.meetingStartedAt
         id = Self.stableID(for: sorted)
@@ -165,6 +165,19 @@ enum ActionThreadClusterer {
         return words.joined(separator: " ")
     }
 
+}
+
+/// Converts an editor's visible optional field back to persistence intent.
+/// Untouched extracted values continue to inherit; an existing correction or
+/// a user edit is written verbatim, including an empty explicit clear.
+enum ActionCorrectionFieldIntent {
+    static func persistedValue(
+        _ value: String,
+        wasCorrected: Bool,
+        wasEdited: Bool
+    ) -> String? {
+        wasCorrected || wasEdited ? value : nil
+    }
 }
 
 enum OutcomeTextSimilarity {

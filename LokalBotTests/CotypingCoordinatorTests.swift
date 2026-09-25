@@ -18,6 +18,14 @@ private final class ScriptedCotypingEngine: CotypingCompleting {
 
 private struct EngineBoom: Error {}
 
+private final class CotypingSettingsBox {
+    var value: AppSettings
+
+    init(_ value: AppSettings) {
+        self.value = value
+    }
+}
+
 // MARK: - Coordinator
 
 /// Most of the coordinator needs live AX + event taps, so these tests pin the
@@ -51,6 +59,14 @@ final class CotypingCoordinatorTests: XCTestCase {
             selfBundleID: "me.dotenv.LokalBot.tests")
     }
 
+    private func makeCoordinator(settingsBox: CotypingSettingsBox) -> CotypingCoordinator {
+        CotypingCoordinator(
+            engine: engine,
+            settingsProvider: { settingsBox.value },
+            learningStore: CotypingLearningStore(storageRoot: tempDir),
+            selfBundleID: "me.dotenv.LokalBot.tests")
+    }
+
     func testApplySettingsWithCotypingOffDisablesWithoutRunning() {
         settings.cotypingEnabled = false
         let coordinator = makeCoordinator()
@@ -70,6 +86,38 @@ final class CotypingCoordinatorTests: XCTestCase {
 
         XCTAssertFalse(coordinator.isRunning)
         XCTAssertEqual(coordinator.state, .idle)
+    }
+
+    func testExclusionChangesRefreshCachedAppReadPolicy() {
+        defer { CotypingAXHelper.configureAppReadPolicy(CotypingAppReadPolicy()) }
+        settings.cotypingEnabled = true
+        let box = CotypingSettingsBox(settings)
+        let coordinator = makeCoordinator(settingsBox: box)
+        coordinator.applySettings()
+
+        box.value.cotypingExcludedApps = "Mail"
+        coordinator.applySettings()
+
+        let expected = CotypingAppReadPolicy(
+            enabled: true,
+            excludedApps: ["Mail"],
+            selfBundleID: "me.dotenv.LokalBot.tests")
+        XCTAssertFalse(
+            CotypingAXHelper.configureAppReadPolicy(expected),
+            "applySettings must install the updated exclusion policy before the next AX read")
+    }
+
+    func testAppStateReconcilesCotypingWhenExclusionListsChange() {
+        var original = AppSettings()
+        original.cotypingEnabled = true
+
+        var changed = original
+        changed.cotypingExcludedApps = "Mail"
+        XCTAssertTrue(AppState.cotypingLifecycleChanged(from: original, to: changed))
+
+        changed = original
+        changed.cotypingExcludedDomains = "bank.example"
+        XCTAssertTrue(AppState.cotypingLifecycleChanged(from: original, to: changed))
     }
 
     func testPreviewSuggestionRunsThePipelineAgainstTheEngine() async throws {

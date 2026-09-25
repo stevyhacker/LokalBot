@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import ApplicationServices
 import ImageIO
 import ScreenCaptureKit
 import Vision
@@ -186,6 +187,34 @@ struct ScreenshotCaptureGate {
     }
 }
 
+struct ScreenshotCaptureConsent: Equatable {
+    let generation: Int
+    let pauseRevision: Int
+    let tracking: Bool
+    let text: Bool
+    let pixels: Bool
+    let privateWindows: Bool
+    let excludedApps: [String]
+    let excludedDomains: [String]
+    let meetingVisualContext: Bool
+
+    init(generation: Int, pauseRevision: Int, settings: AppSettings) {
+        self.generation = generation
+        self.pauseRevision = pauseRevision
+        tracking = settings.trackingEnabled
+        text = settings.effectiveScreenContextCaptureMode.capturesText
+        pixels = settings.effectiveScreenContextCaptureMode.capturesPixels
+        privateWindows = settings.capturePrivateWindows
+        excludedApps = settings.excludedAppList
+        excludedDomains = settings.excludedScreenDomainList
+        meetingVisualContext = settings.meetingVisualContextEnabled
+    }
+
+    func permits(current: Self, paused: Bool, cancelled: Bool) -> Bool {
+        self == current && tracking && text && !paused && !cancelled
+    }
+}
+
 enum ScreenshotWindowFocusValidation {
     static func matches(
         expected: ScreenAccessibilitySnapshot,
@@ -213,6 +242,7 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
     let fileURL: URL
     let accessibleText: String
     let accessibilityRedactionCount: Int
+    let stageOnly: Bool
 
     init(
         image: CGImage,
@@ -220,7 +250,8 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
         key: SymmetricKey,
         fileURL: URL,
         accessibleText: String = "",
-        accessibilityRedactionCount: Int = 0
+        accessibilityRedactionCount: Int = 0,
+        stageOnly: Bool = false
     ) {
         self.image = image
         self.trigger = trigger
@@ -228,6 +259,7 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
         self.fileURL = fileURL
         self.accessibleText = accessibleText
         self.accessibilityRedactionCount = max(0, accessibilityRedactionCount)
+        self.stageOnly = stageOnly
     }
 }
 
@@ -263,6 +295,7 @@ actor ScreenshotProcessingWorker {
         let hasPixels: Bool
         let privacyRedactionCount: Int
         let usedOCR: Bool
+        let sealedPixels: Data?
     }
 
     enum Outcome: Sendable {
@@ -314,13 +347,18 @@ actor ScreenshotProcessingWorker {
         // redacted form. Dropping the entire pixel payload is safer than trying
         // to infer a precise on-screen rectangle from a text-only observation.
         let hasPixels = redactionCount == 0
+        var stagedPixels: Data?
         if hasPixels {
             let heic = try dependencies.heicData(preparedImage)
             let sealedBox = try AES.GCM.seal(heic, using: request.key)
             guard let sealed = sealedBox.combined else {
                 throw CocoaError(.fileWriteUnknown)
             }
-            try dependencies.write(sealed, request.fileURL)
+            if request.stageOnly {
+                stagedPixels = sealed
+            } else {
+                try dependencies.write(sealed, request.fileURL)
+            }
         }
         lastContentHash = contentHash
         return .stored(StoredCapture(
@@ -329,7 +367,8 @@ actor ScreenshotProcessingWorker {
             textSource: textSource,
             hasPixels: hasPixels,
             privacyRedactionCount: redactionCount,
-            usedOCR: !hasRichAccessibility))
+            usedOCR: !hasRichAccessibility,
+            sealedPixels: stagedPixels))
     }
 
     /// A file write is not a completed capture until its SQLite rows commit.
@@ -619,6 +658,8 @@ final class ScreenshotService: ObservableObject {
 
     private func captureIfAppropriate(trigger: ScreenCaptureTrigger) async {
         let config = settings()
+        let consent = ScreenshotCaptureConsent(
+            generation: captureGeneration, pauseRevision: sampler.capturePauseRevision, settings: config)
         let mode = config.effectiveScreenContextCaptureMode
         guard mode.capturesText, config.trackingEnabled else {
             lokalbotLog("context skip: disabled"); return
@@ -680,7 +721,7 @@ final class ScreenshotService: ObservableObject {
 
         let accessibility = await accessibilityReader.capture(
             processID: frontmostApp.processIdentifier)
-        guard !accessibility.timedOut, let snapshot = accessibility.snapshot,
+        guard captureIsAuthorized(consent), !accessibility.timedOut, let snapshot = accessibility.snapshot,
               NSWorkspace.shared.frontmostApplication?.processIdentifier
                 == frontmostApp.processIdentifier,
               ScreenContextPrivacy.permitsContent(
@@ -713,6 +754,7 @@ final class ScreenshotService: ObservableObject {
         do {
             if !mode.capturesPixels || preCaptureRedactions > 0
                 || !screenCaptureGranted {
+                guard captureIsAuthorized(consent) else { return }
                 try storeTextContext(
                     text: redactedAccessibility.text,
                     redactionCount: preCaptureRedactions,
@@ -731,6 +773,7 @@ final class ScreenshotService: ObservableObject {
                     frontApp: frontmost,
                     frontmostProcessID: frontmostApp.processIdentifier,
                     bundleIdentifier: frontmostApp.bundleIdentifier,
+                    consent: consent,
                     windowTitle: windowTitle,
                     accessibilitySnapshot: snapshot,
                     storedWindowTitle: redactedWindowTitle.text,
@@ -797,7 +840,7 @@ final class ScreenshotService: ObservableObject {
     }
 
     private func capture(frontApp: String, frontmostProcessID: pid_t,
-                         bundleIdentifier: String?, windowTitle: String,
+                         bundleIdentifier: String?, consent: ScreenshotCaptureConsent, windowTitle: String,
                          accessibilitySnapshot: ScreenAccessibilitySnapshot,
                          storedWindowTitle: String,
                          excludedApps: [String],
@@ -811,7 +854,8 @@ final class ScreenshotService: ObservableObject {
                          meetingID: String?) async throws {
         let content = try await SCShareableContent.excludingDesktopWindows(
             false, onScreenWindowsOnly: true)
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID else {
+        guard captureIsAuthorized(consent),
+              NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID else {
             lokalbotLog("shot skip: focus changed while preparing capture")
             return
         }
@@ -851,8 +895,10 @@ final class ScreenshotService: ObservableObject {
         configuration.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: configuration)
+        guard captureIsAuthorized(consent), CGPreflightScreenCaptureAccess() else { return }
         let currentAccessibility = await accessibilityReader.capture(processID: frontmostProcessID)
-        guard NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID,
+        guard captureIsAuthorized(consent),
+              NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID,
               ScreenshotWindowFocusValidation.matches(
                 expected: accessibilitySnapshot,
                 current: currentAccessibility),
@@ -878,7 +924,8 @@ final class ScreenshotService: ObservableObject {
             key: try Self.encryptionKey(),
             fileURL: file,
             accessibleText: accessibleText,
-            accessibilityRedactionCount: accessibilityRedactionCount))
+            accessibilityRedactionCount: accessibilityRedactionCount,
+            stageOnly: true))
 
         guard case .stored(let stored) = outcome else {
             policy.noteCheck(at: timestamp)
@@ -886,8 +933,21 @@ final class ScreenshotService: ObservableObject {
             return
         }
 
+        guard captureIsAuthorized(consent), CGPreflightScreenCaptureAccess() else {
+            // Processing stages encrypted bytes only in memory. Revocation
+            // cannot leave a file behind while the worker finishes its work.
+            await processingWorker.discardStored(contentHash: stored.contentHash)
+            return
+        }
         let storedPath = stored.hasPixels ? file.path : ""
         do {
+            // This short synchronous commit cannot interleave with a main-
+            // actor settings/pause change between the check and persistence.
+            if let pixels = stored.sealedPixels {
+                try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
+                                                        withIntermediateDirectories: true)
+                try pixels.write(to: file, options: .atomic)
+            }
             try store.insertScreenshot(
                 ts: timestamp,
                 path: storedPath,
@@ -920,6 +980,13 @@ final class ScreenshotService: ObservableObject {
         let payload = stored.hasPixels ? file.lastPathComponent : "text-only after redaction"
         lokalbotLog("context ok: \(payload) (\(stored.text.count) text chars, source: "
             + "\(stored.textSource), app: \(frontApp), trigger: \(trigger.rawValue))")
+    }
+
+    private func captureIsAuthorized(_ consent: ScreenshotCaptureConsent) -> Bool {
+        consent.permits(current: ScreenshotCaptureConsent(
+            generation: captureGeneration, pauseRevision: sampler.capturePauseRevision, settings: settings()),
+                        paused: sampler.isPaused, cancelled: Task.isCancelled)
+            && AXIsProcessTrusted()
     }
 
     /// Manual trigger (menu bar) — the one non-onboarding place allowed to
@@ -1066,12 +1133,17 @@ final class ScreenshotService: ObservableObject {
                     }
                     try store.clearScreenshotPath(candidate.path)
                 }
-                if candidate.removeText || candidate.removeVector {
+                if candidate.removeText || candidate.removeVector || candidate.removeMetadata {
                     try store.clearRetainedText(ids: [candidate.id])
                 }
             } catch {
                 failures.append("Moment \(candidate.id): \(error.localizedDescription)")
             }
+        }
+        do {
+            try store.clearRetainedActivityTitles(current.activityTitles)
+        } catch {
+            failures.append("Activity titles: \(error.localizedDescription)")
         }
         lastRetentionRun = now()
         lastRetentionError = failures.isEmpty ? nil : failures.joined(separator: "\n")
@@ -1107,8 +1179,8 @@ final class ScreenshotService: ObservableObject {
                 ? ActivityStore.OrphanedScreenEvidence()
                 : try store.orphanedScreenEvidence(olderThan:
                     current.addingTimeInterval(-Double(configuration.retentionDays) * 86_400))
-            if !review.candidates.isEmpty || !orphaned.isEmpty {
-                let dates = Array(Set(review.candidates.map(\.timestamp) + orphaned.timestamps)).sorted()
+            if !review.candidates.isEmpty || !review.activityTitles.isEmpty || !orphaned.isEmpty {
+                let dates = Array(Set(review.evidenceDates + orphaned.timestamps)).sorted()
                 try mutateEvidence(dates) {
                     // Delete only the reviewed IDs; a broad cutoff query could
                     // remove additional evidence whose days were not revoked.
@@ -1131,7 +1203,7 @@ final class ScreenshotService: ObservableObject {
                                 if firstError == nil { firstError = error.localizedDescription }
                             }
                         }
-                        if candidate.removeText || candidate.removeVector {
+                        if candidate.removeText || candidate.removeVector || candidate.removeMetadata {
                             do {
                                 try store.clearRetainedText(ids: [candidate.id])
                             } catch {
@@ -1140,6 +1212,7 @@ final class ScreenshotService: ObservableObject {
                         }
                     }
                     do {
+                        try store.clearRetainedActivityTitles(review.activityTitles)
                         try store.clearOrphanedScreenEvidence(orphaned)
                     } catch {
                         if firstError == nil { firstError = error.localizedDescription }

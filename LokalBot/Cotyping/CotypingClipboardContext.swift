@@ -206,6 +206,22 @@ nonisolated struct CotypingClipboardPrefaceResolution: Equatable, Sendable {
 
 enum CotypingClipboardPrefaceResolver {
     static func resolve(
+        snapshot: CotypingClipboardSnapshot?,
+        precedingText: String,
+        identityKey: String,
+        memo: CotypingClipboardPrefaceMemo?,
+        relevanceFilter: CotypingClipboardRelevanceFilter
+    ) -> CotypingClipboardPrefaceResolution {
+        guard let snapshot else {
+            relevanceFilter.reset()
+            return CotypingClipboardPrefaceResolution(value: nil, memo: nil)
+        }
+        return resolve(rawClipboard: snapshot.text, pasteboardChangeCount: snapshot.changeCount,
+                       precedingText: precedingText, identityKey: identityKey,
+                       memo: memo, relevanceFilter: relevanceFilter)
+    }
+
+    static func resolve(
         rawClipboard: String?,
         pasteboardChangeCount: Int,
         precedingText: String,
@@ -241,19 +257,46 @@ enum CotypingClipboardPrefaceResolver {
     }
 }
 
-/// Reads the system pasteboard. `@MainActor`; the snippet is read fresh at
-/// generation time and never persisted (clipboard contents are sensitive and
-/// change outside our control). Injectable for tests.
+struct CotypingClipboardSnapshot: Equatable, Sendable {
+    let changeCount: Int
+    let text: String
+}
+
+/// Checks sensitivity markers before asking a pasteboard owner for any text.
+/// A concurrent pasteboard change invalidates the entire observation.
 @MainActor
 final class CotypingClipboardProvider {
-    private let pasteboard: NSPasteboard
+    private let readChangeCount: () -> Int
+    private let readTypes: () -> [NSPasteboard.PasteboardType]?
+    private let readText: () -> String?
+    private static let sensitiveTypes: Set<String> = [
+        "org.nspasteboard.concealedtype", "org.nspasteboard.transienttype",
+        "de.petermaurer.transientpasteboardtype", "com.agilebits.onepassword",
+    ]
 
-    init(pasteboard: NSPasteboard = .general) {
-        self.pasteboard = pasteboard
+    convenience init(pasteboard: NSPasteboard = .general) {
+        self.init(changeCount: { pasteboard.changeCount }, types: { pasteboard.types },
+                  text: { pasteboard.string(forType: .string) })
     }
 
-    /// The current plain-text clipboard contents, or nil.
-    var currentText: String? { pasteboard.string(forType: .string) }
+    init(changeCount: @escaping () -> Int,
+         types: @escaping () -> [NSPasteboard.PasteboardType]?, text: @escaping () -> String?) {
+        readChangeCount = changeCount
+        readTypes = types
+        readText = text
+    }
 
-    var changeCount: Int { pasteboard.changeCount }
+    func snapshot() -> CotypingClipboardSnapshot? {
+        let count = readChangeCount()
+        guard let types = readTypes(), Self.allows(types),
+              readChangeCount() == count, let text = readText(),
+              let finalTypes = readTypes(), Self.allows(finalTypes),
+              Set(finalTypes) == Set(types), readChangeCount() == count else { return nil }
+        return CotypingClipboardSnapshot(changeCount: count, text: text)
+    }
+
+    private static func allows(_ types: [NSPasteboard.PasteboardType]) -> Bool {
+        types.contains(.string)
+            && sensitiveTypes.isDisjoint(with: types.map { $0.rawValue.lowercased() })
+    }
 }

@@ -81,6 +81,8 @@ actor LlamaServer {
     private var loadedAuthenticationToken: String?
     private var residencyGeneration: UUID?
     private let startup = AsyncSingleFlight()
+    private let ownerID = UUID()
+    private var ownershipLock: LocalRuntimeOwnershipLock?
 
     /// Shared bearer required by this private localhost server. It is created
     /// with 256 bits of randomness, stored mode 0600, and can be obtained
@@ -146,11 +148,6 @@ actor LlamaServer {
            await healthy(), await healthyServingExpectedConfiguration(modelAt: url) {
             return
         }
-        if await healthyServingExpectedConfiguration(modelAt: url) {
-            loadedModelPath = url.path
-            loadedAuthenticationToken = readPidMarker()?.authenticationToken
-            return
-        }
         try await start(modelAt: url)
     }
 
@@ -183,9 +180,10 @@ actor LlamaServer {
            let usage = SystemResourceSampler.processUsage(for: process.processIdentifier) {
             return usage.identity
         }
-        // A healthy server from a prior app process is adopted through its
-        // validated marker and is no longer in our child tree.
+        // An orphan can be claimed only after its owning app exited and this
+        // instance acquired the exclusive runtime lock.
         guard let marker = readPidMarker(),
+              marker.ownerID == ownerID,
               marker.port == port,
               marker.modelPath == url.path,
               marker.contextTokens == Optional(contextTokens),
@@ -199,38 +197,28 @@ actor LlamaServer {
 
     private func start(modelAt url: URL) async throws {
         await stop()
-        let binary = try installedBinary()
-        if await healthyServingExpectedConfiguration(modelAt: url) {
-            loadedModelPath = url.path
-            loadedAuthenticationToken = readPidMarker()?.authenticationToken
-            return
+        ownershipLock = try LocalRuntimeOwnershipLock.acquire(
+            at: pidMarkerURL.appendingPathExtension("owner-lock"))
+        let binary: URL
+        do { binary = try installedBinary() } catch { ownershipLock = nil; throw error }
+        // A live app owns its helper even when this app wants the same model.
+        // Never adopt it: our later eviction/shutdown would interrupt its work.
+        if claimOrphanedMarker() {
+            await stopRecordedServerIfOwned()
         }
-        if await healthy() {
-            await stopRecordedServerIfOwned(expectedBinary: binary)
-            if await healthyServingExpectedConfiguration(modelAt: url) {
-                loadedModelPath = url.path
-                loadedAuthenticationToken = readPidMarker()?.authenticationToken
-                return
-            }
-        }
-        // A llama-server orphaned by a prior run (children outlive a hard quit)
-        // or an older app generation sharing these private ports may still hold
-        // this one without a marker we own. Reclaim it, then re-check.
-        if await healthy() {
-            await Self.reclaimStaleLlamaServer(onPort: port)
-        }
-        guard !(await healthy()) else {
+        guard Self.listeningPIDs(onPort: port).isEmpty else {
+            ownershipLock = nil
             throw ServerError.failedToStart(
-                "port \(port) is held by another process that is not a llama-server; free it and try again")
+                "port \(port) is already in use. Close the other LokalBot instance or local server and try again")
         }
         // Make room before the subprocess mmaps the weights: evict the
         // least-recently-used other models if this one would bust the budget.
-        let nonEvictableBytes = await ModelRuntimeRegistry.shared.totalEstimatedBytes
         let loadReservation = await ModelResidency.shared.willLoad(
             id: residencyID,
             bytes: estimatedResidentBytes(modelAt: url),
-            reservedBytes: Int64(clamping: nonEvictableBytes))
+            currentReservedBytes: { Int64(clamping: ModelRuntimeRegistry.shared.totalEstimatedBytes) })
         do {
+            try Task.checkCancellation()
             let authenticationToken = authenticationToken()
             let process = Process()
             process.executableURL = binary
@@ -268,7 +256,11 @@ actor LlamaServer {
                 modelPath: url.path,
                 contextTokens: contextTokens,
                 extraArgs: extraArgs,
-                authenticationToken: authenticationToken))
+                authenticationToken: authenticationToken,
+                ownerID: ownerID,
+                ownerPID: getpid(),
+                ownerStartTime: SystemResourceSampler.processUsage(for: getpid())?.startTime,
+                processStartTime: SystemResourceSampler.processUsage(for: process.processIdentifier)?.startTime))
 
             // Model load can take a while for the big ones; poll /health.
             for _ in 0..<240 {
@@ -326,20 +318,19 @@ actor LlamaServer {
                     kill(old.processIdentifier, SIGKILL)
                 }
             }
-        } else {
+        } else if ownershipLock != nil {
             // A healthy server can be adopted from a previous app process. It
             // has a validated PID marker but no Foundation `Process` handle;
             // still terminate it so eviction and the resource ledger reflect
             // real memory residency instead of only hiding the row.
-            if let expectedBinary = try? installedBinary() {
-                await stopRecordedServerIfOwned(expectedBinary: expectedBinary)
-            }
+            await stopRecordedServerIfOwned()
         }
         if let generation {
             await ModelResidency.shared.unregister(
                 id: residencyID,
                 ifGenerationMatches: generation)
         }
+        ownershipLock = nil
     }
 
     private func processDidTerminate(
@@ -365,6 +356,7 @@ actor LlamaServer {
         loadedModelPath = nil
         loadedAuthenticationToken = nil
         residencyGeneration = nil
+        ownershipLock = nil
         removePidMarker(ifMatching: processIdentifier)
         if let generation {
             await ModelResidency.shared.unregister(
@@ -373,8 +365,11 @@ actor LlamaServer {
         }
     }
 
-    private func stopRecordedServerIfOwned(expectedBinary: URL) async {
-        guard let marker = readPidMarker() else { return }
+    private func stopRecordedServerIfOwned() async {
+        guard ownershipLock != nil, let marker = readPidMarker(),
+              marker.ownerID == ownerID,
+              let startTime = marker.processStartTime,
+              SystemResourceSampler.processUsage(for: marker.pid)?.startTime == startTime else { return }
         let pid = marker.pid
         guard marker.port == port else {
             removePidMarker(ifMatching: pid)
@@ -384,21 +379,35 @@ actor LlamaServer {
             removePidMarker(ifMatching: pid)
             return
         }
-        guard marker.binaryPath == expectedBinary.path,
-              Self.processPath(for: pid) == expectedBinary.path else {
-            removePidMarker(ifMatching: pid)
-            return
-        }
+        // The old owned helper can be from the previous bundled runtime. Its
+        // exact executable and start identity, not a filename suffix, prove it.
+        guard Self.processPath(for: pid) == marker.binaryPath else { return }
         kill(pid, SIGTERM)
         for _ in 0..<40 {
-            if kill(pid, 0) != 0 {
+            if SystemResourceSampler.processUsage(for: pid)?.startTime != startTime {
                 removePidMarker(ifMatching: pid)
                 return
             }
             try? await Task.sleep(for: .milliseconds(50))
         }
-        if kill(pid, 0) == 0 { kill(pid, SIGKILL) }
+        if SystemResourceSampler.processUsage(for: pid)?.startTime == startTime { kill(pid, SIGKILL) }
         removePidMarker(ifMatching: pid)
+    }
+
+    private func claimOrphanedMarker() -> Bool {
+        guard ownershipLock != nil, var marker = readPidMarker(),
+              LocalRuntimeOwnershipPolicy.canClaim(
+                marker: marker,
+                ownerIsAlive: marker.ownerPID.map { kill($0, 0) == 0 || errno == EPERM } ?? true,
+                liveOwnerStartTime: marker.ownerPID.flatMap { SystemResourceSampler.processUsage(for: $0)?.startTime },
+                liveHelperStartTime: SystemResourceSampler.processUsage(for: marker.pid)?.startTime),
+              marker.port == port,
+              Self.processPath(for: marker.pid) == marker.binaryPath else { return false }
+        marker.ownerID = ownerID
+        marker.ownerPID = getpid()
+        marker.ownerStartTime = SystemResourceSampler.processUsage(for: getpid())?.startTime
+        writePidMarker(marker)
+        return readPidMarker()?.ownerID == ownerID
     }
 
     private func readPidMarker() -> LocalLlamaServerMarker? {
@@ -472,6 +481,7 @@ actor LlamaServer {
     private func healthyServingExpectedConfiguration(modelAt url: URL) async -> Bool {
         guard await healthyServing(modelAt: url),
               let marker = readPidMarker(),
+              marker.ownerID == ownerID,
               marker.port == port,
               marker.modelPath == url.path,
               marker.contextTokens == Optional(contextTokens),
@@ -515,23 +525,6 @@ actor LlamaServer {
         }
         guard result > 0 else { return nil }
         return String(cString: buffer)
-    }
-
-    /// Frees `port` when a stale `llama-server` is squatting on it — our own
-    /// orphan after a hard quit, or an older app generation that shares these
-    /// private ports. Only processes whose executable is a `llama-server` are
-    /// killed, so an unrelated listener still surfaces as a startup error.
-    nonisolated static func reclaimStaleLlamaServer(onPort port: Int) async {
-        let pids = listeningPIDs(onPort: port).filter {
-            processPath(for: $0)?.hasSuffix("/llama-server") == true
-        }
-        guard !pids.isEmpty else { return }
-        for pid in pids { kill(pid, SIGTERM) }
-        for _ in 0..<40 {
-            if pids.allSatisfy({ kill($0, 0) != 0 }) { return }
-            try? await Task.sleep(for: .milliseconds(50))
-        }
-        for pid in pids where kill(pid, 0) == 0 { kill(pid, SIGKILL) }
     }
 
     /// PIDs listening on `port`, via `lsof` (best-effort; empty if unavailable).
@@ -578,18 +571,46 @@ actor LlamaServer {
 
         let installed = AppDirectories.applicationSupport
             .appendingPathComponent("llama-cpp", isDirectory: true)
-        let binary = installed.appendingPathComponent("llama-server")
-
-        let bundledSize = (try? FileManager.default.attributesOfItem(
-            atPath: bundled.appendingPathComponent("llama-server").path)[.size] as? Int) ?? 0
-        let installedSize = (try? FileManager.default.attributesOfItem(
-            atPath: binary.path)[.size] as? Int) ?? -1
-
-        if bundledSize != installedSize {
-            try? FileManager.default.removeItem(at: installed)
-            try FileManager.default.copyItem(at: bundled, to: installed)
-            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: binary.path)
-        }
-        return binary
+        return try NativeRuntimeInstaller.install(
+            bundled: bundled, root: installed, executables: ["llama-server"])
+            .appendingPathComponent("llama-server")
     }
+}
+
+enum LocalRuntimeOwnershipPolicy {
+    static func canClaim(marker: LocalLlamaServerMarker, ownerIsAlive: Bool,
+                         liveOwnerStartTime: UInt64?, liveHelperStartTime: UInt64?) -> Bool {
+        guard marker.ownerID != nil, let ownerPID = marker.ownerPID, ownerPID > 0,
+              let ownerStart = marker.ownerStartTime,
+              let helperStart = marker.processStartTime,
+              liveHelperStartTime == helperStart else { return false }
+        // An unavailable identity is uncertainty, not proof a live owner died.
+        if ownerIsAlive {
+            guard let liveOwnerStartTime else { return false }
+            return liveOwnerStartTime != ownerStart
+        }
+        return true
+    }
+}
+
+/// Held for the entire helper lifetime, including health checks and shutdown.
+/// A second instance fails explicitly instead of sharing a process it can kill.
+final class LocalRuntimeOwnershipLock {
+    private let descriptor: Int32
+    private init(_ descriptor: Int32) { self.descriptor = descriptor }
+
+    static func acquire(at path: URL) throws -> LocalRuntimeOwnershipLock {
+        try FileManager.default.createDirectory(at: path.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let descriptor = open(path.path, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
+        guard descriptor >= 0 else {
+            throw LlamaServer.ServerError.failedToStart("could not establish exclusive local server ownership")
+        }
+        guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
+            close(descriptor)
+            throw LlamaServer.ServerError.failedToStart("another LokalBot instance owns this local server")
+        }
+        return LocalRuntimeOwnershipLock(descriptor)
+    }
+
+    deinit { close(descriptor) }
 }

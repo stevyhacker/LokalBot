@@ -1533,6 +1533,19 @@ enum DayDigestGenerationMetadataStore {
     }
 
     static func load(for journalURL: URL) -> DayDigestGenerationMetadata? {
+        if let recovered = DayDigestJournalWriter.recoverPendingMetadata(
+            at: journalURL) {
+            return recovered
+        }
+        guard !DayDigestJournalWriter.hasPendingWrite(at: journalURL) else {
+            return nil
+        }
+        return loadWithoutRecovery(for: journalURL)
+    }
+
+    static func loadWithoutRecovery(
+        for journalURL: URL
+    ) -> DayDigestGenerationMetadata? {
         let url = metadataURL(for: journalURL)
         guard let data = try? Data(contentsOf: url),
               let metadata = try? JSONDecoder().decode(
@@ -1555,7 +1568,37 @@ enum DayDigestGenerationMetadataStore {
         for journalURL: URL,
         generatedAt: Date = Date()
     ) throws -> DayDigestGenerationMetadata {
-        let previous = load(for: journalURL)
+        let previous = loadWithoutRecovery(for: journalURL)
+        if let previous,
+           previous.quality == quality,
+           previous.generatedAt == generatedAt,
+           previous.evidenceLatestAt == evidenceLatestAt,
+           previous.evidenceSignature == evidenceSignature,
+           previous.meetingEvidenceSignature == meetingEvidenceSignature,
+           journalMatches(previous, at: journalURL) {
+            return previous
+        }
+        let metadata = try makeMetadata(
+            quality: quality,
+            evidenceLatestAt: evidenceLatestAt,
+            evidenceSignature: evidenceSignature,
+            meetingEvidenceSignature: meetingEvidenceSignature,
+            for: journalURL,
+            generatedAt: generatedAt,
+            previous: previous)
+        try persist(metadata, for: journalURL)
+        return metadata
+    }
+
+    static func makeMetadata(
+        quality: DayDigestGenerationQuality,
+        evidenceLatestAt: Date?,
+        evidenceSignature: String?,
+        meetingEvidenceSignature: String?,
+        for journalURL: URL,
+        generatedAt: Date,
+        previous: DayDigestGenerationMetadata?
+    ) throws -> DayDigestGenerationMetadata {
         let sameEvidence = evidenceSignature.map { previous?.evidenceSignature == $0 }
             ?? (previous?.evidenceLatestAt == evidenceLatestAt)
         let degradedAttemptCount: Int
@@ -1582,9 +1625,15 @@ enum DayDigestGenerationMetadataStore {
             evidenceSignature: evidenceSignature,
             meetingEvidenceSignature: meetingEvidenceSignature,
             journalDigest: ContentFingerprint.digest(try Data(contentsOf: journalURL)))
+        return metadata
+    }
+
+    static func persist(
+        _ metadata: DayDigestGenerationMetadata,
+        for journalURL: URL
+    ) throws {
         let data = try JSONEncoder().encode(metadata)
         try data.write(to: metadataURL(for: journalURL), options: .atomic)
-        return metadata
     }
 
     static func journalMatches(_ metadata: DayDigestGenerationMetadata, at url: URL) -> Bool {

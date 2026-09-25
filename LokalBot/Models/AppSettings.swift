@@ -297,6 +297,9 @@ struct AppSettings: Codable, Equatable {
     /// Origins the user explicitly approved for sending transcript, OCR, and
     /// agent context off this Mac. Loopback endpoints never need approval.
     var approvedRemoteInferenceOrigins: [String] = []
+    /// Separate opt-in for unattended daily digest and overnight Dream runs.
+    /// Selecting a remote Think connection never grants this approval.
+    var approvedRemoteAutomationOrigins: [String] = []
     /// Processing budget for meeting-notes generation. Applies to every Think
     /// backend, not only the connection it is edited alongside.
     var generationBudgetPreset: GenerationBudgetPreset = .standard
@@ -315,6 +318,21 @@ struct AppSettings: Codable, Equatable {
         return InferenceEndpointPolicy.requiresApproval(url)
             && InferenceEndpointPolicy.isAllowed(
                 url, approvedOrigins: approvedRemoteInferenceOrigins)
+    }
+
+    var allowsAutomaticMainInference: Bool {
+        let base: String
+        switch summarizerBackend {
+        case .builtIn, .appleIntelligence: return true
+        case .ollama: base = ollamaBaseURL
+        case .openAICompatible: base = openAIBaseURL
+        }
+        guard let url = URL(string: base),
+              InferenceEndpointPolicy.isAllowed(url, approvedOrigins: approvedRemoteInferenceOrigins)
+        else { return false }
+        guard InferenceEndpointPolicy.requiresApproval(url) else { return true }
+        guard let origin = InferenceEndpointPolicy.origin(for: url) else { return false }
+        return approvedRemoteAutomationOrigins.contains(origin)
     }
 
     /// Name shown for the Think role. Always follows `summarizerBackend`;
@@ -673,6 +691,7 @@ struct AppSettings: Codable, Equatable {
         case openAIModel
         case openRouterDataPolicy
         case approvedRemoteInferenceOrigins
+        case approvedRemoteAutomationOrigins
         case generationBudgetPreset
         case noteTemplate
         case summaryLanguage
@@ -834,6 +853,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(openAIModel, forKey: .openAIModel)
         try c.encode(openRouterDataPolicy, forKey: .openRouterDataPolicy)
         try c.encode(approvedRemoteInferenceOrigins, forKey: .approvedRemoteInferenceOrigins)
+        try c.encode(approvedRemoteAutomationOrigins, forKey: .approvedRemoteAutomationOrigins)
         try c.encode(generationBudgetPreset, forKey: .generationBudgetPreset)
         try c.encode(noteTemplate, forKey: .noteTemplate)
         try c.encode(summaryLanguage, forKey: .summaryLanguage)
@@ -977,6 +997,8 @@ struct AppSettings: Codable, Equatable {
             .openRouterDataPolicy, defaults.openRouterDataPolicy)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
+        approvedRemoteAutomationOrigins = decode(
+            .approvedRemoteAutomationOrigins, defaults.approvedRemoteAutomationOrigins)
         generationBudgetPreset = decode(
             .generationBudgetPreset, defaults.generationBudgetPreset)
         noteTemplate = decode(.noteTemplate, defaults.noteTemplate)

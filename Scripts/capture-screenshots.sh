@@ -42,7 +42,7 @@ SCHEME="LokalBot UI Test Host"
 OUT="$PWD/Assets/screenshots"
 FRAMES="$(mktemp -d)"          # GIF-only frames (kept out of Assets/)
 STILLS="$FRAMES/stills"        # publish only after the full set validates
-LIB="${TMPDIR:-/tmp}/lokalbot-demo-lib"
+LIB="$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-demo-lib.XXXXXX")"
 SUITE="lokalbot.shots.$(uuidgen)"
 CAPTURE_SIZE="${LOKALBOT_CAPTURE_SIZE:-1400x880}"
 # Keep the master/list column compact so the inspector gets a stable, generous

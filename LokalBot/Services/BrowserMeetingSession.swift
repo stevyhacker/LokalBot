@@ -4,7 +4,7 @@ import ApplicationServices
 /// Call lifecycle evidence is independent of audio and experimental speaker
 /// observation. Only a supported meeting document and its call controls count.
 enum BrowserMeetingSession {
-    enum State: Equatable, Sendable { case inCall, ended, unavailable }
+    enum State: Equatable, Sendable { case inCall, minimized, ended, unavailable }
     struct Snapshot: Equatable, Sendable {
         var url: URL
         var state: State
@@ -31,6 +31,26 @@ enum BrowserMeetingSession {
         var element: AXUIElement
         var snapshot: Snapshot
     }
+
+    /// Only a previously verified window can suspend lifecycle observations.
+    /// Another browser window or unrelated audio cannot acquire this binding.
+    private final class WindowBindings: @unchecked Sendable {
+        private let lock = NSLock()
+        private var windows: [pid_t: Window] = [:]
+
+        func get(_ pid: pid_t) -> Window? {
+            lock.lock()
+            defer { lock.unlock() }
+            return windows[pid]
+        }
+
+        func set(_ window: Window?, for pid: pid_t) {
+            lock.lock()
+            defer { lock.unlock() }
+            windows[pid] = window
+        }
+    }
+    private static let bindings = WindowBindings()
 
     /// AX is a best-effort source. A pathological background page must be
     /// isolated to its own window so it cannot consume the budget for the
@@ -81,6 +101,7 @@ enum BrowserMeetingSession {
     /// explicitly ended or a browser process that disappeared.
     enum LifecycleDecision: Equatable {
         case inCall
+        case visibilitySuspended
         case waitForObservation
         case endImmediately
         case endAfterGrace
@@ -111,6 +132,14 @@ enum BrowserMeetingSession {
         switch snapshotState {
         case .some(.inCall):
             return .inCall
+        case .some(.minimized):
+            // A minimized window cannot expose call controls, so its continued
+            // existence is uncertainty rather than fresh call evidence. It is,
+            // however, positive evidence that the exact previously verified
+            // window still exists. Keep that recording until visibility returns,
+            // the host/window disappears, or an explicit ended state is seen.
+            // A minimized window can never pass StartGate and begin a session.
+            return .visibilitySuspended
         case .some(.ended):
             return .endImmediately
         case .some(.unavailable), .none:
@@ -142,7 +171,25 @@ enum BrowserMeetingSession {
     }
 
     static func snapshot(processID: pid_t, expectedURL: URL? = nil) -> Snapshot? {
-        window(processID: processID, expectedURL: expectedURL)?.snapshot
+        let observed = window(processID: processID, expectedURL: expectedURL)
+        if observed?.snapshot.state == .inCall {
+            bindings.set(observed, for: processID)
+        } else if observed?.snapshot.state == .ended {
+            bindings.set(nil, for: processID)
+        } else if let expectedURL, let bound = bindings.get(processID), bound.snapshot.url == expectedURL {
+            let app = AXUIElementCreateApplication(processID)
+            AXUIElementSetMessagingTimeout(app, 0.012)
+            // Check that the exact verified AX window still belongs to this
+            // host. A closed window or replacement process does not qualify.
+            if let windows = value(app, kAXWindowsAttribute) as? [AXUIElement],
+               windows.contains(where: { CFEqual($0, bound.element) }),
+               value(bound.element, kAXMinimizedAttribute) as? Bool == true,
+               let title = value(bound.element, kAXTitleAttribute) as? String,
+               !ScreenContextPrivacy.isPrivateWindow(title: title) {
+                return Snapshot(url: expectedURL, state: .minimized)
+            }
+        }
+        return observed?.snapshot
     }
 
     /// Enumerate browser windows, never just the focused window. Background

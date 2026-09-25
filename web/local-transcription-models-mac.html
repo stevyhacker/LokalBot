@@ -72,7 +72,7 @@
         </ol>
 
         <h2>Speech recognition is only one stage</h2>
-        <p>Speaker separation, punctuation, summary quality, and action-item extraction depend on later stages too. LokalBot begins with separate “Me” and “Them” capture tracks, can apply on-device diarization to the remote side, and then sends the transcript to the selected summarization backend. A perfect language model cannot recover words that the speech model never recognized, so improve capture and transcription before tuning recap prompts.</p>
+        <p>Speaker separation, punctuation, summary quality, and action-item extraction depend on later stages too. LokalBot begins with separate microphone and selected-app system-audio tracks, whose labels indicate capture source rather than speaker identity. It can apply on-device diarization to system audio before sending the transcript to the selected summarization backend. A perfect language model cannot recover words that the speech model never recognized, so improve capture and transcription before tuning recap prompts.</p>
 
         <h2>Storage and memory planning</h2>
         <p>Speech models are not the only downloads. Local summary and cotyping models range from about 0.53 GB to roughly 17.73 GB in the built-in catalog. Smaller options work on any supported Apple Silicon Mac; several quality-focused choices recommend 16 GB, while the largest long-meeting defaults target 32 GB or more. Install only what you use and keep free space for recordings.</p>

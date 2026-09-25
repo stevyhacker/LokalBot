@@ -1,4 +1,5 @@
 import Foundation
+import CoreML
 import FluidAudio
 import WhisperKit
 
@@ -197,33 +198,54 @@ actor IdleTimer {
 /// every `await`, so a simple `guard model == nil` does not prevent two callers
 /// from downloading or loading the same model concurrently.
 actor AsyncSingleFlight {
-    private var task: Task<Void, Error>?
-    private var generation = 0
+    private var task: Task<Void, Never>?
+    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
 
     func run(_ operation: @escaping @Sendable () async throws -> Void) async throws {
-        if let task {
-            try await task.value
-            return
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                guard !Task.isCancelled else {
+                    continuation.resume(throwing: CancellationError())
+                    return
+                }
+                waiters[id] = continuation
+                guard task == nil else { return }
+                task = Task {
+                    let result: Result<Void, Error>
+                    do {
+                        try await operation()
+                        try Task.checkCancellation()
+                        result = .success(())
+                    } catch {
+                        result = .failure(error)
+                    }
+                    finish(result)
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id) }
         }
-
-        generation += 1
-        let scheduledGeneration = generation
-        let task = Task { try await operation() }
-        self.task = task
-        do {
-            try await task.value
-            clearIfCurrent(scheduledGeneration)
-        } catch {
-            clearIfCurrent(scheduledGeneration)
-            throw error
-        }
+        // Cancellation racing successful completion must not report Ready.
+        try Task.checkCancellation()
     }
 
     var isRunning: Bool { task != nil }
+    var waiterCount: Int { waiters.count }
 
-    private func clearIfCurrent(_ scheduledGeneration: Int) {
-        guard generation == scheduledGeneration else { return }
+    private func cancelWaiter(_ id: UUID) {
+        guard let waiter = waiters.removeValue(forKey: id) else { return }
+        waiter.resume(throwing: CancellationError())
+        // Another consumer (for example a recording prewarm) still owns the
+        // shared download. Cancel actual work only after its final owner leaves.
+        if waiters.isEmpty { task?.cancel() }
+    }
+
+    private func finish(_ result: Result<Void, Error>) {
         task = nil
+        let completed = waiters.values
+        waiters.removeAll()
+        for waiter in completed { waiter.resume(with: result) }
     }
 }
 
@@ -264,6 +286,7 @@ actor ParakeetEngine: TranscriptionEngine {
             guard let self else { return }
             try await self.performPreparation(progress: progress)
         }
+        await idle.bump()
         reportPreparationUpdate(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
 
@@ -278,13 +301,20 @@ actor ParakeetEngine: TranscriptionEngine {
             id: runtimeID, role: "Transcribe", label: runtimeLabel,
             estimatedBytes: estimatedBytes)
         do {
-            let models = try await AsrModels.downloadAndLoad(
-                version: variant.modelVersion,
-                progressHandler: downloadProgressHandler(progress))
+            try Task.checkCancellation()
+            let modelDirectory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
+                .appendingPathComponent(variant == .v3 ? Repo.parakeetV3.folderName : Repo.parakeetV2.folderName)
+            let snapshot = try PinnedModelSnapshot.catalog(variant == .v3 ? "parakeetV3" : "parakeetV2")
+            try await snapshot.prepare(in: modelDirectory, progress: progress)
+            guard !FileManager.default.fileExists(atPath: modelDirectory.appendingPathComponent(ModelNames.ASR.ctcHeadFile).path) else {
+                throw PinnedModelSnapshot.SnapshotError.unexpectedWeights
+            }
+            let models = try AsrModels.loadLocal(from: modelDirectory, version: variant.modelVersion)
             reportPreparationUpdate(.init(fractionCompleted: nil, status: "Loading..."),
                                     to: progress)
             let m = AsrManager(config: .default)
             try await m.loadModels(models)
+            try Task.checkCancellation()
             manager = m
             await ModelRuntimeRegistry.shared.register(
                 id: runtimeID, role: "Transcribe", label: runtimeLabel,
@@ -406,6 +436,7 @@ actor WhisperEngine: TranscriptionEngine {
             guard let self else { return }
             try await self.performPreparation(progress: progress)
         }
+        await idle.bump()
         reportPreparationUpdate(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
 
@@ -417,6 +448,7 @@ actor WhisperEngine: TranscriptionEngine {
             id: runtimeID, role: "Transcribe", label: "Whisper large-v3 turbo",
             estimatedBytes: estimatedBytes)
         do {
+            try Task.checkCancellation()
             let environment = TranscriptionModelStore.Environment.live
             do {
                 try TranscriptionModelStore.migrateLegacyWhisperKitModels(
@@ -426,26 +458,41 @@ actor WhisperEngine: TranscriptionEngine {
                     "whisper cache migration skipped error=\(error.localizedDescription)")
             }
             let downloadRoot = environment.whisperKitDownloadRoot
-            let modelFolder = try await WhisperKit.download(
-                variant: modelName,
-                downloadBase: downloadRoot
-            ) { download in
-                reportPreparationUpdate(
-                    .init(fractionCompleted: download.fractionCompleted,
-                          status: "Downloading..."),
-                    to: progress)
+            let modelFolder = environment.whisperKitRepoRoot.appendingPathComponent("openai_whisper-\(modelName)")
+            try await PinnedModelSnapshot.catalog("whisper").prepare(in: modelFolder, progress: progress)
+            let tokenizerFolder = modelFolder.appendingPathComponent(".lokalbot-tokenizer")
+            let tokenizerSnapshot = try PinnedModelSnapshot.catalog("whisperTokenizer")
+            try await tokenizerSnapshot.prepare(in: tokenizerFolder, progress: progress)
+            // WhisperKit searches a nested Hub cache before this folder and
+            // can populate it on a tokenizer parse failure. Never accept that
+            // mutable fallback as the configured pinned tokenizer.
+            let fallback = tokenizerFolder.appendingPathComponent("models")
+            guard !FileManager.default.fileExists(atPath: fallback.path) else {
+                throw PinnedModelSnapshot.SnapshotError.unexpectedWeights
             }
+            // Fail locally if the pinned tokenizer cannot be parsed. The
+            // dependency's convenience loader otherwise downloads mutable
+            // Hub files even when model downloads are disabled.
+            _ = try await AutoTokenizerWrapper.from(modelFolder: tokenizerFolder)
             reportPreparationUpdate(.init(fractionCompleted: nil, status: "Loading..."),
                                     to: progress)
-            pipe = try await WhisperKit(WhisperKitConfig(
+            let prepared = try await WhisperKit(WhisperKitConfig(
                 model: modelName,
                 downloadBase: downloadRoot,
                 modelFolder: modelFolder.path(percentEncoded: false),
+                tokenizerFolder: tokenizerFolder,
                 download: false))
+            try tokenizerSnapshot.verify(in: tokenizerFolder)
+            guard !FileManager.default.fileExists(atPath: fallback.path) else {
+                throw PinnedModelSnapshot.SnapshotError.unexpectedWeights
+            }
+            try Task.checkCancellation()
+            pipe = prepared
             await ModelRuntimeRegistry.shared.register(
                 id: runtimeID, role: "Transcribe", label: "Whisper large-v3 turbo",
                 estimatedBytes: estimatedBytes)
         } catch {
+            pipe = nil
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
             throw error
         }
@@ -516,6 +563,7 @@ actor CohereEngine: TranscriptionEngine {
             guard let self else { return }
             try await self.performPreparation(progress: progress)
         }
+        await idle.bump()
         reportPreparationUpdate(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
 
@@ -527,23 +575,20 @@ actor CohereEngine: TranscriptionEngine {
             id: runtimeID, role: "Transcribe", label: "Cohere Transcribe",
             estimatedBytes: estimatedBytes)
         do {
+            try Task.checkCancellation()
             let base = AppDirectories.fluidAudioRoot
             let repoDir = base.appendingPathComponent(Repo.cohereTranscribeCoreml.folderName)
-            if !FileManager.default.fileExists(
-                atPath: repoDir.appendingPathComponent(ModelNames.CohereTranscribe.encoderCompiledFile).path) {
-                try await ModelHub.download(
-                    .cohereTranscribeCoreml,
-                    to: base,
-                    progressHandler: downloadProgressHandler(progress))
-            }
+            try await PinnedModelSnapshot.catalog("cohere").prepare(in: repoDir, progress: progress)
             reportPreparationUpdate(.init(fractionCompleted: nil, status: "Loading..."),
                                     to: progress)
             models = try await CoherePipeline.loadModels(
                 encoderDir: repoDir, decoderDir: repoDir, vocabDir: repoDir)
+            try Task.checkCancellation()
             await ModelRuntimeRegistry.shared.register(
                 id: runtimeID, role: "Transcribe", label: "Cohere Transcribe",
                 estimatedBytes: estimatedBytes)
         } catch {
+            models = nil
             await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
             throw error
         }
@@ -693,7 +738,13 @@ actor SpeechActivity {
             id: runtimeID, role: "Voice activity", label: "Silero VAD",
             estimatedBytes: 1_048_576)
         do {
-            manager = try await VadManager()
+            let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot.appendingPathComponent(Repo.vad.folderName)
+            try await PinnedModelSnapshot.catalog("sileroVAD").prepare(in: directory)
+            let config = MLModelConfiguration()
+            config.computeUnits = VadConfig.default.computeUnits
+            let vadModel = try MLModel(contentsOf: directory.appendingPathComponent(ModelNames.VAD.sileroVadFile), configuration: config)
+            try Task.checkCancellation()
+            manager = VadManager(vadModel: vadModel)
             await ModelRuntimeRegistry.shared.register(
                 id: runtimeID, role: "Voice activity", label: "Silero VAD",
                 estimatedBytes: 1_048_576)
