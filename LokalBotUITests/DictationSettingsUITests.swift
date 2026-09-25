@@ -27,9 +27,7 @@ final class DictationSettingsUITests: XCTestCase {
             .waitForExistence(timeout: 10), "main window never rendered its Today landing")
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Writing", in: app)
-        let dictation = app.segmentedControls["settings.writing.sections"].buttons["Dictation"]
-        XCTAssertTrue(dictation.waitForExistence(timeout: 5))
-        dictation.click()
+        UITestHarness.selectSegment("Dictation", pickerIdentifier: "settings.writing.sections", in: app)
         UITestHarness.scrollTo(app.buttons["Try here"], in: app, within: app.scrollViews["settings.form"], attempts: 16)
         XCTAssertTrue(dictationForm.waitForExistence(timeout: 8),
                       "Dictation tab did not render")

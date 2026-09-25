@@ -53,7 +53,10 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(identified("today.memoryStatus").exists)
         XCTAssertFalse(textWithContent("Morning brief").firstMatch.exists)
         XCTAssertFalse(textWithContent("Today’s brief").firstMatch.exists)
-        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "identifier == %@", "toolbar.record")).count, 1)
+        // macOS 26 exposes each toolbar item as an outer button wrapping the
+        // control, both carrying its identifier. Count toolbar items.
+        XCTAssertEqual(app.toolbars.firstMatch.children(matching: .button)
+            .matching(NSPredicate(format: "identifier == %@", "toolbar.record")).count, 1)
         XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label == %@ AND identifier != %@", "Record now", "toolbar.record")).firstMatch.exists)
     }
 
@@ -141,8 +144,10 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["sidebar.ask"]
             .waitForExistence(timeout: 5), "three-column sidebar did not return")
 
-        let privacyFooter = identified("sidebar.localPrivacy")
-        XCTAssertLessThan(abs(privacyFooter.frame.minX - app.windows.firstMatch.frame.minX), 4,
+        // Ask shows its own inference status, so the sidebar brand header
+        // anchors the leading edge instead of the privacy footer.
+        let sidebarHeader = identified("sidebar.brand")
+        XCTAssertLessThan(abs(sidebarHeader.frame.minX - app.windows.firstMatch.frame.minX), 4,
                           "three-column sidebar restored with an empty leading column")
     }
 
@@ -972,9 +977,9 @@ final class MainWindowUITests: XCTestCase {
            + "(history: \(conversations.frame.width), Ask field: \(field.frame.width))")
     }
 
-    /// ↵ escalates the query to the assistant: the pane switches from
-    /// results to the conversation transcript with the query as the user
-    /// turn. The model reply itself is not awaited (no local LLM in the
+    /// ↵ on a question escalates it to the assistant (keywords open a
+    /// result instead): the pane switches from results to the conversation
+    /// transcript with the question as the user turn. The model reply itself is not awaited (no local LLM in the
     /// test host) — the transition and the persisted user turn are the
     /// contract under test.
     func testAskEscalationShowsConversationWithUserTurn() {
@@ -985,7 +990,7 @@ final class MainWindowUITests: XCTestCase {
         let layoutDeadline = Date().addingTimeInterval(4)
         while field.frame.width < 40, Date() < layoutDeadline { usleep(150_000) }
         field.click()
-        field.typeText("failover")
+        field.typeText("What did we decide about failover?")
         field.typeText("\r")
 
         let userTurn = app.staticTexts.matching(

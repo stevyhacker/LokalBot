@@ -408,5 +408,6 @@ private struct SidebarBrandHeader: View {
         .background(WorkspacePalette.sidebar(for: colorScheme))
         .overlay(alignment: .bottom) { Divider() }
         .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("sidebar.brand")
     }
 }

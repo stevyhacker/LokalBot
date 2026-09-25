@@ -450,6 +450,7 @@ private struct AskContent: View {
             }
             .font(WorkspaceTypography.control)
             .controlSize(.small)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("ask.activeFilters")
         }
     }

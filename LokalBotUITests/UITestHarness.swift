@@ -30,6 +30,7 @@ enum UITestHarness {
         defaults.set(Data(settingsJSON.utf8), forKey: defaultsKey)
         _ = CFPreferencesAppSynchronize(suiteName as CFString)
         seedAppLaunchDefaults(storageRoot: storageRoot, defaultsSuiteName: suiteName)
+        resetSavedSplitPositions()
 
         let app = try launchAndVerify(
             storageRoot: storageRoot,
@@ -330,6 +331,19 @@ enum UITestHarness {
         CFPreferencesSetAppValue(uiTestEnabledKey as CFString, kCFBooleanTrue, appID)
         CFPreferencesSetAppValue(uiTestStorageRootKey as CFString, storageRoot.path as CFString, appID)
         CFPreferencesSetAppValue(uiTestDefaultsSuiteKey as CFString, defaultsSuiteName as CFString, appID)
+        _ = CFPreferencesAppSynchronize(appID)
+    }
+
+    /// Native split views autosave divider positions in the host's standard
+    /// defaults, which every test shares. A fresh launch starts from each
+    /// pane's opening width; relaunches keep positions so persistence tests
+    /// still observe them.
+    private static func resetSavedSplitPositions() {
+        let appID = appBundleIdentifier as CFString
+        let keys = CFPreferencesCopyKeyList(appID, kCFPreferencesCurrentUser, kCFPreferencesAnyHost) as? [String] ?? []
+        for key in keys where key.hasPrefix("NSSplitView Subview Frames") {
+            CFPreferencesSetAppValue(key as CFString, nil, appID)
+        }
         _ = CFPreferencesAppSynchronize(appID)
     }
 

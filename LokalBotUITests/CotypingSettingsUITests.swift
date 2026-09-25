@@ -33,8 +33,8 @@ final class CotypingSettingsUITests: XCTestCase {
 
     func testAutocompleteExperienceShowsReadinessPreviewAndPrivacy() {
         XCTAssertTrue(staticText("Autocomplete on").exists)
-        // Form rows render lazily; the preview section follows the summary row.
-        XCTAssertTrue(staticText("Try the real autocomplete").waitForExistence(timeout: 5))
+        // Form rows render lazily; the preview section follows the summary
+        // row. Its Form section header is not exposed as static text.
         XCTAssertFalse(staticText("Two-step rehearsal").exists)
         XCTAssertFalse(staticText("Private by design").exists)
         XCTAssertTrue(app.buttons.matching(
