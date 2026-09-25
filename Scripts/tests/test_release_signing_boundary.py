@@ -49,6 +49,21 @@ class ReleaseSigningBoundaryTests(unittest.TestCase):
         self.assertLess(cleanup, verification)
         self.assertLess(cleanup, notarization)
 
+    def test_signing_keychains_are_searchable_while_codesign_runs(self):
+        # codesign finds the identity's private key through the user keychain
+        # search list, even with --keychain. Without it the DMG signature fails
+        # with "The specified item could not be found in the keychain."
+        for name, signature in (
+            ("Export and seal app with short-lived Developer ID authority", "xcodebuild -exportArchive"),
+            ("Sign, notarize + staple the DMG", "--timestamp build/LokalBot.dmg"),
+        ):
+            signing = step(name)
+            searchable = signing.index('security list-keychains -d user -s "$keychain" login.keychain-db')
+            self.assertLess(signing.index("security set-key-partition-list"), searchable, name)
+            self.assertLess(searchable, signing.index(signature), name)
+            self.assertIn("security list-keychains -d user -s login.keychain-db",
+                          signing[signing.index("cleanup_signing_authority() {"):], name)
+
 
 if __name__ == "__main__":
     unittest.main()
