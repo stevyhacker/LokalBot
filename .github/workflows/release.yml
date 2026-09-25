@@ -371,6 +371,9 @@ jobs:
           rm -f "$certificate"
           security set-key-partition-list -S apple-tool:,apple: -s \
             -k "$KEYCHAIN_PWD" "$keychain" > /dev/null
+          # codesign reaches the private key through the search list, even
+          # with --keychain; cleanup restores the login-only list.
+          security list-keychains -d user -s "$keychain" login.keychain-db
           identity_hash="$(security find-identity -v -p codesigning "$keychain" | \
             awk -v team="($NOTARY_APPLE_TEAM_ID)" '$0 ~ /Developer ID Application/ && index($0, team) {print $2}')"
           if [[ ! "$identity_hash" =~ ^[0-9A-F]{40}$ ]]; then
