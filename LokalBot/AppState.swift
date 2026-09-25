@@ -900,6 +900,11 @@ final class AppState: ObservableObject {
         // finished — a quit or crash mid-transcription used to lose the job.
         detector.onMeetingStarted = { [weak self] context in
             guard let self else { return }
+            // A recording already capturing this call follows its end from now on.
+            if self.settings.autoRecordMode != .manual, self.recording.joinDetectorSession(context) {
+                RecordingNotifier.shared.invalidateMeetingDetections()
+                return
+            }
             switch self.settings.autoRecordMode {
             case .automatic: self.startRecording(context: context, source: "detector")
             case .ask: self.notifyMeetingDetected(context)
@@ -930,8 +935,14 @@ final class AppState: ObservableObject {
             if self.pendingRecordingStart?.context?.detectorSessionID == event.sessionID {
                 self.pendingRecordingStart = nil
             }
-            guard event.ownsRecording(detectorSessionID: self.recording.detectorSessionID) else { return }
-            self.recording.stop(contentEndedAt: event.contentEndedAt)
+            switch event.action(detectorSessionID: self.recording.detectorSessionID,
+                                startedByUser: self.recording.startedByUser) {
+            case .ignore: break
+            case .release: self.recording.leaveDetectorSession()
+            case .stop(let allowsAutomaticRestart):
+                self.recording.stop(contentEndedAt: event.contentEndedAt,
+                                    allowsAutomaticRestart: allowsAutomaticRestart)
+            }
         }
         detector.stopDebounce = settings.stopDebounceSeconds
         detector.calendar = calendar
@@ -1205,7 +1216,16 @@ final class AppState: ObservableObject {
             detectedApp: detectedApp,
             calendarEvent: event,
             confidence: MeetingMatcher.confidence(hasApp: true, hasCalendar: event != nil),
-            reason: "user")
+            reason: "user",
+            detectorSessionID: detectorSession(following: detectedApp))
+    }
+
+    /// A recording the user starts for the call the detector is tracking joins
+    /// that session, so the call's end stops it. Manual mode leaves every stop
+    /// to the user.
+    private func detectorSession(following detectedApp: MeetingDetector.DetectedApp?) -> UUID? {
+        guard settings.autoRecordMode != .manual, let detectedApp, detectedApp == detector.activeApp else { return nil }
+        return detector.activeSessionID
     }
 
     /// A user can explicitly start the scheduled event from Today's upcoming
@@ -1221,7 +1241,8 @@ final class AppState: ObservableObject {
             confidence: MeetingMatcher.confidence(
                 hasApp: detectedApp != nil,
                 hasCalendar: true),
-            reason: "today-upcoming")
+            reason: "today-upcoming",
+            detectorSessionID: detectorSession(following: detectedApp))
     }
 
     /// `AudioSourceMonitor` saw an app newly start producing output. Auto-record

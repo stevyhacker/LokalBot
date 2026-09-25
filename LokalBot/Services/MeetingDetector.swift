@@ -200,12 +200,7 @@ final class MeetingDetector {
     private var browserStart = BrowserMeetingSession.StartGate()
     private(set) var detectedContentEnd: Date?
     private(set) var endedMeetingURL: URL?
-    private var lastBrowserEvidenceAt: Date?
-    private var browserObservationLostAt: Date?
-    /// True only while the exact previously verified browser window remains
-    /// present and minimized. This prevents later host/window loss from
-    /// retrospectively trimming the period that was deliberately preserved.
-    private var browserVisibilitySuspended = false
+    private var browserLifecycle = BrowserMeetingSession.LifecycleTracker()
     /// The start candidate still waiting out
     /// `nativeAudioMinimumConfirmationDuration`: when its audio was first seen,
     /// and when it was last seen — the second lets a normal conversational gap
@@ -266,8 +261,7 @@ final class MeetingDetector {
         pendingStop = nil
         clearPendingStart()
         continuationLease.reset()
-        browserObservationLostAt = nil
-        browserVisibilitySuspended = false
+        browserLifecycle = .init()
         detectedContentEnd = nil
         endedMeetingURL = nil
         activeSessionID = nil
@@ -416,8 +410,7 @@ final class MeetingDetector {
                     pendingStop = nil
                     let previousApp = activeApp
                     activeApp = replacementApp
-                    lastBrowserEvidenceAt = replacementApp.meetingURL == nil ? nil : now
-                    browserVisibilitySuspended = false
+                    browserLifecycle = .init(verifiedAt: replacementApp.meetingURL == nil ? nil : now)
                     activeCalendarEvent = calendarEvent
                     continuationLease.recordReliableAudio(at: now)
                     clearPendingStart(loggingLoss: false)
@@ -534,9 +527,7 @@ final class MeetingDetector {
         activeSessionID = UUID()
         detectedContentEnd = nil
         endedMeetingURL = nil
-        browserObservationLostAt = nil
-        browserVisibilitySuspended = false
-        lastBrowserEvidenceAt = app.meetingURL == nil ? nil : now
+        browserLifecycle = .init(verifiedAt: app.meetingURL == nil ? nil : now)
         browserStart = .init()
         clearPendingStart(loggingLoss: false)
         pendingStop?.cancel()
@@ -708,7 +699,8 @@ final class MeetingDetector {
     private func scheduleStopIfNeeded(
         now: Date,
         immediately: Bool = false,
-        reason: String? = nil
+        reason: String? = nil,
+        confident: Bool = true
     ) {
         guard activeApp != nil, let sessionID = activeSessionID, pendingStop == nil else { return }
         // Native app audio gaps may use calendar grace. A browser call uses
@@ -718,99 +710,80 @@ final class MeetingDetector {
         let debounce = immediately ? 0 : calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
-            if let reason { lokalbotLog("detector ending meeting reason=\(reason)") }
-            self.completeMeetingEnd(sessionID: sessionID)
+            if let reason { lokalbotLog("detector ending meeting reason=\(reason) confident=\(confident)") }
+            self.completeMeetingEnd(sessionID: sessionID, confident: confident)
         }
         pendingStop = work
         DispatchQueue.main.asyncAfter(deadline: .now() + debounce, execute: work)
     }
 
-    func completeMeetingEnd(sessionID: UUID) {
+    func completeMeetingEnd(sessionID: UUID, confident: Bool = true) {
         guard activeSessionID == sessionID else { return }
-        let event = MeetingDetectionEnd(sessionID: sessionID, contentEndedAt: detectedContentEnd)
+        let event = MeetingDetectionEnd(sessionID: sessionID, contentEndedAt: detectedContentEnd,
+                                        confident: confident)
         endedMeetingURL = activeApp?.meetingURL
         activeApp = nil
         activeSessionID = nil
         activeCalendarEvent = nil
         continuationLease.reset()
         pendingStop = nil
-        browserVisibilitySuspended = false
+        browserLifecycle = .init()
         onMeetingEnded?(event)
     }
 
     /// A browser-wide audio stream is never evidence that the bound call is
-    /// still running. A missing Accessibility snapshot is kept as uncertainty
-    /// for a bounded grace period; an explicit ended state ends immediately.
-    /// A missing host gets a shorter reconnect grace so a browser restart does
-    /// not split the call. Preserve the last verified boundary for processing.
+    /// still running. A verified window that still holds the call keeps it,
+    /// even when its call controls cannot be read. Otherwise a missing
+    /// snapshot is uncertainty for a bounded grace period; an explicit ended
+    /// state ends immediately. A missing host gets a shorter reconnect grace
+    /// so a browser restart does not split the call. Preserve the last
+    /// verified boundary for processing.
     private func tickBrowser(_ app: DetectedApp, now: Date) {
         let host = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleID).first
         let snapshot = host.flatMap { browserSnapshots[$0.processIdentifier] }
         let observedState: BrowserMeetingSession.State? = snapshot.map {
             $0.url == app.meetingURL ? $0.state : .unavailable
         }
-        let decision = BrowserMeetingSession.lifecycleDecision(
-            snapshotState: observedState,
+        let event = browserLifecycle.observe(
+            observedState,
             hostPresent: host != nil,
-            observationLostAt: browserObservationLostAt ?? now,
             now: now,
             grace: max(Self.browserObservationGrace, max(0, stopDebounce)),
             hostReconnectGrace: Self.browserHostReconnectGrace)
-        switch decision {
-        case .visibilitySuspended:
-            // A known minimized window belongs to the bound call, but it cannot
-            // expose live call controls. Preserve the session without treating
-            // the title/window observation as fresh call evidence.
-            browserVisibilitySuspended = true
-            if browserObservationLostAt == nil {
-                browserObservationLostAt = now
-                lokalbotLog("browser lifecycle observation suspended: bound window minimized")
+        switch event {
+        case .none:
+            // Only an open uncertainty window may leave a pending end in place.
+            if browserLifecycle.lostAt == nil {
+                pendingStop?.cancel()
+                pendingStop = nil
+                detectedContentEnd = nil
             }
+        case .suspended(let state):
+            lokalbotLog(state == .minimized
+                ? "browser lifecycle observation suspended: bound window minimized"
+                : "browser lifecycle observation suspended: meeting tab still open")
             pendingStop?.cancel()
             pendingStop = nil
-        case .inCall:
-            if let lostAt = browserObservationLostAt {
-                lokalbotLog(
-                    "browser lifecycle observation recovered after="
-                        + String(format: "%.1fs", now.timeIntervalSince(lostAt)))
-            }
-            browserObservationLostAt = nil
-            browserVisibilitySuspended = false
+        case .recovered(let after):
+            lokalbotLog("browser lifecycle observation recovered after=" + String(format: "%.1fs", after))
             pendingStop?.cancel()
             pendingStop = nil
             detectedContentEnd = nil
-            lastBrowserEvidenceAt = now
-        case .waitForObservation:
-            if browserObservationLostAt == nil {
-                browserObservationLostAt = now
-                let state = observedState.map(String.init(describing:)) ?? "missing"
-                lokalbotLog("browser lifecycle observation lost state=\(state)")
+        case .lost(let state):
+            let issue = host.flatMap { BrowserMeetingSession.lastReadIssue(processID: $0.processIdentifier) }
+            lokalbotLog("browser lifecycle observation lost state="
+                + (state.map(String.init(describing:)) ?? "missing")
+                + (issue.map { " issue=\($0.rawValue)" } ?? ""))
+        case .end(let reason, let confident, let contentEnd):
+            if reason != "browser-ended" {
+                lokalbotLog("browser lifecycle observation grace expired reason=\(reason) after="
+                    + String(format: "%.1fs", now.timeIntervalSince(browserLifecycle.lostAt ?? now)))
             }
-        case .endImmediately:
-            browserObservationLostAt = nil
-            detectedContentEnd = browserVisibilitySuspended ? now : (lastBrowserEvidenceAt ?? now)
-            browserVisibilitySuspended = false
+            detectedContentEnd = contentEnd
+            browserLifecycle = .init()
             pendingStop?.cancel()
             pendingStop = nil
-            scheduleStopIfNeeded(
-                now: now,
-                immediately: true,
-                reason: host == nil ? "browser-host-missing" : "browser-ended")
-        case .endAfterGrace:
-            detectedContentEnd = browserVisibilitySuspended
-                ? now
-                : (lastBrowserEvidenceAt ?? browserObservationLostAt ?? now)
-            browserVisibilitySuspended = false
-            let reason = host == nil
-                ? "browser-host-reconnect-grace-expired"
-                : "browser-observation-grace-expired"
-            lokalbotLog(
-                "browser lifecycle observation grace expired reason=\(reason) after="
-                    + String(format: "%.1fs", now.timeIntervalSince(browserObservationLostAt ?? now)))
-            scheduleStopIfNeeded(
-                now: now,
-                immediately: true,
-                reason: reason)
+            scheduleStopIfNeeded(now: now, immediately: true, reason: reason, confident: confident)
         }
     }
 

@@ -210,8 +210,11 @@ final class RecordingController: ObservableObject {
     /// The live recording (shown at the top of the library while running).
     @Published private(set) var currentMeeting: Meeting?
     /// Only lifecycle events from this detector session own the recording.
-    /// A manual recording has no owner even when the detector remains active.
+    /// A recording the user started joins the session of the call it records.
     private(set) var detectorSessionID: UUID?
+    /// Explicit starts (menu bar, Record now, notifications) keep recording
+    /// through an uncertain browser end; only a confident end stops them.
+    private(set) var startedByUser = false
     /// Drives `elapsed`; bumped each second by `recordingTick`.
     @Published private(set) var now = Date()
     /// True only around the synchronous stop/start boundary of a calendar split.
@@ -447,6 +450,7 @@ final class RecordingController: ObservableObject {
         }
         status = .starting
         detectorSessionID = context?.detectorSessionID
+        startedByUser = !Self.automaticStartSources.contains(source)
         activeSystemAudioPolicy = systemAudioPolicy
         audioMonitor.isRecordingActive = true
         audioMonitor.accept()
@@ -580,7 +584,8 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false) {
+    func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false,
+              allowsAutomaticRestart: Bool = false) {
         if isStarting {
             startTask?.cancel()
             pendingSystemAudioCaptureTask?.cancel()
@@ -645,6 +650,37 @@ final class RecordingController: ObservableObject {
             onError("Recording saved, but only \(meeting.durationLabel) of audio was captured from a \(Self.formatMinutes(wallDuration)) session.")
         }
         finalize(meeting, process: process, deferProcessing: deferProcessing)
+        // The call may still be running; let it record again once verified.
+        if allowsAutomaticRestart { lastCalendarEventEndedAt = nil }
+    }
+
+    /// A recording without a detector owner joins the verified call it is
+    /// capturing, so that call's end can stop it. Returns whether it joined.
+    @discardableResult
+    func joinDetectorSession(_ context: MeetingDetectionContext) -> Bool {
+        guard isRecording, detectorSessionID == nil,
+              let sessionID = context.detectorSessionID, let app = context.detectedApp,
+              Self.recordsSameCall(capturedBundleID: systemAudioTarget?.bundleID,
+                                   recordingURL: currentMeeting?.meetingURL, detected: app) else { return false }
+        detectorSessionID = sessionID
+        lokalbotLog("recording joined detector session app=\(app.bundleID)")
+        return true
+    }
+
+    /// An uncertain end releases a user-started recording instead of stopping it.
+    func leaveDetectorSession() {
+        guard detectorSessionID != nil else { return }
+        detectorSessionID = nil
+        lokalbotLog("recording left detector session: call end uncertain, still recording")
+    }
+
+    nonisolated static func recordsSameCall(capturedBundleID: String?, recordingURL: URL?,
+                                            detected: MeetingDetector.DetectedApp) -> Bool {
+        guard capturedBundleID == detected.bundleID else { return false }
+        guard let recordingURL, let detectedURL = detected.meetingURL else { return true }
+        // Calendar links can carry query parameters such as ?authuser=0.
+        let room = { (url: URL) in BrowserMeetingSession.meetURL(url.absoluteString) ?? url.absoluteString }
+        return room(recordingURL) == room(detectedURL)
     }
 
     /// Finalization is separate from device shutdown so persistence failures

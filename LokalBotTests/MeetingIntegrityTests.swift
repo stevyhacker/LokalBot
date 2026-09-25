@@ -111,6 +111,81 @@ final class MeetingIntegrityTests: XCTestCase {
             .endAfterGrace)
     }
 
+    func testOpenCallTabKeepsTheCallWhileAClosedTabStillGetsGrace() {
+        let now = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .present, hostPresent: true, observationLostAt: now,
+            now: now.addingTimeInterval(7_200), grace: 120), .visibilitySuspended)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .gone, hostPresent: true, observationLostAt: now,
+            now: now.addingTimeInterval(119), grace: 120), .waitForObservation)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .gone, hostPresent: true, observationLostAt: now,
+            now: now.addingTimeInterval(120), grace: 120), .endAfterGrace)
+        var gate = BrowserMeetingSession.StartGate()
+        let url = URL(string: "https://meet.google.com/abc-defg-hij")!
+        XCTAssertFalse(gate.observe(.init(url: url, state: .present), at: now))
+        XCTAssertFalse(gate.observe(.init(url: url, state: .present), at: now.addingTimeInterval(20)))
+    }
+
+    func testCallTabTitlesMatchTheRoomCodeOrTheVerifiedTitle() {
+        let url = URL(string: "https://meet.google.com/abc-defg-hij")!
+        XCTAssertTrue(BrowserMeetingSession.titleNamesCall(
+            "Meet - abc-defg-hij - Camera and microphone recording", url: url, verifiedTitle: ""))
+        XCTAssertTrue(BrowserMeetingSession.titleNamesCall(
+            "Demo Day - Audio playing", url: url, verifiedTitle: "Demo Day"))
+        XCTAssertFalse(BrowserMeetingSession.titleNamesCall(
+            "Meet - xyz-uvwx-rst", url: url, verifiedTitle: "Meet - abc-defg-hij"))
+        for generic in ["Meet", "Google Meet", " "] {
+            XCTAssertFalse(BrowserMeetingSession.titleNamesCall("Google Meet", url: url, verifiedTitle: generic),
+                           "A generic title cannot identify one call")
+        }
+    }
+
+    func testTrackerKeepsAnOpenCallTabAndGivesLaterUncertaintyItsFullGrace() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        var tracker = BrowserMeetingSession.LifecycleTracker(verifiedAt: start)
+        func observe(_ state: BrowserMeetingSession.State?, at seconds: TimeInterval, host: Bool = true)
+            -> BrowserMeetingSession.LifecycleTracker.Event {
+            tracker.observe(state, hostPresent: host, now: start.addingTimeInterval(seconds),
+                            grace: 120, hostReconnectGrace: 15)
+        }
+        XCTAssertEqual(observe(nil, at: 10), .lost(nil))
+        XCTAssertEqual(observe(.present, at: 20), .suspended(.present))
+        XCTAssertEqual(observe(.present, at: 3_600), .none, "An open call tab never expires")
+        XCTAssertEqual(observe(nil, at: 3_610), .lost(nil))
+        XCTAssertEqual(observe(nil, at: 3_700), .none, "Uncertainty after the tab was seen gets a fresh grace")
+        XCTAssertEqual(observe(.inCall, at: 3_720), .recovered(after: 3_710))
+        XCTAssertEqual(tracker.lastEvidenceAt, start.addingTimeInterval(3_720))
+    }
+
+    func testTrackerOnlyCallsAGraceExpiryWithNothingReadableUncertain() {
+        let start = Date(timeIntervalSince1970: 1_000)
+        func end(after states: [BrowserMeetingSession.State?], host: Bool = true)
+            -> BrowserMeetingSession.LifecycleTracker.Event {
+            var tracker = BrowserMeetingSession.LifecycleTracker(verifiedAt: start)
+            var last = BrowserMeetingSession.LifecycleTracker.Event.none
+            for (index, state) in states.enumerated() {
+                last = tracker.observe(state, hostPresent: host, now: start.addingTimeInterval(Double(index) * 60 + 5),
+                                       grace: 120, hostReconnectGrace: 15)
+            }
+            return last
+        }
+        let verifiedEnd = start
+        XCTAssertEqual(end(after: [nil, nil, nil]),
+                       .end(reason: "browser-observation-grace-expired", confident: false, contentEnd: verifiedEnd))
+        XCTAssertEqual(end(after: [nil, .gone, nil]),
+                       .end(reason: "browser-meeting-closed", confident: true, contentEnd: verifiedEnd))
+        XCTAssertEqual(end(after: [.unavailable, .unavailable, .unavailable]),
+                       .end(reason: "browser-call-controls-missing", confident: true, contentEnd: verifiedEnd))
+        XCTAssertEqual(end(after: [nil], host: false), .lost(nil))
+        XCTAssertEqual(end(after: [nil, nil], host: false),
+                       .end(reason: "browser-host-reconnect-grace-expired", confident: true, contentEnd: verifiedEnd))
+        XCTAssertEqual(end(after: [.present, .ended]),
+                       .end(reason: "browser-ended", confident: true, contentEnd: start.addingTimeInterval(5)),
+                       "The call is known to continue while its tab is open")
+    }
+
     func testUnrelatedSignalsNeverProveOrInvalidateBrowserSession() {
         XCTAssertEqual(BrowserMeetingSession.state(
             buttons: ["Leave call", "Turn on microphone"], messages: []), .inCall,
