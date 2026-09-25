@@ -9,6 +9,8 @@ struct TodayView: View {
     @StateObject private var model = CaptureModel()
     @StateObject private var upcomingMeeting = UpcomingMeetingPreparationModel()
     @State private var dream: DreamReport?
+    @AppStorage("lokalbotv3.gettingStartedDismissed")
+    private var gettingStartedDismissed = false
 
     var body: some View {
         ScrollView {
@@ -22,6 +24,7 @@ struct TodayView: View {
                     showsPlanInAgent: true)
                 digestSection
                 if let dream { previousDayCard(dream) }
+                if !gettingStartedDismissed { GettingStartedCard() }
             }
             .padding(.horizontal, 36)
             .padding(.vertical, 32)

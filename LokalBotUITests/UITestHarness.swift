@@ -31,10 +31,14 @@ enum UITestHarness {
         _ = CFPreferencesAppSynchronize(suiteName as CFString)
         seedAppLaunchDefaults(storageRoot: storageRoot, defaultsSuiteName: suiteName)
 
+        // Split views autosave divider positions in the host's own defaults,
+        // which every test shares. A fresh launch asks the host to start from
+        // each pane's opening width; relaunches keep positions so persistence
+        // tests still observe them.
         let app = try launchAndVerify(
             storageRoot: storageRoot,
             defaultsSuiteName: suiteName,
-            environment: environment,
+            environment: ["LOKALBOT_RESET_SPLIT_VIEWS": "1"].merging(environment) { _, new in new },
             file: file,
             line: line)
 

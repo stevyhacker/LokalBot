@@ -434,7 +434,7 @@ final class RedesignUITests: XCTestCase {
         let launchToggle = UITestHarness.toggle("Launch LokalBot at login", in: app)
         XCTAssertTrue(UITestHarness.waitUntil { launchToggle.isHittable }, "A category opens at its own top")
         UITestHarness.selectSettingsCategory("Writing", in: app)
-        let dictation = app.segmentedControls["settings.writing.sections"].buttons["Dictation"]
+        let dictation = UITestHarness.segment("Dictation", pickerIdentifier: "settings.writing.sections", in: app)
         XCTAssertTrue(dictation.waitForExistence(timeout: 5))
         XCTAssertTrue(dictation.isHittable)
         dictation.click()
@@ -718,7 +718,12 @@ final class RedesignUITests: XCTestCase {
                 // in this appearance; a faint or empty label still fails.
                 if verifiedText.contains(affected.label)
                     || (affected.value as? String).map(verifiedText.contains) == true { return true }
+                // WCAG 1.4.3 exempts inactive controls, such as Ask before a
+                // question is typed.
+                if !affected.isEnabled, affected.elementType == .button { return true }
             }
+            // A native menu's items carry the actions; its container has none.
+            if issue.auditType == .action, affected.elementType == .menu { return true }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch
             guard affected.elementType == .popUpButton, affected.label == "emoji & symbols",
@@ -731,12 +736,20 @@ final class RedesignUITests: XCTestCase {
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
         let labels = [
-            "Type to find meetings and screen moments. Press Return to open a result, or ⌘Return to ask about what you found.",
+            "Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.",
+            "Listen to a short excerpt, then confirm a name or whether the speaker is you. Leave uncertain voices unresolved.",
+            "All actions from this meeting. Only yours appear in My actions. Choose an owner to correct it, or a timestamp to check the source.",
         ]
         var verified = Set<String>()
+        let content = app.scrollViews["meeting.content.scroll"]
         for label in labels {
             let text = app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).firstMatch
             guard text.exists, app.windows.firstMatch.frame.contains(text.frame) else { continue }
+            // Scrolled meeting content can report a frame under the pinned
+            // header; its pixels there belong to the header, not this text.
+            if content.exists,
+               content.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).count > 0,
+               !content.frame.insetBy(dx: -1, dy: -1).contains(text.frame) { continue }
             let screenshot = text.screenshot()
             let bitmap = try XCTUnwrap(NSBitmapImageRep(data: screenshot.pngRepresentation))
             let ratio = try renderedTextContrast(bitmap)

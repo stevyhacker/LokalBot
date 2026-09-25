@@ -243,10 +243,13 @@ private struct MeetingWorkspaceDetail: View {
                         switch tab {
                         case .summary:
                             overviewContent
-                            DisclosureGroup("Show full notes", isExpanded: $fullNotesExpanded) {
+                            DisclosureGroup(isExpanded: $fullNotesExpanded) {
                                 summarySection.padding(.top, 12)
+                            } label: {
+                                Button("Show full notes") { fullNotesExpanded.toggle() }
+                                    .buttonStyle(.plain)
+                                    .accessibilityIdentifier("meeting.fullNotes")
                             }
-                            .accessibilityIdentifier("meeting.fullNotes")
                         case .transcript: transcriptSection
                         case .review: speakerAndActionReview
                         case .notes:

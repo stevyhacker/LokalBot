@@ -302,6 +302,7 @@ struct SettingsView: View {
                               "completion", "typing"]) {
             Section("Autocomplete") {
                 Toggle("Enable autocomplete", isOn: $app.settings.cotypingEnabled)
+                    .accessibilityLabel("Enable autocomplete")
                     .settingTarget("settings.cotypingEnabled", selected: app.focusedSettingID)
                 LabeledContent("Autocomplete model") {
                     Button("Manage in Models…") { app.openSettings(tab: .models) }

@@ -32,6 +32,12 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
         /// Cleared once the pane has its opening width, or once a divider
         /// position the user saved earlier has been restored instead.
         private var initialWidthPending = true
+        /// SwiftUI can even out the split after the first placement, for
+        /// example when a window is resized right after opening. Placement is
+        /// retried until the pane measures its opening width, a bounded number
+        /// of times so it never fights a divider the user is dragging.
+        private var initialWidthAttempts = 0
+        private static let maximumInitialWidthAttempts = 12
 
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
 
@@ -109,7 +115,11 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
                 split.setHoldingPriority(holding, forSubviewAt: index)
             }
             guard initialWidthPending, split.bounds.width > width + split.dividerThickness else { return }
-            initialWidthPending = false
+            if abs(pane.frame.width - width) <= 1 || initialWidthAttempts >= Self.maximumInitialWidthAttempts {
+                initialWidthPending = false
+                return
+            }
+            initialWidthAttempts += 1
             let position = index == 0 ? width : split.bounds.width - width - split.dividerThickness
             split.setPosition(position, ofDividerAt: 0)
         }
