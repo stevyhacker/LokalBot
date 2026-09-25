@@ -6,6 +6,8 @@ import SwiftUI
 struct UpcomingMeetingSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: UpcomingMeetingPreparationModel
+    /// Preparation is the reason to look at the next meeting, so it starts open.
+    @State private var preparationExpanded = true
 
     var body: some View {
         if model.status == .ready {
@@ -17,7 +19,7 @@ struct UpcomingMeetingSection: View {
                         if let evidence = model.evidence,
                            evidence.event.externalID == next.externalID,
                            evidence.hasPreparationContext {
-                            DisclosureGroup("Preparation context") {
+                            DisclosureGroup("Preparation context", isExpanded: $preparationExpanded) {
                                 UpcomingMeetingCard(model: model, evidence: evidence)
                             }
                         }
