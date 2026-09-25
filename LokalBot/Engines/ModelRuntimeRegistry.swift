@@ -1,12 +1,17 @@
 import Darwin
 import Foundation
 
-/// Observation-only ledger for model runtimes that do not belong to the GGUF
+/// Admission and residency ledger for runtimes that do not belong to the GGUF
 /// eviction ledger. It covers retained in-process CoreML/MLX models and
 /// short-lived ONNX helpers, without changing their established lifetimes.
 @MainActor
 final class ModelRuntimeRegistry: ObservableObject {
     static let shared = ModelRuntimeRegistry()
+    private let residency: ModelResidency
+
+    init(residency: ModelResidency? = nil) {
+        self.residency = residency ?? .shared
+    }
 
     struct Resident: Identifiable, Equatable, Sendable {
         let id: String
@@ -34,6 +39,11 @@ final class ModelRuntimeRegistry: ObservableObject {
     func reserve(id: String, role: String, label: String,
                  estimatedBytes: UInt64?) async {
         register(id: id, role: role, label: label, estimatedBytes: estimatedBytes)
+        let admission = await residency.willLoad(
+            id: id, bytes: 0,
+            currentReservedBytes: { Int64(clamping: self.totalEstimatedBytes) })
+        // This ledger already owns the reservation; do not count it twice.
+        residency.cancelLoad(admission)
     }
 
     func register(id: String, role: String, label: String,

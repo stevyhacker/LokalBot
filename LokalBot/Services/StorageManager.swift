@@ -164,7 +164,9 @@ final class StorageManager {
     /// from in-memory/UI state after this succeeds; swallowing the filesystem
     /// error made failed deletions reappear on the next launch.
     func deleteMeeting(_ meeting: Meeting) throws {
-        try FileManager.default.removeItem(at: meeting.folderURL(in: self))
+        try DreamStore(root: rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+            try FileManager.default.removeItem(at: meeting.folderURL(in: self))
+        }
     }
 
     static func slugify(_ s: String) -> String {

@@ -42,7 +42,8 @@ final class MeetingSpeakerPresentationTests: XCTestCase {
     }
 
     func testPlaceholderNamesReadNaturally() {
-        XCTAssertEqual(SpeakerDisplayName.label("Me"), "You")
+        XCTAssertEqual(SpeakerDisplayName.label("Me"), "Me")
+        XCTAssertEqual(SpeakerDisplayName.label("Me", identity: .user), "You")
         XCTAssertEqual(SpeakerDisplayName.label("Them"), "Other speaker")
         XCTAssertEqual(SpeakerDisplayName.label("Them 2"), "Speaker 2")
         XCTAssertEqual(SpeakerDisplayName.label("Local speaker"), "Local speaker")
@@ -58,9 +59,21 @@ final class MeetingSpeakerPresentationTests: XCTestCase {
         let display = MeetingSpeakerPresentation(transcript: transcript)
         XCTAssertEqual(display.speaker("them", in: transcript), "Other speaker")
         XCTAssertEqual(display.speaker("them 2", in: transcript), "Speaker 2")
-        XCTAssertEqual(display.owner("Me"), "You")
-        XCTAssertEqual(display.owner("Them"), "Other speaker")
+        XCTAssertEqual(display.owner("Me", isForUser: false), "Me")
+        XCTAssertEqual(display.owner("Me", isForUser: true), "You")
+        XCTAssertEqual(display.owner("Them", isForUser: false), "Other speaker")
         XCTAssertTrue(transcript.promptSpeaker(for: "them").hasSuffix("] Them"))
+    }
+
+    func testRemoteAliasMeDoesNotBecomeYou() {
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 1, speaker: "them", text: "I own this task.",
+                  attribution: .init(source: .system, identity: .other, method: .confirmation))
+        ], engine: "fixture", speakerAliases: ["them": "Me"])
+        let display = MeetingSpeakerPresentation(transcript: transcript)
+        XCTAssertEqual(display.speaker("them", in: transcript), "Me")
+        XCTAssertEqual(display.owner("Me", isForUser: false), "Me")
+        XCTAssertTrue(transcript.confirmedUserSpeakerIDs.isEmpty)
     }
 
     private func fixture(_ speakers: [(String, String)]) -> Transcript {

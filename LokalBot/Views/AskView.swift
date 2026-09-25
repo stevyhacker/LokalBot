@@ -49,7 +49,6 @@ private struct AskContent: View {
         get { app.recallState.pins }
         nonmutating set { app.recallState.pins = newValue }
     }
-    @State private var screenWasEnabledBeforePins: Bool?
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var searchedQuery = ""
@@ -72,6 +71,16 @@ private struct AskContent: View {
     private var layout: some View {
         VStack(spacing: 0) {
             if model.isLoadingHistory { LoadingStateLabel("Loading conversations…") }
+            if let persistenceError = model.persistenceError {
+                HStack {
+                    Label(persistenceError, systemImage: "exclamationmark.triangle")
+                    Spacer()
+                    Button("Retry") { model.retryPersistence() }
+                }
+                .font(WorkspaceTypography.metadata)
+                .padding(12)
+                .accessibilityIdentifier("ask.persistenceError")
+            }
             retrievalBody
             composerDock
         }
@@ -639,6 +648,7 @@ private struct AskContent: View {
             sourceScopes: sources,
             dateScope: dateScope,
             attachedScreenDates: pinnedScreens.map(\.timestamp),
+            attachedScreenIDs: Set(pinnedScreens.map(\.snapshotID)),
             meetingIDs: meetingScope, screenSnapshotIDs: screenScope)
         clearPinnedScreens(restoringScope: false)
         query = ""
@@ -657,7 +667,6 @@ private struct AskContent: View {
         app.recallState.chooseSources(AskSourceScope.defaults)
         app.askDateScope = nil
         pinnedScreens = []
-        screenWasEnabledBeforePins = nil
         showingTimeScope = false
     }
 
@@ -670,45 +679,27 @@ private struct AskContent: View {
                                        sources: scope.sources)
         app.askDateScope = scope.dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
         pinnedScreens = []
-        screenWasEnabledBeforePins = nil
         showingTimeScope = false
     }
 
     private func reconcilePinnedScreenScope() {
-        guard !pinnedScreens.isEmpty else { return }
-        if let dateScope = app.askDateScope { pinnedScreens = pinnedScreens.filter { dateScope.contains($0.timestamp) } }
-        sources.insert(.screen)
-        screenScope = Set(pinnedScreens.map(\.snapshotID))
+        app.recallState.reconcilePins(dateScope: app.askDateScope)
     }
 
     private func rememberScreenAccessBeforePinning() {
-        guard screenWasEnabledBeforePins == nil else { return }
-        screenWasEnabledBeforePins = sources.contains(.screen)
+        app.recallState.beginPinning()
     }
 
     private func removePinnedScreen(_ id: Int64) {
-        pinnedScreens.removeAll { $0.id == id }
-        screenScope = Set(pinnedScreens.map(\.snapshotID))
-        if pinnedScreens.isEmpty { restoreScopeAfterRemovingPins() }
+        app.recallState.removePin(id)
     }
 
     private func clearPinnedScreens(restoringScope: Bool) {
-        pinnedScreens = []
-        if restoringScope {
-            restoreScopeAfterRemovingPins()
-        } else {
-            screenWasEnabledBeforePins = nil
-        }
+        app.recallState.clearPins(restoringScope: restoringScope)
     }
 
     private func restoreScopeAfterRemovingPins() {
-        guard let wasEnabled = screenWasEnabledBeforePins else { return }
-        if !wasEnabled, sources.contains(.screen), sources.count > 1 {
-            var updated = sources
-            updated.remove(.screen)
-            sources = updated
-        }
-        screenWasEnabledBeforePins = nil
+        app.recallState.clearPins(restoringScope: true)
     }
 
     // MARK: - Results

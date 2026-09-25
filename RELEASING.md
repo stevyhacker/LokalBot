@@ -396,10 +396,14 @@ dispatched workflow as synchronization proof. See
 ## CI release
 
 A tag-triggered GitHub Actions workflow (`.github/workflows/release.yml`)
-automates the flow above: import the Developer ID cert into a temp keychain,
-archive + export, build the DMG, notarize + staple, download the Sparkle tarball
-for `sign_update`, run `generate_appcast.py`, and upload `LokalBot.dmg` +
-`appcast.xml` to the Release. Required repo secrets:
+automates the flow above. It resolves packages, validates native vendors, and
+builds an ad-hoc archive before any Developer ID identity is available. A
+temporary keychain exists only while Xcode exports and seals the finished app,
+then is deleted. The DMG uses a separate short-lived keychain that is deleted
+immediately after `codesign`, before notarization. The workflow then notarizes
+and staples, downloads the Sparkle tarball for `sign_update`, runs
+`generate_appcast.py`, and uploads `LokalBot.dmg` + `appcast.xml` to the Release.
+Required repo secrets:
 
 - `MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PWD`, `KEYCHAIN_PWD`
 - `NOTARY_APPLE_ID`, `NOTARY_APPLE_TEAM_ID`, `NOTARY_APPLE_PWD`

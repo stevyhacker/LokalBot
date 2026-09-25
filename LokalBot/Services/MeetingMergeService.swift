@@ -13,6 +13,9 @@ enum MeetingMergeService {
         let meeting: Meeting
         let sourceMeetings: [Meeting]
         let transcriptSegmentCount: Int
+        /// False when any selected source range contributed no transcript
+        /// segment. A requested summary must first transcribe the merged audio.
+        let transcriptCoverageComplete: Bool
     }
 
     enum MergeError: LocalizedError {
@@ -65,9 +68,13 @@ enum MeetingMergeService {
             let title: String
             let startedAt: Date
             let duration: TimeInterval
+            /// Version-2 fields. Optional decoding keeps older manifests
+            /// readable without claiming coverage they never recorded.
+            let hasAudio: Bool?
+            let hasTranscript: Bool?
         }
 
-        var version = 1
+        var version = 2
         let sources: [Source]
     }
 
@@ -98,7 +105,8 @@ enum MeetingMergeService {
             merged.recordedDuration = totalDuration
             merged.mergedSourceMeetingIDs = sources.map { $0.meeting.id }
 
-            let mergedTranscript = try makeTranscript(from: sources)
+            let transcriptBuild = try makeTranscript(from: sources)
+            let mergedTranscript = transcriptBuild.transcript
             if let mergedTranscript {
                 try write(mergedTranscript, to: folder)
             }
@@ -115,20 +123,28 @@ enum MeetingMergeService {
                 sources: sources,
                 to: folder)
             try writeSourceNotes(sources, to: folder)
-            try writeManifest(sources, to: folder)
+            try writeManifest(
+                sources,
+                transcriptSourceIndices: transcriptBuild.coveredSourceIndices,
+                audioSourceIndices: audio.coveredSourceIndices,
+                to: folder)
             try storage.saveMeta(merged)
 
-            for source in sources {
-                var folded = source.meeting
-                folded.mergedIntoMeetingID = merged.id
-                try storage.saveMeta(folded)
-                foldedSources.append(folded)
+            try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: sources.map(\.meeting)) {
+                for source in sources {
+                    var folded = source.meeting
+                    folded.mergedIntoMeetingID = merged.id
+                    try storage.saveMeta(folded)
+                    foldedSources.append(folded)
+                }
             }
 
             return Result(
                 meeting: merged,
                 sourceMeetings: foldedSources,
-                transcriptSegmentCount: mergedTranscript?.segments.count ?? 0)
+                transcriptSegmentCount: mergedTranscript?.segments.count ?? 0,
+                transcriptCoverageComplete:
+                    transcriptBuild.coveredSourceIndices.count == sources.count)
         } catch {
             for source in foldedSources {
                 var restored = source
@@ -202,11 +218,14 @@ enum MeetingMergeService {
         return first
     }
 
-    private static func makeTranscript(from sources: [Source]) throws -> Transcript? {
+    private static func makeTranscript(
+        from sources: [Source]
+    ) throws -> (transcript: Transcript?, coveredSourceIndices: Set<Int>) {
         var segments: [Transcript.Segment] = []
         var aliases: [String: String] = [:]
         var identityIDs: [String: String] = [:]
         var offset: TimeInterval = 0
+        var coveredSourceIndices: Set<Int> = []
 
         for (sourceIndex, source) in sources.enumerated() {
             let url = source.folder.appendingPathComponent("transcript.json")
@@ -222,6 +241,7 @@ enum MeetingMergeService {
                     "the transcript for \(source.meeting.displayTitle) could not be read")
             }
 
+            let initialCount = segments.count
             for segment in transcript.segments {
                 guard segment.start >= source.rangeStart,
                       segment.end <= source.rangeEnd,
@@ -245,19 +265,20 @@ enum MeetingMergeService {
                     identityIDs[namespacedKey] = identityID
                 }
             }
+            if segments.count > initialCount { coveredSourceIndices.insert(sourceIndex) }
             offset += source.duration
         }
 
-        guard !segments.isEmpty else { return nil }
+        guard !segments.isEmpty else { return (nil, coveredSourceIndices) }
         segments.sort { lhs, rhs in
             if lhs.start == rhs.start { return lhs.end < rhs.end }
             return lhs.start < rhs.start
         }
-        return Transcript(
+        return (Transcript(
             segments: segments,
             engine: "merged",
             speakerAliases: aliases,
-            speakerCalendarIdentityIDs: identityIDs)
+            speakerCalendarIdentityIDs: identityIDs), coveredSourceIndices)
     }
 
     private static func write(_ transcript: Transcript, to folder: URL) throws {
@@ -272,37 +293,44 @@ enum MeetingMergeService {
     private static func exportAudio(
         from sources: [Source],
         to folder: URL
-    ) async throws -> (mic: Bool, system: Bool) {
-        var mic = false
-        var system = false
+    ) async throws -> (mic: Bool, system: Bool, coveredSourceIndices: Set<Int>) {
+        var micSources: Set<Int> = []
+        var systemSources: Set<Int> = []
         do {
-            mic = try await export(track: .mic, from: sources,
-                                   to: folder.appendingPathComponent("mic.m4a"))
-            system = try await export(track: .system, from: sources,
-                                      to: folder.appendingPathComponent("system.m4a"))
+            micSources = try await export(
+                track: .mic,
+                from: sources,
+                to: folder.appendingPathComponent("mic.m4a"))
+            systemSources = try await export(
+                track: .system,
+                from: sources,
+                to: folder.appendingPathComponent("system.m4a"))
         } catch let error as MergeError {
             throw error
         } catch {
             throw MergeError.exportFailed(error.localizedDescription)
         }
-        return (mic, system)
+        return (
+            !micSources.isEmpty,
+            !systemSources.isEmpty,
+            micSources.union(systemSources))
     }
 
     private static func export(
         track: MeetingAudioFiles.Track,
         from sources: [Source],
         to outputURL: URL
-    ) async throws -> Bool {
+    ) async throws -> Set<Int> {
         let composition = AVMutableComposition()
         guard let compositionTrack = composition.addMutableTrack(
             withMediaType: .audio,
             preferredTrackID: kCMPersistentTrackID_Invalid) else {
-            return false
+            return []
         }
 
         var cursor = CMTime.zero
-        var inserted = false
-        for source in sources {
+        var insertedSourceIndices: Set<Int> = []
+        for (sourceIndex, source) in sources.enumerated() {
             if let url = MeetingAudioFiles.readableURL(for: track, in: source.folder) {
                 let asset = AVURLAsset(url: url)
                 let sourceTracks = try await asset.loadTracks(withMediaType: .audio)
@@ -326,7 +354,7 @@ enum MeetingMergeService {
                                 preferredTimescale: 600))
                         try compositionTrack.insertTimeRange(
                             timeRange, of: sourceTrack, at: destination)
-                        inserted = true
+                        insertedSourceIndices.insert(sourceIndex)
                     }
                 }
             }
@@ -337,7 +365,7 @@ enum MeetingMergeService {
                 CMTime(seconds: source.duration, preferredTimescale: 600))
         }
 
-        guard inserted else { return false }
+        guard !insertedSourceIndices.isEmpty else { return [] }
         guard let exporter = AVAssetExportSession(
             asset: composition,
             presetName: AVAssetExportPresetAppleM4A) else {
@@ -352,7 +380,7 @@ enum MeetingMergeService {
         } catch {
             throw MergeError.exportFailed(error.localizedDescription)
         }
-        return true
+        return insertedSourceIndices
     }
 
     private static func writeSourceSummary(
@@ -389,15 +417,84 @@ enum MeetingMergeService {
         try MeetingNotes.writeChecked(notes.joined(separator: "\n\n"), to: folder)
     }
 
-    private static func writeManifest(_ sources: [Source], to folder: URL) throws {
-        let manifest = Manifest(sources: sources.map {
-            .init(id: $0.meeting.id, title: $0.meeting.displayTitle,
-                  startedAt: $0.meeting.startedAt, duration: $0.duration)
+    private static func writeManifest(
+        _ sources: [Source],
+        transcriptSourceIndices: Set<Int>,
+        audioSourceIndices: Set<Int>,
+        to folder: URL
+    ) throws {
+        let manifest = Manifest(sources: sources.enumerated().map { index, source in
+            .init(
+                id: source.meeting.id,
+                title: source.meeting.displayTitle,
+                startedAt: source.meeting.startedAt,
+                duration: source.duration,
+                hasAudio: audioSourceIndices.contains(index),
+                hasTranscript: transcriptSourceIndices.contains(index))
         })
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
         try encoder.encode(manifest).write(
             to: folder.appendingPathComponent("merge-manifest.json"), options: .atomic)
+    }
+
+    /// Full-ASR retry covers every source that contributed audio. Preserve the
+    /// already merged transcript in source intervals that had text but no
+    /// audio; otherwise silence in the concatenated asset erases that source.
+    static func preservingTranscriptOnlySources(
+        from previous: Transcript?,
+        in folder: URL,
+        regenerated: Transcript
+    ) throws -> Transcript {
+        guard let previous else { return regenerated }
+        let manifestURL = folder.appendingPathComponent("merge-manifest.json")
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            return regenerated
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let manifest = try decoder.decode(
+            Manifest.self,
+            from: Data(contentsOf: manifestURL))
+        guard manifest.version >= 2 else { return regenerated }
+
+        var cursor: TimeInterval = 0
+        var protectedRanges: [Range<TimeInterval>] = []
+        for source in manifest.sources {
+            let end = cursor + source.duration
+            if source.hasTranscript == true, source.hasAudio == false {
+                protectedRanges.append(cursor..<end)
+            }
+            cursor = end
+        }
+        guard !protectedRanges.isEmpty else { return regenerated }
+
+        func overlapsProtectedRange(_ segment: Transcript.Segment) -> Bool {
+            protectedRanges.contains { segment.end > $0.lowerBound && segment.start < $0.upperBound }
+        }
+        let preserved = previous.segments.filter { segment in
+            protectedRanges.contains {
+                segment.start >= $0.lowerBound && segment.end <= $0.upperBound
+            }
+        }
+        guard !preserved.isEmpty else { return regenerated }
+
+        var combined = regenerated
+        combined.segments.removeAll(where: overlapsProtectedRange)
+        combined.segments.append(contentsOf: preserved)
+        combined.segments.sort {
+            $0.start == $1.start ? $0.end < $1.end : $0.start < $1.start
+        }
+        let preservedSpeakers = Set(preserved.map { Transcript.canonicalSpeakerKey($0.speaker) })
+        for speaker in preservedSpeakers {
+            if let alias = previous.speakerAliases[speaker] {
+                combined.speakerAliases[speaker] = alias
+            }
+            if let identityID = previous.speakerCalendarIdentityIDs[speaker] {
+                combined.speakerCalendarIdentityIDs[speaker] = identityID
+            }
+        }
+        return combined
     }
 }

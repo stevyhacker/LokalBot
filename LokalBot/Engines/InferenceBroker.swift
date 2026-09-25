@@ -17,7 +17,7 @@ actor InferenceBroker {
 
     private let hooks: [InferenceRole: RuntimeHooks]
     private let lingerSeconds: [InferenceRole: TimeInterval]
-    private let leaseStateSink: @MainActor (Set<String>, [String: [String]]) -> Void
+    private let leaseStateSink: @MainActor (Set<String>, [String: [String]]) async -> Void
 
     private var book = LeaseBook()
     private var generations: [InferenceRole: UInt64] = [:]
@@ -38,7 +38,7 @@ actor InferenceBroker {
 
     init(hooks: [InferenceRole: RuntimeHooks]? = nil,
          lingerSeconds: [InferenceRole: TimeInterval] = [:],
-         leaseStateSink: (@MainActor (Set<String>, [String: [String]]) -> Void)? = nil) {
+         leaseStateSink: (@MainActor (Set<String>, [String: [String]]) async -> Void)? = nil) {
         self.hooks = hooks ?? [
             .mainLLM: RuntimeHooks(
                 ensure: { try await LlamaServer.shared.ensureRunning(modelAt: $0) },
@@ -53,6 +53,7 @@ actor InferenceBroker {
         self.lingerSeconds = lingerSeconds
         self.leaseStateSink = leaseStateSink ?? { pinned, descriptions in
             ModelResidency.shared.setLeaseState(pinned: pinned, descriptions: descriptions)
+            await ModelResidency.shared.waitForEvictions(of: pinned)
         }
     }
 

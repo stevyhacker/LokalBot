@@ -7,6 +7,47 @@ import XCTest
 /// jobs pass straight through.
 @MainActor
 final class ProcessingPipelineAutomationGateTests: XCTestCase {
+    func testTerminationPersistsAJobWithoutStartingProcessing() throws {
+        let root = try makeRoot()
+        let url = root.appendingPathComponent("jobs.sqlite")
+        let jobs = PipelineJobStore(databaseURL: url)
+        let pipeline = makePipeline(root: root, jobStore: jobs, readiness: ReadinessBox())
+        let meeting = makeMeeting()
+        XCTAssertTrue(pipeline.deferUntilNextLaunch(meeting, summarize: true))
+        XCTAssertFalse(pipeline.hasActiveWork)
+        XCTAssertTrue(pipeline.stages.isEmpty)
+        let reopened = PipelineJobStore(databaseURL: url)
+        let queued = try XCTUnwrap(reopened.job(meetingID: meeting.id))
+        XCTAssertTrue(queued.transcribe)
+        XCTAssertTrue(queued.summarize)
+        XCTAssertTrue(queued.summaryFollowsSetting)
+    }
+
+    func testTerminationPreservesAnExistingExplicitProcessingRequest() throws {
+        let root = try makeRoot()
+        let jobs = PipelineJobStore(databaseURL: root.appendingPathComponent("jobs.sqlite"))
+        let pipeline = makePipeline(root: root, jobStore: jobs, readiness: ReadinessBox())
+        let meeting = makeMeeting()
+        XCTAssertTrue(jobs.enqueue(meetingID: meeting.id, transcribe: false, summarize: true,
+                                   summaryFollowsSetting: false))
+        XCTAssertTrue(jobs.markStarted(meetingID: meeting.id))
+        let explicitRequest = try XCTUnwrap(jobs.job(meetingID: meeting.id))
+
+        XCTAssertTrue(pipeline.deferUntilNextLaunch(meeting, summarize: false))
+
+        XCTAssertEqual(jobs.job(meetingID: meeting.id), explicitRequest)
+        XCTAssertFalse(pipeline.hasActiveWork)
+        XCTAssertTrue(pipeline.stages.isEmpty)
+    }
+
+    func testTerminationCannotQueueWithoutADurableStore() throws {
+        let root = try makeRoot()
+        let pipeline = makePipeline(root: root, readiness: ReadinessBox())
+
+        XCTAssertFalse(pipeline.deferUntilNextLaunch(makeMeeting(), summarize: true))
+        XCTAssertFalse(pipeline.hasActiveWork)
+        XCTAssertTrue(pipeline.stages.isEmpty)
+    }
 
     private func makeRoot() throws -> URL {
         let root = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
@@ -287,7 +328,7 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
             pending: .init(transcribe: true, summarize: true),
             summaryFollowsSetting: true,
             autoSummarize: false,
-            hasTranscript: false)
+            transcriptionCompleted: false)
 
         XCTAssertEqual(work, .init(transcribe: true, summarize: false))
     }
@@ -297,7 +338,7 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
             pending: .init(transcribe: false, summarize: true),
             summaryFollowsSetting: false,
             autoSummarize: false,
-            hasTranscript: true)
+            transcriptionCompleted: true)
 
         XCTAssertEqual(work, .init(transcribe: false, summarize: true))
     }
@@ -342,7 +383,7 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertEqual(work, .init(transcribe: false, summarize: false))
     }
 
-    func testRetryWorkUsesPersistedExplicitSummaryIntent() throws {
+    func testRetryWorkDoesNotLetAnOldTranscriptSatisfyFreshASRIntent() throws {
         let root = try makeRoot()
         let storage = StorageManager(rootURL: root)
         let jobStore = PipelineJobStore(
@@ -362,8 +403,32 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
 
         let work = pipeline.retryWork(for: meeting, autoSummarize: false)
 
-        XCTAssertEqual(work, .init(transcribe: false, summarize: true),
-                       "completed ASR resumes the explicitly requested summary")
+        XCTAssertEqual(work, .init(transcribe: true, summarize: true),
+                       "a transcript that predates this job cannot satisfy its ASR phase")
+    }
+
+    func testRetryWorkSkipsASROnlyAfterThisJobPersistsCompletion() throws {
+        let root = try makeRoot()
+        let storage = StorageManager(rootURL: root)
+        let jobStore = PipelineJobStore(
+            databaseURL: root.appendingPathComponent("test.sqlite"))
+        let readiness = ReadinessBox()
+        let pipeline = makePipeline(root: root, jobStore: jobStore, readiness: readiness)
+        let meeting = makeMeeting()
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(
+            to: folder.appendingPathComponent("transcript.json"))
+        jobStore.enqueue(
+            meetingID: meeting.id,
+            transcribe: true,
+            summarize: true,
+            summaryFollowsSetting: false)
+        XCTAssertTrue(jobStore.markTranscriptionCompleted(meetingID: meeting.id))
+
+        let work = pipeline.retryWork(for: meeting, autoSummarize: false)
+
+        XCTAssertEqual(work, .init(transcribe: false, summarize: true))
     }
 
     func testRetryWorkDoesNotInventSummaryForPersistedTranscriptOnlyJob() throws {
@@ -516,11 +581,67 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         pipeline.enqueue(meeting, transcribe: true, summarize: true, origin: .automatic)
         await waitUntil { pipeline.stages[meeting.id] == .waitingForModels }
 
-        pipeline.forget(meetingIDs: [meeting.id])
+        await pipeline.forget(meetingIDs: [meeting.id])
 
         XCTAssertNil(pipeline.stages[meeting.id])
         XCTAssertFalse(pipeline.hasJobsWaitingForModels)
         XCTAssertTrue(jobStore.pendingJobs().isEmpty,
                       "a deleted meeting's durable row must not resurrect processing")
+        XCTAssertEqual(
+            pipeline.enqueue(meeting, transcribe: true, summarize: false),
+            .revoked)
+        pipeline.restoreForgottenMeetings([meeting.id])
+        XCTAssertEqual(
+            pipeline.enqueue(
+                meeting,
+                transcribe: true,
+                summarize: false,
+                origin: .automatic),
+            .enqueued)
+        await waitUntil { pipeline.stages[meeting.id] == .waitingForModels }
+        await pipeline.forget(meetingIDs: [meeting.id])
+    }
+
+    func testForgetCancelsAndAwaitsActiveProcessingBeforeDeletion() async throws {
+        let root = try makeRoot()
+        let storage = StorageManager(rootURL: root)
+        let jobStore = PipelineJobStore(
+            databaseURL: root.appendingPathComponent("test.sqlite"))
+        let gate = AsyncGate()
+        let meeting = makeMeeting()
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let pipeline = ProcessingPipeline(
+            storage: storage,
+            jobStore: jobStore,
+            settings: { AppSettings() },
+            transcriptionStarted: { _ in await gate.suspend() })
+        var artifactCallbackCount = 0
+        pipeline.onArtifactsWritten = { _ in artifactCallbackCount += 1 }
+
+        XCTAssertEqual(
+            pipeline.enqueue(meeting, transcribe: true, summarize: true),
+            .enqueued)
+        await gate.waitUntilStarted()
+
+        var forgetFinished = false
+        let forgetting = Task { @MainActor in
+            await pipeline.forget(meetingIDs: [meeting.id])
+            forgetFinished = true
+        }
+        try await Task.sleep(for: .milliseconds(30))
+        XCTAssertFalse(forgetFinished, "deletion must wait for the active job to stop")
+
+        await gate.release()
+        await forgetting.value
+        try FileManager.default.removeItem(at: folder)
+        await waitUntil { !pipeline.hasActiveWork }
+        try await Task.sleep(for: .milliseconds(30))
+
+        XCTAssertNil(pipeline.stages[meeting.id])
+        XCTAssertNil(jobStore.job(meetingID: meeting.id))
+        XCTAssertEqual(artifactCallbackCount, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path),
+                       "cancelled diagnostics must not recreate a deleted meeting folder")
     }
 }

@@ -188,7 +188,7 @@ xcodegen generate
 open LokalBot.xcodeproj
 ```
 
-Select **LokalBot Dev**, set your signing team, and run. The Dev app has its own identity and macOS permission grants, so it can live alongside the installed release. The first build prepares pinned native runtimes; model downloads happen separately.
+Select **LokalBot Dev**, set your signing team, and run. The Dev app has its own identity, macOS permission grants, library, model storage, and Keychain namespace, so it can live alongside the installed release without applying development retention settings to release data. The first build prepares pinned native runtimes; model downloads happen separately.
 
 [Build and test commands](DEVELOPMENT.md#build-workflows) · [Testing guide](DEVELOPMENT.md#testing) · [Screenshot guide](Docs/screenshot-kit.md)
 

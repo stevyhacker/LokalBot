@@ -42,6 +42,9 @@ struct MeetingNotesEvidence {
     let roster: String
 
     init(transcript: Transcript) {
+        // Likely echo repeats a remote participant; the remote segment carries
+        // those words, so the echo is never shown or cited as evidence.
+        let transcript = transcript.markingSuspectedEcho()
         self.transcript = transcript
         let roster = transcript.speakerRoster
         let entries = roster.keys.sorted().enumerated().map { index, key in ("p\(index + 1)", roster[key]!) }
@@ -52,7 +55,8 @@ struct MeetingNotesEvidence {
         }
         self.roster = String(decoding: (try? JSONSerialization.data(withJSONObject: values, options: [.sortedKeys])) ?? Data(), as: UTF8.self)
         let sources = transcript.segmentSourceMap
-        units = transcript.summaryPromptTurns(maxCharacters: 1_000).map { turn in
+        units = transcript.summaryPromptTurns(maxCharacters: 1_000).compactMap { turn in
+            guard sources[turn.sourceID]?.resolvedAttribution.method != .suspectedEcho else { return nil }
             let speaker = Transcript.canonicalSpeakerKey(turn.speaker)
             let commitment = roster[speaker]?.identity == .user && sources[turn.sourceID].map {
                 OutcomeEvidencePolicy.hasCommitment(source: $0, visibleText: turn.text)
@@ -110,6 +114,7 @@ struct MeetingNotesEvidence {
         let visible = Dictionary(grouping: units, by: \.source)
         let sources = transcript.segmentSourceMap
         let citationIDs = transcript.summaryCitationSources
+        let roster = transcript.speakerRoster
 
         func evidence(_ item: [String: Any]) -> (String, Transcript.Segment, String)? {
             guard let id = item["source"] as? String, let parts = visible[id],
@@ -182,11 +187,12 @@ struct MeetingNotesEvidence {
                   let due = item["due"] as? String, due.count <= 80,
                   let owner = item["owner"] as? String,
                   ["source", "unknown"].contains(owner) || speakers[owner] != nil,
-                  let basis = item["basis"] as? String,
-                  ["commitment", "assignment", "request", "unclear"].contains(basis),
+                  let claimedBasis = item["basis"] as? String,
+                  ["commitment", "assignment", "request", "unclear"].contains(claimedBasis),
                   let importance = item["importance"] as? Int, (1...5).contains(importance) else {
                 reject(item, "invalid_action", kind: "actions"); continue
             }
+            var basis = claimedBasis
             let sourceOwner = ["commitment", "unclear"].contains(basis) ? Transcript.canonicalSpeakerKey(source.speaker) : nil
             let visibleSource = (visible[primary] ?? []).map(\.text).joined(separator: " ")
             if OutcomeEvidencePolicy.isBareAcceptance(visibleSource), context.isEmpty {
@@ -196,12 +202,21 @@ struct MeetingNotesEvidence {
                 reject(item, "conversation_management", kind: "actions"); continue
             }
             if basis == "commitment", !OutcomeEvidencePolicy.hasCommitment(source: source, visibleText: visibleSource) {
-                reject(item, "unsupported_commitment", kind: "actions"); continue
+                // Unrecognized phrasing must not lose a task; it only loses
+                // the ownership claim. Negated, conditional, or questioned
+                // undertakings and fragments without one are still not tasks.
+                guard OutcomeEvidencePolicy.expressesUndertaking(visibleSource),
+                      !OutcomeEvidencePolicy.isQualified(visibleSource) else {
+                    reject(item, "unsupported_commitment", kind: "actions"); continue
+                }
+                basis = "unclear"
             }
-            let ownerID = ["source", "unknown"].contains(owner) ? sourceOwner : speakers[owner]?.id
+            let requestAnswer = ["request", "assignment"].contains(basis)
+                ? userReply(after: primaryIndex, roster: roster) : nil
+            let ownerID = ["source", "unknown"].contains(owner) ? (sourceOwner ?? requestAnswer) : speakers[owner]?.id
             let attribution = OutcomeEvidencePolicy.resolveFromSource(speakerID: ownerID, basis: basis,
                 source: source, visibleText: visibleSource,
-                roster: transcript.speakerRoster)
+                roster: roster, addressedToUser: requestAnswer != nil)
             let compactOwner = speakers.first { $0.value.id == attribution.speakerID && attribution.resolution != .unresolved }?.key
             guard let text = prose(rawText, expectedSpeaker: compactOwner ?? visible[primary]?.first?.speaker) else {
                 reject(item, "speaker_reference", kind: "actions"); continue
@@ -215,7 +230,7 @@ struct MeetingNotesEvidence {
                 reject(item, "status_not_task", kind: "actions"); continue
             }
             let resolvedOwner = attribution.resolution == .user ? "Me"
-                : attribution.resolution == .other ? ownerID.flatMap { transcript.speakerRoster[$0]?.name } : nil
+                : attribution.resolution == .other ? ownerID.flatMap { roster[$0]?.name } : nil
             let citations = ids.compactMap { id -> OutcomeSourceCitation? in
                 guard let stable = citationIDs[id], let segment = sources[stable] else { return nil }
                 return citation(stable, segment, (visible[id] ?? []).map(\.text).joined(separator: " "))
@@ -226,6 +241,24 @@ struct MeetingNotesEvidence {
             result.records.append(.init(kind: "actions", source: primary, text: text))
         }
         return result
+    }
+
+    /// The user's speaker key when the user speaks the next turn after a
+    /// request. Mixed or echoed speech is not a turn; a long pause ends the
+    /// exchange, and any other participant's reply means it was not the user's.
+    private func userReply(after index: Int, roster: [String: Transcript.SpeakerDescriptor]) -> String? {
+        let segments = transcript.segments
+        let requester = Transcript.canonicalSpeakerKey(segments[index].speaker)
+        var end = segments[index].end
+        for next in segments.dropFirst(index + 1) {
+            let key = Transcript.canonicalSpeakerKey(next.speaker)
+            if key == requester { end = max(end, next.end); continue }
+            guard !next.displayText.isEmpty,
+                  ![.overlappingSpeech, .suspectedEcho].contains(next.resolvedAttribution.method) else { continue }
+            guard next.start - end <= 15 else { return nil }
+            return roster[key]?.identity == .user ? key : nil
+        }
+        return nil
     }
 
     private func normalized(_ text: String) -> String {

@@ -90,7 +90,7 @@ final class PiIntegrationTests: XCTestCase {
         let events = await client.events
         let collector = Task { () -> Bool in
             for await event in events {
-                if case .messageEnd(let role, let text) = event,
+                if case .messageEnd(let role, let text, _, _) = event,
                    role == "assistant", text.contains("STUB-REPLY") {
                     return true
                 }

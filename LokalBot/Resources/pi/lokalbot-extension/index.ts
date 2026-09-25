@@ -6,6 +6,7 @@
 // extension_ui_request on stdout, answered over stdin.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
 import { existsSync, realpathSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { homedir } from "node:os";
@@ -14,6 +15,7 @@ const MUTATING_TOOLS = new Set(["write", "edit", "bash"]);
 const MAX_APPROVAL_TEXT = 64 * 1024;
 
 export default function lokalbotExtension(pi: ExtensionAPI) {
+  const protectedRoots = privateRoots();
   const baseUrl = process.env.LOKALBOT_LLM_BASE_URL;
   const model = process.env.LOKALBOT_LLM_MODEL;
   if (!baseUrl || !model) {
@@ -36,10 +38,17 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   if (!loopback && endpoint.protocol !== "https:") {
     throw new Error("Remote LokalBot LLM endpoints must use HTTPS");
   }
+  const completions = openAICompletionsApi();
+  const inferenceFetch = inferenceFetchForOrigin(endpoint);
 
   pi.registerProvider("lokalbot", {
     baseUrl,
     api: "openai-completions",
+    // Pi has its own HTTP client: the host's URLSession redirect policy does
+    // not cover it. Inject only this provider's supported transport hook.
+    streamSimple: (selectedModel, context, options) => completions.streamSimple(
+      selectedModel, context, { ...options, fetch: inferenceFetch },
+    ),
     // llama.cpp ignores the key; Ollama/LM Studio may want one.
     apiKey: process.env.LOKALBOT_LLM_API_KEY ?? "lokalbot",
     models: [
@@ -57,7 +66,15 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    if (!requiresApproval(event.toolName, event.input)) return undefined;
+    // The exact shell command must fit in the approval payload. Never ask for
+    // approval of a prefix and then execute the unchanged, longer request.
+    if (event.toolName === "bash") {
+      const command = (event.input as Record<string, unknown> | undefined)?.command;
+      if (typeof command !== "string" || command.length > MAX_APPROVAL_TEXT) {
+        return { block: true, reason: "The shell command cannot be reviewed in full. Keep each command within 65,536 characters; this request was not run." };
+      }
+    }
+    if (!requiresApproval(event.toolName, event.input, protectedRoots)) return undefined;
 
     // Machine-parseable payload: the host renders exact commands and file
     // changes, rather than relying on a model-authored summary.
@@ -74,6 +91,23 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
     }
     return undefined;
   });
+}
+
+/// A launched Agent task has approval for one origin. Reject redirects before
+/// the HTTP client can replay context or credentials, including same-origin
+/// redirects: configure the final inference endpoint instead.
+export function inferenceFetchForOrigin(endpoint: URL, implementation = globalThis.fetch) {
+  if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) {
+    throw new Error("Agent inference requires an HTTP(S) endpoint without URL credentials");
+  }
+  const approvedOrigin = endpoint.origin;
+  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    if (url.origin !== approvedOrigin || url.username || url.password) {
+      throw new Error("Agent inference request left the task's approved origin");
+    }
+    return implementation(input, { ...init, redirect: "error" });
+  };
 }
 
 function isIPv4Loopback(hostname: string): boolean {
@@ -115,19 +149,33 @@ function canonicalPath(value: unknown): string | undefined {
   }
 }
 
-function isInsideWorkspace(path: string): boolean {
-  const workspace = realpathSync(process.cwd());
-  const child = relative(workspace, path);
-  return child === "" || (!child.startsWith("..") && !isAbsolute(child));
+function isInside(path: string, root: string): boolean {
+  const child = relative(root, path);
+  return child === "" || (child !== ".." && !child.startsWith("../") && !isAbsolute(child));
 }
 
-function requiresApproval(toolName: string, input: unknown): boolean {
+function privateRoots(): string[] {
+  const value: unknown = JSON.parse(process.env.LOKALBOT_AGENT_PRIVATE_ROOTS ?? "[]");
+  if (!Array.isArray(value) || value.some((root) => typeof root !== "string" || !isAbsolute(root))) {
+    throw new Error("Invalid private-library roots in the LokalBot launch configuration");
+  }
+  return value.map((root) => {
+    const path = canonicalPath(root);
+    if (!path) throw new Error("Could not resolve a private-library root");
+    return path;
+  });
+}
+
+function requiresApproval(toolName: string, input: unknown, protectedRoots: string[]): boolean {
   if (MUTATING_TOOLS.has(toolName)) return true;
   if (toolName !== "read") return false;
   const args = (input ?? {}) as Record<string, unknown>;
   const path = canonicalPath(args.path ?? args.file_path);
   // Missing/unresolvable paths are never silently treated as in-workspace.
-  return !path || !isInsideWorkspace(path);
+  // Choosing Home or another ancestor as a workspace does not silently make
+  // the private library, server credentials, or Agent history normal files.
+  return !path || protectedRoots.some((root) => isInside(path, root))
+    || !isInside(path, realpathSync(process.cwd()));
 }
 
 function boundedText(value: unknown): { text: string; truncated: boolean } {

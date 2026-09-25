@@ -57,7 +57,7 @@ enum LibrarySearch {
     }
 
     static func snippet(in haystack: String, around needle: String) -> String? {
-        guard let range = haystack.lowercased().range(of: needle) else { return nil }
+        guard let range = haystack.range(of: needle, options: .caseInsensitive) else { return nil }
         let start = haystack.index(
             range.lowerBound,
             offsetBy: -40,

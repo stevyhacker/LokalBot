@@ -205,6 +205,15 @@ final class CotypingTextNormalizerTests: XCTestCase {
         XCTAssertEqual(detailed.suppression, .emptyGeneration)
     }
 
+    func testMultilinePreservesRequiredSeparatorAfterAWord() {
+        XCTAssertEqual(CotypingTextNormalizer.normalize(
+            " world", for: request(prefix: "Hello", multiLine: true)), " world")
+        XCTAssertEqual(CotypingTextNormalizer.normalize(
+            " world\nnext line ", for: request(prefix: "hello", multiLine: true)), " world\nnext line")
+        XCTAssertEqual(CotypingTextNormalizer.normalize(
+            " world", for: request(prefix: "Hello ", multiLine: true)), "world")
+    }
+
     func testKeepsMultipleLinesInMultiLineMode() {
         let result = CotypingTextNormalizer.normalize(
             "line one\nline two\n\nignored", for: request(prefix: "Start ", multiLine: true))

@@ -24,6 +24,7 @@ enum AgentApprovalMode: Int, CaseIterable, Identifiable, Equatable {
 /// (approval mode, session allowances) or must be shown to the user.
 struct AgentApprovalPolicy: Equatable {
     var mode: AgentApprovalMode = .askBeforeChanges
+    var protectedWriteRoots: [URL] = []
     private(set) var sessionAllowedTools: Set<String> = []
     private(set) var automationApprovesWorkspaceFileChanges = false
 
@@ -36,6 +37,8 @@ struct AgentApprovalPolicy: Equatable {
         selectedWorkspace: URL
     ) -> Verdict {
         let normalizedTool = tool.lowercased()
+        if Self.isFileChange(tool: normalizedTool),
+           Self.isProtected(path, roots: protectedWriteRoots) { return .ask }
 
         // Automatic modes only apply to structured approvals emitted by the
         // process for this selected workspace. Unknown future tools and stale
@@ -65,7 +68,8 @@ struct AgentApprovalPolicy: Equatable {
             tool: tool,
             path: path,
             requestWorkspace: requestWorkspace,
-            selectedWorkspace: selectedWorkspace) else { return .ask }
+            selectedWorkspace: selectedWorkspace,
+            protectedWriteRoots: protectedWriteRoots) else { return .ask }
         if automationApprovesWorkspaceFileChanges { return .allow }
         if sessionAllowedTools.contains(normalizedTool) { return .allow }
         return .ask
@@ -81,7 +85,8 @@ struct AgentApprovalPolicy: Equatable {
             tool: tool,
             path: path,
             requestWorkspace: requestWorkspace,
-            selectedWorkspace: selectedWorkspace) else { return }
+            selectedWorkspace: selectedWorkspace,
+            protectedWriteRoots: protectedWriteRoots) else { return }
         sessionAllowedTools.insert(tool.lowercased())
     }
 
@@ -96,9 +101,11 @@ struct AgentApprovalPolicy: Equatable {
         tool: String,
         path: String?,
         requestWorkspace: String?,
-        selectedWorkspace: URL
+        selectedWorkspace: URL,
+        protectedWriteRoots: [URL] = []
     ) -> Bool {
         guard isFileChange(tool: tool),
+              !isProtected(path, roots: protectedWriteRoots),
               let path,
               let requestWorkspace,
               let requestedRoot = canonicalFileURL(URL(fileURLWithPath: requestWorkspace)),
@@ -131,11 +138,20 @@ struct AgentApprovalPolicy: Equatable {
         tool.lowercased() == "write" || tool.lowercased() == "edit"
     }
 
+    private static func isProtected(_ path: String?, roots: [URL]) -> Bool {
+        guard !roots.isEmpty else { return false }
+        guard let path, let file = canonicalFileURL(URL(fileURLWithPath: path)) else { return true }
+        return roots.contains { root in
+            guard let root = canonicalFileURL(root) else { return true }
+            return file.pathComponents.starts(with: root.pathComponents)
+        }
+    }
+
     /// Resolve symlinks through the nearest existing ancestor, then append any
     /// not-yet-created suffix. This matches the bundled extension's path rule
     /// and prevents a symlinked parent from turning an apparently local write
     /// into an external one.
-    private static func canonicalFileURL(_ url: URL) -> URL? {
+    static func canonicalFileURL(_ url: URL) -> URL? {
         var ancestor = url.standardizedFileURL
         var suffix: [String] = []
         while !FileManager.default.fileExists(atPath: ancestor.path) {
@@ -155,4 +171,20 @@ struct AgentApprovalPolicy: Equatable {
         sessionAllowedTools.removeAll()
         automationApprovesWorkspaceFileChanges = false
     }
+}
+
+/// Private app data is never an implicit working folder. File tools may still
+/// request individual reads, and explicit attachments keep their own scope.
+struct AgentWorkspacePolicy {
+    let privateRoots: [URL]
+
+    func containsPrivateWorkspace(_ workspace: URL) -> Bool {
+        guard let workspace = AgentApprovalPolicy.canonicalFileURL(workspace) else { return true }
+        return privateRoots.contains { root in
+            guard let root = AgentApprovalPolicy.canonicalFileURL(root) else { return true }
+            return workspace.pathComponents.starts(with: root.pathComponents)
+        }
+    }
+
+    static let privateWorkspaceNotice = "This task uses an older working folder inside LokalBot’s private data. Its saved history is still available, but it cannot run here. Choose a folder outside LokalBot’s private data to start a new task; attach specific sources or use the scoped library tools."
 }

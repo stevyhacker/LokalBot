@@ -35,6 +35,7 @@ final class DreamScheduler: ObservableObject {
         let day: Date
         let dayKey: String
         let calendar: Calendar
+        var isAutomatic: Bool = false
     }
 
     typealias Dream = @MainActor (_ target: Target) async throws -> Void
@@ -119,8 +120,10 @@ final class DreamScheduler: ObservableObject {
 
     /// A generated artifact changed behind the in-memory scan cursor. Reset
     /// the high-water mark so the next tick can find and repair the hole.
-    func reconsiderReports(invalidating dayKeys: Set<String> = []) {
-        if let activeDayKey, dayKeys.contains(activeDayKey) {
+    func reconsiderReports(invalidating dayKeys: Set<String> = [], cancellingInFlight: Bool = false) {
+        // A newer dream can depend on an old source through durable memory,
+        // even when its own day is outside the direct comparison window.
+        if let activeDayKey, cancellingInFlight || dayKeys.contains(activeDayKey) {
             generation &+= 1
             dreamTask?.cancel()
             dreamTask = nil
@@ -194,6 +197,8 @@ final class DreamScheduler: ObservableObject {
 
     private func start(target: Target, advancesScanCursor: Bool) {
         guard let dream else { return }
+        let target = Target(day: target.day, dayKey: target.dayKey,
+                            calendar: target.calendar, isAutomatic: advancesScanCursor)
         let runGeneration = generation
         isDreaming = true
         activeDayKey = target.dayKey

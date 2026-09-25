@@ -82,6 +82,27 @@ final class TranscriptSanitizerTests: XCTestCase {
         XCTAssertEqual(second.transcript.segments, first.transcript.segments)
     }
 
+    func testPreservesRepeatedDigitsInAmountsAndIdentifiers() {
+        for text in [
+            "The budget is 1000000000 dollars.",
+            "Account 111111111111, decimal 0.000000001, and code ０００００００００１.",
+        ] {
+            let transcript = makeTranscript(text: text, duration: 3)
+            let result = TranscriptSanitizer.sanitize(transcript)
+            XCTAssertFalse(result.changed)
+            XCTAssertEqual(result.transcript.segments, transcript.segments)
+        }
+    }
+
+    func testLoopRemovalPreservesSurroundingNumericEvidenceAndPunctuation() {
+        let loop = Array(repeating: "um", count: 135).joined(separator: " ")
+        let text = "Budget: $1,000,000,000.50; \(loop); delta: -0.000000001 (ref #111111111)."
+        let result = TranscriptSanitizer.sanitize(makeTranscript(text: text, duration: 10))
+        XCTAssertEqual(result.transcript.segments[0].text,
+                       "Budget: $1,000,000,000.50; um um; delta: -0.000000001 (ref #111111111).")
+        XCTAssertEqual(result.removedWords, 133)
+    }
+
     private func makeTranscript(text: String, duration: TimeInterval) -> Transcript {
         Transcript(
             segments: [.init(

@@ -201,3 +201,47 @@ final class CotypingClipboardContextTests: XCTestCase {
         XCTAssertEqual(resolution.memo, memo)
     }
 }
+
+@MainActor
+final class CotypingClipboardProviderTests: XCTestCase {
+    func testSensitiveMarkersPreventAnyTextRead() {
+        for marker in ["org.nspasteboard.ConcealedType", "org.nspasteboard.TransientType", "com.agilebits.onepassword"] {
+            var reads = 0
+            let provider = CotypingClipboardProvider(changeCount: { 1 },
+                types: { [.string, NSPasteboard.PasteboardType(marker)] }, text: { reads += 1; return "secret" })
+            XCTAssertNil(provider.snapshot())
+            XCTAssertEqual(reads, 0)
+        }
+    }
+
+    func testPasteboardChangeDuringTextReadRejectsSnapshot() {
+        var count = 1
+        let provider = CotypingClipboardProvider(changeCount: { count }, types: { [.string] }, text: {
+            count += 1
+            return "changed"
+        })
+        XCTAssertNil(provider.snapshot())
+    }
+
+    func testMarkerAppearingDuringTextReadRejectsSnapshot() {
+        var types: [NSPasteboard.PasteboardType] = [.string]
+        let provider = CotypingClipboardProvider(changeCount: { 1 }, types: { types }, text: {
+            types.append(NSPasteboard.PasteboardType("org.nspasteboard.ConcealedType"))
+            return "changed"
+        })
+        XCTAssertNil(provider.snapshot())
+    }
+
+    func testUnavailableSnapshotClearsPreviouslyPinnedContext() {
+        let filter = CotypingClipboardRelevanceFilter()
+        let old = CotypingClipboardPrefaceMemo(identityKey: "field", changeCount: 1, value: "old private memo")
+        let result = CotypingClipboardPrefaceResolver.resolve(snapshot: nil, precedingText: "private memo", identityKey: "field",
+                                                             memo: old, relevanceFilter: filter)
+        XCTAssertNil(result.value)
+        XCTAssertNil(result.memo)
+        let ordinary = CotypingClipboardProvider(changeCount: { 2 }, types: { [.string] }, text: { "private memo" })
+        let fresh = CotypingClipboardPrefaceResolver.resolve(snapshot: ordinary.snapshot(), precedingText: "private memo",
+                                                            identityKey: "field", memo: result.memo, relevanceFilter: filter)
+        XCTAssertNil(fresh.value, "the first observation after sensitive content must establish a new baseline")
+    }
+}

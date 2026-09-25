@@ -5,6 +5,69 @@ import Foundation
 /// favor false positives: a redacted capture remains useful, while a persisted
 /// credential cannot be taken back.
 enum ScreenContextPrivacy {
+    /// Only a successfully inspected focused window can supply retained
+    /// content. A missing AX value is unknown, not evidence of a safe field.
+    struct Observation: Equatable, Sendable {
+        var appName: String
+        var bundleIdentifier: String?
+        var windowTitle: String?
+        var sourceURL: String?
+        var focusedSecureField: Bool?
+        var hasWebContent: Bool = false
+    }
+
+    static func permitsContent(
+        _ observation: Observation,
+        excludedApps: [String],
+        excludedDomains: [String],
+        capturePrivateWindows: Bool
+    ) -> Bool {
+        guard !isExcluded(appName: observation.appName, rules: excludedApps),
+              let title = observation.windowTitle,
+              observation.focusedSecureField == false else { return false }
+        // Absence of a localized title marker does not establish a normal
+        // browser window. Until a browser exposes a verified mode signal,
+        // private/unverified browser capture requires the explicit opt-in.
+        if !capturePrivateWindows,
+           isPrivateWindow(title: title) || isBrowser(observation) || observation.hasWebContent { return false }
+        guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
+            return false
+        }
+        // A browser with an unreadable address cannot establish that it is
+        // outside a configured exclusion. Native documents need no web URL.
+        let hasDomainRules = excludedDomains.contains {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        if hasDomainRules, observation.hasWebContent || isBrowser(observation) {
+            guard sanitizedURL(observation.sourceURL) != nil else { return false }
+        }
+        return true
+    }
+
+    static func isExcluded(appName: String, rules: [String]) -> Bool {
+        rules.contains { rawTerm in
+            let term = rawTerm.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !term.isEmpty && appName.localizedCaseInsensitiveContains(term)
+        }
+    }
+
+    private static func isBrowser(_ observation: Observation) -> Bool {
+        let identifier = observation.bundleIdentifier?.lowercased() ?? ""
+        let browserIdentifiers = [
+            "com.apple.safari", "com.google.chrome", "org.chromium.chromium",
+            "com.microsoft.edgemac", "com.brave.browser", "org.mozilla.firefox",
+            "company.thebrowser.browser", "com.operasoftware.opera", "com.vivaldi.vivaldi",
+            "com.duckduckgo.macos.browser", "com.kagi.kagimacOS", "app.zen-browser.zen",
+        ]
+        if browserIdentifiers.contains(where: { identifier.hasPrefix($0.lowercased()) }) {
+            return true
+        }
+        // Includes development/channel builds with a different bundle ID.
+        return ["safari", "chrome", "chromium", "firefox", "brave", "microsoft edge",
+                "arc", "opera", "vivaldi", "duckduckgo", "orion", "zen", "browser"]
+            .contains { observation.appName.lowercased() == $0 }
+    }
+
     struct Redaction: Equatable, Sendable {
         var text: String
         var count: Int

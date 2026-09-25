@@ -336,10 +336,19 @@ struct Transcript: Codable {
     var speakerRoster: [String: SpeakerDescriptor] {
         Dictionary(grouping: segments, by: { Self.canonicalSpeakerKey($0.speaker) }).mapValues { group in
             let key = Self.canonicalSpeakerKey(group[0].speaker)
-            let identities = Set(group.map { $0.resolvedAttribution.identity })
-            let identity: SpeakerAttribution.Identity = identities.count == 1 ? identities.first! : .unresolved
+            let identity = Self.speakerIdentity(of: group)
             return SpeakerDescriptor(id: key, name: speakerName(for: key, identity: identity), identity: identity)
         }
+    }
+
+    /// Mixed voices and suspected echo are not the labelled speaker's own
+    /// voice, so they cannot outvote that speaker's identity. They remain
+    /// unresolved individually and cannot prove ownership.
+    static func speakerIdentity(of group: [Segment]) -> SpeakerAttribution.Identity {
+        let identities = Set(group.map(\.resolvedAttribution)
+            .filter { ![.overlappingSpeech, .suspectedEcho].contains($0.method) }
+            .map(\.identity))
+        return identities.count == 1 ? identities.first! : .unresolved
     }
 
     var confirmedUserSpeakerIDs: Set<String> {
@@ -390,9 +399,8 @@ struct Transcript: Codable {
     func displaySpeaker(for speaker: String) -> String {
         let key = Self.canonicalSpeakerKey(speaker)
         if let alias = speakerAliases[key] { return alias }
-        let identities = Set(segments.filter { Self.canonicalSpeakerKey($0.speaker) == key }
-            .map { $0.resolvedAttribution.identity })
-        return speakerName(for: key, identity: identities.count == 1 ? identities.first! : .unresolved)
+        return speakerName(for: key, identity: Self.speakerIdentity(
+            of: segments.filter { Self.canonicalSpeakerKey($0.speaker) == key }))
     }
 
     private func speakerName(for key: String, identity: SpeakerAttribution.Identity) -> String {

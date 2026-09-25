@@ -143,3 +143,18 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
             descriptionLabel: "Type to search"))
     }
 }
+
+final class CotypingAppReadPolicyTests: XCTestCase {
+    func testExclusionsBlockTextReaderBeforeContentIsCollected() {
+        let policy = CotypingAppReadPolicy(enabled: true, excludedApps: ["mail", "secret"], selfBundleID: "me.dotenv.LokalBot")
+        for (name, bundle) in [("Mail", "com.apple.mail"), ("Notes", "com.secret.app"),
+                               ("LokalBot", "me.dotenv.LokalBot"), ("", "")] {
+            var reads = 0
+            let text = policy.readIfAllowed(appName: name, bundleID: bundle) { reads += 1; return "private" }
+            XCTAssertNil(text)
+            XCTAssertEqual(reads, 0)
+        }
+        XCTAssertEqual(policy.readIfAllowed(appName: "TextEdit", bundleID: "com.apple.TextEdit") { "allowed" }, "allowed")
+        XCTAssertNil(CotypingAppReadPolicy().readIfAllowed(appName: "TextEdit", bundleID: "com.apple.TextEdit") { "private" })
+    }
+}

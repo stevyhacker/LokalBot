@@ -117,15 +117,11 @@ final class ModelCheckController: ObservableObject {
     private static func check(_ role: ModelRole, app: AppState, configuration: AppSettings) async throws {
         switch role {
         case .transcribe:
-            let fixture = FileManager.default.temporaryDirectory
-                .appendingPathComponent("lokalbot-model-check-\(UUID().uuidString).wav")
-            defer { try? FileManager.default.removeItem(at: fixture) }
-            let samples = (0..<16_000).map { Float(sin(Double($0) / 16_000 * 440 * 2 * .pi) * 0.02) }
-            try OnnxTranscriptionEngine.writeWav(samples, to: fixture)
-            let engine = configuration.transcriptionEngine()
-            try await engine.prepare()
-            try Task.checkCancellation()
-            _ = try await engine.transcribe(audio: fixture, language: nil)
+            guard let fixture = Bundle.main.url(forResource: "speech", withExtension: "wav", subdirectory: "ModelChecks") else {
+                throw ModelDownloadManager.PreparationError.failed("The spoken model-check fixture is missing from the app.")
+            }
+            try await checkTranscription(engine: configuration.transcriptionEngine(),
+                                         fixture: fixture, configuration: configuration)
         case .think:
             let engine = try await app.thinkExecution.makeTextEngine(
                 configuration, priority: .interactive, purpose: "model setup check")
@@ -138,6 +134,22 @@ final class ModelCheckController: ObservableObject {
             }
         case .autocomplete:
             _ = try await app.cotyping.previewSuggestion(precedingText: "The local model setup is", sampleOnly: true)
+        }
+    }
+
+    static func checkTranscription(engine: any TranscriptionEngine, fixture: URL,
+                                   configuration: AppSettings) async throws {
+        try await engine.prepare()
+        try Task.checkCancellation()
+        let transcript = try await engine.transcribe(
+            audio: fixture, language: configuration.transcriptionLanguage.code,
+            prompt: configuration.transcriptionPrompt)
+        try Task.checkCancellation()
+        guard transcript.segments.contains(where: { segment in
+            segment.text.unicodeScalars.contains(where: CharacterSet.letters.contains)
+        }) else {
+            throw ModelDownloadManager.PreparationError.failed(
+                "The model returned no words for the spoken sample. Check the selected language and try again.")
         }
     }
 }

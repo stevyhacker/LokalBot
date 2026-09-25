@@ -6,7 +6,16 @@ struct ScreenAccessibilitySnapshot: Equatable, Sendable {
     var text: String
     var sourceURL: String?
     var documentName: String?
-    var focusedSecureField: Bool
+    var focusedSecureField: Bool?
+    var windowTitle: String?
+    var windowFrame: CGRect?
+    var hasWebContent: Bool = false
+
+    func privacyObservation(appName: String, bundleIdentifier: String?) -> ScreenContextPrivacy.Observation {
+        .init(appName: appName, bundleIdentifier: bundleIdentifier,
+              windowTitle: windowTitle, sourceURL: sourceURL,
+              focusedSecureField: focusedSecureField, hasWebContent: hasWebContent)
+    }
 }
 
 struct ScreenAccessibilityCaptureResult: Equatable, Sendable {
@@ -16,6 +25,25 @@ struct ScreenAccessibilityCaptureResult: Equatable, Sendable {
     static let timeout = Self(snapshot: nil, timedOut: true)
 }
 
+enum ScreenVisibleTextPolicy {
+    /// Whole AXValue/selected-text/help strings can contain a complete hidden
+    /// document. Only visible-range text or fully visible static labels qualify.
+    static func text(role: String?, frame: CGRect?, viewport: CGRect?, hidden: Bool,
+                     title: String?, visibleRangeText: String?, staticValue: String?) -> [String] {
+        guard !hidden, let frame, let viewport,
+              !frame.isEmpty, !frame.isNull,
+              frame.intersects(viewport) else { return [] }
+        var result: [String] = []
+        if let visibleRangeText { result.append(visibleRangeText) }
+        let labels: Set<String> = ["AXStaticText", "AXButton", "AXCheckBox", "AXRadioButton", "AXMenuItem", "AXLink", "AXWindow"]
+        if let role, labels.contains(role), viewport.contains(frame) {
+            if let title { result.append(title) }
+            if role == "AXStaticText", let staticValue { result.append(staticValue) }
+        }
+        return result
+    }
+}
+
 /// A bounded, single-flight reader for visible Accessibility text. Cross-process
 /// AX calls never run on the main actor, and a wedged target can occupy only one
 /// worker rather than creating an unbounded queue of blocked snapshots.
@@ -23,6 +51,10 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     typealias Resolver = @Sendable (pid_t) -> ScreenAccessibilitySnapshot?
 
     static let shared = ScreenAccessibilityReader()
+    /// Activity-only sampling inspects privacy metadata, never document text.
+    static let metadataOnly = ScreenAccessibilityReader {
+        resolve(processID: $0, includeText: false)
+    }
     static let defaultDeadlineMilliseconds = 180
     static let perElementMessagingTimeout: Float = 0.025
 
@@ -57,7 +89,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     }
 
     func capture(processID: pid_t) async -> ScreenAccessibilityCaptureResult {
-        guard processID > 0, AXIsProcessTrusted() else {
+        guard processID > 0 else {
             return .init(snapshot: nil, timedOut: false)
         }
         return await withCheckedContinuation { continuation in
@@ -115,23 +147,30 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         }
     }
 
-    static func resolve(processID: pid_t) -> ScreenAccessibilitySnapshot? {
+    static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
         guard AXIsProcessTrusted(), processID > 0 else { return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, perElementMessagingTimeout)
         guard let window = elementAttribute(app, kAXFocusedWindowAttribute as String) else {
             return nil
         }
+        let windowTitle = textualAttribute(window, kAXTitleAttribute as String)
+        let windowFrame = frame(of: window)
 
         let focused = elementAttribute(app, kAXFocusedUIElementAttribute as String)
-        let focusedSecureField = focused.map(isSecureField) ?? false
+        let focusedSecureField = focused.flatMap(secureFieldStatus)
 
-        var queue: [AXUIElement] = [window]
+        var queue: [(element: AXUIElement, viewport: CGRect?)] = [(window, windowFrame)]
         var visited = Set<CFHashCode>()
         var parts: [String] = []
         var seenText = Set<String>()
-        var sourceURL: String?
-        var document: String?
+        var sourceURLs = Set<String>()
+        let document = textualValue(attribute(window, kAXDocumentAttribute as String))
+        if let document, ScreenContextPrivacy.sanitizedURL(document) != nil {
+            sourceURLs.insert(document)
+        }
+        var hasWebContent = false
+        var hasUnknownWebURL = false
         var totalCharacters = 0
         let started = ContinuousClock.now
         let maximumDuration = Duration.milliseconds(140)
@@ -142,21 +181,23 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
               visited.count < maximumNodes,
               totalCharacters < maximumCharacters,
               started.duration(to: .now) < maximumDuration {
-            let element = queue.removeFirst()
+            let next = queue.removeFirst()
+            let element = next.element
             let identity = CFHash(element)
             guard visited.insert(identity).inserted else { continue }
             AXUIElementSetMessagingTimeout(element, perElementMessagingTimeout)
 
-            let secure = isSecureField(element)
-            if !secure {
-                for attribute in [
-                    kAXTitleAttribute as String,
-                    kAXDescriptionAttribute as String,
-                    kAXHelpAttribute as String,
-                    kAXValueAttribute as String,
-                    kAXSelectedTextAttribute as String,
-                ] {
-                    guard let text = textualAttribute(element, attribute) else { continue }
+            let role = textualAttribute(element, kAXRoleAttribute as String)
+            let secure = includeText ? secureFieldStatus(element) : nil
+            let elementFrame = includeText ? frame(of: element) : nil
+            let hidden = attribute(element, "AXHidden") as? Bool == true
+            if includeText, secure == false {
+                let visibleText = ScreenVisibleTextPolicy.text(
+                    role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
+                    title: textualAttribute(element, kAXTitleAttribute as String),
+                    visibleRangeText: Self.visibleText(of: element),
+                    staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
+                for text in visibleText {
                     append(
                         text,
                         parts: &parts,
@@ -166,23 +207,43 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 }
             }
 
-            if sourceURL == nil {
-                sourceURL = urlString(attribute(element, kAXURLAttribute as String))
+            if role == "AXWebArea" {
+                hasWebContent = true
+                // A link URL is not the document's origin. Only a web area's
+                // own URL (or the window document) can establish that origin.
+                if let url = urlString(attribute(element, kAXURLAttribute as String)),
+                   ScreenContextPrivacy.sanitizedURL(url) != nil {
+                    sourceURLs.insert(url)
+                } else {
+                    hasUnknownWebURL = true
+                }
             }
-            if document == nil {
-                document = textualValue(attribute(element, kAXDocumentAttribute as String))
-            }
-            if let children = attribute(element, kAXChildrenAttribute as String) as? [AXUIElement] {
-                queue.append(contentsOf: children.prefix(80))
+            if !hidden, let children = (attribute(element, kAXVisibleChildrenAttribute as String)
+                ?? attribute(element, kAXChildrenAttribute as String)) as? [AXUIElement] {
+                let clipsChildren = ["AXScrollArea", "AXWebArea", "AXWindow"].contains(role ?? "")
+                let viewport = clipsChildren
+                    ? elementFrame.flatMap { next.viewport?.intersection($0) } : next.viewport
+                queue.append(contentsOf: children.prefix(80).map { ($0, viewport) })
             }
         }
 
+        // AX calls are asynchronous with respect to the other application.
+        // Never attach one window's text to a different focused window.
+        guard let currentWindow = elementAttribute(app, kAXFocusedWindowAttribute as String),
+              CFEqual(window, currentWindow),
+              textualAttribute(currentWindow, kAXTitleAttribute as String) == windowTitle,
+              frame(of: currentWindow) == windowFrame,
+              elementAttribute(app, kAXFocusedUIElementAttribute as String)
+                .flatMap(secureFieldStatus) == focusedSecureField else { return nil }
         let text = parts.joined(separator: "\n")
         return ScreenAccessibilitySnapshot(
             text: text,
-            sourceURL: ScreenContextPrivacy.sanitizedURL(sourceURL),
+            sourceURL: !hasUnknownWebURL && sourceURLs.count == 1 ? sourceURLs.first : nil,
             documentName: ScreenContextPrivacy.sanitizedDocumentName(document),
-            focusedSecureField: focusedSecureField)
+            focusedSecureField: focusedSecureField,
+            windowTitle: windowTitle,
+            windowFrame: windowFrame,
+            hasWebContent: hasWebContent)
     }
 
     private static func append(
@@ -203,15 +264,53 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         totalCharacters += clipped.count
     }
 
-    private static func isSecureField(_ element: AXUIElement) -> Bool {
-        let role = textualAttribute(element, kAXRoleAttribute as String) ?? ""
-        let subrole = textualAttribute(element, kAXSubroleAttribute as String)
+    private static func visibleText(of element: AXUIElement) -> String? {
+        guard let rawRange = attribute(element, kAXVisibleCharacterRangeAttribute as String),
+              CFGetTypeID(rawRange) == AXValueGetTypeID() else { return nil }
+        var range = CFRange()
+        guard AXValueGetValue(rawRange as! AXValue, .cfRange, &range),
+              range.location >= 0, range.length > 0 else { return nil }
+        range.length = min(range.length, 24_000)
+        guard let bounded = AXValueCreate(.cfRange, &range) else { return nil }
+        var value: CFTypeRef?
+        guard AXUIElementCopyParameterizedAttributeValue(
+            element, kAXStringForRangeParameterizedAttribute as CFString, bounded, &value) == .success
+        else { return nil }
+        return textualValue(value)
+    }
+
+    private static func secureFieldStatus(_ element: AXUIElement) -> Bool? {
+        guard let role = textualAttribute(element, kAXRoleAttribute as String), !role.isEmpty else {
+            return nil
+        }
+        var rawSubrole: CFTypeRef?
+        let status = AXUIElementCopyAttributeValue(
+            element, kAXSubroleAttribute as CFString, &rawSubrole)
+        guard status == .success || status == .attributeUnsupported || status == .noValue else {
+            return nil
+        }
+        let subrole = textualValue(rawSubrole)
         return CotypingSecureFieldDetector.isSecure(
             role: role,
             subrole: subrole,
             roleDescription: textualAttribute(element, kAXRoleDescriptionAttribute as String),
             title: textualAttribute(element, kAXTitleAttribute as String),
             descriptionLabel: textualAttribute(element, kAXDescriptionAttribute as String))
+    }
+
+    private static func frame(of element: AXUIElement) -> CGRect? {
+        guard let rawPosition = attribute(element, kAXPositionAttribute as String),
+              let rawSize = attribute(element, kAXSizeAttribute as String),
+              CFGetTypeID(rawPosition) == AXValueGetTypeID(),
+              CFGetTypeID(rawSize) == AXValueGetTypeID() else { return nil }
+        var position = CGPoint.zero
+        var size = CGSize.zero
+        guard AXValueGetValue(rawPosition as! AXValue, .cgPoint, &position),
+              AXValueGetValue(rawSize as! AXValue, .cgSize, &size),
+              position.x.isFinite, position.y.isFinite,
+              size.width.isFinite, size.height.isFinite,
+              size.width > 0, size.height > 0 else { return nil }
+        return CGRect(origin: position, size: size)
     }
 
     private static func elementAttribute(_ element: AXUIElement, _ name: String) -> AXUIElement? {

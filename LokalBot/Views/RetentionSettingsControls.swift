@@ -14,7 +14,7 @@ struct RetentionSettingsControls: View {
                 get: { app.settings.retentionDays },
                 set: { propose(days: $0, forever: app.settings.keepOCRTextForever) }), in: 1...90) {
                 SettingsLabel("Keep screen context \(app.settings.retentionDays) days",
-                              help: "Screenshots and their text older than this are removed. Saved moments are kept until you unsave or delete them.")
+                              help: "Old images, screen text, screen titles, URLs, document names, and activity titles expire. App names and durations remain. Saved moments stay until unsaved or deleted.")
             }
                 .settingTarget("settings.retentionDays", selected: app.focusedSettingID)
                 .accessibilityIdentifier("settings.retention")
@@ -22,7 +22,7 @@ struct RetentionSettingsControls: View {
                 get: { app.settings.keepOCRTextForever },
                 set: { propose(days: app.settings.retentionDays, forever: $0) })) {
                 SettingsLabel("Keep screen text forever",
-                              help: "Images still expire; their searchable text stays.")
+                              help: "Images and activity titles still expire. Screen text, titles, URLs, and document names stay searchable.")
             }
                 .settingTarget("settings.keepOCRTextForever", selected: app.focusedSettingID)
             LabeledContent {
@@ -35,6 +35,8 @@ struct RetentionSettingsControls: View {
             .sheet(item: $review) { proposal in
                 RetentionReviewSheet(review: proposal, error: error, onCancel: { review = nil }, onApply: { apply(proposal) })
             }
+            Text("Unedited generated journals and dependent Dream memory retract when their source is removed. Edited or legacy journals, saved Ask/Agent conversations, and exported or routine files have separate lifetimes. Delete conversations in Ask or clear saved Agent history; remove edited journals and exported files from their folders.")
+                .workspaceTextRole(.trust)
             if let error { Text(error).workspaceTextRole(.warning) }
             if let completion { Text(completion).workspaceTextRole(.supporting) }
         }
@@ -59,8 +61,10 @@ struct RetentionSettingsControls: View {
 
     private func apply(_ proposal: RetentionReview) {
         do {
-            let failures = try app.screenshots.applyRetentionReview(proposal)
-            let days = Set(proposal.candidates.map { Calendar.current.startOfDay(for: $0.timestamp) })
+            let days = Set(proposal.evidenceDates.map { Calendar.current.startOfDay(for: $0) })
+            let failures = try app.withPrimaryEvidenceChange(on: Array(days)) {
+                try app.screenshots.applyRetentionReview(proposal)
+            }
             app.primaryEvidenceDidChange(on: Array(days))
             app.settings.retentionDays = proposal.days
             app.settings.keepOCRTextForever = proposal.keepTextForever
@@ -83,11 +87,13 @@ private struct RetentionReviewSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Review retention change").font(WorkspaceTypography.pageTitle)
-            Text("Keep images for \(review.days) days. " + (review.keepTextForever ? "Keep unsaved text indefinitely." : "Delete unsaved text and its search vectors on the same schedule."))
+            Text("Keep images and activity titles for \(review.days) days. " + (review.keepTextForever ? "Keep unsaved screen text and metadata indefinitely." : "Delete unsaved screen text, metadata, and search vectors on the same schedule."))
             Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 8) {
                 GridRow { Text("Images to remove"); Text("\(review.pixelCount)") }
                 GridRow { Text("Text records to remove"); Text("\(review.textCount)") }
                 GridRow { Text("Search vectors to remove"); Text("\(review.vectorCount)") }
+                GridRow { Text("Screen metadata records to clear"); Text("\(review.metadataCount)") }
+                GridRow { Text("Activity titles to clear"); Text("\(review.activityTitles.count)") }
                 GridRow { Text("Saved moments preserved"); Text("\(review.savedCount)") }
                 GridRow { Text("Image space recovered"); Text(ByteCountFormatter.string(fromByteCount: review.bytes, countStyle: .file)) }
             }

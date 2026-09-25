@@ -63,6 +63,9 @@ final class EmbeddingIndexIntegrationTests: XCTestCase {
                     "seconds": Date().timeIntervalSince(start),
                 ])
                 XCTAssertFalse(hits.isEmpty, query.id)
+                XCTAssertNotNil(
+                    firstRelevant,
+                    "\(query.id) returned no relevant meeting in its top 10 results")
             }
             // Running the backfill again must reuse the same model version,
             // not duplicate rows or silently erase freshly rebuilt vectors.

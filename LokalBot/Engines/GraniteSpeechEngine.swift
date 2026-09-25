@@ -33,6 +33,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
 
     func prepare(configuration: GraniteSpeechModelConfiguration,
                  progress: ModelPreparationProgressHandler? = nil) async throws {
+        let pin = await ModelResidency.shared.pin(id: "llama-server:\(Self.serverPort)")
+        defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
         await acquire(configuration)
         defer { releaseConfigurationUse() }
         try await prepareCurrentConfiguration(
@@ -79,6 +81,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
 
     func transcribe(configuration: GraniteSpeechModelConfiguration,
                     audio url: URL, language: String?) async throws -> Transcript {
+        let pin = await ModelResidency.shared.pin(id: "llama-server:\(Self.serverPort)")
+        defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
         await acquire(configuration)
         defer { releaseConfigurationUse() }
         try await prepareCurrentConfiguration(configuration, progress: nil)

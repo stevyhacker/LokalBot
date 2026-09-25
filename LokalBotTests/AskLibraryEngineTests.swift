@@ -4,6 +4,8 @@ import XCTest
 private final class MockChatClient: LlamaChatClient {
     var healthyScript: [Bool]
     var completion: Result<String, Error>
+    var onHealth: (() -> Void)?
+    var onCompletion: (() throws -> Void)?
     private(set) var completedMessages: [[[String: String]]] = []
 
     init(
@@ -15,11 +17,13 @@ private final class MockChatClient: LlamaChatClient {
     }
 
     func healthy() async -> Bool {
-        healthyScript.isEmpty ? true : healthyScript.removeFirst()
+        onHealth?()
+        return healthyScript.isEmpty ? true : healthyScript.removeFirst()
     }
 
     func complete(messages: [[String: String]]) async throws -> String {
         completedMessages.append(messages)
+        try onCompletion?()
         return try completion.get()
     }
 }
@@ -81,6 +85,38 @@ final class AskLibraryEngineTests: XCTestCase {
         gate.disable()
         let result = await makeEngine(client: MockChatClient()).ask("anything at all")
         XCTAssertTrue(result.text.hasPrefix("[access_disabled]"))
+    }
+
+    func testRevocationDuringHealthPreventsReadingTheLibrary() async {
+        let client = MockChatClient()
+        client.onHealth = { self.gate.disable() }
+        var engine = makeEngine(client: client)
+        var readLibrary = false
+        engine.loadMeetings = { readLibrary = true; return [] }
+        let result = await engine.ask("caching decision")
+        XCTAssertTrue(result.text.hasPrefix("[access_disabled]"))
+        XCTAssertFalse(readLibrary)
+        XCTAssertTrue(client.completedMessages.isEmpty)
+    }
+
+    func testRevocationWhileWakingPreventsInference() async {
+        let client = MockChatClient(healthyScript: [false, true])
+        let engine = makeEngine(client: client) { self.gate.disable() }
+        let result = await engine.ask("caching decision")
+        XCTAssertTrue(result.text.hasPrefix("[access_disabled]"))
+        XCTAssertTrue(client.completedMessages.isEmpty)
+    }
+
+    func testRevocationDuringInferenceWithholdsAnswerEvenAfterReenable() async {
+        let client = MockChatClient(completion: .success("private answer"))
+        client.onCompletion = {
+            self.gate.disable()
+            try self.gate.enable()
+        }
+        let result = await makeEngine(client: client).ask("caching decision")
+        XCTAssertEqual(client.completedMessages.count, 1)
+        XCTAssertTrue(result.text.hasPrefix("[access_disabled]"))
+        XCTAssertFalse(result.text.contains("private answer"))
     }
 
     func testEmptyQuestionIsInvalidArguments() async {

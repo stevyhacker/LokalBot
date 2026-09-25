@@ -274,7 +274,7 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
                 .int64(Int64(limit)),
             ]
             let activity = try connection.query("""
-                SELECT id, app, title, start, end FROM activity_blocks
+                SELECT id, app, title, MAX(start, ?1), MIN(end, ?2) FROM activity_blocks
                 WHERE end > ?1 AND start < ?2 ORDER BY start LIMIT ?3
                 """, bindings: intervalBindings) { row in
                 let blockStart = Date(timeIntervalSince1970: sqlite3_column_double(row, 3))
@@ -328,7 +328,7 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     func recentActivity(since: Date, limit: Int) throws -> [ScreenMemoryActivityBlock] {
         try withConnection { connection in
             try connection.query("""
-                SELECT id, app, title, start, end FROM activity_blocks
+                SELECT id, app, title, MAX(start, ?1), end FROM activity_blocks
                 WHERE end > ?1 ORDER BY end DESC LIMIT ?2
                 """, bindings: [
                     .double(since.timeIntervalSince1970),
@@ -377,7 +377,7 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
         try withConnection { connection in
             guard try connection.tableExists("activity_blocks") else { return [] }
             return try connection.query("""
-                SELECT id, app, title, start, end FROM activity_blocks
+                SELECT id, app, title, MAX(start, ?1), MIN(end, ?2) FROM activity_blocks
                 WHERE end > ?1 AND start < ?2 ORDER BY start, id
                 """, bindings: [
                     .double(start.timeIntervalSince1970),

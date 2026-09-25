@@ -17,11 +17,13 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
     let meetingTitle: String
     let meetingDate: Date
     let owner: String?
+    let isForUser: Bool
     let due: String?
     let sourceMeetingCount: Int
 
     init(kind: Kind, text: String, meeting: Meeting, index: Int,
-         owner: String? = nil, due: String? = nil, sourceMeetingCount: Int = 1) {
+         owner: String? = nil, isForUser: Bool = false,
+         due: String? = nil, sourceMeetingCount: Int = 1) {
         id = "\(meeting.id.uuidString)-\(kind.rawValue)-\(index)"
         self.kind = kind
         self.text = text
@@ -29,6 +31,7 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
         meetingTitle = meeting.title
         meetingDate = meeting.startedAt
         self.owner = owner
+        self.isForUser = isForUser
         self.due = due
         self.sourceMeetingCount = sourceMeetingCount
     }
@@ -42,6 +45,7 @@ struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
         meetingTitle = source.meetingTitle
         meetingDate = source.meetingStartedAt
         owner = thread.owner
+        isForUser = thread.isForUser
         due = thread.due
         sourceMeetingCount = thread.meetingCount
     }
@@ -80,7 +84,8 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
     var signature: String {
         let meetingParts = relatedMeetings.map { $0.meeting.id.uuidString + $0.summary }
         let commitmentParts: [String] = commitments.map { commitment in
-            let fields = [commitment.text, commitment.owner ?? "", commitment.due ?? "",
+            let fields = [commitment.text, commitment.owner ?? "", String(commitment.isForUser),
+                          commitment.due ?? "",
                           String(commitment.sourceMeetingCount)]
             return ContentFingerprint.fields(fields)
         }
@@ -109,7 +114,12 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         }
         if let commitment = commitments.first {
             var detail = sentence(commitment.text)
-            if let owner = nonEmpty(commitment.owner) { detail += " Owner: \(SpeakerDisplayName.label(owner))." }
+            if let owner = nonEmpty(commitment.owner) {
+                let displayOwner = SpeakerDisplayName.label(
+                    owner,
+                    identity: commitment.isForUser ? .user : .unresolved)
+                detail += " Owner: \(displayOwner)."
+            }
             if let due = nonEmpty(commitment.due) { detail += " Due: \(due)." }
             sentences.append("Commitment to revisit: \(detail)")
         }
@@ -184,8 +194,44 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
 }
 
 enum UpcomingMeetingSelector {
-    /// Keep every event overlapping the requested local day, including
-    /// meetings which have ended and meetings many hours away.
+    /// How Today treats a calendar event.
+    enum Kind: Equatable {
+        /// Other people or a conferencing link: a call LokalBot can record.
+        case meeting
+        /// Only the user is invited, but the title names a meeting (a standup
+        /// joined from elsewhere). Listed, without Join or Record.
+        case soloMeeting
+        /// Only the user, with a non-meeting title (a dentist or doctor visit,
+        /// an errand). Never listed as a meeting.
+        case personal
+    }
+
+    static func kind(of event: CalendarMeetingCandidate) -> Kind {
+        if event.meetingURL != nil || !event.resolvedParticipantIdentities.isEmpty { return .meeting }
+        return looksLikeMeeting(event.title) ? .soloMeeting : .personal
+    }
+
+    /// Meeting words in English and Serbian. A personal appointment title
+    /// rarely uses them; a meeting kept on a private calendar usually does.
+    static func looksLikeMeeting(_ title: String) -> Bool {
+        title.range(of: meetingTitlePattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static let meetingTitlePattern: String = {
+        let words = [
+            #"meet(?:ing|up)?s?"#, #"calls?"#, #"syncs?"#, #"stand-?ups?"#, #"dailys?"#, #"weekly"#,
+            #"1[:-]1"#, #"1on1"#, #"one[- ]on[- ]one"#, #"interviews?"#, #"demos?"#, #"reviews?"#,
+            #"retros?(?:pective)?"#, #"planning"#, #"kick-?off"#, #"check-?ins?"#, #"catch[- ]?ups?"#,
+            #"huddles?"#, #"all[- ]hands"#, #"office hours"#, #"workshops?"#, #"webinars?"#,
+            #"presentations?"#, #"pitch(?:es)?"#, #"onboarding"#,
+            #"sastan(?:ak|ci)"#, #"poziv"#, #"intervju"#, #"sinhronizacija"#, #"prezentacija"#,
+        ]
+        return #"(?:^|[^\p{L}\p{N}])(?:"# + words.joined(separator: "|") + #")(?:$|[^\p{L}\p{N}])"#
+    }()
+
+    /// Keep every meeting overlapping the requested local day, including
+    /// meetings which have ended and meetings many hours away. Personal
+    /// appointments are left out so they cannot take a meeting's place.
     static func schedule(
         from candidates: [CalendarMeetingCandidate],
         on date: Date,
@@ -194,6 +240,7 @@ enum UpcomingMeetingSelector {
         guard let interval = calendar.dateInterval(of: .day, for: date) else { return [] }
         return candidates
             .filter { $0.endDate > interval.start && $0.startDate < interval.end }
+            .filter { kind(of: $0) != .personal }
             .sorted { lhs, rhs in
                 if lhs.startDate != rhs.startDate { return lhs.startDate < rhs.startDate }
                 return lhs.endDate < rhs.endDate

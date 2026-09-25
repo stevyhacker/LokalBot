@@ -218,4 +218,98 @@ final class ModelResidencyTests: XCTestCase {
         residency.register(id: "second", label: "Second", bytes: 4, unload: {})
         XCTAssertEqual(residency.pendingLoadBytes, 0)
     }
+
+    func testAdmissionRechecksPinsAfterEachUnload() async {
+        let residency = ModelResidency(budgetBytes: 8)
+        var unloadedSecond = false
+        residency.register(id: "first", label: "First", bytes: 4) {
+            residency.setLeaseState(pinned: ["second"], descriptions: [:])
+        }
+        residency.register(id: "second", label: "Second", bytes: 4) { unloadedSecond = true }
+        residency.touch(id: "second")
+        _ = await residency.willLoad(id: "incoming", bytes: 8)
+        XCTAssertFalse(unloadedSecond)
+        XCTAssertEqual(residency.residents.map(\.id), ["second"])
+    }
+
+    func testAdmissionRecomputesAfterVictimIsReplacedWithSmallerWeights() async {
+        let residency = ModelResidency(budgetBytes: 10)
+        var replacementUnloaded = false
+        residency.register(id: "first", label: "First", bytes: 4) {
+            residency.register(id: "second", label: "Replacement", bytes: 1) { replacementUnloaded = true }
+        }
+        residency.register(id: "second", label: "Second", bytes: 4, unload: {})
+        residency.touch(id: "second")
+        _ = await residency.willLoad(id: "incoming", bytes: 8)
+        XCTAssertFalse(replacementUnloaded)
+        XCTAssertEqual(residency.totalBytes, 1)
+    }
+
+    func testPrivateRuntimePinSurvivesBrokerPublication() async {
+        let residency = ModelResidency(budgetBytes: 4)
+        var evicted = false
+        let pin = await residency.pin(id: "granite")
+        residency.register(id: "granite", label: "Granite", bytes: 4) { evicted = true }
+        residency.setLeaseState(pinned: [], descriptions: [:])
+        let admission = await residency.willLoad(id: "other", bytes: 4)
+        XCTAssertFalse(evicted)
+        residency.cancelLoad(admission)
+        residency.unpin(pin)
+        _ = await residency.willLoad(id: "other", bytes: 4)
+        XCTAssertTrue(evicted)
+    }
+
+    func testNonGGUFPreparationEvictsIdleGGUFBeforeLoad() async {
+        let residency = ModelResidency(budgetBytes: 10)
+        let registry = ModelRuntimeRegistry(residency: residency)
+        var evicted = false
+        residency.register(id: "gguf", label: "GGUF", bytes: 8) { evicted = true }
+        await registry.reserve(id: "asr", role: "Transcribe", label: "ASR", estimatedBytes: 4)
+        XCTAssertTrue(evicted)
+        XCTAssertEqual(registry.totalEstimatedBytes, 4)
+        XCTAssertEqual(residency.pendingLoadBytes, 0, "registry reservations must not be counted twice")
+        registry.unregister(id: "asr")
+        XCTAssertEqual(registry.totalEstimatedBytes, 0)
+    }
+
+    func testGGUFAdmissionCountsAnExistingNonGGUFReservation() async {
+        let residency = ModelResidency(budgetBytes: 10)
+        let registry = ModelRuntimeRegistry(residency: residency)
+        var evicted = false
+        residency.register(id: "idle-gguf", label: "Idle GGUF", bytes: 4) { evicted = true }
+        await registry.reserve(
+            id: "speech", role: "Transcribe", label: "Speech", estimatedBytes: 6)
+
+        let admission = await residency.willLoad(
+            id: "cotyping",
+            bytes: 5,
+            currentReservedBytes: { Int64(clamping: registry.totalEstimatedBytes) })
+
+        XCTAssertTrue(evicted, "a GGUF load must include speech-first reservations")
+        residency.cancelLoad(admission)
+        registry.unregister(id: "speech")
+    }
+
+    func testPinWaitsForAlreadyStartedEvictionBeforeUsingRuntime() async {
+        let residency = ModelResidency(budgetBytes: 4)
+        var finishUnload: CheckedContinuation<Void, Never>?
+        residency.register(id: "private", label: "Private", bytes: 4) {
+            await withCheckedContinuation { finishUnload = $0 }
+        }
+        let loading = Task { await residency.willLoad(id: "incoming", bytes: 4) }
+        while finishUnload == nil { await Task.yield() }
+        var acquired = false
+        let pinning = Task {
+            let token = await residency.pin(id: "private")
+            acquired = true
+            return token
+        }
+        while !residency.pinnedIDs.contains("private") { await Task.yield() }
+        XCTAssertFalse(acquired)
+        finishUnload?.resume()
+        let pin = await pinning.value
+        _ = await loading.value
+        XCTAssertTrue(acquired)
+        residency.unpin(pin)
+    }
 }

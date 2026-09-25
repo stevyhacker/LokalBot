@@ -51,7 +51,13 @@ actor MeetingSpeakerEvidenceStore {
         let clear = try JSONEncoder().encode(value)
         guard let data = try AES.GCM.seal(clear, using: key, authenticating: aad(url)).combined else { throw Failure.corrupt }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try data.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+        // The payload is already authenticated AES-GCM ciphertext. Foundation's
+        // file-protection option can create unreadable files on macOS when the
+        // process has no Data Protection entitlement, so keep the atomic write
+        // and enforce a user-only POSIX boundary instead.
+        try data.write(to: url, options: .atomic)
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o600], ofItemAtPath: url.path)
         return data.count
     }
     private func checkMeeting(_ meeting: Meeting) throws {
@@ -212,6 +218,7 @@ actor MeetingSpeakerEvidenceStore {
         saved.voiceSamples = []
         saved.microphoneSampleDiagnostics = nil
         saved.timeline = []
+        saved.acousticTimeline = []
         // Durable applied names retain minimal turns, not the underlying matches.
         for index in saved.assignments.indices {
             saved.assignments[index].match = nil

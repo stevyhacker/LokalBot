@@ -591,6 +591,9 @@ private struct EditorialTurn: View {
                     voice: app.settings.speechVoice,
                     speed: app.settings.speechSpeed,
                     outputURL: nil))
+                // Caller owns this plaintext temporary output, including
+                // cancellation, superseded playback and player failures.
+                defer { try? FileManager.default.removeItem(at: url) }
                 try Task.checkCancellation()
                 let player = try AVAudioPlayer(contentsOf: url)
                 player.prepareToPlay()

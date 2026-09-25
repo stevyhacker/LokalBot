@@ -8,6 +8,7 @@ struct CotypingAXCaptureOptions: OptionSet, Sendable {
     static let surface = Self(rawValue: 1 << 0)
     static let url = Self(rawValue: 1 << 1)
     static let style = Self(rawValue: 1 << 2)
+    static let learningScope = Self(rawValue: 1 << 3)
 }
 struct CotypingAXCaptureResult: Sendable {
     let focus: CotypingFocus?
@@ -54,7 +55,8 @@ final class CotypingAXSnapshotExecutor: @unchecked Sendable {
             CotypingAXHelper.resolveFocus(
                 includeSurface: options.contains(.surface),
                 includeURL: options.contains(.url),
-                includeStyle: options.contains(.style))
+                includeStyle: options.contains(.style),
+                includeLearningScope: options.contains(.learningScope))
         }
     ) {
         self.deadlineMilliseconds = max(1, deadlineMilliseconds)

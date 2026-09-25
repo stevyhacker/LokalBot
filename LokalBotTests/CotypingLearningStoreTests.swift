@@ -8,15 +8,15 @@ import XCTest
 final class CotypingLearningRankerTests: XCTestCase {
     private func field(
         preceding: String,
-        appName: String = "Mail",
-        bundleID: String? = "com.apple.mail",
+        appName: String = "TextEdit",
+        bundleID: String? = "com.apple.TextEdit",
         windowTitle: String? = nil
     ) -> CotypingField {
         CotypingField(
             appName: appName, bundleID: bundleID, processID: 1, role: "AXTextArea",
             precedingText: preceding, trailingText: "", selectionLength: 0,
             caretRect: .zero, isSecure: false, caretIsExact: true,
-            windowTitle: windowTitle)
+            windowTitle: windowTitle, learningScopeKey: "document-a")
     }
 
     func testSanitizesAcceptedText() {
@@ -50,13 +50,13 @@ final class CotypingLearningRankerTests: XCTestCase {
                 appName: "Slack", bundleID: "com.tinyspeck.slackmacgap",
                 surfaceClass: "chat", contextHint: nil,
                 prefixTail: "quick follow up from yesterday",
-                acceptedText: "sounds good to me"),
+                acceptedText: "sounds good to me", scopeKey: "document-a"),
             CotypingLearningExample(
                 id: UUID(), createdAt: now.addingTimeInterval(-60),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email", contextHint: nil,
                 prefixTail: "quick follow up on the contract",
-                acceptedText: "I can send the final version today"),
+                acceptedText: "I can send the final version today", scopeKey: "document-a"),
         ]
 
         let ranked = CotypingLearningRanker.rankedExamples(
@@ -74,7 +74,7 @@ final class CotypingLearningRankerTests: XCTestCase {
                 appName: "Slack", bundleID: "com.tinyspeck.slackmacgap",
                 surfaceClass: "chat", contextHint: nil,
                 prefixTail: "unrelated thread about dinner",
-                acceptedText: "sounds good to me"),
+                acceptedText: "sounds good to me", scopeKey: "document-a"),
         ]
 
         let ranked = CotypingLearningRanker.rankedExamples(
@@ -89,16 +89,16 @@ final class CotypingLearningRankerTests: XCTestCase {
         let examples = [
             CotypingLearningExample(
                 id: UUID(), createdAt: Date(),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email", contextHint: nil,
                 prefixTail: "quick follow up",
-                acceptedText: "On the clipboard: secret release plan"),
+                acceptedText: "On the clipboard: secret release plan", scopeKey: "document-a"),
             CotypingLearningExample(
                 id: UUID(), createdAt: Date().addingTimeInterval(-1),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email", contextHint: nil,
                 prefixTail: "quick follow up",
-                acceptedText: "I can send the final version today"),
+                acceptedText: "I can send the final version today", scopeKey: "document-a"),
         ]
 
         let ranked = CotypingLearningRanker.rankedExamples(
@@ -114,24 +114,24 @@ final class CotypingLearningRankerTests: XCTestCase {
         let examples = [
             CotypingLearningExample(
                 id: UUID(), createdAt: now.addingTimeInterval(-10),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email", contextHint: nil,
                 prefixTail: "quick follow up",
-                acceptedText: "I can send the final version today"),
+                acceptedText: "I can send the final version today", scopeKey: "document-a"),
             CotypingLearningExample(
                 id: UUID(), createdAt: now.addingTimeInterval(-20),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email",
                 contextHint: "An email being written in Mail. The window is titled \"Q3 planning\".",
                 prefixTail: "quick follow up",
-                acceptedText: "I can send the final version today"),
+                acceptedText: "I can send the final version today", scopeKey: "document-a"),
             CotypingLearningExample(
                 id: UUID(), createdAt: now.addingTimeInterval(-30),
-                appName: "Mail", bundleID: "com.apple.mail",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit",
                 surfaceClass: "email",
                 contextHint: "An email being written in Mail. The window is titled \"Q3 planning\".",
                 prefixTail: "quick follow up",
-                acceptedText: "I will follow up on the Q3 planning notes"),
+                acceptedText: "I will follow up on the Q3 planning notes", scopeKey: "document-a"),
         ]
 
         let ranked = CotypingLearningRanker.rankedExamples(
@@ -147,10 +147,10 @@ final class CotypingLearningRankerTests: XCTestCase {
 final class CotypingAcceptedSuggestionBatchTests: XCTestCase {
     private func field(preceding: String = "Please send") -> CotypingField {
         CotypingField(
-            appName: "Mail", bundleID: "com.apple.mail", processID: 1,
+            appName: "TextEdit", bundleID: "com.apple.TextEdit", processID: 1,
             role: "AXTextArea", precedingText: preceding, trailingText: "",
             selectionLength: 0, caretRect: .zero, isSecure: false,
-            caretIsExact: true)
+            caretIsExact: true, learningScopeKey: "document-a")
     }
 
     func testAggregatesAcceptedChunksIntoOneLearningRecord() {
@@ -193,10 +193,10 @@ final class CotypingAcceptedSuggestionBatchTests: XCTestCase {
 final class CotypingLearningStorePersistenceTests: XCTestCase {
     private func field() -> CotypingField {
         CotypingField(
-            appName: "Mail", bundleID: "com.apple.mail", processID: 1,
+            appName: "TextEdit", bundleID: "com.apple.TextEdit", processID: 1,
             role: "AXTextArea", precedingText: "Please send", trailingText: "",
             selectionLength: 0, caretRect: .zero, isSecure: false,
-            caretIsExact: true)
+            caretIsExact: true, learningScopeKey: "document-a")
     }
 
     @MainActor
@@ -246,9 +246,9 @@ final class CotypingLearningStorePersistenceTests: XCTestCase {
         let snapshot = CotypingLearningSnapshot(examples: [
             CotypingLearningExample(
                 id: UUID(), createdAt: Date(timeIntervalSince1970: 123),
-                appName: "Mail", bundleID: "com.apple.mail", surfaceClass: "email",
+                appName: "TextEdit", bundleID: "com.apple.TextEdit", surfaceClass: "email",
                 contextHint: "Q3 planning", prefixTail: "Please send",
-                acceptedText: "the final version"),
+                acceptedText: "the final version", scopeKey: "document-a"),
         ])
         let persistence = EncryptedCotypingLearningPersistence(url: url, key: key)
 
@@ -268,5 +268,138 @@ private actor RecordingCotypingLearningPersistence: CotypingLearningPersisting {
         snapshots.append(snapshot)
     }
 
+    func forget() { snapshots = [] }
+
     func recordedSnapshots() -> [CotypingLearningSnapshot] { snapshots }
+}
+
+final class CotypingLearningScopeTests: XCTestCase {
+    func testOnlyIdentifiedDocumentsReceiveScopeKeys() throws {
+        let first = try XCTUnwrap(CotypingLearningScope.key(
+            bundleID: "com.apple.Safari", documentURLString: "https://docs.google.com/document/d/first/edit?x=1#cursor"))
+        XCTAssertEqual(first, CotypingLearningScope.key(
+            bundleID: "com.apple.Safari", documentURLString: "https://docs.google.com/document/d/first/view"))
+        XCTAssertNotEqual(first, CotypingLearningScope.key(
+            bundleID: "com.apple.Safari", documentURLString: "https://docs.google.com/document/d/second/edit"))
+        for url in ["https://mail.google.com/", "https://app.slack.com/client/channel", "https://example.com/document/d/first"] {
+            XCTAssertNil(CotypingLearningScope.key(bundleID: "com.apple.Safari", documentURLString: url))
+        }
+        XCTAssertNil(CotypingLearningScope.key(bundleID: "com.apple.mail", documentURLString: "file:///tmp/message"))
+        XCTAssertNil(CotypingLearningScope.key(bundleID: "com.apple.TextEdit", documentURLString: nil))
+        XCTAssertNotNil(CotypingLearningScope.key(bundleID: "com.apple.TextEdit", documentURLString: "file:///tmp/document.rtf"))
+        XCTAssertFalse(first.contains("first"))
+    }
+}
+
+@MainActor
+final class CotypingLearningPrivacyTests: XCTestCase {
+    private let now = Date(timeIntervalSince1970: 2_000_000)
+
+    private func field(scope: String? = "document-a", prefix: String = "renewal contract review") -> CotypingField {
+        CotypingField(appName: "TextEdit", bundleID: "com.apple.TextEdit", processID: 1, role: "AXTextArea",
+                      precedingText: prefix, trailingText: "", selectionLength: 0, caretRect: .zero,
+                      isSecure: false, caretIsExact: true, learningScopeKey: scope)
+    }
+
+    private func example(scope: String? = "document-a", age: TimeInterval = 0) -> CotypingLearningExample {
+        CotypingLearningExample(id: UUID(), createdAt: now.addingTimeInterval(-age), appName: "TextEdit",
+                                bundleID: "com.apple.TextEdit", surfaceClass: "other", contextHint: nil,
+                                prefixTail: "renewal contract review", acceptedText: "the confidential numbers", scopeKey: scope)
+    }
+
+    func testDifferentDocumentsMissingScopesIrrelevantPrefixesAndExpiredExamplesAbstain() {
+        for target in [field(scope: "document-b"), field(scope: nil), field(prefix: "picnic dinner tomorrow")] {
+            XCTAssertEqual(CotypingLearningRanker.rankedExamples([example()], for: target, limit: 5, now: now), [])
+        }
+        for saved in [example(scope: nil), example(age: 31 * 24 * 60 * 60)] {
+            XCTAssertEqual(CotypingLearningRanker.rankedExamples([saved], for: field(), limit: 5, now: now), [])
+        }
+        var mail = field()
+        mail.bundleID = "com.apple.mail"
+        XCTAssertFalse(CotypingLearningRanker.canLearn(from: mail))
+        mail.bundleID = "com.tinyspeck.slackmacgap"
+        XCTAssertFalse(CotypingLearningRanker.canLearn(from: mail))
+        XCTAssertEqual(CotypingLearningRanker.rankedExamples([example()], for: field(), limit: 5, now: now), ["the confidential numbers"])
+    }
+
+    func testLegacySnapshotDecodesButUnscopedExamplesArePruned() async throws {
+        let encoder = JSONEncoder()
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoder.encode(example())) as? [String: Any])
+        object.removeValue(forKey: "scopeKey")
+        let legacy = try JSONDecoder().decode(CotypingLearningExample.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertNil(legacy.scopeKey)
+        let persistence = RecordingCotypingLearningPersistence()
+        let current = now
+        let store = CotypingLearningStore(storageRoot: FileManager.default.temporaryDirectory,
+                                         persistence: persistence, initialSnapshot: .init(examples: [legacy, example(age: 31 * 86_400)]),
+                                         now: { current })
+        XCTAssertEqual(store.exampleCount, 0)
+        await store.waitForPendingPersistence()
+        let snapshots = await persistence.recordedSnapshots()
+        XCTAssertEqual(snapshots.last?.examples, [])
+    }
+
+    func testForgetWaitsForOlderWriteAndBlocksNewLearningUntilDeletion() async throws {
+        let persistence = BlockingCotypingLearningPersistence()
+        let current = now
+        let store = CotypingLearningStore(storageRoot: FileManager.default.temporaryDirectory,
+                                         persistence: persistence, initialSnapshot: .init(), now: { current })
+        store.recordCompletedSuggestion(field: field(), acceptedText: "the confidential numbers")
+        await persistence.waitUntilWriting()
+        let deletion = Task { try await store.forgetAll() }
+        while !store.isForgetting { await Task.yield() }
+        XCTAssertEqual(store.exampleCount, 0)
+        store.recordCompletedSuggestion(field: field(), acceptedText: "another private completion")
+        XCTAssertEqual(store.exampleCount, 0)
+        await persistence.releaseWrite()
+        try await deletion.value
+        let events = await persistence.events
+        XCTAssertEqual(events, ["write", "delete"])
+    }
+
+    func testForgetFailureIsReportedAndMemoryStaysEmpty() async {
+        let persistence = BlockingCotypingLearningPersistence(failDeletion: true)
+        let current = now
+        let store = CotypingLearningStore(storageRoot: FileManager.default.temporaryDirectory,
+                                         persistence: persistence, initialSnapshot: .init(examples: [example()]), now: { current })
+        do { try await store.forgetAll(); XCTFail("expected deletion error") } catch { }
+        XCTAssertEqual(store.exampleCount, 0)
+        XCTAssertFalse(store.isForgetting)
+    }
+
+    func testEncryptedFileCanBeForgottenWithoutKeychainKey() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("learning-forget-\(UUID()).enc")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("synthetic encrypted fixture".utf8).write(to: url)
+        let persistence = EncryptedCotypingLearningPersistence(url: url, key: nil)
+        try await persistence.forget()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+}
+
+private actor BlockingCotypingLearningPersistence: CotypingLearningPersisting {
+    private var writeContinuation: CheckedContinuation<Void, Never>?
+    private let failDeletion: Bool
+    private(set) var events: [String] = []
+
+    init(failDeletion: Bool = false) { self.failDeletion = failDeletion }
+
+    func persist(_ snapshot: CotypingLearningSnapshot) async {
+        await withCheckedContinuation { writeContinuation = $0 }
+        events.append("write")
+    }
+
+    func waitUntilWriting() async {
+        while writeContinuation == nil { await Task.yield() }
+    }
+
+    func releaseWrite() {
+        writeContinuation?.resume()
+        writeContinuation = nil
+    }
+
+    func forget() throws {
+        if failDeletion { throw NSError(domain: "test", code: 1) }
+        events.append("delete")
+    }
 }

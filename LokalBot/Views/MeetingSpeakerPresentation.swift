@@ -8,12 +8,20 @@ enum SpeakerDisplayName {
     static func label(_ name: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         switch trimmed.lowercased() {
-        case "me": return "You"
+        // A free-form alias/owner called "Me" is not evidence of self identity.
+        case "me": return name
         case "them": return "Other speaker"
         default:
             if let match = trimmed.wholeMatch(of: /[Tt]hem (\d+)/) { return "Speaker \(match.1)" }
             return name
         }
+    }
+
+    static func label(_ name: String, identity: SpeakerAttribution.Identity) -> String {
+        if identity == .user, name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "me" {
+            return "You"
+        }
+        return label(name)
     }
 }
 
@@ -22,10 +30,16 @@ enum SpeakerDisplayName {
 struct MeetingSpeakerPresentation {
     private var names: [String: String] = [:]
     private var replacements: [String: String] = [:]
+    private var ownerIdentities: [String: SpeakerAttribution.Identity] = [:]
+    private var identities: [String: SpeakerAttribution.Identity] = [:]
 
     init(transcript: Transcript?) {
         guard let transcript else { return }
         let roster = transcript.speakerRoster
+        identities = roster.mapValues(\.identity)
+        for group in Dictionary(grouping: roster.values, by: { $0.name.lowercased() }).values {
+            if let only = group.first, group.count == 1 { ownerIdentities[only.name.lowercased()] = only.identity }
+        }
         var nextSpeaker = 1
         for segment in transcript.segments {
             let key = Transcript.canonicalSpeakerKey(segment.speaker)
@@ -53,12 +67,15 @@ struct MeetingSpeakerPresentation {
 
     func speaker(_ key: String, in transcript: Transcript) -> String {
         SpeakerDisplayName.label(
-            names[Transcript.canonicalSpeakerKey(key)] ?? transcript.displaySpeaker(for: key))
+            names[Transcript.canonicalSpeakerKey(key)] ?? transcript.displaySpeaker(for: key),
+            identity: identities[Transcript.canonicalSpeakerKey(key)] ?? .unresolved)
     }
 
     /// An action owner as people should read it ("You", "Other speaker").
-    func owner(_ value: String) -> String {
-        SpeakerDisplayName.label(text(value))
+    func owner(_ value: String, isForUser: Bool) -> String {
+        let key = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let identity = isForUser ? SpeakerAttribution.Identity.user : ownerIdentities[key] ?? .unresolved
+        return SpeakerDisplayName.label(text(value), identity: identity)
     }
 
     func text(_ value: String) -> String {

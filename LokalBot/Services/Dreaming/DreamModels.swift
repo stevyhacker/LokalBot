@@ -71,13 +71,48 @@ enum DreamFallbackReason: String, Codable, Equatable, Sendable {
     case emptyDay
 }
 
+/// App-owned dependencies of generated memory. Model-written citation text is
+/// never used to decide whether deleted or corrected evidence may be retained.
+struct DreamEvidenceSource: Codable, Hashable, Sendable {
+    enum Kind: String, Codable, Sendable {
+        case meeting
+        case screenDay
+        case digest
+    }
+
+    var kind: Kind
+    /// Full meeting UUID, or the local day key for day-level derived evidence.
+    var id: String
+    var dayKey: String
+}
+
+struct DreamEvidenceProvenance: Codable, Equatable, Sendable {
+    var sources: [DreamEvidenceSource]
+    /// The durable store revision captured before gathering these sources.
+    var revision: UInt64
+    /// Legacy memory cannot be assigned invented source links. Any output
+    /// which consumed it must also be retracted on the next evidence change.
+    var includesUnattributedContext: Bool = false
+
+    func isInvalidated(by revisions: [String: UInt64], currentRevision: UInt64,
+                       meetingRevisions: [String: UInt64] = [:]) -> Bool {
+        if includesUnattributedContext || sources.isEmpty {
+            return revision < currentRevision
+        }
+        return sources.contains {
+            (revisions[$0.dayKey] ?? 0) > revision
+                || ($0.kind == .meeting && (meetingRevisions[$0.id.uppercased()] ?? 0) > revision)
+        }
+    }
+}
+
 /// One overnight retrospective of a single local calendar day. Persisted as
 /// `dreams/<day>.json` (+ a rendered `.md` sibling) and shown on Today the
 /// next morning. `engineName == nil` marks a deterministic evidence-only
 /// fallback; `fallbackReason` records whether the engine was unavailable or
 /// returned an unreadable response.
 struct DreamReport: Codable, Equatable, Sendable {
-    static let currentVersion = 2
+    static let currentVersion = 3
 
     var version: Int = DreamReport.currentVersion
     /// The analyzed local calendar day ("yyyy-MM-dd"), i.e. yesterday at
@@ -89,6 +124,7 @@ struct DreamReport: Codable, Equatable, Sendable {
     var inferenceProvenance: DreamInferenceProvenance?
     /// Nil for model-generated reports and legacy evidence-only reports.
     var fallbackReason: DreamFallbackReason?
+    var evidenceProvenance: DreamEvidenceProvenance?
     var narrative: String
     /// Critical items and regressions that deserve attention first.
     var attention: [String] = []
@@ -206,7 +242,7 @@ struct DreamMemoryUpdate: Equatable, Sendable {
 /// (+ a rendered `.md` sibling) under the storage root and fed back into the
 /// next night's dream as context.
 struct DreamMemory: Codable, Equatable, Sendable {
-    static let currentVersion = 1
+    static let currentVersion = 2
     static let maxProjects = 12
     static let maxGoals = 10
     static let maxPatterns = 12
@@ -226,6 +262,7 @@ struct DreamMemory: Codable, Equatable, Sendable {
         /// User-pinned entries are exempt from retention age-out and cap
         /// eviction; a dream can update them but never remove them.
         var pinned: Bool = false
+        var provenance: DreamEvidenceProvenance?
     }
 
     struct Goal: Codable, Equatable, Sendable {
@@ -237,6 +274,7 @@ struct DreamMemory: Codable, Equatable, Sendable {
         /// User-pinned entries are exempt from retention age-out, cap
         /// eviction, and model-proposed expiry.
         var pinned: Bool = false
+        var provenance: DreamEvidenceProvenance?
     }
 
     var version: Int = DreamMemory.currentVersion
@@ -245,6 +283,9 @@ struct DreamMemory: Codable, Equatable, Sendable {
     var activeProjects: [Project] = []
     var workGoals: [Goal] = []
     var recurringPatterns: [String] = []
+    /// Parallel metadata keeps the public string list compatible with older
+    /// views and exports. Missing entries represent unattributed legacy data.
+    var patternProvenance: [String: DreamEvidenceProvenance] = [:]
 
     var isEmpty: Bool {
         activeProjects.isEmpty && workGoals.isEmpty && recurringPatterns.isEmpty
@@ -264,8 +305,10 @@ struct DreamMemory: Codable, Equatable, Sendable {
     /// - patterns are a full replacement list, including an explicit empty list;
     /// - everything is capped so memory can never grow unbounded.
     func merging(_ update: DreamMemoryUpdate, dreamDay: String, at date: Date,
-                 calendar: Calendar = .current) -> DreamMemory {
+                 calendar: Calendar = .current,
+                 provenance: DreamEvidenceProvenance? = nil) -> DreamMemory {
         var merged = self
+        merged.version = Self.currentVersion
         merged.updatedAt = date
         merged.lastDreamDay = dreamDay
 
@@ -279,10 +322,14 @@ struct DreamMemory: Codable, Equatable, Sendable {
                     || projects[index].evidence != evidence
                 projects[index].status = proposed.status
                 projects[index].evidence = evidence
-                if changed { projects[index].lastActiveDay = dreamDay }
+                if changed {
+                    projects[index].lastActiveDay = dreamDay
+                    projects[index].provenance = provenance
+                }
             } else {
                 projects.append(Project(name: proposed.name, status: proposed.status,
-                                        lastActiveDay: dreamDay, evidence: evidence))
+                                        lastActiveDay: dreamDay, evidence: evidence,
+                                        provenance: provenance))
             }
         }
         merged.activeProjects = Array(
@@ -315,10 +362,11 @@ struct DreamMemory: Codable, Equatable, Sendable {
                 if proposed.reinforcedToday {
                     goals[index].horizon = proposed.horizon
                     goals[index].lastReinforcedDay = dreamDay
+                    goals[index].provenance = provenance
                 }
             } else if proposed.reinforcedToday {
                 goals.append(Goal(text: proposed.text, horizon: proposed.horizon,
-                                  lastReinforcedDay: dreamDay))
+                                  lastReinforcedDay: dreamDay, provenance: provenance))
             }
         }
         merged.workGoals = Array(
@@ -337,7 +385,56 @@ struct DreamMemory: Codable, Equatable, Sendable {
                 .prefix(Self.maxGoals))
 
         merged.recurringPatterns = Array(update.recurringPatterns.prefix(Self.maxPatterns))
+        merged.patternProvenance = [:]
+        for pattern in merged.recurringPatterns {
+            // An unchanged pattern keeps its original dependencies. Reworded
+            // or new patterns depend on everything the synthesis could read.
+            if recurringPatterns.contains(pattern) {
+                merged.patternProvenance[pattern] = patternProvenance[pattern]
+            } else {
+                merged.patternProvenance[pattern] = provenance
+            }
+        }
         return merged
+    }
+
+    /// A synthesis can use any memory item in its context. Track that complete
+    /// dependency closure conservatively; model citations cannot prove that a
+    /// different item had no influence on its output.
+    func provenance(adding sources: [DreamEvidenceSource], revision: UInt64) -> DreamEvidenceProvenance {
+        let dependencies = activeProjects.map(\.provenance)
+            + workGoals.map(\.provenance)
+            + recurringPatterns.map { patternProvenance[$0] }
+        let inherited = dependencies.compactMap { $0 }
+        let allSources = Set(sources + inherited.flatMap(\.sources))
+        return DreamEvidenceProvenance(
+            sources: allSources.sorted {
+                if $0.dayKey != $1.dayKey { return $0.dayKey < $1.dayKey }
+                if $0.kind != $1.kind { return $0.kind.rawValue < $1.kind.rawValue }
+                return $0.id < $1.id
+            },
+            revision: revision,
+            includesUnattributedContext: dependencies.contains { $0 == nil }
+                || inherited.contains(where: \.includesUnattributedContext))
+    }
+
+    /// Source revocation overrides pinning. Without provenance an older entry
+    /// cannot safely be attributed to an unaffected source, so the first
+    /// evidence mutation removes it instead of guessing from its display text.
+    func retractingEvidence(invalidations: [String: UInt64], revision: UInt64,
+                            meetingInvalidations: [String: UInt64] = [:]) -> DreamMemory {
+        guard revision > 0 else { return self }
+        func keep(_ provenance: DreamEvidenceProvenance?) -> Bool {
+            guard let provenance else { return false }
+            return !provenance.isInvalidated(by: invalidations, currentRevision: revision,
+                                            meetingRevisions: meetingInvalidations)
+        }
+        var memory = self
+        memory.activeProjects.removeAll { !keep($0.provenance) }
+        memory.workGoals.removeAll { !keep($0.provenance) }
+        memory.recurringPatterns.removeAll { !keep(patternProvenance[$0]) }
+        memory.patternProvenance = patternProvenance.filter { memory.recurringPatterns.contains($0.key) }
+        return memory
     }
 
     func markdown() -> String {
@@ -383,7 +480,27 @@ struct DreamMemory: Codable, Equatable, Sendable {
             scrubbed.horizon = ScreenContextPrivacy.redact(goal.horizon).text
             return scrubbed
         }
-        memory.recurringPatterns = recurringPatterns.map { ScreenContextPrivacy.redact($0).text }
+        memory.patternProvenance = [:]
+        var unattributedPatterns: Set<String> = []
+        memory.recurringPatterns = recurringPatterns.map { pattern in
+            let redacted = ScreenContextPrivacy.redact(pattern).text
+            if let provenance = patternProvenance[pattern] {
+                // Redaction can collapse two strings; retain both dependencies.
+                if let prior = memory.patternProvenance[redacted] {
+                    memory.patternProvenance[redacted] = DreamEvidenceProvenance(
+                        sources: Array(Set(prior.sources + provenance.sources)),
+                        revision: min(prior.revision, provenance.revision),
+                        includesUnattributedContext: prior.includesUnattributedContext
+                            || provenance.includesUnattributedContext)
+                } else {
+                    memory.patternProvenance[redacted] = provenance
+                }
+            } else {
+                unattributedPatterns.insert(redacted)
+            }
+            return redacted
+        }
+        for pattern in unattributedPatterns { memory.patternProvenance.removeValue(forKey: pattern) }
         return memory
     }
 
@@ -404,11 +521,10 @@ struct DreamMemory: Codable, Equatable, Sendable {
 
 // `pinned` postdates the first memory files. Custom decoding (in extensions,
 // so the memberwise initializers keep their defaults) treats a missing key as
-// false; encoding stays synthesized and old readers ignore the extra key, so
-// the format version stays 1.
+// false. Missing provenance stays unknown and is never guessed from model text.
 extension DreamMemory.Project {
     private enum DecodingKeys: String, CodingKey {
-        case name, status, lastActiveDay, evidence, pinned
+        case name, status, lastActiveDay, evidence, pinned, provenance
     }
 
     init(from decoder: Decoder) throws {
@@ -418,12 +534,13 @@ extension DreamMemory.Project {
         lastActiveDay = try container.decode(String.self, forKey: .lastActiveDay)
         evidence = try container.decodeIfPresent([String].self, forKey: .evidence) ?? []
         pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        provenance = try container.decodeIfPresent(DreamEvidenceProvenance.self, forKey: .provenance)
     }
 }
 
 extension DreamMemory.Goal {
     private enum DecodingKeys: String, CodingKey {
-        case text, horizon, lastReinforcedDay, pinned
+        case text, horizon, lastReinforcedDay, pinned, provenance
     }
 
     init(from decoder: Decoder) throws {
@@ -432,5 +549,24 @@ extension DreamMemory.Goal {
         horizon = try container.decode(String.self, forKey: .horizon)
         lastReinforcedDay = try container.decode(String.self, forKey: .lastReinforcedDay)
         pinned = try container.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        provenance = try container.decodeIfPresent(DreamEvidenceProvenance.self, forKey: .provenance)
+    }
+}
+
+extension DreamMemory {
+    private enum DecodingKeys: String, CodingKey {
+        case version, updatedAt, lastDreamDay, activeProjects, workGoals, recurringPatterns, patternProvenance
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: DecodingKeys.self)
+        version = try container.decode(Int.self, forKey: .version)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        lastDreamDay = try container.decodeIfPresent(String.self, forKey: .lastDreamDay)
+        activeProjects = try container.decode([Project].self, forKey: .activeProjects)
+        workGoals = try container.decode([Goal].self, forKey: .workGoals)
+        recurringPatterns = try container.decode([String].self, forKey: .recurringPatterns)
+        patternProvenance = try container.decodeIfPresent(
+            [String: DreamEvidenceProvenance].self, forKey: .patternProvenance) ?? [:]
     }
 }

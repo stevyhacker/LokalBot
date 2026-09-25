@@ -111,10 +111,10 @@ final class ActionThreadsTests: XCTestCase {
         }
         var notifications: [Meeting.ID] = []
         var batches: [[Meeting.ID]] = []
-        let index = OutcomeIndex(storage: storage) { meetings in
+        let index = OutcomeIndex(storage: storage, onEvidenceChanged: { meetings in
             notifications.append(contentsOf: meetings.map(\.id))
             batches.append(meetings.map(\.id))
-        }
+        })
         index.refresh(meetings: meetings)
         let thread = try XCTUnwrap(index.openUserActionThreads.first)
         XCTAssertEqual(thread.meetingCount, 2)
@@ -182,6 +182,47 @@ final class ActionThreadsTests: XCTestCase {
         XCTAssertEqual(updated[0].owner, "Alice")
         XCTAssertFalse(updated[0].isForUser)
         XCTAssertEqual(updated[0].text, second.text)
+    }
+
+    func testLatestExplicitClearsWinAcrossThreadReferences() throws {
+        let start = Date(timeIntervalSince1970: 1_780_000_000)
+        var older = reference(
+            meetingID: UUID(), meetingTitle: "Planning", startedAt: start,
+            text: "Send the revised launch proposal", owner: "Me", due: "Friday")
+        older.owner = "Alice"
+        older.due = "Tuesday"
+        older.ownerWasCorrected = true
+        older.dueWasCorrected = true
+        older.ownerCorrectedAt = start.addingTimeInterval(30)
+        older.dueCorrectedAt = start.addingTimeInterval(30)
+        var cleared = reference(
+            meetingID: UUID(), meetingTitle: "Review",
+            startedAt: start.addingTimeInterval(60),
+            text: "Send the revised launch proposal", owner: "Me", due: "Monday")
+        cleared.owner = nil
+        cleared.due = nil
+        cleared.ownerWasCorrected = true
+        cleared.dueWasCorrected = true
+        cleared.ownerCorrectedAt = start.addingTimeInterval(90)
+        cleared.dueCorrectedAt = start.addingTimeInterval(90)
+
+        let thread = try XCTUnwrap(ActionThreadClusterer.cluster([older, cleared]).first)
+
+        XCTAssertNil(thread.owner)
+        XCTAssertNil(thread.due)
+    }
+
+    func testCorrectionIntentDistinguishesUntouchedNilFromExplicitClear() {
+        XCTAssertNil(ActionCorrectionFieldIntent.persistedValue(
+            "", wasCorrected: false, wasEdited: false))
+        XCTAssertEqual(ActionCorrectionFieldIntent.persistedValue(
+            "", wasCorrected: false, wasEdited: true), "")
+        XCTAssertEqual(ActionCorrectionFieldIntent.persistedValue(
+            "", wasCorrected: true, wasEdited: false), "")
+        XCTAssertNil(ActionCorrectionFieldIntent.persistedValue(
+            "Me", wasCorrected: false, wasEdited: false))
+        XCTAssertEqual(ActionCorrectionFieldIntent.persistedValue(
+            "Alice", wasCorrected: false, wasEdited: true), "Alice")
     }
 
     func testRemoteAliasMeCannotEnterUserActionThreads() throws {

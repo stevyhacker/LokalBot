@@ -62,6 +62,11 @@ struct CotypingField: Equatable, Sendable {
     /// The field's own font/color (resolved from AX, cached per element) when
     /// host-style matching is enabled, so the ghost can mimic the field.
     var fieldStyle: CotypingFieldStyle?
+    /// The leading edge was clipped by the shared UTF-16 context policy.
+    var precedingTextIsTruncated: Bool = false
+    /// Hash of a positively identified document, never inferred from a recipient
+    /// name or generic window title. Nil means local learning must abstain.
+    var learningScopeKey: String?
 
     /// Content-only fingerprint used to detect "did the field actually change"
     /// across keystrokes and to drop stale async generations. Excludes the AX

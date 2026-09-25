@@ -31,6 +31,10 @@ struct DreamEvidence: Equatable, Sendable {
     var priorMeetings: [PriorMeeting]
     /// Pre-rendered action-candidate lines from the window, `- [ ] …` style.
     var openActions: [String]
+    /// Complete, app-owned dependency set for the rendered input, including
+    /// comparison-window actions and day-level screen/digest evidence. It may
+    /// conservatively include truncated inputs; it never omits a read source.
+    var sources: [DreamEvidenceSource] = []
 
     /// True when the analyzed day itself produced nothing worth a model pass:
     /// no meetings, no digest, no saved moments, and less tracked time than a
@@ -109,9 +113,18 @@ enum DreamCompiler {
             .filter { $0.status != .done }
             .map(actionLine)
 
+        let dayKey = DreamDay.key(for: start, calendar: calendar)
+        var sources = all.filter { $0.startedAt >= windowStart && $0.startedAt < end }
+            .map {
+                DreamEvidenceSource(kind: .meeting, id: $0.id.uuidString,
+                                    dayKey: DreamDay.key(for: $0.startedAt, calendar: calendar))
+            }
+        sources.append(DreamEvidenceSource(kind: .screenDay, id: dayKey, dayKey: dayKey))
+        sources.append(DreamEvidenceSource(kind: .digest, id: dayKey, dayKey: dayKey))
+
         return DreamEvidence(
             day: start,
-            dayKey: DreamDay.key(for: start, calendar: calendar),
+            dayKey: dayKey,
             digest: trimmedToNil(DailyEvidenceArtifacts.currentDigest(
                 for: snapshot,
                 root: storageRoot,
@@ -121,7 +134,8 @@ enum DreamCompiler {
             stats: snapshot.stats,
             savedMoments: snapshot.savedMoments,
             priorMeetings: priorMeetings,
-            openActions: Array(openActions.prefix(maxOpenActions)))
+            openActions: Array(openActions.prefix(maxOpenActions)),
+            sources: sources)
     }
 
     /// The prompt material: every evidence section rendered as labeled plain

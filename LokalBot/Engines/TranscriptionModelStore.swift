@@ -91,11 +91,9 @@ struct TranscriptionModelStore {
                 at: cohereDirectory(environment: environment),
                 requiredFiles: ModelNames.CohereTranscribe.requiredModels)
         case .senseVoice:
-            return onnxModelExists(folderName: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09",
-                                   environment: environment)
+            return onnxModelExists(model: .senseVoice, environment: environment)
         case .gigaamRussian:
-            return onnxModelExists(folderName: "sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16",
-                                   environment: environment)
+            return onnxModelExists(model: .gigaamRussian, environment: environment)
         }
     }
 
@@ -172,13 +170,12 @@ struct TranscriptionModelStore {
             .appendingPathComponent(folderName, isDirectory: true)
     }
 
-    private static func onnxModelExists(folderName: String, environment: Environment) -> Bool {
-        let directory = onnxDirectory(folderName: folderName, environment: environment)
-        let hasModel = ["model.int8.onnx", "model.onnx"].contains { fileName in
-            FileManager.default.fileExists(atPath: directory.appendingPathComponent(fileName).path)
-        }
-        return hasModel && FileManager.default.fileExists(
-            atPath: directory.appendingPathComponent("tokens.txt").path)
+    private static func onnxModelExists(model: OnnxTranscriptionEngine.Model, environment: Environment) -> Bool {
+        // UI reads the successful-install receipt and sizes; preparation does
+        // the full digest pass off the MainActor before using any weights.
+        OnnxTranscriptionEngine.isModelInstalled(
+            in: onnxDirectory(folderName: model.folderName, environment: environment),
+            model: model, verifyContents: false)
     }
 
     private static func whisperModelDirectories(environment: Environment) -> [URL] {

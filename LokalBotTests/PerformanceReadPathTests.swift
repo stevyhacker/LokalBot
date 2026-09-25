@@ -64,6 +64,36 @@ final class PerformanceReadPathTests: XCTestCase {
         XCTAssertNil(reopened.ocrText(snapshotID: saved))
     }
 
+    func testRetainedTextCleanupBatchesIndexedRowsAndPreservesSavedEvidence() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent("library.sqlite")
+        let store = ActivityStore(databaseURL: url)
+        var expired: [Int64] = []
+        for index in 0..<405 {
+            expired.append(try store.insertScreenshot(
+                ts: Date(), path: "", app: "Notes",
+                windowTitle: "Expired \(index)", ocr: "private text \(index)",
+                sourceURL: "https://example.test/\(index)", documentName: "\(index).md"))
+        }
+        let saved = try store.insertScreenshot(
+            ts: Date(), path: "", app: "Notes", windowTitle: "Saved",
+            ocr: "saved private text", sourceURL: "https://example.test/saved",
+            documentName: "saved.md")
+        try store.saveMoment(snapshotID: saved)
+
+        try store.clearRetainedText(ids: expired + [saved, expired[0], 0, -1])
+
+        let database = try XCTUnwrap(SQLiteDatabase(url: url, readOnly: true))
+        XCTAssertEqual(database.firstDouble("SELECT COUNT(*) FROM ocr_metadata"), 1)
+        XCTAssertEqual(database.firstDouble("SELECT COUNT(*) FROM ocr_fts"), 1)
+        XCTAssertNil(store.ocrText(snapshotID: expired[0]))
+        XCTAssertEqual(store.ocrText(snapshotID: saved), "saved private text")
+        XCTAssertEqual(try store.screenshotChecked(id: expired[404])?.windowTitle, "")
+        XCTAssertEqual(try store.screenshotChecked(id: saved)?.windowTitle, "Saved")
+    }
+
     func testWorkerOwnsReadOnlyConnectionOffMainThread() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

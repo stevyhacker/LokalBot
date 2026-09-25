@@ -2,6 +2,26 @@ import XCTest
 @testable import LokalBot
 
 final class MeetingIntegrityTests: XCTestCase {
+    func testBoundMinimizedCallSuspendsUntilVisibilityReturnsWithoutAuthorizingANewStart() {
+        let start = Date(timeIntervalSince1970: 100)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .minimized, hostPresent: true, observationLostAt: start,
+            now: start.addingTimeInterval(119.9), grace: 120), .visibilitySuspended)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .minimized, hostPresent: true, observationLostAt: start,
+            now: start.addingTimeInterval(120), grace: 120), .visibilitySuspended)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .minimized, hostPresent: true, observationLostAt: start,
+            now: start.addingTimeInterval(7_200), grace: 120), .visibilitySuspended)
+        XCTAssertEqual(BrowserMeetingSession.lifecycleDecision(
+            snapshotState: .minimized, hostPresent: false, observationLostAt: start,
+            now: start.addingTimeInterval(121), grace: 120), .endAfterGrace)
+        var gate = BrowserMeetingSession.StartGate()
+        let url = URL(string: "https://meet.google.com/abc-defg-hij")!
+        XCTAssertFalse(gate.observe(.init(url: url, state: .minimized), at: start))
+        XCTAssertFalse(gate.observe(.init(url: url, state: .minimized), at: start.addingTimeInterval(20)))
+    }
+
     func testBrowserRequiresCallControlsAndSustainedSameDocument() {
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Join now", "Turn off microphone"], messages: []), .unavailable)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone (⌘D)"], messages: []), .inCall)
@@ -291,11 +311,11 @@ final class MeetingIntegrityTests: XCTestCase {
         do {
             try await MeetingNotesGenerator.generatePart(part, job: recoveryJob(replies)) { part = $0 }
             XCTFail("repeated empty continuations must stop")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("no further verifiable progress")) }
+        } catch { XCTAssertTrue(error.localizedDescription.contains("no further source-linked progress")) }
         do {
             try await MeetingNotesGenerator.generatePart(part, job: recoveryJob(replies)) { part = $0 }
             XCTFail("a third identical attempt must not call the provider")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("no further verifiable progress")) }
+        } catch { XCTAssertTrue(error.localizedDescription.contains("no further source-linked progress")) }
         let count = await replies.calls
         XCTAssertEqual(count, 2)
     }

@@ -7,6 +7,137 @@ import XCTest
 /// initial state, timer formatting, idle health reporting, and idle stop.
 @MainActor
 final class RecordingControllerTests: XCTestCase {
+    func testDeviceReconnectRearmsOnlyAnActiveExhaustedRecovery() {
+        XCTAssertTrue(MicRecorder.shouldRearmAfterDeviceEvent(
+            isRecording: true, recovery: .degraded(errorDescription: "Unavailable")))
+        XCTAssertFalse(MicRecorder.shouldRearmAfterDeviceEvent(
+            isRecording: false, recovery: .degraded(errorDescription: "Unavailable")))
+        XCTAssertFalse(MicRecorder.shouldRearmAfterDeviceEvent(isRecording: true, recovery: .healthy))
+        XCTAssertFalse(MicRecorder.shouldRearmAfterDeviceEvent(isRecording: true, recovery: .recovering(attempt: 2)))
+    }
+
+    func testFailedMetadataFinalizationReloadsLaterEditsAndFinishesOnlyOnce() throws {
+        let (storage, meeting) = try makeFinalizationFixture()
+        let metadata = meeting.folderURL(in: storage).appendingPathComponent("meta.json")
+        try FileManager.default.removeItem(at: metadata)
+        try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: false)
+        let jobs = PipelineJobStore(databaseURL: storage.rootURL.appendingPathComponent("jobs.sqlite"))
+        let pipeline = ProcessingPipeline(storage: storage, jobStore: jobs, settings: { AppSettings() })
+        var errors: [String] = []
+        var finishedIDs: [UUID] = []
+        let controller = RecordingController(storage: storage,
+            settingsStore: SettingsStore(initialSettings: automaticProcessingSettings()),
+            audioMonitor: AudioSourceMonitor(), pipeline: pipeline, isInteractive: { false },
+            onError: { if let error = $0 { errors.append(error) } },
+            onMeetingFinished: { finishedIDs.append($0.id) })
+
+        XCTAssertFalse(controller.finalize(meeting, process: true, deferProcessing: true))
+        XCTAssertFalse(controller.prepareForTermination())
+        XCTAssertTrue(errors.contains { $0.contains("details could not be saved") })
+        XCTAssertNil(jobs.job(meetingID: meeting.id))
+        XCTAssertFalse(pipeline.hasActiveWork)
+
+        try FileManager.default.removeItem(at: metadata)
+        var edited = meeting
+        edited.title = "Title edited after failed finalization"
+        edited.endedAt = nil
+        edited.contentRange = .init(start: 5, end: 45)
+        try storage.saveMeta(edited)
+        XCTAssertTrue(controller.prepareForTermination())
+        let saved = try XCTUnwrap(SessionLookup.loadAllMeetings(root: storage.rootURL).first)
+        XCTAssertEqual(saved.title, edited.title)
+        XCTAssertEqual(saved.contentRange, edited.contentRange)
+        XCTAssertEqual(saved.endedAt?.timeIntervalSince1970 ?? 0,
+                       meeting.endedAt?.timeIntervalSince1970 ?? 0, accuracy: 1)
+        let job = try XCTUnwrap(jobs.job(meetingID: meeting.id))
+        XCTAssertTrue(job.transcribe)
+        XCTAssertTrue(job.summarize)
+        XCTAssertTrue(job.summaryFollowsSetting)
+        XCTAssertEqual(finishedIDs, [meeting.id])
+        XCTAssertFalse(pipeline.hasActiveWork)
+    }
+
+    func testQueueFailureRetriesWithoutOverwritingSavedMeetingEdits() throws {
+        let (storage, meeting) = try makeFinalizationFixture()
+        let databaseURL = storage.rootURL.appendingPathComponent("jobs.sqlite")
+        let jobs = PipelineJobStore(databaseURL: databaseURL)
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        try database.execute("""
+            CREATE TRIGGER reject_job BEFORE INSERT ON pipeline_jobs
+            BEGIN SELECT RAISE(ABORT, 'synthetic write failure'); END;
+            """)
+        let pipeline = ProcessingPipeline(storage: storage, jobStore: jobs, settings: { AppSettings() })
+        var errors: [String] = []
+        let controller = RecordingController(storage: storage,
+            settingsStore: SettingsStore(initialSettings: automaticProcessingSettings()),
+            audioMonitor: AudioSourceMonitor(), pipeline: pipeline, isInteractive: { false },
+            onError: { if let error = $0 { errors.append(error) } }, onMeetingFinished: { _ in })
+
+        XCTAssertFalse(controller.finalize(meeting, process: true, deferProcessing: true))
+        XCTAssertFalse(controller.prepareForTermination())
+        XCTAssertTrue(errors.contains { $0.contains("processing job could not be saved") })
+        XCTAssertNil(jobs.job(meetingID: meeting.id))
+        var edited = meeting
+        edited.title = "Title edited after stopping"
+        try storage.saveMeta(edited)
+        try database.execute("DROP TRIGGER reject_job")
+
+        XCTAssertTrue(controller.prepareForTermination())
+        XCTAssertEqual(try SessionLookup.loadAllMeetings(root: storage.rootURL).first?.title, edited.title)
+        XCTAssertNotNil(jobs.job(meetingID: meeting.id))
+        XCTAssertFalse(pipeline.hasActiveWork)
+    }
+
+    func testFinalizationMergePreservesExplicitEditsOnCompletedMetadata() throws {
+        let (_, meeting) = try makeFinalizationFixture()
+        var finalized = meeting
+        finalized.recordedDuration = 60
+        finalized.contentRange = .init(start: 5, end: 45)
+        var edited = finalized
+        edited.title = "Later title"
+        edited.contentRange = nil
+
+        let merged = RecordingController.mergingFinalization(finalized, into: edited)
+
+        XCTAssertEqual(merged.title, edited.title)
+        XCTAssertNil(merged.contentRange, "an explicit later boundary reset must not be restored from stale state")
+        XCTAssertEqual(merged.endedAt, edited.endedAt)
+        XCTAssertEqual(merged.recordedDuration, edited.recordedDuration)
+    }
+
+    func testDeletingFailedFinalizationDiscardsTheRetry() throws {
+        let (storage, meeting) = try makeFinalizationFixture()
+        let folder = meeting.folderURL(in: storage)
+        try storage.deleteMeeting(meeting)
+        let jobs = PipelineJobStore(databaseURL: storage.rootURL.appendingPathComponent("jobs.sqlite"))
+        let pipeline = ProcessingPipeline(storage: storage, jobStore: jobs, settings: { AppSettings() })
+        let controller = RecordingController(storage: storage,
+            settingsStore: SettingsStore(initialSettings: automaticProcessingSettings()),
+            audioMonitor: AudioSourceMonitor(), pipeline: pipeline, isInteractive: { false },
+            onError: { _ in }, onMeetingFinished: { _ in })
+
+        XCTAssertFalse(controller.finalize(meeting, process: true, deferProcessing: true))
+        controller.forgetFinalization(meetingIDs: [meeting.id])
+        XCTAssertTrue(controller.prepareForTermination())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertNil(jobs.job(meetingID: meeting.id))
+    }
+
+    private func makeFinalizationFixture() throws -> (StorageManager, Meeting) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("finalization-\(UUID())")
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        var meeting = try storage.createMeetingFolder(title: "Synthetic recording", appName: "Fixture")
+        meeting.endedAt = meeting.startedAt.addingTimeInterval(60)
+        return (storage, meeting)
+    }
+
+    private func automaticProcessingSettings() -> AppSettings {
+        var settings = AppSettings()
+        settings.autoTranscribe = true
+        settings.autoSummarize = true
+        return settings
+    }
 
     private func makeController() -> RecordingController {
         let root = FileManager.default.temporaryDirectory
@@ -15,7 +146,7 @@ final class RecordingControllerTests: XCTestCase {
         let storage = StorageManager(rootURL: root)
         return RecordingController(
             storage: storage,
-            settingsStore: SettingsStore(),
+            settingsStore: SettingsStore(initialSettings: AppSettings()),
             audioMonitor: AudioSourceMonitor(),
             pipeline: ProcessingPipeline(storage: storage, settings: { AppSettings() }),
             isInteractive: { false },
@@ -129,7 +260,7 @@ final class RecordingControllerTests: XCTestCase {
     func testPrepareForTerminationFromIdleKeepsControllerIdle() {
         let controller = makeController()
 
-        controller.prepareForTermination()
+        XCTAssertTrue(controller.prepareForTermination())
 
         XCTAssertFalse(controller.isRecording)
         XCTAssertNil(controller.currentMeeting)

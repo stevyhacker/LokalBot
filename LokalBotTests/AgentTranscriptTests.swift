@@ -6,6 +6,33 @@ import XCTest
 /// per toolCallId, and empty assistant bubbles (tool-call-only turns) are
 /// dropped.
 final class AgentTranscriptTests: XCTestCase {
+    func testTerminalModelErrorPreservesPartialAnswerAndFailure() throws {
+        var folder = AgentTranscriptFolder()
+        folder.fold(.agentStart)
+        folder.fold(.messageStart(role: "assistant"))
+        folder.fold(.messageUpdate(.textDelta("Partial answer")))
+        let event = try XCTUnwrap(PiEvent.decode(line:
+            #"{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"401 Invalid API key"}}"#))
+        folder.fold(event)
+        XCTAssertFalse(folder.items.contains { if case .notice = $0 { true } else { false } })
+        folder.fold(.agentSettled)
+        XCTAssertEqual(folder.terminalFailure, "401 Invalid API key")
+        XCTAssertTrue(folder.items.contains { if case .assistant(_, "Partial answer", false) = $0 { true } else { false } })
+        XCTAssertTrue(folder.items.contains { if case .notice(_, "401 Invalid API key", true) = $0 { true } else { false } })
+    }
+
+    func testAutomaticRetrySuccessDoesNotBecomeATerminalFailure() {
+        var folder = AgentTranscriptFolder()
+        folder.fold(.agentStart)
+        folder.fold(.messageEnd(role: "assistant", text: "", stopReason: "error", errorMessage: "retry me"))
+        folder.fold(.agentEnd)
+        folder.fold(.messageStart(role: "assistant"))
+        folder.fold(.messageEnd(role: "assistant", text: "Recovered", stopReason: "stop"))
+        folder.fold(.agentSettled)
+        XCTAssertNil(folder.terminalFailure)
+        XCTAssertFalse(folder.items.contains { if case .notice(_, _, true) = $0 { true } else { false } })
+    }
+
 
     func testStreamingAssistantMessageLifecycle() {
         var folder = AgentTranscriptFolder()

@@ -51,6 +51,31 @@ final class CotypingMarkerSelectionSynthesizerTests: XCTestCase {
         XCTAssertEqual(result.selection.length, 0)
     }
 
+    func testPredictionAndAcceptanceShareUnicodeWindows() throws {
+        for (before, after) in [
+            (String(repeating: "e\u{301}", count: 3_000), ""),
+            ("Hello", String(repeating: "😀", count: 700)),
+            (String(repeating: "👩🏽‍💻", count: 600) + "x", String(repeating: "e\u{301}", count: 800)),
+            (String(repeating: "😀", count: 3_000) + "x", String(repeating: "👩🏽‍💻", count: 700)),
+        ] {
+            let marker = CotypingMarkerSelectionSynthesizer.make(beforeCaret: before, selected: "", afterCaret: after)
+            let value = before + after
+            let ns = value as NSString
+            let selection = NSRange(location: before.utf16.count, length: 0)
+            let ranges = try XCTUnwrap(CotypingAcceptanceContentBounds.ranges(
+                selection: selection, totalUTF16Length: ns.length))
+            let acceptance = CotypingAcceptanceContentBounds.context(
+                precedingText: ns.substring(with: ranges.preceding), trailingText: ns.substring(with: ranges.trailing),
+                ranges: ranges, totalUTF16Length: ns.length)
+            XCTAssertEqual(marker.context, acceptance)
+            XCTAssertEqual(CotypingAcceptanceContentBounds.context(in: value, selection: selection), acceptance)
+            XCTAssertFalse(acceptance.preceding.contains("\u{FFFD}"))
+            XCTAssertFalse(acceptance.trailing.contains("\u{FFFD}"))
+            XCTAssertLessThanOrEqual(acceptance.preceding.utf16.count, 4_096)
+            XCTAssertLessThanOrEqual(acceptance.trailing.utf16.count, 1_024)
+        }
+    }
+
     func testShorterThanWindowIsUnchanged() {
         let result = CotypingMarkerSelectionSynthesizer.make(
             beforeCaret: "ab",

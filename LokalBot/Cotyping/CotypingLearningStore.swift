@@ -11,6 +11,36 @@ struct CotypingLearningExample: Codable, Equatable, Identifiable, Sendable {
     var contextHint: String?
     var prefixTail: String
     var acceptedText: String
+    var scopeKey: String?
+}
+
+/// Learning is confined to an identified document. Generic windows, messaging
+/// surfaces, and unknown websites cannot establish a recipient boundary.
+enum CotypingLearningScope {
+    static let nativeDocumentApps: Set<String> = [
+        "com.apple.textedit", "com.apple.iwork.pages", "com.microsoft.word",
+    ]
+
+    static func key(bundleID: String?, documentURLString: String?) -> String? {
+        guard let bundle = bundleID?.lowercased(), let raw = documentURLString,
+              let url = URL(string: raw) else { return nil }
+        let identity: String
+        if nativeDocumentApps.contains(bundle), url.isFileURL,
+           url.host == nil || url.host == "" || url.host == "localhost" {
+            identity = url.standardizedFileURL.path
+        } else if CotypingSurfaceClassifier.classify(bundleID: bundle) == .browser,
+                  url.scheme == "https", url.host?.lowercased() == "docs.google.com",
+                  url.user == nil, url.password == nil, url.port == nil {
+            let parts = url.path.split(separator: "/")
+            guard parts.count >= 3, parts[0] == "document", parts[1] == "d",
+                  !parts[2].isEmpty else { return nil }
+            identity = "https://docs.google.com/document/d/" + parts[2]
+        } else {
+            return nil
+        }
+        return SHA256.hash(data: Data((bundle + "\u{1f}" + identity).utf8))
+            .map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 struct CotypingLearningSnapshot: Codable, Equatable, Sendable {
@@ -77,6 +107,7 @@ enum CotypingLearningRanker {
     static let maxPrefixCharacters = 180
     static let maxContextCharacters = 180
     static let minimumRankScore = 5
+    static let retentionInterval: TimeInterval = 30 * 24 * 60 * 60
 
     static func acceptedText(_ text: String) -> String? {
         guard let cleaned = clean(text, maxCharacters: maxAcceptedCharacters),
@@ -102,11 +133,11 @@ enum CotypingLearningRanker {
     }
 
     static func canLearn(from field: CotypingField) -> Bool {
-        guard !field.isSecure else { return false }
+        guard !field.isSecure, field.learningScopeKey?.isEmpty == false else { return false }
         switch CotypingSurfaceClassifier.classify(bundleID: field.bundleID) {
-        case .codeEditor, .terminal:
+        case .codeEditor, .terminal, .email, .chat:
             return false
-        case .email, .chat, .browser, .other:
+        case .browser, .other:
             return true
         }
     }
@@ -118,7 +149,8 @@ enum CotypingLearningRanker {
     static func rankedExamples(
         _ examples: [CotypingLearningExample],
         for field: CotypingField,
-        limit: Int
+        limit: Int,
+        now: Date = Date()
     ) -> [String] {
         guard canLearn(from: field), limit > 0 else { return [] }
         let surfaceKey = surfaceKey(for: field.bundleID)
@@ -126,11 +158,15 @@ enum CotypingLearningRanker {
         let contextTerms = contextHint(for: field).map { terms(in: $0) } ?? []
 
         let ranked = examples.compactMap { example -> (score: Int, date: Date, text: String)? in
-            guard let text = acceptedText(example.acceptedText) else { return nil }
+            guard example.scopeKey == field.learningScopeKey,
+                  sameBundle(example.bundleID, field.bundleID),
+                  isRetained(example, now: now),
+                  let text = acceptedText(example.acceptedText) else { return nil }
+            let overlap = prefixTerms.intersection(terms(in: example.prefixTail)).count
+            guard overlap >= 2 else { return nil }
             var score = 0
             if sameBundle(example.bundleID, field.bundleID) { score += 8 }
             if example.surfaceClass == surfaceKey { score += 3 }
-            let overlap = prefixTerms.intersection(terms(in: example.prefixTail)).count
             score += min(overlap, 5)
             if let hint = example.contextHint {
                 let contextOverlap = contextTerms.intersection(terms(in: hint)).count
@@ -154,6 +190,12 @@ enum CotypingLearningRanker {
             if selected.count == limit { break }
         }
         return selected
+    }
+
+    static func isRetained(_ example: CotypingLearningExample, now: Date) -> Bool {
+        example.scopeKey?.isEmpty == false
+            && example.createdAt <= now
+            && now.timeIntervalSince(example.createdAt) < retentionInterval
     }
 
     private static func clean(_ text: String, maxCharacters: Int) -> String? {
@@ -188,7 +230,7 @@ enum CotypingLearningRanker {
         Set(text.lowercased()
             .split { !$0.isLetter && !$0.isNumber }
             .map(String.init)
-            .filter { $0.count >= 3 })
+            .filter { $0.count >= 3 && !["the", "and", "for", "that", "this", "with", "you", "your"].contains($0) })
     }
 }
 
@@ -197,6 +239,7 @@ enum CotypingLearningRanker {
 /// recorder without touching the user's Keychain.
 protocol CotypingLearningPersisting: Sendable {
     func persist(_ snapshot: CotypingLearningSnapshot) async
+    func forget() async throws
 }
 
 actor EncryptedCotypingLearningPersistence: CotypingLearningPersisting {
@@ -206,6 +249,11 @@ actor EncryptedCotypingLearningPersistence: CotypingLearningPersisting {
     init(url: URL, key: SymmetricKey?) {
         self.url = url
         self.key = key
+    }
+
+    func forget() throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
     }
 
     func persist(_ snapshot: CotypingLearningSnapshot) {
@@ -236,7 +284,10 @@ final class CotypingLearningStore: ObservableObject {
     private static let fileName = "cotyping-learning.enc"
 
     @Published private(set) var exampleCount = 0
+    @Published private(set) var isForgetting = false
 
+    private let now: () -> Date
+    private var forgetTask: Task<Void, Error>?
     private let maxExamples: Int
     private let persistence: any CotypingLearningPersisting
     private var persistenceTask: Task<Void, Never>?
@@ -250,10 +301,12 @@ final class CotypingLearningStore: ObservableObject {
         storageRoot: URL,
         maxExamples: Int = 500,
         persistence: (any CotypingLearningPersisting)? = nil,
-        initialSnapshot: CotypingLearningSnapshot? = nil
+        initialSnapshot: CotypingLearningSnapshot? = nil,
+        now: @escaping () -> Date = Date.init
     ) {
         let url = storageRoot.appendingPathComponent(Self.fileName)
         self.maxExamples = maxExamples
+        self.now = now
         let key: SymmetricKey?
         if let initialSnapshot {
             key = nil
@@ -265,21 +318,24 @@ final class CotypingLearningStore: ObservableObject {
         self.persistence = persistence
             ?? EncryptedCotypingLearningPersistence(url: url, key: key)
         self.exampleCount = snapshot.examples.count
+        pruneExpiredExamples()
     }
 
     func recordCompletedSuggestion(field: CotypingField, acceptedText rawText: String) {
-        guard CotypingLearningRanker.canLearn(from: field),
+        pruneExpiredExamples()
+        guard !isForgetting, CotypingLearningRanker.canLearn(from: field),
               let acceptedText = CotypingLearningRanker.acceptedText(rawText) else { return }
 
         let example = CotypingLearningExample(
             id: UUID(),
-            createdAt: Date(),
+            createdAt: now(),
             appName: field.appName,
             bundleID: field.bundleID,
             surfaceClass: CotypingLearningRanker.surfaceKey(for: field.bundleID),
             contextHint: CotypingLearningRanker.contextHint(for: field),
             prefixTail: CotypingLearningRanker.prefixTail(field.precedingText) ?? "",
-            acceptedText: acceptedText)
+            acceptedText: acceptedText,
+            scopeKey: field.learningScopeKey)
         snapshot.examples.append(example)
         if snapshot.examples.count > maxExamples {
             snapshot.examples.removeFirst(snapshot.examples.count - maxExamples)
@@ -289,7 +345,37 @@ final class CotypingLearningStore: ObservableObject {
     }
 
     func examples(for field: CotypingField, limit: Int) -> [String] {
-        CotypingLearningRanker.rankedExamples(snapshot.examples, for: field, limit: limit)
+        pruneExpiredExamples()
+        return CotypingLearningRanker.rankedExamples(snapshot.examples, for: field, limit: limit, now: now())
+    }
+
+    /// Clear memory immediately, then delete after every older queued write.
+    /// New learning is paused while deletion is in flight, so forgotten text
+    /// cannot be restored by an asynchronous write completing later.
+    func forgetAll() async throws {
+        if let forgetTask { return try await forgetTask.value }
+        isForgetting = true
+        snapshot = .init()
+        revision &+= 1
+        enqueuedRevision = revision
+        let previous = persistenceTask
+        let persistence = persistence
+        let deletion = Task.detached(priority: .utility) {
+            await previous?.value
+            try await persistence.forget()
+        }
+        forgetTask = deletion
+        persistenceTask = Task.detached { _ = try? await deletion.value }
+        defer { forgetTask = nil; isForgetting = false }
+        try await deletion.value
+    }
+
+    private func pruneExpiredExamples() {
+        let retained = snapshot.examples.filter { CotypingLearningRanker.isRetained($0, now: now()) }
+        guard retained.count != snapshot.examples.count else { return }
+        snapshot.examples = retained
+        revision &+= 1
+        enqueuePersistence()
     }
 
     /// Forces any dirty in-memory snapshot into the background queue, then

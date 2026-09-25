@@ -1,5 +1,6 @@
 import FluidAudio
 import Foundation
+import CoreML
 
 /// Acoustic speaker clustering for microphone and system-audio tracks.
 /// Clusters identify distinct voices within a track; confirmation and identity
@@ -17,7 +18,7 @@ actor NeuralDiarizationEngine {
 
     init(
         communityLoader: @escaping @Sendable () async throws -> OfflineDiarizerModels = {
-            try await OfflineDiarizerModels.load()
+            try await NeuralDiarizationEngine.loadPinnedCommunityModels()
         },
         nemotronLoader: @escaping @Sendable () async throws -> Nemotron3Models = {
             let directory = try await NemotronDiarizationModels.prepare()
@@ -26,6 +27,40 @@ actor NeuralDiarizationEngine {
     ) {
         self.communityLoader = communityLoader
         self.nemotronLoader = nemotronLoader
+    }
+
+    private static func loadPinnedCommunityModels() async throws -> OfflineDiarizerModels {
+        let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
+            .appendingPathComponent(Repo.diarizer.folderName)
+        // Preserve FluidAudio's existing immutable revision, but verify all
+        // bytes before CoreML parses them and avoid its alternate cache paths.
+        try await PinnedModelSnapshot.catalog("community").prepare(in: directory)
+        let started = Date()
+        func load(_ name: String, units: MLComputeUnits = .all) throws -> MLModel {
+            let configuration = MLModelConfiguration()
+            configuration.computeUnits = units
+            return try MLModel(contentsOf: directory.appendingPathComponent(name), configuration: configuration)
+        }
+        let parameters = try Data(contentsOf: directory.appendingPathComponent("plda-parameters.json"))
+        let root = try JSONSerialization.jsonObject(with: parameters) as? [String: Any]
+        guard let tensors = root?["tensors"] as? [String: Any],
+              let psi = tensors["psi"] as? [String: Any],
+              let base64 = psi["data_base64"] as? String,
+              let data = Data(base64Encoded: base64), !data.isEmpty,
+              data.count.isMultiple(of: MemoryLayout<UInt32>.size) else {
+            throw PinnedModelSnapshot.SnapshotError.integrityFailure("plda-parameters.json")
+        }
+        let pldaPsi: [Double] = data.withUnsafeBytes { bytes in
+            stride(from: 0, to: bytes.count, by: MemoryLayout<UInt32>.size).map { offset in
+                Double(Float(bitPattern: UInt32(littleEndian: bytes.loadUnaligned(fromByteOffset: offset, as: UInt32.self))))
+            }
+        }
+        return try OfflineDiarizerModels(
+            segmentationModel: load(ModelNames.OfflineDiarizer.segmentationPath),
+            fbankModel: load(ModelNames.OfflineDiarizer.fbankPath, units: .cpuOnly),
+            embeddingModel: load(ModelNames.OfflineDiarizer.embeddingPath),
+            pldaRhoModel: load(ModelNames.OfflineDiarizer.pldaRhoPath),
+            pldaPsi: pldaPsi, compilationDuration: Date().timeIntervalSince(started))
     }
 
     enum Failure: LocalizedError {

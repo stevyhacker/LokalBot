@@ -7,6 +7,20 @@ import XCTest
 final class AgentSessionControllerTests: XCTestCase {
 
     private var transport: FakeTransport!
+    private var fixtureRoot: URL!
+
+    override func setUpWithError() throws {
+        fixtureRoot = FileManager.default.temporaryDirectory.appendingPathComponent("agent-controller-\(UUID())")
+        try FileManager.default.createDirectory(at: fixtureRoot, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: fixtureRoot)
+    }
+
+    private var fixtureStorage: StorageManager {
+        StorageManager(rootURL: fixtureRoot.appendingPathComponent("library"))
+    }
 
     private func makeApprovalModeDefaults() -> UserDefaults {
         let suiteName = "AgentApprovalModeTests-\(UUID().uuidString)"
@@ -57,7 +71,9 @@ final class AgentSessionControllerTests: XCTestCase {
         let captured = transport!
         return AgentSessionController(
             settings: { settings },
-            storage: StorageManager(),
+            storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
             makeTransport: { _ in captured },
             approvalModeDefaults: approvalModeDefaults ?? makeApprovalModeDefaults())
     }
@@ -72,13 +88,17 @@ final class AgentSessionControllerTests: XCTestCase {
         tool: String,
         workspace: String,
         path: String?,
-        content: String
+        content: String,
+        command: String? = nil,
+        truncated: Bool = false
     ) throws -> String {
         var payload: [String: Any] = [
             "tool": tool,
             "workspace": workspace,
             "content": content,
+            "truncated": truncated,
         ]
+        if tool == "bash" { payload["command"] = command ?? "printf fixture" }
         if let path { payload["path"] = path }
         let payloadData = try JSONSerialization.data(withJSONObject: payload)
         let payloadString = String(decoding: payloadData, as: UTF8.self)
@@ -149,6 +169,26 @@ final class AgentSessionControllerTests: XCTestCase {
         transport.inject(#"{"type":"response","id":"steer1","command":"steer","success":true}"#)
         let accepted = await send.value
         XCTAssertTrue(accepted)
+        await controller.shutdown()
+    }
+
+    func testTerminalProviderFailurePausesTheHostQueue() async throws {
+        let controller = makeController()
+        await controller.start()
+        transport.inject(#"{"type":"agent_start"}"#)
+        try await pump()
+        controller.draft = "Dependent next task"
+        controller.queueDraft()
+        transport.inject(#"{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"401 Invalid API key"}}"#)
+        transport.inject(#"{"type":"agent_end"}"#)
+        transport.inject(#"{"type":"agent_settled"}"#)
+        try await pump()
+        XCTAssertEqual(controller.turnError, "401 Invalid API key")
+        XCTAssertEqual(controller.taskStatus, "Needs attention")
+        XCTAssertTrue(controller.queueIsPaused)
+        XCTAssertEqual(controller.queuedPrompts.map(\.text), ["Dependent next task"])
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        XCTAssertTrue(controller.items.contains { if case .notice(_, "401 Invalid API key", true) = $0 { true } else { false } })
         await controller.shutdown()
     }
 
@@ -276,13 +316,71 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .ready)
     }
 
+    func testDefaultLaunchUsesDedicatedWorkspaceAndPassesTheProtectedLibraryRoot() async throws {
+        var settings = AppSettings()
+        settings.summarizerBackend = .openAICompatible
+        settings.openAIBaseURL = "http://127.0.0.1:1234/v1"
+        settings.openAIModel = "workspace-test"
+        let storage = fixtureStorage
+        var plan: PiLaunchPlan?
+        let controller = AgentSessionController(
+            settings: { settings }, storage: storage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            makeTransport: { plan = $0; return FakeTransport() })
+        XCTAssertEqual(controller.workspace, AppDirectories.agentWorkspace(forLibraryRoot: storage.rootURL))
+        XCTAssertNil(controller.workspaceAccessNotice)
+        XCTAssertEqual(controller.workspaceDisplayName, "Agent Workspace")
+        await controller.start()
+        XCTAssertEqual(controller.state, .ready)
+        let launched = try XCTUnwrap(plan)
+        XCTAssertEqual(launched.workingDirectory, controller.workspace)
+        XCTAssertNil(launched.environment["LOKALBOT_LLM_API_KEY"], "Injected transports must not retrieve real credentials")
+        let roots = try JSONDecoder().decode([String].self, from: Data(try XCTUnwrap(
+            launched.environment["LOKALBOT_AGENT_PRIVATE_ROOTS"]).utf8))
+        XCTAssertTrue(roots.contains(storage.rootURL.standardizedFileURL.path))
+        XCTAssertFalse(roots.contains(controller.workspace.path))
+        let attributes = try FileManager.default.attributesOfItem(atPath: controller.workspace.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o700)
+        await controller.shutdown()
+    }
+
+    func testLegacyLibraryResumeCannotLaunchOrAcquireTheOldWorkspace() async {
+        let controller = makeController()
+        let saved = AgentSavedSession(id: "legacy", sessionID: "legacy",
+            fileURL: fixtureRoot.appendingPathComponent("sessions/legacy.jsonl"),
+            workspace: fixtureStorage.rootURL, title: "Saved library conversation",
+            createdAt: .distantPast, modifiedAt: .now, messageCount: 2)
+        await controller.resumeSavedSession(saved)
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertEqual(controller.activeSessionFile, saved.fileURL)
+        XCTAssertNotNil(controller.workspaceAccessNotice)
+        XCTAssertNotNil(controller.composerError)
+        XCTAssertNil(controller.modelContext, "reject the workspace before model preparation")
+        XCTAssertTrue(transport.sentLines.isEmpty)
+        XCTAssertFalse(controller.canResumePreviousSession)
+    }
+
+    func testDefaultWorkspaceSymlinkIntoLibraryIsRejectedBeforeLaunch() async throws {
+        let controller = makeController()
+        let storage = fixtureStorage
+        try FileManager.default.createDirectory(at: storage.rootURL, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: controller.workspace, withDestinationURL: storage.rootURL)
+        await controller.start()
+        XCTAssertEqual(controller.state, .idle)
+        XCTAssertNotNil(controller.workspaceAccessNotice)
+        XCTAssertNil(controller.modelContext)
+        XCTAssertTrue(transport.sentLines.isEmpty)
+    }
+
     func testActiveModelContextStaysWithTheResolvedConnectionUntilRestart() async {
         var configuration = AppSettings()
         configuration.summarizerBackend = .openAICompatible
         configuration.openAIBaseURL = "http://localhost:1234/v1"
         configuration.openAIModel = "original-model"
         let controller = AgentSessionController(
-            settings: { configuration }, storage: StorageManager(),
+            settings: { configuration }, storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
             makeTransport: { _ in FakeTransport() })
         await controller.start()
         XCTAssertEqual(controller.state, .ready)
@@ -349,6 +447,8 @@ final class AgentSessionControllerTests: XCTestCase {
         let controller = AgentSessionController(
             settings: { settings },
             storage: StorageManager(rootURL: root),
+            sessionsDirectory: root.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
             broker: broker,
             makeTransport: { _ in
                 transportCalls += 1
@@ -522,7 +622,7 @@ final class AgentSessionControllerTests: XCTestCase {
         }
     }
 
-    func testReadEditModeAutoApprovesAllFileCallsButStillShowsShell() async throws {
+    func testReadEditModeAutoApprovesAddressedFileCallsButStillShowsAmbiguousEditAndShell() async throws {
         let controller = makeController()
         await controller.start()
         await controller.setApprovalMode(.approveReadsAndEdits)
@@ -540,15 +640,17 @@ final class AgentSessionControllerTests: XCTestCase {
             id: "bash", tool: "bash", workspace: root, path: nil, content: ""))
         try await pump()
 
-        for id in ["read", "write", "edit"] {
+        for id in ["read", "write"] {
             XCTAssertTrue(transport.sentLines.contains {
                 $0.contains("\"id\":\"\(id)\"") && $0.contains(#""confirmed":true"#)
             }, id)
         }
-        XCTAssertTrue(controller.items.contains {
-            if case .approval(let request) = $0 { return request.id == "bash" }
-            return false
-        })
+        for id in ["edit", "bash"] {
+            XCTAssertTrue(controller.items.contains {
+                if case .approval(let request) = $0 { return request.id == id }
+                return false
+            })
+        }
     }
 
     func testModeChangeResolvesAlreadyPendingRequestsItNowAllows() async throws {
@@ -679,6 +781,29 @@ final class AgentSessionControllerTests: XCTestCase {
         })
     }
 
+    func testIncompleteShellRequestsAreDeniedEvenInFullAccessMode() async throws {
+        let controller = makeController()
+        await controller.setApprovalMode(.fullAccess)
+        await controller.start()
+        transport.inject(try approvalEvent(id: "truncated", tool: "bash",
+            workspace: controller.workspace.path, path: nil, content: "",
+            command: "visible prefix", truncated: true))
+        transport.inject(try approvalEvent(id: "oversized", tool: "bash",
+            workspace: controller.workspace.path, path: nil, content: "",
+            command: String(repeating: "😀", count: 32_769)))
+        try await pump()
+        XCTAssertTrue(controller.pendingApprovals.isEmpty)
+        for id in ["truncated", "oversized"] {
+            XCTAssertTrue(transport.sentLines.contains {
+                $0.contains("\"id\":\"\(id)\"") && $0.contains(#""confirmed":false"#)
+            })
+            XCTAssertFalse(transport.sentLines.contains {
+                $0.contains("\"id\":\"\(id)\"") && $0.contains(#""confirmed":true"#)
+            })
+        }
+        await controller.shutdown()
+    }
+
     func testOutsideWorkspaceReadAlwaysRequiresOneTimeApproval() async throws {
         let controller = makeController()
         await controller.start()
@@ -742,7 +867,9 @@ final class AgentSessionControllerTests: XCTestCase {
         var transports: [FakeTransport] = []
         let controller = AgentSessionController(
             settings: { settings },
-            storage: StorageManager(),
+            storage: fixtureStorage,
+            sessionsDirectory: fixtureRoot.appendingPathComponent("sessions"),
+            defaultWorkspace: fixtureRoot.appendingPathComponent("workspace"),
             makeTransport: { _ in
                 let transport = FakeTransport()
                 transports.append(transport)
@@ -798,7 +925,8 @@ final class AgentSessionControllerTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
 
         let storage = StorageManager(rootURL: root.appendingPathComponent("library", isDirectory: true))
-        let header = #"{"type":"session","id":"saved","cwd":"\#(storage.rootURL.path)"}"#
+        let workspace = root.appendingPathComponent("workspace")
+        let header = #"{"type":"session","id":"saved","cwd":"\#(workspace.path)"}"#
         try Data((header + "\n").utf8).write(to: sessions.appendingPathComponent("saved.jsonl"))
 
         var settings = AppSettings()
@@ -811,6 +939,7 @@ final class AgentSessionControllerTests: XCTestCase {
             settings: { settings },
             storage: storage,
             sessionsDirectory: sessions,
+            defaultWorkspace: workspace,
             makeTransport: { plan in
                 plans.append(plan)
                 let transport = FakeTransport()

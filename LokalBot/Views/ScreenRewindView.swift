@@ -366,11 +366,14 @@ struct ScreenRewindView: View {
 
     private func toggleSaved(_ screenshot: ActivityStore.Screenshot) {
         do {
-            if screenshot.isBookmarked {
-                try app.activityStore.removeSavedMoment(snapshotID: screenshot.id)
-            } else {
-                try app.activityStore.saveMoment(snapshotID: screenshot.id)
+            try app.withPrimaryEvidenceChange(on: [screenshot.ts]) {
+                if screenshot.isBookmarked {
+                    try app.activityStore.removeSavedMoment(snapshotID: screenshot.id)
+                } else {
+                    try app.activityStore.saveMoment(snapshotID: screenshot.id)
+                }
             }
+            app.primaryEvidenceDidChange(on: screenshot.ts)
             onReload()
         } catch {
             app.lastError = "Could not update saved moment: \(error.localizedDescription)"
@@ -394,9 +397,11 @@ struct ScreenRewindView: View {
 
     private func deleteSelectedRange(_ review: CaptureDeletionReview) {
         do {
-            deletionFailures = try app.screenshots.applyCaptureDeletionReview(review)
-            deletionReview = nil
             let days = Set(review.captures.map { Calendar.current.startOfDay(for: $0.ts) })
+            deletionFailures = try app.withPrimaryEvidenceChange(on: Array(days)) {
+                try app.screenshots.applyCaptureDeletionReview(review)
+            }
+            deletionReview = nil
             app.primaryEvidenceDidChange(on: Array(days))
             selectedSnapshotID = nil
             isSelectingRange = !deletionFailures.isEmpty

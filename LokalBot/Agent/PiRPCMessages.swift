@@ -76,7 +76,7 @@ enum PiEvent: Equatable {
     case agentSettled
     case messageStart(role: String)
     case messageUpdate(PiAssistantDelta)
-    case messageEnd(role: String, text: String)
+    case messageEnd(role: String, text: String, stopReason: String? = nil, errorMessage: String? = nil)
     case toolExecutionStart(callID: String, name: String, argsJSON: String)
     case toolExecutionUpdate(callID: String, output: String)
     case toolExecutionEnd(callID: String, output: String, isError: Bool)
@@ -112,7 +112,11 @@ enum PiEvent: Equatable {
             }
             return .messageUpdate(.other(kind: kind))
         case "message_end":
-            return .messageEnd(role: role(of: obj["message"]), text: text(of: obj["message"]))
+            let message = obj["message"] as? [String: Any]
+            return .messageEnd(
+                role: role(of: message), text: text(of: message),
+                stopReason: message?["stopReason"] as? String,
+                errorMessage: message?["errorMessage"] as? String)
         case "tool_execution_start":
             return .toolExecutionStart(
                 callID: obj["toolCallId"] as? String ?? "",
@@ -145,6 +149,13 @@ enum PiEvent: Equatable {
 
     private static func role(of message: Any?) -> String {
         (message as? [String: Any])?["role"] as? String ?? ""
+    }
+
+    static func terminalFailure(stopReason: String?, errorMessage: String?) -> String? {
+        guard stopReason == "error" || stopReason == "aborted" else { return nil }
+        let detail = errorMessage?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let detail, !detail.isEmpty { return detail }
+        return stopReason == "aborted" ? "The model response was cancelled." : "The model could not complete this response."
     }
 
     /// Joins the `text` blocks of an AgentMessage `content` array.

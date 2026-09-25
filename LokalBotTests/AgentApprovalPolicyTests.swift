@@ -5,6 +5,27 @@ final class AgentApprovalPolicyTests: XCTestCase {
 
     private let workspace = URL(fileURLWithPath: "/tmp/lokalbot-agent-policy-workspace")
 
+    func testProtectedRuntimeWritesNeverInheritBroadOrSessionGrants() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let runtime = root.appendingPathComponent("runtime")
+        let alias = root.appendingPathComponent("alias")
+        try FileManager.default.createDirectory(at: runtime, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: runtime)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for mode in [AgentApprovalMode.askBeforeChanges, .approveReads, .approveReadsAndEdits, .fullAccess] {
+            var policy = AgentApprovalPolicy(mode: mode, protectedWriteRoots: [runtime])
+            policy.approveWorkspaceFileChangesForAutomation()
+            for file in [runtime.appendingPathComponent("cli.js"), alias.appendingPathComponent("new.js")] {
+                XCTAssertEqual(policy.verdict(tool: "write", path: file.path, requestWorkspace: root.path,
+                                              selectedWorkspace: root), .ask)
+                policy.allowForSession(tool: "write", path: file.path, requestWorkspace: root.path, selectedWorkspace: root)
+                XCTAssertTrue(policy.sessionAllowedTools.isEmpty)
+                XCTAssertFalse(AgentApprovalPolicy.canPersistApproval(tool: "write", path: file.path,
+                    requestWorkspace: root.path, selectedWorkspace: root, protectedWriteRoots: [runtime]))
+            }
+        }
+    }
+
     private func verdict(_ policy: AgentApprovalPolicy, tool: String, path: String? = nil,
                          requestWorkspace: String? = nil) -> AgentApprovalPolicy.Verdict {
         policy.verdict(

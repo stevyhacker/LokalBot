@@ -93,6 +93,7 @@ struct AgentApprovalDock: View {
                     id: request.id, approved: true, scope: .once)
             }
         }
+        .disabled(!request.canApprove)
         .accessibilityIdentifier("agent.approve.once")
     }
 
@@ -158,9 +159,9 @@ extension AgentApprovalMode {
         case .approveReads:
             "All reads run automatically, including outside the working folder. File changes and shell commands ask first."
         case .approveReadsAndEdits:
-            "All reads, writes, and edits run automatically, including outside the working folder. Shell commands ask first."
+            "Reads and ordinary file edits run automatically, including outside the working folder. File-tool changes to LokalBot’s private data and shell commands ask first."
         case .fullAccess:
-            "All current read, write, edit, and shell calls run automatically, including outside the working folder."
+            "Reads, ordinary file edits, and shell calls run automatically. File-tool changes to LokalBot’s private data still ask; shell commands remain unrestricted."
         }
     }
 
@@ -171,9 +172,9 @@ extension AgentApprovalMode {
         case .approveReads:
             "All reads are automatic; file changes and shell commands require approval"
         case .approveReadsAndEdits:
-            "All reads and file changes are automatic; shell commands require approval"
+            "Reads and ordinary edits are automatic; private app data changes and shell commands ask"
         case .fullAccess:
-            "Reads, file changes, and shell commands are automatic"
+            "Reads, ordinary edits, and shell commands are automatic; private app data changes ask"
         }
     }
 
@@ -184,9 +185,9 @@ extension AgentApprovalMode {
         case .approveReads:
             "All reads run automatically; file changes and shell commands ask first."
         case .approveReadsAndEdits:
-            "All reads and file changes run automatically; shell commands ask first."
+            "Reads and ordinary edits run automatically; private app data changes and shell commands ask first."
         case .fullAccess:
-            "All current read, file-change, and shell calls run automatically."
+            "Reads, ordinary edits, and shell calls run automatically. Private app data file-tool changes ask."
         }
     }
 
@@ -206,9 +207,9 @@ extension AgentApprovalMode {
         case .approveReads:
             "The agent can read any file this Mac account can access, including files outside the working folder, without showing each request. File changes and shell commands will still ask. This choice is remembered for future sessions."
         case .approveReadsAndEdits:
-            "The agent can read, create, overwrite, and edit files anywhere this Mac account can access without showing each request. Shell commands will still ask. This choice is remembered for future sessions."
+            "The agent can read, create, overwrite, and edit ordinary files anywhere this Mac account can access without showing each request. File-tool changes to LokalBot’s private data, runtime, and app bundle will still ask, as will shell commands. This choice is remembered for future sessions."
         case .fullAccess:
-            "The agent can read and change files anywhere and run shell commands without asking. Commands may delete data, access secrets, or connect to the network. This choice is remembered for future sessions."
+            "The agent can read and change ordinary files anywhere and run shell commands without asking. File-tool changes to LokalBot’s private data, runtime, and app bundle still ask. Shell commands may delete data, access secrets, change app files, or connect to the network. This choice is remembered for future sessions."
         }
     }
 

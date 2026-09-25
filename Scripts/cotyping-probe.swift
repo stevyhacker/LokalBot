@@ -1,5 +1,36 @@
 import AppKit
 import Foundation
+import ImageIO
+
+enum ProbeCaptureContract {
+    static func arguments(rectString: String, imageURL: URL) -> [String] {
+        ["-x", "-R", rectString, imageURL.path]
+    }
+
+    static func hasExpectedDimensions(
+        width: Int,
+        height: Int,
+        captureRect: NSRect,
+        backingScale: CGFloat
+    ) -> Bool {
+        [CGFloat(1), backingScale].contains {
+            width == Int(captureRect.width * $0) && height == Int(captureRect.height * $0)
+        }
+    }
+
+    static func selfTest() -> Bool {
+        let rect = NSRect(x: 10, y: 20, width: 640, height: 480)
+        let output = URL(fileURLWithPath: "/tmp/bounded-probe.png")
+        return arguments(rectString: "10,20,640,480", imageURL: output)
+            == ["-x", "-R", "10,20,640,480", output.path]
+            && hasExpectedDimensions(width: 640, height: 480,
+                                     captureRect: rect, backingScale: 2)
+            && hasExpectedDimensions(width: 1280, height: 960,
+                                     captureRect: rect, backingScale: 2)
+            && !hasExpectedDimensions(width: 1920, height: 1080,
+                                      captureRect: rect, backingScale: 2)
+    }
+}
 
 struct ProbeConfig {
     enum InputMode: String {
@@ -55,6 +86,7 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
     private let config: ProbeConfig
     private let textView = NSTextView(frame: .zero)
     private var window: NSWindow?
+    private(set) var exitStatus: Int32 = EXIT_SUCCESS
 
     init(config: ProbeConfig) {
         self.config = config
@@ -69,7 +101,7 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
             )
         } catch {
             fputs("Could not create output directory: \(error)\n", stderr)
-            NSApp.terminate(nil)
+            finish(status: EXIT_FAILURE)
             return
         }
 
@@ -142,7 +174,7 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
 
         guard let captureRect = captureRect() else {
             fputs("Could not determine capture rect\n", stderr)
-            NSApp.terminate(nil)
+            finish(status: EXIT_FAILURE)
             return
         }
 
@@ -152,19 +184,34 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
         let imageURL = config.outputDirectory.appendingPathComponent("\(config.slug).png")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
-        process.arguments = ["-x", imageURL.path]
+        process.arguments = ProbeCaptureContract.arguments(
+            rectString: rectString, imageURL: imageURL)
         do {
             try process.run()
             process.waitUntilExit()
             if process.terminationStatus != 0 {
-                fputs("screencapture exited with \(process.terminationStatus)\n", stderr)
+                throw NSError(domain: "ProbeCapture", code: Int(process.terminationStatus))
             }
+            guard let source = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
+                  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                  let width = properties[kCGImagePropertyPixelWidth] as? Int,
+                  let height = properties[kCGImagePropertyPixelHeight] as? Int else {
+                throw NSError(domain: "ProbeCapture", code: 1)
+            }
+            let scale = window?.screen?.backingScaleFactor ?? 1
+            guard ProbeCaptureContract.hasExpectedDimensions(
+                width: width, height: height, captureRect: captureRect,
+                backingScale: scale
+            ) else { throw NSError(domain: "ProbeCapture", code: 2) }
         } catch {
+            try? FileManager.default.removeItem(at: imageURL)
             fputs("Could not run screencapture: \(error)\n", stderr)
+            finish(status: EXIT_FAILURE)
+            return
         }
 
         print(config.outputDirectory.path)
-        NSApp.terminate(nil)
+        finish(status: EXIT_SUCCESS)
     }
 
     private func captureRect() -> NSRect? {
@@ -173,15 +220,12 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
         let screen = window.screen ?? NSScreen.main
         guard let screen else { return nil }
 
-        let margin: CGFloat = 120
-        let x = max(screen.frame.minX, frame.minX - margin)
-        let topY = screen.frame.maxY - frame.maxY - margin
-        let y = max(0, topY)
-        let maxWidth = screen.frame.maxX - x
-        let maxHeight = screen.frame.height - y
-        let width = min(frame.width + margin * 2, maxWidth)
-        let height = min(frame.height + margin * 2, maxHeight)
-        return NSRect(x: x, y: y, width: width, height: height)
+        let region = frame.insetBy(dx: -120, dy: -120).intersection(screen.frame).integral
+        guard !region.isEmpty, let primary = NSScreen.screens.first else { return nil }
+        // screencapture uses global top-left coordinates, including displays
+        // whose origin is negative or above the primary display.
+        return NSRect(x: region.minX, y: primary.frame.maxY - region.maxY,
+                      width: region.width, height: region.height)
     }
 
     private func writeTextFile(name: String, contents: String) {
@@ -191,6 +235,11 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             fputs("Could not write \(url.path): \(error)\n", stderr)
         }
+    }
+
+    private func finish(status: Int32) {
+        exitStatus = status
+        NSApp.terminate(nil)
     }
 
     private func postKeyboardCharacter(_ character: String) {
@@ -208,9 +257,19 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+if Array(CommandLine.arguments.dropFirst()) == ["--self-test-capture-contract"] {
+    guard ProbeCaptureContract.selfTest() else {
+        fputs("Cotyping probe capture contract failed\n", stderr)
+        exit(EXIT_FAILURE)
+    }
+    print("Cotyping probe capture contract passed")
+    exit(EXIT_SUCCESS)
+}
+
 let config = ProbeConfig(arguments: CommandLine.arguments)
 let app = NSApplication.shared
 let delegate = ProbeAppDelegate(config: config)
 app.delegate = delegate
 app.setActivationPolicy(.regular)
 app.run()
+exit(delegate.exitStatus)

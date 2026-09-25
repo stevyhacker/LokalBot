@@ -130,7 +130,10 @@ nonisolated enum CotypingGhostTextLayout {
         }
 
         if measuredWidth(line, font: font) > maxWidth {
-            return splitLongWord(line, font: font, maxWidth: maxWidth)
+            let split = splitLongWord(line, font: font, maxWidth: maxWidth)
+            let remainder = ([split.remainder] + words.dropFirst(usedWords))
+                .filter { !$0.isEmpty }.joined(separator: " ")
+            return (split.line, remainder)
         }
 
         let remainder = words.dropFirst(usedWords).joined(separator: " ")

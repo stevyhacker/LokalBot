@@ -61,11 +61,10 @@ enum JSONValue: Codable, Equatable {
 
     var intValue: Int? {
         if case .number(let value) = self,
-           value.isFinite,
-           value.rounded(.towardZero) == value,
-           value >= Double(Int.min),
-           value <= Double(Int.max) {
-            return Int(value)
+           abs(value) <= 9_007_199_254_740_991 {
+            // JSON numbers use Double here. Reject the range where decoding
+            // can silently change an integer's identity, and never trap.
+            return Int(exactly: value)
         }
         return nil
     }
@@ -211,13 +210,10 @@ struct MCPRequest: Equatable {
         let id: RequestID?
         switch object["id"] {
         case .some(.number(let value)):
-            guard value.isFinite,
-                  value.rounded(.towardZero) == value,
-                  value >= Double(Int.min),
-                  value <= Double(Int.max) else {
+            guard let integer = JSONValue.number(value).intValue else {
                 return .failure(code: -32600, message: "Invalid numeric request id", id: nil)
             }
-            id = .number(Int(value))
+            id = .number(integer)
         case .some(.string(let value)): id = .string(value)
         default: id = nil
         }

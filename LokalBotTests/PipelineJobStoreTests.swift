@@ -29,6 +29,7 @@ final class PipelineJobStoreTests: XCTestCase {
         XCTAssertEqual(pending.count, 1)
         XCTAssertEqual(pending.first?.meetingID, id)
         XCTAssertEqual(pending.first?.transcribe, true)
+        XCTAssertEqual(pending.first?.transcriptionCompleted, false)
         XCTAssertEqual(pending.first?.summarize, false)
         XCTAssertEqual(pending.first?.summaryFollowsSetting, false)
         XCTAssertEqual(pending.first?.attempts, 0)
@@ -91,6 +92,20 @@ final class PipelineJobStoreTests: XCTestCase {
 
         XCTAssertEqual(pending?.meetingID, id)
         XCTAssertEqual(pending?.summaryFollowsSetting, true)
+        XCTAssertEqual(pending?.transcriptionCompleted, false,
+                       "legacy rows must conservatively redo requested ASR")
+    }
+
+    func testTranscriptionPhasePersistsAndFreshASRResetsIt() {
+        let store = makeStore()
+        let id = UUID()
+        store.enqueue(meetingID: id, transcribe: true, summarize: true)
+
+        XCTAssertTrue(store.markTranscriptionCompleted(meetingID: id))
+        XCTAssertEqual(makeStore().job(meetingID: id)?.transcriptionCompleted, true)
+
+        store.enqueue(meetingID: id, transcribe: true, summarize: false)
+        XCTAssertEqual(store.job(meetingID: id)?.transcriptionCompleted, false)
     }
 
     func testCompletedJobIsRemoved() {

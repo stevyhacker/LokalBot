@@ -79,6 +79,7 @@ final class ProcessingPipeline: ObservableObject {
         case updatedActive
         case alreadyProcessing
         case persistenceFailed
+        case revoked
     }
 
     struct Job {
@@ -130,7 +131,7 @@ final class ProcessingPipeline: ObservableObject {
                 summarize: persistedJob.summarize),
             summaryFollowsSetting: persistedJob.summaryFollowsSetting,
             autoSummarize: autoSummarize,
-            hasTranscript: hasTranscript)
+            transcriptionCompleted: persistedJob.transcriptionCompleted)
         return RetryWork(
             transcribe: resumed.transcribe,
             summarize: resumed.summarize)
@@ -165,6 +166,12 @@ final class ProcessingPipeline: ObservableObject {
     private var isDraining = false
     private var activeMeetingID: Meeting.ID?
     private var activeJob: Job?
+    /// The currently running job is retained separately from the queue-drain
+    /// loop so deletion can cancel and await it before removing source files.
+    private var activeProcessingTask: Task<Void, Never>?
+    /// Revocation survives cancellation-unaware engine work. Any continuation
+    /// that resumes after deletion must fail its commit checks and callbacks.
+    private var revokedMeetingIDs: Set<Meeting.ID> = []
     private enum ActivePhase {
         case transcribing
         case summarizing
@@ -177,6 +184,9 @@ final class ProcessingPipeline: ObservableObject {
     private let diarizer = NeuralDiarizationEngine()
     private let speakerIdentity: MeetingSpeakerIdentityService?
     private let jobStore: PipelineJobStore?
+    /// Fired at the commit boundary before transcript or summary evidence is
+    /// replaced. Throwing keeps the source artifacts unchanged.
+    var onArtifactsWillChange: ((Meeting) throws -> Void)?
     /// Fired after transcript/summary files land on disk (search re-index).
     var onArtifactsWritten: ((Meeting) -> Void)?
 
@@ -242,17 +252,28 @@ final class ProcessingPipeline: ObservableObject {
         pending: Work,
         summaryFollowsSetting: Bool,
         autoSummarize: Bool,
-        hasTranscript: Bool
+        transcriptionCompleted: Bool
     ) -> Work {
         Work(
-            transcribe: pending.transcribe && !hasTranscript,
+            transcribe: pending.transcribe && !transcriptionCompleted,
             summarize: pending.summarize
                 && (!summaryFollowsSetting || autoSummarize))
     }
 
     @discardableResult
+    func deferUntilNextLaunch(_ meeting: Meeting, summarize: Bool) -> Bool {
+        guard let jobStore, !revokedMeetingIDs.contains(meeting.id) else { return false }
+        // A manual processing request made after a finalization failure is
+        // already durable and takes precedence over the automatic retry.
+        if jobStore.job(meetingID: meeting.id) != nil { return true }
+        return jobStore.enqueue(meetingID: meeting.id, transcribe: true, summarize: summarize,
+                                summaryFollowsSetting: true)
+    }
+
+    @discardableResult
     func enqueue(_ meeting: Meeting, transcribe: Bool = true, summarize: Bool = true,
                  origin: JobOrigin = .userInitiated) -> EnqueueOutcome {
+        guard !revokedMeetingIDs.contains(meeting.id) else { return .revoked }
         // A fresh enqueue supersedes a parked waiting-for-models job: merge its
         // requested work so the new attempt (and its origin) covers both.
         var work = Work(transcribe: transcribe, summarize: summarize)
@@ -379,10 +400,20 @@ final class ProcessingPipeline: ObservableObject {
 
     /// Drop all pipeline state for deleted meetings so a parked or queued job
     /// cannot resurrect processing for a folder that no longer exists.
-    func forget(meetingIDs: Set<Meeting.ID>) {
+    func forget(meetingIDs: Set<Meeting.ID>) async {
         guard !meetingIDs.isEmpty else { return }
+        revokedMeetingIDs.formUnion(meetingIDs)
         queue.removeAll { meetingIDs.contains($0.meeting.id) }
         waitingForModelsJobs.removeAll { meetingIDs.contains($0.meeting.id) }
+        if let activeMeetingID, meetingIDs.contains(activeMeetingID),
+           let activeProcessingTask {
+            activeProcessingTask.cancel()
+            await activeProcessingTask.value
+            self.activeProcessingTask = nil
+            self.activePhase = nil
+            self.activeJob = nil
+            self.activeMeetingID = nil
+        }
         for id in meetingIDs where stages[id] != nil {
             stages[id] = nil
         }
@@ -391,9 +422,15 @@ final class ProcessingPipeline: ObservableObject {
         }
     }
 
+    /// Merge sources remain on disk but are withdrawn from processing. Undoing
+    /// the merge explicitly restores them; permanent deletion never does.
+    func restoreForgottenMeetings(_ meetingIDs: Set<Meeting.ID>) {
+        revokedMeetingIDs.subtract(meetingIDs)
+    }
+
     /// Crash recovery, called once at launch: re-enqueue every persisted job
-    /// that never reached completion. Jobs whose transcript already made it to
-    /// disk skip straight to summarization; jobs that burned through
+    /// that never reached completion. Jobs whose durable transcription phase
+    /// completed skip straight to summarization; jobs that burned through
     /// `PipelineJobStore.maxAutoResumeAttempts` starts stay parked until the
     /// user retries explicitly — a meeting that reliably kills the app must
     /// not crash-loop every launch.
@@ -417,7 +454,7 @@ final class ProcessingPipeline: ObservableObject {
                     summarize: job.summarize),
                 summaryFollowsSetting: job.summaryFollowsSetting,
                 autoSummarize: autoSummarize,
-                hasTranscript: hasTranscript)
+                transcriptionCompleted: job.transcriptionCompleted)
             queue.append(Job(
                 meeting: meeting,
                 transcribe: work.transcribe,
@@ -441,9 +478,16 @@ final class ProcessingPipeline: ObservableObject {
         Task {
             while !queue.isEmpty {
                 let job = queue.removeFirst()
+                guard !revokedMeetingIDs.contains(job.meeting.id) else { continue }
                 activeMeetingID = job.meeting.id
                 activeJob = job
-                await process(job)
+                let processingTask = Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await self.process(job)
+                }
+                activeProcessingTask = processingTask
+                await processingTask.value
+                activeProcessingTask = nil
                 activePhase = nil
                 activeJob = nil
                 activeMeetingID = nil
@@ -456,6 +500,7 @@ final class ProcessingPipeline: ObservableObject {
         let meeting = job.meeting
         let folder = meeting.folderURL(in: storage)
         let config = settings()
+        guard !revokedMeetingIDs.contains(meeting.id) else { return }
         // Automatic work never ambush-downloads a model: park the job instead
         // (before markStarted, so waiting burns no auto-resume attempts and
         // the durable row is re-checked on the next launch). A user-initiated
@@ -492,13 +537,16 @@ final class ProcessingPipeline: ObservableObject {
         }
         let queueSeconds = max(0, Date().timeIntervalSince(job.enqueuedAt))
         var transcriptWrittenThisJob = false
+        var notifiedArtifactsWillChange = false
         do {
             if job.transcribe || !FileManager.default.fileExists(
                 atPath: folder.appendingPathComponent("transcript.json").path) {
+                let previousTranscript = try? loadTranscript(from: folder)
                 activePhase = .transcribing
                 if let transcriptionStarted {
                     await transcriptionStarted(meeting.id)
                 }
+                try requireCommitPermission(for: meeting.id)
                 // A fresh enqueue means "transcribe with today's settings" —
                 // stale checkpoints from an earlier failed attempt may have
                 // been produced by a different model. Only a crash resume
@@ -535,6 +583,10 @@ final class ProcessingPipeline: ObservableObject {
                     transcript = SpeakerAutoNamer.applyingAliases(to: transcript,
                         participants: meeting.resolvedCalendarParticipantIdentities)
                 }
+                transcript = try MeetingMergeService.preservingTranscriptOnlySources(
+                    from: previousTranscript,
+                    in: folder,
+                    regenerated: transcript)
                 let mergedSanitization = TranscriptSanitizer.sanitize(transcript)
                 transcript = mergedSanitization.transcript
                 if mergedSanitization.changed {
@@ -545,7 +597,15 @@ final class ProcessingPipeline: ObservableObject {
                             + "\(mergedSanitization.removedCharacters)")
                 }
                 transcript = speakerIdentity?.applyingLatestDecision(to: transcript, meetingID: meeting.id) ?? transcript
-                try write(transcript, to: folder)
+                try requireCommitPermission(for: meeting.id)
+                try notifyArtifactsWillChange(
+                    for: meeting,
+                    notified: &notifiedArtifactsWillChange)
+                try write(transcript, for: meeting)
+                if let jobStore,
+                   !jobStore.markTranscriptionCompleted(meetingID: meeting.id) {
+                    throw PipelineError.transcriptionPhasePersistence
+                }
                 // A finalized AAC track makes its CAF duplicate redundant. A
                 // crash-recovery CAF remains when the AAC container is broken,
                 // preserving playable audio after the transcript is written.
@@ -554,6 +614,7 @@ final class ProcessingPipeline: ObservableObject {
                 transcriptWrittenThisJob = true
             }
             let resolvedJob = activeJob ?? job
+            try requireCommitPermission(for: meeting.id)
             activePhase = .summarizing
             if resolvedJob.summarize {
                 // Missing Think model on automatic work: keep the transcript
@@ -569,7 +630,10 @@ final class ProcessingPipeline: ObservableObject {
                     stages[meeting.id] = .waitingForModels
                     lokalbotLog(
                         "pipeline parked summary meeting=\(meeting.id) waiting for the Think model")
-                    if transcriptWrittenThisJob { onArtifactsWritten?(meeting) }
+                    if transcriptWrittenThisJob,
+                       !revokedMeetingIDs.contains(meeting.id) {
+                        onArtifactsWritten?(meeting)
+                    }
                     return
                 }
                 stages[meeting.id] = .summarizing
@@ -589,19 +653,28 @@ final class ProcessingPipeline: ObservableObject {
                         lokalbotLog(
                             "speaker identity recovery skipped meeting=\(meeting.id): \(error.localizedDescription)")
                     }
+                    try requireCommitPermission(for: meeting.id)
                     transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
-                    try write(transcript, to: folder)
+                    try notifyArtifactsWillChange(
+                        for: meeting,
+                        notified: &notifiedArtifactsWillChange)
+                    try write(transcript, for: meeting)
                 }
                 if let range = meeting.contentRange { transcript = range.applying(to: transcript) }
                 // Persist normalized provenance even on summary-only retries.
                 for index in transcript.segments.indices {
                     transcript.segments[index].attribution = transcript.segments[index].resolvedAttribution
                 }
-                try write(transcript, to: folder)
+                try requireCommitPermission(for: meeting.id)
+                try notifyArtifactsWillChange(
+                    for: meeting,
+                    notified: &notifiedArtifactsWillChange)
+                try write(transcript, for: meeting)
                 let sanitization = TranscriptSanitizer.sanitize(transcript)
                 if sanitization.changed {
                     transcript = sanitization.transcript
-                    try write(transcript, to: folder)
+                    try requireCommitPermission(for: meeting.id)
+                    try write(transcript, for: meeting)
                     lokalbotLog(
                         "transcript cleanup before summary changedSegments="
                             + "\(sanitization.changedSegments) removedWords="
@@ -619,46 +692,81 @@ final class ProcessingPipeline: ObservableObject {
                     let outcomes = generated.outcomes
                     let previous = MeetingOutcomes.load(from: folder) ?? MeetingAttributionArtifacts.previous(in: folder)
                     let previousState = MeetingOutcomeStore.loadState(from: folder)
-                    try outcomes.write(to: folder)
-                    if let previous {
-                        let reconciled = MeetingOutcomeStore.reconcileState(previousState, from: previous, to: outcomes)
-                        try MeetingOutcomeStore.writeState(reconciled, to: folder)
+                    try requireCommitPermission(for: meeting.id)
+                    try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+                        try outcomes.write(to: folder)
+                        if let previous {
+                            let reconciled = MeetingOutcomeStore.reconcileState(previousState, from: previous, to: outcomes)
+                            try MeetingOutcomeStore.writeState(reconciled, to: folder)
+                        }
+                        // Explicit user edits remain the authority for both cards
+                        // and the action/decision sections rendered beside them.
+                        let authoritative = MeetingOutcomeProjection.load(for: meeting, storage: storage)?.correctedOutcomes
+                            ?? outcomes
+                        let summary = MeetingSummaryOutcomeSynchronizer.synchronize(
+                            generated.body, outcomes: authoritative, template: config.noteTemplate)
+                        try MeetingAttributionArtifacts.requireCurrent(transcript, in: folder)
+                        try SummaryClaimEvidence.commit(transcript: transcript, in: folder)
+                        try Data(summary.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
                     }
-                    // Explicit user edits remain the authority for both cards
-                    // and the action/decision sections rendered beside them.
-                    let authoritative = MeetingOutcomeProjection.load(for: meeting, storage: storage)?.correctedOutcomes
-                        ?? outcomes
-                    let summary = MeetingSummaryOutcomeSynchronizer.synchronize(
-                        generated.body, outcomes: authoritative, template: config.noteTemplate)
-                    try MeetingAttributionArtifacts.requireCurrent(transcript, in: folder)
-                    try SummaryClaimEvidence.commit(transcript: transcript, in: folder)
-                    try Data(summary.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
                     MeetingSummaryGenerator.removeCheckpoint(in: folder)
                     MeetingOutcomesGenerator.removeCheckpoint(in: folder)
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
-                    await budget.saveMetrics(in: folder, outcome: "complete")
+                    if !revokedMeetingIDs.contains(meeting.id) {
+                        await budget.saveMetrics(in: folder, outcome: "complete")
+                    }
                 } catch {
-                    await budget.saveMetrics(in: folder, outcome: "incomplete")
-                    onArtifactsWritten?(meeting)
+                    if !revokedMeetingIDs.contains(meeting.id) {
+                        await budget.saveMetrics(in: folder, outcome: "incomplete")
+                        if !revokedMeetingIDs.contains(meeting.id) {
+                            onArtifactsWritten?(meeting)
+                        }
+                    }
                     throw error
                 }
             }
+            try requireCommitPermission(for: meeting.id)
             if let jobStore, !jobStore.markCompleted(meetingID: meeting.id) {
                 stages[meeting.id] = .failed(
                     "Artifacts were saved, but the durable processing queue could not be completed.")
-                onArtifactsWritten?(meeting)
+                if !revokedMeetingIDs.contains(meeting.id) {
+                    onArtifactsWritten?(meeting)
+                }
                 return
             }
             stages[meeting.id] = nil
-            onArtifactsWritten?(meeting)
+            if !revokedMeetingIDs.contains(meeting.id) {
+                onArtifactsWritten?(meeting)
+            }
         } catch {
+            guard !revokedMeetingIDs.contains(meeting.id) else { return }
             // The persisted job row stays — the next launch re-enqueues it
             // (until the attempt cap) so a crash or transient failure never
             // silently drops a meeting. The message is persisted so a job
             // that ends up parked still explains itself after a relaunch.
             jobStore?.markFailed(meetingID: meeting.id, message: error.localizedDescription)
             stages[meeting.id] = .failed(error.localizedDescription)
+            // A failed write may have persisted only part of an artifact. Drop
+            // cached derived memory even when the complete job did not finish.
+            onArtifactsWritten?(meeting)
         }
+    }
+
+    private func requireCommitPermission(for meetingID: Meeting.ID) throws {
+        try Task.checkCancellation()
+        guard !revokedMeetingIDs.contains(meetingID) else {
+            throw CancellationError()
+        }
+    }
+
+    private func notifyArtifactsWillChange(
+        for meeting: Meeting,
+        notified: inout Bool
+    ) throws {
+        guard !notified else { return }
+        try onArtifactsWillChange?(meeting)
+        notified = true
+        try requireCommitPermission(for: meeting.id)
     }
 
     // MARK: - Transcription
@@ -865,16 +973,19 @@ final class ProcessingPipeline: ObservableObject {
         try await diarizer.prepareModels(model: config.diarizationModel, includeVoiceSamples: config.rememberSpeakersOnMac)
     }
 
-    private func write(_ transcript: Transcript, to folder: URL) throws {
-        if let old = try? loadTranscript(from: folder), old.evidenceRevision != transcript.evidenceRevision {
-            try MeetingAttributionArtifacts.invalidate(in: folder)
+    private func write(_ transcript: Transcript, for meeting: Meeting) throws {
+        let folder = meeting.folderURL(in: storage)
+        try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+            if let old = try? loadTranscript(from: folder), old.evidenceRevision != transcript.evidenceRevision {
+                try MeetingAttributionArtifacts.invalidate(in: folder)
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            try encoder.encode(transcript).write(
+                to: folder.appendingPathComponent("transcript.json"), options: .atomic)
+            try transcript.markdown.data(using: .utf8)?.write(
+                to: folder.appendingPathComponent("transcript.md"), options: .atomic)
         }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(transcript).write(
-            to: folder.appendingPathComponent("transcript.json"), options: .atomic)
-        try transcript.markdown.data(using: .utf8)?.write(
-            to: folder.appendingPathComponent("transcript.md"), options: .atomic)
     }
 
     func loadTranscript(from folder: URL) throws -> Transcript {
@@ -884,7 +995,7 @@ final class ProcessingPipeline: ObservableObject {
     }
 
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
-        try write(meeting.contentRange?.applying(to: transcript) ?? transcript, to: meeting.folderURL(in: storage))
+        try write(meeting.contentRange?.applying(to: transcript) ?? transcript, for: meeting)
     }
 
     // MARK: - Summarization
@@ -936,7 +1047,8 @@ final class ProcessingPipeline: ObservableObject {
     /// the underlying workday record.
     func generateDayDigest(
         from snapshot: DailyEvidenceSnapshot,
-        config: AppSettings
+        config: AppSettings,
+        validateEvidence: DayDigestLifecycle.EvidenceValidator
     ) async throws -> DayDigestGenerationResult {
         let evidence = snapshot.digestEvidence()
         let name = DreamDay.key(for: snapshot.day)
@@ -971,6 +1083,7 @@ final class ProcessingPipeline: ObservableObject {
 
         try Task.checkCancellation()
         let text = evidence.renderDocument(summary: overview.summary)
+        try validateEvidence()
         try DayDigestJournalWriter.write(text, to: url, replacing: revision,
                                         evidence: evidence, quality: overview.quality)
         return DayDigestGenerationResult(
@@ -993,11 +1106,13 @@ final class ProcessingPipeline: ObservableObject {
     }
 
     enum PipelineError: LocalizedError {
-        case noAudio, noTranscript
+        case noAudio, noTranscript, transcriptionPhasePersistence
         var errorDescription: String? {
             switch self {
             case .noAudio: "No audio tracks found in the meeting folder."
             case .noTranscript: "No transcript yet — transcribe the meeting first."
+            case .transcriptionPhasePersistence:
+                "The transcript was saved, but its durable processing phase could not be recorded."
             }
         }
     }

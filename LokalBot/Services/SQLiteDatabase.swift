@@ -16,6 +16,7 @@ final class SQLiteDatabase {
         case bind(index: Int32, code: Int32, message: String)
         case reset(code: Int32, message: String)
         case step(sql: String?, code: Int32, message: String)
+        case backup(code: Int32, message: String)
 
         var errorDescription: String? {
             switch self {
@@ -36,6 +37,8 @@ final class SQLiteDatabase {
             case .step(let sql, let code, let message):
                 "SQLite step failed (\(code)): \(message)"
                     + (sql.map { " [\(Self.summary($0))]" } ?? "")
+            case .backup(let code, let message):
+                "SQLite backup failed (\(code)): \(message)"
             }
         }
 
@@ -108,6 +111,40 @@ final class SQLiteDatabase {
     }
 
     // MARK: - Checked APIs
+
+    /// Makes a consistent standalone snapshot, including committed WAL rows.
+    /// The caller owns the new destination and any cleanup after an error.
+    func backup(to destination: URL) throws {
+        guard !FileManager.default.fileExists(atPath: destination.path) else {
+            throw record(.backup(code: SQLITE_CANTOPEN, message: "backup destination already exists"))
+        }
+        var target: OpaquePointer?
+        let openResult = sqlite3_open_v2(destination.path, &target,
+                                        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nil)
+        guard openResult == SQLITE_OK, let target else {
+            let detail = target.map { String(cString: sqlite3_errmsg($0)) }
+                ?? String(cString: sqlite3_errstr(openResult))
+            if let target { sqlite3_close(target) }
+            throw record(.backup(code: openResult, message: detail))
+        }
+        defer { sqlite3_close(target) }
+        guard let backup = sqlite3_backup_init(target, "main", db, "main") else {
+            throw record(.backup(code: sqlite3_errcode(target), message: String(cString: sqlite3_errmsg(target))))
+        }
+        let stepResult = sqlite3_backup_step(backup, -1)
+        let finishResult = sqlite3_backup_finish(backup)
+        guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            throw record(.backup(code: stepResult == SQLITE_DONE ? finishResult : stepResult,
+                                 message: String(cString: sqlite3_errmsg(target))))
+        }
+        // A backup inherits WAL mode from the source header. Normalize it while
+        // writable so a read-only verifier can open the standalone file without
+        // requiring a new WAL/SHM pair in the recovery directory.
+        let journalResult = sqlite3_exec(target, "PRAGMA journal_mode=DELETE", nil, nil, nil)
+        guard journalResult == SQLITE_OK else {
+            throw record(.backup(code: journalResult, message: String(cString: sqlite3_errmsg(target))))
+        }
+    }
 
     func execute(_ sql: String) throws {
         var errorMessage: UnsafeMutablePointer<CChar>?

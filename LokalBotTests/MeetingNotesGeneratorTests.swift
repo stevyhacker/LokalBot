@@ -177,6 +177,48 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertTrue(result.body.contains("Will ship the update on Friday."))
     }
 
+    func testExpandedRetryUsesContextHeadroomAndKeepsFirstPartialOnFailure() async throws {
+        let partial = #"{"notes":[{"section":"Key points","text":"Usable partial","source":"s1"}]}"#
+        let script = Script([.truncated(partial), .error(.badResponse("provider rejected expanded context"))])
+        let system = "Summarize."
+        let prompt = "Evidence."
+        let context = ["Prior context."]
+        let joined = ([system] + context + [prompt]).joined(separator: "\n\n")
+        let input = max(1, joined.utf8.count / 4) + 1_536
+        let result = try await MeetingNotesGenerator.request(
+            engine: Engine(script: script), system: system, prompt: prompt, context: context,
+            schema: [:], tokens: 4_096, stage: "extract-1", contextTokens: input + 5_000,
+            budget: MeetingGenerationBudget())
+
+        XCTAssertEqual(result.content, partial)
+        XCTAssertTrue(result.truncated)
+        let calls = await script.recorded()
+        XCTAssertEqual(calls.map { $0.options.maxTokens }, [4_096, 5_000])
+        XCTAssertNil(MeetingNotesGenerator.expandedStructuredOutputTokens(
+            from: 4_096, input: input, contextTokens: input + 4_096))
+    }
+
+    func testExpandedTruncatedRetryKeepsPrefixWithMoreCompleteRecords() async throws {
+        let first = try response(notes: [
+            note("s1", "First recoverable note."),
+            note("s2", "Second recoverable note."),
+        ]) + #"{"unfinished":"record"#
+        let expanded = try response(notes: [
+            note("s1", "Only one recoverable note."),
+        ]) + #"{"unfinished":"record"#
+        let script = Script([.truncated(first), .truncated(expanded)])
+
+        let result = try await MeetingNotesGenerator.request(
+            engine: Engine(script: script), system: "Summarize.", prompt: "Evidence.",
+            context: [], schema: [:], tokens: 4_096, stage: "extract-1",
+            contextTokens: 16_384, budget: MeetingGenerationBudget())
+
+        XCTAssertEqual(result.content, first)
+        XCTAssertTrue(result.truncated)
+        let calls = await script.recorded()
+        XCTAssertEqual(calls.map { $0.options.maxTokens }, [4_096, 8_192])
+    }
+
     func testMalformedProviderShapeGetsOneBoundedRecoveryRetry() async throws {
         // A provider can return a successful JSON response with an optional
         // action that has no source (or even omit the notes array). That shape
@@ -190,7 +232,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let calls = await script.recorded()
 
         XCTAssertEqual(calls.count, 2)
-        XCTAssertTrue(calls[1].prompt.contains("previous extraction was not fully verifiable"))
+        XCTAssertTrue(calls[1].prompt.contains("did not pass all source-link checks"))
         XCTAssertEqual(result.claims.count, 1)
     }
 
@@ -674,6 +716,16 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(latest["model"] as? String, "fixture")
         XCTAssertEqual(latest["plannedParts"] as? Int, 3)
         XCTAssertNotNil(latest["attemptID"])
+    }
+
+    func testMetricsDoNotRecreateADeletedMeetingFolder() async throws {
+        let meetingFolder = try folder()
+        try FileManager.default.removeItem(at: meetingFolder)
+        let budget = MeetingGenerationBudget()
+
+        await budget.saveMetrics(in: meetingFolder, outcome: "incomplete")
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: meetingFolder.path))
     }
 
     func testDeadlineCancelsInFlightGenerationAndRecordsIncompleteOutcome() async throws {

@@ -14,6 +14,18 @@ struct MeetingDetectionContext: Equatable {
     let calendarEvent: CalendarMeetingCandidate?
     let confidence: Confidence
     let reason: String
+    var detectorSessionID: UUID?
+}
+
+/// An end event has authority over only the recording started by this exact
+/// detector lifecycle. A manual recording has no detector owner.
+struct MeetingDetectionEnd {
+    let sessionID: UUID
+    let contentEndedAt: Date?
+
+    func ownsRecording(detectorSessionID: UUID?) -> Bool {
+        detectorSessionID == sessionID
+    }
 }
 
 /// The matching layer between detection and recording. Pure policy — no
@@ -103,26 +115,41 @@ enum MeetingMatcher {
         case abandoned
         /// Still within tolerance, but the window overall is not done yet.
         case stillWaiting
-        /// The gap is within tolerance, and the total span already covers the
-        /// window — confirmed despite the current instant being quiet, so a
-        /// bridged gap doesn't delay the start past when a live tick would
-        /// have.
-        case confirmed
     }
 
     /// `firstSeenAt`/`lastAudioSeenAt` describe one candidate's whole history:
     /// when its audio was first observed, and when it was last observed. Pure,
     /// so the boundary cases don't need a live app or Core Audio to test.
-    static func startConfirmationGapOutcome(firstSeenAt: Date,
+    static func startConfirmationGapOutcome(firstSeenAt _: Date,
                                             lastAudioSeenAt: Date,
                                             now: Date,
                                             gapTolerance: TimeInterval,
-                                            minimumDuration: TimeInterval) -> StartConfirmationGapOutcome {
+                                            minimumDuration _: TimeInterval) -> StartConfirmationGapOutcome {
         guard now.timeIntervalSince(lastAudioSeenAt) <= gapTolerance else { return .abandoned }
-        if sustainedAudioConfirmed(firstSeenAt: firstSeenAt, now: now, minimumDuration: minimumDuration) {
-            return .confirmed
-        }
+        // A tolerated silence preserves the candidate, but cannot provide the
+        // fresh audio observation required to complete its confirmation gate.
         return .stillWaiting
+    }
+
+    /// A live recording may bridge the confirmation gate for one replacement
+    /// native meeting app. The candidate must still be a running known meeting
+    /// bundle and its own last audio observation must remain inside the bounded
+    /// gap. This never turns arbitrary or global audio into continuation proof.
+    static func shouldKeepActiveSessionForPendingHandoff(
+        confirmationWindow: StartConfirmationState.Window?,
+        freshCandidateBundleID: String?,
+        runningMeetingBundleIDs: Set<String>,
+        now: Date,
+        gapTolerance: TimeInterval
+    ) -> Bool {
+        guard let confirmationWindow,
+              freshCandidateBundleID == nil
+                || freshCandidateBundleID == confirmationWindow.bundleID,
+              runningMeetingBundleIDs.contains(confirmationWindow.bundleID),
+              gapTolerance.isFinite,
+              gapTolerance >= 0 else { return false }
+        let gap = now.timeIntervalSince(confirmationWindow.lastAudioSeenAt)
+        return gap >= 0 && gap <= gapTolerance
     }
 
     static func confidence(hasApp: Bool, hasCalendar: Bool) -> MeetingDetectionContext.Confidence {

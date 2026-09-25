@@ -232,10 +232,9 @@ enum UITestHarness {
             if element.exists {
                 let frame = element.frame
                 let visible = scrollArea.frame.insetBy(dx: 0, dy: 4)
-                let center = CGPoint(x: frame.midX, y: frame.midY)
                 // macOS can report a clipped SwiftUI row as hittable even
                 // when its click lands on the fixed footer below its viewport.
-                if element.isHittable && (viewport == nil || visible.contains(center)) { return }
+                if element.isHittable && (viewport == nil || visible.contains(frame)) { return }
                 if viewport != nil { scrollUp = frame.minY < visible.minY }
             }
             scrollArea.scroll(byDeltaX: 0, deltaY: scrollUp ? 300 : -300)

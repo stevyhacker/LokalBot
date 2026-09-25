@@ -6,6 +6,21 @@ final class AgentSessionTabsTests: XCTestCase {
 
     private var root: URL!
 
+    func testMetadataOverflowPreservesReadableHistoryAndAllowsRetry() throws {
+        let store = AgentTaskStore(directory: root, maximumBytes: 2_048)
+        var record = AgentTaskRecord(id: UUID(), title: "Saved task", workspace: root)
+        record.draft = "original draft"
+        try store.save([record])
+        let originalBytes = try Data(contentsOf: store.file)
+        record.draft = String(repeating: "😀", count: 1_000)
+        XCTAssertThrowsError(try store.save([record]))
+        XCTAssertEqual(try Data(contentsOf: store.file), originalBytes)
+        XCTAssertEqual(try store.load().first?.draft, "original draft")
+        record.draft = "shortened draft"
+        try store.save([record])
+        XCTAssertEqual(try store.load().first?.draft, record.draft)
+    }
+
     override func setUp() {
         super.setUp()
         root = FileManager.default.temporaryDirectory
@@ -160,6 +175,30 @@ final class AgentSessionTabsTests: XCTestCase {
         XCTAssertTrue(originalTab.controller.items.contains { $0.searchableText == "Reopen this conversation" })
         try await sessions.openSavedSession(saved)
         XCTAssertEqual(sessions.selectedID, originalTab.id, "reopening an open task should select it")
+        XCTAssertNotNil(originalTab.controller.workspaceAccessNotice)
+        let started = await sessions.start(originalTab.id)
+        XCTAssertFalse(started, "legacy private-library history must stay readable without reopening its old access")
+        XCTAssertTrue(factory.plans.isEmpty)
+        XCTAssertEqual(originalTab.controller.activeSessionFile, savedFile)
+        XCTAssertTrue(originalTab.controller.items.contains { $0.searchableText == "Reopen this conversation" })
+    }
+
+    func testRestoredPrivateWorkspaceMetadataKeepsDraftButCannotLaunch() async throws {
+        let factory = Factory(root: root)
+        var record = AgentTaskRecord(id: UUID(), workspace: factory.storage.rootURL)
+        record.draft = "Preserved unsent prompt"
+        try AgentTaskStore(directory: factory.sessionsDirectory).save([record])
+        let sessions = AgentSessionTabs { factory.makeController() }
+        let restored = try XCTUnwrap(sessions.selectedTab)
+        XCTAssertEqual(restored.controller.draft, record.draft)
+        XCTAssertNotNil(restored.controller.workspaceAccessNotice)
+        let started = await sessions.start(restored.id)
+        XCTAssertFalse(started)
+        XCTAssertTrue(factory.plans.isEmpty)
+        let fresh = sessions.addSession()
+        XCTAssertNil(fresh.controller.workspaceAccessNotice)
+        XCTAssertNotEqual(fresh.controller.workspace, factory.storage.rootURL)
+        await sessions.shutdownAll()
     }
 
     func testRuntimeLimitRejectsFifthBusyAgentWithoutBlockingTaskCreation() async throws {
@@ -273,7 +312,7 @@ private final class Factory {
     private(set) var plans: [PiLaunchPlan] = []
 
     init(root: URL) {
-        storage = StorageManager(rootURL: root)
+        storage = StorageManager(rootURL: root.appendingPathComponent("library"))
         sessionsDirectory = root.appendingPathComponent("agent-sessions", isDirectory: true)
     }
 

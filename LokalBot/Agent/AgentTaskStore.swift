@@ -38,13 +38,23 @@ extension AgentTaskRecord {
 }
 
 struct AgentTaskStore {
+    static let maximumMetadataBytes = 8 * 1_024 * 1_024
     let directory: URL
+    var maximumBytes = Self.maximumMetadataBytes
     var file: URL { directory.appendingPathComponent("tasks.json") }
+
+    enum SaveError: LocalizedError {
+        case metadataTooLarge
+
+        var errorDescription: String? {
+            "Task metadata is too large to save. Shorten drafts or queued messages and try again. Previously saved tasks are preserved; current edits remain open."
+        }
+    }
 
     func load() throws -> [AgentTaskRecord] {
         guard FileManager.default.fileExists(atPath: file.path) else { return [] }
         let values = try file.resourceValues(forKeys: [.fileSizeKey, .isSymbolicLinkKey])
-        guard values.isSymbolicLink != true, (values.fileSize ?? 0) <= 8 * 1_024 * 1_024 else {
+        guard values.isSymbolicLink != true, (values.fileSize ?? 0) <= maximumBytes else {
             throw CocoaError(.fileReadCorruptFile)
         }
         let records = try JSONDecoder().decode([AgentTaskRecord].self, from: Data(contentsOf: file))
@@ -53,9 +63,11 @@ struct AgentTaskStore {
     }
 
     func save(_ records: [AgentTaskRecord]) throws {
+        let data = try JSONEncoder().encode(records)
+        guard data.count <= maximumBytes else { throw SaveError.metadataTooLarge }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
-        try JSONEncoder().encode(records).write(to: file, options: .atomic)
+        try data.write(to: file, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
     }
 }

@@ -1,5 +1,39 @@
 import Foundation
 
+/// App-owned provenance for the exact observations supplied in one turn.
+/// Source text and model output never grant citation authority themselves.
+struct ChatEvidence: Sendable {
+    var meetingIDs: Set<String> = []
+    var meetingSeconds: [String: Set<Int>] = [:]
+    var screenIDs: Set<Int64> = []
+
+    mutating func addMeeting(_ id: UUID, seconds: TimeInterval? = nil) {
+        let key = SessionLookup.shortID(id).lowercased()
+        meetingIDs.insert(key)
+        if let seconds, seconds.isFinite, seconds >= 0,
+           let stamp = Int(exactly: seconds.rounded(.towardZero)) {
+            meetingSeconds[key, default: []].insert(stamp)
+        }
+    }
+
+    mutating func merge(_ other: ChatEvidence) {
+        meetingIDs.formUnion(other.meetingIDs)
+        screenIDs.formUnion(other.screenIDs)
+        for (id, seconds) in other.meetingSeconds { meetingSeconds[id, default: []].formUnion(seconds) }
+    }
+
+    func contains(_ citation: ChatCitation) -> Bool {
+        if citation.kind == .screen {
+            return citation.snapshotID.map(screenIDs.contains) ?? false
+        }
+        let id = citation.meetingID.lowercased()
+        guard meetingIDs.contains(id) else { return false }
+        guard let seconds = citation.seconds else { return true }
+        guard let stamp = Int(exactly: seconds) else { return false }
+        return meetingSeconds[id]?.contains(stamp) == true
+    }
+}
+
 /// Inline citation markers the assistant emits — `[meeting:ID]`,
 /// `[meeting:ID@HH:MM:SS]`, or `[screen:ID]` (see ChatPrompt's citation
 /// instructions).
@@ -74,7 +108,8 @@ enum ChatCitationParser {
                let snapshotID = Int64(sourceID), snapshotID > 0 {
                 citation = ChatCitation(snapshotID: snapshotID)
             } else if kind == ChatCitation.Kind.meeting.rawValue,
-                      sourceID.count >= 3 {
+                      sourceID.count >= 3,
+                      stamp == nil || stamp.flatMap(seconds(from:)) != nil {
                 citation = ChatCitation(
                     meetingID: sourceID,
                     seconds: stamp.flatMap(seconds(from:)))
@@ -96,6 +131,31 @@ enum ChatCitationParser {
         }
         display += ns.substring(from: cursor)
         return (cleaned(display), citations)
+    }
+
+    /// Apply before publishing partials or persisting final output. An invalid
+    /// marker is never rendered as a source link, even for a real but unseen ID.
+    static func verified(_ text: String, evidence: ChatEvidence, streaming: Bool = false) -> String {
+        var text = text
+        if streaming, let bracket = text.lastIndex(of: "["),
+           !text[bracket...].contains("]") {
+            let suffix = text[bracket...]
+            if "[meeting:".hasPrefix(suffix) || "[screen:".hasPrefix(suffix)
+                || suffix.hasPrefix("[meeting:") || suffix.hasPrefix("[screen:") {
+                text = String(text[..<bracket])
+            }
+        }
+        guard let regex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen):[^\]\n]*\]"#) else { return text }
+        let ns = text as NSString
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
+            let marker = ns.substring(with: match.range)
+            let citation = extract(marker).citations.first
+            if citation.map(evidence.contains) != true,
+               let range = Range(match.range, in: text) {
+                text.replaceSubrange(range, with: "(source not verified)")
+            }
+        }
+        return text
     }
 
     /// "1:23" → 83, "00:14:32" → 872. Nil for out-of-range fields.

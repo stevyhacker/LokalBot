@@ -4,13 +4,10 @@ import csv
 import os
 import re
 import statistics
+import sys
+import json
 import time
 from pathlib import Path
-
-import psutil
-import torch
-from transformers import AutoModelForImageTextToText, AutoProcessor
-
 
 MODEL_IDS = {
     "got-ocr-2": "stepfun-ai/GOT-OCR-2.0-hf",
@@ -33,10 +30,11 @@ def jaccard(a: str, b: str) -> float:
 
 
 def rss_mb() -> float:
+    import psutil
     return psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--vision-tsv", required=True)
     parser.add_argument("--model", choices=sorted(MODEL_IDS), required=True)
@@ -44,10 +42,52 @@ def parse_args():
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--max-new-tokens", type=int, default=1024)
     parser.add_argument("--dtype", choices=["float16", "bfloat16", "float32"], default="bfloat16")
-    return parser.parse_args()
+    parser.add_argument("--revision", required=True, help="Immutable 40-character model/code commit SHA, downloaded before this run")
+    parser.add_argument("--corpus-kind", required=True, choices=["synthetic", "private"])
+    parser.add_argument("--allow-reviewed-remote-code", action="store_true", help="Synthetic fixtures only; execute the already downloaded code at --revision")
+    args = parser.parse_args(argv)
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", args.revision):
+        parser.error("--revision must be an immutable 40-character commit SHA")
+    if args.corpus_kind == "private" and args.allow_reviewed_remote_code:
+        parser.error("Remote model code is not permitted with private screen fixtures")
+    if args.limit <= 0:
+        parser.error("--limit must be positive")
+    return args
+
+
+def restrict_private_network():
+    """Irreversibly deny this process network access before model imports."""
+    if sys.platform != "darwin":
+        raise RuntimeError("Private fixture runs require the macOS network-denied sandbox; use synthetic data on this host")
+    import ctypes
+    sandbox = ctypes.CDLL("/usr/lib/libsandbox.dylib")
+    sandbox.sandbox_init.argtypes = [ctypes.c_char_p, ctypes.c_uint64, ctypes.POINTER(ctypes.c_char_p)]
+    sandbox.sandbox_init.restype = ctypes.c_int
+    sandbox.sandbox_free_error.argtypes = [ctypes.c_char_p]
+    error = ctypes.c_char_p()
+    if sandbox.sandbox_init(b"(version 1)(allow default)(deny network*)", 0, ctypes.byref(error)) != 0:
+        message = error.value.decode("utf-8", errors="replace") if error.value else "sandbox unavailable"
+        if error.value:
+            sandbox.sandbox_free_error(error)
+        raise RuntimeError("Private fixture network isolation failed: " + message)
+
+
+def validate_rows(rows, corpus_kind):
+    if not rows:
+        raise ValueError("The fixture manifest is empty")
+    for row in rows:
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", row["id"]):
+            raise ValueError("Unsafe fixture ID")
+        for field in ("png_path", "vision_text_path"):
+            path = Path(row[field]).resolve(strict=True)
+            if not path.is_file():
+                raise ValueError("Fixture input must be a file")
+            if corpus_kind != "private" and any((parent / ".private-screen-fixtures").exists() for parent in path.parents):
+                raise ValueError("Decrypted screen fixtures require --corpus-kind private")
 
 
 def dtype_from_name(name: str):
+    import torch
     return {
         "float16": torch.float16,
         "bfloat16": torch.bfloat16,
@@ -106,17 +146,40 @@ def decode_output(model_key: str, processor, generated_ids, prompt_len: int):
 
 def main():
     args = parse_args()
-    os.makedirs(args.output_dir, exist_ok=True)
+    # Apply the network boundary before importing any model implementation.
+    # Offline model loading alone does not constrain arbitrary Python sockets.
+    if args.corpus_kind == "private":
+        restrict_private_network()
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
+    os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
+    os.umask(0o077)
+    rows = load_rows(Path(args.vision_tsv), args.limit)
+    validate_rows(rows, args.corpus_kind)
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(mode=0o700, parents=True, exist_ok=False)
+    (output_dir / "run.json").write_text(json.dumps({
+        "model": MODEL_IDS[args.model], "revision": args.revision,
+        "corpus_kind": args.corpus_kind, "local_files_only": True,
+        "remote_code": args.allow_reviewed_remote_code,
+        "cleanup": "Delete this output directory and decrypted fixtures after review; app retention does not manage them.",
+    }, indent=2), encoding="utf-8")
+    import torch
+    from transformers import AutoModelForImageTextToText, AutoProcessor
 
     device = "mps" if torch.backends.mps.is_available() else "cpu"
     dtype = dtype_from_name(args.dtype)
     model_id = MODEL_IDS[args.model]
 
     load_start = time.perf_counter()
-    processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+    processor = AutoProcessor.from_pretrained(model_id, revision=args.revision,
+                                             local_files_only=True, trust_remote_code=args.allow_reviewed_remote_code)
     model = AutoModelForImageTextToText.from_pretrained(
         model_id,
-        trust_remote_code=True,
+        revision=args.revision,
+        local_files_only=True,
+        trust_remote_code=args.allow_reviewed_remote_code,
+        use_safetensors=True,
         torch_dtype=dtype,
         low_cpu_mem_usage=True,
     ).eval()
@@ -129,7 +192,7 @@ def main():
         flush=True,
     )
     metrics = []
-    for row in load_rows(Path(args.vision_tsv), args.limit):
+    for row in rows:
         vision_text = Path(row["vision_text_path"]).read_text(encoding="utf-8", errors="ignore")
         inputs = prepare_inputs(args.model, processor, row["png_path"], device)
         prompt_len = inputs["input_ids"].shape[1]

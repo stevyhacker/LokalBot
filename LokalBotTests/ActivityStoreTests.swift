@@ -253,7 +253,7 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertEqual(store.screenshot(id: thirdID)?.similarityGroupID, thirdID)
     }
 
-    func testSearchOCRCollapsesSimilarCapturesUsingBestEvidenceAndLatestMoment() throws {
+    func testSearchOCRKeepsGroupedEvidenceAndCitationOnTheSameCapture() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -267,7 +267,7 @@ final class ActivityStoreTests: XCTestCase {
             windowTitle: "Pull request #42",
             ocr: "failover failover failover exact recovery steps",
             perceptualHash: firstHash)
-        let latestID = try store.insertScreenshot(
+        _ = try store.insertScreenshot(
             ts: base.addingTimeInterval(90),
             path: "/tmp/latest.heic.enc",
             app: "Safari",
@@ -277,12 +277,35 @@ final class ActivityStoreTests: XCTestCase {
 
         let hit = try XCTUnwrap(store.searchOCR("failover").first)
 
-        XCTAssertEqual(hit.snapshotID, latestID, "opening a group should use its latest capture")
-        XCTAssertEqual(hit.ts, base.addingTimeInterval(90))
+        XCTAssertEqual(hit.snapshotID, firstID, "the citation must open the snippet's source")
+        XCTAssertEqual(hit.ts, base)
         XCTAssertEqual(hit.similarityGroupID, firstID)
         XCTAssertEqual(hit.captureCount, 2)
         XCTAssertTrue(hit.snippet.contains("exact recovery steps"),
                       "the group should retain its strongest-ranked evidence snippet")
+        XCTAssertEqual(store.screenshot(id: hit.snapshotID)?.ts, hit.ts)
+    }
+
+    func testFallbackGroupingKeepsChangedNumericEvidenceWithItsSource() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let base = Calendar.current.startOfDay(for: Date()).addingTimeInterval(3_600)
+        let firstID = try store.insertScreenshot(
+            ts: base, path: "", app: "Notes", windowTitle: "Budget",
+            ocr: "budget budget budget is 10 dollars")
+        _ = try store.insertScreenshot(
+            ts: base.addingTimeInterval(60), path: "", app: "Notes", windowTitle: "Budget",
+            ocr: "This longer revised document now lists the budget as 50 dollars with other details")
+
+        let hit = try XCTUnwrap(store.searchOCR("budget").first)
+
+        XCTAssertEqual(hit.captureCount, 2)
+        XCTAssertEqual(hit.snapshotID, firstID)
+        XCTAssertEqual(hit.ts, base)
+        XCTAssertTrue(hit.snippet.contains("10 dollars"))
+        XCTAssertFalse(hit.snippet.contains("50 dollars"))
     }
 
     func testSearchOCRFallsBackToAppWindowAndDayForUngroupedCaptures() throws {
@@ -634,16 +657,10 @@ final class ActivityStoreTests: XCTestCase {
             ownProcessID: ownProcessID))
     }
 
-    func testCaptureLayoutUsesFocusedWindowDisplayAndExcludesEveryPrivateWindowOnIt() throws {
-        let displays = [
-            ScreenshotCaptureLayout.Display(
-                id: 1, frame: CGRect(x: 0, y: 0, width: 1_000, height: 800)),
-            ScreenshotCaptureLayout.Display(
-                id: 2, frame: CGRect(x: 1_000, y: 0, width: 1_000, height: 800)),
-        ]
+    func testCaptureLayoutIncludesOnlyThePolicyCheckedFocusedWindow() throws {
         let windows = [
-            // Same frontmost app on both displays; the title identifies the
-            // actual focused window on display 2 rather than array order.
+            // The AX title and frame identify one focused window rather than
+            // selecting a different window of the same app by array order.
             ScreenshotCaptureLayout.Window(
                 id: 10, processID: 42, appName: "Safari", title: "Other tab",
                 frame: CGRect(x: 100, y: 100, width: 600, height: 500)),
@@ -659,48 +676,51 @@ final class ActivityStoreTests: XCTestCase {
             ScreenshotCaptureLayout.Window(
                 id: 23, processID: 93, appName: "Safari", title: "Private Browsing — Start Page",
                 frame: CGRect(x: 1_020, y: 20, width: 360, height: 320)),
-            // This excluded window is not on the selected display and does not
-            // need to be handed to that display's ScreenCaptureKit filter.
+            // Windows on another display also stay outside the window filter.
             ScreenshotCaptureLayout.Window(
                 id: 22, processID: 92, appName: "1Password", title: "Vault",
                 frame: CGRect(x: 20, y: 20, width: 300, height: 300)),
         ]
 
         let selection = try XCTUnwrap(ScreenshotCaptureLayout.selection(
-            displays: displays,
             windows: windows,
             frontmostProcessID: 42,
-            focusedWindowTitle: "focused report",
-            excludedApps: ["1password", "SIGNAL"],
-            mainDisplayID: 1))
+            focusedWindowTitle: "Focused report",
+            focusedWindowFrame: CGRect(x: 1_100, y: 100, width: 700, height: 500),
+            excludedApps: ["1password", "SIGNAL"]))
 
-        XCTAssertEqual(selection.displayID, 2)
-        XCTAssertEqual(selection.excludedWindowIDs, Set<CGWindowID>([20, 21, 23]))
-
-        let optedIn = try XCTUnwrap(ScreenshotCaptureLayout.selection(
-            displays: displays,
-            windows: windows,
-            frontmostProcessID: 42,
-            focusedWindowTitle: "focused report",
-            excludedApps: ["1password", "SIGNAL"],
-            excludePrivateWindows: false,
-            mainDisplayID: 1))
-        XCTAssertEqual(optedIn.excludedWindowIDs, Set<CGWindowID>([20, 21]))
+        // All other windows stay outside the filter, including an ordinary
+        // background browser whose excluded domain is not known here.
+        XCTAssertEqual(selection.windowID, 11)
     }
 
-    func testCaptureLayoutFallsBackToMainDisplayWithoutFocusedWindow() {
+    func testCaptureLayoutDoesNotFallBackWithoutTheCheckedWindow() {
         let selection = ScreenshotCaptureLayout.selection(
-            displays: [
-                .init(id: 1, frame: CGRect(x: 0, y: 0, width: 800, height: 600)),
-                .init(id: 2, frame: CGRect(x: 800, y: 0, width: 800, height: 600)),
-            ],
             windows: [],
             frontmostProcessID: 42,
             focusedWindowTitle: "",
-            excludedApps: [],
-            mainDisplayID: 2)
+            focusedWindowFrame: nil,
+            excludedApps: [])
 
-        XCTAssertEqual(selection?.displayID, 2)
+        XCTAssertNil(selection)
+    }
+
+    func testCaptureLayoutRejectsAmbiguousAndPrivateFocusedWindows() {
+        let frame = CGRect(x: 0, y: 0, width: 800, height: 600)
+        let windows = [
+            ScreenshotCaptureLayout.Window(id: 1, processID: 42, appName: "Safari", title: "Report", frame: frame),
+            ScreenshotCaptureLayout.Window(id: 2, processID: 42, appName: "Safari", title: "Report", frame: frame),
+        ]
+        XCTAssertNil(ScreenshotCaptureLayout.selection(
+            windows: windows, frontmostProcessID: 42, focusedWindowTitle: "Report",
+            focusedWindowFrame: frame, excludedApps: []))
+        XCTAssertNil(ScreenshotCaptureLayout.selection(
+            windows: Array(windows.prefix(1)), frontmostProcessID: 42, focusedWindowTitle: "Report",
+            focusedWindowFrame: frame, excludedApps: ["Safari"]))
+        XCTAssertNil(ScreenshotCaptureLayout.selection(
+            windows: [.init(id: 3, processID: 42, appName: "Safari", title: "Private Window", frame: frame)],
+            frontmostProcessID: 42, focusedWindowTitle: "Private Window",
+            focusedWindowFrame: frame, excludedApps: []))
     }
 
     func testCaptureFileNamesAndInFlightGateCannotCollide() {
@@ -775,18 +795,28 @@ final class ActivityStoreTests: XCTestCase {
     }
 
     func testScreenshotWindowFocusValidationFailsClosedOnTimeoutOrChange() {
+        let snapshot = ScreenAccessibilitySnapshot(
+            text: "Report", sourceURL: "https://example.com/report", documentName: nil,
+            focusedSecureField: false, windowTitle: "Report",
+            windowFrame: CGRect(x: 0, y: 0, width: 800, height: 600), hasWebContent: true)
         XCTAssertTrue(ScreenshotWindowFocusValidation.matches(
-            expectedTitle: "Résumé",
-            current: .init(title: "resume", timedOut: false)))
-        XCTAssertTrue(ScreenshotWindowFocusValidation.matches(
-            expectedTitle: "",
-            current: .init(title: nil, timedOut: false)))
+            expected: snapshot, current: .init(snapshot: snapshot, timedOut: false)))
         XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
-            expectedTitle: "Report",
-            current: .timeout))
+            expected: snapshot, current: .timeout))
         XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
-            expectedTitle: "Report",
-            current: .init(title: "Chat", timedOut: false)))
+            expected: snapshot, current: .init(snapshot: nil, timedOut: false)))
+        var changed = snapshot
+        changed.sourceURL = "https://private.example/account"
+        XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
+            expected: snapshot, current: .init(snapshot: changed, timedOut: false)))
+        changed = snapshot
+        changed.focusedSecureField = nil
+        XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
+            expected: snapshot, current: .init(snapshot: changed, timedOut: false)))
+        changed = snapshot
+        changed.windowFrame = CGRect(x: 100, y: 100, width: 800, height: 600)
+        XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
+            expected: snapshot, current: .init(snapshot: changed, timedOut: false)))
     }
 
     func testActivitySamplerRemovesTerminationObserverWhenStopped() {
@@ -802,6 +832,51 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertTrue(sampler.hasTerminationObserver)
         sampler.stop()
         XCTAssertFalse(sampler.hasTerminationObserver)
+    }
+
+    func testActivityOnlySamplerNeverPersistsExcludedOrUnknownTitles() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityPrivacyTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let sampler = ActivitySampler(store: store)
+        sampler.excludedDomains = { ["private.test"] }
+        let base = Date().addingTimeInterval(-90)
+        let safe = ScreenAccessibilitySnapshot(
+            text: "", sourceURL: "https://public.test/document", documentName: nil,
+            focusedSecureField: false, windowTitle: "Public report", windowFrame: nil)
+        var privateWindow = safe
+        privateWindow.windowTitle = "Sensitive account — Private Window"
+        var excludedDomain = safe
+        excludedDomain.sourceURL = "https://private.test/account"
+        excludedDomain.windowTitle = "Sensitive banking title"
+        var unknownURL = safe
+        unknownURL.sourceURL = nil
+        unknownURL.hasWebContent = true
+        unknownURL.windowTitle = "Unverified browser title"
+        var unknownSecureState = safe
+        unknownSecureState.focusedSecureField = nil
+        unknownSecureState.windowTitle = "Unknown secure title"
+        let samples: [ScreenAccessibilityCaptureResult] = [
+            .init(snapshot: safe, timedOut: false),
+            .init(snapshot: privateWindow, timedOut: false),
+            .init(snapshot: excludedDomain, timedOut: false),
+            .init(snapshot: unknownURL, timedOut: false),
+            .timeout,
+            .init(snapshot: unknownSecureState, timedOut: false),
+            .init(snapshot: safe, timedOut: false),
+        ]
+        for (index, sample) in samples.enumerated() {
+            sampler.recordSample(appName: "Notes", bundleIdentifier: "test.notes",
+                                 accessibility: sample, at: base.addingTimeInterval(Double(index * 10)))
+        }
+        sampler.stop()
+
+        let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
+        XCTAssertEqual(blocks.count, 3)
+        XCTAssertEqual(blocks.map(\.title), ["Public report", "", "Public report"])
+        XCTAssertEqual(blocks.map(\.app), ["Notes", "Private", "Notes"])
+        XCTAssertEqual(blocks[1].duration, 50)
     }
 
     func testClearOCRTextRemovesOnlyRowsOlderThanCutoff() throws {
@@ -872,6 +947,55 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertNil(store.ocrText(snapshotID: savedID))
         XCTAssertFalse(try database.hasRowChecked(
             "SELECT 1 FROM screen_embeddings WHERE snapshot_id = ?1", bind: [savedID]))
+    }
+
+    func testOrphanRetentionRechecksLinkBookmarkAndTimestampBeforeDeleting() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OrphanRetentionScopeTests-\(UUID()).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let database = try XCTUnwrap(SQLiteDatabase(url: url))
+        let old = Date(timeIntervalSince1970: 1_800_000_000)
+        for (rowID, snapshotID) in [(501, 0), (502, 9_001), (503, 9_002), (504, 9_003)] {
+            try database.runChecked("""
+                INSERT INTO ocr_fts (rowid, text, window_title, ts, app, text_source, snapshot_id)
+                VALUES (?1, 'orphan fixture', '', ?2, 'Notes', 'ocr', ?3)
+                """, bind: [rowID, old.timeIntervalSince1970, snapshotID])
+            try database.runChecked("INSERT INTO ocr_metadata (rowid, snapshot_id, ts) VALUES (?1, ?2, ?3)",
+                                    bind: [rowID, snapshotID, old.timeIntervalSince1970])
+        }
+        try database.execute("CREATE TABLE screen_embeddings (snapshot_id INTEGER PRIMARY KEY, ts REAL NOT NULL)")
+        for snapshotID in [9_001, 9_002, 9_003] {
+            try database.runChecked("INSERT INTO screen_embeddings (snapshot_id, ts) VALUES (?1, ?2)",
+                                    bind: [snapshotID, old.timeIntervalSince1970])
+        }
+        let review = try store.orphanedScreenEvidence(olderThan: old.addingTimeInterval(1))
+        XCTAssertEqual(review.text.count, 4)
+        XCTAssertEqual(review.vectors.count, 3)
+
+        let linkedID = try store.insertScreenshot(ts: old, path: "", app: "Notes", ocr: "")
+        try database.runChecked("UPDATE ocr_fts SET snapshot_id = ?1 WHERE rowid = 501", bind: [linkedID])
+        try database.runChecked("UPDATE ocr_metadata SET snapshot_id = ?1 WHERE rowid = 501", bind: [linkedID])
+        try database.runChecked("INSERT INTO screenshots (id, ts, path, app) VALUES (9001, ?1, '', 'Notes')",
+                                bind: [old.timeIntervalSince1970])
+        try store.saveMoment(snapshotID: 9_001)
+        try database.runChecked("UPDATE ocr_fts SET ts = ?1 WHERE rowid = 504",
+                                bind: [old.addingTimeInterval(100).timeIntervalSince1970])
+        try database.runChecked("UPDATE screen_embeddings SET ts = ?1 WHERE snapshot_id = 9003",
+                                bind: [old.addingTimeInterval(100).timeIntervalSince1970])
+
+        try store.clearOrphanedScreenEvidence(review)
+
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 501"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 502"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 504"))
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 503"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_metadata WHERE rowid = 501"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_metadata WHERE rowid = 502"))
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM ocr_metadata WHERE rowid = 503"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9001"))
+        XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9003"))
+        XCTAssertFalse(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9002"))
     }
 }
 

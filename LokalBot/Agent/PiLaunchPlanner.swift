@@ -27,6 +27,7 @@ enum PiLaunchPlanner {
                      workspace: URL,
                      endpoint: AgentLLMEndpoint,
                      helpersDirectory: URL?,
+                     privateRoots: [URL] = [],
                      agentAccessCapability: String? = nil,
                      continuePreviousSession: Bool = false,
                      specificSession: URL? = nil,
@@ -59,9 +60,15 @@ enum PiLaunchPlanner {
         environment["LOKALBOT_LLM_BASE_URL"] = endpoint.baseURL.absoluteString
         environment["LOKALBOT_LLM_MODEL"] = endpoint.model
         environment["LOKALBOT_LLM_CTX"] = String(endpoint.contextTokens)
-        if let apiKey = endpoint.apiKey {
-            environment["LOKALBOT_LLM_API_KEY"] = apiKey
-        }
+        let privateRootsJSON = try? JSONEncoder().encode(privateRoots.map { $0.standardizedFileURL.path })
+        // An encoding failure must stop the extension at startup, never omit
+        // the protected roots. `null` is rejected by its launch validation.
+        environment["LOKALBOT_AGENT_PRIVATE_ROOTS"] = privateRootsJSON.map {
+            String(decoding: $0, as: UTF8.self)
+        } ?? "null"
+        // A credential-free endpoint must not inherit a key for another
+        // service from the parent process (including injected test sessions).
+        environment["LOKALBOT_LLM_API_KEY"] = endpoint.apiKey
         if let agentAccessCapability {
             environment[AgentAccessGate.capabilityEnvironmentKey] = agentAccessCapability
         }

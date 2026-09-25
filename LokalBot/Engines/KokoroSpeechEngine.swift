@@ -49,6 +49,16 @@ struct SpeechSynthesisRequest: Sendable {
     var outputURL: URL?
 }
 
+enum SpeechTemporaryOutputCleanup {
+    /// Releases playback first so a caller never unlinks the plaintext WAV
+    /// while AVFoundation may still need it.
+    static func cleanup(_ outputURL: URL?, afterPlaybackStops stopPlayback: () -> Void) {
+        stopPlayback()
+        guard let outputURL else { return }
+        try? FileManager.default.removeItem(at: outputURL)
+    }
+}
+
 actor KokoroSpeechEngine {
     static let shared = KokoroSpeechEngine()
     private let preparation = AsyncSingleFlight()
@@ -83,6 +93,12 @@ actor KokoroSpeechEngine {
         let runtime = try SherpaOnnxRuntime.installedRuntime(executableName: Self.executableName)
         let modelDir = try await preparedModelDir()
         let output = request.outputURL ?? Self.temporaryOutputURL()
+        var completed = false
+        defer {
+            if !completed {
+                SpeechTemporaryOutputCleanup.cleanup(output) {}
+            }
+        }
         try? FileManager.default.removeItem(at: output)
         try FileManager.default.createDirectory(
             at: output.deletingLastPathComponent(),
@@ -109,6 +125,8 @@ actor KokoroSpeechEngine {
         guard FileManager.default.fileExists(atPath: output.path) else {
             throw SpeechError.missingOutput
         }
+        try Task.checkCancellation()
+        completed = true
         return output
     }
 

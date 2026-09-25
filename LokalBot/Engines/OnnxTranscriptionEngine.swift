@@ -36,6 +36,20 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         var archiveURL: URL {
             URL(string: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/\(folderName).tar.bz2")!
         }
+        // Publisher release-asset metadata, independently pinned here so a
+        // replaced asset cannot silently change the installed model.
+        var archiveBytes: Int64 {
+            switch self {
+            case .senseVoice: 165_783_878
+            case .gigaamRussian: 163_286_197
+            }
+        }
+        var archiveSHA256: String {
+            switch self {
+            case .senseVoice: "7305f7905bfcf77fa0b39388a313f3da35c68d971661a65475b56fb2162c8e63"
+            case .gigaamRussian: "e1291d704460cab4a01716081170c86c12f6b15338a1534f71cc5956922adb52"
+            }
+        }
         /// `--model-type` value, passed so the binary skips its load-twice probe.
         var modelType: String {
             switch self {
@@ -112,30 +126,56 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
 
     func preparedModelDir() async throws -> URL {
         let dir = Self.modelsRoot.appendingPathComponent(model.folderName, isDirectory: true)
-        if (try? Self.locateModel(in: dir)) != nil { return dir }
+        if Self.isModelInstalled(in: dir, model: model) { return dir }
 
         try await preparation.run { [weak self] in
             guard let self else { return }
             try await self.installModel(in: dir)
         }
-        guard (try? Self.locateModel(in: dir)) != nil else { throw EngineError.modelUnavailable }
+        guard Self.isModelInstalled(in: dir, model: model) else { throw EngineError.modelUnavailable }
         return dir
     }
 
     private func installModel(in dir: URL) async throws {
         // A waiter may enter after the first caller finished but before it
         // observed the result; keep this operation idempotent as well.
-        if (try? Self.locateModel(in: dir)) != nil { return }
+        if Self.isModelInstalled(in: dir, model: model) { return }
 
         try FileManager.default.createDirectory(at: Self.modelsRoot, withIntermediateDirectories: true)
-        let (tmp, _) = try await URLSession.shared.download(from: model.archiveURL)
-        let archive = Self.modelsRoot.appendingPathComponent("\(model.folderName).tar.bz2")
-        try? FileManager.default.removeItem(at: archive)
+        let stage = Self.modelsRoot.appendingPathComponent(".install-\(UUID())", isDirectory: true)
+        try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: stage) }
+        let (tmp, response) = try await URLSession.shared.download(from: model.archiveURL)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        guard let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode) else { throw EngineError.modelUnavailable }
+        let archive = stage.appendingPathComponent("model.tar.bz2")
         try FileManager.default.moveItem(at: tmp, to: archive)
-        defer { try? FileManager.default.removeItem(at: archive) }
-
-        try ArchiveExtractor.extractBzip2Tar(archive, into: Self.modelsRoot)
-        guard (try? Self.locateModel(in: dir)) != nil else { throw EngineError.modelUnavailable }
+        try await DownloadIntegrity.verifyDownloaded(
+            at: archive, expectedBytes: model.archiveBytes, expectedSHA256: model.archiveSHA256)
+        try ArchiveExtractor.extractBzip2Tar(archive, into: stage)
+        let extracted = stage.appendingPathComponent(model.folderName, isDirectory: true)
+        try Self.markInstalled(in: extracted, model: model)
+        try Task.checkCancellation()
+        let publicationLock = open(dir.appendingPathExtension("install-lock").path,
+                                   O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
+        guard publicationLock >= 0 else { throw EngineError.modelUnavailable }
+        defer { close(publicationLock) }
+        guard flock(publicationLock, LOCK_EX) == 0 else { throw EngineError.modelUnavailable }
+        defer { flock(publicationLock, LOCK_UN) }
+        if Self.isModelInstalled(in: dir, model: model) { return }
+        // The live directory appears only after extraction and validation.
+        // An incomplete old cache is kept until its replacement is complete.
+        let backup = stage.appendingPathComponent("previous", isDirectory: true)
+        if FileManager.default.fileExists(atPath: dir.path) {
+            try FileManager.default.moveItem(at: dir, to: backup)
+        }
+        do { try FileManager.default.moveItem(at: extracted, to: dir) } catch {
+            if FileManager.default.fileExists(atPath: backup.path) {
+                try? FileManager.default.moveItem(at: backup, to: dir)
+            }
+            throw error
+        }
     }
 
     // MARK: - Paths
@@ -147,12 +187,53 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
 
     /// SenseVoice ships `model.int8.onnx`; NeMo-CTC tarballs ship `model.onnx`
     /// and/or `model.int8.onnx`. Prefer int8.
-    private static func locateModel(in dir: URL) throws -> URL {
+    private nonisolated static func locateModel(in dir: URL) throws -> URL {
+        guard validFile(dir.appendingPathComponent("tokens.txt")) else { throw EngineError.modelUnavailable }
         for name in ["model.int8.onnx", "model.onnx"] {
             let candidate = dir.appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+            if validFile(candidate) { return candidate }
         }
         throw EngineError.modelUnavailable
+    }
+
+    private nonisolated static func validFile(_ file: URL) -> Bool {
+        guard let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey]) else { return false }
+        return values.isRegularFile == true && values.isSymbolicLink != true && (values.fileSize ?? 0) > 0
+    }
+
+    private struct Receipt: Codable {
+        struct File: Codable {
+            let sha256: String
+            let bytes: Int
+        }
+        let archiveSHA256: String
+        let files: [String: File]
+    }
+
+    nonisolated static func markInstalled(in directory: URL, model: Model) throws {
+        let weights = try locateModel(in: directory)
+        var files: [String: Receipt.File] = [:]
+        for file in [weights, directory.appendingPathComponent("tokens.txt")] {
+            files[file.lastPathComponent] = try .init(
+                sha256: NativeRuntimeInstaller.sha256(file),
+                bytes: file.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0)
+        }
+        let receipt = Receipt(archiveSHA256: model.archiveSHA256, files: files)
+        try JSONEncoder().encode(receipt).write(
+            to: directory.appendingPathComponent(".lokalbot-model.json"), options: .atomic)
+    }
+
+    nonisolated static func isModelInstalled(in directory: URL, model: Model, verifyContents: Bool = true) -> Bool {
+        guard let weights = try? locateModel(in: directory),
+              let data = try? Data(contentsOf: directory.appendingPathComponent(".lokalbot-model.json")),
+              let receipt = try? JSONDecoder().decode(Receipt.self, from: data),
+              receipt.archiveSHA256 == model.archiveSHA256,
+              Set(receipt.files.keys) == [weights.lastPathComponent, "tokens.txt"] else { return false }
+        return receipt.files.allSatisfy { name, expected in
+            let file = directory.appendingPathComponent(name)
+            guard (try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize) == expected.bytes else { return false }
+            return !verifyContents || (try? NativeRuntimeInstaller.sha256(file)) == expected.sha256
+        }
     }
 
     private static func makeWorkDir() throws -> URL {

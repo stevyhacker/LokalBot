@@ -17,6 +17,9 @@ final class PipelineJobStore {
     struct PendingJob: Equatable {
         let meetingID: UUID
         let transcribe: Bool
+        /// True only after this durable job committed its requested transcript.
+        /// A transcript left by an older job does not satisfy this phase.
+        let transcriptionCompleted: Bool
         let summarize: Bool
         /// Automatic summary intent follows the current setting when a job is
         /// restored. Explicit toolbar/headless intent survives unchanged.
@@ -40,6 +43,7 @@ final class PipelineJobStore {
                 CREATE TABLE IF NOT EXISTS pipeline_jobs (
                     meeting_id TEXT PRIMARY KEY,
                     transcribe INTEGER NOT NULL,
+                    transcription_completed INTEGER NOT NULL DEFAULT 0,
                     summarize INTEGER NOT NULL,
                     summary_follows_setting INTEGER NOT NULL DEFAULT 1,
                     attempts INTEGER NOT NULL DEFAULT 0,
@@ -60,6 +64,13 @@ final class PipelineJobStore {
                 try database.runChecked(
                     "ALTER TABLE pipeline_jobs ADD COLUMN "
                         + "summary_follows_setting INTEGER NOT NULL DEFAULT 1")
+            }
+            if !columns.contains("transcription_completed") {
+                // An older row cannot prove that this job produced the
+                // transcript currently on disk. Conservatively resume ASR.
+                try database.runChecked(
+                    "ALTER TABLE pipeline_jobs ADD COLUMN "
+                        + "transcription_completed INTEGER NOT NULL DEFAULT 0")
             }
         } catch {
             lokalbotLog("pipeline queue initialization failed: \(error.localizedDescription)")
@@ -82,12 +93,13 @@ final class PipelineJobStore {
         write("enqueue") { database in
             try database.runChecked("""
                 INSERT INTO pipeline_jobs (
-                    meeting_id, transcribe, summarize, summary_follows_setting,
-                    attempts, enqueued_at
+                    meeting_id, transcribe, transcription_completed, summarize,
+                    summary_follows_setting, attempts, enqueued_at
                 )
-                VALUES (?1, ?2, ?3, ?4, 0, ?5)
+                VALUES (?1, ?2, 0, ?3, ?4, 0, ?5)
                 ON CONFLICT(meeting_id) DO UPDATE SET
                     transcribe = excluded.transcribe,
+                    transcription_completed = 0,
                     summarize = excluded.summarize,
                     summary_follows_setting = excluded.summary_follows_setting,
                     attempts = 0,
@@ -113,6 +125,10 @@ final class PipelineJobStore {
             try database.runChecked("""
                 UPDATE pipeline_jobs SET
                     transcribe = ?2,
+                    transcription_completed = CASE
+                        WHEN ?2 != 0 THEN 0
+                        ELSE transcription_completed
+                    END,
                     summarize = ?3,
                     summary_follows_setting = ?4
                 WHERE meeting_id = ?1
@@ -132,6 +148,18 @@ final class PipelineJobStore {
         write("mark started") { database in
             try database.runChecked(
                 "UPDATE pipeline_jobs SET attempts = attempts + 1 WHERE meeting_id = ?1",
+                bind: [meetingID.uuidString])
+        }
+    }
+
+    /// Persist the transcription phase immediately after the transcript
+    /// commit. Crash recovery must use this marker rather than the existence of
+    /// a transcript that may predate the current request.
+    @discardableResult
+    func markTranscriptionCompleted(meetingID: UUID) -> Bool {
+        write("mark transcription completed") { database in
+            try database.runChecked(
+                "UPDATE pipeline_jobs SET transcription_completed = 1 WHERE meeting_id = ?1",
                 bind: [meetingID.uuidString])
         }
     }
@@ -186,7 +214,7 @@ final class PipelineJobStore {
         do {
             return try requiredDatabase().queryChecked("""
                 SELECT meeting_id, transcribe, summarize,
-                       summary_follows_setting, attempts
+                       summary_follows_setting, attempts, transcription_completed
                 FROM pipeline_jobs
                 WHERE attempts < ?1 ORDER BY enqueued_at
                 """, bind: [Self.maxAutoResumeAttempts]) { statement -> PendingJob? in
@@ -194,6 +222,8 @@ final class PipelineJobStore {
                       let id = UUID(uuidString: String(cString: text)) else { return nil }
                 return PendingJob(meetingID: id,
                                   transcribe: sqlite3_column_int64(statement, 1) != 0,
+                                  transcriptionCompleted:
+                                      sqlite3_column_int64(statement, 5) != 0,
                                   summarize: sqlite3_column_int64(statement, 2) != 0,
                                   summaryFollowsSetting:
                                       sqlite3_column_int64(statement, 3) != 0,
@@ -212,7 +242,7 @@ final class PipelineJobStore {
         do {
             return try requiredDatabase().queryChecked("""
                 SELECT meeting_id, transcribe, summarize,
-                       summary_follows_setting, attempts
+                       summary_follows_setting, attempts, transcription_completed
                 FROM pipeline_jobs
                 WHERE meeting_id = ?1
                 LIMIT 1
@@ -222,6 +252,7 @@ final class PipelineJobStore {
                 return PendingJob(
                     meetingID: id,
                     transcribe: sqlite3_column_int64(statement, 1) != 0,
+                    transcriptionCompleted: sqlite3_column_int64(statement, 5) != 0,
                     summarize: sqlite3_column_int64(statement, 2) != 0,
                     summaryFollowsSetting: sqlite3_column_int64(statement, 3) != 0,
                     attempts: Int(sqlite3_column_int64(statement, 4)))

@@ -77,15 +77,13 @@ final class ReuseSubsystemsTests: XCTestCase {
     func testAudioRecoverySilencePlannerPreservesOrdinaryMonotonicGap() {
         XCTAssertEqual(
             AudioRecoverySilencePlanner.plan(forElapsed: Duration.seconds(4)),
-            AudioRecoverySilencePlan(duration: 4, wasCapped: false))
+            AudioRecoverySilencePlan(duration: 4))
     }
 
-    func testAudioRecoverySilencePlannerCapsSleepSizedGap() {
+    func testAudioRecoverySilencePlannerPreservesSleepSizedGap() {
         XCTAssertEqual(
             AudioRecoverySilencePlanner.plan(forElapsed: 3_600),
-            AudioRecoverySilencePlan(
-                duration: AudioRecoverySilencePlanner.maximumDuration,
-                wasCapped: true))
+            AudioRecoverySilencePlan(duration: 3_600))
     }
 
     func testSystemAudioRetryBudgetIsFiniteAndResetsForNewTarget() {

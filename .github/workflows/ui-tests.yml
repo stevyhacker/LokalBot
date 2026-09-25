@@ -27,6 +27,10 @@ on:
         type: choice
         options: [ready, legacy]
         default: ready
+      candidate_sha:
+        description: "Exact 40-character commit SHA requested by the dispatching checkout"
+        required: true
+        type: string
   pull_request:
     paths:
       - "LokalBot/**"
@@ -67,6 +71,21 @@ jobs:
     timeout-minutes: 100
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Bind manual dispatch to the requested candidate
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::candidate_sha must be a full lowercase commit SHA" >&2
+            exit 1
+          }
+          if [[ "$GITHUB_SHA" != "$REQUESTED_SHA" ]]; then
+            echo "::error::Requested $REQUESTED_SHA but workflow_dispatch resolved to $GITHUB_SHA" >&2
+            exit 1
+          fi
+          echo "Testing exact candidate \`$REQUESTED_SHA\`" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Select Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0

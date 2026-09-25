@@ -2,6 +2,15 @@ import XCTest
 @testable import LokalBot
 
 final class RecallRankingTests: XCTestCase {
+    func testSemanticOnlyMatchSurfacesWhenLexicalResultsFillTheLimit() {
+        let semanticID = UUID()
+        let lexical = (0..<40).map { _ in hit(UUID(), "Weak lexical match") }
+        let ranked = RecallSearch.fusedMeetings(keyword: lexical, semantic: [hit(semanticID, "Strong conceptual match")])
+        XCTAssertEqual(ranked.count, 40)
+        XCTAssertEqual(ranked[1].id, semanticID)
+        XCTAssertFalse(ranked.contains { $0.id == lexical.last?.meetingID })
+    }
+
     func testAgreementOutranksOneSidedMatchesAndKeepsSemanticOnlySources() {
         let first = UUID(), shared = UUID(), semanticOnly = UUID()
         let ranked = RecallSearch.fusedMeetings(

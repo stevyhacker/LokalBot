@@ -2,17 +2,13 @@ import AVFoundation
 
 struct AudioRecoverySilencePlan: Equatable {
     let duration: TimeInterval
-    let wasCapped: Bool
 }
 
 enum AudioRecoverySilencePlanner {
     static let minimumDuration: TimeInterval = 0.2
-    static let maximumDuration: TimeInterval = 30
-
     static func plan(forElapsed elapsed: TimeInterval) -> AudioRecoverySilencePlan? {
         guard elapsed.isFinite, elapsed >= minimumDuration else { return nil }
-        let duration = min(elapsed, maximumDuration)
-        return AudioRecoverySilencePlan(duration: duration, wasCapped: duration < elapsed)
+        return AudioRecoverySilencePlan(duration: elapsed)
     }
 
     static func plan(forElapsed elapsed: Duration) -> AudioRecoverySilencePlan? {
@@ -223,6 +219,8 @@ final class MicRecorder {
     private var converterInputFormat: AVAudioFormat?
     private var previewTee: AudioPreviewTee?
     private var recordingFormat: AVAudioFormat?
+    /// Accessed only on `ioQueue`. Nil for standalone dictation capture.
+    private var timeline: RecordingAudioTimeline?
     /// Accessed only on `ioQueue`.
     private var recoverySilenceCommitGate = AudioRecoverySilenceCommitGate()
     private var isRecording = false
@@ -239,6 +237,7 @@ final class MicRecorder {
     /// (AirPods plug/unplug, default-input switch, sample-rate renegotiation).
     /// Without this, the engine silently stops itself and `mic.m4a` truncates.
     private var configChangeObserver: NSObjectProtocol?
+    private var deviceReconnectObserver: NSObjectProtocol?
 
     /// Audio taps run on a real-time Core Audio thread. Keep that callback to
     /// one bounded PCM copy, then serialize conversion, AAC encoding, preview
@@ -284,6 +283,12 @@ final class MicRecorder {
         return min(Double(attempt), 5)
     }
 
+    static func shouldRearmAfterDeviceEvent(isRecording: Bool, recovery: RecoveryState) -> Bool {
+        guard isRecording else { return false }
+        if case .degraded = recovery { return true }
+        return false
+    }
+
     struct CaptureHealth {
         let duration: TimeInterval
         let lastAudioWriteAt: Date?
@@ -302,7 +307,8 @@ final class MicRecorder {
 
     /// `previewTee` mirrors the capture into a snapshot-safe PCM `.caf` for
     /// the live meeting transcript — best-effort, never fails the recording.
-    func start(writingTo url: URL, previewTee previewURL: URL? = nil) throws {
+    func start(writingTo url: URL, previewTee previewURL: URL? = nil,
+               timeline: RecordingAudioTimeline? = nil) throws {
         reconfigurationTask?.cancel()
         reconfigurationTask = nil
         isRecording = false
@@ -333,6 +339,7 @@ final class MicRecorder {
         ioQueue.sync {
             file = newFile
             self.recordingFormat = recordingFormat
+            self.timeline = timeline
             previewTee = newPreviewTee
             converter = nil
             converterInputFormat = nil
@@ -342,17 +349,20 @@ final class MicRecorder {
         resetCaptureHealth(sampleRate: recordingFormat.sampleRate)
 
         isRecording = true
+        observeDeviceReconnections()
         observeConfigurationChanges(for: engine)
         do {
             try installTapAndStart(inputFormat: inputFormat, recordingFormat: recordingFormat)
         } catch {
             isRecording = false
+            removeDeviceReconnectObserver()
             reconfigurationTask?.cancel()
             reconfigurationTask = nil
             removeConfigurationChangeObserver()
             ioQueue.sync {
                 file = nil
                 self.recordingFormat = nil
+                self.timeline = nil
                 converter = nil
                 converterInputFormat = nil
                 previewTee?.close()
@@ -368,6 +378,7 @@ final class MicRecorder {
 
     func stop() {
         isRecording = false
+        removeDeviceReconnectObserver()
         reconfigurationTask?.cancel()
         reconfigurationTask = nil
         updateRecoveryState(.healthy)
@@ -383,6 +394,7 @@ final class MicRecorder {
             converterInputFormat = nil
             recoverySilenceCommitGate.cancel()
             recordingFormat = nil
+            timeline = nil
             file = nil   // closes the file
             previewTee?.close()
             previewTee = nil
@@ -421,6 +433,26 @@ final class MicRecorder {
     }
 
     // MARK: - Engine setup
+
+    /// This listener outlives failed engine graphs. Reconnecting an input
+    /// rearms the bounded recovery owner even after its fast retries expired.
+    private func observeDeviceReconnections() {
+        removeDeviceReconnectObserver()
+        deviceReconnectObserver = NotificationCenter.default.addObserver(
+            forName: AVCaptureDevice.wasConnectedNotification, object: nil, queue: .main
+        ) { [weak self] notification in
+            guard let self, let device = notification.object as? AVCaptureDevice,
+                  device.hasMediaType(.audio),
+                  Self.shouldRearmAfterDeviceEvent(isRecording: self.isRecording,
+                                                  recovery: self.captureHealth().recoveryState) else { return }
+            self.scheduleReconfigurationRetry(lastError: "An audio input was reconnected.")
+        }
+    }
+
+    private func removeDeviceReconnectObserver() {
+        if let deviceReconnectObserver { NotificationCenter.default.removeObserver(deviceReconnectObserver) }
+        deviceReconnectObserver = nil
+    }
 
     /// Reconfiguration can leave `AVAudioEngine`'s input node pinned to the
     /// previous hardware rate. Reusing that graph makes every retry request the
@@ -492,8 +524,14 @@ final class MicRecorder {
         input.installTap(onBus: 0, bufferSize: 4096, format: nil) { [weak self, broker] buffer, audioTime in
             guard let self else { return }
             let capturedAt = ContinuousClock.now
+            let callbackHostTime = RecordingAudioClock.now
             let sourceHostTime = audioTime.hostTime
             let sourceHostValid = audioTime.isHostTimeValid
+            // Capture the fallback on the callback, never after queue/encoder
+            // delay. Invalid host anchors still fail closed for speaker proof.
+            let bufferHostStart = sourceHostValid
+                ? RecordingAudioClock.hostSeconds(sourceHostTime)
+                : callbackHostTime - Double(buffer.frameLength) / buffer.format.sampleRate
             let copy: AVAudioPCMBuffer
             let pool: MicAudioBufferPool
             switch broker.borrow(for: buffer) {
@@ -523,7 +561,9 @@ final class MicRecorder {
                 defer { pool.returnBuffer(copy) }
                 guard let self, self.activeCaptureGraphID == captureGraphID else { return }
                 do {
-                    try self.write(copy, capturedAt: capturedAt, hostTime: sourceHostTime, hostValid: sourceHostValid)
+                    try self.write(copy, capturedAt: capturedAt, hostTime: sourceHostTime,
+                                   hostValid: sourceHostValid, bufferHostStart: bufferHostStart,
+                                   callbackHostTime: callbackHostTime)
                 } catch {
                     NSLog("MicRecorder write failed: \(error.localizedDescription)")
                 }
@@ -765,6 +805,7 @@ final class MicRecorder {
                     NSLog("MicRecorder drain write failed: \(error.localizedDescription)")
                     return
                 }
+                previewTee?.write(tail)
                 healthLock.lock()
                 framesWritten += AVAudioFramePosition(tail.frameLength)
                 healthLock.unlock()
@@ -778,13 +819,16 @@ final class MicRecorder {
 
     private func write(
         _ buffer: AVAudioPCMBuffer,
-        capturedAt: ContinuousClock.Instant, hostTime: UInt64, hostValid: Bool
+        capturedAt: ContinuousClock.Instant, hostTime: UInt64, hostValid: Bool,
+        bufferHostStart: Double, callbackHostTime: Double
     ) throws {
         guard let file else { return }
         let bufferDuration = buffer.format.sampleRate > 0
             ? Double(buffer.frameLength) / buffer.format.sampleRate
             : 0
         let bufferStartedAt = capturedAt.advanced(by: .seconds(-bufferDuration))
+        let timelineHostStart = timeline?.hostTimeOnTimeline(bufferHostTime: bufferHostStart,
+            callbackHostTime: callbackHostTime, callbackInstant: capturedAt) ?? bufferHostStart
         guard let recordingFormat else {
             try file.write(from: buffer)
             previewTee?.write(buffer)
@@ -796,6 +840,7 @@ final class MicRecorder {
             converterInputFormat = nil
             try appendPendingRecoverySilence(
                 until: bufferStartedAt,
+                bufferHostStart: timelineHostStart,
                 format: recordingFormat,
                 file: file)
             try file.write(from: buffer)
@@ -836,6 +881,7 @@ final class MicRecorder {
         if output.frameLength > 0 {
             try appendPendingRecoverySilence(
                 until: bufferStartedAt,
+                bufferHostStart: timelineHostStart,
                 format: recordingFormat,
                 file: file)
             try file.write(from: output)
@@ -893,44 +939,35 @@ final class MicRecorder {
     /// Called only on `ioQueue` immediately before the recovered buffer write.
     private func appendPendingRecoverySilence(
         until now: ContinuousClock.Instant,
+        bufferHostStart: Double,
         format: AVAudioFormat,
         file: AVAudioFile
     ) throws {
         healthLock.lock()
         let anchor = lastAudioWriteInstant ?? captureStartedInstant
+        let written = framesWritten
         healthLock.unlock()
-        guard let anchor else {
+        let paddingFrames: Int64
+        if let timeline {
+            recoverySilenceCommitGate.cancel()
+            paddingFrames = timeline.silenceFrames(before: bufferHostStart,
+                framesWritten: written, sampleRate: format.sampleRate)
+        } else if let anchor,
+                  let plan = recoverySilenceCommitGate.consumeAfterCapturedBuffer(
+                    forElapsed: anchor.duration(to: now)),
+                  format.sampleRate > 0,
+                  plan.duration * format.sampleRate < Double(Int64.max) {
+            paddingFrames = Int64(plan.duration * format.sampleRate)
+        } else {
             recoverySilenceCommitGate.cancel()
             return
         }
-        guard let plan = recoverySilenceCommitGate.consumeAfterCapturedBuffer(
-            forElapsed: anchor.duration(to: now)),
-              format.sampleRate > 0 else { return }
-
-        var remaining = AVAudioFramePosition(plan.duration * format.sampleRate)
-        var appended: AVAudioFramePosition = 0
-        while remaining > 0 {
-            let count = AVAudioFrameCount(min(remaining, 4_096))
-            guard let silence = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: count) else {
-                throw RecorderError.unsupportedInputFormat
-            }
-            silence.frameLength = count
-            let buffers = UnsafeMutableAudioBufferListPointer(silence.mutableAudioBufferList)
-            for buffer in buffers where buffer.mData != nil {
-                memset(buffer.mData!, 0, Int(buffer.mDataByteSize))
-            }
+        try AudioTimelinePadding.write(frames: paddingFrames, format: format) { silence in
             try file.write(from: silence)
             previewTee?.write(silence)
-            appended += AVAudioFramePosition(count)
-            remaining -= AVAudioFramePosition(count)
-        }
-        healthLock.lock()
-        framesWritten += appended
-        healthLock.unlock()
-        if plan.wasCapped {
-            NSLog(
-                "MicRecorder recovery gap capped at "
-                    + "\(AudioRecoverySilencePlanner.maximumDuration)s")
+            healthLock.lock()
+            framesWritten += Int64(silence.frameLength)
+            healthLock.unlock()
         }
     }
 

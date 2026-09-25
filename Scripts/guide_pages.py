@@ -33,7 +33,7 @@ GUIDES = [
         </ol>
 
         <h2>Why two audio tracks matter</h2>
-        <p>Recording the microphone and meeting app separately provides a useful speaker boundary before any diarization model runs. It distinguishes you from the rest of the call, keeps the two sources synchronized, and avoids the audible joins and calendar invitations created by meeting bots. Optional neural diarization can split the remote track further when several other people speak.</p>
+        <p>Recording the microphone and meeting app separately preserves audio-source provenance before any diarization model runs. One track contains whatever the selected microphone captured; the other contains the selected app's output. Those sources stay synchronized and avoid the audible joins and calendar invitations created by meeting bots. The source labels do not prove who spoke: shared microphones, speaker leakage, and room playback can put a person's voice on either track. Optional neural diarization can estimate speaker turns within the system-audio track.</p>
 
         <h2>The honest trade-offs</h2>
         <ul>
@@ -91,7 +91,7 @@ GUIDES = [
         <ol>
           <li>Download the speech model and one summarization model.</li>
           <li>Record and process a 30-second test with the meeting app you will use.</li>
-          <li>Confirm both “Me” and “Them” tracks contain audio.</li>
+          <li>Confirm both the microphone and system-audio tracks contain audio.</li>
           <li>Disconnect Wi-Fi and repeat the test.</li>
           <li>Keep enough free disk space for the models and meeting audio.</li>
         </ol>
@@ -171,8 +171,8 @@ GUIDES = [
         <p>Your microphone is designed to capture your voice, not clean digital output from Zoom, Teams, Meet, Slack, Webex, or FaceTime. Turning the speakers up and recording the room mixes both sides with echo, keyboard noise, and acoustic processing. A cloud meeting bot avoids that acoustic problem but becomes another participant, may require calendar access, and sends the call through an external service.</p>
 
         <h2>The two-track approach</h2>
-        <p>LokalBot records the microphone as the “Me” track. At the same time, a Core Audio process tap records the selected meeting application's output as “Them.” The tracks are kept synchronized and processed on the Mac. This gives the transcript an immediate speaker boundary without relying on a bot or trying to infer whether every sentence came from you.</p>
-        <p>When multiple remote participants speak, optional on-device diarization can divide the “Them” side into additional speakers. Diarization is probabilistic, so names and boundaries may still need editing after a difficult or overlapping conversation.</p>
+        <p>LokalBot records two synchronized audio sources: the selected microphone and a Core Audio process tap for the selected meeting application's output. The transcript labels describe where the audio was captured, not a verified speaker identity. A shared microphone, headphones leaking into the mic, or meeting audio played into the room can put the same voice on either source.</p>
+        <p>When several voices occur in the system-audio source, optional on-device diarization can estimate additional speaker turns. Diarization is probabilistic, so identities and boundaries may still need editing after a difficult or overlapping conversation.</p>
 
         <h2>What the other participants see</h2>
         <p>No account joins the room, no virtual participant appears in the roster, and no bot announces itself. That makes the workflow less disruptive, but it does not make recording invisible in a legal or ethical sense. Tell people when required, obtain consent, and follow employer and platform policies. LokalBot is a personal recorder; it cannot decide whether a particular meeting may be recorded.</p>
@@ -187,14 +187,14 @@ GUIDES = [
         </ul>
 
         <h2>After the call</h2>
-        <p>The selected local speech model transcribes the synchronized audio. The built-in language model can turn the transcript into a TL;DR, decisions, and action items. Because the capture sources are separate, you can replay the meeting with a clearer “Me” versus “Them” context and search from a result back to the relevant timestamp.</p>
+        <p>The selected local speech model transcribes the synchronized audio. The built-in language model can turn the transcript into a TL;DR, decisions, and action items. Because the capture sources are separate, you can replay the microphone and selected-app system audio independently and search from a result back to the relevant timestamp. Those sources still describe audio provenance rather than verified identity.</p>
 
         <h2>A pre-meeting test worth doing</h2>
         <p>Open the actual meeting app, play remote audio, speak into your microphone, and make a short recording. Verify that both tracks show activity and play back correctly. macOS permissions and device routing can change when you switch headsets, docks, or output devices, so repeat this check before an unusually important call.</p>
         """,
         "faq": [
             ("Does LokalBot join Zoom or Google Meet?", "No. It records the selected app's audio locally through macOS rather than joining as a participant."),
-            ("Can it identify every speaker?", "It reliably separates your microphone from the remote track. Optional diarization can split remote speakers further, but accuracy depends on the audio."),
+            ("Can it identify every speaker?", "No. It separates microphone audio from the selected app's output, and those sources do not prove identity. Optional diarization can estimate distinct voices within system audio, but accuracy depends on the recording."),
             ("Is bot-free recording legal everywhere?", "No recording method is automatically legal everywhere. You are responsible for notice, consent, workplace rules, and local law."),
         ],
         "related": ["local-ai-meeting-notes-mac", "offline-meeting-transcription-mac", "system-requirements"],
@@ -237,7 +237,7 @@ GUIDES = [
         </ol>
 
         <h2>Speech recognition is only one stage</h2>
-        <p>Speaker separation, punctuation, summary quality, and action-item extraction depend on later stages too. LokalBot begins with separate “Me” and “Them” capture tracks, can apply on-device diarization to the remote side, and then sends the transcript to the selected summarization backend. A perfect language model cannot recover words that the speech model never recognized, so improve capture and transcription before tuning recap prompts.</p>
+        <p>Speaker separation, punctuation, summary quality, and action-item extraction depend on later stages too. LokalBot begins with separate microphone and selected-app system-audio tracks, whose labels indicate capture source rather than speaker identity. It can apply on-device diarization to system audio before sending the transcript to the selected summarization backend. A perfect language model cannot recover words that the speech model never recognized, so improve capture and transcription before tuning recap prompts.</p>
 
         <h2>Storage and memory planning</h2>
         <p>Speech models are not the only downloads. Local summary and cotyping models range from about 0.53 GB to roughly 17.73 GB in the built-in catalog. Smaller options work on any supported Apple Silicon Mac; several quality-focused choices recommend 16 GB, while the largest long-meeting defaults target 32 GB or more. Install only what you use and keep free space for recordings.</p>

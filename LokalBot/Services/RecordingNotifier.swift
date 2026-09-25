@@ -6,13 +6,15 @@ struct RecordingPromptRegistry {
     struct PendingPrompt {
         let expiresAt: Date
         let record: @MainActor () -> Void
+        let unavailable: @MainActor () -> Void
     }
 
     private var prompts: [String: PendingPrompt] = [:]
 
     mutating func insert(identifier: String, expiresAt: Date,
+                         unavailable: @escaping @MainActor () -> Void = {},
                          record: @escaping @MainActor () -> Void) {
-        prompts[identifier] = PendingPrompt(expiresAt: expiresAt, record: record)
+        prompts[identifier] = PendingPrompt(expiresAt: expiresAt, record: record, unavailable: unavailable)
     }
 
     func contains(_ identifier: String) -> Bool {
@@ -21,6 +23,11 @@ struct RecordingPromptRegistry {
 
     mutating func remove(_ identifier: String) -> PendingPrompt? {
         prompts.removeValue(forKey: identifier)
+    }
+
+    mutating func deliveryFailed(_ identifier: String, now: Date = Date()) {
+        guard let prompt = remove(identifier), prompt.expiresAt > now else { return }
+        prompt.unavailable()
     }
 
     mutating func removeAll() -> [String] {
@@ -97,6 +104,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
     /// unrelated meeting hours later.
     func meetingDetected(title: String,
                          expiresAfter: TimeInterval = 2 * 60,
+                         onUnavailable: @escaping @MainActor () -> Void = {},
                          onRecord: @escaping @MainActor () -> Void) {
         purgeExpiredDetections()
         invalidateMeetingDetections()
@@ -104,6 +112,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         pendingDetections.insert(
             identifier: identifier,
             expiresAt: Date().addingTimeInterval(expiresAfter),
+            unavailable: onUnavailable,
             record: onRecord)
         post(
             title: "Meeting detected",
@@ -135,7 +144,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                 authorized = (try? await center.requestAuthorization(options: [.alert, .sound])) == true
             }
             guard authorized else {
-                _ = pendingDetections.remove(identifier)
+                pendingDetections.deliveryFailed(identifier)
                 return
             }
             if categoryIdentifier == Self.detectionCategory,
@@ -146,7 +155,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                 try await center.add(request)
             } catch {
                 if categoryIdentifier == Self.detectionCategory {
-                    _ = pendingDetections.remove(identifier)
+                    pendingDetections.deliveryFailed(identifier)
                 }
                 return
             }

@@ -31,7 +31,7 @@ enum SummaryClaimEvidence {
 
         var errorDescription: String? {
             let subject = claimNumber.map { "Summary claim \($0)" } ?? "Summary"
-            return "\(subject) could not be verified: \(reason.description)."
+            return "\(subject) did not pass its source-link check: \(reason.description)."
         }
     }
 

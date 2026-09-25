@@ -59,6 +59,7 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var messageAttachments: [String: [AgentAttachment]] = [:]
     @Published private(set) var queuedPrompts: [AgentQueuedPrompt] = []
     @Published private(set) var queueIsPaused = false
+    @Published private(set) var turnError: String?
     @Published private(set) var isSending = false
     @Published private(set) var isStopping = false
     @Published private(set) var failedPrompt: AgentQueuedPrompt?
@@ -74,6 +75,7 @@ final class AgentSessionController: ObservableObject {
     var hasLiveRuntime: Bool { state == .starting || state == .ready || state == .running }
     var taskStatus: String {
         if !pendingApprovals.isEmpty { return "Needs approval" }
+        if turnError != nil { return "Needs attention" }
         switch state {
         case .idle: return items.isEmpty ? "Ready to start" : "Saved"
         case .starting: return "Starting…"
@@ -95,6 +97,7 @@ final class AgentSessionController: ObservableObject {
     private let storage: StorageManager
     private let runtimeRoot: URL
     private let sessionsDirectory: URL
+    private let defaultWorkspace: URL
     private let broker: InferenceBroker
     private let thinkExecution: ThinkExecution
     private let makeTransport: ((PiLaunchPlan) async throws -> PiLineTransport)?
@@ -128,6 +131,7 @@ final class AgentSessionController: ObservableObject {
          storage: StorageManager,
          runtimeRoot: URL = AgentRuntimeLayout.defaultRoot,
          sessionsDirectory: URL = AgentRuntimeLayout.sessionsDirectory,
+         defaultWorkspace: URL? = nil,
          broker: InferenceBroker = .shared,
          thinkExecution: ThinkExecution? = nil,
          accessGate: AgentAccessGate? = nil,
@@ -140,14 +144,18 @@ final class AgentSessionController: ObservableObject {
         self.storage = storage
         self.runtimeRoot = runtimeRoot
         self.sessionsDirectory = sessionsDirectory
+        self.defaultWorkspace = defaultWorkspace ?? AppDirectories.agentWorkspace(forLibraryRoot: storage.rootURL)
         self.broker = broker
         self.thinkExecution = thinkExecution ?? ThinkExecution(storage: storage)
         self.accessGate = accessGate ?? AgentAccessGate(root: storage.rootURL)
         self.makeTransport = makeTransport
         self.approvalModeDefaults = defaults
         self.approvalMode = restoredMode
-        self.policy = AgentApprovalPolicy(mode: restoredMode)
-        self.workspace = storage.rootURL
+        self.policy = AgentApprovalPolicy(
+            mode: restoredMode,
+            protectedWriteRoots: [storage.rootURL, AppDirectories.applicationSupport,
+                                  sessionsDirectory, runtimeRoot, Bundle.main.bundleURL])
+        self.workspace = self.defaultWorkspace
     }
 
     private static var defaultApprovalModeDefaults: UserDefaults {
@@ -163,6 +171,10 @@ final class AgentSessionController: ObservableObject {
     func start() async {
         guard !failureTeardownInProgress,
               state == .idle || isFailed else { return }
+        do { try prepareWorkspace() } catch {
+            composerError = error.localizedDescription
+            return
+        }
         let configuration = settings()
         modelContext = ModelContext(settings: configuration)
 #if LOKALBOT_UI_TEST_HOST
@@ -201,6 +213,16 @@ final class AgentSessionController: ObservableObject {
             connectedEndpoint = endpoint.baseURL
             var capabilityToken: String?
             if makeTransport == nil {
+                let root = runtimeRoot
+                let integrityValid = await Task.detached(priority: .utility) {
+                    AgentRuntimeLayout.isIntegrityValid(under: root)
+                }.value
+                guard generation == lifecycleGeneration else { return }
+                guard integrityValid else {
+                    throw NSError(domain: "AgentRuntime", code: 1, userInfo: [
+                        NSLocalizedDescriptionKey: "The Agent runtime changed since installation. Repair it in Settings before starting this task.",
+                    ])
+                }
                 accessGate.removeExpiredCapabilities()
                 let capability = try accessGate.issueScopedCapability()
                 accessCapability = capability
@@ -294,7 +316,7 @@ final class AgentSessionController: ObservableObject {
         }
         queuedPrompts.append(.init(text: text, attachments: attachments))
         draft = ""; attachments = []
-        queueIsPaused = isStopping
+        queueIsPaused = queueIsPaused || isStopping || turnError != nil
     }
 
     func restoreSources(_ sources: [AgentAttachment]) { sourceAttachments = sources }
@@ -373,6 +395,7 @@ final class AgentSessionController: ObservableObject {
         isSending = true
         lastSubmittedPrompt = pending
         composerError = nil
+        turnError = nil
         queueIsPaused = false
         if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: prompt) }
         folder.noteUserPrompt(prompt)
@@ -398,7 +421,7 @@ final class AgentSessionController: ObservableObject {
                 publish()
                 return false
             }
-            failedPrompt = nil
+            if turnError == nil { failedPrompt = nil }
             return true
         } catch {
             guard generation == lifecycleGeneration else { return false }
@@ -545,6 +568,7 @@ final class AgentSessionController: ObservableObject {
     func respondToApproval(id: String, approved: Bool, scope: ApprovalScope) async {
         guard let client else { return }
         guard let request = pendingApprovalRequest(requestID: id) else { return }
+        let approved = approved && request.canApprove
         if approved, scope == .session {
             policy.allowForSession(
                 tool: request.tool,
@@ -601,6 +625,7 @@ final class AgentSessionController: ObservableObject {
         switch event {
         case .agentStart:
             state = .running
+            turnError = nil
         case .agentSettled:
             state = .ready
         case .extensionUIRequest(let request):
@@ -609,6 +634,11 @@ final class AgentSessionController: ObservableObject {
             break
         }
         folder.fold(event)
+        if event == .agentSettled, let failure = folder.terminalFailure {
+            turnError = failure
+            queueIsPaused = true
+            failedPrompt = lastSubmittedPrompt
+        }
         publish()
         // agent_end can precede automatic retry/compaction. The pinned Pi
         // runtime emits agent_settled only after the complete run is idle.
@@ -627,6 +657,11 @@ final class AgentSessionController: ObservableObject {
             return
         }
         let approval = Self.parseApprovalPayload(request)
+        guard approval.canApprove else {
+            folder.appendNotice("The shell command could not be reviewed in full and was declined. Nothing ran.", isError: true)
+            try? await client.sendResponse(.uiConfirmResponse(requestID: request.id, confirmed: false))
+            return
+        }
         switch policy.verdict(
             tool: approval.tool,
             path: approval.path,
@@ -664,6 +699,9 @@ final class AgentSessionController: ObservableObject {
         releaseLLMLease()
         let connection = try await thinkExecution.prepareAgentConnection(
             settings: configuration,
+            // Injected transports never contact the configured service and
+            // must not prompt for real Keychain or local-server credentials.
+            includingCredentials: makeTransport == nil,
             broker: broker)
         llmLease = connection.lease
         return connection.endpoint
@@ -687,6 +725,7 @@ final class AgentSessionController: ObservableObject {
             workspace: workspace,
             endpoint: endpoint,
             helpersDirectory: FileManager.default.fileExists(atPath: helpers.path) ? helpers : nil,
+            privateRoots: privateWorkspaceRoots,
             agentAccessCapability: capabilityToken,
             continuePreviousSession: launchMode.isContinueRecent,
             specificSession: launchMode.specificSession)
@@ -799,11 +838,12 @@ final class AgentSessionController: ObservableObject {
     }
 
     func canAllowForSession(_ request: AgentApprovalRequest) -> Bool {
-        AgentApprovalPolicy.canPersistApproval(
+        request.canApprove && AgentApprovalPolicy.canPersistApproval(
             tool: request.tool,
             path: request.path,
             requestWorkspace: request.workspace,
-            selectedWorkspace: workspace)
+            selectedWorkspace: workspace,
+            protectedWriteRoots: policy.protectedWriteRoots)
     }
 
     private func fail(with error: Error) async {
@@ -872,7 +912,8 @@ final class AgentSessionController: ObservableObject {
         // Session allowances are intentionally cleared at lifecycle
         // boundaries. The approval mode itself is an app-level preference and
         // must survive closing or resuming a session.
-        policy = AgentApprovalPolicy(mode: approvalMode)
+        policy.resetSession()
+        policy.mode = approvalMode
     }
 
     /// Our extension sends title "lokalbot_tool_approval" with exact structured
@@ -911,8 +952,11 @@ final class AgentSessionController: ObservableObject {
     }
 
     func workspaceDisplayName(for workspace: URL) -> String {
-        if workspace.standardizedFileURL == storage.rootURL.standardizedFileURL {
-            return "Meeting Library"
+        if AgentWorkspacePolicy(privateRoots: privateWorkspaceRoots).containsPrivateWorkspace(workspace) {
+            return "Private Library · read-only"
+        }
+        if workspace.standardizedFileURL == defaultWorkspace.standardizedFileURL {
+            return "Agent Workspace"
         }
         return workspace.lastPathComponent.isEmpty ? workspace.path : workspace.lastPathComponent
     }
@@ -933,10 +977,50 @@ final class AgentSessionController: ObservableObject {
     }
 
     var canResumePreviousSession: Bool {
-        Self.hasResumableSession(in: sessionsDirectory, workspace: workspace)
+        workspaceAccessNotice == nil && Self.hasResumableSession(in: sessionsDirectory, workspace: workspace)
     }
 
     var sessionStorageDirectory: URL { sessionsDirectory }
+
+    private var privateWorkspaceRoots: [URL] {
+        [storage.rootURL, AppDirectories.applicationSupport, sessionsDirectory, runtimeRoot]
+    }
+
+    var workspaceAccessNotice: String? { workspaceAccessNotice(for: workspace) }
+
+    func workspaceAccessNotice(for proposed: URL) -> String? {
+        AgentWorkspacePolicy(privateRoots: privateWorkspaceRoots).containsPrivateWorkspace(proposed)
+            ? AgentWorkspacePolicy.privateWorkspaceNotice : nil
+    }
+
+    /// Used before model loading or capability issuance, including resumed
+    /// sessions and headless entry points. Never migrate an old cwd silently.
+    func prepareWorkspace() throws {
+        if let notice = workspaceAccessNotice {
+            throw WorkspaceError.unavailable(notice)
+        }
+        if workspace.standardizedFileURL == defaultWorkspace.standardizedFileURL {
+            try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true,
+                                                    attributes: [.posixPermissions: 0o700])
+        }
+        guard workspaceAccessNotice == nil else {
+            throw WorkspaceError.unavailable(AgentWorkspacePolicy.privateWorkspaceNotice)
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: workspace.path, isDirectory: &isDirectory),
+              isDirectory.boolValue else {
+            throw WorkspaceError.unavailable("The task’s working folder no longer exists. Choose a new folder before sending.")
+        }
+    }
+
+    private enum WorkspaceError: LocalizedError {
+        case unavailable(String)
+        var errorDescription: String? {
+            switch self {
+            case .unavailable(let message): message
+            }
+        }
+    }
 
     static func hasResumableSession(in directory: URL, workspace: URL) -> Bool {
         guard let files = try? FileManager.default.contentsOfDirectory(
@@ -1024,7 +1108,8 @@ final class AgentSessionController: ObservableObject {
                     if sessionTitle == nil { sessionTitle = Self.makeSessionTitle(from: message.text) }
                     folder.noteUserPrompt(AgentContextResolver.displayPrompt(message.text))
                 case "assistant":
-                    folder.appendAssistantMessage(message.text)
+                    if !message.text.isEmpty { folder.appendAssistantMessage(message.text) }
+                    if let failure = message.failure { folder.appendNotice(failure, isError: true) }
                 default:
                     break
                 }
@@ -1038,7 +1123,7 @@ final class AgentSessionController: ObservableObject {
         }
     }
 
-    private static func historyMessages(from dataJSON: String?) -> [(role: String, text: String)] {
+    private static func historyMessages(from dataJSON: String?) -> [(role: String, text: String, failure: String?)] {
         guard let dataJSON,
               let data = dataJSON.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1056,8 +1141,11 @@ final class AgentSessionController: ObservableObject {
             } else {
                 return nil
             }
-            guard !text.isEmpty else { return nil }
-            return (role, text)
+            let failure = role == "assistant" ? PiEvent.terminalFailure(
+                stopReason: message["stopReason"] as? String,
+                errorMessage: message["errorMessage"] as? String) : nil
+            guard !text.isEmpty || failure != nil else { return nil }
+            return (role, text, failure)
         }
     }
 

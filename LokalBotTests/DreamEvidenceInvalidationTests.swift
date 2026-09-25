@@ -93,5 +93,38 @@ final class DreamEvidenceInvalidationTests: XCTestCase {
         XCTAssertEqual(store.report(forDayKey: "2026-08-06")?.narrative, "Monday's proposal is complete")
     }
 
+    func testSourceMutationCancelsDreamOutsideComparisonWindowWhenMemoryWasRead() async throws {
+        let current = date("2026-09-20T04:00:00Z")
+        let scheduler = DreamScheduler(calendar: calendar, now: { current })
+        defer { scheduler.stop() }
+        let started = expectation(description: "New dream consumed older memory")
+        let cancelled = expectation(description: "Inherited source mutation cancels new dream")
+        let rebuilt = expectation(description: "Fresh memory is reconsidered")
+        var attempts = 0
+        var completed: Set<String> = []
+        scheduler.configure(
+            .init(enabled: true, hour: 4, firstEligibleDayKey: "2026-09-19"),
+            hasReport: { completed.contains($0) }, canRun: { true },
+            dream: { target in
+                attempts += 1
+                if attempts == 1 {
+                    started.fulfill()
+                    do {
+                        try await Task.sleep(for: .seconds(30))
+                        XCTFail("Dream using invalidated memory was not cancelled")
+                    } catch is CancellationError {
+                        cancelled.fulfill()
+                        throw CancellationError()
+                    }
+                }
+                completed.insert(target.dayKey)
+                rebuilt.fulfill()
+            }, onError: { XCTFail($0) })
+        await fulfillment(of: [started], timeout: 3)
+        scheduler.reconsiderReports(invalidating: ["2026-08-03"], cancellingInFlight: true)
+        await fulfillment(of: [cancelled, rebuilt], timeout: 3)
+        XCTAssertEqual(attempts, 2)
+    }
+
     private func date(_ value: String) -> Date { ISO8601DateFormatter().date(from: value)! }
 }

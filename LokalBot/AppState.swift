@@ -136,9 +136,9 @@ final class AppState: ObservableObject {
                 if Self.dictationLifecycleChanged(from: oldValue, to: settings) {
                     dictation.applySettings()
                 }
-                if settings.cotypingEnabled != oldValue.cotypingEnabled {
+                if Self.cotypingLifecycleChanged(from: oldValue, to: settings) {
                     cotyping.applySettings()
-                    if !settings.cotypingEnabled {
+                    if oldValue.cotypingEnabled && !settings.cotypingEnabled {
                         scheduleCotypingRuntimeUnload()
                     }
                 }
@@ -175,6 +175,12 @@ final class AppState: ObservableObject {
             || old.dictationLivePreview != new.dictationLivePreview
     }
 
+    static func cotypingLifecycleChanged(from old: AppSettings, to new: AppSettings) -> Bool {
+        old.cotypingEnabled != new.cotypingEnabled
+            || old.cotypingExcludedApps != new.cotypingExcludedApps
+            || old.cotypingExcludedDomains != new.cotypingExcludedDomains
+    }
+
     private static func cotypingRuntimeChanged(from old: AppSettings, to new: AppSettings) -> Bool {
         guard new.cotypingEnabled else { return false }
         return !old.cotypingEnabled
@@ -197,6 +203,7 @@ final class AppState: ObservableObject {
                                          to new: AppSettings) -> Bool {
         old.dayDigestAutoEnabled != new.dayDigestAutoEnabled
             || old.dayDigestHour != new.dayDigestHour
+            || automaticInferenceChanged(from: old, to: new)
     }
 
     private static func screenContextChanged(from old: AppSettings,
@@ -205,6 +212,9 @@ final class AppState: ObservableObject {
             || old.effectiveScreenContextCaptureMode != new.effectiveScreenContextCaptureMode
             || old.screenshotIntervalMinutes != new.screenshotIntervalMinutes
             || old.meetingVisualContextEnabled != new.meetingVisualContextEnabled
+            || old.excludedApps != new.excludedApps
+            || old.excludedScreenDomains != new.excludedScreenDomains
+            || old.capturePrivateWindows != new.capturePrivateWindows
     }
 
     private static func memoryRoutinesChanged(from old: AppSettings,
@@ -221,6 +231,14 @@ final class AppState: ObservableObject {
         old.dreamingEnabled != new.dreamingEnabled
             || old.dreamingHour != new.dreamingHour
             || old.dreamingFirstEligibleDayKey != new.dreamingFirstEligibleDayKey
+            || automaticInferenceChanged(from: old, to: new)
+    }
+
+    private static func automaticInferenceChanged(from old: AppSettings, to new: AppSettings) -> Bool {
+        old.summarizerBackend != new.summarizerBackend
+            || old.openAIBaseURL != new.openAIBaseURL || old.ollamaBaseURL != new.ollamaBaseURL
+            || old.approvedRemoteInferenceOrigins != new.approvedRemoteInferenceOrigins
+            || old.approvedRemoteAutomationOrigins != new.approvedRemoteAutomationOrigins
     }
 
     // Navigation (main window): sidebar section and selected meeting.
@@ -373,6 +391,10 @@ final class AppState: ObservableObject {
     let storage = StorageManager()
     private(set) lazy var outcomeIndex = OutcomeIndex(
         storage: storage,
+        mutateEvidence: { [weak self] meetings, mutation in
+            guard let self else { throw CancellationError() }
+            try self.withPrimaryEvidenceChange(for: meetings, mutation)
+        },
         onEvidenceChanged: { [weak self] meetings in
             self?.primaryEvidenceDidChange(for: meetings)
         })
@@ -680,7 +702,7 @@ final class AppState: ObservableObject {
     /// True only on the real interactive launch path (not headless / UI test) —
     /// gates recording notifications and first-run onboarding.
     private var interactive = false
-    private var terminationCleanupTask: Task<Void, Never>?
+    private var terminationCleanupTask: Task<Bool, Never>?
     /// Serializes cotyping model lifecycle transitions. A disable must finish
     /// unloading both runtimes before a rapid re-enable can prewarm a fresh
     /// model, otherwise the old and new routes can overlap in memory.
@@ -713,6 +735,8 @@ final class AppState: ObservableObject {
         systemAudioPolicy: RecordingSystemAudioPolicy = .meetingAppWhenAvailable
     ) {
         RecordingNotifier.shared.invalidateMeetingDetections()
+        if let sessionID = context?.detectorSessionID,
+           detector.activeSessionID != sessionID { return }
         guard !dictation.isStarting, !dictation.state.isWorking else {
             lastError = "Finish or cancel dictation before starting a meeting recording."
             return
@@ -848,6 +872,11 @@ final class AppState: ObservableObject {
         navigationHandoffObserver = navigationHandoff.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
         }
+        pipeline.onArtifactsWillChange = { [weak self] meeting in
+            guard let self else { return }
+            try self.dayDigest.retractGeneratedJournals(for: [meeting.startedAt])
+            self.dayDigest.reconsiderEvidence(for: meeting.startedAt)
+        }
         pipeline.onArtifactsWritten = { [weak self] meeting in
             guard let self else { return }
             self.outcomeIndex.refresh(meeting: meeting)
@@ -886,6 +915,8 @@ final class AppState: ObservableObject {
             switch self.settings.autoRecordMode {
             case .automatic:
                 RecordingNotifier.shared.invalidateMeetingDetections()
+                guard let sessionID = context.detectorSessionID,
+                      self.recording.detectorSessionID == sessionID else { return }
                 self.recording.splitForCalendarHandoff(context)
             case .ask:
                 if self.recording.isRecording || self.recording.isStarting {
@@ -897,12 +928,14 @@ final class AppState: ObservableObject {
                 RecordingNotifier.shared.invalidateMeetingDetections()
             }
         }
-        detector.onMeetingEnded = { [weak self] in
+        detector.onMeetingEnded = { [weak self] event in
             RecordingNotifier.shared.invalidateMeetingDetections()
             guard let self else { return }
-            if self.detector.endedMeetingURL != nil,
-               self.recording.currentMeeting?.meetingURL != self.detector.endedMeetingURL { return }
-            self.recording.stop(contentEndedAt: self.detector.detectedContentEnd)
+            if self.pendingRecordingStart?.context?.detectorSessionID == event.sessionID {
+                self.pendingRecordingStart = nil
+            }
+            guard event.ownsRecording(detectorSessionID: self.recording.detectorSessionID) else { return }
+            self.recording.stop(contentEndedAt: event.contentEndedAt)
         }
         detector.stopDebounce = settings.stopDebounceSeconds
         detector.calendar = calendar
@@ -1110,12 +1143,14 @@ final class AppState: ObservableObject {
         }
     }
 
-    func prepareForTermination() async {
+    func prepareForTermination() async -> Bool {
         if let terminationCleanupTask {
-            await terminationCleanupTask.value
-            return
+            return await terminationCleanupTask.value
         }
         let task = Task { @MainActor in
+            // Keep the application usable when a stopped recording still has
+            // unsaved metadata or processing intent. A later Quit retries it.
+            guard recording.prepareForTermination() else { return false }
             interactive = false
             settingsStore.flush()
             let pendingCotypingRuntimeTask = self.cotypingRuntimeTask
@@ -1133,7 +1168,6 @@ final class AppState: ObservableObject {
             indexCleanupTasks.removeAll()
             await searchIndexWorkQueue.stop()
             pendingRecordingStart = nil
-            recording.prepareForTermination()
             detector.stop()
             audioMonitor.stop()
             sampler.stop()
@@ -1153,9 +1187,12 @@ final class AppState: ObservableObject {
             await LlamaServer.embedder.stop()
             await LlamaServer.cotyping.stop()
             await GraniteSpeechEngine.shared.shutdown()
+            return true
         }
         terminationCleanupTask = task
-        await task.value
+        let completed = await task.value
+        if !completed { terminationCleanupTask = nil }
+        return completed
     }
 
     // MARK: - Detection → recording glue
@@ -1207,19 +1244,11 @@ final class AppState: ObservableObject {
                 return
             }
             let detected = MeetingDetector.DetectedApp(name: name, bundleID: bundleID, pid: process.id)
-            startRecording(context: detectionContext(detected, calendarEvent), source: "audio-monitor")
+            detector.acceptNativeAudioStart(app: detected, calendarEvent: calendarEvent)
             return
         }
         guard MeetingDetector.hostBrowserBundleID(forAudioBundleID: bundleID) != nil else { return }
         detector.checkNow()
-    }
-
-    private func detectionContext(_ app: MeetingDetector.DetectedApp,
-                                  _ event: CalendarMeetingCandidate?) -> MeetingDetectionContext {
-        MeetingDetectionContext(
-            detectedApp: app, calendarEvent: event,
-            confidence: MeetingMatcher.confidence(hasApp: true, hasCalendar: event != nil),
-            reason: "audio-monitor")
     }
 
     private func notifyMeetingDetected(_ context: MeetingDetectionContext) {
@@ -1228,9 +1257,15 @@ final class AppState: ObservableObject {
             calendarTitle: context.calendarEvent?.title,
             useCalendarTitles: settings.useCalendarTitles,
             appName: context.detectedApp?.name)
-        RecordingNotifier.shared.meetingDetected(title: title) { [weak self] in
+        RecordingNotifier.shared.meetingDetected(title: title, onUnavailable: { [weak self] in
+            guard let self, self.settings.autoRecordMode == .ask,
+                  context.detectorSessionID == self.detector.activeSessionID,
+                  !self.recording.isRecording, !self.recording.isStarting else { return }
+            self.lastError = "Notifications are unavailable. Choose Record now in the LokalBot menu to record \(title)."
+        }) { [weak self] in
             guard let self,
                   self.settings.autoRecordMode == .ask,
+                  context.detectorSessionID == self.detector.activeSessionID,
                   !self.recording.isRecording,
                   !self.recording.isStarting else { return }
             self.startRecording(context: context, source: "notification")
@@ -1252,13 +1287,16 @@ final class AppState: ObservableObject {
                 throw MeetingMergeService.MergeError.processingInProgress(meeting.displayTitle)
             }
         }
+        // Folding can partially write before rollback fails. Reopen derived
+        // consumers even when merge cannot return a complete result.
+        defer { primaryEvidenceDidChange(for: sourceMeetings) }
         let result = try await MeetingMergeService.merge(
             meetings: sourceMeetings,
             title: title,
             storage: storage)
 
         let sourceIDs = Set(result.sourceMeetings.map(\.id))
-        pipeline.forget(meetingIDs: sourceIDs)
+        await pipeline.forget(meetingIDs: sourceIDs)
         let worker = searchIndexWorkQueue
         for sourceID in sourceIDs {
             embeddingIndexTasks.removeValue(forKey: sourceID)?.task.cancel()
@@ -1286,8 +1324,14 @@ final class AppState: ObservableObject {
         }
         selectedMeetingIDs = [result.meeting.id]
         navSection = .meetings
-        if generateSummary, result.transcriptSegmentCount > 0 {
-            reprocess(result.meeting, transcribe: false, summarize: true)
+        if generateSummary {
+            // A partial merged transcript must never satisfy the summary
+            // request. Re-transcribe the concatenated audio so every source
+            // range is represented; this also handles two audio-only sources.
+            reprocess(
+                result.meeting,
+                transcribe: !result.transcriptCoverageComplete,
+                summarize: true)
         }
         return result.meeting
     }
@@ -1307,8 +1351,15 @@ final class AppState: ObservableObject {
         }
 
         let sourceIDs = Set(rawSourceIDs)
-        let sources = storage.loadMeetings(includeMergedSources: true)
-            .filter { sourceIDs.contains($0.id) }
+        let sources: [Meeting]
+        do {
+            // Enumeration during a live session must never run startup orphan repair.
+            sources = try SessionLookup.loadAllMeetings(root: storage.rootURL, includeMergedSources: true)
+                .filter { sourceIDs.contains($0.id) }
+        } catch {
+            lastError = "Could not read the original meetings: \(error.localizedDescription)"
+            return
+        }
         guard sources.count == sourceIDs.count,
               sources.allSatisfy({ $0.mergedIntoMeetingID == mergedMeeting.id }) else {
             lastError = "Some original meetings could not be found, so the merge was kept intact."
@@ -1320,9 +1371,11 @@ final class AppState: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                pipeline.forget(meetingIDs: [mergedMeeting.id])
+                await pipeline.forget(meetingIDs: [mergedMeeting.id])
                 try await speakerIdentity.prepareDeletion(meeting: mergedMeeting)
-                try storage.deleteMeeting(mergedMeeting)
+                try withPrimaryEvidenceChange(for: [mergedMeeting]) {
+                    try self.storage.deleteMeeting(mergedMeeting)
+                }
                 meetings.removeAll { $0.id == mergedMeeting.id }
                 selectedMeetingIDs.remove(mergedMeeting.id)
                 outcomeIndex.refresh(meetings: meetings)
@@ -1340,6 +1393,7 @@ final class AppState: ObservableObject {
                     do {
                         let restored = try await worker.restore(source)
                         restoredSources.append(restored)
+                        pipeline.restoreForgottenMeetings([source.id])
                         excludedMeetingIDs.remove(source.id)
                         cachedSearchIndex?.noteRestoration(source.id)
                         cachedEmbeddingIndex?.noteRestoration(source.id)
@@ -1365,6 +1419,10 @@ final class AppState: ObservableObject {
                         + restorationErrors.joined(separator: "; ")
                 }
             } catch {
+                if FileManager.default.fileExists(
+                    atPath: mergedMeeting.folderURL(in: storage).path) {
+                    pipeline.restoreForgottenMeetings([mergedMeeting.id])
+                }
                 lastError = "Could not undo the merge: \(error.localizedDescription)"
             }
         }
@@ -1383,9 +1441,11 @@ final class AppState: ObservableObject {
         let folder = updated.folderURL(in: storage)
         let existing = try pipeline.loadTranscript(from: folder)
         // Invalidate derived claims even when no complete segment survives.
-        try MeetingAttributionArtifacts.invalidate(in: folder)
-        try pipeline.saveTranscript(range.applying(to: existing), for: updated)
-        try storage.saveMeta(updated)
+        try withPrimaryEvidenceChange(for: [updated]) {
+            try MeetingAttributionArtifacts.invalidate(in: folder)
+            try pipeline.saveTranscript(range.applying(to: existing), for: updated)
+            try storage.saveMeta(updated)
+        }
         if let index = meetings.firstIndex(where: { $0.id == updated.id }) { meetings[index] = updated }
         outcomeIndex.refresh(meeting: updated)
         primaryEvidenceDidChange(for: updated)
@@ -1405,6 +1465,8 @@ final class AppState: ObservableObject {
             lastError = "Summary processing has already started for this meeting. Wait for it to finish before choosing a different processing action."
         case .persistenceFailed:
             lastError = "LokalBot could not save the updated processing request."
+        case .revoked:
+            lastError = "This meeting is being removed and can no longer be processed."
         case .enqueued, .coalesced, .updatedActive:
             break
         }
@@ -1428,7 +1490,9 @@ final class AppState: ObservableObject {
 
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
         let transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
-        try pipeline.saveTranscript(transcript, for: meeting)
+        try withPrimaryEvidenceChange(for: [meeting]) {
+            try pipeline.saveTranscript(transcript, for: meeting)
+        }
         outcomeIndex.refresh(meeting: meeting)
         primaryEvidenceDidChange(for: meeting)
         reindexSearchInBackground(meeting)
@@ -1457,7 +1521,7 @@ final class AppState: ObservableObject {
     }
 
     private func primaryEvidenceDidChange(for meetings: [Meeting]) {
-        primaryEvidenceDidChange(on: meetings.map(\.startedAt))
+        primaryEvidenceDidChange(on: meetings.map(\.startedAt), meetingIDs: Set(meetings.map(\.id)))
     }
 
     func primaryEvidenceDidChange(on day: Date) {
@@ -1465,11 +1529,31 @@ final class AppState: ObservableObject {
     }
 
     func primaryEvidenceDidChange(on days: [Date]) {
+        primaryEvidenceDidChange(on: days, meetingIDs: [])
+    }
+
+    private func primaryEvidenceDidChange(on days: [Date], meetingIDs: Set<UUID>) {
         guard !days.isEmpty else { return }
         dayDigest.reconsiderEvidence(for: days)
         dailyMemoryExportScheduler.reconsider(days: days)
         memoryRoutines.reconsiderEvidence()
-        invalidateDreams(affectedDays: days)
+        invalidateDreams(affectedDays: days, affectedMeetingIDs: meetingIDs)
+    }
+
+    func withPrimaryEvidenceChange<T>(on days: [Date], _ mutation: () throws -> T) throws -> T {
+        defer { primaryEvidenceDidChange(on: days) }
+        return try dreamStore.withScreenEvidenceMutation(on: days) {
+            try dayDigest.retractGeneratedJournals(for: days)
+            return try mutation()
+        }
+    }
+
+    private func withPrimaryEvidenceChange<T>(for meetings: [Meeting], _ mutation: () throws -> T) throws -> T {
+        defer { primaryEvidenceDidChange(for: meetings) }
+        return try dreamStore.withMeetingEvidenceMutation(for: meetings) {
+            try dayDigest.retractGeneratedJournals(for: meetings.map(\.startedAt))
+            return try mutation()
+        }
     }
 
     private func dayDigestDidChange(on day: Date) {
@@ -1481,25 +1565,35 @@ final class AppState: ObservableObject {
     }
 
     private func invalidateDreams(
-        affectedDays: [Date], comparisonWindowDays: Int = DreamCompiler.comparisonWindowDays
+        affectedDays: [Date], affectedMeetingIDs: Set<UUID> = [],
+        comparisonWindowDays: Int = DreamCompiler.comparisonWindowDays
     ) {
         let calendar = Calendar.current
         let affectedKeys = DreamEvidenceInvalidation.dayKeys(
             affectedDays: affectedDays, through: Date(), calendar: calendar,
             comparisonWindowDays: comparisonWindowDays)
-        for key in affectedKeys.sorted() {
-            do {
-                try dreamStore.invalidateReport(forDayKey: key)
-            } catch {
-                lastError = "Could not refresh the dream for \(key): " + error.localizedDescription
-            }
+        var invalidatedKeys = affectedKeys
+        do {
+            invalidatedKeys = try dreamStore.invalidateEvidence(
+                affectedDayKeys: DreamEvidenceInvalidation.sourceDayKeys(for: affectedDays),
+                affectedMeetingIDs: affectedMeetingIDs,
+                reportDayKeys: affectedKeys)
+        } catch {
+            lastError = "Could not retract changed evidence from Dream memory: " + error.localizedDescription
         }
+        refreshDreamMemory()
         latestDreamReport = dreamStore.latestReport()
-        dreaming.reconsiderReports(invalidating: affectedKeys)
+        dreaming.reconsiderReports(invalidating: invalidatedKeys, cancellingInFlight: true)
     }
 
     func applyTrackingSetting() {
+        screenshots.mutateEvidence = { [weak self] days, mutation in
+            guard let self else { throw CancellationError() }
+            try self.withPrimaryEvidenceChange(on: days, mutation)
+        }
         sampler.excludedApps = { [weak self] in self?.settings.excludedAppList ?? [] }
+        sampler.excludedDomains = { [weak self] in self?.settings.excludedScreenDomainList ?? [] }
+        sampler.capturePrivateWindows = { [weak self] in self?.settings.capturePrivateWindows ?? false }
         if settings.trackingEnabled { sampler.start() } else { sampler.stop() }
         screenshots.restart()
     }
@@ -1548,12 +1642,13 @@ final class AppState: ObservableObject {
 
     func applyDayDigestSetting() {
         let snapshot = settings
+        dayDigest.stopAutomaticGeneration()
         dayDigest.configureAutomaticGeneration(
             DayDigestScheduler.Configuration(
                 enabled: snapshot.dayDigestAutoEnabled,
                 hour: snapshot.dayDigestHour),
             canRun: { [weak self] in
-                guard let self, self.libraryReady else { return false }
+                guard let self, self.libraryReady, self.settings.allowsAutomaticMainInference else { return false }
                 // Scheduled background work never triggers a model download —
                 // the digest waits until the Think model is actually on disk
                 // (or a remote backend is configured).
@@ -1592,6 +1687,7 @@ final class AppState: ObservableObject {
 
     func applyDreamingSetting() {
         let snapshot = settings
+        dreaming.stop()
 
         // Persist the beginning of each opt-in period. This keeps catch-up
         // bounded instead of interpreting a first launch as permission to
@@ -1627,6 +1723,7 @@ final class AppState: ObservableObject {
             canRun: { [weak self] in
                 guard let self else { return false }
                 guard self.libraryReady else { return false }
+                guard self.settings.allowsAutomaticMainInference else { return false }
                 // Overnight dreaming is background automation: never let it
                 // trigger a model download on a fresh install.
                 guard ModelReadinessSnapshot.thinkReady(self.settings, storage: self.storage)
@@ -1664,10 +1761,17 @@ final class AppState: ObservableObject {
                             throw TextEngineError.unavailable("LokalBot is shutting down.")
                         }
                         let engineSettings = self.settings
+                        if target.isAutomatic && !engineSettings.allowsAutomaticMainInference {
+                            throw TextEngineError.unavailable("Approve scheduled context sharing for this remote Think server in Models settings.")
+                        }
                         let engine = try await self.thinkExecution.makeTextEngine(
                             engineSettings,
                             priority: .background,
                             purpose: "dreaming")
+                        try Task.checkCancellation()
+                        if target.isAutomatic && !self.settings.allowsAutomaticMainInference {
+                            throw CancellationError()
+                        }
                         return (engine, DreamInferenceProvenance(settings: engineSettings))
                     })
                 let report = try await service.dream(target: target)
@@ -1763,20 +1867,23 @@ final class AppState: ObservableObject {
     /// Permanently removes meetings: audio folder, list entry, both indexes.
     func deleteMeetings(_ ids: Set<Meeting.ID>) {
         let candidates = meetings.filter { ids.contains($0.id) }
-        pipeline.forget(meetingIDs: ids)
         Task {
             var deletedIDs: Set<Meeting.ID> = []
             var deletedMeetings: [Meeting] = []
             for meeting in candidates {
+                var forgottenIDs: Set<Meeting.ID> = []
                 do {
                     let ordered = try storage.deletionOrder(for: meeting)
-                    pipeline.forget(meetingIDs: Set(ordered.map(\.id)))
+                    forgottenIDs = Set(ordered.map(\.id))
+                    await pipeline.forget(meetingIDs: forgottenIDs)
                     for item in ordered where !deletedIDs.contains(item.id) {
                         // Revoke every retained source's profile contributions,
                         // not just those of the generated parent. Delete the
                         // parent last so partial failure cannot restore sources.
                         try await speakerIdentity.prepareDeletion(meeting: item)
-                        try storage.deleteMeeting(item)
+                        try withPrimaryEvidenceChange(for: [item]) {
+                            try storage.deleteMeeting(item)
+                        }
                         embeddingIndexTasks.removeValue(forKey: item.id)?.task.cancel()
                         excludedMeetingIDs.insert(item.id)
                         cachedSearchIndex?.noteDeletion(item.id)
@@ -1786,10 +1893,13 @@ final class AppState: ObservableObject {
                         deletedMeetings.append(item)
                     }
                 } catch {
+                    pipeline.restoreForgottenMeetings(
+                        forgottenIDs.subtracting(deletedIDs))
                     lastError = "Could not delete \(meeting.title); cleanup pending: \(error.localizedDescription)"
                 }
             }
             meetings.removeAll { deletedIDs.contains($0.id) }
+            recording.forgetFinalization(meetingIDs: deletedIDs)
             selectedMeetingIDs.subtract(deletedIDs)
             outcomeIndex.refresh(meetings: meetings)
             primaryEvidenceDidChange(for: deletedMeetings)

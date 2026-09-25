@@ -16,7 +16,7 @@ final class TranscriptTests: XCTestCase {
             engine: "test"
         )
 
-        XCTAssertEqual(transcript.markdown, "**[00:01:05] Local speaker:** Ship it.")
+        XCTAssertEqual(transcript.markdown, "**[00:01:05] Me:** Ship it.")
     }
 
     func testDecodesLegacyTranscriptWithoutSpeakerAliases() throws {
@@ -127,7 +127,7 @@ final class TranscriptTests: XCTestCase {
             engine: "test"
         )
 
-        XCTAssertEqual(transcript.markdown, "**[00:00:01] Local speaker:** Ship it.")
+        XCTAssertEqual(transcript.markdown, "**[00:00:01] Me:** Ship it.")
     }
 
     func testMergedTranscriptSortsSegmentsByTimestamp() {
@@ -164,8 +164,8 @@ final class TranscriptTests: XCTestCase {
         XCTAssertEqual(
             transcript.summaryPromptMarkdown,
             "[s1] "
-                + "**[00:00:00] [speaker_id=me; identity=unresolved] Local speaker:** First point.\n\n"
-                + "[s2] **[00:00:02] [speaker_id=me; identity=unresolved] Local speaker:** Second point.\n\n"
+                + "**[00:00:00] [speaker_id=me; identity=user] Me:** First point.\n\n"
+                + "[s2] **[00:00:02] [speaker_id=me; identity=user] Me:** Second point.\n\n"
                 + "[s3] **[00:00:04] [speaker_id=them; identity=other] Ana:** Reply.\n\n"
                 + "[s4] **[00:00:10] [speaker_id=them; identity=other] Ana:** Later.")
     }
@@ -206,7 +206,7 @@ final class TranscriptTests: XCTestCase {
         XCTAssertEqual(display.segments.map(\.id), [0, 2],
                        "Filtering must retain source-order identities")
         XCTAssertEqual(display.segments.map(\.text), ["Ship it.", "Earlier update"])
-        XCTAssertEqual(display.segments.map(\.speakerLabel), ["Ana", "Local speaker"])
+        XCTAssertEqual(display.segments.map(\.speakerLabel), ["Ana", "Me"])
         XCTAssertEqual(display.segments.map(\.hasSpeakerAlias), [true, false])
         XCTAssertEqual(display.segments.map(\.speakerKey), ["them 1", "me"])
     }

@@ -58,7 +58,7 @@
         </ol>
 
         <h2>Why two audio tracks matter</h2>
-        <p>Recording the microphone and meeting app separately provides a useful speaker boundary before any diarization model runs. It distinguishes you from the rest of the call, keeps the two sources synchronized, and avoids the audible joins and calendar invitations created by meeting bots. Optional neural diarization can split the remote track further when several other people speak.</p>
+        <p>Recording the microphone and meeting app separately preserves audio-source provenance before any diarization model runs. One track contains whatever the selected microphone captured; the other contains the selected app's output. Those sources stay synchronized and avoid the audible joins and calendar invitations created by meeting bots. The source labels do not prove who spoke: shared microphones, speaker leakage, and room playback can put a person's voice on either track. Optional neural diarization can estimate speaker turns within the system-audio track.</p>
 
         <h2>The honest trade-offs</h2>
         <ul>

@@ -39,7 +39,8 @@ enum CotypingSessionReconciler {
         let live = liveField.precedingText
         if live.hasPrefix(previous) { return true }
         let windowLimit = CotypingAXHelper.maxPrecedingCharacters
-        guard previous.count >= windowLimit || live.count >= windowLimit else {
+        guard session.field.precedingTextIsTruncated || liveField.precedingTextIsTruncated
+            || previous.utf16.count >= windowLimit || live.utf16.count >= windowLimit else {
             return false
         }
         return hasCappedPrefixWindowOverlap(previous: previous, live: live)
@@ -121,7 +122,7 @@ enum CotypingSessionReconciler {
         isCurrentGenerationTarget(session.field, liveField: liveField)
     }
 
-    /// Rebases a continuation session onto the host-published field. Handles
+    /// Advances a continuation against the original field baseline. Handles
     /// both plain typing that matches the suggestion tail (advancing the
     /// consumed prefix) and the host catching up to an already-optimistically-
     /// advanced session (typed is empty).
@@ -138,14 +139,14 @@ enum CotypingSessionReconciler {
         let typed = String(liveField.precedingText.dropFirst(expectedPrefix.count))
         if typed.isEmpty {
             return CotypingSession(
-                field: liveField,
+                field: session.field,
                 fullText: session.fullText,
                 consumedCount: session.consumedCount,
                 kind: session.kind)
         }
         guard session.remainingText.hasPrefix(typed) else { return nil }
         return CotypingSession(
-            field: liveField,
+            field: session.field,
             fullText: session.fullText,
             consumedCount: min(session.fullText.count, session.consumedCount + typed.count),
             kind: session.kind)

@@ -52,7 +52,7 @@ final class DictationCoordinator: ObservableObject {
     private let settingsProvider: () -> AppSettings
     private let makeTextEngine: (AppSettings) async throws -> TextEngine
     private let screenContextProvider:
-        (DictationScreenTarget, [String]) async -> DictationScreenContext?
+        (DictationScreenTarget, DictationScreenCapturePolicy) async -> DictationScreenContext?
     private let canStart: () -> Bool
     private let onBusy: () -> Void
     private let onError: (String) -> Void
@@ -83,6 +83,7 @@ final class DictationCoordinator: ObservableObject {
         var generation: Int
     }
     private var pendingTranscriptionRetry: PendingTranscriptionRetry?
+    private var pendingAudioHandoff: DictationAudioHandoff?
     private var activeAudioURL: URL?
     private var pausedMediaSession: MediaPlaybackController.PauseSession?
     private var deliveryTarget: DictationDeliveryTarget?
@@ -100,10 +101,10 @@ final class DictationCoordinator: ObservableObject {
         focusSnapshotExecutor: DictationFocusSnapshotExecutor = .shared,
         screenContextProvider: @escaping (
             DictationScreenTarget,
-            [String]
-        ) async -> DictationScreenContext? = { target, excludedApps in
+            DictationScreenCapturePolicy
+        ) async -> DictationScreenContext? = { target, policy in
             await DictationScreenContextCapture.shared.capture(
-                target: target, excludedApps: excludedApps)
+                target: target, policy: policy)
         }
     ) {
         self.storageRoot = storageRoot
@@ -273,13 +274,18 @@ final class DictationCoordinator: ObservableObject {
         }
         discardScreenContext()
         if initialConfig.dictationIntent == .compose, initialConfig.dictationUseScreenContext, let screenTarget {
-            let excludedApps = initialConfig.excludedAppList
+            let policy = DictationScreenCapturePolicy(
+                excludedApps: initialConfig.excludedAppList,
+                excludedDomains: initialConfig.excludedScreenDomainList,
+                capturePrivateWindows: initialConfig.capturePrivateWindows)
             screenContextTask = Task { [screenContextProvider] in
                 let capture = await focusCaptureTask.value
                 guard DictationScreenPrivacy.allowsCapture(
                         focus: capture, target: screenTarget),
                       !Task.isCancelled else { return nil }
-                return await screenContextProvider(screenTarget, excludedApps)
+                var boundTarget = screenTarget
+                boundTarget.focusIdentityKey = capture.snapshot?.focusIdentityKey
+                return await screenContextProvider(boundTarget, policy)
             }
         }
         deliveryTarget = nil
@@ -423,11 +429,19 @@ final class DictationCoordinator: ObservableObject {
             scheduleMediaResume($0, reason: "dictation capture finished")
         }
         transcribeTask?.cancel()
+        pendingAudioHandoff?.discard()
+        let handoff = DictationAudioHandoff(audioURL: audioURL)
+        pendingAudioHandoff = handoff
         transcribeTask = Task { [weak self] in
             if let mediaCleanup { await mediaCleanup.value }
-            guard !Task.isCancelled else { return }
-            await self?.transcribeAndDeliver(audioURL: audioURL, startedAt: startedAt,
-                                             source: source, generation: session)
+            guard !Task.isCancelled, let self, self.generation == session else {
+                handoff.discard()
+                return
+            }
+            guard let ownedURL = handoff.take() else { return }
+            if self.pendingAudioHandoff === handoff { self.pendingAudioHandoff = nil }
+            await self.transcribeAndDeliver(audioURL: ownedURL, startedAt: startedAt,
+                                           source: source, generation: session)
         }
     }
 
@@ -441,6 +455,8 @@ final class DictationCoordinator: ObservableObject {
         generation += 1
         transcribeTask?.cancel()
         transcribeTask = nil
+        pendingAudioHandoff?.discard()
+        pendingAudioHandoff = nil
         prewarmTask?.cancel()
         prewarmTask = nil
         discardPendingTranscriptionRetry()

@@ -552,7 +552,8 @@ private struct TimelineMeetingPreview: View {
                 HStack(spacing: 8) {
                     Spacer()
                     Button {
-                        app.openAsk(query: "What matters from \(meeting.displayTitle)?")
+                        app.openAsk(query: "What matters from \(meeting.displayTitle)?",
+                                    screenSnapshotIDs: [], meetingIDs: [meeting.id])
                     } label: {
                         Label("Ask about this meeting", systemImage: "sparkles")
                     }

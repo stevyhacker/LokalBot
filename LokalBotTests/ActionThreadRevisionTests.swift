@@ -3,6 +3,89 @@ import XCTest
 
 @MainActor
 final class ActionThreadRevisionTests: XCTestCase {
+    func testRejectedEvidenceMutationLeavesCorrectionAndNarrativeIntact() throws {
+        let (storage, meetings, action) = try fixture()
+        let meeting = meetings[0]
+        let folder = meeting.folderURL(in: storage)
+        let summaryURL = folder.appendingPathComponent("summary.md")
+        let stateURL = folder.appendingPathComponent(MeetingOutcomeState.fileName)
+        try MeetingOutcomeStore.writeState(MeetingOutcomeState(), to: folder)
+        try Data("Original narrative".utf8).write(to: summaryURL)
+        let originalState = try Data(contentsOf: stateURL)
+        var notifications = 0
+        let index = OutcomeIndex(storage: storage, mutateEvidence: { affected, _ in
+            XCTAssertEqual(affected.map(\.id), [meeting.id])
+            throw CocoaError(.fileWriteNoPermission)
+        }, onEvidenceChanged: { _ in notifications += 1 })
+        index.refresh(meetings: meetings)
+
+        XCTAssertFalse(index.correctAction(actionID: action.id, meetingID: meeting.id,
+                                           text: "Changed action", owner: "Alice", due: nil))
+
+        XCTAssertEqual(try Data(contentsOf: stateURL), originalState)
+        XCTAssertEqual(try String(contentsOf: summaryURL, encoding: .utf8), "Original narrative")
+        XCTAssertFalse(MeetingAttributionArtifacts.needsRefresh(in: folder))
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.text, action.text)
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.owner, "Me")
+        XCTAssertEqual(notifications, 0)
+        XCTAssertNotNil(index.lastError)
+    }
+
+    func testEvidenceMutationWrapperEnclosesWritesBeforePublishingOrNotification() throws {
+        let (storage, meetings, action) = try fixture()
+        let meeting = meetings[0]
+        let folder = meeting.folderURL(in: storage)
+        let summaryURL = folder.appendingPathComponent("summary.md")
+        try Data("Original narrative".utf8).write(to: summaryURL)
+        var events: [String] = []
+        let index = OutcomeIndex(storage: storage, mutateEvidence: { affected, mutation in
+            XCTAssertEqual(affected.map(\.id), [meeting.id])
+            XCTAssertNil(MeetingOutcomeStore.loadState(from: folder).actions[action.id]?.textCorrection)
+            XCTAssertTrue(FileManager.default.fileExists(atPath: summaryURL.path))
+            events.append("locked")
+            try mutation()
+            XCTAssertEqual(MeetingOutcomeStore.loadState(from: folder).actions[action.id]?.textCorrection,
+                           "Corrected action")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: summaryURL.path))
+            events.append("durable")
+        }, onEvidenceChanged: { affected in
+            XCTAssertEqual(affected.map(\.id), [meeting.id])
+            events.append("notified")
+        })
+        index.refresh(meetings: meetings)
+
+        XCTAssertTrue(index.correctAction(actionID: action.id, meetingID: meeting.id,
+                                          text: "Corrected action", owner: "Alice", due: nil))
+
+        XCTAssertEqual(events, ["locked", "durable", "notified"])
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.text, "Corrected action")
+    }
+
+    func testRejectedEvidenceMutationLeavesStatusAndFollowUpIntact() throws {
+        let (storage, meetings, action) = try fixture()
+        let meeting = meetings[0]
+        let folder = meeting.folderURL(in: storage)
+        var wrapperCalls = 0
+        let index = OutcomeIndex(storage: storage, mutateEvidence: { affected, _ in
+            XCTAssertEqual(affected.map(\.id), [meeting.id])
+            wrapperCalls += 1
+            throw CocoaError(.fileWriteNoPermission)
+        })
+        index.refresh(meetings: meetings)
+        let originalFollowUp = try XCTUnwrap(index.projection(for: meeting.id)?.followUp)
+
+        XCTAssertFalse(index.setStatus(.done, actionID: action.id, meetingID: meeting.id))
+        XCTAssertFalse(index.saveFollowUp(originalFollowUp, meetingID: meeting.id))
+
+        XCTAssertEqual(wrapperCalls, 2)
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .open)
+        XCTAssertTrue(index.statusUndo.isEmpty)
+        XCTAssertNil(MeetingOutcomeStore.loadState(from: folder).actions[action.id])
+        XCTAssertNil(MeetingOutcomeStore.loadFollowUp(from: folder))
+        XCTAssertEqual(index.projection(for: meeting.id)?.followUp, originalFollowUp)
+        XCTAssertNotNil(index.lastError)
+    }
+
     func testOwnerCorrectionInvalidatesNarrativeAndSurvivesSummaryRepairProjection() throws {
         let (storage, meetings, action) = try fixture()
         let meeting = meetings[0]
@@ -135,7 +218,9 @@ final class ActionThreadRevisionTests: XCTestCase {
     func testThreadUndoRestoresEachSourceStatusAndInvalidatesEvidence() throws {
         let (storage, meetings, action) = try fixture()
         var notifications: [[Meeting.ID]] = []
-        let index = OutcomeIndex(storage: storage) { notifications.append($0.map(\.id)) }
+        let index = OutcomeIndex(
+            storage: storage,
+            onEvidenceChanged: { notifications.append($0.map(\.id)) })
         index.refresh(meetings: meetings)
         XCTAssertTrue(index.setStatus(.deferred, actionID: action.id, meetingID: meetings[0].id))
         notifications = []

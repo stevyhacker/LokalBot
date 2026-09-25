@@ -5,6 +5,19 @@ import XCTest
 /// replaced with stable inline numbers and surfaced as deep-linkable sources, while
 /// ordinary bracketed text passes through untouched.
 final class ChatCitationTests: XCTestCase {
+    func testUnobservedSourcesAndUnsupportedTimesNeverBecomeLinks() {
+        let id = UUID(uuidString: "AAAAAAAA-1111-4222-8333-444444444444")!
+        var evidence = ChatEvidence(screenIDs: [42])
+        evidence.addMeeting(id, seconds: 12)
+        let text = "Seen [meeting:aaaaaaaa@00:00:12] [screen:42]; unseen [meeting:bbbbbbbb] [screen:43]; bad time [meeting:aaaaaaaa@00:00:13] [meeting:aaaaaaaa@00:99:12]."
+        let verified = ChatCitationParser.verified(text, evidence: evidence)
+        XCTAssertEqual(ChatCitationParser.extract(verified).citations,
+                       [.init(meetingID: "aaaaaaaa", seconds: 12), .init(snapshotID: 42)])
+        XCTAssertTrue(verified.contains("source not verified"))
+        XCTAssertFalse(verified.contains("bbbbbbbb"))
+        XCTAssertEqual(ChatCitationParser.verified("Answer [meeting:aaaa", evidence: evidence, streaming: true), "Answer ")
+    }
+
 
     func testExtractTimedMarker() {
         let (display, citations) = ChatCitationParser.extract(

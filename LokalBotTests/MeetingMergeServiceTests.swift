@@ -201,6 +201,7 @@ final class MeetingMergeServiceTests: XCTestCase {
         XCTAssertEqual(result.meeting.mergedSourceMeetingIDs, sources.map(\.id))
         XCTAssertTrue(result.sourceMeetings.allSatisfy(\.isMergedSource))
         XCTAssertEqual(result.transcriptSegmentCount, 4)
+        XCTAssertTrue(result.transcriptCoverageComplete)
         XCTAssertEqual(result.meeting.recordedDuration ?? 0, 3_600, accuracy: 0.01)
 
         let folder = result.meeting.folderURL(in: storage)
@@ -227,6 +228,62 @@ final class MeetingMergeServiceTests: XCTestCase {
             XCTAssertEqual(persisted.mergedIntoMeetingID, result.meeting.id)
             XCTAssertNil(persisted.mergedSourceMeetingIDs)
         }
+    }
+
+    func testMixedTranscriptAndAudioMergeRequiresRetranscriptionBeforeSummary() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MeetingMergeMixed-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let start = Date(timeIntervalSince1970: 1_752_025_000)
+        try MeetingFixture.write([
+            .init(title: "Transcribed source", startedAt: start,
+                  transcriptLines: ["This source already has text."]),
+            .init(title: "Audio-only source", startedAt: start.addingTimeInterval(60)),
+        ], under: root)
+        let storage = StorageManager(rootURL: root)
+        let audioFixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/LiveTranscript/continuous-speech.wav")
+        var sources = storage.loadMeetings().sorted { $0.startedAt < $1.startedAt }
+        for index in sources.indices {
+            if index == 1 {
+                let folder = sources[index].folderURL(in: storage)
+                try FileManager.default.copyItem(
+                    at: audioFixture,
+                    to: MeetingAudioFiles.recoveryURL(for: .mic, in: folder))
+            }
+            sources[index].recordedDuration = 17.7
+            sources[index].endedAt = sources[index].startedAt.addingTimeInterval(17.7)
+            try storage.saveMeta(sources[index])
+        }
+
+        let result = try await MeetingMergeService.merge(
+            meetings: sources, title: "Complete session", storage: storage)
+
+        XCTAssertFalse(result.transcriptCoverageComplete)
+        XCTAssertEqual(result.transcriptSegmentCount, 1)
+        XCTAssertNotNil(MeetingAudioFiles.readableURL(
+            for: .mic, in: result.meeting.folderURL(in: storage)))
+
+        let folder = result.meeting.folderURL(in: storage)
+        let previous = try JSONDecoder().decode(
+            Transcript.self,
+            from: Data(contentsOf: folder.appendingPathComponent("transcript.json")))
+        let regenerated = Transcript(
+            segments: [.init(
+                start: 18,
+                end: 19,
+                speaker: "them 1",
+                text: "Fresh audio-only text.",
+                confidence: 1,
+                timingPrecision: .span)],
+            engine: "fixture")
+        let combined = try MeetingMergeService.preservingTranscriptOnlySources(
+            from: previous,
+            in: folder,
+            regenerated: regenerated)
+        XCTAssertEqual(
+            combined.segments.map(\.displayText),
+            ["This source already has text.", "Fresh audio-only text."])
     }
 
     func testLoadMeetingsRepairsOrphanedMergeSources() async throws {

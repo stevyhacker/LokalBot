@@ -13,6 +13,10 @@ struct LocalLlamaServerMarker: Codable {
     var contextTokens: Int?
     var extraArgs: [String]?
     var authenticationToken: String?
+    var ownerID: UUID?
+    var ownerPID: pid_t?
+    var ownerStartTime: UInt64?
+    var processStartTime: UInt64?
 }
 
 enum LocalLlamaServerAuthentication {
@@ -130,7 +134,7 @@ struct AskLibraryEngine {
     var maxPollAttempts = 60
 
     func ask(_ question: String) async -> ToolResult {
-        guard gate.isAuthorized() else {
+        guard let authorization = gate.authorizationID() else {
             return .error(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
         }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -145,9 +149,10 @@ struct AskLibraryEngine {
                 "ask_library questions are limited to \(LibraryInputPolicy.maximumQuestionCharacters) characters.")
         }
 
-        if await !client.healthy(), let failure = await wakeAndWait() {
+        if await !client.healthy(), let failure = await wakeAndWait(authorization: authorization) {
             return failure
         }
+        if let failure = authorizationFailure(authorization) { return failure }
 
         let meetings = (try? loadMeetings()) ?? []
         guard !meetings.isEmpty else {
@@ -160,18 +165,30 @@ struct AskLibraryEngine {
 
         let answer: String
         do {
+            if let failure = authorizationFailure(authorization) { return failure }
             answer = try await client.complete(messages: AskLibraryContext.messages(
                 question: trimmed,
                 contextText: bundle.contextText))
         } catch {
+            if let failure = authorizationFailure(authorization) { return failure }
             return .error(
                 .appNotRunning,
                 "Lost the connection to LokalBot's model server mid-answer (\(error.localizedDescription)). Make sure the LokalBot app is running and try again.")
         }
+        if let failure = authorizationFailure(authorization) { return failure }
         return render(answer: answer, citations: bundle.citations)
     }
 
-    private func wakeAndWait() async -> ToolResult? {
+    private func authorizationFailure(_ authorization: String) -> ToolResult? {
+        guard gate.authorizationID() == authorization else {
+            return .error(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
+        }
+        if Task.isCancelled { return .error(.appNotRunning, "ask_library was cancelled.") }
+        return nil
+    }
+
+    private func wakeAndWait(authorization: String) async -> ToolResult? {
+        if let failure = authorizationFailure(authorization) { return failure }
         gate.clearWakeError()
         do {
             try gate.touchWake()
@@ -186,7 +203,9 @@ struct AskLibraryEngine {
                 return .error(.appNotRunning, "ask_library was cancelled.")
             }
             await pollDelay()
+            if let failure = authorizationFailure(authorization) { return failure }
             if await client.healthy() { return nil }
+            if let failure = authorizationFailure(authorization) { return failure }
             if let reason = gate.readWakeError() {
                 return .error(.engineUnavailable, reason)
             }

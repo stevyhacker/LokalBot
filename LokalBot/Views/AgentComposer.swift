@@ -20,6 +20,10 @@ struct AgentComposer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if !controller.queuedPrompts.isEmpty { queue }
+            if let notice = controller.workspaceAccessNotice {
+                Text(notice).font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                    .accessibilityIdentifier("agent.workspaceNotice")
+            }
             if let error = controller.composerError {
                 HStack(alignment: .top) {
                     Text(error).font(.callout).foregroundStyle(.orange).textSelection(.enabled)
@@ -75,7 +79,12 @@ struct AgentComposer: View {
         }
         .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
             if case .success(let url) = result {
-                if controller.items.isEmpty && !controller.hasLiveRuntime {
+                if let notice = controller.workspaceAccessNotice(for: url) {
+                    controller.composerError = notice
+                    return
+                }
+                if controller.items.isEmpty && !controller.hasLiveRuntime,
+                   sessions.selectedTab?.record.sessionFile == nil {
                     controller.workspace = url
                 } else {
                     sessions.addSession().controller.workspace = url
@@ -111,7 +120,7 @@ struct AgentComposer: View {
                 .accessibilityLabel("Attach context").accessibilityIdentifier("agent.attach")
             Button { pickingFolder = true } label: {
                 Label(controller.workspaceDisplayName, systemImage: "folder").lineLimit(1)
-            }.buttonStyle(.borderless).help("Working folder. Changing it in an existing conversation starts a new task.")
+            }.buttonStyle(.borderless).help("Files in the chosen folder can be read automatically and sent to the displayed model. Private-library reads still follow the approval mode. Changing folders in an existing conversation starts a new task.")
                 .accessibilityIdentifier("agent.workspace")
             Menu {
                 ForEach(AgentApprovalMode.allCases) { mode in
@@ -202,7 +211,7 @@ struct AgentComposer: View {
                 .textSelection(.enabled)
             Group {
                 Text(controller.approvalMode.detail)
-                Text("Meeting Library: scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant.")
+                Text("The working folder is separate from LokalBot’s private data. Meeting Library tools provide scoped local read access when this task runs. Saved screen moments require the separate screen-memory grant. Raw private-library file reads follow the approval mode even when a parent folder is selected.")
                 Text("\(model.destination.label). Attached text is included when you send. Files and tool actions follow the approval mode above.")
                 if controller.modelContext != nil, controller.modelContext != .init(settings: app.settings) {
                     Text("New tasks use the model selected in Settings.")

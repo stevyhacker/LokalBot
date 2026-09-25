@@ -6,13 +6,15 @@ enum OutcomeEvidencePolicy {
     /// clipped part cannot hide a preceding condition or following negation.
     static func resolveFromSource(
         speakerID: String?, basis: String?, source: Transcript.Segment,
-        visibleText: String, roster: [String: Transcript.SpeakerDescriptor]
+        visibleText: String, roster: [String: Transcript.SpeakerDescriptor],
+        addressedToUser: Bool = false
     ) -> OutcomeAttribution {
         var failure = resolve(speakerID: speakerID, basis: basis, quote: nil, sources: [source], roster: roster)
         for quote in canonicalClauses(visibleText) {
             let resolvedBasis = basis == "unclear" && isCommitment(quote) ? "commitment" : basis
             let attribution = resolve(speakerID: speakerID, basis: resolvedBasis,
-                                      quote: quote, sources: [source], roster: roster)
+                                      quote: quote, sources: [source], roster: roster,
+                                      addressedToUser: addressedToUser)
             if attribution.resolution != .unresolved { return attribution }
             failure = attribution
         }
@@ -44,9 +46,13 @@ enum OutcomeEvidencePolicy {
         } ?? []
     }
 
+    /// `addressedToUser` is transcript evidence supplied by the caller: the
+    /// user spoke the next turn after this request. It can make an unnamed
+    /// "you" request the user's, never another participant's.
     static func resolve(
         speakerID: String?, basis: String?, quote: String?,
-        sources: [Transcript.Segment], roster: [String: Transcript.SpeakerDescriptor]
+        sources: [Transcript.Segment], roster: [String: Transcript.SpeakerDescriptor],
+        addressedToUser: Bool = false
     ) -> OutcomeAttribution {
         func reject(_ reason: OutcomeAttribution.RejectionReason) -> OutcomeAttribution {
             OutcomeAttribution(resolution: .unresolved, speakerID: speakerID.flatMap { roster[$0] == nil ? nil : $0 },
@@ -73,13 +79,19 @@ enum OutcomeEvidencePolicy {
             }) else { return reject(.speakerMismatch) }
         } else {
             let names = uniqueTargetNames(for: person, roster: roster)
-            guard !names.isEmpty else { return reject(.ambiguousName) }
-            guard names.contains(where: { name in
+            let named = names.contains(where: { name in
                 hasExplicitTarget(name, in: quote, basis: basis) && quoted.allSatisfy { source in
                     evidenceClause(quote, in: source.displayText).map { hasExplicitTarget(name, in: $0, basis: basis) } == true
                 }
-            }) else {
-                return reject(.targetNotExplicit)
+            })
+            // Another participant asked "you", and the user answered next.
+            let answeredByUser = addressedToUser && person.identity == .user
+                && quoted.allSatisfy { source in
+                    roster[Transcript.canonicalSpeakerKey(source.speaker)]?.identity == .other
+                        && evidenceClause(quote, in: source.displayText).map(isSecondPersonRequest) == true
+                }
+            guard named || answeredByUser else {
+                return reject(names.isEmpty && !addressedToUser ? .ambiguousName : .targetNotExplicit)
             }
         }
         return OutcomeAttribution(resolution: person.identity == .user ? .user : .other,
@@ -92,7 +104,7 @@ enum OutcomeEvidencePolicy {
         let text = normalized(raw)
         guard !isConversationManagement(text) else { return false }
         let start = #"^(?:(?:yes|yeah|yep|okay|ok|sure|right|well|so|and|then|absolutely|after this|next|also|um|uh)[,!.: ]+)*"#
-        let undertaking = #"(?:i (?:will|shall|am going to|commit to|agree to)|i['’]m going to|i['’]ll|my next step is)\s+(?!not\b|never\b|no longer\b)\S"#
+        let undertaking = #"(?:i (?:will|shall|am going to|am gonna|commit to|agree to)|i['’]m (?:going to|gonna)|i['’]ll|my next step is)\s+(?!not\b|never\b|no longer\b)\S"#
         let acceptance = #"i can (?:do (?:that|it)|take (?:that|it)(?: on)?|handle (?:that|it))\b"#
         let translated = #"(?:ja ću |ja cu |je vais |ich werde |voy a |我会|我會)"#
         guard text.range(of: start + "(?:" + undertaking + "|" + acceptance + "|" + translated + ")",
@@ -100,6 +112,42 @@ enum OutcomeEvidencePolicy {
         // Preserve surrounding uncertainty even when a short quote omits it.
         return text.range(of: #"\?|\b(?:if|unless|might|maybe|perhaps|cannot|can't|can’t|won't|won’t)\b"#,
                           options: .regularExpression) == nil
+    }
+
+    /// Questions, conditions, hedges, and negations. Such a statement cannot
+    /// become a task merely because its wording escaped the commitment check.
+    static func isQualified(_ raw: String) -> Bool {
+        normalized(raw).range(of:
+            #"\?|\b(?:if|unless|might|maybe|perhaps|not|never|cannot|can't|can’t|won't|won’t|don't|don’t|shouldn't|shouldn’t)\b"#,
+            options: .regularExpression) != nil
+    }
+
+    /// Forward-looking wording ("we should", "I need to", "let me"). A task
+    /// whose commitment claim failed is kept only when its own source still
+    /// expresses an undertaking; a fragment cannot manufacture one.
+    static func expressesUndertaking(_ raw: String) -> Bool {
+        normalized(raw).range(of:
+            #"\b(?:will|shall|going to|gonna|need to|needs to|have to|has to|got to|should|must|let me|let['’]s|let us|plan to|want to)\b|['’]ll\b"#,
+            options: .regularExpression) != nil
+    }
+
+    /// A direct second-person request to one listener ("Could you send…",
+    /// "You need to…"). Group addresses and hypotheticals are excluded; a
+    /// polite "if you could" is still a request.
+    static func isSecondPersonRequest(_ raw: String) -> Bool {
+        let text = normalized(raw).replacingOccurrences(of:
+            #"\bif you (?:could|can|would|don['’]t mind)\b"#, with: "could you", options: .regularExpression)
+        guard text.range(of: #"\b(?:if|unless|might|perhaps)\b"#, options: .regularExpression) == nil,
+              text.range(of: #"\byou (?:all|guys|both|two)\b|\b(?:everyone|everybody|anyone|anybody|someone|somebody|y['’]all)\b"#,
+                         options: .regularExpression) == nil else { return false }
+        let patterns = [
+            #"\b(?:can|could|would|will) you (?:please |maybe |also |just )*(?!not\b)\w"#,
+            #"\byou (?:need to|have to|must|should|will need to|['’]ll need to)\s+(?!not\b|never\b)\w"#,
+            #"\bi(?:['’]d| would)? (?:need|want|like) you to\b"#,
+            #"\bmake sure (?:that )?you\b"#,
+            #"(?:^|[.!?]\s*)please (?!note\b)\w"#,
+        ]
+        return patterns.contains { text.range(of: $0, options: .regularExpression) != nil }
     }
 
     private static func supportsCommitment(_ quote: String, in source: String) -> Bool {

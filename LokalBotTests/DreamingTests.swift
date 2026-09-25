@@ -169,6 +169,7 @@ final class DreamingTests: XCTestCase {
             hasReport: { completed.contains($0) },
             canRun: { true },
             dream: { target in
+                XCTAssertTrue(target.isAutomatic)
                 dreamed.append(target.dayKey)
                 completed.insert(target.dayKey)
                 if dreamed.count == 1 { first.fulfill() }
@@ -218,6 +219,7 @@ final class DreamingTests: XCTestCase {
             hasReport: { _ in true },
             canRun: { false },
             dream: { target in
+                XCTAssertFalse(target.isAutomatic)
                 dreamedDayKey = target.dayKey
                 started.fulfill()
             },

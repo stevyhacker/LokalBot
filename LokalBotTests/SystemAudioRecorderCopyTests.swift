@@ -2,7 +2,7 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Regression tests for `SystemAudioRecorder.copyAndMeasureRMS(from:into:)`.
+/// Regression tests for the capture callback's raw-buffer copy and RMS path.
 ///
 /// The Core Audio process tap delivers *interleaved* stereo. An earlier
 /// implementation copied per-channel with contiguous `memcpy`s over
@@ -115,7 +115,9 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         let destination = makeBuffer(format: format, frames: frameCount)
         zero(destination)
 
-        let rms = SystemAudioRecorder.copyAndMeasureRMS(from: source, into: destination)
+        XCTAssertTrue(SystemAudioRecorder.copyBufferList(source.audioBufferList, into: destination),
+                      file: file, line: line)
+        let rms = SystemAudioRecorder.measureRMS(of: destination)
 
         // Byte-for-byte equality of every underlying AudioBuffer.
         let sourceList = UnsafeMutableAudioBufferListPointer(
@@ -291,19 +293,17 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         let plan = try XCTUnwrap(gate.consumeAfterCapturedBuffer(forElapsed: 2.5))
 
         XCTAssertEqual(plan.duration, 2.5, accuracy: 0.000_001)
-        XCTAssertFalse(plan.wasCapped)
         XCTAssertFalse(gate.isPending)
         XCTAssertNil(gate.consumeAfterCapturedBuffer(forElapsed: 2.5))
     }
 
-    func testRecoveredMicrophoneGapRetainsPlannerCap() throws {
+    func testRecoveredMicrophoneGapPreservesTheEntireOutage() throws {
         var gate = AudioRecoverySilenceCommitGate()
         gate.stage()
 
         let plan = try XCTUnwrap(gate.consumeAfterCapturedBuffer(forElapsed: 90))
 
-        XCTAssertEqual(plan.duration, AudioRecoverySilencePlanner.maximumDuration)
-        XCTAssertTrue(plan.wasCapped)
+        XCTAssertEqual(plan.duration, 90)
     }
 
     private func assertLosslessMicrophoneCopy(

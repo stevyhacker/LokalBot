@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class EmbeddingIndexChunkingTests: XCTestCase {
 
-    func testOrdinarySegmentsKeepSpeakerIdentityUnresolvedByDefault() {
+    func testOrdinarySegmentsKeepHistoricalChunkShape() {
         let first = String(repeating: "a", count: 260)
         let second = String(repeating: "b", count: 260)
         let transcript = Transcript(
@@ -18,7 +18,7 @@ final class EmbeddingIndexChunkingTests: XCTestCase {
 
         XCTAssertEqual(chunks.count, 1)
         XCTAssertEqual(chunks[0].start, 10)
-        XCTAssertEqual(chunks[0].text, "Local speaker: \(first)\nThem: \(second)\n")
+        XCTAssertEqual(chunks[0].text, "Me: \(first)\nThem: \(second)\n")
     }
 
     func testOversizedSegmentIsSplitWithoutLosingSourceText() throws {
@@ -36,7 +36,7 @@ final class EmbeddingIndexChunkingTests: XCTestCase {
             $0.text.count <= EmbeddingIndex.transcriptChunkTargetCharacters
         })
         XCTAssertTrue(chunks.allSatisfy { $0.start == 42 })
-        XCTAssertEqual(chunks.map(\.text).joined(), "Local speaker: \(longText)\n")
+        XCTAssertEqual(chunks.map(\.text).joined(), "Me: \(longText)\n")
     }
 
     func testHardLimitFlushesExistingTextBeforeLargeValidSegment() throws {

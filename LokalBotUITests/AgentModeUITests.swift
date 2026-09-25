@@ -96,6 +96,34 @@ final class AgentModeUITests: XCTestCase {
         snapshot("agent-attached-context")
     }
 
+    func testLegacyPrivateLibraryTaskKeepsHistoryAndDraftWithoutStartingRuntime() throws {
+        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
+        let directory = fixture.root.appendingPathComponent("agent/sessions")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let records: [[String: Any]] = [
+            ["type": "session", "version": 3, "id": "private-root", "cwd": fixture.root.path],
+            ["type": "message", "id": "question", "message": ["role": "user", "content": "Legacy private library task"]],
+            ["type": "message", "id": "answer", "parentId": "question",
+             "message": ["role": "assistant", "content": "Saved history stays readable."]],
+        ]
+        let lines = try records.map { String(decoding: try JSONSerialization.data(withJSONObject: $0), as: UTF8.self) }
+        try Data((lines.joined(separator: "\n") + "\n").utf8)
+            .write(to: directory.appendingPathComponent("private-root.jsonl"))
+        try launch(approval: true)
+        let search = app.textFields["agent.taskSearch"]
+        search.click(); search.typeText("Legacy private library task")
+        XCTAssertTrue(taskRow.waitForExistence(timeout: 4)); taskRow.click()
+        XCTAssertTrue(app.descendants(matching: .any)["agent.assistant"].waitForExistence(timeout: 4))
+        XCTAssertTrue(app.descendants(matching: .any)["agent.workspaceNotice"].exists)
+        composer.click(); composer.typeText("Keep this draft")
+        app.buttons["agent.send"].click()
+        XCTAssertTrue(UITestHarness.waitUntil {
+            (try? self.taskRecords().contains { $0["draft"] as? String == "Keep this draft" }) == true
+        })
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fixture.root.appendingPathComponent("agent-ui-rpc.jsonl").path))
+        snapshot("agent-private-library-task")
+    }
+
     func testFindAndResultsKeyboardCommands() throws {
         app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         try launch(approval: true)
@@ -196,7 +224,8 @@ final class AgentModeUITests: XCTestCase {
             UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
             XCTAssertTrue(more.isHittable)
-            XCTAssertTrue(transcript.frame.contains(more.frame))
+            XCTAssertTrue(transcript.frame.contains(more.frame),
+                          "Response actions \(more.frame) must fit in transcript \(transcript.frame)")
             let composerSurface = app.descendants(matching: .any)["agent.composerSurface"]
             XCTAssertLessThanOrEqual(answer.frame.width, composerSurface.frame.width + 4)
             XCTAssertLessThanOrEqual(more.frame.maxX, app.windows["main.window"].frame.maxX - 10)
@@ -215,7 +244,8 @@ final class AgentModeUITests: XCTestCase {
             resizeWindow(to: 600)
             UITestHarness.scrollTo(more, in: app, within: transcript)
             XCTAssertTrue(retry.isHittable)
-            XCTAssertTrue(transcript.frame.contains(more.frame))
+            XCTAssertTrue(transcript.frame.contains(more.frame),
+                          "Response actions \(more.frame) must fit in transcript \(transcript.frame)")
             XCTAssertTrue(composer.isHittable)
             XCTAssertLessThanOrEqual(app.buttons["agent.send"].frame.maxX, app.windows["main.window"].frame.maxX - 10)
             snapshot("agent-compact-600-\(appearance)")

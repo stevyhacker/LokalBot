@@ -297,6 +297,9 @@ struct AppSettings: Codable, Equatable {
     /// Origins the user explicitly approved for sending transcript, OCR, and
     /// agent context off this Mac. Loopback endpoints never need approval.
     var approvedRemoteInferenceOrigins: [String] = []
+    /// Separate opt-in for unattended daily digest and overnight Dream runs.
+    /// Selecting a remote Think connection never grants this approval.
+    var approvedRemoteAutomationOrigins: [String] = []
     /// Processing budget for meeting-notes generation. Applies to every Think
     /// backend, not only the connection it is edited alongside.
     var generationBudgetPreset: GenerationBudgetPreset = .standard
@@ -315,6 +318,21 @@ struct AppSettings: Codable, Equatable {
         return InferenceEndpointPolicy.requiresApproval(url)
             && InferenceEndpointPolicy.isAllowed(
                 url, approvedOrigins: approvedRemoteInferenceOrigins)
+    }
+
+    var allowsAutomaticMainInference: Bool {
+        let base: String
+        switch summarizerBackend {
+        case .builtIn, .appleIntelligence: return true
+        case .ollama: base = ollamaBaseURL
+        case .openAICompatible: base = openAIBaseURL
+        }
+        guard let url = URL(string: base),
+              InferenceEndpointPolicy.isAllowed(url, approvedOrigins: approvedRemoteInferenceOrigins)
+        else { return false }
+        guard InferenceEndpointPolicy.requiresApproval(url) else { return true }
+        guard let origin = InferenceEndpointPolicy.origin(for: url) else { return false }
+        return approvedRemoteAutomationOrigins.contains(origin)
     }
 
     /// Name shown for the Think role. Always follows `summarizerBackend`;
@@ -362,6 +380,9 @@ struct AppSettings: Codable, Equatable {
     var identifySpeakersFromVisuals: Bool = false
     /// User-confirmed voices only. No automatic enrollment from inferred names.
     var rememberSpeakersOnMac: Bool = false
+    /// Microphone speech is the user's unless corrected. Turn off when several
+    /// people share this Mac's microphone.
+    var microphoneIsUser: Bool = true
 
     // MARK: - Cotyping (inline AI autocomplete)
 
@@ -673,11 +694,13 @@ struct AppSettings: Codable, Equatable {
         case openAIModel
         case openRouterDataPolicy
         case approvedRemoteInferenceOrigins
+        case approvedRemoteAutomationOrigins
         case generationBudgetPreset
         case noteTemplate
         case summaryLanguage
         case identifySpeakersFromVisuals
         case rememberSpeakersOnMac
+        case microphoneIsUser
         case multiSpeakerDiarization
         case diarizationModel
         case cotypingEnabled
@@ -834,6 +857,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(openAIModel, forKey: .openAIModel)
         try c.encode(openRouterDataPolicy, forKey: .openRouterDataPolicy)
         try c.encode(approvedRemoteInferenceOrigins, forKey: .approvedRemoteInferenceOrigins)
+        try c.encode(approvedRemoteAutomationOrigins, forKey: .approvedRemoteAutomationOrigins)
         try c.encode(generationBudgetPreset, forKey: .generationBudgetPreset)
         try c.encode(noteTemplate, forKey: .noteTemplate)
         try c.encode(summaryLanguage, forKey: .summaryLanguage)
@@ -841,6 +865,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(diarizationModel, forKey: .diarizationModel)
         try c.encode(identifySpeakersFromVisuals, forKey: .identifySpeakersFromVisuals)
         try c.encode(rememberSpeakersOnMac, forKey: .rememberSpeakersOnMac)
+        try c.encode(microphoneIsUser, forKey: .microphoneIsUser)
         try c.encode(cotypingEnabled, forKey: .cotypingEnabled)
         try c.encode(cotypingUserName, forKey: .cotypingUserName)
         try c.encode(cotypingStyleNote, forKey: .cotypingStyleNote)
@@ -977,6 +1002,8 @@ struct AppSettings: Codable, Equatable {
             .openRouterDataPolicy, defaults.openRouterDataPolicy)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
+        approvedRemoteAutomationOrigins = decode(
+            .approvedRemoteAutomationOrigins, defaults.approvedRemoteAutomationOrigins)
         generationBudgetPreset = decode(
             .generationBudgetPreset, defaults.generationBudgetPreset)
         noteTemplate = decode(.noteTemplate, defaults.noteTemplate)
@@ -988,6 +1015,7 @@ struct AppSettings: Codable, Equatable {
         diarizationModel = decode(.diarizationModel, .community1)
         identifySpeakersFromVisuals = decode(.identifySpeakersFromVisuals, defaults.identifySpeakersFromVisuals)
         rememberSpeakersOnMac = decode(.rememberSpeakersOnMac, defaults.rememberSpeakersOnMac)
+        microphoneIsUser = decode(.microphoneIsUser, defaults.microphoneIsUser)
         cotypingEnabled = decode(.cotypingEnabled, defaults.cotypingEnabled)
         cotypingUserName = decode(.cotypingUserName, defaults.cotypingUserName)
         cotypingStyleNote = decode(.cotypingStyleNote, defaults.cotypingStyleNote)

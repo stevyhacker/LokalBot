@@ -1,0 +1,695 @@
+[
+  {
+    "name": "parakeetV3",
+    "repository": "FluidInference/parakeet-tdt-0.6b-v3-coreml",
+    "revision": "7dd20fe6b1797d35f5e3307e8b1732d9a178edfe",
+    "remotePrefix": "",
+    "files": [
+      {
+        "path": "Decoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "4238c4e81ecd0dc94bd7dfbb60f7e2cc824107c1ffe0387b8607b72833dba350",
+        "isGitBlob": false
+      },
+      {
+        "path": "Decoder.mlmodelc/coremldata.bin",
+        "bytes": 554,
+        "digest": "18647af085d87bd8f3121c8a9b4d4564c1ede038dab63d295b4e745cf2d7fb99",
+        "isGitBlob": false
+      },
+      {
+        "path": "Decoder.mlmodelc/metadata.json",
+        "bytes": 3427,
+        "digest": "781350d40ed83511afc3bc31a804e6a543e69d04",
+        "isGitBlob": true
+      },
+      {
+        "path": "Decoder.mlmodelc/model.mil",
+        "bytes": 13110,
+        "digest": "95328ba81ca8dceb16c039e62f1a7d447ede43c2",
+        "isGitBlob": true
+      },
+      {
+        "path": "Decoder.mlmodelc/weights/weight.bin",
+        "bytes": 23604992,
+        "digest": "48adf0f0d47c406c8253d4f7fef967436a39da14f5a65e66d5a4b407be355d41",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder_v2.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "af98d71151609799efbbffc00112fcba4bd91adf0b01135a982c574e91822f9c",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder_v2.mlmodelc/coremldata.bin",
+        "bytes": 478,
+        "digest": "70628bd4fd25fb554cc0cebc31356723930c885480132bf3ecd1b5dbe71dd0a2",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder_v2.mlmodelc/model.mil",
+        "bytes": 1002653,
+        "digest": "af2fb4d2179bdff0eb165993269a8a40eeae6580",
+        "isGitBlob": true
+      },
+      {
+        "path": "Encoder_v2.mlmodelc/weights/weight.bin",
+        "bytes": 594211328,
+        "digest": "8d2c79e15a4545e08fe3a21fe741e42b8bf24329db81de8fdfacd92388ea5a66",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecisionv3.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "26def4bf73dd56d29dee21c8ef97cb8969e62f6120ed1adc91e46828e2737b6c",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecisionv3.mlmodelc/coremldata.bin",
+        "bytes": 521,
+        "digest": "f5fc08b741400f0088492c9e839418b1e18522f19cba28d361dd030c5f398342",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecisionv3.mlmodelc/metadata.json",
+        "bytes": 3453,
+        "digest": "0461ef9e55ba8e8ba0d2cb33b6e1a031b0d481d7",
+        "isGitBlob": true
+      },
+      {
+        "path": "JointDecisionv3.mlmodelc/model.mil",
+        "bytes": 11775,
+        "digest": "0a80fde4b1ec61093a03fc0fc3431172db34a4d2",
+        "isGitBlob": true
+      },
+      {
+        "path": "JointDecisionv3.mlmodelc/weights/weight.bin",
+        "bytes": 12642764,
+        "digest": "4e0e63d840032f7f07ddb1d64446051166281e5491bf22da8a945c41f6eedb3e",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "c9beeb989c8d66f8be11df59bc6df277ec76cee404f6865b46243835ef562f6d",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/coremldata.bin",
+        "bytes": 486,
+        "digest": "dbde3f2300842c1fd51ef3ff948a0bcffe65ffd2dca10707f2509f32c1d65b1d",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/metadata.json",
+        "bytes": 2841,
+        "digest": "06162c58cf2f5343a0e60f36f843bcdf3cc58527",
+        "isGitBlob": true
+      },
+      {
+        "path": "Preprocessor.mlmodelc/model.mil",
+        "bytes": 28181,
+        "digest": "f987e2479228436c49189aa47edb376db74dcff5",
+        "isGitBlob": true
+      },
+      {
+        "path": "Preprocessor.mlmodelc/weights/weight.bin",
+        "bytes": 491072,
+        "digest": "129b76e3aeafa8afa3ea76d995b964b145fe83700d579f6ff42c4c38fa0968ea",
+        "isGitBlob": false
+      },
+      {
+        "path": "parakeet_vocab.json",
+        "bytes": 151122,
+        "digest": "c684822ec3b671ebc449c433a7012398d39b8bb0",
+        "isGitBlob": true
+      }
+    ]
+  },
+  {
+    "name": "parakeetV2",
+    "repository": "FluidInference/parakeet-tdt-0.6b-v2-coreml",
+    "revision": "ee09c569f73759e6d44c9bd16766f477b2b36d39",
+    "remotePrefix": "",
+    "files": [
+      {
+        "path": "Decoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "46de1a6fe2e49d19a2125bc91acf020df7f2aea84ba821532aade8427a440b05",
+        "isGitBlob": false
+      },
+      {
+        "path": "Decoder.mlmodelc/coremldata.bin",
+        "bytes": 554,
+        "digest": "d200ca07694a347f6d02a3886a062ae839831e094e443222f2e48a14945966a8",
+        "isGitBlob": false
+      },
+      {
+        "path": "Decoder.mlmodelc/metadata.json",
+        "bytes": 3427,
+        "digest": "e3a08d21a5d1577db2bedd1749ea0ddae5d21b73",
+        "isGitBlob": true
+      },
+      {
+        "path": "Decoder.mlmodelc/model.mil",
+        "bytes": 13106,
+        "digest": "167cc9db34dd7828e0e61eab40d6a09f8a234d30",
+        "isGitBlob": true
+      },
+      {
+        "path": "Decoder.mlmodelc/weights/weight.bin",
+        "bytes": 14429952,
+        "digest": "27d26890221d82322c1092fd99d7b40578e435d5cf4b83c887c42603caf97aba",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "42e638870d73f26b332918a3496ce36793fbb413a81cbd3d16ba01328637a105",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder.mlmodelc/coremldata.bin",
+        "bytes": 485,
+        "digest": "4def7aa848599ad0e17a8b9a982edcdbf33cf92e1f4b798de32e2ca0bc74b030",
+        "isGitBlob": false
+      },
+      {
+        "path": "Encoder.mlmodelc/metadata.json",
+        "bytes": 2926,
+        "digest": "c87f9eb24e76b8e518dc1fbead46c8c0029d3925",
+        "isGitBlob": true
+      },
+      {
+        "path": "Encoder.mlmodelc/model.mil",
+        "bytes": 959769,
+        "digest": "93d1301ccde7c2ca447af6c01ab05bfda5a5dd2c",
+        "isGitBlob": true
+      },
+      {
+        "path": "Encoder.mlmodelc/weights/weight.bin",
+        "bytes": 445187200,
+        "digest": "4adc7ad44f9d05e1bffeb2b06d3bb02861a5c7602dff63a6b494aed3bf8a6c3e",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecision.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "f1183ba213bb94a918c8d2cad19ab045320618f97f6ca662245b3936d7b090f7",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecision.mlmodelc/coremldata.bin",
+        "bytes": 534,
+        "digest": "e2c6752f1c8cf2d3f6f26ec93195c9bfa759ad59edf9f806696a138154f96f11",
+        "isGitBlob": false
+      },
+      {
+        "path": "JointDecision.mlmodelc/metadata.json",
+        "bytes": 2936,
+        "digest": "db3b2bc33cfda6f7cd1073d21182446180e53f94",
+        "isGitBlob": true
+      },
+      {
+        "path": "JointDecision.mlmodelc/model.mil",
+        "bytes": 9722,
+        "digest": "339c35b303b074de7fe047bb099311a4cc08cf53",
+        "isGitBlob": true
+      },
+      {
+        "path": "JointDecision.mlmodelc/weights/weight.bin",
+        "bytes": 3453388,
+        "digest": "ca22a65903a05e64137677da608077578a8606090a598abf4875fa6199aaa19d",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "03ab3c1327a054c54c07a40325db967ec574f2c91dcc8192bfa44aa561bcf2d8",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/coremldata.bin",
+        "bytes": 494,
+        "digest": "d88ea1fc349459c9e100d6a96688c5b29a1f0d865f544be103001724b986b6d6",
+        "isGitBlob": false
+      },
+      {
+        "path": "Preprocessor.mlmodelc/metadata.json",
+        "bytes": 2974,
+        "digest": "887f7d4adc6d7f933686f7b984e23a47b45f57e3",
+        "isGitBlob": true
+      },
+      {
+        "path": "Preprocessor.mlmodelc/model.mil",
+        "bytes": 27166,
+        "digest": "e94cce4bc7fbf55e55788449bf067ffe09a5ca91",
+        "isGitBlob": true
+      },
+      {
+        "path": "Preprocessor.mlmodelc/weights/weight.bin",
+        "bytes": 298880,
+        "digest": "a5f7df6c7f47147ae9486fe18cc7792f9a44d093ec3c6a11e91ef2dc363c48dc",
+        "isGitBlob": false
+      },
+      {
+        "path": "parakeet_vocab.json",
+        "bytes": 18762,
+        "digest": "a111d3bd29d44781c4588447c3eac1ea549cb1f1",
+        "isGitBlob": true
+      }
+    ]
+  },
+  {
+    "name": "sileroVAD",
+    "repository": "FluidInference/silero-vad-coreml",
+    "revision": "b419383c55c110e2c9271fa6ee0ea83d03c70d96",
+    "remotePrefix": "",
+    "files": [
+      {
+        "path": "silero-vad-unified-256ms-v6.2.1.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "8067594eb3126ab8318af507f0c00cabfed40d5fedb8a0ee5075dd02e903d909",
+        "isGitBlob": false
+      },
+      {
+        "path": "silero-vad-unified-256ms-v6.2.1.mlmodelc/coremldata.bin",
+        "bytes": 625,
+        "digest": "7db35a4fd995222a7fb0129713473b15d1462572ab4a2e5e4d56bcaad9e40f41",
+        "isGitBlob": false
+      },
+      {
+        "path": "silero-vad-unified-256ms-v6.2.1.mlmodelc/metadata.json",
+        "bytes": 3335,
+        "digest": "8ecdc26edff98896279d325d0dfffc46a65f5f53",
+        "isGitBlob": true
+      },
+      {
+        "path": "silero-vad-unified-256ms-v6.2.1.mlmodelc/model.mil",
+        "bytes": 176918,
+        "digest": "adf9d2a7d9a4c02164644ff7c5d864d08eb409a9",
+        "isGitBlob": true
+      },
+      {
+        "path": "silero-vad-unified-256ms-v6.2.1.mlmodelc/weights/weight.bin",
+        "bytes": 882304,
+        "digest": "53ecc8b5081146140ab654c89109cf001f2183abddd7a2411c5081feeffff063",
+        "isGitBlob": false
+      }
+    ]
+  },
+  {
+    "name": "cohere",
+    "repository": "FluidInference/cohere-transcribe-03-2026-coreml",
+    "revision": "fccec19ecf93b40969d4888f27e10d714daeb3cf",
+    "remotePrefix": "q8/",
+    "files": [
+      {
+        "path": "cohere_decoder_cache_external_v2.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "c2f8083545d32e711223ccd852f9bf9a8b5714b7f46513c828ad60c1926d6e90",
+        "isGitBlob": false
+      },
+      {
+        "path": "cohere_decoder_cache_external_v2.mlmodelc/coremldata.bin",
+        "bytes": 1562,
+        "digest": "dbd9290c1188f7e529f3c16a41428b7d0bc978e662a269385125d996e5516e8f",
+        "isGitBlob": false
+      },
+      {
+        "path": "cohere_decoder_cache_external_v2.mlmodelc/metadata.json",
+        "bytes": 13587,
+        "digest": "accbdebd85997d0dfef454a990011df6e6b000be",
+        "isGitBlob": true
+      },
+      {
+        "path": "cohere_decoder_cache_external_v2.mlmodelc/model.mil",
+        "bytes": 207280,
+        "digest": "1a621005c86d7b9504cf853f2052dedd12dd3e15",
+        "isGitBlob": true
+      },
+      {
+        "path": "cohere_decoder_cache_external_v2.mlmodelc/weights/weight.bin",
+        "bytes": 304453120,
+        "digest": "86eac4bce6ca5d4ca49f5bf1078a1b42ab75f59d7c809678592a493742c29568",
+        "isGitBlob": false
+      },
+      {
+        "path": "cohere_encoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "b3144d7325a5c55145e5c46487379ad9fb0718f90f2a63fce63a6f0084b09a48",
+        "isGitBlob": false
+      },
+      {
+        "path": "cohere_encoder.mlmodelc/coremldata.bin",
+        "bytes": 421,
+        "digest": "2c677b62b835a6a7cd69499119df60c43e55eed1042063ede032ca5583802c9d",
+        "isGitBlob": false
+      },
+      {
+        "path": "cohere_encoder.mlmodelc/metadata.json",
+        "bytes": 2587,
+        "digest": "c49137cc1cb81bc2feb216ef147016c6e6a0193a",
+        "isGitBlob": true
+      },
+      {
+        "path": "cohere_encoder.mlmodelc/model.mil",
+        "bytes": 2444649,
+        "digest": "625b2810cbf8b5ed1301dd0e341b676f61065642",
+        "isGitBlob": true
+      },
+      {
+        "path": "cohere_encoder.mlmodelc/weights/weight.bin",
+        "bytes": 1881964672,
+        "digest": "f2992beb02730c9b751fe73c0fd898d83b013241531793e659776e5b3b9bc8a7",
+        "isGitBlob": false
+      },
+      {
+        "path": "vocab.json",
+        "remotePath": "vocab.json",
+        "bytes": 338520,
+        "digest": "8a0ecfa4f8b7eea107e21600f378558c2041a89c",
+        "isGitBlob": true
+      }
+    ]
+  },
+  {
+    "name": "community",
+    "repository": "FluidInference/speaker-diarization-coreml",
+    "revision": "df2625ac79a7ac6b65ad868fee6d80f320da4232",
+    "remotePrefix": "",
+    "files": [
+      {
+        "path": "Embedding.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "8d6706436639b53830b4dbe8aaf9c9a843f7f582d63e16f3cb8bb7c6ccd58682",
+        "isGitBlob": false
+      },
+      {
+        "path": "Embedding.mlmodelc/coremldata.bin",
+        "bytes": 704,
+        "digest": "4a705bac27d151d9642f37609296042a15602a42253039e0921dc9e75da7e004",
+        "isGitBlob": false
+      },
+      {
+        "path": "Embedding.mlmodelc/metadata.json",
+        "bytes": 2818,
+        "digest": "71c70e8c4972bbba271728ee32d9629a31498976",
+        "isGitBlob": true
+      },
+      {
+        "path": "Embedding.mlmodelc/model.mil",
+        "bytes": 78432,
+        "digest": "39c8175875111f64245779cecad5185968a6db34",
+        "isGitBlob": true
+      },
+      {
+        "path": "Embedding.mlmodelc/weights/weight.bin",
+        "bytes": 13412288,
+        "digest": "99356b2985b8d43880a657024d941d450b38820451ccff903f76ed4e52d1868b",
+        "isGitBlob": false
+      },
+      {
+        "path": "FBank.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "0e8bd3a8b82ac123580989f490e4d9245127c535857630b543311268accc3f0a",
+        "isGitBlob": false
+      },
+      {
+        "path": "FBank.mlmodelc/coremldata.bin",
+        "bytes": 853,
+        "digest": "57ac436bb0671cbb5527a339134d695f752eb77f7a18966b93c6835335595759",
+        "isGitBlob": false
+      },
+      {
+        "path": "FBank.mlmodelc/metadata.json",
+        "bytes": 3409,
+        "digest": "b48f04253ef4cd5f92ef76453c57d82ccee3ba31",
+        "isGitBlob": true
+      },
+      {
+        "path": "FBank.mlmodelc/model.mil",
+        "bytes": 15667,
+        "digest": "0e01e8a188d4fe7ee97866948c2ee159fe505248",
+        "isGitBlob": true
+      },
+      {
+        "path": "FBank.mlmodelc/weights/weight.bin",
+        "bytes": 1776896,
+        "digest": "9e83fdd3ea78064b078069e4d9141603c61c47a27fd19e7e3142ff7476f8db36",
+        "isGitBlob": false
+      },
+      {
+        "path": "PldaRho.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "8940ea6044dbcbefa22da8cc41e0b485e1fb5ed89aecaf37c6e0c483a97ddcd7",
+        "isGitBlob": false
+      },
+      {
+        "path": "PldaRho.mlmodelc/coremldata.bin",
+        "bytes": 763,
+        "digest": "4d9741477f721c79b09fcdfe455110c4b7d4272e2de3496bf1729d966d3ee418",
+        "isGitBlob": false
+      },
+      {
+        "path": "PldaRho.mlmodelc/metadata.json",
+        "bytes": 2749,
+        "digest": "b964649416a95f0d8b3f7155a9a1ef46b79543aa",
+        "isGitBlob": true
+      },
+      {
+        "path": "PldaRho.mlmodelc/model.mil",
+        "bytes": 7613,
+        "digest": "30c6a1b1bfb5a5a2a9498d52c9529c15ba9e3917",
+        "isGitBlob": true
+      },
+      {
+        "path": "PldaRho.mlmodelc/weights/weight.bin",
+        "bytes": 200192,
+        "digest": "80f7d229202636d372428c90596f11a91545f07da77259f07153aaf225914a36",
+        "isGitBlob": false
+      },
+      {
+        "path": "Segmentation.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "64265f8e7ad41a5f68d630c15288c2499cca5892ad49e20096819cdeac004cdb",
+        "isGitBlob": false
+      },
+      {
+        "path": "Segmentation.mlmodelc/coremldata.bin",
+        "bytes": 812,
+        "digest": "ea51481b8bd3e496ad3cf16f066ddaa37f20e8772eaac76b3393c28de20e06bc",
+        "isGitBlob": false
+      },
+      {
+        "path": "Segmentation.mlmodelc/metadata.json",
+        "bytes": 3410,
+        "digest": "604d6f1f829f47120b5d291825e28a7ee01b5d18",
+        "isGitBlob": true
+      },
+      {
+        "path": "Segmentation.mlmodelc/model.mil",
+        "bytes": 43063,
+        "digest": "60b457187b267fd64cd00410f4165d218c4fe7d7",
+        "isGitBlob": true
+      },
+      {
+        "path": "Segmentation.mlmodelc/weights/weight.bin",
+        "bytes": 5959360,
+        "digest": "c3189a64946c75bc24fcb98afe89ad78c52bdbadfdf65e857fb1b81e2cc9fbb2",
+        "isGitBlob": false
+      },
+      {
+        "path": "plda-parameters.json",
+        "bytes": 89416,
+        "digest": "104dc2572aec3eb7d606a619fa738cdc43824cff",
+        "isGitBlob": true
+      }
+    ]
+  },
+  {
+    "name": "whisperTokenizer",
+    "repository": "openai/whisper-large-v3",
+    "revision": "06f233fe06e710322aca913c1bc4249a0d71fce1",
+    "remotePrefix": "",
+    "files": [
+      {
+        "path": "added_tokens.json",
+        "bytes": 34648,
+        "digest": "1b33526d33aaa60d79f78ae8651dae50b730185a",
+        "isGitBlob": true
+      },
+      {
+        "path": "config.json",
+        "bytes": 1272,
+        "digest": "14c6c8cf48b64ebb1cb8b637e2b0fab3a9774972",
+        "isGitBlob": true
+      },
+      {
+        "path": "merges.txt",
+        "bytes": 493869,
+        "digest": "6038932a2a1f09a66991b1c2adae0d14066fa29e",
+        "isGitBlob": true
+      },
+      {
+        "path": "normalizer.json",
+        "bytes": 52666,
+        "digest": "dd6ae819ad738ac1a546e9f9282ef325c33b9ea0",
+        "isGitBlob": true
+      },
+      {
+        "path": "special_tokens_map.json",
+        "bytes": 2072,
+        "digest": "3c18e97162d572f2b1d62e7e1c7b805f1be11dbe",
+        "isGitBlob": true
+      },
+      {
+        "path": "tokenizer.json",
+        "bytes": 2480617,
+        "digest": "3a5e2ba63acdcac9a19ba56cf9bd27f185bfff61",
+        "isGitBlob": true
+      },
+      {
+        "path": "tokenizer_config.json",
+        "bytes": 282843,
+        "digest": "06ffdc8308eae6bb7bd1fdd81e94b0a881a539ab",
+        "isGitBlob": true
+      },
+      {
+        "path": "vocab.json",
+        "bytes": 1036558,
+        "digest": "0f3456460629e21d559c6daa23ab6ce3644e8271",
+        "isGitBlob": true
+      }
+    ]
+  },
+  {
+    "name": "whisper",
+    "repository": "argmaxinc/whisperkit-coreml",
+    "revision": "0f63a7800b00dd0226abd051b906c246e1907482",
+    "remotePrefix": "openai_whisper-large-v3-v20240930/",
+    "files": [
+      {
+        "path": "AudioEncoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "742c7bd747be2f2a27116a6ebe8ab4675babda518d2123f3efd774a890bc8304",
+        "isGitBlob": false
+      },
+      {
+        "path": "AudioEncoder.mlmodelc/coremldata.bin",
+        "bytes": 348,
+        "digest": "6345ee37d7bf7e45d4766046fa04822eb9e13bf144469541e9c1a3e0b911d2fe",
+        "isGitBlob": false
+      },
+      {
+        "path": "AudioEncoder.mlmodelc/metadata.json",
+        "bytes": 1772,
+        "digest": "084220a2dfc36f36f28c07505ccfc644b7b54334",
+        "isGitBlob": true
+      },
+      {
+        "path": "AudioEncoder.mlmodelc/model.mil",
+        "bytes": 527644,
+        "digest": "788e8689747adf06f08962137070251a019b7012",
+        "isGitBlob": true
+      },
+      {
+        "path": "AudioEncoder.mlmodelc/model.mlmodel",
+        "bytes": 441653,
+        "digest": "c5eb570c19871d7b0c59e0a84718cc9c8cde77a94273886de87e866961262e2c",
+        "isGitBlob": false
+      },
+      {
+        "path": "AudioEncoder.mlmodelc/weights/weight.bin",
+        "bytes": 1273974400,
+        "digest": "98daf651a919978e28fe185daf55ce2f70085a8e59fa07fe8a4d08c87d368ae4",
+        "isGitBlob": false
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "7f478e6afa8fdee3711d97b00728f82ee4dcdf2912f7ff033ee0dfcf57bf28bb",
+        "isGitBlob": false
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/coremldata.bin",
+        "bytes": 329,
+        "digest": "a888718e98af679eee42db9e3609627472c32f77e4fdda28f3735960cbf526b3",
+        "isGitBlob": false
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/metadata.json",
+        "bytes": 1878,
+        "digest": "ac5ea81913db74d9a773c3125ccab137629101d4",
+        "isGitBlob": true
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/model.mil",
+        "bytes": 10166,
+        "digest": "13508737cd7987749b5796de7df6a695dc62de93",
+        "isGitBlob": true
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/model.mlmodel",
+        "bytes": 8962,
+        "digest": "5ce7a6b789891f4dc233cc67334db87d2097b6bddf07dd8ea2cd16efea3f9407",
+        "isGitBlob": false
+      },
+      {
+        "path": "MelSpectrogram.mlmodelc/weights/weight.bin",
+        "bytes": 373376,
+        "digest": "81275398516781f9755514a5ab85db4687374dd611013625f3d4493588783968",
+        "isGitBlob": false
+      },
+      {
+        "path": "TextDecoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "digest": "931efc5180111dbab2542c200f10b326d760c65a42dcf6c5edef73d803b93255",
+        "isGitBlob": false
+      },
+      {
+        "path": "TextDecoder.mlmodelc/coremldata.bin",
+        "bytes": 633,
+        "digest": "3faabaf66930e66956d8291d0ff485fb382496e30a91a7185548b9b898ce90a9",
+        "isGitBlob": false
+      },
+      {
+        "path": "TextDecoder.mlmodelc/metadata.json",
+        "bytes": 4756,
+        "digest": "709866651649dc49d2c080f9b60e7f1924e608fd",
+        "isGitBlob": true
+      },
+      {
+        "path": "TextDecoder.mlmodelc/model.mil",
+        "bytes": 132679,
+        "digest": "f78c77f2080261d7eaffdc835c291c6689feb305",
+        "isGitBlob": true
+      },
+      {
+        "path": "TextDecoder.mlmodelc/model.mlmodel",
+        "bytes": 113164,
+        "digest": "47eb67da32c2abb086633509dad1a92bf239ab461367f286f79db8f0ba888bf1",
+        "isGitBlob": false
+      },
+      {
+        "path": "TextDecoder.mlmodelc/weights/weight.bin",
+        "bytes": 343933748,
+        "digest": "47b2703aa37448e09cf2f06e45984fabd5ded4c34ba3400cec38a5294af39dc1",
+        "isGitBlob": false
+      },
+      {
+        "path": "config.json",
+        "bytes": 1255,
+        "digest": "17db874944dd362bb613d00887fc1f5850e39cf9",
+        "isGitBlob": true
+      },
+      {
+        "path": "generation_config.json",
+        "bytes": 3771,
+        "digest": "5f8be143c2f3f9292c0a9ccd84d5be3a2aeee92a",
+        "isGitBlob": true
+      }
+    ]
+  }
+]

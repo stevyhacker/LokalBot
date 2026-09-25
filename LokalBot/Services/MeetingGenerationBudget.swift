@@ -58,7 +58,7 @@ actor MeetingGenerationBudget {
 
     struct Exhausted: LocalizedError {
         var errorDescription: String? {
-            "Notes reached their processing limit. Verified progress was saved; summarize again to continue."
+            "Notes reached their processing limit. Source-linked progress was saved; summarize again to continue."
         }
     }
 
@@ -194,7 +194,10 @@ actor MeetingGenerationBudget {
         encoder.dateEncodingStrategy = .iso8601
         if let data = try? encoder.encode(report) {
             let runs = folder.appendingPathComponent("notes-generation-runs", isDirectory: true)
-            try? FileManager.default.createDirectory(at: runs, withIntermediateDirectories: true)
+            // Never recreate a meeting root after deletion. Creating only the
+            // direct child fails safely if the root disappeared concurrently.
+            guard FileManager.default.fileExists(atPath: folder.path) else { return }
+            try? FileManager.default.createDirectory(at: runs, withIntermediateDirectories: false)
             try? data.write(to: runs.appendingPathComponent("\(attemptID.uuidString).json"), options: .atomic)
             try? data.write(to: folder.appendingPathComponent("notes-generation-metrics.json"), options: .atomic)
         }

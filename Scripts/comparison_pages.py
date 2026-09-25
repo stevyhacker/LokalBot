@@ -46,7 +46,7 @@ PAGES = [
             ("Where the AI runs", "On your Mac — Qwen3-ASR speech model by default and llama.cpp summaries", "In the cloud, via third-party AI providers"),
             ("Account required", f"{CROSS}None", f"{CHECK}Yes"),
             ("Works offline", f"{CHECK}Fully, after a one-time model download", "Needs a connection for AI notes"),
-            ("Bot-free meeting capture", f"{CHECK}Mic + system-audio tap, labeled Me / Them", f"{CHECK}Yes — no bot joins your call"),
+            ("Bot-free meeting capture", f"{CHECK}Microphone + selected-app system audio; labels show capture source, not identity", f"{CHECK}Yes — no bot joins your call"),
             ("Model training on your data", "No LokalBot training pipeline or telemetry; approved remote servers have their own terms", '<span class="dim">Opt-out of model training on every plan</span>'),
             ("Meeting history", "Unlimited, stored on your Mac", "Basic: 30 days · Business and Enterprise: unlimited"),
             ("Compliance", "No LokalBot server ever holds your meetings", "SOC 2 Type II; HIPAA workspaces on Enterprise"),
@@ -93,7 +93,7 @@ PAGES = [
         "published": "2026-09-24",
         "lead": "Otter is one of the best-known AI notetakers: its assistant joins Zoom, Microsoft Teams, and Google Meet, transcribes in the cloud, and shares notes with your team. That reach comes with a participant in your call and your conversations on Otter's servers. LokalBot takes the opposite approach: it captures the call from your Mac's own audio, transcribes and summarizes on the Mac, and needs no account.",
         "table_rows": [
-            ("How it captures a meeting", f"{CHECK}Mic + system audio on your Mac, labeled Me / Them — nothing joins the call", "The Otter assistant joins Zoom, Teams, and Google Meet; its apps can also record directly"),
+            ("How it captures a meeting", f"{CHECK}Microphone + selected-app system audio on your Mac; source labels do not identify speakers", "The Otter assistant joins Zoom, Teams, and Google Meet; its apps can also record directly"),
             ("Where transcription runs", LB_ASR, "Otter's cloud"),
             ("Account required", f"{CROSS}None", f"{CHECK}Yes"),
             ("Works offline", f"{CHECK}After a one-time model download", "Needs a connection"),
@@ -240,7 +240,7 @@ PAGES = [
         "lead": "MacWhisper is the go-to Mac app for transcribing files: drag in an interview, lecture, or podcast and get text back, on-device. It also records calls without a bot and offers dictation. LokalBot overlaps on meetings and dictation but is built around recall rather than files — meeting notes with local summaries, a searchable library, and a day timeline. LokalBot is free and open source; MacWhisper has a free version and a one-time Pro license.",
         "table_rows": [
             ("Transcribe existing files", f"{CROSS}No — LokalBot transcribes what it records", f"{CHECK}Drag and drop audio or video; export subtitles and documents"),
-            ("Meeting capture", f"{CHECK}Auto-detected, bot-free Me / Them tracks, summarized locally", f"{CHECK}Records Zoom, Teams, Webex, Skype, and Discord calls without a bot"),
+            ("Meeting capture", f"{CHECK}Auto-detected, bot-free microphone + system-audio tracks, summarized locally", f"{CHECK}Records Zoom, Teams, Webex, Skype, and Discord calls without a bot"),
             ("Where transcription runs", LB_ASR, "On your Mac, with a choice of local models"),
             ("AI summaries", f"{CHECK}llama.cpp built in; Ollama or OpenAI-compatible servers only if you approve them", "Connects to OpenAI, Anthropic, Google Gemini, xAI, Ollama, and other providers"),
             ("Dictation", LB_DICTATION, f"{CHECK}Real-time dictation in any app"),
@@ -290,7 +290,7 @@ PAGES = [
             ("Where speech runs", f"{CHECK}{LB_ASR}", f"{CHECK}Local Whisper models, with optional cloud models"),
             ("Cloud path", "None by default; remote inference only for servers you approve", "Optional cloud models and AI processing"),
             ("Dictation audio", "Scratch recording deleted after transcription by default", '<span class="dim">Configurable in-app</span>'),
-            ("Meeting notes", f"{CHECK}Bot-free Me / Them capture, local summaries, searchable library", f"{CHECK}Meeting recording and transcription with automatic notes"),
+            ("Meeting notes", f"{CHECK}Bot-free microphone + system-audio capture, local summaries, searchable library", f"{CHECK}Meeting recording and transcription with automatic notes"),
             ("Day timeline", LB_TIMELINE, NO),
             ("Writing autocomplete", f"{CHECK}Cotyping ghost text as you type", f"{CROSS}No — AI modes transform what you dictate instead"),
             ("Source code", "Open source, GPLv3", "Proprietary"),
@@ -333,7 +333,7 @@ PAGES = [
         "table_rows": [
             ("Captured by default", "App name and window title; screen text and screenshots are opt-in", "Screen, audio, and meetings, continuously"),
             ("Retention and disk", "Screenshots and extracted text deleted after 14 days by default", "About 30 GB per month, with configurable retention"),
-            ("Meeting notes", f"{CHECK}Bot-free Me / Them capture, local summaries, searchable library", f"{CHECK}Transcription with speaker identification; a meeting-summary pipe writes notes"),
+            ("Meeting notes", f"{CHECK}Bot-free microphone + system-audio capture, local summaries, searchable library", f"{CHECK}Transcription with speaker identification; a meeting-summary pipe writes notes"),
             ("Built-in AI", f"{CHECK}llama.cpp summaries and chat, no setup", "Brings your history to the AI you already use"),
             ("Connect AI tools", LB_AGENTS, "Local REST API, MCP server, and agent pipes that can take actions"),
             ("Encryption at rest", f"{CHECK}Screenshots are encrypted", "Optional"),
@@ -379,7 +379,7 @@ PAGES = [
         "table_rows": [
             ("Status", f"{CHECK}Actively developed", "Discontinued — the team moved to Limitless, now part of Meta"),
             ("Screen memory", "App and window activity by default; opt-in screen text and encrypted screenshots, searchable by every word", "Continuous compressed screen recording, always on"),
-            ("Meeting notes", f"{CHECK}Bot-free capture with Me / Them tracks, summarized locally", "Local capture; &ldquo;Ask Rewind&rdquo; answers were generated with cloud AI"),
+            ("Meeting notes", f"{CHECK}Bot-free microphone + system-audio tracks, summarized locally", "Local capture; &ldquo;Ask Rewind&rdquo; answers were generated with cloud AI"),
             ("Retention", "Deleted after 14 days by default; keeping longer is an explicit opt-in", "Grew until you trimmed it yourself"),
             ("Encryption at rest", f"{CHECK}Screenshots are AES-GCM encrypted on disk", "Stored locally on disk"),
             ("Connect AI tools", LB_AGENTS, '<span class="dim">None</span>'),
