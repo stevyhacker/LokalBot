@@ -4,7 +4,10 @@ import ApplicationServices
 /// Call lifecycle evidence is independent of audio. Only a supported meeting
 /// document and its call controls count.
 enum BrowserMeetingSession {
-    enum State: Equatable, Sendable { case inCall, minimized, ended, unavailable }
+    /// `present`: the verified window still holds the call's tab, but its call
+    /// controls cannot be read (a large page, a slow tree, another tab in front).
+    /// `gone`: that window was closed or no longer holds the call's tab.
+    enum State: Equatable, Sendable { case inCall, minimized, present, ended, gone, unavailable }
     struct Snapshot: Equatable, Sendable {
         var url: URL
         var state: State
@@ -40,6 +43,14 @@ enum BrowserMeetingSession {
     struct Window {
         var element: AXUIElement
         var snapshot: Snapshot
+        /// The window title when its call was verified, i.e. the call tab's title.
+        var title = ""
+    }
+
+    /// Why the last lifecycle read of a browser found no call document.
+    enum ReadIssue: String, Sendable {
+        case accessibilityUntrusted, windowListUnavailable, tooManyWindows, deadline
+        case pageTooLarge, accessibilityTimeout, noMeetingDocument, ambiguousWindows
     }
 
     /// Only a previously verified window can suspend lifecycle observations.
@@ -61,6 +72,27 @@ enum BrowserMeetingSession {
         }
     }
     private static let bindings = WindowBindings()
+
+    private final class ReadIssues: @unchecked Sendable {
+        private let lock = NSLock()
+        private var issues: [pid_t: ReadIssue] = [:]
+
+        func get(_ pid: pid_t) -> ReadIssue? {
+            lock.lock()
+            defer { lock.unlock() }
+            return issues[pid]
+        }
+
+        func set(_ issue: ReadIssue?, for pid: pid_t) {
+            lock.lock()
+            defer { lock.unlock() }
+            issues[pid] = issue
+        }
+    }
+    private static let readIssues = ReadIssues()
+
+    /// Diagnostics only: why the latest read of this browser found no call.
+    static func lastReadIssue(processID: pid_t) -> ReadIssue? { readIssues.get(processID) }
 
     /// AX is a best-effort source. A pathological background page must be
     /// isolated to its own window so it cannot consume the budget for the
@@ -142,17 +174,17 @@ enum BrowserMeetingSession {
         switch snapshotState {
         case .some(.inCall):
             return .inCall
-        case .some(.minimized):
-            // A minimized window cannot expose call controls, so its continued
-            // existence is uncertainty rather than fresh call evidence. It is,
-            // however, positive evidence that the exact previously verified
-            // window still exists. Keep that recording until visibility returns,
-            // the host/window disappears, or an explicit ended state is seen.
-            // A minimized window can never pass StartGate and begin a session.
+        case .some(.minimized), .some(.present):
+            // A minimized window, or a call tab whose controls are unreadable,
+            // cannot expose call controls, so it is not fresh call evidence. It
+            // is, however, positive evidence that the exact previously verified
+            // window still holds the call. Keep that recording until the
+            // controls return, the tab/window/host disappears, or an explicit
+            // ended state is seen. Neither can pass StartGate and begin a session.
             return .visibilitySuspended
         case .some(.ended):
             return .endImmediately
-        case .some(.unavailable), .none:
+        case .some(.gone), .some(.unavailable), .none:
             guard let observationLostAt,
                   grace.isFinite,
                   grace >= 0,
@@ -160,6 +192,70 @@ enum BrowserMeetingSession {
                 return .waitForObservation
             }
             return .endAfterGrace
+        }
+    }
+
+    /// One bound call's lifecycle across detector ticks: when certainty was
+    /// lost, the last moment the call was known to continue, and whether an
+    /// end is confident. Only a grace expiry with nothing readable at all is
+    /// uncertain; a readable page without call controls or a closed tab is not.
+    struct LifecycleTracker: Equatable {
+        enum Event: Equatable {
+            case none
+            case lost(State?)
+            case suspended(State)
+            case recovered(after: TimeInterval)
+            case end(reason: String, confident: Bool, contentEnd: Date)
+        }
+
+        private(set) var lostAt: Date?
+        private(set) var suspension: State?
+        private var suspendedAt: Date?
+        /// In-call controls, or the verified window still holding the call.
+        private(set) var lastEvidenceAt: Date?
+        private var lastUncertainState: State?
+
+        init(verifiedAt: Date? = nil) {
+            lastEvidenceAt = verifiedAt
+        }
+
+        mutating func observe(_ state: State?, hostPresent: Bool, now: Date,
+                              grace: TimeInterval, hostReconnectGrace: TimeInterval) -> Event {
+            let decision = BrowserMeetingSession.lifecycleDecision(
+                snapshotState: state, hostPresent: hostPresent,
+                observationLostAt: lostAt ?? now, now: now,
+                grace: grace, hostReconnectGrace: hostReconnectGrace)
+            switch decision {
+            case .inCall:
+                let since = suspendedAt ?? lostAt
+                self = Self(verifiedAt: now)
+                return since.map { .recovered(after: now.timeIntervalSince($0)) } ?? .none
+            case .visibilitySuspended:
+                // The window still holds the call, so the grace clock restarts
+                // and a later uncertain period gets its full grace.
+                let changed = suspension != state
+                if suspendedAt == nil { suspendedAt = lostAt ?? now }
+                lostAt = nil
+                lastUncertainState = nil
+                lastEvidenceAt = now
+                suspension = state
+                return changed ? state.map(Event.suspended) ?? .none : .none
+            case .waitForObservation:
+                lastUncertainState = hostPresent ? state : nil
+                guard lostAt == nil else { return .none }
+                lostAt = now
+                return .lost(state)
+            case .endImmediately:
+                return .end(reason: "browser-ended", confident: true, contentEnd: lastEvidenceAt ?? now)
+            case .endAfterGrace:
+                let known = state ?? lastUncertainState
+                let reason = !hostPresent ? "browser-host-reconnect-grace-expired"
+                    : known == .gone ? "browser-meeting-closed"
+                    : known == .unavailable ? "browser-call-controls-missing"
+                    : "browser-observation-grace-expired"
+                return .end(reason: reason, confident: reason != "browser-observation-grace-expired",
+                            contentEnd: lastEvidenceAt ?? lostAt ?? now)
+            }
         }
     }
 
@@ -186,38 +282,115 @@ enum BrowserMeetingSession {
             bindings.set(observed, for: processID)
         } else if observed?.snapshot.state == .ended {
             bindings.set(nil, for: processID)
-        } else if let expectedURL, let bound = bindings.get(processID), bound.snapshot.url == expectedURL {
-            let app = AXUIElementCreateApplication(processID)
-            AXUIElementSetMessagingTimeout(app, 0.012)
-            // Check that the exact verified AX window still belongs to this
-            // host. A closed window or replacement process does not qualify.
-            if let windows = value(app, kAXWindowsAttribute) as? [AXUIElement],
-               windows.contains(where: { CFEqual($0, bound.element) }),
-               value(bound.element, kAXMinimizedAttribute) as? Bool == true,
-               let title = value(bound.element, kAXTitleAttribute) as? String,
-               !ScreenContextPrivacy.isPrivateWindow(title: title) {
-                return Snapshot(url: expectedURL, state: .minimized)
-            }
+        } else if let expectedURL, let bound = bindings.get(processID), bound.snapshot.url == expectedURL,
+                  let state = boundWindowState(processID: processID, bound: bound,
+                                               documentReadable: observed != nil) {
+            return Snapshot(url: expectedURL, state: state)
         }
         return observed?.snapshot
+    }
+
+    /// What the exact verified window shows when its call controls were not
+    /// read. Nil keeps today's uncertainty: the window list or tab strip could
+    /// not be read, or the call document itself was readable without controls.
+    private static func boundWindowState(processID: pid_t, bound: Window, documentReadable: Bool) -> State? {
+        let app = AXUIElementCreateApplication(processID)
+        AXUIElementSetMessagingTimeout(app, 0.012)
+        // A closed window or replacement process no longer holds the call.
+        guard let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] else { return nil }
+        guard windows.contains(where: { CFEqual($0, bound.element) }) else { return .gone }
+        guard let title = value(bound.element, kAXTitleAttribute) as? String,
+              !ScreenContextPrivacy.isPrivateWindow(title: title) else { return nil }
+        if value(bound.element, kAXMinimizedAttribute) as? Bool == true { return .minimized }
+        guard !documentReadable else { return nil }
+        let url = bound.snapshot.url
+        if titleNamesCall(title, url: url, verifiedTitle: bound.title) { return .present }
+        guard let tabHoldsCall = tabStripContains(in: bound.element, where: {
+            titleNamesCall($0, url: url, verifiedTitle: bound.title)
+        }) else { return nil }
+        if tabHoldsCall { return .present }
+        // Only call a tab closed when its title was recognisable to begin with.
+        return titleNamesCall(bound.title, url: url, verifiedTitle: "") ? .gone : nil
+    }
+
+    /// Whether a window or tab title still names the verified call. Meet puts
+    /// the room code in its title; the title seen at verification also counts,
+    /// including Chrome's appended tab states such as "- Audio playing".
+    static func titleNamesCall(_ title: String, url: URL, verifiedTitle: String) -> Bool {
+        let candidate = title.lowercased()
+        let code = url.lastPathComponent.lowercased()
+        if code.count >= 10, candidate.contains(code) { return true }
+        let verified = verifiedTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return !["", "meet", "google meet"].contains(verified) && candidate.hasPrefix(verified)
+    }
+
+    /// Searches the window's tab strip (the first tab group outside page
+    /// content). Nil when the strip is not found or not read completely.
+    private static func tabStripContains(in window: AXUIElement, where matches: (String) -> Bool) -> Bool? {
+        let deadline = ProcessInfo.processInfo.systemUptime + 0.3
+        func children(_ fields: [String: AnyObject]) -> [AXUIElement] {
+            let children = fields[kAXChildrenAttribute] as? [AXUIElement] ?? []
+            return children.count <= TraversalBudget.maximumChildren ? children : []
+        }
+        var queue: [(element: AXUIElement, depth: Int)] = [(window, 0)]
+        var index = 0
+        var strip: AXUIElement?
+        while strip == nil, index < queue.count {
+            guard index < 800, ProcessInfo.processInfo.systemUptime < deadline,
+                  let fields = fields(queue[index].element) else { return nil }
+            let (element, depth) = queue[index]
+            index += 1
+            switch fields[kAXRoleAttribute] as? String {
+            case "AXWebArea": continue
+            case "AXTabGroup": strip = element
+            default: if depth < 12 { queue += children(fields).map { ($0, depth + 1) } }
+            }
+        }
+        guard let strip else { return nil }
+        // Tabs may sit inside named tab groups, so scan a few levels down.
+        var stack: [(element: AXUIElement, depth: Int)] = [(strip, 0)]
+        var visited = 0
+        while let (element, depth) = stack.popLast() {
+            visited += 1
+            guard visited <= 600, ProcessInfo.processInfo.systemUptime < deadline,
+                  let fields = fields(element) else { return nil }
+            if fields[kAXRoleAttribute] as? String == "AXRadioButton",
+               [kAXTitleAttribute, kAXDescriptionAttribute].contains(where: { (fields[$0] as? String).map(matches) == true }) {
+                return true
+            }
+            if depth < 4 { stack += children(fields).map { ($0, depth + 1) } }
+        }
+        return false
     }
 
     /// Enumerate browser windows, never just the focused window. Background
     /// documents unavailable through Accessibility safely abstain. No pixels,
     /// participant names, or page text are retained by lifecycle detection.
     static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool = false) -> Window? {
-        guard AXIsProcessTrusted() else { return nil }
+        var issue = ReadIssue.noMeetingDocument
+        let found = window(processID: processID, expectedURL: expectedURL, preferFocused: preferFocused, issue: &issue)
+        readIssues.set(found == nil ? issue : nil, for: processID)
+        return found
+    }
+
+    private static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool,
+                               issue: inout ReadIssue) -> Window? {
+        guard AXIsProcessTrusted() else { issue = .accessibilityUntrusted; return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
         AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
         let expected = expectedURL.flatMap { meetURL($0.absoluteString) }
-        guard expectedURL == nil || expected != nil,
-              let windows = value(app, kAXWindowsAttribute) as? [AXUIElement], windows.count <= 32 else { return nil }
+        guard expectedURL == nil || expected != nil else { return nil }
+        guard let windows = value(app, kAXWindowsAttribute) as? [AXUIElement] else {
+            issue = .windowListUnavailable
+            return nil
+        }
+        guard windows.count <= 32 else { issue = .tooManyWindows; return nil }
         var matches: [Window] = []
         let focused = value(app, kAXFocusedWindowAttribute)
         let deadline = ProcessInfo.processInfo.systemUptime + 1
         windowLoop: for window in windows {
-            guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
+            guard ProcessInfo.processInfo.systemUptime < deadline else { issue = .deadline; return nil }
             let title = value(window, kAXTitleAttribute) as? String ?? ""
             if ScreenContextPrivacy.isPrivateWindow(title: title)
                 || value(window, kAXMinimizedAttribute) as? Bool == true { continue }
@@ -227,9 +400,12 @@ enum BrowserMeetingSession {
             var messages: [String] = []
             var budget = TraversalBudget(startTime: ProcessInfo.processInfo.systemUptime)
             while let (node, depth, inside) = stack.popLast() {
-                guard ProcessInfo.processInfo.systemUptime < deadline else { return nil }
-                guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else { continue windowLoop }
-                guard let fields = fields(node) else { continue windowLoop }
+                guard ProcessInfo.processInfo.systemUptime < deadline else { issue = .deadline; return nil }
+                guard budget.visit(depth: depth, at: ProcessInfo.processInfo.systemUptime) else {
+                    issue = .pageTooLarge
+                    continue windowLoop
+                }
+                guard let fields = fields(node) else { issue = .accessibilityTimeout; continue windowLoop }
                 if fields["AXHidden"] as? Bool == true { continue }
                 let role = fields[kAXRoleAttribute] as? String ?? ""
                 var inDocument = inside
@@ -249,11 +425,12 @@ enum BrowserMeetingSession {
                     if role == "AXButton" { buttons += labels } else { messages += labels }
                 }
                 let children = fields[kAXChildrenAttribute] as? [AXUIElement] ?? []
-                guard budget.allowsChildren(children.count) else { continue windowLoop }
+                guard budget.allowsChildren(children.count) else { issue = .pageTooLarge; continue windowLoop }
                 stack += children.reversed().map { ($0, depth + 1, inDocument) }
             }
             if let url, let parsed = URL(string: url) {
-                let match = Window(element: window, snapshot: Snapshot(url: parsed, state: state(buttons: buttons, messages: messages)))
+                let match = Window(element: window, snapshot: Snapshot(url: parsed, state: state(buttons: buttons, messages: messages)),
+                                   title: title)
                 matches.append(match)
                 // An expected URL is already the caller's binding. Return a
                 // positive call-control match immediately so unrelated heavy
@@ -262,6 +439,7 @@ enum BrowserMeetingSession {
                 if expected != nil, match.snapshot.state == .inCall, !preferFocused { return match }
             }
         }
+        if matches.count > 1 { issue = .ambiguousWindows }
         if preferFocused {
             let calls = matches.filter { $0.snapshot.state == .inCall }
             if let focused, let match = calls.first(where: { CFEqual($0.element, focused) }) { return match }

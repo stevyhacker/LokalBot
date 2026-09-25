@@ -56,7 +56,7 @@ conversations. Daily-memory exports and routine outputs remain in your chosen
 folders until removed. Disabling these features stops future runs; it does not
 delete those existing copies.
 
-Browser meeting detection checks the Meet document URL and call controls through Accessibility. These transient lifecycle checks do not retain page text, participant names, or pixels. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
+Browser meeting detection checks the Meet document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
 LokalBot does not read Google Meet participant names or speaking activity.
 Earlier versions offered an off-by-default **Meeting speaker identification**

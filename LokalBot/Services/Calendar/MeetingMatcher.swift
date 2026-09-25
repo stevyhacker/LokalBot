@@ -17,14 +17,31 @@ struct MeetingDetectionContext: Equatable {
     var detectorSessionID: UUID?
 }
 
-/// An end event has authority over only the recording started by this exact
-/// detector lifecycle. A manual recording has no detector owner.
+/// An end event has authority over only the recording that joined this exact
+/// detector lifecycle.
 struct MeetingDetectionEnd {
+    enum Action: Equatable {
+        case ignore
+        /// An uncertain end never locks the same call out of restarting.
+        case stop(allowsAutomaticRestart: Bool)
+        /// Keep recording and rejoin the call when it is verified again.
+        case release
+    }
+
     let sessionID: UUID
     let contentEndedAt: Date?
+    /// False when a browser call merely stopped being observable.
+    var confident = true
 
     func ownsRecording(detectorSessionID: UUID?) -> Bool {
         detectorSessionID == sessionID
+    }
+
+    /// A recording the user started stops only on a confident end.
+    func action(detectorSessionID: UUID?, startedByUser: Bool) -> Action {
+        guard ownsRecording(detectorSessionID: detectorSessionID) else { return .ignore }
+        if confident { return .stop(allowsAutomaticRestart: false) }
+        return startedByUser ? .release : .stop(allowsAutomaticRestart: true)
     }
 }
 
