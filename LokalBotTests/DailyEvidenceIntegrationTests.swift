@@ -303,6 +303,137 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path))
     }
 
+    func testNewEvidenceDuringManualGenerationSavesOriginalSnapshotAsStale() async throws {
+        try await assertNewEvidenceDuringGeneration(scheduled: false)
+    }
+
+    func testNewEvidenceDuringScheduledGenerationSavesOriginalSnapshotAsStale() async throws {
+        try await assertNewEvidenceDuringGeneration(scheduled: true)
+    }
+
+    private func assertNewEvidenceDuringGeneration(scheduled: Bool) async throws {
+        let root = try temporaryRoot()
+        let day = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
+        let journal = root.appendingPathComponent("journal/\(DreamDay.key(for: day)).md")
+        let started = expectation(description: "Generation captured its evidence")
+        let finished = expectation(description: "Original snapshot was saved")
+        let gate = EvidenceGenerationGate()
+        var blocks = [ActivityBlock(id: 1, app: "Xcode", title: "Original work",
+                                    start: day.addingTimeInterval(-120), end: day.addingTimeInterval(-60))]
+        var contexts = [DayScreenContext(snapshotID: 1, capturedAt: day.addingTimeInterval(-30),
+                                        app: "Notes", windowTitle: "Original context", text: "Original screen evidence")]
+        var meetings: [Meeting] = []
+        var originalSignature: String?
+        let lifecycle = DayDigestLifecycle(
+            storageRoot: root,
+            scheduler: DayDigestScheduler(now: { day }),
+            blocks: { _ in blocks }, screenContexts: { _ in contexts }, meetings: { meetings },
+            latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
+            generator: { snapshot, _, validateEvidence in
+                let revision = try DayDigestJournalWriter.revision(at: journal)
+                let evidence = snapshot.digestEvidence()
+                originalSignature = evidence.contentSignature
+                started.fulfill()
+                await gate.wait()
+                let text = evidence.renderDocument(summary: "Original overview")
+                try validateEvidence()
+                try DayDigestJournalWriter.write(text, to: journal, replacing: revision,
+                                                evidence: evidence, quality: .complete)
+                return .init(text: text, url: journal, quality: .complete)
+            }, onGenerated: { _ in finished.fulfill() })
+        defer { lifecycle.stopAutomaticGeneration() }
+        var generation: Task<DayDigestGenerationResult, Error>?
+        if scheduled {
+            lifecycle.configureAutomaticGeneration(.init(enabled: true, hour: 0),
+                                                   canRun: { true }, onError: { XCTFail($0) })
+        } else {
+            generation = Task { try await lifecycle.generate(for: day) }
+        }
+        await fulfillment(of: [started], timeout: 3)
+
+        // A block that closes during generation can start before the request
+        // and contain a context that was standalone in the original snapshot.
+        blocks.append(ActivityBlock(id: 2, app: "Notes", title: "Later activity",
+                                    start: day.addingTimeInterval(-60), end: day.addingTimeInterval(30)))
+        // Late capture ingestion may also add context to an original block.
+        contexts.append(DayScreenContext(snapshotID: 2, capturedAt: day.addingTimeInterval(-90),
+                                         app: "Xcode", windowTitle: "Later capture", text: "Later screen evidence"))
+        meetings.append(Meeting(id: UUID(), title: "Newly finished meeting", appName: "Meet",
+                                startedAt: day.addingTimeInterval(-60), endedAt: day,
+                                relativePath: "meetings/new"))
+        await gate.release()
+        if let generation { _ = try await generation.value }
+        await fulfillment(of: [finished], timeout: 3)
+
+        let text = try String(contentsOf: journal, encoding: .utf8)
+        XCTAssertTrue(text.contains("Original overview"))
+        XCTAssertTrue(text.contains("Original work"))
+        XCTAssertFalse(text.contains("Later activity"))
+        XCTAssertFalse(text.contains("Later screen evidence"))
+        XCTAssertFalse(text.contains("Newly finished meeting"))
+        let metadata = try XCTUnwrap(DayDigestGenerationMetadataStore.load(for: journal))
+        XCTAssertEqual(metadata.evidenceSignature, try XCTUnwrap(originalSignature))
+        let saved = lifecycle.snapshot(for: day)
+        XCTAssertEqual(saved.text, text)
+        XCTAssertFalse(saved.evidenceMatches)
+        XCTAssertTrue(saved.isStale, "New evidence should mark the saved snapshot stale, not discard it")
+    }
+
+    func testOriginalEvidenceDeletionAndCorrectionStillRejectGenerationWithNewActivity() async throws {
+        for change in ["delete block", "correct block", "delete context", "correct context",
+                       "delete meeting", "correct meeting", "correct summary", "correct outcomes"] {
+            let root = try temporaryRoot()
+            let day = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
+            let journal = root.appendingPathComponent("journal/\(DreamDay.key(for: day)).md")
+            var blocks = [ActivityBlock(id: 1, app: "Xcode", title: "Original work",
+                                        start: day.addingTimeInterval(-60), end: day)]
+            var contexts = [DayScreenContext(snapshotID: 1, capturedAt: day.addingTimeInterval(-30),
+                                            app: "Xcode", windowTitle: "Work", text: "Original evidence")]
+            var meetings = [Meeting(id: UUID(), title: "Original meeting", appName: "Meet",
+                                    startedAt: day.addingTimeInterval(-120), endedAt: day,
+                                    relativePath: "meetings/original")]
+            let folder = root.appendingPathComponent(meetings[0].relativePath)
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let summaryURL = folder.appendingPathComponent("summary.md")
+            try "Original summary".write(to: summaryURL, atomically: true, encoding: .utf8)
+            try MeetingOutcomes(decisions: ["Original decision"]).write(to: folder)
+            var didNotify = false
+            let lifecycle = DayDigestLifecycle(
+                storageRoot: root, blocks: { _ in blocks }, screenContexts: { _ in contexts },
+                meetings: { meetings }, latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
+                generator: { snapshot, _, validateEvidence in
+                    let revision = try DayDigestJournalWriter.revision(at: journal)
+                    blocks.append(ActivityBlock(id: 2, app: "Notes", title: "New work",
+                                                start: day, end: day.addingTimeInterval(60)))
+                    switch change {
+                    case "delete block": blocks.removeFirst()
+                    case "correct block": blocks[0].title = "Corrected work"
+                    case "delete context": contexts.removeAll()
+                    case "correct context": contexts[0].text = "Corrected evidence"
+                    case "delete meeting": meetings.removeAll()
+                    case "correct meeting": meetings[0].title = "Corrected meeting"
+                    case "correct summary":
+                        try "Corrected summary".write(to: summaryURL, atomically: true, encoding: .utf8)
+                    case "correct outcomes":
+                        try MeetingOutcomes(decisions: ["Corrected decision"]).write(to: folder)
+                    default: XCTFail("Unhandled evidence change: \(change)")
+                    }
+                    try validateEvidence()
+                    try DayDigestJournalWriter.write("Stale overview", to: journal, replacing: revision,
+                                                    evidence: snapshot.digestEvidence(), quality: .complete)
+                    return .init(text: "Stale overview", url: journal, quality: .complete)
+                }, onGenerated: { _ in didNotify = true })
+            do {
+                _ = try await lifecycle.generate(for: day)
+                XCTFail("Original evidence must still be validated: \(change)")
+            } catch DayDigestLifecycle.GenerationError.evidenceChangedDuringGeneration {
+            }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: journal.path), change)
+            XCTAssertNil(DayDigestGenerationMetadataStore.load(for: journal), change)
+            XCTAssertFalse(didNotify, change)
+        }
+    }
+
     private func waitForText(_ text: String, at url: URL) async {
         for _ in 0..<150 {
             if (try? String(contentsOf: url, encoding: .utf8))?.contains(text) == true { return }

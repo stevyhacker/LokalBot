@@ -258,19 +258,29 @@ final class DayDigestLifecycle {
             includeScreenSummary: false)
     }
 
-    /// Rebuild the same day's primary evidence at the final commit boundary.
+    /// Revalidate the original sources at the final commit boundary. New
+    /// activity, captures, and meetings may arrive while generation is running;
+    /// they make the saved snapshot stale, but do not invalidate its sources.
     /// The validator is synchronous and main-actor isolated, so evidence cannot
     /// change between this check and the journal write that immediately follows.
     private func evidenceValidator(for original: DailyEvidenceSnapshot) -> EvidenceValidator {
         let expectedSignature = original.digestEvidence(calendar: calendar).contentSignature
+        let blockIDs = Set(original.activityBlocks.map(\.id))
+        let contextIDs = Set(original.screenContexts.map(\.snapshotID))
+        let meetingIDs = Set(original.meetings.map { $0.meeting.id })
         let day = original.day
         return { [weak self] in
             guard let self else {
                 throw TextEngineError.unavailable("LokalBot is shutting down.")
             }
-            let currentSignature = try self.evidenceInput(for: day)
-                .digestEvidence(calendar: self.calendar)
-                .contentSignature
+            var current = try self.evidenceInput(for: day)
+            // Filter before building the digest projection: a newly closed
+            // block can otherwise absorb an originally standalone context,
+            // and a new capture can alter context deduplication.
+            current.activityBlocks.removeAll { !blockIDs.contains($0.id) }
+            current.screenContexts.removeAll { !contextIDs.contains($0.snapshotID) }
+            current.meetings.removeAll { !meetingIDs.contains($0.meeting.id) }
+            let currentSignature = current.digestEvidence(calendar: self.calendar).contentSignature
             guard currentSignature == expectedSignature else {
                 throw GenerationError.evidenceChangedDuringGeneration
             }
