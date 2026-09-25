@@ -1123,6 +1123,7 @@ final class ScreenshotService: ObservableObject {
         let current = try store.retentionReview(days: review.days, keepTextForever: review.keepTextForever, now: now())
         guard review.covers(current) else { throw RetentionReviewError.scopeChanged }
         var failures: [String] = []
+        var retainedTextIDs: [Int64] = []
         for candidate in current.candidates {
             do {
                 // Re-check saving immediately before the irreversible file step.
@@ -1134,11 +1135,16 @@ final class ScreenshotService: ObservableObject {
                     try store.clearScreenshotPath(candidate.path)
                 }
                 if candidate.removeText || candidate.removeVector || candidate.removeMetadata {
-                    try store.clearRetainedText(ids: [candidate.id])
+                    retainedTextIDs.append(candidate.id)
                 }
             } catch {
                 failures.append("Moment \(candidate.id): \(error.localizedDescription)")
             }
+        }
+        do {
+            try store.clearRetainedText(ids: retainedTextIDs)
+        } catch {
+            failures.append("Screen text and metadata: \(error.localizedDescription)")
         }
         do {
             try store.clearRetainedActivityTitles(current.activityTitles)
@@ -1182,6 +1188,7 @@ final class ScreenshotService: ObservableObject {
             if !review.candidates.isEmpty || !review.activityTitles.isEmpty || !orphaned.isEmpty {
                 let dates = Array(Set(review.evidenceDates + orphaned.timestamps)).sorted()
                 try mutateEvidence(dates) {
+                    var retainedTextIDs: [Int64] = []
                     // Delete only the reviewed IDs; a broad cutoff query could
                     // remove additional evidence whose days were not revoked.
                     for candidate in review.candidates {
@@ -1204,14 +1211,11 @@ final class ScreenshotService: ObservableObject {
                             }
                         }
                         if candidate.removeText || candidate.removeVector || candidate.removeMetadata {
-                            do {
-                                try store.clearRetainedText(ids: [candidate.id])
-                            } catch {
-                                if firstError == nil { firstError = error.localizedDescription }
-                            }
+                            retainedTextIDs.append(candidate.id)
                         }
                     }
                     do {
+                        try store.clearRetainedText(ids: retainedTextIDs)
                         try store.clearRetainedActivityTitles(review.activityTitles)
                         try store.clearOrphanedScreenEvidence(orphaned)
                     } catch {

@@ -790,32 +790,75 @@ final class ActivityStore {
     }
 
     func clearRetainedActivityTitles(_ reviewed: [RetentionReview.ActivityTitle]) throws {
+        guard !reviewed.isEmpty else { return }
         let database = try requiredDatabase()
         try database.withTransaction {
-            for row in reviewed {
-                try database.runChecked("""
-                    UPDATE activity_blocks SET title = '' WHERE id = ?1 AND start = ?2 AND end = ?3 AND title = ?4
-                    """, bind: [row.id, row.start.timeIntervalSince1970, row.end.timeIntervalSince1970, row.title])
+            try database.withPreparedStatement("""
+                UPDATE activity_blocks SET title = ''
+                WHERE id = ?1 AND start = ?2 AND end = ?3 AND title = ?4
+                """) { statement in
+                for row in reviewed {
+                    try database.runChecked(statement, bind: [
+                        row.id, row.start.timeIntervalSince1970,
+                        row.end.timeIntervalSince1970, row.title,
+                    ])
+                }
             }
         }
     }
 
     func clearRetainedText(ids: [Int64]) throws {
+        let snapshotIDs = Array(Set(ids.filter { $0 > 0 })).sorted()
+        guard !snapshotIDs.isEmpty else { return }
         let database = try requiredDatabase()
         let hasVectors = try database.hasRowChecked("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_embeddings'")
         try database.withTransaction {
-            for id in ids {
-                let condition = "CAST(snapshot_id AS INTEGER) = ?1 AND CAST(snapshot_id AS INTEGER) NOT IN (SELECT snapshot_id FROM screen_bookmarks)"
-                try database.runChecked("DELETE FROM ocr_fts WHERE \(condition)", bind: [id])
+            // FTS5 cannot index its UNINDEXED snapshot_id column. Resolve the
+            // exact FTS rowids through the ordinary metadata index and delete
+            // bounded chunks instead of rescanning the full FTS table once per
+            // screenshot. Keep every write bookmark-aware at execution time.
+            for start in stride(from: 0, to: snapshotIDs.count, by: 400) {
+                let chunk = Array(snapshotIDs[start..<min(start + 400, snapshotIDs.count)])
+                let placeholders = (1...chunk.count).map { "?\($0)" }.joined(separator: ", ")
+                let bindings: [Any] = chunk
+                try database.runChecked("""
+                    DELETE FROM ocr_fts
+                    WHERE rowid IN (
+                        SELECT meta.rowid FROM ocr_metadata AS meta
+                        WHERE meta.snapshot_id IN (\(placeholders))
+                          AND NOT EXISTS (
+                              SELECT 1 FROM screen_bookmarks AS bookmark
+                              WHERE bookmark.snapshot_id = meta.snapshot_id
+                          )
+                    )
+                    """, bind: bindings)
                 if hasVectors {
-                    try database.runChecked("DELETE FROM screen_embeddings WHERE \(condition)", bind: [id])
+                    try database.runChecked("""
+                        DELETE FROM screen_embeddings
+                        WHERE snapshot_id IN (\(placeholders))
+                          AND NOT EXISTS (
+                              SELECT 1 FROM screen_bookmarks AS bookmark
+                              WHERE bookmark.snapshot_id = screen_embeddings.snapshot_id
+                          )
+                        """, bind: bindings)
                 }
                 try database.runChecked("""
                     UPDATE screenshots SET window_title = '', source_url = '', document_name = ''
-                    WHERE id = ?1 AND id NOT IN (SELECT snapshot_id FROM screen_bookmarks)
-                    """, bind: [id])
+                    WHERE id IN (\(placeholders))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM screen_bookmarks AS bookmark
+                          WHERE bookmark.snapshot_id = screenshots.id
+                      )
+                    """, bind: bindings)
+                try database.runChecked("""
+                    DELETE FROM ocr_metadata
+                    WHERE snapshot_id IN (\(placeholders))
+                      AND NOT EXISTS (
+                          SELECT 1 FROM screen_bookmarks AS bookmark
+                          WHERE bookmark.snapshot_id = ocr_metadata.snapshot_id
+                      )
+                    """, bind: bindings)
             }
-            try OCRMetadataIndex.removeDeletedRows(database)
         }
         NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
