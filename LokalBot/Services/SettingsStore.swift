@@ -17,6 +17,7 @@ final class SettingsStore {
     var current: AppSettings {
         didSet {
             guard current != oldValue else { return }
+            SpeakerAttribution.microphoneIsUser = current.microphoneIsUser
             persistTask?.cancel()
             let snapshot = current
             persistTask = Task { @MainActor [weak self] in
@@ -30,6 +31,9 @@ final class SettingsStore {
 
     init(initialSettings: AppSettings? = nil) {
         current = initialSettings ?? AppSettings.load()
+        // Transcript identity is read from many model-layer call sites; the
+        // store is the one place the preference enters the process.
+        SpeakerAttribution.microphoneIsUser = current.microphoneIsUser
     }
 
     /// Flush debounced text-field edits before application termination.

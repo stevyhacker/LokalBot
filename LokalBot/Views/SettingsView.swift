@@ -519,7 +519,8 @@ struct SettingsView: View {
 
     @ViewBuilder private var summarizationSection: some View {
             if shows("Summarization", ["summary", "summarize", "notes", "template", "language",
-                                       "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote"]) {
+                                       "diarization", "speaker", "split speaker", "neural", "nemotron", "pyannote",
+                                       "microphone", "my microphone", "action items", "owner"]) {
                 Section("Summarization") {
                     Picker(selection: $app.settings.noteTemplate) {
                         ForEach(NoteTemplate.allCases) { template in
@@ -553,6 +554,12 @@ struct SettingsView: View {
                     .disabled(!app.settings.multiSpeakerDiarization)
                     .accessibilityLabel("Speaker model")
                     .accessibilityIdentifier("settings.diarizationModel")
+                    Toggle(isOn: $app.settings.microphoneIsUser) {
+                        SettingsLabel("My microphone is me",
+                                      help: "Treats speech from this Mac's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items.")
+                    }
+                        .accessibilityLabel("My microphone is me")
+                        .accessibilityIdentifier("settings.microphoneIsUser")
                     SpeakerIdentitySettingsControls()
                 }
             }

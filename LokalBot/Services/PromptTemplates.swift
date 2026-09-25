@@ -34,18 +34,26 @@ enum PromptTemplates {
             alone is not a task. Do not turn completed work, possibilities, or questions into tasks.
             For clear "I will" / "I'm going to" undertakings, use basis="commitment", owner="source"
             and cite that undertaking as source. The app resolves the speaker from that source.
-            For assignment/request, use an explicitly named target's roster ID. A request is not
-            an accepted commitment. Otherwise use owner="unknown", basis="unclear" and preserve
-            any conditional wording in the task. Never infer an owner from an unnamed "you".
+            For assignment/request, use an explicitly named target's roster ID. When another
+            participant asks the user with "you" and the user answers in the next row, use the
+            user's roster ID with basis="request", cite the request as source and the answer as
+            context. A request is not an accepted commitment. Otherwise use owner="unknown",
+            basis="unclear" and preserve any conditional wording in the task. Never assign an
+            unnamed "you" to anyone except the user who answered it.
             Only identity=user denotes the user. Display names are aliases, not identity evidence.
-            Identity=unresolved stays unresolved. Preserve all explicit user commitments.
+            Identity=unresolved stays unresolved.
+            Before returning, check these rows for everything actionable for the user: commitments
+            the user made, requests or assignments directed to the user, and follow-ups the user
+            agreed to own. List those actions first and never drop one to stay short.
+            Actions are not minor details: include every concrete follow-up task that any
+            participant committed to, requested, or was assigned in these rows.
             Due is the date as spoken, or "" if none; importance is 1-5. Text <=280 characters,
             due <=80. Copy only IDs from this part. Omit filler and duplicates.
-            Select the main facts from these supplied rows; a summary intentionally omits minor details.
+            Select the main facts from these supplied rows; notes intentionally omit minor details.
             Empty arrays are valid for non-substantive material. Finish with has_more=false once
-            the main facts and all explicit user commitments in THESE rows are covered. Other parts
+            the main facts and all user actions in THESE rows are covered. Other parts
             of the meeting do not count. Set has_more=true only if a completely full array prevents
-            including a required user commitment; never silently omit those commitments.
+            including a required user action; never silently omit those actions.
             """
     }
 
@@ -63,6 +71,7 @@ enum PromptTemplates {
             If the source says "I can do that", find what was requested nearby and name that concrete task, such as "Send the proposal".
             Never write vague "perform the requested task" or substitute an unrelated task. Cite both acceptance and request.
             For "I will" or an acceptance use owner="source", basis="commitment". An explicitly named request can use the target's roster ID.
+            A "you" request that the user answers in the next row can use the user's roster ID with basis="request".
             Otherwise keep owner="unknown", basis="unclear". Do not turn completed work, status, or conversation management into actions.
             Never add a TL;DR or unrelated facts. Omit unsupported records. Return has_more=false when the requested repair is finished.
             """

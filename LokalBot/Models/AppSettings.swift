@@ -380,6 +380,9 @@ struct AppSettings: Codable, Equatable {
     var identifySpeakersFromVisuals: Bool = false
     /// User-confirmed voices only. No automatic enrollment from inferred names.
     var rememberSpeakersOnMac: Bool = false
+    /// Microphone speech is the user's unless corrected. Turn off when several
+    /// people share this Mac's microphone.
+    var microphoneIsUser: Bool = true
 
     // MARK: - Cotyping (inline AI autocomplete)
 
@@ -697,6 +700,7 @@ struct AppSettings: Codable, Equatable {
         case summaryLanguage
         case identifySpeakersFromVisuals
         case rememberSpeakersOnMac
+        case microphoneIsUser
         case multiSpeakerDiarization
         case diarizationModel
         case cotypingEnabled
@@ -861,6 +865,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(diarizationModel, forKey: .diarizationModel)
         try c.encode(identifySpeakersFromVisuals, forKey: .identifySpeakersFromVisuals)
         try c.encode(rememberSpeakersOnMac, forKey: .rememberSpeakersOnMac)
+        try c.encode(microphoneIsUser, forKey: .microphoneIsUser)
         try c.encode(cotypingEnabled, forKey: .cotypingEnabled)
         try c.encode(cotypingUserName, forKey: .cotypingUserName)
         try c.encode(cotypingStyleNote, forKey: .cotypingStyleNote)
@@ -1010,6 +1015,7 @@ struct AppSettings: Codable, Equatable {
         diarizationModel = decode(.diarizationModel, .community1)
         identifySpeakersFromVisuals = decode(.identifySpeakersFromVisuals, defaults.identifySpeakersFromVisuals)
         rememberSpeakersOnMac = decode(.rememberSpeakersOnMac, defaults.rememberSpeakersOnMac)
+        microphoneIsUser = decode(.microphoneIsUser, defaults.microphoneIsUser)
         cotypingEnabled = decode(.cotypingEnabled, defaults.cotypingEnabled)
         cotypingUserName = decode(.cotypingUserName, defaults.cotypingUserName)
         cotypingStyleNote = decode(.cotypingStyleNote, defaults.cotypingStyleNote)

@@ -48,6 +48,13 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
         var isForUser: Bool
         var attribution: OutcomeAttribution?
         var ownershipIsUnclear: Bool { attribution?.resolution == .unresolved || owner == nil }
+        /// Unclear ownership whose evidence was spoken on this Mac's
+        /// microphone: most likely the user's own work.
+        var isLikelyUserAction: Bool {
+            guard !isForUser, ownershipIsUnclear,
+                  let speaker = attribution?.speakerID ?? citations.first?.speaker else { return false }
+            return MeetingOutcomes.isMicrophoneSpeaker(speaker)
+        }
         /// Relative meeting importance assigned by the grounded extraction
         /// pass. This ranks other participants' actions and actions with unclear
         /// ownership together; every user-owned action is retained.
@@ -203,20 +210,32 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
     var otherActionItems: [ActionItem] { actionItems.filter { !$0.isForUser && !$0.ownershipIsUnclear } }
     var unresolvedActionItems: [ActionItem] { actionItems.filter(\.ownershipIsUnclear) }
 
-    /// Keeps all of the user's work first, then fills the remaining room with
-    /// at most five other or unclear-owner actions, ranked together by importance.
+    /// Keeps all of the user's work first, then unclear-owner actions spoken
+    /// on this Mac's microphone, then fills the remaining room with at most
+    /// five other or unclear-owner actions, ranked together by importance.
     /// If the user alone owns more than ten actions, preserving their complete
     /// list wins over the normal ten-item readability ceiling.
     func prioritizingActionItems() -> Self {
         var prioritized = self
         let userItems = userActionItems
-        let remainingSlots = max(0, Self.maximumActionItems - userItems.count)
+        let likelyUserItems = actionItems.filter(\.isLikelyUserAction)
+            .sorted(by: Self.higherPriorityAction)
+            .prefix(max(0, Self.maximumActionItems - userItems.count))
+        let remainingSlots = max(0, Self.maximumActionItems - userItems.count - likelyUserItems.count)
         let otherLimit = min(Self.maximumOtherActionItems, remainingSlots)
-        let otherItems = actionItems.filter { !$0.isForUser }
+        let otherItems = actionItems.filter { !$0.isForUser && !$0.isLikelyUserAction }
             .sorted(by: Self.higherPriorityAction)
             .prefix(otherLimit)
-        prioritized.actionItems = userItems + otherItems
+        prioritized.actionItems = userItems + likelyUserItems + otherItems
         return prioritized
+    }
+
+    /// Microphone speaker keys ("me", "local", "local 2", including merged
+    /// "source1:local 2") as written by the attributed track transcriber.
+    static func isMicrophoneSpeaker(_ speaker: String) -> Bool {
+        let key = Transcript.canonicalSpeakerKey(speaker)
+        let local = key.split(separator: ":").last.map(String.init) ?? key
+        return local == "me" || local == "local" || local.hasPrefix("local ")
     }
 
     static let fileName = "outcomes.json"

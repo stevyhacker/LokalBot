@@ -114,6 +114,51 @@ enum SpeakerBleedFilter {
                       acousticCandidateIndices: acousticCandidateIndices)
     }
 
+    /// Share of a microphone utterance's words that must appear in one
+    /// time-overlapping remote utterance for ownership evidence to treat it as
+    /// possible speaker echo.
+    static let minimumEchoWordCoverage = 0.8
+    /// Independent ASR passes may cut the same echoed utterance differently.
+    static let maximumEchoTimeGap: TimeInterval = 2
+
+    /// Microphone segments that mostly repeat simultaneous remote speech.
+    /// Unlike `filter`, this needs no exact span or token equality and never
+    /// deletes text; callers only withhold the microphone's default identity,
+    /// so a remote participant's words cannot become the user's evidence.
+    static func nearDuplicateEchoIndices(in transcript: Transcript) -> Set<Int> {
+        let remote = transcript.segments.compactMap { segment -> (start: Double, end: Double, words: Set<String>)? in
+            guard segment.resolvedAttribution.source == .system || canonical(segment.speaker).hasPrefix("them"),
+                  segment.start.isFinite, segment.end.isFinite,
+                  let tokens = comparisonTokens(in: segment.text), !tokens.isEmpty else { return nil }
+            return (segment.start, segment.end, Set(tokens.map(\.word)))
+        }.sorted { $0.start < $1.start }
+        guard !remote.isEmpty else { return [] }
+        let starts = remote.map(\.start)
+        var result = Set<Int>()
+        for (index, segment) in transcript.segments.enumerated() {
+            let attribution = segment.resolvedAttribution
+            guard attribution.source == .microphone || canonical(segment.speaker) == "me",
+                  !attribution.hasIdentityDecision, attribution.method != .suspectedEcho,
+                  segment.start.isFinite, segment.end.isFinite,
+                  let tokens = evidenceTokens(in: segment.text) else { continue }
+            // Remote spans are bounded by fixed transcription windows, so a
+            // generous look-back plus a candidate cap keeps this linear.
+            var candidate = starts.partitioningIndex { $0 >= segment.start - 60 }
+            var scanned = 0
+            while candidate < remote.count, remote[candidate].start <= segment.end + maximumEchoTimeGap,
+                  scanned < 4 * maximumCandidateSegments {
+                defer { candidate += 1; scanned += 1 }
+                guard remote[candidate].end >= segment.start - maximumEchoTimeGap else { continue }
+                let covered = tokens.reduce(0) { $0 + (remote[candidate].words.contains($1.word) ? 1 : 0) }
+                if Double(covered) / Double(tokens.count) >= minimumEchoWordCoverage {
+                    result.insert(index)
+                    break
+                }
+            }
+        }
+        return result
+    }
+
     private static func hasMatchingRemote(
         segment: Transcript.Segment,
         tokens: [Token],
@@ -250,5 +295,31 @@ enum SpeakerBleedFilter {
 
     private static func canonical(_ speaker: String) -> String {
         speaker.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
+extension Transcript {
+    /// Ownership-evidence snapshot: likely microphone echo keeps its words and
+    /// segment IDs but loses the microphone's default identity.
+    func markingSuspectedEcho() -> Transcript {
+        let indices = SpeakerBleedFilter.nearDuplicateEchoIndices(in: self)
+        guard !indices.isEmpty else { return self }
+        var result = self
+        for index in indices {
+            result.segments[index].attribution = .init(source: .microphone, identity: .unresolved, method: .suspectedEcho)
+        }
+        return result
+    }
+}
+
+private extension Array where Element == Double {
+    /// First index whose value satisfies `predicate` in an ascending array.
+    func partitioningIndex(where predicate: (Double) -> Bool) -> Int {
+        var lower = 0, upper = count
+        while lower < upper {
+            let middle = lower + (upper - lower) / 2
+            if predicate(self[middle]) { upper = middle } else { lower = middle + 1 }
+        }
+        return lower
     }
 }

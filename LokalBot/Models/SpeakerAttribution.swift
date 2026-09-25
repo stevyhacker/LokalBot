@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct StatementAttribution: Codable, Equatable, Sendable {
     var speakerID: String
@@ -19,13 +20,23 @@ struct SpeakerAttribution: Codable, Equatable, Sendable {
     var identity: Identity
     var method: Method
 
-    /// A microphone identifies an input, not a person. Normalize old persisted
-    /// defaults too, so reopening a recording cannot restore unsafe ownership.
+    /// Settings → “My microphone is me”. On by default: the personal
+    /// microphone belongs to this Mac's user. Shared-room recordings can turn
+    /// it off so microphone voices stay unidentified until confirmed.
+    static var microphoneIsUser: Bool {
+        get { microphonePreference.withLock { $0 } }
+        set { microphonePreference.withLock { $0 = newValue } }
+    }
+    private static let microphonePreference = OSAllocatedUnfairLock(initialState: true)
+
+    /// Microphone track/diarization/legacy speech follows the preference above,
+    /// including older persisted defaults. Confirmations, voice profiles,
+    /// overlapping voices, and suspected echo keep their own identity.
     var applyingMicrophoneDefault: Self {
         guard source == .microphone,
               [.track, .diarization, .legacy].contains(method) else { return self }
         var result = self
-        result.identity = .unresolved
+        result.identity = Self.microphoneIsUser ? .user : .unresolved
         return result
     }
 
@@ -58,7 +69,9 @@ struct TranscriptEchoReport: Codable, Equatable, Sendable {
 
     var explanation: String {
         switch status {
-        case .disabled: "Echo removal is off. Unconfirmed microphone speakers remain unidentified."
+        case .disabled: SpeakerAttribution.microphoneIsUser
+            ? "Echo removal is off. Microphone speech defaults to you."
+            : "Echo removal is off. Unconfirmed microphone speakers remain unidentified."
         case .noReference: "Remote audio is unavailable for echo removal."
         case .applied: "Echo removal applied. Speaker identity is checked separately."
         case .uncertain: "Echo removal was uncertain. Original speech was preserved."

@@ -38,16 +38,22 @@ final class MeetingSpeakerReviewItemTests: XCTestCase {
         XCTAssertFalse(items[1].isUser)
     }
 
-    func testMixedAudioAndMicrophoneDoNotBecomeConfirmedPeople() {
+    func testMicrophoneDefaultsToTheUserWhileMixedAudioStaysUnresolved() {
         let transcript = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "me", text: "Microphone input."),
             .init(start: 5, end: 10, speaker: "them", text: "Overlapping voices.",
                   attribution: .init(source: .system, identity: .unresolved, method: .overlappingSpeech)),
         ], engine: "fixture")
         let items = MeetingSpeakerReviewItem.items(in: transcript)
-        XCTAssertFalse(items[0].isUser)
+        XCTAssertTrue(items[0].isUser)
+        XCTAssertTrue(items[0].canConfirm, "The microphone default remains correctable")
+        XCTAssertEqual(items[0].status, "Attributed to you")
         XCTAssertFalse(items[1].canConfirm)
         XCTAssertEqual(items[1].status, "Mixed or unresolved audio")
+
+        SpeakerAttribution.microphoneIsUser = false
+        defer { SpeakerAttribution.microphoneIsUser = true }
+        XCTAssertFalse(MeetingSpeakerReviewItem.items(in: transcript)[0].isUser)
     }
 
     func testMergePlaceholdersAreNotPresentedAsConfirmedNames() {

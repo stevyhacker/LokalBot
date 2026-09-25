@@ -29,8 +29,8 @@ enum AttributedTrackTranscriber {
             let overlapping = speakers.count > 1
             let label = speakers.count == 1 ? labels[speakers.first!]! : overlapping ? "\(prefix) unclear" : prefix
             let method: SpeakerAttribution.Method = overlapping ? .overlappingSpeech : speakers.isEmpty ? .track : .diarization
-            // Preserve unclassified audio as well. Microphone speech
-            // remains unidentified; overlapping voices remain unresolved.
+            // Preserve unclassified audio as well. Microphone speech follows
+            // the “My microphone is me” default; overlapping voices remain unresolved.
             let attribution = SpeakerAttribution(source: source,
                 identity: source == .system && !overlapping ? .other : .unresolved, method: method).applyingMicrophoneDefault
             if let last = regions.last, last.speaker == label, last.attribution == attribution {
@@ -58,7 +58,7 @@ enum AttributedTrackTranscriber {
             clipped.end = min(region.end, contentRange.end)
             return clipped.end > clipped.start ? clipped : nil
         }
-        // Unconfirmed microphone identity also applies without speaker separation or
+        // The microphone default also applies without speaker separation or
         // remembered voice profiles, using the optimized whole-file VAD path.
         if diarization.isEmpty && contentRange == nil {
             var transcript = try await engine.transcribe(audio: url, language: language, prompt: prompt)
