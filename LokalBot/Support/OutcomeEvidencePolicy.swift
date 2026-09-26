@@ -1,6 +1,16 @@
 import Foundation
 
 enum OutcomeEvidencePolicy {
+    /// Only speaker-local preambles may precede a commitment. Keep the clause
+    /// anchored so reported speech ("I said…") cannot become a new promise.
+    /// Acceptance and conversation-management checks share the same prefix.
+    private static let commitmentPreamble =
+        #"^(?:(?:yes|yeah|yep|okay|ok|sure|right|well|so|and|then|absolutely|after this|next|also|um|uh|"#
+        + #"(?:on|from) my (?:side|end)|for my part|as for me)[,!.: ]+)*"#
+    private static let firstPersonUndertaking =
+        #"(?:i (?:will|shall|am going to|am gonna|commit to|agree to|(?:do )?(?:plan|intend) to|am (?:planning|intending) to)"#
+        + #"|i['’]m (?:going to|gonna|planning to|intending to)|i['’]ll|my next step is)"#
+
     /// Select a canonical clause from the exact source visible to the model.
     /// The existing policy still checks the complete original clause, so a
     /// clipped part cannot hide a preceding condition or following negation.
@@ -27,13 +37,14 @@ enum OutcomeEvidencePolicy {
 
     static func isBareAcceptance(_ raw: String) -> Bool {
         normalized(raw).range(of:
-            #"^(?:(?:yes|yeah|yep|okay|ok|sure|right|well|so)[,!.: ]+)*i can (?:do (?:that|it)|take (?:that|it)(?: on)?|handle (?:that|it))[.! ]*$"#,
+            commitmentPreamble + #"i can (?:do (?:that|it)|take (?:that|it)(?: on)?|handle (?:that|it))[.! ]*$"#,
             options: .regularExpression) != nil
     }
 
     static func isConversationManagement(_ raw: String) -> Bool {
         normalized(raw).range(of:
-            #"^(?:(?:so|okay|ok|well|um|uh)[, ]+)*(?:i will|i['’]ll|i am going to|i['’]m going to) be (?:a little (?:bit )?)?(?:more specific|more clear|clearer|brief)[.! ]*$"#,
+            commitmentPreamble + firstPersonUndertaking
+                + #" be (?:a little (?:bit )?)?(?:more specific|more clear|clearer|brief)[.! ]*$"#,
             options: .regularExpression) != nil
     }
 
@@ -98,16 +109,15 @@ enum OutcomeEvidencePolicy {
             speakerID: speakerID, basis: basis, quote: quote)
     }
 
-    /// Allow discourse markers and explicit acceptance, but not capability
-    /// questions, hypothetical promises, past reports, or collective "we".
+    /// Accept explicit first-person plans as well as promises and acceptance,
+    /// but not questions, hypothetical promises, past reports, or collective "we".
     static func isCommitment(_ raw: String) -> Bool {
         let text = normalized(raw)
         guard !isConversationManagement(text) else { return false }
-        let start = #"^(?:(?:yes|yeah|yep|okay|ok|sure|right|well|so|and|then|absolutely|after this|next|also|um|uh)[,!.: ]+)*"#
-        let undertaking = #"(?:i (?:will|shall|am going to|am gonna|commit to|agree to)|i['’]m (?:going to|gonna)|i['’]ll|my next step is)\s+(?!not\b|never\b|no longer\b)\S"#
+        let undertaking = firstPersonUndertaking + #"\s+(?!not\b|never\b|no longer\b)\S"#
         let acceptance = #"i can (?:do (?:that|it)|take (?:that|it)(?: on)?|handle (?:that|it))\b"#
         let translated = #"(?:ja ću |ja cu |je vais |ich werde |voy a |我会|我會)"#
-        guard text.range(of: start + "(?:" + undertaking + "|" + acceptance + "|" + translated + ")",
+        guard text.range(of: commitmentPreamble + "(?:" + undertaking + "|" + acceptance + "|" + translated + ")",
                          options: .regularExpression) != nil else { return false }
         // Preserve surrounding uncertainty even when a short quote omits it.
         return text.range(of: #"\?|\b(?:if|unless|might|maybe|perhaps|cannot|can't|can’t|won't|won’t)\b"#,

@@ -26,6 +26,45 @@ final class OutcomeEvidencePolicyTests: XCTestCase {
         }
     }
 
+    func testPersonalPreamblesAndPlansPreserveTheCitedOwner() {
+        for text in ["Yeah, so on my side, I'll try to keep up the shipping cadence.",
+                     "I do plan to take on a bit more.", "I plan to send the draft.",
+                     "For my part, I intend to review it.", "From my side, I do intend to finish it.",
+                     "On my end, I'm planning to send the draft.", "I am planning to review it.",
+                     "As for me, I'm intending to finish it.", "I am intending to review it."] {
+            let result = resolve(text)
+            XCTAssertEqual(result.resolution, .other, text)
+            XCTAssertEqual(result.speakerID, "them 1", text)
+            XCTAssertNil(result.rejectionReason, text)
+        }
+    }
+
+    func testPersonalPlansStillRejectConditionsNegationReportsAndCollectiveOwnership() {
+        for text in ["On my side, I might send the draft.", "I plan to send the draft if approved.",
+                     "If approved, I do plan to send the draft.", "Maybe I plan to send it.",
+                     "I do not plan to send it.", "I don't plan to send it.", "I plan to not send it.",
+                     "I'm planning to never send it.", "I intend to no longer send it.",
+                     "I plan to send it?", "Yesterday I said I plan to send it.",
+                     "On my side, I said I'll send it.", "On my side, we plan to send it.",
+                     "I hope to send it.", "I would like to send it."] {
+            XCTAssertFalse(OutcomeEvidencePolicy.isCommitment(text), text)
+            XCTAssertEqual(resolve(text).resolution, .unresolved, text)
+        }
+        for text in ["If approved, I plan to send it.", "Yesterday I said I plan to send it.",
+                     "I plan to send it if approved.", "I plan to send it?"] {
+            XCTAssertEqual(resolve(text, quote: "I plan to send it").rejectionReason, .unsupportedCommitment, text)
+        }
+    }
+
+    func testPersonalPreamblesKeepBareAcceptancesAndConversationManagementOutOfStandaloneTasks() {
+        XCTAssertTrue(OutcomeEvidencePolicy.isBareAcceptance("On my side, I can do that."))
+        for text in ["On my side, I'll be brief.", "For my part, I plan to be brief.",
+                     "I'm planning to be more specific."] {
+            XCTAssertTrue(OutcomeEvidencePolicy.isConversationManagement(text), text)
+            XCTAssertFalse(OutcomeEvidencePolicy.isCommitment(text), text)
+        }
+    }
+
     func testACommitmentLaterInTheSegmentCanUseItsOwnCompleteSentence() {
         let result = resolve("That was the first step. And I'll be doing this.", quote: "And I'll be doing this.")
         XCTAssertEqual(result.resolution, .other)

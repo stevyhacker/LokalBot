@@ -142,6 +142,66 @@ final class PersonalActionItemsTests: XCTestCase {
 
     // MARK: - Keep tasks whose wording escaped the commitment check
 
+    func testWeeklyMeetingCommitmentsKeepUserOwnershipAcrossSplitTranscriptRows() throws {
+        let shipping = "Yeah, so on my side, I'll try to keep up the the shipping cadence and review all the things as they come."
+        let plan = "I do plan to take on a bit more."
+        let transcript = Transcript(segments: [
+            microphone(0, shipping),
+            microphone(10, plan),
+            microphone(15, "work myself and more tasks, so."),
+            microphone(20, "Part of the rebrand next week."),
+        ], engine: "fixture")
+        let evidence = MeetingNotesEvidence(transcript: transcript)
+        XCTAssertEqual(evidence.units.filter(\.isUserCommitment).map(\.source), ["s1", "s2"],
+                       "Both commitments must also participate in omitted-action repair")
+        for owner in ["source", "unknown"] {
+            for basis in ["commitment", "unclear"] {
+                let result = try validate(transcript, [
+                    action("s1", text: "Keep up the shipping cadence and review incoming items", owner: owner, basis: basis),
+                    action("s2", text: "Take on more tasks including the rebrand next week", owner: owner,
+                           basis: basis, context: ["s3", "s4"]),
+                ])
+                XCTAssertTrue(result.rejected.isEmpty)
+                XCTAssertEqual(result.outcomes.actionItems.count, 2)
+                XCTAssertEqual(result.outcomes.userActionItems.count, 2, "owner=\(owner), basis=\(basis)")
+                for item in result.outcomes.actionItems {
+                    XCTAssertEqual(item.owner, "Me")
+                    XCTAssertEqual(item.attribution?.speakerID, "local 1")
+                    XCTAssertEqual(item.attribution?.basis, .commitment)
+                    XCTAssertNil(item.attribution?.rejectionReason)
+                }
+                XCTAssertEqual(result.outcomes.actionItems.map { $0.attribution?.quote }, [shipping, plan])
+                XCTAssertEqual(result.outcomes.actionItems.last?.citations.count, 3)
+            }
+        }
+    }
+
+    func testPersonalPlanRecognitionDoesNotOverrideSpeakerIdentity() throws {
+        let text = "On my side, I do plan to send the draft."
+        var confirmedOther = microphone(10, text, speaker: "local 2")
+        confirmedOther.attribution = .init(source: .microphone, identity: .other, method: .confirmation)
+        var unconfirmed = microphone(20, text, speaker: "local 3")
+        unconfirmed.attribution = .init(source: .microphone, identity: .unresolved, method: .confirmation)
+        let transcript = Transcript(segments: [remote(0, "them 1", text), confirmedOther, unconfirmed], engine: "fixture")
+        let result = try validate(transcript, (1...3).map { action("s\($0)", text: "Send the draft") })
+        XCTAssertTrue(result.outcomes.userActionItems.isEmpty)
+        XCTAssertEqual(result.outcomes.actionItems.map { $0.attribution?.resolution }, [.other, .other, .unresolved])
+        XCTAssertEqual(result.outcomes.actionItems.last?.attribution?.rejectionReason, .unconfirmedIdentity)
+    }
+
+    func testPrefacedAcceptanceStillNeedsTaskContextAndConversationManagementIsRejected() throws {
+        let transcript = Transcript(segments: [
+            microphone(0, "On my side, I can do that."),
+            microphone(10, "On my side, I'll be brief."),
+        ], engine: "fixture")
+        let result = try validate(transcript, [
+            action("s1", text: "Perform the requested task"),
+            action("s2", text: "Be brief"),
+        ])
+        XCTAssertTrue(result.outcomes.actionItems.isEmpty)
+        XCTAssertEqual(result.rejected.map(\.reason), ["missing_task_context", "conversation_management"])
+    }
+
     func testUnrecognizedCommitmentWordingKeepsTheTaskWithUnclearOwner() throws {
         let transcript = Transcript(segments: [
             microphone(0, "We should get the OpenRouter key over to the team this week."),
