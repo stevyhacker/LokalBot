@@ -1,6 +1,6 @@
 # Narration
 
-Male Breeze TTS 2 narrator. Cue times are global seconds in the 30-second cut.
+Male ElevenLabs Eleven v4 narrator (voice Eric). Cue times are global seconds in the 30-second cut. `voice/elevenlabs_v4.py` sends these lines with the name spelled "LocalBot" and adds `[curious]`, `[confident]` and `[warm]` to lines 1, 2 and 8.
 
 | Cue | Line |
 | ---: | --- |

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Cut the recorded native takes into scene clips and mix the narration track.
-#   TAKES=<dir with t-*.mov>  VOICE=<dir with the selected Breeze WAVs>  ./prepare_media.sh
+#   TAKES=<dir with t-*.mov>  VOICE=<dir with v1..v8.wav from voice/elevenlabs_v4.py>  ./prepare_media.sh
 # Outputs (ignored by git): assets/clips/*.mp4, assets/voice/narration.wav
 set -euo pipefail
 cd "$(dirname "$0")"

@@ -52,7 +52,7 @@ clip is a recording of the native app driven by real input events in the
 isolated UI test host, with the same fictional seed library as these stills.
 Cursor, click ripples and headlines are editorial overlays; screen pixels are
 unchanged. It shows the interface and navigation, not live transcription or
-model inference. The narration is synthetic (Breeze TTS 2, run locally).
+model inference. The narration is synthetic (ElevenLabs Eleven v4).
 
 The earlier [43-second database demo](../videos/lokalbot-database-demo.mp4) and
 its [poster](demo-poster.png) remain for the published YouTube and Product Hunt

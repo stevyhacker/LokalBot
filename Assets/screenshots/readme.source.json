@@ -69,8 +69,8 @@
   ],
   "demo": {
     "path": "../videos/lokalbot-readme-demo.mp4",
-    "bytes": 5839514,
-    "sha256": "bf446fb2107e20f4f17864e0d3769d937b4f871804e6ff386e3e94cce9ad6af8",
+    "bytes": 5850251,
+    "sha256": "07041ba6e518d12ea8162e300e6685cd66a4fdfc8ab370f4217e160a1e328927",
     "mime_type": "video/mp4",
     "width": 1920,
     "height": 1080,
@@ -79,7 +79,7 @@
     "recorded_on": "2026-09-28",
     "source_commit": "769068e",
     "source_project": "Video/lokalbot-readme-30s",
-    "narration": "Breeze TTS 2 Q8_0 via audio.cpp v0.7.3, local; synthetic male voice",
+    "narration": "ElevenLabs Eleven v4 (eleven_v4), premade male voice Eric; synthetic",
     "context": "Real native app recordings driven by scripted AppKit input in the isolated UI test host with fictional seed data; cursor, ripples and headlines are overlays.",
     "previous": {
       "path": "../videos/lokalbot-database-demo.mp4",
