@@ -157,6 +157,8 @@ with open('.build/invocations.jsonl', 'a') as log:
     log.write(json.dumps(args) + '\\n')
 if 'build-for-testing' in args:
     result = int(os.environ.get('FAKE_BUILD_EXIT', '0'))
+    if 'COMPILATION_CACHE_ENABLE_CACHING=YES' in args:
+        result = int(os.environ.get('FAKE_CACHE_EXIT', str(result)))
     if result == 0:
         p = pathlib.Path('.build/dd/Build/Products/Fixture.xctestrun')
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -249,6 +251,15 @@ sys.exit(int(os.environ.get(key, '0')))
         self.assertIn('COMPILATION_CACHE_ENABLE_CACHING=NO', builds[-1])
         self.assertFalse((self.root / '.build/dd/ui-build.json').exists())
         self.assertNotEqual(self.run_script('--test-only').returncode, 0)
+
+    def test_successful_clean_fallback_builds_fresh_products_without_saving_bad_cache(self):
+        result = self.run_script('--build-only', COMPILER_CACHE_MODE='warm', FAKE_CACHE_EXIT='71')
+        self.assertEqual(result.returncode, 0, result.stdout)
+        report = json.loads((self.root / '.build/ci/compile.json').read_text())
+        self.assertEqual([a['exit'] for a in report['attempts']], [71, 0])
+        self.assertFalse(report['attempts'][-1]['caching'])
+        self.assertTrue((self.root / '.build/dd/ui-build.json').is_file())
+        self.assertEqual(self.run_script('--test-only').returncode, 0)
 
     def test_changed_app_or_test_inputs_cannot_use_existing_build(self):
         self.build()

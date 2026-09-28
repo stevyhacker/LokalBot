@@ -300,7 +300,8 @@ class TestArtifactTests(unittest.TestCase):
             binary.chmod(0o755)
             (source / 'Fixture.xctestrun').write_bytes(plistlib.dumps({'path': str(binary)}))
             original = Path.cwd()
-            identity = dict(commit='sha', run='42', attempt='1', xcode='26.3')
+            identity = dict(commit='sha', run='42', attempt='1', xcode='26.3', sdk='26.2',
+                            architecture='arm64', signing='NO', lock='dependencies')
             try:
                 os.chdir(producer)
                 with patch.object(products, 'identity', return_value=identity):
@@ -308,9 +309,10 @@ class TestArtifactTests(unittest.TestCase):
                 import shutil
                 shutil.copytree(producer / '.build/transfer', consumer / '.build/transfer')
                 os.chdir(consumer)
-                with patch.object(products, 'identity', return_value=dict(identity, attempt='2')):
-                    with self.assertRaises(ValueError):
-                        products.transfer('unpack', 'unit')
+                for key in identity:
+                    with patch.object(products, 'identity', return_value=dict(identity, **{key: 'changed'})):
+                        with self.subTest(key=key), self.assertRaises(ValueError):
+                            products.transfer('unpack', 'unit')
                 self.assertFalse((consumer / '.build/dd').exists())
                 with patch.object(products, 'identity', return_value=identity):
                     products.transfer('unpack', 'unit')
