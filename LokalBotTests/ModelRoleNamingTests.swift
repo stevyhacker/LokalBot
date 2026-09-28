@@ -25,8 +25,33 @@ final class ModelRoleNamingTests: XCTestCase {
 
 final class ModelStorageCopyTests: XCTestCase {
     func testTranscriptionSizesComeFromTheBlurb() {
-        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.sizeLabel, "3.2 GB")
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.sizeLabel, "2.47 GB")
         XCTAssertEqual(TranscriptionModelChoice.parakeetV3.sizeLabel, "0.6 GB")
         XCTAssertNil(TranscriptionModelChoice.graniteSpeech.sizeLabel)
+    }
+
+    /// Each stated size must round to the bytes the engine actually downloads,
+    /// at the label's own precision (decimal GB, matching the README).
+    func testTranscriptionSizesMatchPinnedDownloads() throws {
+        func total(_ snapshots: [PinnedModelSnapshot]) -> Int64 {
+            snapshots.flatMap(\.files).reduce(0) { $0 + $1.bytes }
+        }
+        let downloads: [(TranscriptionModelChoice, Int64)] = try [
+            (.parakeetV3, total([.catalog("parakeetV3")])),
+            (.parakeetV2, total([.catalog("parakeetV2")])),
+            (.qwenASR17B, total([.qwenAccuracy])),
+            (.qwenASR06B, total([.qwenCompact])),
+            (.whisperLarge, total([.catalog("whisper"), .catalog("whisperTokenizer")])),
+            (.graniteTurbo, GraniteTurboEngine.artifacts.reduce(0) { $0 + $1.bytes }),
+        ]
+        for (choice, bytes) in downloads {
+            let label = try XCTUnwrap(choice.sizeLabel, choice.rawValue)
+            XCTAssertTrue(label.hasSuffix(" GB"), label)
+            let number = label.dropLast(" GB".count)
+            let decimals = number.split(separator: ".").dropFirst().first?.count ?? 0
+            XCTAssertEqual(String(number),
+                           String(format: "%.\(decimals)f", Double(bytes) / 1e9),
+                           "\(choice.rawValue): \(bytes) bytes")
+        }
     }
 }

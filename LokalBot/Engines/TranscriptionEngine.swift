@@ -100,8 +100,8 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     var blurb: String {
         switch self {
         case .parakeetV3: "0.6 GB · 25 European languages, ~190× realtime"
-        case .parakeetV2: "0.6 GB · English only, slightly higher recall"
-        case .qwenASR17B: "3.2 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"
+        case .parakeetV2: "0.46 GB · English only, slightly higher recall"
+        case .qwenASR17B: "2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"
         case .qwenASR06B: "0.7 GB · MLX, 52 languages/dialects, compact global tier"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
         case .graniteTurbo: "0.95 GB · English only · fast local transcription without punctuation or vocabulary prompts"
