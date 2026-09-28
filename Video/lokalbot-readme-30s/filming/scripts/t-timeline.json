@@ -1,0 +1,1 @@
+{"take":"t-timeline","start_delay":4,"settle":0.6,"tail":0.6,"actions":[{"wait":0.8},{"click":[196,756],"after":1.6},{"click":[224,816],"after":1.6}]}

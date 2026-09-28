@@ -68,22 +68,24 @@
     }
   ],
   "demo": {
-    "path": "demo-poster.png",
+    "path": "../videos/lokalbot-readme-demo.mp4",
+    "bytes": 5839514,
+    "sha256": "bf446fb2107e20f4f17864e0d3769d937b4f871804e6ff386e3e94cce9ad6af8",
+    "mime_type": "video/mp4",
     "width": 1920,
     "height": 1080,
-    "bytes": 450211,
-    "sha256": "498798c46dc011d0e28246dd68821ca3f425f0da5709dbcade2b4b71f14dc60f",
-    "source": "Video/lokalbot-product-demo/v4-real-app/renders/lokalbot-real-app-poster.png",
-    "video_url": "https://www.youtube.com/watch?v=gjfINF9Z-dA",
-    "embedded_video": {
+    "fps": 30,
+    "duration_seconds": 30.0,
+    "recorded_on": "2026-09-28",
+    "source_commit": "769068e",
+    "source_project": "Video/lokalbot-readme-30s",
+    "narration": "Breeze TTS 2 Q8_0 via audio.cpp v0.7.3, local; synthetic male voice",
+    "context": "Real native app recordings driven by scripted AppKit input in the isolated UI test host with fictional seed data; cursor, ripples and headlines are overlays.",
+    "previous": {
       "path": "../videos/lokalbot-database-demo.mp4",
-      "bytes": 3643455,
-      "sha256": "961a6be1c64bd7b1dabea3f5c767827dccd22171dd2b6948b39bf8de5711084b",
-      "mime_type": "video/mp4"
-    },
-    "recorded_on": "2026-09-15",
-    "duration_seconds": 42.5,
-    "context": "Poster from the real-app demo with fictional Northstar meeting data; unchanged from the published video poster."
+      "poster": "demo-poster.png",
+      "video_url": "https://www.youtube.com/watch?v=gjfINF9Z-dA"
+    }
   },
   "known_render_limits": [
     "cacheDisplay draws the selected toolbar segment in meetings-summary.png as a blank light pill",

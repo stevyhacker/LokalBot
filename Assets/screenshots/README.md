@@ -43,11 +43,20 @@ role; the README's model table covers the same information. The committed
 
 ## Demo video
 
-[demo-poster.png](demo-poster.png) is the unchanged poster for the embedded
-[43-second real-app video](../videos/lokalbot-database-demo.mp4), recorded
-September 15, 2026. It uses separate fictional Northstar meeting data to show a
-PostgreSQL versus MongoDB decision and its follow-up. It demonstrates search and
-source navigation with prepared content, not live recording or transcription.
+The README embeds a [30-second real-app demo](../videos/lokalbot-readme-demo.mp4),
+recorded September 28, 2026 from `master` at
+[`769068e`](https://github.com/stevyhacker/lokalbot/tree/769068e). Its source,
+take scripts and narration cues live in
+[Video/lokalbot-readme-30s](../../Video/lokalbot-readme-30s/README.md). Every
+clip is a recording of the native app driven by real input events in the
+isolated UI test host, with the same fictional seed library as these stills.
+Cursor, click ripples and headlines are editorial overlays; screen pixels are
+unchanged. It shows the interface and navigation, not live transcription or
+model inference. The narration is synthetic (Breeze TTS 2, run locally).
+
+The earlier [43-second database demo](../videos/lokalbot-database-demo.mp4) and
+its [poster](demo-poster.png) remain for the published YouTube and Product Hunt
+copies.
 
 ## Refreshing the set
 

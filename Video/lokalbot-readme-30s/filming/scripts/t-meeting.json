@@ -1,0 +1,1 @@
+{"take":"t-meeting","start_delay":4,"settle":0.6,"tail":0.6,"actions":[{"wait":1.0},{"move":[396,469],"after":0.5},{"click":[396,469],"after":2.4}]}

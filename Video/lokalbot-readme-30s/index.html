@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>LokalBot — 30-second real app demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #06080a; }
+      #root {
+        position: relative; width: 1920px; height: 1080px; overflow: hidden;
+        font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+        color: #f4f6f7; background: #06080a;
+      }
+      #bg { position: absolute; inset: 0; }
+      #bg .glow { position: absolute; border-radius: 50%; filter: blur(120px); }
+      #bg .g1 { width: 900px; height: 900px; left: -260px; top: -380px; background: rgba(20, 184, 166, 0.22); }
+      #bg .g2 { width: 1000px; height: 1000px; right: -360px; bottom: -520px; background: rgba(56, 97, 251, 0.16); }
+      #bg .grain {
+        position: absolute; inset: 0; opacity: 0.35;
+        background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.05), transparent 60%);
+      }
+      .accent { color: #2dd4bf; }
+      .scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+      /* Hook */
+      #s1 { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; }
+      #s1 .line { font-size: 104px; font-weight: 750; letter-spacing: -0.035em; line-height: 1.05; display: block; }
+      #s1 .word { display: inline-block; }
+
+      /* Title */
+      #s2 { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #s2 .icon { width: 190px; height: 190px; display: block; filter: drop-shadow(0 30px 60px rgba(20,184,166,0.35)); }
+      #s2 .wordmark { font-size: 132px; font-weight: 800; letter-spacing: -0.045em; margin-top: 18px; display: block; }
+      #s2 .sub { font-size: 54px; font-weight: 600; letter-spacing: -0.02em; color: #b9c4c9; margin-top: 6px; display: block; }
+
+      /* App windows */
+      .win {
+        position: absolute; border-radius: 16px; overflow: hidden; background: #1c1c1e;
+        box-shadow: 0 50px 140px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.09);
+        opacity: 0;
+      }
+      .win video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+      #win-recall { left: 531px; top: 214px; width: 858px; height: 666px; }
+      #win-main { left: 240px; top: 158px; width: 1440px; height: 905px; }
+      #cursor { position: absolute; left: 0; top: 0; width: 30px; height: 44px; opacity: 0; z-index: 5; }
+      #cursor svg { width: 30px; height: 44px; display: block; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+      #ripple {
+        position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+        border-radius: 50%; border: 4px solid #2dd4bf; opacity: 0; z-index: 4; display: block;
+      }
+      #keycap {
+        position: absolute; left: 1420px; top: 760px; width: 96px; height: 96px; border-radius: 22px;
+        background: linear-gradient(#2a2f33, #1b1f22); border: 1px solid rgba(255,255,255,0.14);
+        box-shadow: 0 10px 0 #0e1113, 0 24px 40px rgba(0,0,0,0.5);
+        font-size: 52px; font-weight: 700; color: #e9f5f3; display: flex; align-items: center; justify-content: center;
+        opacity: 0;
+      }
+      #keycap-face { display: block; width: 100%; text-align: center; }
+
+      /* Headlines */
+      .headline {
+        position: absolute; left: 0; top: 46px; width: 1920px; height: 90px;
+        display: flex; align-items: center; justify-content: center; z-index: 6;
+      }
+      .headline > span {
+        display: inline-block; padding: 14px 30px; border-radius: 999px;
+        background: rgba(8, 11, 13, 0.78); backdrop-filter: blur(14px);
+        border: 1px solid rgba(255,255,255,0.10);
+        font-size: 50px; font-weight: 700; letter-spacing: -0.025em; color: #f4f6f7; white-space: nowrap;
+      }
+      #badge {
+        position: absolute; left: 34px; top: 1024px; width: 440px; height: 36px; z-index: 6;
+        display: flex; align-items: center; gap: 10px;
+        font-size: 22px; font-weight: 600; color: rgba(236, 242, 244, 0.72); letter-spacing: 0.01em;
+      }
+      #badge i { width: 10px; height: 10px; border-radius: 50%; background: #2dd4bf; display: block; }
+
+      /* End card */
+      #s8 { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #s8 .icon { width: 150px; height: 150px; display: block; filter: drop-shadow(0 26px 50px rgba(20,184,166,0.35)); }
+      #s8 .wordmark { font-size: 112px; font-weight: 800; letter-spacing: -0.045em; margin-top: 14px; display: block; }
+      #s8 .tagline { font-size: 50px; font-weight: 650; letter-spacing: -0.02em; color: #dfe7ea; margin-top: 4px; display: block; }
+      #s8 .chips { display: flex; gap: 16px; margin-top: 40px; }
+      #s8 .chip {
+        display: block; padding: 12px 24px; border-radius: 999px; font-size: 30px; font-weight: 600;
+        background: rgba(45, 212, 191, 0.10); border: 1px solid rgba(45, 212, 191, 0.35); color: #c9f5ee;
+      }
+      #s8 .install {
+        margin-top: 46px; display: flex; align-items: center; gap: 28px; font-size: 32px; color: #b9c4c9;
+      }
+      #s8 code {
+        display: block; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 30px; color: #e9f5f3;
+        padding: 14px 24px; border-radius: 14px; background: #11161a; border: 1px solid rgba(255,255,255,0.10);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080" data-fps="30">
+      <div id="bg" data-layout-allow-overflow><div class="glow g1"></div><div class="glow g2"></div><div class="grain"></div></div>
+
+      <!-- 1. Hook -->
+      <section id="s1" class="clip scene" data-start="0" data-duration="2.9" data-track-index="1">
+        <span class="line" id="s1-a"><span class="word">You</span> <span class="word">said</span> <span class="word">it</span> <span class="word">in</span> <span class="word">a</span> <span class="word accent">meeting.</span></span>
+        <span class="line" id="s1-b"><span class="word">You</span> <span class="word">saw</span> <span class="word">it</span> <span class="word">on</span> <span class="word accent">screen.</span></span>
+      </section>
+
+      <!-- 2. Title -->
+      <section id="s2" class="clip scene" data-start="2.9" data-duration="2.25" data-track-index="1">
+        <img class="icon" id="s2-icon" src="assets/lokalbot-icon.svg" alt="LokalBot icon" />
+        <span class="wordmark" id="s2-word">LokalBot</span>
+        <span class="sub" id="s2-sub">finds it in <span class="accent">seconds.</span></span>
+      </section>
+
+      <!-- 3. Quick Recall -->
+      <div class="win" id="win-recall">
+        <video id="v-recall" src="assets/clips/recall.mp4" data-start="5" data-duration="5.1" data-track-index="2" muted playsinline></video>
+      </div>
+      <div id="keycap"><b id="keycap-face">↓</b></div>
+
+      <!-- 4–7. Main window: one frame, quick cuts between real takes -->
+      <div class="win" id="win-main">
+        <video id="v-meeting" src="assets/clips/meeting.mp4" data-start="10.1" data-duration="3.5" data-track-index="3" muted playsinline></video>
+        <video id="v-transcript" src="assets/clips/transcript.mp4" data-start="13.6" data-duration="2.4" data-track-index="3" muted playsinline></video>
+        <video id="v-ask" src="assets/clips/ask.mp4" data-start="16" data-duration="2.1" data-track-index="3" muted playsinline></video>
+        <video id="v-today" src="assets/clips/today.mp4" data-start="18.1" data-duration="1.9" data-track-index="3" muted playsinline></video>
+        <video id="v-timeline" src="assets/clips/timeline.mp4" data-start="20" data-duration="1.5" data-track-index="3" muted playsinline></video>
+        <video id="v-writing" src="assets/clips/writing.mp4" data-start="21.5" data-duration="3.2" data-track-index="3" muted playsinline></video>
+        <div id="ripple"></div>
+        <div id="cursor">
+          <svg viewBox="0 0 20 30" aria-hidden="true"><path d="M1.5 1.5 L1.5 23 L7 17.8 L10.6 26.2 L14.2 24.6 L10.6 16.4 L17.8 16.4 Z" fill="#ffffff" stroke="#111111" stroke-width="1.6" stroke-linejoin="round" /></svg>
+        </div>
+      </div>
+
+      <!-- Headlines -->
+      <div class="headline clip" id="h-recall" data-start="5" data-duration="5.1" data-track-index="4"><span>One search: meetings + <span class="accent">saved screen text</span></span></div>
+      <div class="headline clip" id="h-meeting" data-start="10.1" data-duration="3.5" data-track-index="4"><span>Every decision, <span class="accent">cited</span></span></div>
+      <div class="headline clip" id="h-transcript" data-start="13.6" data-duration="2.4" data-track-index="4"><span>Search <span class="accent">every word</span></span></div>
+      <div class="headline clip" id="h-ask" data-start="16" data-duration="2.1" data-track-index="4"><span>Ask, then <span class="accent">check the source</span></span></div>
+      <div class="headline clip" id="h-today" data-start="18.1" data-duration="1.9" data-track-index="4"><span>Clear what <span class="accent">needs you</span></span></div>
+      <div class="headline clip" id="h-timeline" data-start="20" data-duration="1.5" data-track-index="4"><span>Retrace <span class="accent">your day</span></span></div>
+      <div class="headline clip" id="h-writing" data-start="21.5" data-duration="3.2" data-track-index="4"><span>Autocomplete that <span class="accent">runs on your Mac</span></span></div>
+      <div id="badge" class="clip" data-start="5" data-duration="19.7" data-track-index="5"><i></i>Real app · fictional demo data</div>
+
+      <!-- 8. End card -->
+      <section id="s8" class="clip scene" data-start="24.7" data-duration="5.3" data-track-index="1">
+        <img class="icon" id="s8-icon" src="assets/lokalbot-icon-end.svg" alt="LokalBot icon" />
+        <span class="wordmark" id="s8-word">LokalBot</span>
+        <span class="tagline" id="s8-tag">Find what you said or saw on your Mac.</span>
+        <div class="chips" id="s8-chips">
+          <span class="chip">Free &amp; open source</span>
+          <span class="chip">No account</span>
+          <span class="chip">Nothing joins your calls</span>
+          <span class="chip">AI that runs on your Mac</span>
+        </div>
+        <div class="install" id="s8-install"><code>brew install --cask stevyhacker/tap/lokalbot</code><span>lokalbot.com</span></div>
+      </section>
+
+      <audio id="narration" src="assets/voice/narration.wav" data-start="0" data-duration="29.8" data-track-index="9" data-volume="1"></audio>
+    </div>
+    <script>
+      // Main-window geometry: 1400×880 pt app window drawn at 1440 px wide.
+      const K = 1440 / 1400;
+      const px = (v) => v * K;
+      const tl = gsap.timeline({ paused: true });
+
+      // 1. Hook — words land in quick succession.
+      // Line one is on screen from the first frame (GitHub shows it before playback).
+      tl.fromTo("#s1", { scale: 1 }, { scale: 1.04, duration: 2.6, ease: "sine.out" }, 0);
+      tl.fromTo("#s1-b .word", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.42, stagger: 0.07, ease: "power3.out" }, 1.42);
+      tl.to("#s1", { opacity: 0, y: -40, duration: 0.25, ease: "power2.in" }, 2.62);
+
+      // 2. Title.
+      tl.fromTo("#s2-icon", { scale: 0.4, opacity: 0, rotation: -12 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.55, ease: "back.out(1.8)" }, 2.95);
+      tl.fromTo("#s2-word", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 3.15);
+      tl.fromTo("#s2-sub", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 3.45);
+      tl.to("#s2", { scale: 1.12, opacity: 0, duration: 0.3, ease: "power2.in" }, 4.84);
+
+      // 3. Quick Recall — real typing and arrow-key selection.
+      tl.fromTo("#win-recall", { y: 70, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.45, ease: "power3.out" }, 5.0);
+      tl.fromTo("#win-recall", { scale: 1 }, { scale: 1.07, duration: 4.4, ease: "sine.inOut", immediateRender: false }, 5.45);
+      tl.set("#keycap", { opacity: 0, scale: 0.7 }, 0);
+      [7.79, 8.44].forEach((t) => {
+        tl.fromTo("#keycap", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(2)", immediateRender: false }, t - 0.1);
+        tl.to("#keycap-face", { y: 7, duration: 0.07, ease: "power1.in", yoyo: true, repeat: 1 }, t);
+        tl.to("#keycap", { opacity: 0, duration: 0.15 }, t + 0.3);
+      });
+      tl.to("#win-recall", { opacity: 0, scale: 0.9, y: -30, duration: 0.25, ease: "power2.in" }, 9.86);
+
+      // 4–7. Main window.
+      tl.fromTo("#win-main", { opacity: 0, y: 60, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" }, 10.1);
+      // Headline pills pop in with each cut.
+      [["#h-recall", 5.05], ["#h-meeting", 10.15], ["#h-transcript", 13.62], ["#h-ask", 16.02],
+       ["#h-today", 18.12], ["#h-timeline", 20.02], ["#h-writing", 21.52]].forEach(([id, t]) => {
+        tl.fromTo(`${id} > span`, { y: -24, opacity: 0, scale: 0.96 }, { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "power3.out" }, t);
+      });
+      tl.fromTo("#badge", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 5.2);
+
+      // Camera: per-cut focal push. Scale resets at every cut, with a tiny settle bump.
+      const shots = [
+        { at: 10.5, end: 13.55, fx: 700, fy: 440, to: 1.14 },
+        { at: 13.6, end: 15.95, fx: 760, fy: 300, to: 1.16 },
+        { at: 16.0, end: 18.05, fx: 700, fy: 400, to: 1.12 },
+        { at: 18.1, end: 19.95, fx: 520, fy: 260, to: 1.14 },
+        { at: 20.0, end: 21.45, fx: 820, fy: 560, to: 1.10 },
+        { at: 21.5, end: 24.6, fx: 800, fy: 440, to: 1.26 },
+      ];
+      shots.forEach((s, i) => {
+        tl.set("#win-main", { transformOrigin: `${px(s.fx)}px ${px(s.fy)}px`, scale: 1 }, s.at);
+        if (i > 0) tl.fromTo("#win-main", { filter: "brightness(1.35)" }, { filter: "brightness(1)", duration: 0.22, ease: "power2.out" }, s.at);
+        tl.to("#win-main", { scale: s.to, duration: s.end - s.at, ease: "sine.inOut" }, s.at + 0.02);
+      });
+      tl.to("#win-main", { opacity: 0, scale: 1.34, duration: 0.3, ease: "power2.in" }, 24.45);
+
+      // Cursor: glide to each logged click, press, ripple. Points are app-window points.
+      const clicks = [
+        { show: 10.35, from: [560, 600], to: [396, 469], click: 10.79, hide: 11.4 },
+        { show: 16.05, from: [860, 560], to: [616, 379], click: 16.54, hide: 17.1 },
+        { show: 18.3, from: [440, 330], to: [266, 192], click: 18.86, hide: 19.45 },
+        { show: 20.02, from: [420, 660], to: [224, 816], click: 20.43, hide: 20.95 },
+        { show: 21.7, from: [880, 690], to: [1076, 521], click: 22.58, hide: 23.2 },
+      ];
+      clicks.forEach((c) => {
+        const [fx, fy] = c.from.map(px), [tx, ty] = c.to.map(px);
+        tl.set("#cursor", { x: fx, y: fy, opacity: 0, scale: 1 }, c.show);
+        tl.to("#cursor", { opacity: 1, duration: 0.12 }, c.show);
+        tl.to("#cursor", { x: tx, y: ty, duration: c.click - c.show - 0.08, ease: "power2.inOut" }, c.show + 0.04);
+        tl.to("#cursor", { scale: 0.82, duration: 0.07, yoyo: true, repeat: 1, transformOrigin: "0px 0px" }, c.click - 0.03);
+        tl.fromTo("#ripple", { x: tx, y: ty, scale: 0.3, opacity: 0.9 }, { scale: 1.5, opacity: 0, duration: 0.45, ease: "power2.out" }, c.click);
+        tl.to("#cursor", { opacity: 0, duration: 0.18 }, c.hide);
+      });
+
+      // 8. End card.
+      tl.fromTo("#s8-icon", { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.7)" }, 24.75);
+      tl.fromTo("#s8-word", { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 24.95);
+      tl.fromTo("#s8-tag", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 25.2);
+      tl.fromTo("#s8-chips .chip", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.1, ease: "power3.out" }, 25.6);
+      tl.fromTo("#s8-install", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 26.3);
+      tl.fromTo("#s8", { scale: 1 }, { scale: 1.03, duration: 5.2, ease: "sine.inOut", immediateRender: false }, 24.75);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

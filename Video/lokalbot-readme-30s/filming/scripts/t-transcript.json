@@ -1,0 +1,1 @@
+{"take":"t-transcript","start_delay":4,"settle":0.6,"tail":0.8,"actions":[{"wait":0.8},{"click":[662,25],"after":1.0},{"type":"failover","cps":7,"after":1.8}]}

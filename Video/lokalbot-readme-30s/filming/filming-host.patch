@@ -1,0 +1,386 @@
+diff --git a/LokalBot/AppLifecycle.swift b/LokalBot/AppLifecycle.swift
+index d88402e..8434d45 100644
+--- a/LokalBot/AppLifecycle.swift
++++ b/LokalBot/AppLifecycle.swift
+@@ -68,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
+ #endif
+             openUITestWindow(app: app)
+             forceActivateForUITests()
++#if LOKALBOT_UI_TEST_HOST
++            FilmDirector.startIfRequested()
++#endif
+             return
+         }
+         // Menu-bar-only *start* is gated on HOW we launched. Only a login
+@@ -499,6 +502,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
+ final class MeetingFindWindow: NSWindow {
+     var meetingFindAction: (() -> Bool)?
+ 
++#if LOKALBOT_UI_TEST_HOST
++    // Filming only: draw the active, key-window appearance without stealing focus.
++    private static let filming = ProcessInfo.processInfo.environment["LOKALBOT_FILM_DIR"] != nil
++    override var isKeyWindow: Bool { Self.filming ? true : super.isKeyWindow }
++    override var isMainWindow: Bool { Self.filming ? true : super.isMainWindow }
++#endif
++
+ #if LOKALBOT_UI_TEST_HOST
+     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
+         // Self-captures rasterize the native frame view, including portions
+diff --git a/LokalBot/Views/MainWindowView.swift b/LokalBot/Views/MainWindowView.swift
+index e2df815..b016636 100644
+--- a/LokalBot/Views/MainWindowView.swift
++++ b/LokalBot/Views/MainWindowView.swift
+@@ -8,7 +8,7 @@ struct MainWindowView: View {
+     @Environment(\.openWindow) private var openWindow
+     @Environment(\.colorScheme) private var colorScheme
+     /// Native sidebar toggle and restored visibility share the same binding.
+-    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
++    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = ProcessInfo.processInfo.environment["LOKALBOT_FILM_HIDE_SIDEBAR"] == nil
+     @State private var pendingDelete: Set<Meeting.ID>?
+     /// Shared by Timeline's chronology and bounded context panel.
+     @StateObject private var capture = CaptureModel()
+diff --git a/film-src/LokalBot/Support/FilmDirector.swift b/LokalBot/Support/FilmDirector.swift
+new file mode 100644
+index 0000000..16d0a65
+--- /dev/null
++++ b/LokalBot/Support/FilmDirector.swift
+@@ -0,0 +1,339 @@
++// Filming-only helper for the isolated UI test host. Lives in a throwaway
++// source copy and is never committed. It records the host window to a movie
++// and replays a scripted sequence of real AppKit input events into that window.
++#if LOKALBOT_UI_TEST_HOST
++import AppKit
++import AVFoundation
++import ObjectiveC
++
++@MainActor
++final class FilmDirector {
++    private static var current: FilmDirector?
++
++    private let outputDirectory: URL
++    private let script: [String: Any]
++    private let scale: CGFloat
++    private var window: NSWindow?
++    private var writer: AVAssetWriter?
++    private var input: AVAssetWriterInput?
++    private var adaptor: AVAssetWriterInputPixelBufferAdaptor?
++    private var timer: Timer?
++    private var startUptime: TimeInterval = 0
++    private var pixelWidth = 0
++    private var pixelHeight = 0
++    private var frames = 0
++    private var events: [[String: Any]] = []
++    private var eventNumber = 1
++
++    static func startIfRequested() {
++        let env = ProcessInfo.processInfo.environment
++        guard let dir = env["LOKALBOT_FILM_DIR"], let scriptPath = env["LOKALBOT_FILM_SCRIPT"],
++              let data = try? Data(contentsOf: URL(fileURLWithPath: scriptPath)),
++              let script = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
++        forceActiveAppearance()
++        let director = FilmDirector(directory: URL(fileURLWithPath: dir), script: script,
++                                    scale: CGFloat(Double(env["LOKALBOT_FILM_SCALE"] ?? "") ?? 2))
++        current = director
++        let delay = script["start_delay"] as? Double ?? 3
++        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { director.prepare() }
++    }
++
++    /// Filming only: while the Mac is locked no app can activate, so report the
++    /// active/key appearance AppKit and SwiftUI use to draw window chrome.
++    private static func forceActiveAppearance() {
++        let yes: @convention(block) (AnyObject) -> Bool = { _ in true }
++        let imp = imp_implementationWithBlock(yes)
++        for name in ["_hasActiveAppearance", "_hasActiveAppearanceIgnoringKeyFocus", "_hasKeyAppearance",
++                     "_hasMainAppearance", "isKeyWindow", "isMainWindow"] {
++            if let method = class_getInstanceMethod(NSWindow.self, NSSelectorFromString(name)) {
++                method_setImplementation(method, imp)
++            }
++        }
++        if let method = class_getInstanceMethod(NSApplication.self, NSSelectorFromString("isActive")) {
++            method_setImplementation(method, imp)
++        }
++    }
++
++    private init(directory: URL, script: [String: Any], scale: CGFloat) {
++        outputDirectory = directory
++        self.script = script
++        self.scale = scale
++        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++    }
++
++    // MARK: Recording
++
++    private func targetWindow() -> NSWindow? {
++        let wanted = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_WINDOW"] ?? "main"
++        return NSApp.windows.first { $0.identifier?.rawValue == "\(wanted).window" } ?? NSApp.keyWindow
++    }
++
++    private func frameView() -> NSView? {
++        guard let content = window?.contentView else { return nil }
++        return content.superview ?? content
++    }
++
++    private func prepare() {
++        window = targetWindow()
++        guard let window else { return finishAndQuit() }
++        NSApp.activate(ignoringOtherApps: true)
++        window.makeKeyAndOrderFront(nil)
++        let setup = script["setup"] as? [[String: Any]] ?? []
++        runActions(setup, index: 0) {
++            DispatchQueue.main.asyncAfter(deadline: .now() + (self.script["settle"] as? Double ?? 1.0)) { self.begin() }
++        }
++    }
++
++    private func begin() {
++        guard let window, let view = frameView() else { return finishAndQuit() }
++        _ = window
++        activateVibrancy(in: view)
++        pixelWidth = Int(view.bounds.width * scale) / 2 * 2
++        pixelHeight = Int(view.bounds.height * scale) / 2 * 2
++        let name = script["take"] as? String ?? "take"
++        let url = outputDirectory.appendingPathComponent("\(name).mov")
++        try? FileManager.default.removeItem(at: url)
++        guard let writer = try? AVAssetWriter(outputURL: url, fileType: .mov) else { return finishAndQuit() }
++        let settings: [String: Any] = [
++            AVVideoCodecKey: AVVideoCodecType.proRes422,
++            AVVideoWidthKey: pixelWidth, AVVideoHeightKey: pixelHeight,
++        ]
++        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
++        input.expectsMediaDataInRealTime = true
++        let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
++            kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
++            kCVPixelBufferWidthKey as String: pixelWidth, kCVPixelBufferHeightKey as String: pixelHeight,
++        ])
++        writer.add(input)
++        writer.startWriting()
++        writer.startSession(atSourceTime: .zero)
++        self.writer = writer
++        self.input = input
++        self.adaptor = adaptor
++        startUptime = ProcessInfo.processInfo.systemUptime
++        log(["kind": "start", "width_pt": view.bounds.width, "height_pt": view.bounds.height, "scale": scale, "app_active": NSApp.isActive, "key": window.isKeyWindow])
++        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { _ in
++            MainActor.assumeIsolated { FilmDirector.current?.tick() }
++        }
++        RunLoop.main.add(timer, forMode: .common)
++        self.timer = timer
++        tick()
++        runActions(script["actions"] as? [[String: Any]] ?? [], index: 0) {
++            let tail = self.script["tail"] as? Double ?? 1.5
++            DispatchQueue.main.asyncAfter(deadline: .now() + tail) { self.finishAndQuit() }
++        }
++    }
++
++    private func activateVibrancy(in view: NSView) {
++        if let effect = view as? NSVisualEffectView { effect.state = .active }
++        view.subviews.forEach(activateVibrancy(in:))
++    }
++
++    private func elapsed() -> Double { ProcessInfo.processInfo.systemUptime - startUptime }
++
++    private func tick() {
++        if frames % 15 == 0, let root = frameView() { activateVibrancy(in: root) }
++        guard let view = frameView(), let input, input.isReadyForMoreMediaData, let adaptor,
++              let pool = adaptor.pixelBufferPool else { return }
++        let bounds = view.bounds
++        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelWidth, pixelsHigh: pixelHeight,
++                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
++                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
++        rep.size = bounds.size
++        view.effectiveAppearance.performAsCurrentDrawingAppearance {
++            view.cacheDisplay(in: bounds, to: rep)
++        }
++        guard let image = rep.converting(to: .sRGB, renderingIntent: .relativeColorimetric)?.cgImage else { return }
++        var buffer: CVPixelBuffer?
++        guard CVPixelBufferPoolCreatePixelBuffer(nil, pool, &buffer) == kCVReturnSuccess, let buffer else { return }
++        CVPixelBufferLockBaseAddress(buffer, [])
++        if let context = CGContext(data: CVPixelBufferGetBaseAddress(buffer), width: pixelWidth, height: pixelHeight,
++                                   bitsPerComponent: 8, bytesPerRow: CVPixelBufferGetBytesPerRow(buffer),
++                                   space: CGColorSpace(name: CGColorSpace.sRGB)!,
++                                   bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue
++                                       | CGImageAlphaInfo.premultipliedFirst.rawValue) {
++            context.setFillColor(NSColor.black.cgColor)
++            context.fill(CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
++            context.draw(image, in: CGRect(x: 0, y: 0, width: pixelWidth, height: pixelHeight))
++        }
++        CVPixelBufferUnlockBaseAddress(buffer, [])
++        if adaptor.append(buffer, withPresentationTime: CMTime(seconds: elapsed(), preferredTimescale: 6000)) {
++            frames += 1
++        }
++    }
++
++    private func finishAndQuit() {
++        timer?.invalidate()
++        log(["kind": "end", "frames": frames])
++        let eventsURL = outputDirectory.appendingPathComponent("\(script["take"] as? String ?? "take").events.json")
++        if let data = try? JSONSerialization.data(withJSONObject: events, options: [.prettyPrinted, .sortedKeys]) {
++            try? data.write(to: eventsURL)
++        }
++        guard let writer, let input else { exit(0) }
++        input.markAsFinished()
++        writer.finishWriting { exit(0) }
++    }
++
++    private func log(_ entry: [String: Any]) {
++        guard writer != nil else { return }
++        var entry = entry
++        entry["t"] = (elapsed() * 1000).rounded() / 1000
++        events.append(entry)
++    }
++
++    // MARK: Scripted input
++
++    private func runActions(_ actions: [[String: Any]], index: Int, done: @escaping () -> Void) {
++        guard index < actions.count else { return done() }
++        let action = actions[index]
++        let next = { (delay: Double) in
++            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
++                self.runActions(actions, index: index + 1, done: done)
++            }
++        }
++        if let wait = action["wait"] as? Double {
++            log(["kind": "wait", "seconds": wait])
++            next(wait)
++        } else if let point = action["click"] as? [Double] {
++            click(x: point[0], y: point[1], count: action["count"] as? Int ?? 1)
++            next(action["after"] as? Double ?? 0.6)
++        } else if let point = action["move"] as? [Double] {
++            log(["kind": "move", "x": point[0], "y": point[1]])
++            next(action["after"] as? Double ?? 0.3)
++        } else if let text = action["type"] as? String {
++            typeText(Array(text), cps: action["cps"] as? Double ?? 10) { next(action["after"] as? Double ?? 0.4) }
++        } else if let key = action["key"] as? String {
++            press(key, modifiers: action["mods"] as? [String] ?? [])
++            next(action["after"] as? Double ?? 0.4)
++        } else if let scroll = action["scroll"] as? [Double] {
++            scrollAt(x: scroll[0], y: scroll[1], total: scroll[2], steps: action["steps"] as? Int ?? 12) {
++                next(action["after"] as? Double ?? 0.4)
++            }
++        } else if let name = action["perform"] as? String {
++            let selector = NSSelectorFromString(name)
++            var responder: NSResponder? = window?.firstResponder
++            while let current = responder, !current.responds(to: selector) { responder = current.nextResponder }
++            if responder == nil, let root = window?.contentView {
++                var queue: [NSView] = [root]
++                while !queue.isEmpty, responder == nil {
++                    let view = queue.removeFirst()
++                    var chain: NSResponder? = view
++                    while let item = chain, responder == nil { if item.responds(to: selector) { responder = item }; chain = item.nextResponder }
++                    queue += view.subviews
++                }
++            }
++            responder?.perform(selector, with: nil)
++            log(["kind": "perform", "selector": name, "handled": responder != nil])
++            next(action["after"] as? Double ?? 0.6)
++        } else if let mark = action["mark"] as? String {
++            log(["kind": "mark", "name": mark])
++            next(0)
++        } else {
++            next(0)
++        }
++    }
++
++    /// Points are measured from the window's top-left corner, titlebar included.
++    private func windowPoint(x: Double, y: Double) -> NSPoint {
++        let height = window?.frame.height ?? 0
++        return NSPoint(x: x, y: height - y)
++    }
++
++    private func click(x: Double, y: Double, count: Int) {
++        guard let window else { return }
++        log(["kind": "click", "x": x, "y": y])
++        let location = windowPoint(x: x, y: y)
++        func mouse(_ type: NSEvent.EventType, _ number: Int) -> NSEvent? {
++            eventNumber += 1
++            return NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
++                                      timestamp: ProcessInfo.processInfo.systemUptime,
++                                      windowNumber: window.windowNumber, context: nil,
++                                      eventNumber: eventNumber, clickCount: number, pressure: 1)
++        }
++        for number in 1...max(1, count) {
++            guard let down = mouse(.leftMouseDown, number), let up = mouse(.leftMouseUp, number) else { continue }
++            // Queue the release first: AppKit controls that run their own tracking loop dequeue it
++            // while handling the press; SwiftUI views receive it through normal dispatch.
++            NSApp.postEvent(up, atStart: false)
++            window.sendEvent(down)
++        }
++    }
++
++    private static let keyCodes: [Character: UInt16] = [
++        "a": 0, "s": 1, "d": 2, "f": 3, "h": 4, "g": 5, "z": 6, "x": 7, "c": 8, "v": 9, "b": 11, "q": 12,
++        "w": 13, "e": 14, "r": 15, "y": 16, "t": 17, "1": 18, "2": 19, "3": 20, "4": 21, "6": 22, "5": 23,
++        "9": 25, "7": 26, "8": 28, "0": 29, "o": 31, "u": 32, "i": 34, "p": 35, "l": 37, "j": 38, "k": 40,
++        "n": 45, "m": 46, " ": 49, ",": 43, ".": 47, "'": 39, "?": 44, "-": 27,
++    ]
++
++    private func typeText(_ characters: [Character], cps: Double, done: @escaping () -> Void) {
++        guard let first = characters.first else { return done() }
++        let lower = Character(first.lowercased())
++        let shift = first.isUppercase || first == "?"
++        let code = Self.keyCodes[lower] ?? 0
++        postKey(characters: String(first), ignoring: String(lower), code: code, flags: shift ? [.shift] : [])
++        log(["kind": "key", "text": String(first)])
++        DispatchQueue.main.asyncAfter(deadline: .now() + 1 / cps) {
++            self.typeText(Array(characters.dropFirst()), cps: cps, done: done)
++        }
++    }
++
++    private func press(_ key: String, modifiers: [String]) {
++        var flags: NSEvent.ModifierFlags = []
++        if modifiers.contains("cmd") { flags.insert(.command) }
++        if modifiers.contains("option") { flags.insert(.option) }
++        if modifiers.contains("shift") { flags.insert(.shift) }
++        let special: [String: (String, UInt16, Bool)] = [
++            "return": ("\r", 36, false), "tab": ("\t", 48, false), "escape": ("\u{1b}", 53, false),
++            "delete": ("\u{7f}", 51, false), "space": (" ", 49, false),
++            "down": (String(UnicodeScalar(NSDownArrowFunctionKey)!), 125, true),
++            "up": (String(UnicodeScalar(NSUpArrowFunctionKey)!), 126, true),
++            "left": (String(UnicodeScalar(NSLeftArrowFunctionKey)!), 123, true),
++            "right": (String(UnicodeScalar(NSRightArrowFunctionKey)!), 124, true),
++        ]
++        let (characters, code, isArrow): (String, UInt16, Bool)
++        if let match = special[key] {
++            (characters, code, isArrow) = match
++        } else {
++            let character = Character(key)
++            (characters, code, isArrow) = (key, Self.keyCodes[character] ?? 0, false)
++        }
++        if isArrow { flags.formUnion([.function, .numericPad]) }
++        postKey(characters: characters, ignoring: characters, code: code, flags: flags)
++        log(["kind": "press", "key": key, "mods": modifiers])
++    }
++
++    private func postKey(characters: String, ignoring: String, code: UInt16, flags: NSEvent.ModifierFlags) {
++        guard let window else { return }
++        for type in [NSEvent.EventType.keyDown, .keyUp] {
++            if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags,
++                                            timestamp: ProcessInfo.processInfo.systemUptime,
++                                            windowNumber: window.windowNumber, context: nil,
++                                            characters: characters, charactersIgnoringModifiers: ignoring,
++                                            isARepeat: false, keyCode: code) {
++                window.sendEvent(event)
++            }
++        }
++    }
++
++    private func scrollAt(x: Double, y: Double, total: Double, steps: Int, done: @escaping () -> Void) {
++        guard let window else { return done() }
++        log(["kind": "scroll", "x": x, "y": y, "total": total])
++        let local = windowPoint(x: x, y: y)
++        let screen = window.convertPoint(toScreen: local)
++        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
++        let cgPoint = CGPoint(x: screen.x, y: primaryHeight - screen.y)
++        func step(_ remaining: Int) {
++            guard remaining > 0 else { return done() }
++            let delta = Int32(total / Double(max(1, steps)))
++            if let cg = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1,
++                                wheel1: -delta, wheel2: 0, wheel3: 0) {
++                cg.location = cgPoint
++                if let event = NSEvent(cgEvent: cg) { window.sendEvent(event) }
++            }
++            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0 / 60.0) { step(remaining - 1) }
++        }
++        step(steps)
++    }
++}
++#endif

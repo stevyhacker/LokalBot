@@ -1,0 +1,1 @@
+{"take":"t-today","start_delay":4,"settle":0.6,"tail":0.6,"actions":[{"wait":0.8},{"click":[266,192],"after":2.2}]}

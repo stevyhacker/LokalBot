@@ -1,0 +1,2 @@
+{"take":"t-recall","start_delay":4,"settle":0.6,"tail":0.8,"setup":[{"click":[150,62],"after":0.3}],
+ "actions":[{"wait":0.6},{"type":"Redis","cps":6,"after":1.8},{"key":"down","after":0.7},{"key":"down","after":1.2}]}
