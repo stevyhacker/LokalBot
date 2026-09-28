@@ -1,5 +1,7 @@
 """Negative controls for artifact reuse, complete coverage, and publication gates."""
 import copy
+import contextlib
+import io
 import importlib.util
 import json
 import os
@@ -234,6 +236,51 @@ class CompilerCacheTests(unittest.TestCase):
         source.write_text('let answer = 2')
         os.utime(source, ns=(stamp, stamp))
         self.assertNotEqual(compiler.fingerprint([source]), before)
+
+    def test_key_ignores_generated_ids_but_pins_configuration_generator_and_sources(self):
+        paths = ['project.yml', 'Package.resolved', 'LokalBot/Fixture.swift',
+                 'Scripts/ui-tests.sh', '.github/workflows/build.yml']
+        for name in paths:
+            path = Path(name)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('original input')
+        generated = Path('LokalBot.xcodeproj/project.pbxproj')
+        generated.parent.mkdir()
+        generated.write_text('copy phase IDs: first ordering')
+        commands = {('git', 'ls-files', '-z'): '\0'.join(paths),
+                    ('git', 'rev-parse', 'HEAD'): 'candidate',
+                    ('xcodegen', '--version'): 'Version: 2.46.0',
+                    ('xcodebuild', '-version'): 'Xcode 26.3',
+                    ('xcrun', 'swiftc', '--version'): 'Swift 6.2.4',
+                    ('xcrun', '--sdk', 'macosx', '--show-sdk-version'): '26.2',
+                    ('xcrun', '--sdk', 'macosx', '--show-sdk-build-version'): '25C58',
+                    ('uname', '-m'): 'arm64'}
+
+        def prepare():
+            with patch.object(compiler, 'output', side_effect=lambda *args: commands[args]), \
+                    patch.object(compiler, 'emit') as emit, contextlib.redirect_stdout(io.StringIO()):
+                compiler.prepare('ui')
+                return emit.call_args.kwargs
+
+        original = prepare()
+        generated.write_text('copy phase IDs: equivalent second ordering')
+        self.assertEqual(prepare(), original)
+        Path('LokalBot/Fixture.swift').write_text('edited source')
+        changed_source = prepare()
+        self.assertEqual(changed_source['prefix'], original['prefix'])
+        self.assertNotEqual(changed_source['key'], original['key'])
+        for name in ['project.yml', 'Package.resolved', 'Scripts/ui-tests.sh', '.github/workflows/build.yml']:
+            path = Path(name)
+            path.write_text('changed configuration')
+            self.assertNotEqual(prepare()['prefix'], original['prefix'])
+            path.write_text('original input')
+        for command in commands:
+            if command[0] == 'git':
+                continue
+            old = commands[command]
+            commands[command] = 'different toolchain or generator'
+            self.assertNotEqual(prepare()['prefix'], original['prefix'])
+            commands[command] = old
 
     def test_clean_build_discards_products_stamp_and_incremental_database(self):
         dd = Path('.build/dd/Build')

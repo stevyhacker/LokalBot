@@ -39,8 +39,10 @@ restore alone is not compiler-hit evidence. No DerivedData or compiled-test
 product is a cross-run cache.
 
 Each cache is partitioned by Xcode/Swift/SDK build, architecture, Debug
-configuration, signing setting, generated project/scheme, dependency pins and
-CI build settings. A source-content suffix permits compatible reuse after edits.
+configuration, signing setting, XcodeGen version, authoritative `project.yml`
+project/scheme settings, dependency pins and CI build settings. Generated PBX
+object IDs are intentionally excluded: XcodeGen can reorder equivalent copy
+phases across fresh generations. Their raw hash is retained as diagnostic evidence. A source-content suffix permits compatible reuse after edits.
 The cache manifest checks every stored file and rejects symlinks, incompatible
 settings, tampering, empty stores, and stores larger than 2 GiB. Failed cached
 compilation retries once from clean products with caching disabled. A failed

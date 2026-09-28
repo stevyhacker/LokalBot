@@ -42,25 +42,31 @@ def prepare(kind):
     if kind not in ('unit', 'ui'):
         raise ValueError('Expected unit or ui')
     files = [Path(p) for p in output('git', 'ls-files', '-z').split('\0') if p]
-    # These settings include the generated scheme, dependency pins, scripts and
-    # all build arguments. No broad cross-toolchain/dependency restore prefix.
+    # project.yml is the generated project/scheme authority in both workflows.
+    # Raw PBX bytes are unstable: XcodeGen can assign different object IDs to
+    # equivalent copy phases. Pin the specification and generator instead.
+    # Build scripts/workflows cover every argument; dependency pins stay exact.
     build_scripts = {'Scripts/ci/compiler-cache.py', 'Scripts/ui-tests.sh',
                      'Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh',
                      '.github/workflows/build.yml', '.github/workflows/ui-tests.yml'}
     settings = [p for p in files if str(p) == 'project.yml' or p.name == 'Package.resolved'
                 or str(p) in build_scripts]
-    generated = list(Path('LokalBot.xcodeproj').glob('**/*.xcscheme'))
-    generated += [Path('LokalBot.xcodeproj/project.pbxproj')]
-    identity = dict(version=1, kind=kind, xcode=output('xcodebuild', '-version'),
+    identity = dict(version=2, kind=kind, generator=output('xcodegen', '--version'),
+                    scheme='LokalBot' if kind == 'unit' else 'LokalBot UI Test Host',
+                    xcode=output('xcodebuild', '-version'),
                     swift=output('xcrun', 'swiftc', '--version'),
                     sdk=output('xcrun', '--sdk', 'macosx', '--show-sdk-version'),
                     sdk_build=output('xcrun', '--sdk', 'macosx', '--show-sdk-build-version'),
                     arch=output('uname', '-m'), configuration='Debug', signing='NO',
-                    settings=fingerprint(settings + generated))
+                    settings=fingerprint(settings))
     compatible = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     source = fingerprint([p for p in files if str(p).startswith(INPUTS)])
-    prefix = f'xcode-cas-v1-{kind}-{compatible}-'
+    prefix = f'xcode-cas-v2-{kind}-{compatible}-'
     EVIDENCE.mkdir(parents=True, exist_ok=True)
+    generated = Path('LokalBot.xcodeproj/project.pbxproj')
+    (EVIDENCE / 'cache-key-inputs.json').write_text(json.dumps(dict(
+        settings={str(p): digest(p) for p in sorted(settings)},
+        generated_project_sha256=digest(generated) if generated.is_file() else None), indent=2) + '\n')
     (EVIDENCE / 'cache-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
     (EVIDENCE / 'source.json').write_text(json.dumps(dict(commit=output('git', 'rev-parse', 'HEAD'),
                                                         sources=source, identity=identity,
