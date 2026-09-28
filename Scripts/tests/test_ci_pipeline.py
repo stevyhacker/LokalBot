@@ -252,7 +252,7 @@ class TimingTests(unittest.TestCase):
         def job(id, name, start, end):
             return dict(id=id, name=name, started_at=f'2026-09-28T12:{start}:00Z',
                         completed_at=f'2026-09-28T12:{end}:00Z', conclusion='success',
-                        labels=['macos-15'], steps=[])
+                        labels=['macos-15'], runner_name='hosted', steps=[])
         jobs = [job(1, 'UI build (macOS)', '02', '10'),
                 job(2, 'UI build and critical tests', '11', '16'),
                 job(3, 'UI visual-1000x700', '12', '17')]
@@ -274,12 +274,19 @@ class TimingTests(unittest.TestCase):
                    html_url='https://example.invalid/run/42', event='push', conclusion=None,
                    status='in_progress', run_started_at='2026-09-28T12:00:00Z')
         result = timing.summarize(run, [dict(id=1, name='xcodebuild (macOS)',
-            started_at='2026-09-28T12:02:00Z', completed_at=None, labels=['macos-15'], steps=[])])
+            started_at='2026-09-28T12:02:00Z', completed_at=None, labels=['macos-15'], runner_name='hosted', steps=[])])
         self.assertIsNone(result['wall_seconds'])
         self.assertIsNone(result['jobs'][0]['seconds'])
         self.assertEqual(result['macos_runner_minutes'], 0)
         run['event'] = 'pull_request'
         self.assertIsNone(timing.summarize(run, [])['checkout_sha'])
+        cancelled = dict(id=2, name='xcodebuild (macOS)', started_at='2026-09-28T12:02:00Z',
+                         completed_at='2026-09-28T12:10:00Z', labels=['macos-15'],
+                         conclusion='cancelled', runner_name=None, steps=[])
+        result = timing.summarize(run, [cancelled])
+        self.assertEqual(result['macos_runner_minutes'], 0)
+        self.assertEqual(result['peak_macos_jobs'], 0)
+        self.assertIsNone(result['jobs'][0]['queue_seconds'])
 
 
 class TestArtifactTests(unittest.TestCase):

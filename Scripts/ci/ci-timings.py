@@ -60,11 +60,15 @@ def summarize(run, jobs):
         steps = [dict(name=s['name'], result=s.get('conclusion'),
                       seconds=elapsed(s.get('started_at'), s.get('completed_at')), phase=phase(s['name']))
                  for s in job.get('steps', [])]
-        seconds = elapsed(job.get('started_at'), job.get('completed_at'))
+        allocated = bool(job.get('runner_name'))
+        seconds = (elapsed(job.get('started_at'), job.get('completed_at')) if allocated
+                   else 0 if job.get('completed_at') else None)
         macos = any('macos' in label.lower() for label in job.get('labels', []))
         rows.append(dict(id=job['id'], name=name, result=job.get('conclusion'), macos=macos,
                          started_at=job.get('started_at'), completed_at=job.get('completed_at'),
-                         queue_seconds=elapsed(eligible, job.get('started_at')), seconds=seconds, steps=steps))
+                         runner_allocated=allocated,
+                         queue_seconds=elapsed(eligible, job.get('started_at')) if allocated else None,
+                         seconds=seconds, steps=steps))
     totals = {}
     for row in rows:
         for step in row['steps']:
