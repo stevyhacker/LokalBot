@@ -259,6 +259,11 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(result['wall_seconds'], 17 * 60)
         self.assertEqual(result['macos_runner_minutes'], 18)
         self.assertEqual(result['build_and_critical_seconds'], 16 * 60)
+        gate = job(4, 'UI focused / comparison (macOS)', '18', '19')
+        gate['labels'] = ['ubuntu-latest']
+        result = timing.summarize(run, jobs + [gate])
+        self.assertEqual(result['jobs'][-1]['queue_seconds'], 60)
+        self.assertEqual(result['macos_runner_minutes'], 18)
 
     def test_incomplete_jobs_are_never_reported_as_complete(self):
         run = dict(id=42, run_attempt=1, name='Build', head_sha='candidate',

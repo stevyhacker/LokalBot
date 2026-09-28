@@ -49,14 +49,14 @@ def summarize(run, jobs):
     for job in jobs:
         eligible = start
         name = job['name']
-        if name.startswith('UI ') and name != build:
+        if name in ['XCUITest (macOS)', 'UI focused / comparison (macOS)']:
+            # The gate's own completion cannot be a dependency. Check the
+            # focused gate before the general UI consumer-name prefix.
+            eligible = max((j['completed_at'] for j in jobs if j['id'] != job['id'] and j.get('completed_at')), default=start)
+        elif name.startswith('UI ') and name != build:
             eligible = finished.get(build, start)
         elif name == 'xcodebuild test (macOS)':
             eligible = finished.get('xcodebuild (macOS)', start)
-        elif name in ['XCUITest (macOS)', 'UI focused / comparison (macOS)']:
-            eligible = max(finished.values(), default=start)
-            # The gate's own completion cannot be a dependency.
-            eligible = max((j['completed_at'] for j in jobs if j['id'] != job['id'] and j.get('completed_at')), default=start)
         steps = [dict(name=s['name'], result=s.get('conclusion'),
                       seconds=elapsed(s.get('started_at'), s.get('completed_at')), phase=phase(s['name']))
                  for s in job.get('steps', [])]
