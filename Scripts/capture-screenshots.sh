@@ -52,10 +52,10 @@ CAPTURE_SIZE="${LOKALBOT_CAPTURE_SIZE:-1400x880}"
 CAPTURE_CONTENT_MAX="${LOKALBOT_CAPTURE_CONTENT_MAX:-400}"
 CAPTURE_SCALE="${LOKALBOT_CAPTURE_SCALE:-2}"
 CAPTURE_DELAY="${LOKALBOT_CAPTURE_DELAY:-8}"
-# The committed README set is dark; captures must not follow the host machine's
-# appearance or a light-mode Mac exports a mismatched (and, for the selected
-# sidebar row, unreadable) set. Pinned in the host via NSApp.appearance.
-CAPTURE_APPEARANCE="${LOKALBOT_CAPTURE_APPEARANCE:-dark}"
+# The committed README set is light; captures must not follow the host machine's
+# appearance or a dark-mode Mac exports a mismatched set. Pinned in the host via
+# NSApp.appearance; LOKALBOT_CAPTURE_APPEARANCE=dark exports the dark variant.
+CAPTURE_APPEARANCE="${LOKALBOT_CAPTURE_APPEARANCE:-light}"
 mkdir -p "$OUT" "$STILLS"
 
 echo "==> Generating Xcode project"

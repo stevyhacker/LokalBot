@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>LokalBot — 45-second README demo</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #06080a; }
+      #root {
+        position: relative; width: 1920px; height: 1080px; overflow: hidden;
+        font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+        color: #f4f6f7; background: #06080a;
+      }
+      #bg { position: absolute; inset: 0; }
+      #bg .glow { position: absolute; border-radius: 50%; filter: blur(120px); }
+      #bg .g1 { width: 900px; height: 900px; left: -260px; top: -380px; background: rgba(20, 184, 166, 0.22); }
+      #bg .g2 { width: 1000px; height: 1000px; right: -360px; bottom: -520px; background: rgba(56, 97, 251, 0.16); }
+      #bg .grain {
+        position: absolute; inset: 0; opacity: 0.35;
+        background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.05), transparent 60%);
+      }
+      .accent { color: #2dd4bf; }
+      .scene { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+      /* Motion graphics (0–15 s) */
+      .mg-h {
+        position: absolute; left: 0; width: 1920px; text-align: center; display: block;
+        font-size: 84px; font-weight: 750; letter-spacing: -0.035em; line-height: 1.1;
+      }
+      .mg-h .w { display: inline-block; }
+      .mg-sub {
+        position: absolute; left: 0; width: 1920px; text-align: center; display: block;
+        font-size: 40px; font-weight: 600; letter-spacing: -0.015em; color: #b9c4c9;
+      }
+      .card {
+        position: absolute; border-radius: 28px; overflow: hidden;
+        background: linear-gradient(#121a1e, #0b1013); border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 40px 100px rgba(0,0,0,0.5);
+      }
+      .card-head {
+        position: absolute; left: 28px; top: 22px; height: 36px; display: flex; align-items: center; gap: 12px;
+        font-size: 24px; font-weight: 650; color: #dfe7ea;
+      }
+      .card-head svg { width: 28px; height: 28px; display: block; }
+      .pill {
+        display: block; padding: 3px 12px; border-radius: 999px; font-size: 18px; font-weight: 600;
+        color: #9fb0b7; background: rgba(255,255,255,0.07);
+      }
+      .live { width: 12px; height: 12px; border-radius: 50%; background: #34d399; display: block; }
+
+      /* A: heard it, saw it, gone */
+      #a-call { left: 250px; top: 420px; width: 640px; height: 440px; }
+      #a-call .tiles {
+        position: absolute; left: 24px; top: 76px; width: 592px; height: 340px;
+        display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 20px;
+      }
+      .tile {
+        position: relative; border-radius: 18px; background: #182126; display: flex; align-items: center; justify-content: center;
+        border: 1px solid rgba(255,255,255,0.06);
+      }
+      .tile .av {
+        width: 78px; height: 78px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-size: 26px; font-weight: 700; color: #ffffff;
+      }
+      .tile .nm { position: absolute; left: 14px; bottom: 10px; font-size: 17px; font-weight: 600; color: #c3cdd1; display: block; }
+      #a-ring { position: absolute; inset: -1px; border-radius: 18px; border: 3px solid #2dd4bf; box-shadow: 0 0 30px rgba(45,212,191,0.45); }
+      #a-bars { position: absolute; right: 16px; bottom: 14px; width: 62px; height: 28px; display: flex; align-items: center; gap: 4px; }
+      #a-bars i { display: block; width: 5px; height: 28px; border-radius: 3px; background: #2dd4bf; }
+      #a-ended {
+        position: absolute; left: 0; top: 196px; width: 640px; text-align: center; display: block;
+        font-size: 30px; font-weight: 700; color: #f4f6f7; opacity: 0;
+      }
+      #a-bubble {
+        position: absolute; left: 320px; top: 326px; padding: 14px 24px; border-radius: 22px; white-space: nowrap;
+        font-size: 29px; font-weight: 600; color: #e6fffb;
+        background: rgba(20, 60, 56, 0.92); border: 1px solid rgba(45,212,191,0.55);
+      }
+      #a-bubble .w { display: inline-block; }
+      #a-tail {
+        position: absolute; left: 60px; top: 58px; width: 22px; height: 22px;
+        background: rgba(20, 60, 56, 1); border-right: 1px solid rgba(45,212,191,0.55); border-bottom: 1px solid rgba(45,212,191,0.55);
+        transform: rotate(45deg);
+      }
+      #a-screen { left: 1030px; top: 420px; width: 640px; height: 440px; }
+      .chrome { position: absolute; left: 0; top: 0; width: 100%; height: 46px; background: #10171a; border-bottom: 1px solid rgba(255,255,255,0.06); }
+      .chrome .dots { position: absolute; left: 18px; top: 17px; display: flex; gap: 8px; }
+      .chrome .dots i { width: 12px; height: 12px; border-radius: 50%; display: block; }
+      .chrome .ttl { position: absolute; left: 0; top: 12px; width: 100%; text-align: center; font-size: 18px; font-weight: 600; color: #8fa0a7; display: block; }
+      .msg { position: absolute; left: 26px; width: 588px; }
+      .msg .ava { position: absolute; left: 0; top: 0; width: 42px; height: 42px; border-radius: 10px; display: block; }
+      .msg .who { position: absolute; left: 58px; top: 0; font-size: 19px; font-weight: 700; color: #dfe7ea; display: block; }
+      .bar { position: absolute; left: 58px; height: 12px; border-radius: 6px; background: rgba(255,255,255,0.13); display: block; }
+      .bar.hi { background: rgba(255,255,255,0.16); }
+      .msg .txt { position: absolute; left: 58px; top: 28px; width: 520px; font-size: 24px; font-weight: 500; line-height: 1.32; color: #eef3f4; display: block; }
+      #a-mark {
+        background-image: linear-gradient(rgba(45,212,191,0.38), rgba(45,212,191,0.38));
+        background-repeat: no-repeat; background-size: 0% 100%; border-radius: 4px;
+      }
+      #a-gone { top: 96px; }
+
+      /* B: LokalBot keeps both */
+      #b-icon { position: absolute; left: 865px; top: 480px; width: 190px; height: 190px; display: block; filter: drop-shadow(0 30px 60px rgba(20,184,166,0.35)); }
+      #b-ring { position: absolute; left: 865px; top: 480px; width: 190px; height: 190px; border-radius: 50px; border: 3px solid #2dd4bf; opacity: 0; }
+      #b-meet { left: 150px; top: 400px; width: 560px; height: 440px; }
+      #b-screen { left: 1210px; top: 400px; width: 560px; height: 440px; }
+      #b-wave { position: absolute; left: 30px; top: 82px; width: 500px; height: 64px; display: flex; align-items: center; gap: 10px; }
+      #b-wave i { display: block; width: 8px; height: 64px; border-radius: 4px; background: #2dd4bf; }
+      .tline { position: absolute; left: 30px; width: 500px; display: block; }
+      .tline .ts { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 18px; color: #2dd4bf; font-weight: 600; }
+      .tline .sp { font-size: 18px; color: #93a4ab; font-weight: 600; margin-left: 10px; }
+      .tline .tx { display: block; font-size: 25px; font-weight: 550; color: #eef3f4; margin-top: 4px; }
+      .row { position: absolute; left: 30px; top: 78px; width: 500px; height: 44px; display: flex; align-items: center; justify-content: space-between; }
+      .row .lbl { font-size: 24px; font-weight: 600; color: #dfe7ea; display: block; }
+      #b-toggle { position: relative; width: 58px; height: 34px; border-radius: 17px; background: #3a4449; display: block; }
+      #b-knob { position: absolute; left: 4px; top: 4px; width: 26px; height: 26px; border-radius: 50%; background: #ffffff; display: block; }
+      #b-thumb {
+        position: absolute; left: 30px; top: 140px; width: 500px; height: 128px; border-radius: 14px; overflow: hidden;
+        background: #0c1316; border: 1px solid rgba(255,255,255,0.08);
+      }
+      #b-scan {
+        position: absolute; left: 0; top: 0; width: 6px; height: 128px; background: #2dd4bf;
+        box-shadow: 0 0 24px 8px rgba(45,212,191,0.55); opacity: 0;
+      }
+      .xline {
+        position: absolute; left: 30px; width: 500px; padding: 10px 16px; border-radius: 14px; display: block;
+        font-size: 22px; font-weight: 550; line-height: 1.3; color: #e6fffb;
+        background: rgba(45,212,191,0.10); border: 1px solid rgba(45,212,191,0.32);
+      }
+      #b-flow { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+
+      /* C: local AI models on your Mac */
+      #c-h { top: 84px; font-size: 76px; }
+      #c-mac { position: absolute; left: 150px; top: 300px; width: 700px; height: 420px; }
+      #c-mac svg { position: absolute; left: 0; top: 0; width: 700px; height: 420px; display: block; }
+      #c-icon { position: absolute; left: 290px; top: 100px; width: 120px; height: 120px; display: block; }
+      #c-act { position: absolute; left: 278px; top: 246px; width: 144px; height: 40px; display: flex; align-items: center; justify-content: space-between; }
+      #c-act i { width: 8px; height: 40px; border-radius: 4px; background: #2dd4bf; display: block; transform: scaleY(0.15); opacity: 0; }
+      #c-links { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+      #c-chips { position: absolute; left: 150px; top: 770px; width: 700px; display: flex; justify-content: center; gap: 14px; }
+      #c-chips .chip {
+        display: block; padding: 10px 22px; border-radius: 999px; font-size: 26px; font-weight: 600;
+        background: rgba(45, 212, 191, 0.10); border: 1px solid rgba(45, 212, 191, 0.35); color: #c9f5ee;
+      }
+      .mrow {
+        position: absolute; left: 960px; width: 810px; height: 104px; border-radius: 22px; overflow: hidden;
+        background: linear-gradient(#121a1e, #0b1013); border: 1px solid rgba(255,255,255,0.10);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.40);
+      }
+      .mrow .m-glow { position: absolute; inset: 0; border-radius: 22px; border: 2px solid #2dd4bf; box-shadow: inset 0 0 30px rgba(45,212,191,0.25); opacity: 0; display: block; }
+      .mrow .m-ico {
+        position: absolute; left: 20px; top: 20px; width: 64px; height: 64px; border-radius: 16px;
+        background: rgba(45, 212, 191, 0.12); display: flex; align-items: center; justify-content: center;
+      }
+      .mrow .m-ico svg { width: 38px; height: 38px; display: block; }
+      .mrow .m-role { position: absolute; left: 106px; top: 16px; font-size: 19px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: #7fb3ab; display: block; }
+      .mrow .m-name { position: absolute; left: 106px; top: 42px; font-size: 38px; font-weight: 750; letter-spacing: -0.02em; color: #f4f6f7; display: block; }
+      .mrow .m-right { position: absolute; right: 24px; top: 0; height: 104px; display: flex; align-items: center; gap: 18px; }
+      .mrow .m-meta { display: block; padding: 5px 14px; border-radius: 999px; font-size: 20px; font-weight: 600; color: #9fb0b7; background: rgba(255,255,255,0.07); }
+      .mrow .m-stat { display: flex; align-items: center; gap: 9px; font-size: 22px; font-weight: 650; color: #34d399; opacity: 0; }
+      .mrow .m-bar { position: absolute; left: 0; bottom: 0; width: 810px; height: 4px; background: linear-gradient(90deg, #14b8a6, #2dd4bf); transform-origin: 0 50%; transform: scaleX(0); display: block; }
+      #c-r1 { top: 272px; } #c-r2 { top: 392px; } #c-r3 { top: 512px; } #c-r4 { top: 632px; } #c-r5 { top: 752px; }
+
+      /* D: just search */
+      #d-h { top: 96px; font-size: 60px; }
+      #recall-mock { position: absolute; inset: 0; background: #1f1e1f; }
+      #recall-mock svg { position: absolute; left: 17px; top: 66px; width: 28px; height: 28px; display: block; }
+      #mock-caret { position: absolute; left: 57px; top: 62px; width: 2px; height: 36px; background: #d9d9d9; display: block; }
+      #mock-ph { position: absolute; left: 60px; top: 60px; font-size: 29px; font-weight: 400; color: #8c8b90; display: block; }
+      #recall-mock .div { position: absolute; left: 0; width: 858px; height: 1px; background: rgba(255,255,255,0.07); display: block; }
+      #mock-foot { position: absolute; left: 26px; top: 628px; font-size: 14px; font-weight: 500; color: #8c8b90; display: block; }
+
+      /* App windows */
+      .win {
+        position: absolute; border-radius: 16px; overflow: hidden; background: #1c1c1e;
+        box-shadow: 0 50px 140px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.09);
+        opacity: 0;
+      }
+      .win video { position: absolute; inset: 0; width: 100%; height: 100%; display: block; object-fit: cover; }
+      #win-recall { left: 531px; top: 214px; width: 858px; height: 666px; background: #1f1e1f; }
+      #win-main { left: 240px; top: 158px; width: 1440px; height: 905px; }
+      #cursor { position: absolute; left: 0; top: 0; width: 30px; height: 44px; opacity: 0; z-index: 5; }
+      #cursor svg { width: 30px; height: 44px; display: block; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5)); }
+      #ripple {
+        position: absolute; left: 0; top: 0; width: 64px; height: 64px; margin: -32px 0 0 -32px;
+        border-radius: 50%; border: 4px solid #2dd4bf; opacity: 0; z-index: 4; display: block;
+      }
+      #keycap {
+        position: absolute; left: 1420px; top: 760px; width: 96px; height: 96px; border-radius: 22px;
+        background: linear-gradient(#2a2f33, #1b1f22); border: 1px solid rgba(255,255,255,0.14);
+        box-shadow: 0 10px 0 #0e1113, 0 24px 40px rgba(0,0,0,0.5);
+        font-size: 52px; font-weight: 700; color: #e9f5f3; display: flex; align-items: center; justify-content: center;
+        opacity: 0;
+      }
+      #keycap-face { display: block; width: 100%; text-align: center; }
+
+      /* Headlines */
+      .headline {
+        position: absolute; left: 0; top: 46px; width: 1920px; height: 90px;
+        display: flex; align-items: center; justify-content: center; z-index: 6;
+      }
+      .headline > span {
+        display: inline-block; padding: 14px 30px; border-radius: 999px;
+        background: rgba(8, 11, 13, 0.78); backdrop-filter: blur(14px);
+        border: 1px solid rgba(255,255,255,0.10);
+        font-size: 50px; font-weight: 700; letter-spacing: -0.025em; color: #f4f6f7; white-space: nowrap;
+      }
+      /* The on-device model behind each feature, tucked into its headline pill. */
+      .mdl { font-style: normal;
+        display: inline-flex; align-items: center; gap: 9px; margin-left: 22px; padding: 6px 16px 6px 12px; vertical-align: 8px;
+        border-radius: 999px; font-size: 25px; font-weight: 650; letter-spacing: -0.01em;
+        color: #c9f5ee; background: rgba(45, 212, 191, 0.12); border: 1px solid rgba(45, 212, 191, 0.38);
+      }
+      .mdl svg { width: 24px; height: 24px; display: block; }
+      #badge {
+        position: absolute; left: 34px; top: 1024px; width: 440px; height: 36px; z-index: 6;
+        display: flex; align-items: center; gap: 10px;
+        font-size: 22px; font-weight: 600; color: rgba(236, 242, 244, 0.72); letter-spacing: 0.01em;
+      }
+      #badge i { width: 10px; height: 10px; border-radius: 50%; background: #2dd4bf; display: block; }
+
+      /* End card */
+      #s8 { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #s8 .icon { width: 150px; height: 150px; display: block; filter: drop-shadow(0 26px 50px rgba(20,184,166,0.35)); }
+      #s8 .wordmark { font-size: 112px; font-weight: 800; letter-spacing: -0.045em; margin-top: 14px; display: block; }
+      #s8 .tagline { font-size: 50px; font-weight: 650; letter-spacing: -0.02em; color: #dfe7ea; margin-top: 4px; display: block; }
+      #s8 .chips { display: flex; gap: 16px; margin-top: 40px; }
+      #s8 .chip {
+        display: block; padding: 12px 24px; border-radius: 999px; font-size: 30px; font-weight: 600;
+        background: rgba(45, 212, 191, 0.10); border: 1px solid rgba(45, 212, 191, 0.35); color: #c9f5ee;
+      }
+      #s8 .install {
+        margin-top: 46px; display: flex; align-items: center; gap: 28px; font-size: 32px; color: #b9c4c9;
+      }
+      #s8 code {
+        display: block; font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 30px; color: #e9f5f3;
+        padding: 14px 24px; border-radius: 14px; background: #11161a; border: 1px solid rgba(255,255,255,0.10);
+      }
+
+      /* Offscreen capture draws the selected toolbar segment as a solid pill with no label, so both cuts redraw it.
+         Measured on the 2100 px takes (pill x 819-930 / 939-1049, y 24-53), padded to a capsule that fully covers it. */
+      .segfix {
+        position: absolute; top: 15.09px; width: 86.4px; height: 23.31px; border-radius: 11.66px; opacity: 0; z-index: 3;
+        display: block; text-align: center; line-height: 23.31px; background: #3a3a3c; color: #f5f5f7;
+        font-family: -apple-system, "SF Pro Text", system-ui, sans-serif; font-size: 13.47px; font-weight: 600;
+      }
+      #seg-summary { left: 556.8px; }
+      #seg-transcript { left: 638.74px; }
+      /* The dark transcript take also draws the toolbar labels black; cover them with the same toolbar from the meeting take. */
+      #tb-patch { position: absolute; left: 552.69px; top: 2.67px; width: 340.11px; height: 48px; opacity: 0; z-index: 3; }
+
+      /* Light theme: same layout and timing, light surfaces. Built by make_light.sh. */
+      #root[data-theme="light"] { color: #0f1720; background: #f3f6f6; }
+      #root[data-theme="light"] #bg .g1 { background: rgba(20, 184, 166, 0.20); }
+      #root[data-theme="light"] #bg .g2 { background: rgba(56, 97, 251, 0.10); }
+      #root[data-theme="light"] #bg .grain { opacity: 1; background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.75), transparent 62%); }
+      #root[data-theme="light"] .accent { color: #0d9488; }
+      #root[data-theme="light"] .mg-sub { color: #4b5b63; }
+      #root[data-theme="light"] .card,
+      #root[data-theme="light"] .mrow {
+        background: linear-gradient(#ffffff, #f8fafa); border-color: rgba(15, 23, 32, 0.10);
+        box-shadow: 0 30px 80px rgba(15, 40, 45, 0.13), 0 2px 6px rgba(15, 40, 45, 0.05);
+      }
+      #root[data-theme="light"] .card-head { color: #1f2a30; }
+      #root[data-theme="light"] .pill { color: #56666d; background: rgba(15, 23, 32, 0.06); }
+      #root[data-theme="light"] .tile { background: #eef2f3; border-color: rgba(15, 23, 32, 0.06); }
+      #root[data-theme="light"] .tile .nm { color: #4b5b63; }
+      #root[data-theme="light"] #a-ring { border-color: #14b8a6; box-shadow: 0 0 26px rgba(20, 184, 166, 0.40); }
+      #root[data-theme="light"] #a-bars i,
+      #root[data-theme="light"] #b-wave i { background: #14b8a6; }
+      #root[data-theme="light"] #a-ended { color: #0f1720; }
+      #root[data-theme="light"] #a-bubble { color: #0b4f49; background: rgba(226, 250, 246, 0.97); border-color: rgba(20, 184, 166, 0.55); box-shadow: 0 16px 40px rgba(15, 40, 45, 0.10); }
+      #root[data-theme="light"] #a-tail { background: rgba(226, 250, 246, 1); border-color: rgba(20, 184, 166, 0.55); }
+      #root[data-theme="light"] .chrome { background: #f1f4f5; border-bottom-color: rgba(15, 23, 32, 0.08); }
+      #root[data-theme="light"] .chrome .ttl { color: #5b6a71; }
+      #root[data-theme="light"] .msg .who { color: #1f2a30; }
+      #root[data-theme="light"] .bar { background: rgba(15, 23, 32, 0.10); }
+      #root[data-theme="light"] .bar.hi { background: rgba(15, 23, 32, 0.16); }
+      #root[data-theme="light"] .msg .txt { color: #1a242a; }
+      #root[data-theme="light"] #a-mark { background-image: linear-gradient(rgba(20, 184, 166, 0.30), rgba(20, 184, 166, 0.30)); }
+      #root[data-theme="light"] #b-icon { filter: drop-shadow(0 26px 50px rgba(15, 40, 45, 0.28)); }
+      #root[data-theme="light"] #b-ring { border-color: #14b8a6; }
+      #root[data-theme="light"] .tline .ts { color: #0d9488; }
+      #root[data-theme="light"] .tline .sp { color: #5b6a71; }
+      #root[data-theme="light"] .tline .tx { color: #1a242a; }
+      #root[data-theme="light"] .row .lbl { color: #1f2a30; }
+      #root[data-theme="light"] #b-toggle { background: #d5dcdf; }
+      #root[data-theme="light"] #b-knob { box-shadow: 0 1px 3px rgba(15, 23, 32, 0.25); }
+      #root[data-theme="light"] #b-thumb { background: #f3f6f7; border-color: rgba(15, 23, 32, 0.08); }
+      #root[data-theme="light"] #b-scan { background: #14b8a6; box-shadow: 0 0 24px 8px rgba(20, 184, 166, 0.40); }
+      #root[data-theme="light"] .xline { color: #0b4f49; background: rgba(20, 184, 166, 0.10); border-color: rgba(20, 184, 166, 0.35); }
+      #root[data-theme="light"] [stroke="#2dd4bf"] { stroke: #0d9488; }
+      #root[data-theme="light"] [fill="#2dd4bf"] { fill: #0d9488; }
+      #root[data-theme="light"] #b-flow path { stroke: #14b8a6; }
+      #root[data-theme="light"] #c-mac [stroke="#cfe9e5"] { stroke: #2b3a41; }
+      #root[data-theme="light"] #c-scr stop:first-child { stop-color: #e3f6f3; }
+      #root[data-theme="light"] #c-scr stop:last-child { stop-color: #cdeae6; }
+      #root[data-theme="light"] #c-icon { filter: drop-shadow(0 10px 20px rgba(15, 40, 45, 0.25)); }
+      #root[data-theme="light"] #c-act i,
+      #root[data-theme="light"] .mrow .m-bar { background: #14b8a6; }
+      #root[data-theme="light"] #c-chips .chip { color: #0b5e57; background: rgba(20, 184, 166, 0.10); border-color: rgba(20, 184, 166, 0.40); }
+      #root[data-theme="light"] .mrow .m-glow { border-color: #14b8a6; box-shadow: inset 0 0 30px rgba(20, 184, 166, 0.14); }
+      #root[data-theme="light"] .mrow .m-ico { background: rgba(20, 184, 166, 0.12); }
+      #root[data-theme="light"] .mrow .m-role { color: #3f7f78; }
+      #root[data-theme="light"] .mrow .m-name { color: #0f1720; }
+      #root[data-theme="light"] .mrow .m-meta { color: #56666d; background: rgba(15, 23, 32, 0.06); }
+      #root[data-theme="light"] .mrow .m-stat { color: #059669; }
+      #root[data-theme="light"] .mrow .live { background: #10b981; }
+      #root[data-theme="light"] #c-links path { stroke: #14b8a6; }
+      #root[data-theme="light"] .mdl { color: #0b5e57; background: rgba(20, 184, 166, 0.10); border-color: rgba(20, 184, 166, 0.40); }
+      #root[data-theme="light"] #recall-mock { background: #fefefe; }
+      #root[data-theme="light"] #recall-mock [stroke="#2dd4bf"] { stroke: #0b6b61; }
+      #root[data-theme="light"] #mock-caret { background: #055d54; }
+      #root[data-theme="light"] #mock-ph { color: #7f7f7f; }
+      #root[data-theme="light"] #recall-mock .div { background: #e5e5e5; }
+      #root[data-theme="light"] #mock-foot { color: #8a8a8e; }
+      #root[data-theme="light"] .win { background: #ffffff; box-shadow: 0 40px 120px rgba(15, 40, 45, 0.22), 0 0 0 1px rgba(15, 23, 32, 0.10); }
+      #root[data-theme="light"] #win-recall { background: #fefefe; }
+      #root[data-theme="light"] #ripple { border-color: #14b8a6; }
+      #root[data-theme="light"] #cursor svg { filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.30)); }
+      #root[data-theme="light"] #keycap {
+        background: linear-gradient(#ffffff, #eef1f2); border-color: rgba(15, 23, 32, 0.14); color: #1f2a30;
+        box-shadow: 0 10px 0 #cfd6d9, 0 24px 40px rgba(15, 40, 45, 0.18);
+      }
+      #root[data-theme="light"] .headline > span {
+        background: rgba(255, 255, 255, 0.88); border-color: rgba(15, 23, 32, 0.08); color: #0f1720;
+        box-shadow: 0 12px 34px rgba(15, 40, 45, 0.14);
+      }
+      #root[data-theme="light"] #badge { color: rgba(15, 23, 32, 0.62); }
+      #root[data-theme="light"] #badge i { background: #14b8a6; }
+      #root[data-theme="light"] #s8 .icon { filter: drop-shadow(0 22px 44px rgba(15, 40, 45, 0.28)); }
+      #root[data-theme="light"] #s8 .tagline { color: #1f2a30; }
+      #root[data-theme="light"] #s8 .chip { color: #0b5e57; background: rgba(20, 184, 166, 0.10); border-color: rgba(20, 184, 166, 0.40); }
+      #root[data-theme="light"] #s8 .install { color: #4b5b63; }
+      #root[data-theme="light"] #s8 code { color: #0f1720; background: #ffffff; border-color: rgba(15, 23, 32, 0.12); }
+      #root[data-theme="light"] .segfix { background: #e4e4e6; color: #111111; }
+      #root[data-theme="light"] #tb-patch { display: none; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="45" data-width="1920" data-height="1080" data-fps="30">
+      <div id="bg" data-layout-allow-overflow><div class="glow g1"></div><div class="glow g2"></div><div class="grain"></div></div>
+
+      <!-- A. You heard it, you saw it, then it was gone. -->
+      <section id="m1" class="clip scene" data-start="0" data-duration="5" data-track-index="1">
+        <span class="mg-h" id="a-l1" style="top: 96px"><span class="w">You</span> <span class="w">heard</span> <span class="w">it</span> <span class="w">in</span> <span class="w">a</span> <span class="w accent">meeting.</span></span>
+        <span class="mg-h" id="a-l2" style="top: 196px"><span class="w">You</span> <span class="w">saw</span> <span class="w">it</span> <span class="w">on</span> <span class="w">your</span> <span class="w accent">screen.</span></span>
+        <span class="mg-h" id="a-gone"><span class="w">Then</span> <span class="w">it</span> <span class="w">was</span> <span class="w" id="a-gone-word">gone.</span></span>
+
+        <div class="card" id="a-call">
+          <div class="card-head"><i class="live"></i>Design review<span class="pill">Video call</span></div>
+          <div class="tiles">
+            <div class="tile" id="a-t1"><b class="av" style="background:#0f766e">You</b><span class="nm">You</span><div id="a-ring"></div>
+              <div id="a-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="tile"><b class="av" style="background:#3b5bdb">AK</b></div>
+            <div class="tile"><b class="av" style="background:#9c36b5">JS</b></div>
+            <div class="tile"><b class="av" style="background:#c2410c">MR</b></div>
+          </div>
+          <span id="a-ended">Call ended</span>
+        </div>
+        <div id="a-bubble"><i id="a-tail"></i><span class="w">“Let’s</span> <span class="w">lock</span> <span class="w">the</span> <span class="w">caching</span> <span class="w">layer.</span> <span class="w">I</span> <span class="w">propose</span> <span class="w accent">Redis.”</span></div>
+
+        <div class="card" id="a-screen">
+          <div class="chrome"><div class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><span class="ttl">#infra — team chat</span></div>
+          <div class="msg" style="top: 72px; height: 70px"><i class="ava" style="background:#5b3cc4"></i><i class="bar" style="top: 4px; width: 130px"></i><i class="bar" style="top: 30px; width: 460px"></i><i class="bar" style="top: 52px; width: 330px"></i></div>
+          <div class="msg" style="top: 164px; height: 150px"><i class="ava" style="background:#b45309"></i><span class="who">search-team</span>
+            <span class="txt">Redis failover benchmark is <span id="a-mark">booked for Thursday</span> with the search team’s load harness.</span></div>
+          <div class="msg" style="top: 332px; height: 70px"><i class="ava" style="background:#0e7490"></i><i class="bar" style="top: 4px; width: 110px"></i><i class="bar" style="top: 30px; width: 400px"></i><i class="bar" style="top: 52px; width: 250px"></i></div>
+        </div>
+      </section>
+
+      <!-- B. LokalBot keeps both. -->
+      <section id="m2" class="clip scene" data-start="4.9" data-duration="5.35" data-track-index="6">
+        <span class="mg-h" id="b-h" style="top: 96px"><span class="w">LokalBot</span> <span class="w">keeps</span> <span class="w accent">both.</span></span>
+        <span class="mg-sub" id="b-sub" style="top: 214px">Your calls, and what you saw on screen, if you turn it on.</span>
+        <svg id="b-flow" viewBox="0 0 1920 1080" aria-hidden="true">
+          <path id="b-flow-l" d="M 712 622 C 790 622, 800 575, 862 575" fill="none" stroke="#2dd4bf" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 16" opacity="0" />
+          <path id="b-flow-r" d="M 1208 622 C 1130 622, 1120 575, 1058 575" fill="none" stroke="#2dd4bf" stroke-width="5" stroke-linecap="round" stroke-dasharray="1 16" opacity="0" />
+        </svg>
+        <div class="card" id="b-meet">
+          <div class="card-head"><svg viewBox="0 0 28 28" aria-hidden="true"><g fill="#2dd4bf"><rect x="3" y="10" width="3" height="8" rx="1.5"/><rect x="9" y="5" width="3" height="18" rx="1.5"/><rect x="15" y="8" width="3" height="12" rx="1.5"/><rect x="21" y="11" width="3" height="6" rx="1.5"/></g></svg>Meetings</div>
+          <div id="b-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="tline" style="top: 176px"><span class="ts">00:00:00</span><span class="sp">You</span><span class="tx">Let’s lock the caching layer.</span></div>
+          <div class="tline" style="top: 256px"><span class="ts">00:00:12</span><span class="sp">Other speaker</span><span class="tx">Agreed on Redis.</span></div>
+          <div class="tline" style="top: 336px"><span class="ts">00:00:26</span><span class="sp">You</span><span class="tx">I’ll draft the eviction-policy doc.</span></div>
+        </div>
+        <div class="card" id="b-screen">
+          <div class="card-head"><svg viewBox="0 0 28 28" aria-hidden="true"><rect x="3" y="4" width="22" height="15" rx="3" fill="none" stroke="#2dd4bf" stroke-width="2.2"/><path d="M10 24 H18 M14 19 V24" stroke="#2dd4bf" stroke-width="2.2" stroke-linecap="round"/></svg>Screen text</div>
+          <div class="row"><span class="lbl">Save screen text</span><i id="b-toggle"><i id="b-knob"></i></i></div>
+          <div id="b-thumb">
+            <i class="bar hi" style="left: 22px; top: 22px; width: 300px"></i>
+            <i class="bar" style="left: 22px; top: 48px; width: 420px"></i>
+            <i class="bar" style="left: 22px; top: 74px; width: 360px"></i>
+            <i class="bar" style="left: 22px; top: 100px; width: 220px"></i>
+            <i id="b-scan"></i>
+          </div>
+          <span class="xline" style="top: 290px">Redis failover benchmark is booked for Thursday</span>
+          <span class="xline" style="top: 372px">Pull request #42 — caching</span>
+        </div>
+        <div id="b-ring"></div>
+        <img id="b-icon" src="assets/lokalbot-icon.svg" alt="LokalBot icon" />
+      </section>
+
+      <!-- C. Local AI models, like Qwen and Nemotron, do the work right on your Mac. -->
+      <section id="m3" class="clip scene" data-start="10.1" data-duration="5.05" data-track-index="1">
+        <span class="mg-h" id="c-h"><span class="w">Local</span> <span class="w">AI</span> <span class="w">models,</span> <span class="w accent">on</span> <span class="w accent">your</span> <span class="w accent">Mac.</span></span>
+        <svg id="c-links" viewBox="0 0 1920 1080" aria-hidden="true">
+          <g fill="none" stroke="#2dd4bf" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 14" opacity="0">
+            <path d="M 956 324 C 880 324, 866 440, 776 440" />
+            <path d="M 956 444 C 880 444, 866 470, 776 470" />
+            <path d="M 956 564 C 880 564, 866 500, 776 500" />
+            <path d="M 956 684 C 880 684, 866 530, 776 530" />
+            <path d="M 956 804 C 880 804, 866 560, 776 560" />
+          </g>
+        </svg>
+        <div id="c-mac">
+          <svg viewBox="0 0 700 420" aria-hidden="true">
+            <defs><linearGradient id="c-scr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f2b2a"/><stop offset="1" stop-color="#0a1316"/></linearGradient></defs>
+            <rect id="c-screenfill" x="106" y="26" width="488" height="298" rx="12" fill="url(#c-scr)" />
+            <rect class="draw" x="90" y="10" width="520" height="330" rx="24" fill="none" stroke="#cfe9e5" stroke-width="5" pathLength="1" stroke-dasharray="1" />
+            <path class="draw" d="M40 350 H660 L642 382 Q637 392 626 392 H74 Q63 392 58 382 Z" fill="none" stroke="#cfe9e5" stroke-width="5" stroke-linejoin="round" pathLength="1" stroke-dasharray="1" />
+            <path class="draw" d="M292 350 V356 Q292 362 298 362 H402 Q408 362 408 356 V350" fill="none" stroke="#cfe9e5" stroke-width="4" pathLength="1" stroke-dasharray="1" />
+          </svg>
+          <img id="c-icon" src="assets/lokalbot-icon.svg" alt="" />
+          <div id="c-act"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div id="c-chips"><span class="chip">No cloud</span><span class="chip">No account</span><span class="chip">No meeting bot</span></div>
+
+        <!-- Default models from ModelCatalog, TranscriptionEngine and DiarizationModel. -->
+        <div class="mrow" id="c-r1"><i class="m-glow"></i>
+          <div class="m-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="#2dd4bf"><rect x="6" y="18" width="4.5" height="12" rx="2.2"/><rect x="14.5" y="10" width="4.5" height="28" rx="2.2"/><rect x="23" y="15" width="4.5" height="18" rx="2.2"/><rect x="31.5" y="8" width="4.5" height="32" rx="2.2"/><rect x="40" y="19" width="4.5" height="10" rx="2.2"/></g></svg></div>
+          <span class="m-role">Transcription</span><span class="m-name">Qwen3-ASR 1.7B</span>
+          <div class="m-right"><span class="m-meta">MLX · 2.5 GB</span><span class="m-stat"><i class="live"></i>On this Mac</span></div><i class="m-bar"></i>
+        </div>
+        <div class="mrow" id="c-r2"><i class="m-glow"></i>
+          <div class="m-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#2dd4bf" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 9h30a4 4 0 0 1 4 4v17a4 4 0 0 1-4 4H22l-9 7v-7H9a4 4 0 0 1-4-4V13a4 4 0 0 1 4-4z"/><path d="M13 18h22M13 25h14"/></g></svg></div>
+          <span class="m-role">Summaries &amp; chat</span><span class="m-name">Qwen3.5 4B</span>
+          <div class="m-right"><span class="m-meta">GGUF · 2.7 GB</span><span class="m-stat"><i class="live"></i>On this Mac</span></div><i class="m-bar"></i>
+        </div>
+        <div class="mrow" id="c-r3"><i class="m-glow"></i>
+          <div class="m-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#2dd4bf" stroke-width="2.8" stroke-linecap="round"><circle cx="17" cy="16" r="6"/><path d="M5 38c0-7 5.4-11 12-11s12 4 12 11"/><circle cx="33" cy="14" r="5"/><path d="M31 25c7 0 12 3.6 12 10"/></g></svg></div>
+          <span class="m-role">Who spoke</span><span class="m-name">Nemotron 3</span>
+          <div class="m-right"><span class="m-meta">Core ML · 0.2 GB</span><span class="m-stat"><i class="live"></i>On this Mac</span></div><i class="m-bar"></i>
+        </div>
+        <div class="mrow" id="c-r4"><i class="m-glow"></i>
+          <div class="m-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#2dd4bf" stroke-width="2.8" stroke-linecap="round"><circle cx="20" cy="20" r="12"/><path d="M29 29l12 12"/></g><path d="M20 12.5l1.9 5.6 5.6 1.9-5.6 1.9-1.9 5.6-1.9-5.6-5.6-1.9 5.6-1.9z" fill="#2dd4bf"/></svg></div>
+          <span class="m-role">Semantic search</span><span class="m-name">Harrier 0.6B</span>
+          <div class="m-right"><span class="m-meta">GGUF · 0.6 GB</span><span class="m-stat"><i class="live"></i>On this Mac</span></div><i class="m-bar"></i>
+        </div>
+        <div class="mrow" id="c-r5"><i class="m-glow"></i>
+          <div class="m-ico"><svg viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="#2dd4bf" stroke-width="2.8" stroke-linecap="round"><path d="M6 17h24M6 25h16M6 33h20"/><path d="M36 11v26M32 11h8M32 37h8"/></g></svg></div>
+          <span class="m-role">Autocomplete</span><span class="m-name">LFM2.5 1.2B</span>
+          <div class="m-right"><span class="m-meta">GGUF · 0.7 GB</span><span class="m-stat"><i class="live"></i>On this Mac</span></div><i class="m-bar"></i>
+        </div>
+      </section>
+
+      <!-- D. So when you need it? Just search. -->
+      <section id="m4" class="clip scene" data-start="14.45" data-duration="1.6" data-track-index="6">
+        <span class="mg-h" id="d-h"><span class="w">When</span> <span class="w">you</span> <span class="w">need</span> <span class="w">it,</span> <span class="w">just</span> <span class="w accent">search.</span></span>
+      </section>
+
+      <!-- 3. Quick Recall -->
+      <div class="win" id="win-recall">
+        <div id="recall-mock">
+          <svg viewBox="0 0 28 28" aria-hidden="true"><circle cx="12" cy="12" r="8" fill="none" stroke="#2dd4bf" stroke-width="2.4"/><path d="M18 18 L24 24" stroke="#2dd4bf" stroke-width="2.8" stroke-linecap="round"/><path d="M12 8.5v7M8.5 12h7" stroke="#2dd4bf" stroke-width="2" stroke-linecap="round"/></svg>
+          <i id="mock-caret"></i><span id="mock-ph">Search your memory…</span>
+          <i class="div" style="top: 117px"></i><i class="div" style="top: 610px"></i>
+          <span id="mock-foot">↑↓ Navigate &nbsp;&nbsp; ↩ Open</span>
+        </div>
+        <video id="v-recall" src="assets/clips/recall.mp4" data-start="15.6" data-duration="5.8" data-track-index="2" muted playsinline></video>
+      </div>
+      <div id="keycap"><b id="keycap-face">↓</b></div>
+
+      <!-- 4–7. Main window: one frame, cuts between real takes -->
+      <div class="win" id="win-main">
+        <video id="v-meeting" src="assets/clips/meeting.mp4" data-start="21.4" data-duration="3.6" data-track-index="3" muted playsinline></video>
+        <video id="v-transcript" src="assets/clips/transcript.mp4" data-start="25" data-duration="3.6" data-track-index="3" muted playsinline></video>
+        <video id="v-ask" src="assets/clips/ask.mp4" data-start="28.6" data-duration="3.1" data-track-index="3" muted playsinline></video>
+        <video id="v-today" src="assets/clips/today.mp4" data-start="31.7" data-duration="2.3" data-track-index="3" muted playsinline></video>
+        <video id="v-timeline" src="assets/clips/timeline.mp4" data-start="34" data-duration="2.8" data-track-index="3" muted playsinline></video>
+        <video id="v-writing" src="assets/clips/writing.mp4" data-start="36.8" data-duration="4" data-track-index="3" muted playsinline></video>
+        <img id="tb-patch" src="assets/clips/toolbar.png" alt="" />
+        <span class="segfix" id="seg-summary">Summary</span>
+        <span class="segfix" id="seg-transcript">Transcript</span>
+        <div id="ripple"></div>
+        <div id="cursor">
+          <svg viewBox="0 0 20 30" aria-hidden="true"><path d="M1.5 1.5 L1.5 23 L7 17.8 L10.6 26.2 L14.2 24.6 L10.6 16.4 L17.8 16.4 Z" fill="#ffffff" stroke="#111111" stroke-width="1.6" stroke-linejoin="round" /></svg>
+        </div>
+      </div>
+
+      <!-- Headlines -->
+      <div class="headline clip" id="h-recall" data-start="16.05" data-duration="5.35" data-track-index="4"><span>One search: meetings + <span class="accent">saved screen text</span><em class="mdl"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/></g></svg>Harrier 0.6B</em></span></div>
+      <div class="headline clip" id="h-meeting" data-start="21.4" data-duration="3.6" data-track-index="4"><span>Every decision, <span class="accent">cited</span><em class="mdl"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/></g></svg>Qwen3.5 4B</em></span></div>
+      <div class="headline clip" id="h-transcript" data-start="25" data-duration="3.6" data-track-index="4"><span>Search <span class="accent">every word</span><em class="mdl"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/></g></svg>Qwen3-ASR 1.7B</em></span></div>
+      <div class="headline clip" id="h-ask" data-start="28.6" data-duration="3.1" data-track-index="4"><span>Ask, then <span class="accent">check the source</span><em class="mdl"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/></g></svg>Qwen3.5 4B</em></span></div>
+      <div class="headline clip" id="h-today" data-start="31.7" data-duration="2.3" data-track-index="4"><span>Clear what <span class="accent">needs you</span></span></div>
+      <div class="headline clip" id="h-timeline" data-start="34" data-duration="2.8" data-track-index="4"><span>Retrace <span class="accent">your day</span></span></div>
+      <div class="headline clip" id="h-writing" data-start="36.8" data-duration="4" data-track-index="4"><span>Autocomplete that <span class="accent">runs on your Mac</span><em class="mdl"><svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="6" width="12" height="12" rx="2.5"/><rect x="9.5" y="9.5" width="5" height="5" rx="1" fill="currentColor" stroke="none"/><path d="M9.5 2.5v3M14.5 2.5v3M9.5 18.5v3M14.5 18.5v3M2.5 9.5h3M2.5 14.5h3M18.5 9.5h3M18.5 14.5h3"/></g></svg>LFM2.5 1.2B</em></span></div>
+      <div id="badge" class="clip" data-start="15.6" data-duration="25.2" data-track-index="5"><i></i>Real app · fictional demo data</div>
+
+      <!-- 8. End card -->
+      <section id="s8" class="clip scene" data-start="40.8" data-duration="4.2" data-track-index="1">
+        <img class="icon" id="s8-icon" src="assets/lokalbot-icon-end.svg" alt="LokalBot icon" />
+        <span class="wordmark" id="s8-word">LokalBot</span>
+        <span class="tagline" id="s8-tag">Find what you said or saw on your Mac.</span>
+        <div class="chips" id="s8-chips">
+          <span class="chip">Free &amp; open source</span>
+          <span class="chip">No account</span>
+          <span class="chip">Nothing joins your calls</span>
+          <span class="chip">AI that runs on your Mac</span>
+        </div>
+        <div class="install" id="s8-install"><code>brew install --cask stevyhacker/tap/lokalbot</code><span>lokalbot.com</span></div>
+      </section>
+
+      <audio id="narration" src="assets/voice/narration.wav" data-start="0" data-duration="45" data-track-index="9" data-volume="1"></audio>
+    </div>
+    <script>
+      // Main-window geometry: 1400×880 pt app window drawn at 1440 px wide.
+      const K = 1440 / 1400;
+      const px = (v) => v * K;
+      // Seeded random numbers keep the scatter identical on every seek.
+      let seed = 11;
+      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+      const tl = gsap.timeline({ paused: true });
+      const LIGHT = document.getElementById("root").dataset.theme === "light";
+
+      // A. Heard it, saw it, gone (narration 0.15–4.73).
+      // Line one, the call and its speech bubble are on screen from the first frame (GitHub shows it before playback).
+      tl.fromTo("#m1", { scale: 1 }, { scale: 1.03, duration: 3.3, ease: "sine.out" }, 0);
+      tl.fromTo("#a-ring", { opacity: 0.35 }, { opacity: 1, duration: 0.4, repeat: 7, yoyo: true, ease: "sine.inOut" }, 0);
+      document.querySelectorAll("#a-bars i").forEach((bar, i) => {
+        const d = 0.13 + (i % 4) * 0.035;
+        tl.fromTo(bar, { scaleY: 0.25 + (i % 3) * 0.12 }, { scaleY: 1, duration: d, repeat: Math.floor(3.3 / d), yoyo: true, ease: "sine.inOut" }, 0);
+      });
+      // The call starts centred, then makes room for the screen.
+      tl.fromTo(["#a-call", "#a-bubble"], { x: 390 }, { x: 0, duration: 0.55, ease: "power3.inOut" }, 1.3);
+      tl.fromTo("#a-l2 .w", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.06, ease: "power3.out" }, 1.55);
+      tl.fromTo("#a-screen", { x: 90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 1.5);
+      tl.fromTo("#a-screen .msg", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.1, ease: "power3.out" }, 1.7);
+      tl.to("#a-mark", { backgroundSize: "100% 100%", duration: 0.5, ease: "power2.inOut" }, 2.35);
+      // "Then it was gone."
+      tl.to(["#a-l1", "#a-l2"], { y: -30, opacity: 0, duration: 0.25, stagger: 0.04, ease: "power2.in" }, 3.2);
+      tl.fromTo("#a-gone .w", { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.09, ease: "power3.out" }, 3.4);
+      tl.to("#a-bubble", LIGHT
+        ? { backgroundColor: "rgba(226, 250, 246, 0)", borderColor: "rgba(20, 184, 166, 0)", boxShadow: "0 16px 40px rgba(15, 40, 45, 0)", duration: 0.3 }
+        : { backgroundColor: "rgba(20, 60, 56, 0)", borderColor: "rgba(45, 212, 191, 0)", duration: 0.3 }, 3.45);
+      tl.to("#a-tail", { opacity: 0, duration: 0.2 }, 3.45);
+      document.querySelectorAll("#a-bubble .w").forEach((w, i) => {
+        tl.to(w, { x: (rnd() - 0.5) * 180, y: -70 - rnd() * 130, rotation: (rnd() - 0.5) * 50, opacity: 0, duration: 0.7, ease: "power2.in" }, 3.45 + i * 0.04);
+      });
+      tl.fromTo("#a-call .tile", { filter: "grayscale(0) brightness(1)" }, { filter: LIGHT ? "grayscale(1) brightness(0.8)" : "grayscale(1) brightness(0.45)", duration: 0.4, stagger: 0.06, immediateRender: false }, 3.5);
+      tl.to(["#a-ring", "#a-bars"], { opacity: 0, duration: 0.2 }, 3.5);
+      tl.fromTo("#a-ended", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2)" }, 3.7);
+      tl.to("#a-call", { scale: 0.9, opacity: 0, duration: 0.4, ease: "power2.in" }, 4.1);
+      tl.to("#a-screen .msg", { x: -24, opacity: 0, duration: 0.3, stagger: 0.08, ease: "power2.in" }, 3.5);
+      tl.to("#a-screen", { scale: 0.25, y: 240, opacity: 0, duration: 0.45, ease: "power2.in", transformOrigin: "50% 100%" }, 4.0);
+      tl.fromTo("#a-gone-word", { filter: "blur(0px)" }, { opacity: 0.15, filter: "blur(10px)", duration: 0.55, ease: "power1.in", immediateRender: false }, 4.2);
+      tl.to("#a-gone", { opacity: 0, duration: 0.2 }, 4.78);
+
+      // B. LokalBot keeps both (narration 5.10–9.95).
+      tl.fromTo("#b-h .w", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: "power3.out" }, 5.05);
+      tl.fromTo("#b-icon", { scale: 0.3, opacity: 0, rotation: -12 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.55, ease: "back.out(1.8)" }, 5.1);
+      tl.fromTo("#b-ring", { scale: 0.9, opacity: 0.9 }, { scale: 1.9, opacity: 0, duration: 0.9, ease: "power2.out", immediateRender: false }, 5.35);
+      tl.fromTo("#b-meet", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 5.7);
+      tl.fromTo("#b-screen", { x: 90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }, 5.8);
+      document.querySelectorAll("#b-wave i").forEach((bar, i) => {
+        const d = 0.14 + (i % 5) * 0.03;
+        tl.fromTo(bar, { scaleY: 0.12 + (i % 4) * 0.1 }, { scaleY: 0.45 + ((i * 7) % 11) / 20, duration: d, repeat: Math.floor(3.6 / d), yoyo: true, ease: "sine.inOut" }, 6.0);
+      });
+      // "your calls"
+      tl.fromTo("#b-sub", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 6.35);
+      tl.fromTo("#b-meet .tline", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.32, ease: "power3.out" }, 6.45);
+      tl.to("#b-flow-l", { opacity: 1, duration: 0.3 }, 6.55);
+      tl.fromTo("#b-flow-l", { strokeDashoffset: 0 }, { strokeDashoffset: -170, duration: 2.9, ease: "none" }, 6.55);
+      // "what you saw on screen"
+      tl.to("#b-knob", { x: 24, duration: 0.22, ease: "power2.inOut" }, 7.75);
+      tl.to("#b-toggle", { backgroundColor: "#14b8a6", duration: 0.22 }, 7.75);
+      tl.fromTo("#b-scan", { x: 0, opacity: 0 }, { x: 494, opacity: 1, duration: 0.6, ease: "power1.inOut" }, 8.0);
+      tl.to("#b-scan", { opacity: 0, duration: 0.15 }, 8.6);
+      tl.fromTo("#b-screen .xline", { y: 18, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.22, ease: "power3.out" }, 8.25);
+      tl.to("#b-flow-r", { opacity: 1, duration: 0.3 }, 8.1);
+      tl.fromTo("#b-flow-r", { strokeDashoffset: 0 }, { strokeDashoffset: -140, duration: 2.2, ease: "none" }, 8.1);
+      // "if you turn it on": the opt-in toggle pulses.
+      tl.fromTo("#b-toggle", { scale: 1 }, { scale: 1.22, duration: 0.14, yoyo: true, repeat: 1, ease: "power2.out", immediateRender: false }, 9.28);
+      // Both collect into the app, which moves onto the Mac's screen for the next beat.
+      tl.to(["#b-flow-l", "#b-flow-r"], { opacity: 0, duration: 0.2 }, 9.55);
+      tl.to("#b-meet", { x: 530, y: -45, scale: 0.08, opacity: 0, duration: 0.45, ease: "power3.in" }, 9.55);
+      tl.to("#b-screen", { x: -530, y: -45, scale: 0.08, opacity: 0, duration: 0.45, ease: "power3.in" }, 9.58);
+      tl.to(["#b-h", "#b-sub"], { y: -30, opacity: 0, duration: 0.3, ease: "power2.in" }, 9.7);
+      tl.to("#b-icon", { x: -460, y: -115, scale: 120 / 190, duration: 0.45, ease: "power3.inOut" }, 9.8);
+
+      // C. Local AI models, like Qwen and Nemotron, do the work right on your Mac (narration 10.12–14.71).
+      tl.fromTo("#c-mac .draw", { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, stagger: 0.1, ease: "power2.inOut" }, 10.15);
+      // The app icon hands off from the previous beat at the same spot on the laptop screen.
+      tl.fromTo("#c-icon", { opacity: 0 }, { opacity: 1, duration: 0.01 }, 10.24);
+      tl.fromTo("#c-screenfill", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 10.35);
+      tl.fromTo("#c-mac", { scale: 1 }, { scale: 1.04, duration: 4.4, ease: "sine.inOut", immediateRender: false }, 10.3);
+      const cWords = gsap.utils.toArray("#c-h .w");
+      tl.fromTo(cWords.slice(0, 3), { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, stagger: 0.12, ease: "power3.out" }, 10.22);
+      // "local AI models": the default models slide in, load, and report in as on-device.
+      ["#c-r1", "#c-r2", "#c-r3", "#c-r4", "#c-r5"].forEach((id, i) => {
+        const t = 10.5 + i * 0.13, load = 0.9 + i * 0.22, done = t + 0.3 + load;
+        tl.fromTo(id, { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, t);
+        tl.fromTo(`${id} .m-bar`, { scaleX: 0 }, { scaleX: 1, duration: load, ease: "power1.inOut" }, t + 0.3);
+        tl.to(`${id} .m-bar`, { opacity: 0, duration: 0.25 }, done + 0.05);
+        tl.fromTo(`${id} .m-stat`, { opacity: 0, x: 12 }, { opacity: 1, x: 0, duration: 0.3, ease: "power2.out" }, done);
+        tl.fromTo(`${id} .live`, { scale: 0.3 }, { scale: 1, duration: 0.35, ease: "back.out(3)" }, done);
+      });
+      // "like Qwen" / "and Nemotron"
+      [[["#c-r1", "#c-r2"], 11.65], [["#c-r3"], 12.3]].forEach(([ids, t]) => {
+        tl.fromTo(ids.map((id) => `${id} .m-glow`), { opacity: 0 }, { opacity: 1, duration: 0.2, yoyo: true, repeat: 1, repeatDelay: 0.4, ease: "power1.out" }, t);
+        tl.fromTo(ids, { scale: 1 }, { scale: 1.025, duration: 0.2, yoyo: true, repeat: 1, repeatDelay: 0.4, ease: "power1.out", immediateRender: false }, t);
+      });
+      // "do the work": the models feed the Mac, which gets busy.
+      tl.to("#c-links g", { opacity: 0.9, duration: 0.3 }, 13.2);
+      tl.fromTo("#c-links path", { strokeDashoffset: 0 }, { strokeDashoffset: -90, duration: 1.3, ease: "none" }, 13.2);
+      tl.to("#c-act i", { opacity: 1, duration: 0.2 }, 13.25);
+      document.querySelectorAll("#c-act i").forEach((bar, i) => {
+        const d = 0.12 + (i % 4) * 0.03;
+        tl.fromTo(bar, { scaleY: 0.15 }, { scaleY: 0.5 + ((i * 5) % 7) / 12, duration: d, repeat: Math.floor(1.1 / d), yoyo: true, ease: "sine.inOut", immediateRender: false }, 13.3);
+      });
+      // "right on your Mac"
+      tl.fromTo("#c-chips .chip", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.3, stagger: 0.09, ease: "power3.out" }, 13.75);
+      tl.fromTo(cWords.slice(3), { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.14, ease: "power3.out" }, 13.85);
+      tl.to(["#c-r1", "#c-r2", "#c-r3", "#c-r4", "#c-r5"], { x: 50, opacity: 0, duration: 0.3, stagger: 0.03, ease: "power2.in" }, 14.62);
+      tl.to(["#c-h", "#c-chips", "#c-links"], { y: -24, opacity: 0, duration: 0.3, ease: "power2.in" }, 14.66);
+      tl.to("#c-mac", { opacity: 0, scale: 1.18, duration: 0.35, ease: "power2.in" }, 14.7);
+
+      // D. The search field grows into the real Quick Recall panel (narration 15.00–16.84).
+      tl.fromTo("#win-recall", { y: 70, scale: 0.94, opacity: 0 }, { y: 0, scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }, 14.8);
+      tl.fromTo("#mock-caret", { opacity: 1 }, { opacity: 0, duration: 0.01, repeat: 3, yoyo: true, repeatDelay: 0.25 }, 15.0);
+      tl.fromTo("#d-h .w", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.06, ease: "power3.out" }, 15.0);
+      tl.to("#d-h", { y: -20, opacity: 0, duration: 0.25, ease: "power2.in" }, 15.8);
+      tl.fromTo("#v-recall", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "none" }, 15.6);
+
+      // 3. Quick Recall — real typing and arrow-key selection.
+      tl.fromTo("#win-recall", { scale: 1 }, { scale: 1.07, duration: 5.05, ease: "sine.inOut", immediateRender: false }, 16.05);
+      tl.set("#keycap", { opacity: 0, scale: 0.7 }, 0);
+      [18.71, 19.41].forEach((t) => {
+        tl.fromTo("#keycap", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.14, ease: "back.out(2)", immediateRender: false }, t - 0.1);
+        tl.to("#keycap-face", { y: 7, duration: 0.07, ease: "power1.in", yoyo: true, repeat: 1 }, t);
+        tl.to("#keycap", { opacity: 0, duration: 0.15 }, t + 0.3);
+      });
+      tl.to("#win-recall", { opacity: 0, scale: 0.9, y: -30, duration: 0.25, ease: "power2.in" }, 21.15);
+
+      // 4–7. Main window. Timeline gives back the 0.6 s that the models beat added.
+      tl.fromTo("#win-main", { opacity: 0, y: 60, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" }, 21.4);
+      // Headline pills pop in with each cut; the model chip follows.
+      [["#h-recall", 16.1, true], ["#h-meeting", 21.45, true], ["#h-transcript", 25.02, true], ["#h-ask", 28.62, true],
+       ["#h-today", 31.72], ["#h-timeline", 34.02], ["#h-writing", 36.82, true]].forEach(([id, t, model]) => {
+        tl.fromTo(`${id} > span`, { y: -24, opacity: 0, scale: 0.96 }, { y: 0, opacity: 1, scale: 1, duration: 0.28, ease: "power3.out" }, t);
+        if (model) tl.fromTo(`${id} .mdl`, { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.3, ease: "back.out(2.2)" }, t + 0.3);
+      });
+      tl.fromTo("#badge", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 16.0);
+
+      // Redraw the selected toolbar segment on the frames where each take shows the solid pill (clip frames from pillscan).
+      const segs = LIGHT
+        ? [["#seg-summary", 21.39, 22.26], ["#seg-transcript", 22.26, 28.59], ["#seg-summary", 29.63, 29.76], ["#seg-transcript", 29.76, 31.69]]
+        : [["#tb-patch", 25.0, 28.59], ["#seg-summary", 21.39, 22.19], ["#seg-transcript", 22.19, 28.59], ["#seg-summary", 29.66, 29.82], ["#seg-transcript", 29.82, 31.69]];
+      segs.forEach(([id, on, off]) => {
+        tl.set(id, { opacity: 1 }, on);
+        tl.set(id, { opacity: 0 }, off);
+      });
+
+      // Camera: per-cut focal push. Scale resets at every cut, with a tiny settle bump.
+      const shots = [
+        { at: 21.8, end: 24.95, fx: 700, fy: 440, to: 1.14 },
+        { at: 25.0, end: 28.55, fx: 760, fy: 300, to: 1.16 },
+        { at: 28.6, end: 31.65, fx: 700, fy: 400, to: 1.12 },
+        { at: 31.7, end: 33.95, fx: 520, fy: 260, to: 1.14 },
+        { at: 34.0, end: 36.75, fx: 820, fy: 560, to: 1.09 },
+        { at: 36.8, end: 40.7, fx: 800, fy: 440, to: 1.26 },
+      ];
+      shots.forEach((s, i) => {
+        tl.set("#win-main", { transformOrigin: `${px(s.fx)}px ${px(s.fy)}px`, scale: 1 }, s.at);
+        if (i > 0) tl.fromTo("#win-main", { filter: "brightness(1.35)" }, { filter: "brightness(1)", duration: 0.22, ease: "power2.out", immediateRender: false }, s.at);
+        tl.to("#win-main", { scale: s.to, duration: s.end - s.at, ease: "sine.inOut" }, s.at + 0.02);
+      });
+      tl.to("#win-main", { opacity: 0, scale: 1.34, duration: 0.3, ease: "power2.in" }, 40.55);
+
+      // Cursor: glide to each logged click, press, ripple. Points are app-window points.
+      const clicks = [
+        { show: 21.65, from: [560, 600], to: [396, 469], click: 22.13, hide: 22.75 },
+        { show: 28.9, from: [860, 560], to: [616, 379], click: 29.49, hide: 30.1 },
+        { show: 31.8, from: [440, 330], to: [266, 192], click: 32.36, hide: 32.95 },
+        { show: 34.02, from: [400, 640], to: [196, 756], click: 34.4, hide: 34.9 },
+        { show: 35.45, from: [360, 700], to: [224, 816], click: 36.03, hide: 36.6 },
+        { show: 37.0, from: [880, 690], to: [1076, 521], click: 37.69, hide: 38.3 },
+      ];
+      clicks.forEach((c) => {
+        const [fx, fy] = c.from.map(px), [tx, ty] = c.to.map(px);
+        tl.set("#cursor", { x: fx, y: fy, opacity: 0, scale: 1 }, c.show);
+        tl.to("#cursor", { opacity: 1, duration: 0.12 }, c.show);
+        tl.to("#cursor", { x: tx, y: ty, duration: c.click - c.show - 0.08, ease: "power2.inOut" }, c.show + 0.04);
+        tl.to("#cursor", { scale: 0.82, duration: 0.07, yoyo: true, repeat: 1, transformOrigin: "0px 0px" }, c.click - 0.03);
+        tl.fromTo("#ripple", { x: tx, y: ty, scale: 0.3, opacity: 0.9 }, { scale: 1.5, opacity: 0, duration: 0.45, ease: "power2.out", immediateRender: false }, c.click);
+        tl.to("#cursor", { opacity: 0, duration: 0.18 }, c.hide);
+      });
+
+      // 8. End card.
+      tl.fromTo("#s8-icon", { scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.7)" }, 40.85);
+      tl.fromTo("#s8-word", { y: 36, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 41.05);
+      tl.fromTo("#s8-tag", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 41.3);
+      tl.fromTo("#s8-chips .chip", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, stagger: 0.1, ease: "power3.out" }, 41.65);
+      tl.fromTo("#s8-install", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 42.3);
+      tl.fromTo("#s8", { scale: 1 }, { scale: 1.03, duration: 4.1, ease: "sine.inOut", immediateRender: false }, 40.85);
+
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

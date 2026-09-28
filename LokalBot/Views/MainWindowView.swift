@@ -169,9 +169,10 @@ struct MainWindowView: View {
 
     /// Native source-list selection gives VoiceOver and keyboard navigation
     /// one semantic destination per row. Section headings remain static text.
+    /// Scripted exports leave it empty; `sidebarRowBackground` marks the row.
     private var sidebarSelection: Binding<AppState.NavSection?> {
         Binding(
-            get: { app.navSection },
+            get: { isScriptedCapture ? nil : app.navSection },
             set: { selection in
                 if let selection {
                     if selection == .today { app.showingActions = false }
@@ -183,7 +184,8 @@ struct MainWindowView: View {
 
     /// `cacheDisplay` does not flatten the sidebar's vibrancy text correctly:
     /// AppKit gives the offscreen bitmap the mask color (black) instead of the
-    /// composited label color. Use resolved colors only for scripted exports;
+    /// composited label color. The selection highlight gets the same mask, a
+    /// solid black bar. Use resolved colors only for scripted exports;
     /// normal app and UI-test windows keep the native sidebar rendering.
     @ViewBuilder
     private func sidebarDestination(
@@ -196,11 +198,24 @@ struct MainWindowView: View {
                                 scriptedLabelColor: isScriptedCapture ? scriptedSidebarLabelColor : nil)
         .tag(section)
         .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-        .listRowBackground(Color.clear)
+        .listRowBackground(sidebarRowBackground(section))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(title)
         .accessibilityIdentifier(identifier)
         .accessibilityAddTraits(app.navSection == section ? .isSelected : [])
+    }
+
+    /// Scripted exports draw AppKit's unemphasized selection color in place of
+    /// the masked native highlight.
+    @ViewBuilder
+    private func sidebarRowBackground(_ section: AppState.NavSection) -> some View {
+        if isScriptedCapture && app.navSection == section {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(Color(nsColor: .unemphasizedSelectedContentBackgroundColor))
+                .padding(.horizontal, 10)
+        } else {
+            Color.clear
+        }
     }
 
     @ViewBuilder

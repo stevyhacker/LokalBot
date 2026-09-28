@@ -1,0 +1,8 @@
+assets/clips/
+assets/voice/
+renders/
+snapshots/
+renders-log.txt
+.hyperframes/
+assets/clips-light/
+build-light/
