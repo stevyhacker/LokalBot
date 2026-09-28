@@ -70,6 +70,12 @@ def summarize(run, jobs):
         for step in row['steps']:
             totals[step['phase']] = totals.get(step['phase'], 0) + (step['seconds'] or 0)
     macos = [row for row in rows if row['macos'] and row['seconds'] is not None]
+    events = sorted(event for row in macos if row['seconds'] > 0
+                    for event in [(epoch(row['started_at']), 1), (epoch(row['completed_at']), -1)])
+    active = peak = 0
+    for timestamp, delta in events:
+        active += delta
+        peak = max(peak, active)
     critical = next((row for row in rows if row['name'] == 'UI build and critical tests'), None)
     return dict(run=run['id'], attempt=run['run_attempt'], workflow=run['name'], head_sha=run['head_sha'],
                 checkout_sha=None if run['event'] == 'pull_request' else run['head_sha'],
@@ -78,6 +84,8 @@ def summarize(run, jobs):
                 wall_seconds=elapsed(start, max(finished.values())) if finished else None,
                 build_and_critical_seconds=elapsed(start, critical['completed_at']) if critical else None,
                 macos_runner_minutes=round(sum(row['seconds'] for row in macos) / 60, 2),
+                peak_macos_jobs=peak,
+                max_macos_queue_seconds=max((row['queue_seconds'] or 0 for row in macos), default=0),
                 macos_rounded_job_minutes=sum(math.ceil(row['seconds'] / 60) for row in macos),
                 phase_seconds=totals, jobs=rows)
 

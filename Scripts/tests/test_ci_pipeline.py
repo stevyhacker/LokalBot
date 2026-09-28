@@ -260,6 +260,8 @@ class TimingTests(unittest.TestCase):
         self.assertEqual([j['queue_seconds'] for j in result['jobs']], [120, 60, 120])
         self.assertEqual(result['wall_seconds'], 17 * 60)
         self.assertEqual(result['macos_runner_minutes'], 18)
+        self.assertEqual(result['peak_macos_jobs'], 2)
+        self.assertEqual(result['max_macos_queue_seconds'], 120)
         self.assertEqual(result['build_and_critical_seconds'], 16 * 60)
         gate = job(4, 'UI focused / comparison (macOS)', '18', '19')
         gate['labels'] = ['ubuntu-latest']
