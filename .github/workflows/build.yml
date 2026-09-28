@@ -12,6 +12,17 @@
 name: Build
 
 on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Exact 40-character commit SHA requested by the dispatching checkout"
+        required: true
+        type: string
+      cache_mode:
+        description: "Compiler cache: warm reuse, cold empty store, off clean-build fallback"
+        type: choice
+        options: [warm, cold, off]
+        default: warm
   pull_request:
     branches: [master, dev]
   push:
@@ -40,6 +51,14 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Bind manual dispatch to the requested candidate
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          REQUESTED_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          [[ "$REQUESTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$REQUESTED_SHA"
 
       # Pin Xcode explicitly: hosted images drift their default Xcode without
       # notice, which surfaces as false red/green builds. Bump deliberately.
@@ -97,10 +116,30 @@ jobs:
           path: .build/SourcePackages
           key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('**/Package.resolved') }}
 
+      # Only the content-addressed compiler store is restored. Build products,
+      # build databases and provenance always belong to this workflow attempt.
+      - name: Identify compatible compiler cache
+        id: compiler-key
+        run: python3 Scripts/ci/compiler-cache.py key unit
+      - name: Restore compiler cache
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        id: compiler-restore
+        if: inputs.cache_mode != 'cold' && inputs.cache_mode != 'off'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+          restore-keys: ${{ steps.compiler-key.outputs.prefix }}
+
       # Compile the app and its tests: app-only builds miss test compiler errors.
       - name: Build app and unit-test targets
+        id: compile
+        env:
+          COMPILER_CACHE_MODE: ${{ inputs.cache_mode || 'warm' }}
         run: |
-          xcodebuild \
+          python3 Scripts/ci/compiler-cache.py build xcodebuild \
             -project LokalBot.xcodeproj \
             -scheme LokalBot \
             -configuration Debug \
@@ -110,6 +149,26 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -only-testing:LokalBotTests \
             build-for-testing
+
+      - name: Bound and seal compiler cache
+        id: compiler-seal
+        if: steps.compile.outputs.cache_save == 'true' && steps.compiler-restore.outputs.cache-hit != 'true'
+        run: python3 Scripts/ci/compiler-cache.py seal
+      - name: Save compiler cache
+        continue-on-error: true
+        if: steps.compiler-seal.outputs.save == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+      - name: Save compiler evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          overwrite: true
+          name: compiler-${{ github.job }}
+          path: .build/ci
+          retention-days: 14
 
       - name: Package unit-test products
         env:

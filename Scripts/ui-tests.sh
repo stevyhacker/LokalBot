@@ -163,7 +163,7 @@ fi
 
 cd "$ROOT"
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+if [ "${GITHUB_ACTIONS:-}" = "true" ] && [ "$MODE" != "build" ]; then
   swift Scripts/ci/prepare-display.swift
   swift Scripts/ci/prepare-display.swift --verify-only
 fi
@@ -171,6 +171,7 @@ fi
 ARGS=(
   -project "$PROJECT"
   -scheme "$SCHEME"
+  -configuration Debug
   -destination 'platform=macOS'
   -derivedDataPath "$DERIVED"
   -clonedSourcePackagesDirPath .build/SourcePackages
@@ -205,7 +206,11 @@ else
   # A failed build must invalidate the preceding build's reuse stamp.
   rm -f "$STAMP"
   echo "→ building for testing…"
-  xcodebuild "${ARGS[@]}" -only-testing:LokalBotUITests build-for-testing
+  if [ -n "${COMPILER_CACHE_MODE:-}" ]; then
+    python3 Scripts/ci/compiler-cache.py build xcodebuild "${ARGS[@]}" -only-testing:LokalBotUITests build-for-testing
+  else
+    xcodebuild "${ARGS[@]}" -only-testing:LokalBotUITests build-for-testing
+  fi
   if [ "${CI:-}" = "true" ]; then
     python3 Scripts/ci/ui-build-stamp.py write "$STAMP"
   fi

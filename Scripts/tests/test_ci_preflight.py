@@ -127,7 +127,7 @@ class HostedRunnerTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         for name in ["Scripts/ui-tests.sh", "Scripts/ci/ui-build-stamp.py", "Scripts/ci/ui-shards.py",
-                     "Scripts/ci/ui-durations.json", "Scripts/ci/prepare-display.swift"]:
+                     "Scripts/ci/ui-durations.json", "Scripts/ci/prepare-display.swift", "Scripts/ci/compiler-cache.py"]:
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(SOURCE / name, target)
@@ -214,16 +214,51 @@ sys.exit(int(os.environ.get(key, '0')))
         self.assertNotEqual(self.run_script('--test-only').returncode, 0)
         self.assertFalse(any('test-without-building' in call for call in self.calls()))
 
-    def test_display_failure_stops_before_compilation(self):
-        result = self.run_script('--build-only', FAKE_DISPLAY_EXIT='63')
+    def test_display_failure_stops_before_test_launch(self):
+        self.build()
+        result = self.run_script('--test-only', FAKE_DISPLAY_EXIT='63')
         self.assertEqual(result.returncode, 63, result.stdout)
-        self.assertEqual(self.calls(), [['swift', 'Scripts/ci/prepare-display.swift']])
+        self.assertEqual(self.calls()[-1], ['swift', 'Scripts/ci/prepare-display.swift'])
+        self.assertFalse(any('test-without-building' in call for call in self.calls()))
 
-    def test_reverted_display_stops_before_compilation(self):
-        result = self.run_script('--build-only', FAKE_DISPLAY_VERIFY_EXIT='64')
+    def test_reverted_display_stops_before_test_launch(self):
+        self.build()
+        result = self.run_script('--test-only', FAKE_DISPLAY_VERIFY_EXIT='64')
         self.assertEqual(result.returncode, 64, result.stdout)
-        self.assertEqual(self.calls(), [['swift', 'Scripts/ci/prepare-display.swift'],
+        self.assertEqual(self.calls()[-2:], [['swift', 'Scripts/ci/prepare-display.swift'],
                                         ['swift', 'Scripts/ci/prepare-display.swift', '--verify-only']])
+
+    def test_build_producer_never_prepares_or_launches_display(self):
+        self.build()
+        self.assertFalse(any('swift' in call or 'test-without-building' in call for call in self.calls()))
+
+    def test_cached_build_still_compiles_and_writes_fresh_stamp(self):
+        self.build()
+        for mode in ['warm', 'cold', 'off']:
+            result = self.run_script('--build-only', COMPILER_CACHE_MODE=mode)
+            self.assertEqual(result.returncode, 0, result.stdout)
+            self.assertTrue((self.root / '.build/dd/ui-build.json').is_file())
+        self.assertEqual(sum('build-for-testing' in call for call in self.calls()), 4)
+
+    def test_failed_cached_build_falls_back_once_and_never_reuses_stamp(self):
+        self.build()
+        result = self.run_script('--build-only', COMPILER_CACHE_MODE='warm', FAKE_BUILD_EXIT='71')
+        self.assertEqual(result.returncode, 71, result.stdout)
+        builds = [c for c in self.calls() if 'build-for-testing' in c]
+        self.assertEqual(len(builds), 3)
+        self.assertIn('COMPILATION_CACHE_ENABLE_CACHING=NO', builds[-1])
+        self.assertFalse((self.root / '.build/dd/ui-build.json').exists())
+        self.assertNotEqual(self.run_script('--test-only').returncode, 0)
+
+    def test_changed_app_or_test_inputs_cannot_use_existing_build(self):
+        self.build()
+        for name in ['LokalBot/New.swift', 'LokalBotUITests/New.swift']:
+            target = self.root / name
+            target.parent.mkdir(exist_ok=True)
+            target.write_text('// new input\n')
+            self.assertNotEqual(self.run_script('--test-only').returncode, 0)
+            target.unlink()
+        self.assertFalse(any('test-without-building' in call for call in self.calls()))
 
     def test_stale_job_toolchain_and_dirty_inputs_are_rejected(self):
         self.build()

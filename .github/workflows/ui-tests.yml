@@ -27,6 +27,11 @@ on:
         type: choice
         options: [ready, legacy]
         default: ready
+      cache_mode:
+        description: "Compiler cache: warm reuse, cold empty store, off clean-build fallback"
+        type: choice
+        options: [warm, cold, off]
+        default: warm
       candidate_sha:
         description: "Exact 40-character commit SHA requested by the dispatching checkout"
         required: true
@@ -60,8 +65,8 @@ defaults:
     shell: bash # enable -e -o pipefail, including outer evidence/log pipelines
 
 jobs:
-  build-smoke:
-    name: UI build and critical tests
+  build:
+    name: UI build (macOS)
     # Move to a self-hosted Mac (runs-on: [self-hosted, macOS]) once one
     # exists — see the TCC note at the top of this file.
     runs-on: macos-15
@@ -128,9 +133,27 @@ jobs:
           path: .build/SourcePackages
           key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.3-${{ hashFiles('**/Package.resolved') }}
 
-      # Compile once for every phase in this job, with provenance checked on reuse.
-      - name: Build UI test targets
+      # Only the content-addressed compiler store is restored. Build products,
+      # build databases and provenance always belong to this workflow attempt.
+      - name: Identify compatible compiler cache
+        id: compiler-key
+        run: python3 Scripts/ci/compiler-cache.py key ui
+      - name: Restore compiler cache
+        continue-on-error: true
         env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        id: compiler-restore
+        if: inputs.cache_mode != 'cold' && inputs.cache_mode != 'off'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+          restore-keys: ${{ steps.compiler-key.outputs.prefix }}
+
+      - name: Build UI test targets
+        id: compile
+        env:
+          COMPILER_CACHE_MODE: ${{ inputs.cache_mode || 'warm' }}
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           mkdir -p .build/ui-results
@@ -138,46 +161,33 @@ jobs:
           printf '| UI phase | Duration | Result |\n| --- | ---: | --- |\n' >> "$GITHUB_STEP_SUMMARY"
           Scripts/ui-tests.sh --build-only 2>&1 | tee .build/ui-results/build.log
 
-      # Hosted images can start with Reduce Motion enabled. Exercise normal
-      # transitions explicitly; the dedicated accessibility phase opts in below.
-      - name: Enable standard UI motion
-        run: defaults write com.apple.universalaccess reduceMotion -bool false
-
-      # Stop before the visual matrix if a critical interaction fails. These
-      # filters are reused as exclusions for the remainder, avoiding duplicates.
-      - name: Verify critical interactions
-        if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-        run: python3 Scripts/ci/ui-shards.py run smoke
-
-      - name: Verify Reduce Motion
-        if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-        run: |
-          trap 'defaults write com.apple.universalaccess reduceMotion -bool false; defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool false' EXIT
-          defaults write com.apple.universalaccess reduceMotion -bool true
-          defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool true
-          python3 Scripts/ci/ui-shards.py run reduced-motion
-
-      - name: Run requested single test
-        if: github.event_name == 'workflow_dispatch' && inputs.filter != ''
-        env:
-          CODE_SIGNING_ALLOWED: "NO"
-          UI_TEST_FILTER: ${{ inputs.filter }}
-          CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
-        run: python3 Scripts/ci/ui-shards.py run single "$UI_TEST_FILTER"
+      - name: Bound and seal compiler cache
+        id: compiler-seal
+        if: steps.compile.outputs.cache_save == 'true' && steps.compiler-restore.outputs.cache-hit != 'true'
+        run: python3 Scripts/ci/compiler-cache.py seal
+      - name: Save compiler cache
+        continue-on-error: true
+        if: steps.compiler-seal.outputs.save == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+      - name: Save compiler evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          overwrite: true
+          name: compiler-${{ github.job }}
+          path: .build/ci
+          retention-days: 14
 
       - name: Package UI products
-        if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
         env:
           CODE_SIGNING_ALLOWED: "NO"
         run: |
           python3 Scripts/ci/ui-shards.py plan > .build/ui-results/inventory.json
           python3 Scripts/ci/test-products.py pack ui
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: ui-products
@@ -185,18 +195,99 @@ jobs:
           retention-days: 2
           compression-level: 0
           if-no-files-found: error
-      - name: Save smoke evidence
+      - name: Save build evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
+          name: ui-results-build
+          path: .build/ui-results
+          retention-days: 14
+
+  build-smoke:
+    # Preserve this check's name and build dependency for existing branch rules.
+    name: UI build and critical tests
+    needs: build
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.3"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ui-products
+          path: .build/transfer
+      - name: Verify and restore compiled UI tests
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/test-products.py unpack ui
+      - name: Enable standard UI motion
+        run: defaults write com.apple.universalaccess reduceMotion -bool false
+      - name: Verify critical interactions
+        if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/ui-shards.py run smoke
+      - name: Run requested single test
+        if: github.event_name == 'workflow_dispatch' && inputs.filter != ''
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+          UI_TEST_FILTER: ${{ inputs.filter }}
+          CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
+        run: python3 Scripts/ci/ui-shards.py run single "$UI_TEST_FILTER"
+      - name: Save phase evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          overwrite: true
           name: ui-results-smoke
+          path: .build/ui-results
+          retention-days: 14
+
+  reduced-motion:
+    name: UI reduced-motion
+    needs: build
+    if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.3"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: ui-products
+          path: .build/transfer
+      - name: Verify and restore compiled UI tests
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/test-products.py unpack ui
+      # Accessibility preferences belong to this runner only.
+      - name: Verify Reduce Motion
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: |
+          trap 'defaults write com.apple.universalaccess reduceMotion -bool false; defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool false' EXIT
+          defaults write com.apple.universalaccess reduceMotion -bool true
+          defaults write org.localhost.lokalbot.redesign-ci requiresReducedMotion -bool true
+          python3 Scripts/ci/ui-shards.py run reduced-motion
+      - name: Save phase evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          overwrite: true
+          name: ui-results-reduced-motion
           path: .build/ui-results
           retention-days: 14
 
   shards:
     name: UI ${{ matrix.phase }}
-    needs: build-smoke
+    needs: build
     if: github.event_name != 'workflow_dispatch' || inputs.filter == ''
     runs-on: macos-15
     timeout-minutes: 35
@@ -237,20 +328,21 @@ jobs:
 
   complete:
     name: ${{ (inputs.filter != '' || inputs.capture_mode == 'legacy') && 'UI focused / comparison (macOS)' || 'XCUITest (macOS)' }}
-    needs: [build-smoke, shards]
+    needs: [build, build-smoke, reduced-motion, shards]
     if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Require successful selected jobs
         env:
-          BUILD_RESULT: ${{ needs.build-smoke.result }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          CRITICAL_RESULT: ${{ needs.build-smoke.result }}
+          REDUCED_RESULT: ${{ needs.reduced-motion.result }}
           SHARD_RESULT: ${{ needs.shards.result }}
           FILTER: ${{ inputs.filter || '' }}
           CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
         run: |
-          test "$BUILD_RESULT" = success
-          if [[ -z "$FILTER" ]]; then test "$SHARD_RESULT" = success; fi
+          python3 Scripts/ci/ui-shards.py gate "$BUILD_RESULT" "$CRITICAL_RESULT" "$REDUCED_RESULT" "$SHARD_RESULT" "$FILTER"
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         if: inputs.filter == ''
         with:

@@ -75,11 +75,29 @@ def test_results(node):
             yield from test_results(child)
 
 
+def selected_tests(selector):
+    selected = [test for test in inventory() if test == selector or test.startswith(selector + '/')]
+    if not selected:
+        raise ValueError(f'Unknown UI test selector: {selector}')
+    return selected
+
+
+def gate(build, critical, reduced, shards, selector=''):
+    if build != 'success' or critical != 'success':
+        raise ValueError('Build and selected critical/focused tests must succeed')
+    if selector:
+        selected_tests(selector)
+        if reduced != 'skipped' or shards != 'skipped':
+            raise ValueError('Focused runs must skip the complete-suite jobs')
+    elif reduced != 'success' or shards != 'success':
+        raise ValueError('Every Reduce Motion, functional and visual shard must succeed')
+
+
 def execute(phase, selected=None):
     if os.environ.get('CI') != 'true':
         raise ValueError('Shard execution is hosted-only')
     phases = plan()
-    tests = [selected] if phase == 'single' else phases[phase]
+    tests = selected_tests(selected) if phase == 'single' else phases[phase]
     folder = Path('.build/ui-results')
     folder.mkdir(parents=True, exist_ok=True)
     if phase.startswith('visual-') or phase == 'single':
@@ -110,6 +128,13 @@ def execute(phase, selected=None):
         tree = json.loads(subprocess.check_output(['xcrun', 'xcresulttool', 'get', 'test-results', 'tests',
                                                   '--path', str(result_path), '--compact']))
         report['tests'] = list(test_results(tree))
+    # Even focused invocations must execute the requested tests. A typo must
+    # never become a green zero-test run; focused checks remain separate from
+    # the complete-suite gate and its 78-capture requirement.
+    if code == 0 and (collections.Counter(t for t, status in report['tests']) != collections.Counter(tests)
+                      or any(status != 'Passed' for t, status in report['tests'])):
+        code = report['exit'] = 1
+        print('::error::Selected UI tests were missing, failed or skipped')
     (folder / f'{phase}.json').write_text(json.dumps(report, indent=2))
     if summary := os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(summary, 'a') as stream:
@@ -153,6 +178,8 @@ if __name__ == '__main__':
             print(json.dumps(plan(), indent=2))
         elif mode == 'run':
             sys.exit(execute(*args))
+        elif mode == 'gate':
+            gate(*args)
         elif mode == 'verify':
             verify(Path(args[0]))
         else:
