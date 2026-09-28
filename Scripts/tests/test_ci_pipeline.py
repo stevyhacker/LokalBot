@@ -182,6 +182,8 @@ class ParallelGateTests(unittest.TestCase):
         with patch.object(shards, 'inventory', return_value=['Suite/testOne', 'Suite/testTwo']):
             shards.gate('success', 'success', 'skipped', 'skipped', 'Suite/testOne')
             self.assertEqual(shards.selected_tests('Suite'), ['Suite/testOne', 'Suite/testTwo'])
+            self.assertEqual(shards.selected_tests('LokalBotUITests/Suite/testOne'), ['Suite/testOne'])
+            shards.gate('success', 'success', 'skipped', 'skipped', 'LokalBotUITests/Suite/testOne')
             for values in [('success', 'failure', 'skipped', 'skipped', 'Suite/testOne'),
                            ('success', 'success', 'skipped', 'skipped', 'Suite/typo'),
                            ('success', 'success', 'success', 'success', 'Suite/testOne')]:

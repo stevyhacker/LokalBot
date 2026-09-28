@@ -76,6 +76,7 @@ def test_results(node):
 
 
 def selected_tests(selector):
+    selector = selector.removeprefix('LokalBotUITests/')
     selected = [test for test in inventory() if test == selector or test.startswith(selector + '/')]
     if not selected:
         raise ValueError(f'Unknown UI test selector: {selector}')
