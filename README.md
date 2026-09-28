@@ -24,9 +24,9 @@ Free and open source. No account. Nothing joins your calls.
 
 <a id="see-it-in-action"></a>
 
-https://github.com/user-attachments/assets/39cba80c-a0d5-4cf3-9019-b081b287de4f
+https://github.com/user-attachments/assets/d9cf34ff-6367-4964-830a-5c7ee1343555
 
-<div align="center"><sub>43 seconds in the real app: find a database decision, return to the discussion, and recover the follow-up. Fictional meeting data.</sub></div>
+<div align="center"><sub>45 seconds: why LokalBot keeps what you heard and saw, which local models do the work, then the real app in use. Fictional demo data.</sub></div>
 
 ## Features
 
@@ -38,7 +38,7 @@ Record microphone and meeting-app audio without a bot joining. Get local transcr
 
 ### Find something you saw
 
-One search across your meeting transcripts and the screen text you choose to save, by keyword or by meaning. Open the matching passage or retained screen moment instead of hunting through apps.
+One search across your meeting transcripts and, if you turn it on, what you saw on screen. Search by keyword or by meaning, then open the matching passage or screen moment instead of hunting through apps.
 
 <div align="center"><a href="Assets/screenshots/quick-recall.png"><img src="Assets/screenshots/quick-recall.png" alt="Quick Recall finding a Redis discussion across meeting transcripts and saved Slack and browser context" width="560" /></a></div>
 

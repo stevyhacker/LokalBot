@@ -1,6 +1,6 @@
 # LokalBot
 
-> Find what you said or saw on your Mac. LokalBot is a free, open-source (GPLv3) macOS app that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and the screen text you choose to save. Processing runs locally by default, with no account, analytics, or hosted AI service.
+> Find what you said or saw on your Mac. LokalBot is a free, open-source (GPLv3) macOS app that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service.
 
 Key facts:
 
