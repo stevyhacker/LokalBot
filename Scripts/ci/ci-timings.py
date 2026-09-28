@@ -71,7 +71,8 @@ def summarize(run, jobs):
             totals[step['phase']] = totals.get(step['phase'], 0) + (step['seconds'] or 0)
     macos = [row for row in rows if row['macos'] and row['seconds'] is not None]
     critical = next((row for row in rows if row['name'] == 'UI build and critical tests'), None)
-    return dict(run=run['id'], attempt=run['run_attempt'], workflow=run['name'], sha=run['head_sha'],
+    return dict(run=run['id'], attempt=run['run_attempt'], workflow=run['name'], head_sha=run['head_sha'],
+                checkout_sha=None if run['event'] == 'pull_request' else run['head_sha'],
                 url=run['html_url'] + f"/attempts/{run['run_attempt']}", event=run['event'],
                 result=run['conclusion'], status=run['status'], started_at=start,
                 wall_seconds=elapsed(start, max(finished.values())) if finished else None,
@@ -85,6 +86,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('run', type=int)
     parser.add_argument('--attempt', type=int)
+    parser.add_argument('--evidence', type=Path, help='Downloaded source.json or UI phase JSON with run/attempt/commit')
     parser.add_argument('--repo', default='stevyhacker/LokalBot')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
@@ -97,6 +99,12 @@ def main():
         if len(batch) < 100:
             break
     report = summarize(run, jobs)
+    if args.evidence:
+        evidence = json.loads(args.evidence.read_text())
+        if (str(evidence['run']), str(evidence['attempt'])) != (str(run['id']), str(run['run_attempt'])):
+            raise ValueError('Evidence belongs to another run or attempt')
+        report['checkout_sha'] = evidence['commit']
+        report['source_fingerprint'] = evidence.get('sources')
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k != 'jobs'}, indent=2))

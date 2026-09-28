@@ -17,6 +17,10 @@ superseded-run cancellation remains enabled. Save each attempt before rerunning:
 uv run --no-project python Scripts/ci/ci-timings.py RUN_ID --attempt 1 --output /tmp/run.json
 ```
 
+Use `--evidence /path/to/source.json` (or a UI phase report) to record the actual
+checkout SHA. A PR head SHA is distinct from GitHub's tested merge commit; without
+evidence the collector leaves the PR checkout SHA unknown.
+
 The snapshot records queue delay from dependency completion, every step's elapsed
 time, wall time, macOS occupied minutes and the sum of rounded job minutes. The
 latter is an estimate, not an invoice or a paid-runner multiplier. Download the
@@ -40,7 +44,7 @@ CI build settings. A source-content suffix permits compatible reuse after edits.
 The cache manifest checks every stored file and rejects symlinks, incompatible
 settings, tampering, empty stores, and stores larger than 2 GiB. Failed cached
 compilation retries once from clean products with caching disabled. A failed
-fallback cannot produce a UI reuse stamp or product artifact. Transfer failures
+fallback cannot produce a UI reuse stamp or product artifact. Cache restore/save steps have a three-minute bound. Transfer failures
 leave source compilation available; cache saves occur only after a successful
 cached build. Cache scope follows [GitHub's branch and PR restrictions](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching);
 no elevated cache token, `pull_request_target`, or cross-run product restore is used.

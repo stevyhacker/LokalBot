@@ -139,6 +139,7 @@ jobs:
         id: compiler-key
         run: python3 Scripts/ci/compiler-cache.py key ui
       - name: Restore compiler cache
+        timeout-minutes: 3
         continue-on-error: true
         env:
           SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
@@ -166,6 +167,7 @@ jobs:
         if: steps.compile.outputs.cache_save == 'true' && steps.compiler-restore.outputs.cache-hit != 'true'
         run: python3 Scripts/ci/compiler-cache.py seal
       - name: Save compiler cache
+        timeout-minutes: 3
         continue-on-error: true
         if: steps.compiler-seal.outputs.save == 'true'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9

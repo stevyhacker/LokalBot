@@ -269,6 +269,8 @@ class TimingTests(unittest.TestCase):
         self.assertIsNone(result['wall_seconds'])
         self.assertIsNone(result['jobs'][0]['seconds'])
         self.assertEqual(result['macos_runner_minutes'], 0)
+        run['event'] = 'pull_request'
+        self.assertIsNone(timing.summarize(run, [])['checkout_sha'])
 
 
 class TestArtifactTests(unittest.TestCase):

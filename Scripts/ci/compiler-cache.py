@@ -44,8 +44,11 @@ def prepare(kind):
     files = [Path(p) for p in output('git', 'ls-files', '-z').split('\0') if p]
     # These settings include the generated scheme, dependency pins, scripts and
     # all build arguments. No broad cross-toolchain/dependency restore prefix.
+    build_scripts = {'Scripts/ci/compiler-cache.py', 'Scripts/ui-tests.sh',
+                     'Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh',
+                     '.github/workflows/build.yml', '.github/workflows/ui-tests.yml'}
     settings = [p for p in files if str(p) == 'project.yml' or p.name == 'Package.resolved'
-                or str(p).startswith('Scripts/') or str(p).startswith('.github/workflows/')]
+                or str(p) in build_scripts]
     generated = list(Path('LokalBot.xcodeproj').glob('**/*.xcscheme'))
     generated += [Path('LokalBot.xcodeproj/project.pbxproj')]
     identity = dict(version=1, kind=kind, xcode=output('xcodebuild', '-version'),
@@ -60,7 +63,9 @@ def prepare(kind):
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     (EVIDENCE / 'cache-identity.json').write_text(json.dumps(identity, indent=2) + '\n')
     (EVIDENCE / 'source.json').write_text(json.dumps(dict(commit=output('git', 'rev-parse', 'HEAD'),
-                                                        sources=source, identity=identity), indent=2) + '\n')
+                                                        sources=source, identity=identity,
+                                                        run=os.environ.get('GITHUB_RUN_ID', ''),
+                                                        attempt=os.environ.get('GITHUB_RUN_ATTEMPT', '')), indent=2) + '\n')
     emit(key=prefix + source, prefix=prefix)
     print(json.dumps(dict(key=prefix + source, identity=identity), indent=2))
 
@@ -145,9 +150,12 @@ def build(command):
                 log.write(line)
             code = process.wait()
         log = log_path.read_text()
+        metrics = re.search(r'(\d+) hits / (\d+) cacheable tasks', log)
         attempts.append(dict(caching=cached, exit=code, seconds=round(time.monotonic() - start, 2),
                              hit_remarks=len(re.findall(r'(?:cache hit|replay(?:ed|ing).*cached)', log, re.I)),
-                             miss_remarks=len(re.findall(r'cache miss', log, re.I))))
+                             miss_remarks=len(re.findall(r'cache miss', log, re.I)),
+                             task_hits=int(metrics[1]) if metrics else None,
+                             cacheable_tasks=int(metrics[2]) if metrics else None))
         if code == 0:
             break
         if cached:
@@ -171,6 +179,7 @@ def seal():
         files, size = cache_files()
         identity = json.loads((EVIDENCE / 'cache-identity.json').read_text())
         (CACHE / 'manifest.json').write_text(json.dumps(dict(identity=identity, bytes=size, files=files)))
+        (EVIDENCE / 'cache-save.json').write_text(json.dumps(dict(bytes=size, seconds=round(time.monotonic() - started, 2))))
         emit(save='true')
         print(f'Compiler cache: {size} bytes, sealed in {time.monotonic() - started:.2f}s')
     except (OSError, ValueError) as error:
