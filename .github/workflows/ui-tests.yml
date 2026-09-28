@@ -30,7 +30,7 @@ on:
       cache_mode:
         description: "Compiler cache: warm reuse, cold empty store, off clean-build fallback"
         type: choice
-        options: [warm, cold, off]
+        options: ["warm", "cold", "off"]
         default: warm
       candidate_sha:
         description: "Exact 40-character commit SHA requested by the dispatching checkout"

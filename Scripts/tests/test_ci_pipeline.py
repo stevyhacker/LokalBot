@@ -334,6 +334,9 @@ class TimingTests(unittest.TestCase):
         self.assertEqual(result['macos_runner_minutes'], 0)
         self.assertEqual(result['peak_macos_jobs'], 0)
         self.assertIsNone(result['jobs'][0]['queue_seconds'])
+        skipped = dict(cancelled, name='UI build and critical tests', conclusion='skipped')
+        result = timing.summarize(dict(run, name='UI Tests'), [skipped])
+        self.assertIsNone(result['build_and_critical_seconds'])
 
 
 class TestArtifactTests(unittest.TestCase):

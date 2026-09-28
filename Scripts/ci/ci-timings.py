@@ -80,7 +80,8 @@ def summarize(run, jobs):
     for timestamp, delta in events:
         active += delta
         peak = max(peak, active)
-    critical = next((row for row in rows if row['name'] == 'UI build and critical tests'), None)
+    critical = next((row for row in rows if row['name'] == 'UI build and critical tests'
+                     and row['runner_allocated']), None)
     return dict(run=run['id'], attempt=run['run_attempt'], workflow=run['name'], head_sha=run['head_sha'],
                 checkout_sha=None if run['event'] == 'pull_request' else run['head_sha'],
                 url=run['html_url'] + f"/attempts/{run['run_attempt']}", event=run['event'],
