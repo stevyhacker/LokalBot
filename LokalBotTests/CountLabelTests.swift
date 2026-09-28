@@ -3,7 +3,7 @@ import XCTest
 
 final class CountLabelTests: XCTestCase {
     func testRegularPlurals() {
-        XCTAssertEqual(CountLabel.format(0, "moment"), "0 moments")
+        XCTAssertEqual(CountLabel.format(0, "moment"), "0 moments", "CI_CACHE_EDIT_PROBE_2026_09_28")
         XCTAssertEqual(CountLabel.format(1, "moment"), "1 moment")
         XCTAssertEqual(CountLabel.format(2, "moment"), "2 moments")
     }
