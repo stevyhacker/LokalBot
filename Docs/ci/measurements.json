@@ -1,0 +1,2012 @@
+{
+  "schema_version": 1,
+  "measured_on": "2026-09-28",
+  "repository": "stevyhacker/LokalBot",
+  "baseline_sha": "769068eab523eb158d74c4657d29934287a336bf",
+  "warm_benchmark_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+  "notes": [
+    "Hosted macOS 15 ARM64, Xcode 26.3; no local UI execution.",
+    "Warm samples are whole-workflow reruns at one exact SHA per workflow.",
+    "Empty-store samples use warm mode with no matching compiler cache; zero compiler hits establish a cold store.",
+    "Runner minutes are occupied wall minutes summed across macOS jobs, not billing multipliers.",
+    "Phase totals sum concurrent jobs; they are not the workflow critical path.",
+    "All full-suite UI benchmark attempts fail; compare phase failure sets and capture dimensions with the baseline. The source-edit UI run is focused."
+  ],
+  "samples": [
+    {
+      "label": "before-build-cold-dependencies",
+      "run": 36427077528,
+      "attempt": 1,
+      "workflow": "Build",
+      "checkout_sha": "769068eab523eb158d74c4657d29934287a336bf",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36427077528/attempts/1",
+      "result": "success",
+      "started_at": "2026-09-28T13:13:27Z",
+      "wall_seconds": 5764.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 34.53,
+      "macos_rounded_job_minutes": 36,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 2981.0,
+      "phase_seconds": {
+        "setup / other": 38.0,
+        "dependency cache": 34.0,
+        "vendor preparation": 1318.0,
+        "compilation": 428.0,
+        "product packaging / restore": 17.0,
+        "artifact transfer": 22.0,
+        "tests": 210.0
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T14:49:16.2079580Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 108976936574
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 108945584606,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 2981.0,
+          "seconds": 1817.0
+        },
+        {
+          "id": 108976936574,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 711.0,
+          "seconds": 255.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10976305883,
+          "name": "unit-products",
+          "size_in_bytes": 736007959,
+          "digest": "sha256:a5f18f2ed214e6e9480e7b5f83b1ec8f8eae135786b3de9838aac0469a5125ad"
+        }
+      ]
+    },
+    {
+      "label": "before-ui-cold-dependencies",
+      "run": 36427077518,
+      "attempt": 1,
+      "workflow": "UI Tests",
+      "checkout_sha": "769068eab523eb158d74c4657d29934287a336bf",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36427077518/attempts/1",
+      "result": "failure",
+      "started_at": "2026-09-28T13:13:27Z",
+      "wall_seconds": 6654.0,
+      "build_and_critical_seconds": 4217.0,
+      "macos_runner_minutes": 84.13,
+      "macos_rounded_job_minutes": 87,
+      "peak_macos_jobs": 3,
+      "max_macos_queue_seconds": 1878.0,
+      "phase_seconds": {
+        "setup / other": 73.0,
+        "dependency cache": 40.0,
+        "vendor preparation": 1664.0,
+        "compilation": 508.0,
+        "tests": 2465.0,
+        "product packaging / restore": 48.0,
+        "artifact transfer": 237.0
+      },
+      "source_fingerprint": null,
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 776.02,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 639.97,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 27.13,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 464.53,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 191.09,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 175.1,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 167.35,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 108944757371,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 1472.0,
+          "seconds": 2745.0
+        },
+        {
+          "id": 108972721742,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 140.0,
+          "seconds": 275.0
+        },
+        {
+          "id": 108972721904,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 1555.0,
+          "seconds": 873.0
+        },
+        {
+          "id": 108972721958,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 1724.0,
+          "seconds": 249.0
+        },
+        {
+          "id": 108972722020,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 497.0,
+          "seconds": 689.0
+        },
+        {
+          "id": 108972722543,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 1878.0,
+          "seconds": 217.0
+        },
+        {
+          "id": 108990315992,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 3.0,
+          "seconds": 6.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10974674266,
+          "name": "ui-products",
+          "size_in_bytes": 698499341,
+          "digest": "sha256:74715346615f3fee5c80ac4ae9017fe3381589ee7d43623e8e1f72e05421ba1a"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true
+    },
+    {
+      "label": "before-ui-warm-dependencies",
+      "run": 36449497190,
+      "attempt": 1,
+      "workflow": "UI Tests",
+      "checkout_sha": "769068eab523eb158d74c4657d29934287a336bf",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36449497190/attempts/1",
+      "result": "failure",
+      "started_at": "2026-09-28T16:13:42Z",
+      "wall_seconds": 2097.0,
+      "build_and_critical_seconds": 1186.0,
+      "macos_runner_minutes": 54.2,
+      "macos_rounded_job_minutes": 57,
+      "peak_macos_jobs": 5,
+      "max_macos_queue_seconds": 258.0,
+      "phase_seconds": {
+        "setup / other": 75.0,
+        "dependency cache": 19.0,
+        "vendor preparation": 2.0,
+        "compilation": 409.0,
+        "tests": 2433.0,
+        "product packaging / restore": 52.0,
+        "artifact transfer": 253.0
+      },
+      "source_fingerprint": null,
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 795.43,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 608.19,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 23.6,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 441.18,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 206.68,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 177.77,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 157.46,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 109020299276,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 258.0,
+          "seconds": 928.0
+        },
+        {
+          "id": 109028449834,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 291.0
+        },
+        {
+          "id": 109028449838,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 9.0,
+          "seconds": 698.0
+        },
+        {
+          "id": 109028449840,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 7.0,
+          "seconds": 247.0
+        },
+        {
+          "id": 109028449909,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 9.0,
+          "seconds": 893.0
+        },
+        {
+          "id": 109028449990,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 44.0,
+          "seconds": 195.0
+        },
+        {
+          "id": 109034492561,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 2.0,
+          "seconds": 7.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10983742878,
+          "name": "ui-products",
+          "size_in_bytes": 698499853,
+          "digest": "sha256:e9d6019226dbf8fe4420b351b3e03f9ed7dbc8d88b1db1a0da926d0d97b6424f"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true
+    },
+    {
+      "label": "build-empty-store",
+      "run": 36440912991,
+      "attempt": 1,
+      "workflow": "Build",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440912991/attempts/1",
+      "result": "success",
+      "started_at": "2026-09-28T15:05:22Z",
+      "wall_seconds": 1155.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 17.75,
+      "macos_rounded_job_minutes": 18,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 76.0,
+      "phase_seconds": {
+        "setup / other": 50.0,
+        "dependency cache": 36.0,
+        "vendor preparation": 3.0,
+        "compiler cache / evidence": 22.0,
+        "compilation": 601.0,
+        "product packaging / restore": 23.0,
+        "artifact transfer": 68.0,
+        "tests": 256.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": false,
+        "validation_seconds": 0.0,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 600.6,
+            "hit_remarks": 0,
+            "miss_remarks": 1670,
+            "task_hits": 0,
+            "cacheable_tasks": 636
+          }
+        ],
+        "seconds": 600.73,
+        "exit": 0
+      },
+      "cache_save": {
+        "bytes": 1245408449,
+        "seconds": 5.11
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T15:24:13.1268210Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 108996132847
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 108990840442,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 14.0,
+          "seconds": 714.0
+        },
+        {
+          "id": 108996132847,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 76.0,
+          "seconds": 351.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10982245000,
+          "name": "compiler-build",
+          "size_in_bytes": 443694,
+          "digest": "sha256:9cd9d0e9b53f38b046260d6ae638a4c62cf26db11fbfdfddd85f1e856555e561"
+        },
+        {
+          "id": 10980879985,
+          "name": "unit-products",
+          "size_in_bytes": 736329495,
+          "digest": "sha256:6d78c611aa553dbc225c4a2cb5b1714ba6a813f4273b5ff34ca99c52a9630c40"
+        }
+      ],
+      "compiler_identity_ref": "unit-35dbb2fb91c8"
+    },
+    {
+      "label": "build-warm-1",
+      "run": 36440912991,
+      "attempt": 2,
+      "workflow": "Build",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440912991/attempts/2",
+      "result": "success",
+      "started_at": "2026-09-28T15:26:46Z",
+      "wall_seconds": 820.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 11.3,
+      "macos_rounded_job_minutes": 12,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 128.0,
+      "phase_seconds": {
+        "setup / other": 51.0,
+        "dependency cache": 38.0,
+        "vendor preparation": 2.0,
+        "compiler cache / evidence": 22.0,
+        "compilation": 168.0,
+        "product packaging / restore": 26.0,
+        "artifact transfer": 72.0,
+        "tests": 292.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 6.49,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 160.52,
+            "hit_remarks": 1272,
+            "miss_remarks": 0,
+            "task_hits": 636,
+            "cacheable_tasks": 636
+          }
+        ],
+        "seconds": 167.2,
+        "exit": 0
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T15:40:02.0637100Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 109003168821
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 109000200421,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 128.0,
+          "seconds": 284.0
+        },
+        {
+          "id": 109003168821,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 14.0,
+          "seconds": 394.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10980435300,
+          "name": "unit-products",
+          "size_in_bytes": 736349463,
+          "digest": "sha256:6b09d211572224294df5cb5743ed94ff2ce860db50ee559dfb6e406c7db0e323"
+        },
+        {
+          "id": 10979826136,
+          "name": "compiler-build",
+          "size_in_bytes": 437354,
+          "digest": "sha256:fa1ef54a7193ae5cbfaf4d69d00c1807af192cde1182a2c8af598604b021d173"
+        }
+      ],
+      "compiler_identity_ref": "unit-35dbb2fb91c8"
+    },
+    {
+      "label": "build-warm-2",
+      "run": 36440912991,
+      "attempt": 3,
+      "workflow": "Build",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440912991/attempts/3",
+      "result": "success",
+      "started_at": "2026-09-28T15:42:40Z",
+      "wall_seconds": 639.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 8.23,
+      "macos_rounded_job_minutes": 10,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 137.0,
+      "phase_seconds": {
+        "setup / other": 36.0,
+        "dependency cache": 20.0,
+        "vendor preparation": 3.0,
+        "compiler cache / evidence": 11.0,
+        "compilation": 122.0,
+        "product packaging / restore": 15.0,
+        "artifact transfer": 50.0,
+        "tests": 231.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.35,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 119.1,
+            "hit_remarks": 1272,
+            "miss_remarks": 0,
+            "task_hits": 636,
+            "cacheable_tasks": 636
+          }
+        ],
+        "seconds": 121.62,
+        "exit": 0
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T15:53:00.2063160Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 109008585804
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 109007149222,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 192.0
+        },
+        {
+          "id": 109008585804,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 137.0,
+          "seconds": 302.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10981051748,
+          "name": "compiler-build",
+          "size_in_bytes": 438522,
+          "digest": "sha256:f000a30dc718f56eb07ba3dcc5d523c8eda154f4e4b4e0e82796acce5034cb77"
+        },
+        {
+          "id": 10981001779,
+          "name": "unit-products",
+          "size_in_bytes": 736331543,
+          "digest": "sha256:63ea5a931de419d9a59f873373b7bba38a0b25370203cdc663b1d58b9ee8640b"
+        }
+      ],
+      "compiler_identity_ref": "unit-35dbb2fb91c8"
+    },
+    {
+      "label": "build-warm-3",
+      "run": 36440912991,
+      "attempt": 4,
+      "workflow": "Build",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440912991/attempts/4",
+      "result": "success",
+      "started_at": "2026-09-28T15:55:51Z",
+      "wall_seconds": 508.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 8.12,
+      "macos_rounded_job_minutes": 9,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 13.0,
+      "phase_seconds": {
+        "setup / other": 39.0,
+        "dependency cache": 20.0,
+        "vendor preparation": 2.0,
+        "compiler cache / evidence": 14.0,
+        "compilation": 134.0,
+        "product packaging / restore": 15.0,
+        "artifact transfer": 36.0,
+        "tests": 224.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.9,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 131.37,
+            "hit_remarks": 1272,
+            "miss_remarks": 0,
+            "task_hits": 636,
+            "cacheable_tasks": 636
+          }
+        ],
+        "seconds": 134.43,
+        "exit": 0
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T16:04:02.7827970Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 109014336574
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 109012815854,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 13.0,
+          "seconds": 208.0
+        },
+        {
+          "id": 109014336574,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 279.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10982245000,
+          "name": "compiler-build",
+          "size_in_bytes": 443694,
+          "digest": "sha256:9cd9d0e9b53f38b046260d6ae638a4c62cf26db11fbfdfddd85f1e856555e561"
+        },
+        {
+          "id": 10980879985,
+          "name": "unit-products",
+          "size_in_bytes": 736329495,
+          "digest": "sha256:6d78c611aa553dbc225c4a2cb5b1714ba6a813f4273b5ff34ca99c52a9630c40"
+        }
+      ],
+      "compiler_identity_ref": "unit-35dbb2fb91c8"
+    },
+    {
+      "label": "ui-empty-store",
+      "run": 36440908228,
+      "attempt": 1,
+      "workflow": "UI Tests",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440908228/attempts/1",
+      "result": "failure",
+      "started_at": "2026-09-28T15:05:19Z",
+      "wall_seconds": 1788.0,
+      "build_and_critical_seconds": 1338.0,
+      "macos_runner_minutes": 67.37,
+      "macos_rounded_job_minutes": 72,
+      "peak_macos_jobs": 5,
+      "max_macos_queue_seconds": 398.0,
+      "phase_seconds": {
+        "setup / other": 100.0,
+        "dependency cache": 37.0,
+        "vendor preparation": 4.0,
+        "compiler cache / evidence": 27.0,
+        "compilation": 523.0,
+        "product packaging / restore": 71.0,
+        "artifact transfer": 750.0,
+        "tests": 2513.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": false,
+        "validation_seconds": 0.0,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 514.87,
+            "hit_remarks": 0,
+            "miss_remarks": 1649,
+            "task_hits": 0,
+            "cacheable_tasks": 629
+          }
+        ],
+        "seconds": 515.0,
+        "exit": 0
+      },
+      "cache_save": {
+        "bytes": 1173510544,
+        "seconds": 4.39
+      },
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 811.4,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 626.22,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 54.21,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 466.39,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 182.0,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 183.42,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 165.55,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 108990823286,
+          "name": "UI build (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 10.0,
+          "seconds": 642.0
+        },
+        {
+          "id": 108995552479,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 678.0
+        },
+        {
+          "id": 108995552583,
+          "name": "UI reduced-motion",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 9.0,
+          "seconds": 139.0
+        },
+        {
+          "id": 108995552619,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 375.0
+        },
+        {
+          "id": 108995552691,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 365.0,
+          "seconds": 298.0
+        },
+        {
+          "id": 108995552747,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 9.0,
+          "seconds": 924.0
+        },
+        {
+          "id": 108995552778,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 87.0,
+          "seconds": 256.0
+        },
+        {
+          "id": 108995552908,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 398.0,
+          "seconds": 730.0
+        },
+        {
+          "id": 109003763355,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 2.0,
+          "seconds": 6.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10979251641,
+          "name": "ui-products",
+          "size_in_bytes": 698841357,
+          "digest": "sha256:3d958d8d119295ff2b66b527665450d57699076c6adcb9474abc2fa370c2aa2e"
+        },
+        {
+          "id": 10978916762,
+          "name": "compiler-build",
+          "size_in_bytes": 183304,
+          "digest": "sha256:a9bba2a289d643adb8be1ecb2f832251941eb3e1caf8179ff311da1624297fb5"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true,
+      "compiler_identity_ref": "ui-35dbb2fb91c8"
+    },
+    {
+      "label": "ui-warm-1",
+      "run": 36440908228,
+      "attempt": 2,
+      "workflow": "UI Tests",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440908228/attempts/2",
+      "result": "failure",
+      "started_at": "2026-09-28T15:38:44Z",
+      "wall_seconds": 1321.0,
+      "build_and_critical_seconds": 889.0,
+      "macos_runner_minutes": 55.03,
+      "macos_rounded_job_minutes": 59,
+      "peak_macos_jobs": 5,
+      "max_macos_queue_seconds": 211.0,
+      "phase_seconds": {
+        "setup / other": 110.0,
+        "dependency cache": 35.0,
+        "vendor preparation": 2.0,
+        "compiler cache / evidence": 21.0,
+        "compilation": 159.0,
+        "product packaging / restore": 75.0,
+        "artifact transfer": 353.0,
+        "tests": 2531.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.11,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 150.72,
+            "hit_remarks": 1258,
+            "miss_remarks": 0,
+            "task_hits": 629,
+            "cacheable_tasks": 629
+          }
+        ],
+        "seconds": 153.05,
+        "exit": 0
+      },
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 764.6,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 664.2,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 45.73,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 517.46,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 188.0,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 174.99,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 151.75,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 109005440648,
+          "name": "UI build (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 11.0,
+          "seconds": 263.0
+        },
+        {
+          "id": 109007406261,
+          "name": "UI reduced-motion",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 12.0,
+          "seconds": 104.0
+        },
+        {
+          "id": 109007406419,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 12.0,
+          "seconds": 603.0
+        },
+        {
+          "id": 109007406440,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 11.0,
+          "seconds": 186.0
+        },
+        {
+          "id": 109007406521,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 211.0,
+          "seconds": 824.0
+        },
+        {
+          "id": 109007406537,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 284.0
+        },
+        {
+          "id": 109007406712,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 172.0,
+          "seconds": 274.0
+        },
+        {
+          "id": 109007406747,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 127.0,
+          "seconds": 764.0
+        },
+        {
+          "id": 109014758255,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 2.0,
+          "seconds": 10.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10980836741,
+          "name": "compiler-build",
+          "size_in_bytes": 403767,
+          "digest": "sha256:18501fb529773c1542f369d7c16ace4a10a35e14b5bb87bc36314b6fa4d6e30a"
+        },
+        {
+          "id": 10980831756,
+          "name": "ui-products",
+          "size_in_bytes": 698823437,
+          "digest": "sha256:dcddbcc2b435ab6b8665dfb99246e747b536faf5c6285b850dcdb4a534b97168"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true,
+      "compiler_identity_ref": "ui-35dbb2fb91c8"
+    },
+    {
+      "label": "ui-warm-2",
+      "run": 36440908228,
+      "attempt": 3,
+      "workflow": "UI Tests",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440908228/attempts/3",
+      "result": "failure",
+      "started_at": "2026-09-28T16:04:21Z",
+      "wall_seconds": 1371.0,
+      "build_and_critical_seconds": 827.0,
+      "macos_runner_minutes": 54.9,
+      "macos_rounded_job_minutes": 58,
+      "peak_macos_jobs": 5,
+      "max_macos_queue_seconds": 248.0,
+      "phase_seconds": {
+        "setup / other": 90.0,
+        "dependency cache": 32.0,
+        "vendor preparation": 3.0,
+        "compiler cache / evidence": 17.0,
+        "compilation": 125.0,
+        "product packaging / restore": 71.0,
+        "artifact transfer": 409.0,
+        "tests": 2529.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.02,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 116.76,
+            "hit_remarks": 1258,
+            "miss_remarks": 0,
+            "task_hits": 629,
+            "cacheable_tasks": 629
+          }
+        ],
+        "seconds": 118.94,
+        "exit": 0
+      },
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 772.0,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 663.19,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 47.87,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 487.7,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 193.48,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 182.12,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 158.93,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 109016376057,
+          "name": "UI build (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 9.0,
+          "seconds": 223.0
+        },
+        {
+          "id": 109017987166,
+          "name": "UI reduced-motion",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 137.0,
+          "seconds": 126.0
+        },
+        {
+          "id": 109017987196,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 231.0
+        },
+        {
+          "id": 109017987205,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 7.0,
+          "seconds": 588.0
+        },
+        {
+          "id": 109017987261,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 7.0,
+          "seconds": 193.0
+        },
+        {
+          "id": 109017987455,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 248.0,
+          "seconds": 878.0
+        },
+        {
+          "id": 109017987477,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 209.0,
+          "seconds": 760.0
+        },
+        {
+          "id": 109017987483,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 295.0
+        },
+        {
+          "id": 109025776289,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 4.0,
+          "seconds": 9.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10982556518,
+          "name": "ui-products",
+          "size_in_bytes": 698842381,
+          "digest": "sha256:eaeff7a496b8b1f875c9b851c6d292cd4120e176162ef04a06a0768c6cd2f0e2"
+        },
+        {
+          "id": 10982166470,
+          "name": "compiler-build",
+          "size_in_bytes": 406217,
+          "digest": "sha256:f39d74d870547d2393a0aac30fb29c3b6dbee39721b436a47f07211d32ead52e"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true,
+      "compiler_identity_ref": "ui-35dbb2fb91c8"
+    },
+    {
+      "label": "ui-warm-3",
+      "run": 36440908228,
+      "attempt": 4,
+      "workflow": "UI Tests",
+      "checkout_sha": "ddc5cb5b50fee32d4d7458aed0fced89b41d0a66",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36440908228/attempts/4",
+      "result": "failure",
+      "started_at": "2026-09-28T16:29:44Z",
+      "wall_seconds": 1702.0,
+      "build_and_critical_seconds": 973.0,
+      "macos_runner_minutes": 55.2,
+      "macos_rounded_job_minutes": 58,
+      "peak_macos_jobs": 4,
+      "max_macos_queue_seconds": 720.0,
+      "phase_seconds": {
+        "setup / other": 97.0,
+        "dependency cache": 28.0,
+        "vendor preparation": 2.0,
+        "compiler cache / evidence": 17.0,
+        "compilation": 153.0,
+        "product packaging / restore": 71.0,
+        "artifact transfer": 396.0,
+        "tests": 2532.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.79,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 143.51,
+            "hit_remarks": 1258,
+            "miss_remarks": 0,
+            "task_hits": 629,
+            "cacheable_tasks": 629
+          }
+        ],
+        "seconds": 146.51,
+        "exit": 0
+      },
+      "ui_phases": [
+        {
+          "phase": "functional-1",
+          "exit": 65,
+          "seconds": 830.63,
+          "tests": 39,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "functional-2",
+          "exit": 65,
+          "seconds": 615.51,
+          "tests": 41,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "reduced-motion",
+          "exit": 0,
+          "seconds": 49.3,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "smoke",
+          "exit": 0,
+          "seconds": 467.18,
+          "tests": 16,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1000x700",
+          "exit": 65,
+          "seconds": 213.24,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1180x740",
+          "exit": 65,
+          "seconds": 186.97,
+          "tests": 1,
+          "failures_match_baseline": true
+        },
+        {
+          "phase": "visual-1440x900",
+          "exit": 0,
+          "seconds": 146.11,
+          "tests": 1,
+          "failures_match_baseline": true
+        }
+      ],
+      "jobs": [
+        {
+          "id": 109026999102,
+          "name": "UI build (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 23.0,
+          "seconds": 239.0
+        },
+        {
+          "id": 109028700967,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 207.0,
+          "seconds": 504.0
+        },
+        {
+          "id": 109028701062,
+          "name": "UI reduced-motion",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 223.0,
+          "seconds": 164.0
+        },
+        {
+          "id": 109028701290,
+          "name": "UI visual-1440x900",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 268.0,
+          "seconds": 216.0
+        },
+        {
+          "id": 109028701388,
+          "name": "UI functional-2",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 395.0,
+          "seconds": 677.0
+        },
+        {
+          "id": 109028701396,
+          "name": "UI visual-1000x700",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 677.0,
+          "seconds": 342.0
+        },
+        {
+          "id": 109028701439,
+          "name": "UI functional-1",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 491.0,
+          "seconds": 937.0
+        },
+        {
+          "id": 109028701887,
+          "name": "UI visual-1180x740",
+          "result": "failure",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 720.0,
+          "seconds": 233.0
+        },
+        {
+          "id": 109038245332,
+          "name": "XCUITest (macOS)",
+          "result": "failure",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 4.0,
+          "seconds": 8.0
+        }
+      ],
+      "captures": {
+        "count": 78,
+        "correct_dimensions": 70,
+        "wrong_dimensions_match_baseline": true
+      },
+      "artifacts": [
+        {
+          "id": 10983792918,
+          "name": "ui-products",
+          "size_in_bytes": 698843917,
+          "digest": "sha256:8f0dc0321e1466838531c9af67a743acf84cfdee6c7571a8da9977d3335d84bb"
+        },
+        {
+          "id": 10983568030,
+          "name": "compiler-build",
+          "size_in_bytes": 404995,
+          "digest": "sha256:9541eaeba7ce0da1b239437ce6204993c19bba9a4c1093dee57597131a351e02"
+        }
+      ],
+      "ui_failure_set_matches_baseline": true,
+      "compiler_identity_ref": "ui-35dbb2fb91c8"
+    },
+    {
+      "label": "build-small-edit",
+      "run": 36449054857,
+      "attempt": 1,
+      "workflow": "Build",
+      "checkout_sha": "b4aa7eedb78b136b1a702bffb0b8c4fc20cdb1ba",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36449054857/attempts/1",
+      "result": "success",
+      "started_at": "2026-09-28T16:10:04Z",
+      "wall_seconds": 1005.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 13.92,
+      "macos_rounded_job_minutes": 15,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 163.0,
+      "phase_seconds": {
+        "setup / other": 56.0,
+        "dependency cache": 36.0,
+        "vendor preparation": 5.0,
+        "compiler cache / evidence": 48.0,
+        "compilation": 360.0,
+        "product packaging / restore": 19.0,
+        "artifact transfer": 55.0,
+        "tests": 250.0
+      },
+      "source_fingerprint": "088c7541a4b7c6a4fb051d0be0abbb0a46d3b1614a46bbb4e6afe77a8a0258bc",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 2.67,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 356.57,
+            "hit_remarks": 1216,
+            "miss_remarks": 84,
+            "task_hits": 608,
+            "cacheable_tasks": 636
+          }
+        ],
+        "seconds": 359.37,
+        "exit": 0
+      },
+      "cache_save": {
+        "bytes": 1290422649,
+        "seconds": 5.04
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T16:26:34.4737300Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 109023393533
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 109018776056,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 163.0,
+          "seconds": 508.0
+        },
+        {
+          "id": 109023393533,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 7.0,
+          "seconds": 327.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10983032168,
+          "name": "compiler-build",
+          "size_in_bytes": 358525,
+          "digest": "sha256:0556154093b1e799ec3c0e2aa2d64b5cab7365ab00f33ce447d4b24327eadb3e"
+        },
+        {
+          "id": 10982752436,
+          "name": "unit-products",
+          "size_in_bytes": 736336151,
+          "digest": "sha256:c9f7e4c8c418b58de41e075a68d7adb7975aa3f87a687fd147671e3adcd6deaf"
+        }
+      ],
+      "fresh_product_proof": {
+        "run": 36449054857,
+        "artifact_id": 10982752436,
+        "identity": {
+          "commit": "b4aa7eedb78b136b1a702bffb0b8c4fc20cdb1ba",
+          "xcode": "Xcode 26.3\nBuild version 17C529",
+          "sdk": "26.2",
+          "architecture": "arm64",
+          "signing": "NO",
+          "lock": "0fe98ce45c806fc091c2367914ea0fe228ed00c01b601c43a3676dbb0400f11d",
+          "run": "36449054857",
+          "attempt": "1"
+        },
+        "archive_sha256": "7f1fb327d518529d104da9df7913b290ef2c9cea00be3f5d0d1869910c9bf614",
+        "archive_digest_verified": true,
+        "binaries": [
+          {
+            "member": "./Debug/LokalBot.app/Contents/PlugIns/LokalBotTests.xctest/Contents/MacOS/LokalBotTests",
+            "bytes": 34519424,
+            "sha256": "255a31bde20e2c1e8ad6da5b8155d23273b9751051232a7ad8f53b8267e646e4",
+            "marker_found": true
+          }
+        ],
+        "method": "Read ZIP/tar bytes only; no extraction or execution"
+      },
+      "compiler_identity_ref": "unit-35dbb2fb91c8"
+    },
+    {
+      "label": "ui-small-edit",
+      "run": 36454885852,
+      "attempt": 1,
+      "workflow": "UI Tests",
+      "checkout_sha": "b4aa7eedb78b136b1a702bffb0b8c4fc20cdb1ba",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36454885852/attempts/1",
+      "result": "success",
+      "started_at": "2026-09-28T16:58:46Z",
+      "wall_seconds": 475.0,
+      "build_and_critical_seconds": 466.0,
+      "macos_runner_minutes": 7.47,
+      "macos_rounded_job_minutes": 9,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 10.0,
+      "phase_seconds": {
+        "setup / other": 31.0,
+        "dependency cache": 23.0,
+        "vendor preparation": 2.0,
+        "compiler cache / evidence": 27.0,
+        "compilation": 238.0,
+        "product packaging / restore": 15.0,
+        "artifact transfer": 58.0,
+        "tests": 54.0
+      },
+      "source_fingerprint": "088c7541a4b7c6a4fb051d0be0abbb0a46d3b1614a46bbb4e6afe77a8a0258bc",
+      "compiler": {
+        "mode": "warm",
+        "restored": true,
+        "validation_seconds": 3.23,
+        "attempts": [
+          {
+            "caching": true,
+            "exit": 0,
+            "seconds": 226.94,
+            "hit_remarks": 1222,
+            "miss_remarks": 54,
+            "task_hits": 611,
+            "cacheable_tasks": 629
+          }
+        ],
+        "seconds": 230.44,
+        "exit": 0
+      },
+      "cache_save": {
+        "bytes": 1210797904,
+        "seconds": 3.2
+      },
+      "ui_phases": [
+        {
+          "phase": "single",
+          "exit": 0,
+          "seconds": 49.63,
+          "tests": 1,
+          "failures": []
+        }
+      ],
+      "scope": "focused-source-invalidation",
+      "selector": "RedesignUITests/testHighContrastKeepsActionsAccessible",
+      "jobs": [
+        {
+          "id": 109038591417,
+          "name": "UI build (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 8.0,
+          "seconds": 322.0
+        },
+        {
+          "id": 109040782843,
+          "name": "UI build and critical tests",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 10.0,
+          "seconds": 126.0
+        },
+        {
+          "id": 109040784829,
+          "name": "UI ${{ matrix.phase }}",
+          "result": "skipped",
+          "macos": true,
+          "runner_allocated": false,
+          "queue_seconds": null,
+          "seconds": 0
+        },
+        {
+          "id": 109040784975,
+          "name": "UI reduced-motion",
+          "result": "skipped",
+          "macos": true,
+          "runner_allocated": false,
+          "queue_seconds": null,
+          "seconds": 0
+        },
+        {
+          "id": 109041673744,
+          "name": "UI focused / comparison (macOS)",
+          "result": "success",
+          "macos": false,
+          "runner_allocated": true,
+          "queue_seconds": 2.0,
+          "seconds": 7.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10985337656,
+          "name": "ui-products",
+          "size_in_bytes": 698846477,
+          "digest": "sha256:808e9ac0a6661242405bc5a0e1dbe0d0a8f789e4b9d82ed87af34d617cfa8061"
+        },
+        {
+          "id": 10984888337,
+          "name": "compiler-build",
+          "size_in_bytes": 352023,
+          "digest": "sha256:22bc634b5e83d54872f6603e00c521a1a2158f3695951981884c40db87d4c525"
+        }
+      ],
+      "compiler_identity_ref": "ui-35dbb2fb91c8"
+    },
+    {
+      "label": "build-cache-disabled",
+      "run": 36455010030,
+      "attempt": 1,
+      "workflow": "Build",
+      "checkout_sha": "6cde20738cb15af5556422144545c19122a5ab1a",
+      "url": "https://github.com/stevyhacker/LokalBot/actions/runs/36455010030/attempts/1",
+      "result": "success",
+      "started_at": "2026-09-28T16:59:51Z",
+      "wall_seconds": 713.0,
+      "build_and_critical_seconds": null,
+      "macos_runner_minutes": 11.58,
+      "macos_rounded_job_minutes": 13,
+      "peak_macos_jobs": 1,
+      "max_macos_queue_seconds": 12.0,
+      "phase_seconds": {
+        "setup / other": 37.0,
+        "dependency cache": 31.0,
+        "vendor preparation": 3.0,
+        "compiler cache / evidence": 4.0,
+        "compilation": 418.0,
+        "product packaging / restore": 16.0,
+        "artifact transfer": 16.0,
+        "tests": 166.0
+      },
+      "source_fingerprint": "9cbfcd9c3e84c40a2b129848c81022c42e8559d7d53add2ade228c253f6984a1",
+      "compiler": {
+        "mode": "off",
+        "restored": false,
+        "validation_seconds": 0.0,
+        "attempts": [
+          {
+            "caching": false,
+            "exit": 0,
+            "seconds": 417.23,
+            "hit_remarks": 0,
+            "miss_remarks": 0,
+            "task_hits": null,
+            "cacheable_tasks": null
+          }
+        ],
+        "seconds": 417.32,
+        "exit": 0
+      },
+      "unit_tests": {
+        "executed": 2499,
+        "skipped": 22,
+        "failures": 0,
+        "audio_probe": "2026-09-28T17:11:34.0748920Z SIGKILL recovery verified: 68096 frames; both committed waveform intervals intact.",
+        "job": 109042394658
+      },
+      "ui_phases": [],
+      "jobs": [
+        {
+          "id": 109039028282,
+          "name": "xcodebuild (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 12.0,
+          "seconds": 498.0
+        },
+        {
+          "id": 109042394658,
+          "name": "xcodebuild test (macOS)",
+          "result": "success",
+          "macos": true,
+          "runner_allocated": true,
+          "queue_seconds": 6.0,
+          "seconds": 197.0
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 10985213828,
+          "name": "compiler-build",
+          "size_in_bytes": 153139,
+          "digest": "sha256:b032cf95974ea1c514775afda121b630c1ba7a1536a8577e762646275cacb57e"
+        },
+        {
+          "id": 10985193819,
+          "name": "unit-products",
+          "size_in_bytes": 735979799,
+          "digest": "sha256:c19d69118405e7eda4befa3ba54dcb12a0f7c39649b68773b30b05b7098ec5c2"
+        }
+      ],
+      "compiler_identity_ref": "unit-16233a3e5c23"
+    }
+  ],
+  "compiler_identities": {
+    "unit-35dbb2fb91c8": {
+      "version": 2,
+      "kind": "unit",
+      "generator": "Version: 2.46.0",
+      "scheme": "LokalBot",
+      "xcode": "Xcode 26.3\nBuild version 17C529",
+      "swift": "Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)\nTarget: arm64-apple-macosx15.0",
+      "sdk": "26.2",
+      "sdk_build": "25C58",
+      "arch": "arm64",
+      "configuration": "Debug",
+      "signing": "NO",
+      "settings": "35dbb2fb91c8f1300abb13d42d528541b20f786c8922746a80a261dea24221ba"
+    },
+    "ui-35dbb2fb91c8": {
+      "version": 2,
+      "kind": "ui",
+      "generator": "Version: 2.46.0",
+      "scheme": "LokalBot UI Test Host",
+      "xcode": "Xcode 26.3\nBuild version 17C529",
+      "swift": "Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)\nTarget: arm64-apple-macosx15.0",
+      "sdk": "26.2",
+      "sdk_build": "25C58",
+      "arch": "arm64",
+      "configuration": "Debug",
+      "signing": "NO",
+      "settings": "35dbb2fb91c8f1300abb13d42d528541b20f786c8922746a80a261dea24221ba"
+    },
+    "unit-16233a3e5c23": {
+      "version": 2,
+      "kind": "unit",
+      "generator": "Version: 2.46.0",
+      "scheme": "LokalBot",
+      "xcode": "Xcode 26.3\nBuild version 17C529",
+      "swift": "Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)\nTarget: arm64-apple-macosx15.0",
+      "sdk": "26.2",
+      "sdk_build": "25C58",
+      "arch": "arm64",
+      "configuration": "Debug",
+      "signing": "NO",
+      "settings": "16233a3e5c237d9c8f6d0a2a96aa2c210024de1691b5296db2c3ab278dee99fd"
+    }
+  },
+  "baseline_ui_failures": {
+    "functional-1": [
+      "MainWindowUITests/testSpeakerRenameOffersCalendarAttendeeIdentities",
+      "MainWindowUITests/testTimelineRendersTrackAndOverview",
+      "MainWindowUITests/testTimelineSelectionOnlyReplacesBoundedContext",
+      "OnboardingUITests/testWizardExplainsDayMemoryDefaultsAndPermissionGates",
+      "RecallInteractionUITests/testRawCaptureRewindKeepsPlayingAndSeekingAcrossMomentDetails",
+      "RedesignUITests/testReviewAndSearchAccessibilityInBothAppearances",
+      "RedesignUITests/testTimelineFiltersRetainedMomentsWithoutHidingWorkSessions",
+      "SettingsUITests/testResourceMonitorRendersUsageAndModelState"
+    ],
+    "functional-2": [
+      "ModelsSettingsUITests/testModelsLayoutAtNarrowAndWideWidths",
+      "RedesignUITests/testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh"
+    ],
+    "reduced-motion": [],
+    "smoke": [],
+    "visual-1000x700": [
+      "RedesignUITests/testWorkspaceVisualMatrix"
+    ],
+    "visual-1180x740": [
+      "RedesignUITests/testWorkspaceVisualMatrix"
+    ],
+    "visual-1440x900": []
+  },
+  "baseline_wrong_dimensions": [
+    {
+      "name": "1000x700-dark-autocomplete.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-dark-dictation.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-dark-models.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-dark-settings.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-light-autocomplete.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-light-dictation.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-light-models.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    },
+    {
+      "name": "1000x700-light-settings.png",
+      "size": [
+        1000,
+        704
+      ],
+      "correct_size": false
+    }
+  ]
+}
