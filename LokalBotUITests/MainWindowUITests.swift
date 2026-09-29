@@ -385,7 +385,12 @@ final class MainWindowUITests: XCTestCase {
                        "empty decisions section should not consume Timeline space")
         XCTAssertTrue(textWithContent("Day Overview").firstMatch.waitForExistence(timeout: 6),
                       "day overview missing — seeded activity did not load")
-        XCTAssertTrue(textWithContent("Xcode").firstMatch.exists,
+        // Day Overview closes the digest column; its lazy app legend is built
+        // only once scrolled into view.
+        let digestColumn = identified("timeline.evidencePane").scrollViews.firstMatch
+        UITestHarness.scrollTo(identified("capture.dayOverview"), in: app,
+                               within: digestColumn.exists ? digestColumn : nil)
+        XCTAssertTrue(textWithContent("Xcode").firstMatch.waitForExistence(timeout: 4),
                       "seeded activity app 'Xcode' missing from Timeline")
         XCTAssertTrue(digestTasksVisible(),
                       "digest task hierarchy is missing")
