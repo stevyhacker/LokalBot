@@ -1,0 +1,12 @@
+LocalBot records two tracks: your microphone, and the meeting app's audio. No bot joins the call.
+Nemotron separates the voices, up to eight speakers.
+Qwen three A S R transcribes every turn, with its timestamp.
+Then Qwen three point five, on the built-in llama C P P server, writes the decisions, action items, and open questions.
+Or swap in Apple Intelligence, Ollama, or a server you approve.
+It all lands in a local S Q Lite library, indexed by keyword, and by meaning with Harrier embeddings.
+Screen text is opt-in. It's read from accessibility, with on-device O C R as a fallback.
+Credentials are redacted, screenshots are encrypted, and both expire after fourteen days by default.
+Search blends keyword and meaning, and every result opens the exact moment.
+Agents get read-only access through a C L I and M C P server, off until you turn it on.
+No account, no telemetry, and remote servers only with your approval.
+LocalBot. Free and open source.

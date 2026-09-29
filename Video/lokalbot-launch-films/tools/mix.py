@@ -105,8 +105,16 @@ def bed_machine(curves, n):
     return np.stack([m, m], 1)
 
 
-KITS = {"pullout": k_pullout, "streams": k_streams, "machine": k_machine}
-BEDS = {"streams": bed_streams, "machine": bed_machine}
+def k_tech(e):
+    k, t, pan = e["kind"], e["t"], e.get("pan", 0) * 0.6
+    if k == "probe":   return [(air(0.5, 1200, 4200, 1.8, 0.3), t, 0.12 * e.get("v", 1), pan, 0.4)]
+    if k == "row":     return [(glass((659, 784, 988)[int(e.get("v", 0))], 0.8, 0.45), t, 0.08, pan, 0.5)]
+    if k == "click":   return [(wood(250, 0.08), t, 0.26 * e.get("v", 1), pan, 0.2), (wood(195, 0.07), t + 0.06, 0.18, pan, 0.2)]
+    return k_machine(e)
+
+
+KITS = {"pullout": k_pullout, "streams": k_streams, "machine": k_machine, "tech": k_tech}
+BEDS = {"streams": bed_streams, "machine": bed_machine, "tech": bed_machine}
 
 
 def read_mono(p):

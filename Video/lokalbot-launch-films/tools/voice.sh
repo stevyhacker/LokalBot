@@ -1,13 +1,13 @@
 #!/bin/bash
 # Regenerate one film's narration, its word times, and timeline.js / timeline.json.
-#   ONETAKE=<onetake checkout> ELEVENLABS_API_KEY=... tools/voice.sh <pullout|streams|machine>
+#   ONETAKE=<onetake checkout> ELEVENLABS_API_KEY=... tools/voice.sh <pullout|streams|machine|tech>
 # Voices are ElevenLabs premades on eleven_v4: Liam narrates; Sarah and Chris speak the two meeting lines.
 # The generated audio (vo/liam, vo/meeting, vo/meeting1) is ignored by git.
 set -euo pipefail
 : "${ONETAKE:?set ONETAKE to a checkout of github.com/feitangyuan/onetake (see README)}"
 : "${ELEVENLABS_API_KEY:?set ELEVENLABS_API_KEY}"
 cd "$(dirname "$0")/.."
-D=${1:?film: pullout, streams or machine}
+D=${1:?film: pullout, streams, machine or tech}
 PY=(uv run -q --no-project --python 3.12)
 words() { "${PY[@]}" --with faster-whisper python "$ONETAKE/scripts/vo_tools.py" words "$@" --lang en --model base.en; }
 
@@ -24,6 +24,9 @@ case $D in
     STARTS=0.6,3.8,5.6,9.2,14.3,16.9,24.75; EXTRA=(--meet 19.6 --bars 64) ;;
   machine)
     STARTS=0.9,2.8,7.3,9.8,14.3,17.5,22.6 ;;
+  tech)
+    python3 tools/eleven_vo.py "$D/vo/meeting.txt" "$D/vo/meeting" --voice EXAVITQu4vr4xnSDxMaL --first 0   # Sarah
+    STARTS=0.9,7.8,11.8,16.3,24.5,29.2,36.1,42.1,48.9,57.1,63.3,68.1; EXTRA=(--meet 53.95 --bars 72); DUR=72.5 ;;
   *) echo "unknown film: $D" >&2; exit 2 ;;
 esac
 words "$D/vo/liam" --lines "$D/vo/lines.txt"
@@ -31,4 +34,4 @@ if [ -f "$D/vo/meeting.txt" ]; then
   mkdir -p "$D/vo/meeting1" && cp "$D/vo/meeting/t0.wav" "$D/vo/meeting1/t1.wav"
   words "$D/vo/meeting1" --lines "$D/vo/meeting.txt"
 fi
-python3 tools/build_timeline.py "$D" --starts "$STARTS" --dur 30 "${EXTRA[@]}"
+python3 tools/build_timeline.py "$D" --starts "$STARTS" --dur "${DUR:-30}" "${EXTRA[@]}"
