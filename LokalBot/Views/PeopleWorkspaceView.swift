@@ -169,6 +169,7 @@ struct PersonDetailView: View {
         }
         .navigationTitle(person.name)
         .accessibilityIdentifier("person.detail")
+
     }
 
     private var header: some View {
@@ -188,6 +189,14 @@ struct PersonDetailView: View {
                 .buttonStyle(.bordered)
                 .disabled(person.meetings.isEmpty)
                 Button {
+                    if let meeting = latestMeetingWithOutcomes { app.draftFollowUp(for: meeting) }
+                } label: {
+                    Label("Draft Follow-up…", systemImage: "arrowshape.turn.up.right")
+                }
+                .buttonStyle(.bordered)
+                .disabled(latestMeetingWithOutcomes == nil)
+                .help("Draft a follow-up from your latest meeting with \(person.firstName) that has outcomes")
+                Button {
                     app.openAgent(.init(
                         title: "Prepare for \(person.name)",
                         prompt: preparationPrompt,
@@ -201,6 +210,13 @@ struct PersonDetailView: View {
             Text("Built on this Mac from calendar attendee names, names you applied to speakers, and action owners. Email addresses are not shown or shared.")
                 .font(.callout).foregroundStyle(.secondary)
         }
+    }
+
+    private var latestMeetingWithOutcomes: Meeting? {
+        person.meetings.lazy
+            .filter { app.outcomeIndex.projection(for: $0.id) != nil }
+            .compactMap { ref in app.meetings.first { $0.id == ref.id } }
+            .first
     }
 
     private func threadSection(title: String, icon: String, threads: [ActionThread],

@@ -477,6 +477,9 @@ private struct MeetingWorkspaceDetail: View {
 
     private var meetingActionMenuItems: [WorkspaceMenu.Item] {
         var items: [WorkspaceMenu.Item] = [
+            .init(title: "Draft follow-up…", identifier: "toolbar.followUp",
+                  enabled: projection != nil && partialNotes == nil, action: { app.draftFollowUp(for: meeting) }),
+            .separator,
             .init(title: isReadingSummary ? "Stop spoken summary" : "Read summary aloud",
                   enabled: summary?.isEmpty == false, action: { isReadingSummary ? stopSpeech() : readSummary() }),
             .init(title: isExportingSpeech ? "Exporting spoken summary..." : "Export spoken summary",

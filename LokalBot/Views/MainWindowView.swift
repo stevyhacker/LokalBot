@@ -35,6 +35,10 @@ struct MainWindowView: View {
                 }
             }
         }
+        .sheet(item: $app.followUpDraftMeeting) { meeting in
+            FollowUpDraftSheet(meeting: meeting)
+                .environmentObject(app)
+        }
         .task {
             // Let non-View code (menu bar, AppDelegate reopen) open windows.
             // First-run permission onboarding is now triggered from AppState.

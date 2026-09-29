@@ -270,6 +270,18 @@ final class AppState: ObservableObject {
     @Published var selectedProjectID: String?
     private(set) lazy var connections = WorkMemoryConnections()
 
+    /// The meeting whose follow-up draft sheet is open, from any entry point.
+    @Published var followUpDraftMeeting: Meeting?
+
+    func draftFollowUp(for meeting: Meeting) {
+        followUpDraftMeeting = meeting
+    }
+
+    /// The most recent finished meeting that has extracted outcomes.
+    var latestMeetingWithOutcomes: Meeting? {
+        outcomeIndex.all.first { !$0.isArchived && $0.meeting.endedAt != nil }?.meeting
+    }
+
     func openPerson(_ id: String) {
         selectedPersonID = id
         navSection = .people

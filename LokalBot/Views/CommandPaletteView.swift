@@ -94,6 +94,10 @@ struct CommandPaletteView: View {
                   subtitle: "Library", action: { app.navSection = .timeline }),
             .init(id: "nav.meetings", icon: "waveform.circle", title: "Go to Meetings",
                   subtitle: "Library", action: { app.navSection = .meetings }),
+            .init(id: "followUp", icon: "arrowshape.turn.up.right", title: "Draft follow-up for latest meeting",
+                  subtitle: "Meetings", action: {
+                if let meeting = app.latestMeetingWithOutcomes { app.draftFollowUp(for: meeting) }
+            }),
             .init(id: "nav.people", icon: "person.2", title: "Go to People",
                   subtitle: "Library", action: { app.navSection = .people }),
             .init(id: "nav.projects", icon: "folder", title: "Go to Projects",
