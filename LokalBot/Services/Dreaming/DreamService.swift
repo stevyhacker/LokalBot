@@ -84,7 +84,8 @@ struct DreamService {
                     report = synthesis.report(dayKey: evidence.dayKey,
                                               generatedAt: now(),
                                               engineName: selection.engine.displayName,
-                                              inferenceProvenance: selection.provenance)
+                                              inferenceProvenance: selection.provenance,
+                                              actionThreadIDs: evidence.openActionThreadIDs)
                     if advancesMemory {
                         updatedMemory = memory.merging(synthesis.memory,
                                                        dreamDay: evidence.dayKey,

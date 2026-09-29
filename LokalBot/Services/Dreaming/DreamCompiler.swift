@@ -29,8 +29,12 @@ struct DreamEvidence: Equatable, Sendable {
     /// Meetings from the preceding comparison window (titles + days only),
     /// so the model can spot recurring themes without re-reading transcripts.
     var priorMeetings: [PriorMeeting]
-    /// Pre-rendered action-candidate lines from the window, `- [ ] …` style.
+    /// Pre-rendered action-candidate lines from the window, `- [ ] [A1] …`
+    /// style. Each handle indexes `openActionThreadIDs`.
     var openActions: [String]
+    /// Thread ids for the rendered candidates, in handle order, so a model's
+    /// top action can be tied back to the real, checkable action thread.
+    var openActionThreadIDs: [String] = []
     /// Complete, app-owned dependency set for the rendered input, including
     /// comparison-window actions and day-level screen/digest evidence. It may
     /// conservatively include truncated inputs; it never omits a read source.
@@ -109,9 +113,10 @@ enum DreamCompiler {
                 return MeetingOutcomeProjection.load(for: meeting, root: storageRoot)?
                     .actionReferences ?? []
             }
-        let openActions = ActionThreadClusterer.cluster(actionReferences)
+        let openThreads = Array(ActionThreadClusterer.cluster(actionReferences)
             .filter { $0.status != .done }
-            .map(actionLine)
+            .prefix(maxOpenActions))
+        let openActions = openThreads.enumerated().map { actionLine($0.element, handle: $0.offset + 1) }
 
         let dayKey = DreamDay.key(for: start, calendar: calendar)
         var sources = all.filter { $0.startedAt >= windowStart && $0.startedAt < end }
@@ -134,7 +139,8 @@ enum DreamCompiler {
             stats: snapshot.stats,
             savedMoments: snapshot.savedMoments,
             priorMeetings: priorMeetings,
-            openActions: Array(openActions.prefix(maxOpenActions)),
+            openActions: openActions,
+            openActionThreadIDs: openThreads.map(\.id),
             sources: sources)
     }
 
@@ -227,6 +233,7 @@ enum DreamCompiler {
             .flatMap(\.actionReferences)
             .filter(\.isForUser)
         let userActions: [String]
+        var userActionThreadIDs: [String?] = []
         if projectedUserActions.isEmpty {
             // Compatibility for tests and legacy in-memory evidence values.
             userActions = evidence.meetings.flatMap { meeting in
@@ -235,9 +242,11 @@ enum DreamCompiler {
                 }
             }
         } else {
-            userActions = ActionThreadClusterer.cluster(projectedUserActions)
-                .filter { $0.status != .done }
-                .map(actionDescription)
+            let threads = ActionAttentionOrder.sorted(
+                ActionThreadClusterer.cluster(projectedUserActions).filter { $0.status != .done },
+                now: generatedAt)
+            userActions = threads.map(actionDescription)
+            userActionThreadIDs = threads.prefix(3).map(\.id)
         }
 
         return DreamReport(
@@ -247,11 +256,12 @@ enum DreamCompiler {
             fallbackReason: reason,
             narrative: narrative,
             attention: Array(attention.prefix(5)),
-            topActions: Array(userActions.prefix(3)))
+            topActions: Array(userActions.prefix(3)),
+            topActionThreadIDs: userActionThreadIDs.isEmpty ? nil : userActionThreadIDs)
     }
 
-    private static func actionLine(_ thread: ActionThread) -> String {
-        "- [ ] " + actionDescription(thread)
+    private static func actionLine(_ thread: ActionThread, handle: Int) -> String {
+        "- [ ] [A\(handle)] " + actionDescription(thread)
     }
 
     private static func actionDescription(_ thread: ActionThread) -> String {

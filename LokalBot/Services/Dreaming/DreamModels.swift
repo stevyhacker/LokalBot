@@ -136,6 +136,15 @@ struct DreamReport: Codable, Equatable, Sendable {
     var frictions: [String] = []
     /// Top actions for today, ranked by expected leverage (at most three).
     var topActions: [String] = []
+    /// The action thread behind each top action, aligned by index; nil for
+    /// advice that is not one of the recorded action candidates. Absent in
+    /// reports written before actions were linked.
+    var topActionThreadIDs: [String?]? = nil
+
+    func topActionThreadID(at index: Int) -> String? {
+        guard let ids = topActionThreadIDs, ids.indices.contains(index) else { return nil }
+        return ids[index]
+    }
 
     var isFallback: Bool { engineName == nil }
 

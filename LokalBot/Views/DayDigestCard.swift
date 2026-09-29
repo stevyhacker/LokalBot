@@ -106,11 +106,22 @@ struct YesterdayDigestLine: View {
             : DreamDay.date(fromKey: report.day)?.formatted(date: .abbreviated, time: .omitted) ?? "Previous workday"
     }
 
+    private func linkedThread(_ id: String?) -> ActionThread? {
+        guard let id else { return nil }
+        return app.outcomeIndex.userActionThreads.first { $0.id == id }
+    }
+
     var body: some View {
         DisclosureGroup(isExpanded: $expanded) {
             DreamBriefText(text: report.narrative)
-            ForEach(Array(report.topActions.enumerated()), id: \.offset) { _, action in
-                DreamBriefText(text: "• " + action)
+            ForEach(Array(report.topActions.enumerated()), id: \.offset) { index, action in
+                // A top action taken from the recorded candidates is the real
+                // thread: it can be checked off here and stays in sync.
+                if let thread = linkedThread(report.topActionThreadID(at: index)) {
+                    ActionThreadRow(thread: thread)
+                } else {
+                    DreamBriefText(text: "• " + action)
+                }
             }
             ForEach(Array((report.attention + report.repeatedWork + report.suggestedChecks + report.frictions).enumerated()), id: \.offset) { _, text in
                 DreamBriefText(text: "• " + text)

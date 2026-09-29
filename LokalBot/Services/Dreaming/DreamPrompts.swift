@@ -19,8 +19,10 @@ struct DreamSynthesis: Equatable {
     }
 
     func report(dayKey: String, generatedAt: Date, engineName: String,
-                inferenceProvenance: DreamInferenceProvenance) -> DreamReport {
-        DreamReport(
+                inferenceProvenance: DreamInferenceProvenance,
+                actionThreadIDs: [String] = []) -> DreamReport {
+        let linked = DreamPrompts.linkTopActions(topActions, threadIDs: actionThreadIDs)
+        return DreamReport(
             day: dayKey,
             generatedAt: generatedAt,
             engineName: engineName,
@@ -30,7 +32,8 @@ struct DreamSynthesis: Equatable {
             repeatedWork: repeatedWork,
             suggestedChecks: suggestedChecks,
             frictions: frictions,
-            topActions: topActions)
+            topActions: linked.texts,
+            topActionThreadIDs: linked.ids.contains { $0 != nil } ? linked.ids : nil)
     }
 }
 
@@ -79,7 +82,9 @@ enum DreamPrompts {
     validation, or friction in the day's work.
     - top_actions: the top three actions to consider today, ranked by expected \
     leverage. At most three. Every action must follow from explicit unresolved work, \
-    a blocker, or a concrete friction in the evidence; never invent generic productivity advice.
+    a blocker, or a concrete friction in the evidence; never invent generic productivity advice. \
+    When a top action is one of the action candidates, begin it with that candidate's \
+    handle exactly as shown, such as "[A2] ", so the app can link it to the recorded action.
     - active_projects, work_goals, recurring_patterns: return the FULL updated \
     memory. Update statuses from the day's evidence, add new entries only with \
     clear evidence, keep entries you still believe active even if untouched \
@@ -264,6 +269,32 @@ enum DreamPrompts {
             case workGoals = "work_goals"
             case recurringPatterns = "recurring_patterns"
         }
+    }
+
+    /// Strips candidate handles ("[A2] …") from top actions and maps each to
+    /// its action thread. Unknown or out-of-range handles are removed without
+    /// inventing a link; duplicates keep only their first link.
+    static func linkTopActions(_ actions: [String], threadIDs: [String]) -> (texts: [String], ids: [String?]) {
+        var texts: [String] = []
+        var ids: [String?] = []
+        var used = Set<String>()
+        let pattern = #"^\s*\[A(\d{1,3})\]\s*[:\-–—]?\s*"#
+        for action in actions {
+            var text = action
+            var id: String?
+            if let range = action.range(of: pattern, options: .regularExpression) {
+                let digits = action[range].filter(\.isNumber)
+                text = String(action[range.upperBound...])
+                if let handle = Int(digits), threadIDs.indices.contains(handle - 1),
+                   used.insert(threadIDs[handle - 1]).inserted {
+                    id = threadIDs[handle - 1]
+                }
+            }
+            let trimmed = text.trimmingCharacters(in: .whitespaces)
+            texts.append(trimmed.isEmpty ? action : trimmed)
+            ids.append(id)
+        }
+        return (texts, ids)
     }
 
     private static func cleanedList(_ values: [String]) -> [String]? {
