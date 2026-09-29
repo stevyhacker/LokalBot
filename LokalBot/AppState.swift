@@ -1896,14 +1896,8 @@ final class AppState: ObservableObject {
                     && !cotypingGenerating
                     && !self.pipeline.hasActiveWork
                 guard lokalBotIsIdle else { return false }
-                guard DreamScheduler.powerAllowsDreaming(
-                    isOnBattery: PowerSourceMonitor.currentlyOnBattery(),
-                    isLowPower: ProcessInfo.processInfo.isLowPowerModeEnabled) else {
-                    return false
-                }
-                let userIdleSeconds = CGEventSource.secondsSinceLastEventType(
-                    .combinedSessionState, eventType: CGEventType(rawValue: ~0)!)
-                return DreamScheduler.isSystemIdle(for: userIdleSeconds)
+                return DreamScheduler.powerAllowsDreaming(
+                    isOnBattery: PowerSourceMonitor.currentlyOnBattery())
             },
             dream: { [weak self] target in
                 guard let self else {

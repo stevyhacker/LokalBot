@@ -8,12 +8,13 @@ import Foundation
 ///   injected `hasReport`), so a night the Mac slept through is caught up at
 ///   the next launch or wake, right before the user opens Today;
 /// - a `canRun` downtime gate keeps the dream from competing with recording,
-///   processing, dictation, or cotyping — it simply waits for the next tick.
+///   processing, dictation, or cotyping — it simply waits for the next tick;
+/// - catch-up is bounded to the last `catchUpDays` local days, so a long
+///   pause never turns into a backlog of unattended model runs.
 @MainActor
 final class DreamScheduler: ObservableObject {
-    /// Match screen-memory's definition of an inactive session: no keyboard,
-    /// pointer, or other combined-session input for three minutes.
-    nonisolated static let minimumSystemIdleSeconds: TimeInterval = 180
+    /// Yesterday plus the six days before it.
+    nonisolated static let catchUpDays = 7
 
     struct Configuration: Equatable, Sendable {
         var enabled: Bool
@@ -43,6 +44,10 @@ final class DreamScheduler: ObservableObject {
     @Published private(set) var isDreaming = false
     @Published private(set) var lastDreamedAt: Date?
     @Published private(set) var lastError: String?
+    /// Day being dreamed, for progress surfaces.
+    @Published private(set) var activeDayKey: String?
+    /// Missing days still queued behind an automatic catch-up run.
+    @Published private(set) var remainingCatchUpDays = 0
 
     /// Nil in production so every tick snapshots the then-current calendar.
     /// Tests can inject a fixed calendar through `init(calendar:now:)`.
@@ -55,7 +60,6 @@ final class DreamScheduler: ObservableObject {
     private var errorHandler: ((String) -> Void)?
     private var timer: Timer?
     private var dreamTask: Task<Void, Never>?
-    private var activeDayKey: String?
     private var lastFailure: Date?
     /// In-memory high-water mark for the current calendar snapshot. A launch
     /// may scan the persisted activation range once, but subsequent minute
@@ -92,6 +96,7 @@ final class DreamScheduler: ObservableObject {
             dreamTask?.cancel()
             dreamTask = nil
             activeDayKey = nil
+            remainingCatchUpDays = 0
             isDreaming = false
             lastFailure = nil
             scanCursorDayKey = nil
@@ -115,6 +120,7 @@ final class DreamScheduler: ObservableObject {
         dreamTask?.cancel()
         dreamTask = nil
         activeDayKey = nil
+        remainingCatchUpDays = 0
         isDreaming = false
     }
 
@@ -128,6 +134,7 @@ final class DreamScheduler: ObservableObject {
             dreamTask?.cancel()
             dreamTask = nil
             self.activeDayKey = nil
+            remainingCatchUpDays = 0
             isDreaming = false
         }
         lastFailure = nil
@@ -180,6 +187,8 @@ final class DreamScheduler: ObservableObject {
             }
             return
         }
+        remainingCatchUpDays = Self.missingDayCount(
+            after: target.day, through: yesterday, hasReport: hasReport, calendar: calendar)
         start(target: target, advancesScanCursor: true)
     }
 
@@ -192,6 +201,7 @@ final class DreamScheduler: ObservableObject {
               dream != nil else { return }
         let calendar = calendarSnapshot()
         let day = Self.previousDay(of: now(), calendar: calendar)
+        remainingCatchUpDays = 0
         start(target: Self.target(for: day, calendar: calendar), advancesScanCursor: false)
     }
 
@@ -229,6 +239,7 @@ final class DreamScheduler: ObservableObject {
             isDreaming = false
             dreamTask = nil
             activeDayKey = nil
+            remainingCatchUpDays = 0
             if continueCatchUp { tick() }
         }
     }
@@ -238,14 +249,16 @@ final class DreamScheduler: ObservableObject {
     }
 
     /// Finds the oldest undreamed local day between the persisted activation
-    /// boundary and yesterday (inclusive). A malformed boundary is narrowed to
-    /// yesterday for safe migration; a valid future boundary waits, preserving
-    /// the user's opt-in boundary across date-line travel.
+    /// boundary and yesterday (inclusive), looking back at most `catchUpDays`
+    /// days. A malformed boundary is narrowed to yesterday for safe migration;
+    /// a valid future boundary waits, preserving the user's opt-in boundary
+    /// across date-line travel.
     nonisolated static func oldestMissingTarget(
         firstEligibleDayKey: String,
         through yesterday: Date,
         hasReport: (String) -> Bool,
-        calendar: Calendar
+        calendar: Calendar,
+        catchUpDays: Int = catchUpDays
     ) -> Target? {
         let lastDay = calendar.startOfDay(for: yesterday)
         let parsedStart = DreamDay.date(fromKey: firstEligibleDayKey, calendar: calendar)
@@ -257,6 +270,9 @@ final class DreamScheduler: ObservableObject {
         } else {
             day = lastDay
         }
+        if let windowStart = calendar.date(byAdding: .day, value: -(max(1, catchUpDays) - 1), to: lastDay) {
+            day = max(day, calendar.startOfDay(for: windowStart))
+        }
 
         while day <= lastDay {
             let target = target(for: day, calendar: calendar)
@@ -266,6 +282,23 @@ final class DreamScheduler: ObservableObject {
             day = next
         }
         return nil
+    }
+
+    /// Undreamed days after `day` through yesterday, for progress display.
+    nonisolated static func missingDayCount(
+        after day: Date,
+        through yesterday: Date,
+        hasReport: (String) -> Bool,
+        calendar: Calendar
+    ) -> Int {
+        let lastDay = calendar.startOfDay(for: yesterday)
+        var count = 0
+        var current = calendar.startOfDay(for: day)
+        while let next = calendar.date(byAdding: .day, value: 1, to: current), next > current, next <= lastDay {
+            if !hasReport(DreamDay.key(for: next, calendar: calendar)) { count += 1 }
+            current = next
+        }
+        return count
     }
 
     nonisolated static func target(for day: Date, calendar: Calendar) -> Target {
@@ -311,18 +344,10 @@ final class DreamScheduler: ObservableObject {
         return date >= target
     }
 
-    /// Dreaming is deferred on battery or in Low Power Mode — an unattended
-    /// overnight model pass must never be the thing that drains the machine.
-    /// Sleep already pauses the minute tick; this covers the lid-open case.
-    nonisolated static func powerAllowsDreaming(isOnBattery: Bool,
-                                                isLowPower: Bool) -> Bool {
-        !isOnBattery && !isLowPower
-    }
-
-    nonisolated static func isSystemIdle(
-        for idleSeconds: TimeInterval,
-        minimum: TimeInterval = minimumSystemIdleSeconds
-    ) -> Bool {
-        idleSeconds.isFinite && idleSeconds >= max(0, minimum)
+    /// Dreaming waits for AC power — an unattended model pass must never be
+    /// the thing that drains the battery. It does not wait for the user to be
+    /// idle: a missed run catches up as soon as LokalBot itself is quiet.
+    nonisolated static func powerAllowsDreaming(isOnBattery: Bool) -> Bool {
+        !isOnBattery
     }
 }

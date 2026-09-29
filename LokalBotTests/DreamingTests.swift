@@ -80,10 +80,60 @@ final class DreamingTests: XCTestCase {
             try date("2026-06-30T00:00:00Z"))
     }
 
-    func testSystemIdleRequiresThreeMinutesWithoutInput() {
-        XCTAssertFalse(DreamScheduler.isSystemIdle(for: 179.9))
-        XCTAssertTrue(DreamScheduler.isSystemIdle(for: 180))
-        XCTAssertFalse(DreamScheduler.isSystemIdle(for: .nan))
+    func testCatchUpLooksBackAtMostSevenDaysFromYesterday() throws {
+        let target = try XCTUnwrap(DreamScheduler.oldestMissingTarget(
+            firstEligibleDayKey: "2026-07-01",
+            through: try date("2026-07-20T00:00:00Z"),
+            hasReport: { _ in false },
+            calendar: calendar))
+        XCTAssertEqual(target.dayKey, "2026-07-14")
+
+        let completed: Set<String> = ["2026-07-14", "2026-07-15"]
+        XCTAssertEqual(try XCTUnwrap(DreamScheduler.oldestMissingTarget(
+            firstEligibleDayKey: "2026-07-01",
+            through: try date("2026-07-20T00:00:00Z"),
+            hasReport: { completed.contains($0) },
+            calendar: calendar)).dayKey, "2026-07-16")
+    }
+
+    func testMissingDayCountCountsOnlyLaterUndreamedDays() throws {
+        let completed: Set<String> = ["2026-07-18"]
+        XCTAssertEqual(DreamScheduler.missingDayCount(
+            after: try date("2026-07-16T00:00:00Z"),
+            through: try date("2026-07-20T00:00:00Z"),
+            hasReport: { completed.contains($0) },
+            calendar: calendar), 3)
+        XCTAssertEqual(DreamScheduler.missingDayCount(
+            after: try date("2026-07-20T00:00:00Z"),
+            through: try date("2026-07-20T00:00:00Z"),
+            hasReport: { _ in false },
+            calendar: calendar), 0)
+    }
+
+    @MainActor
+    func testAutomaticCatchUpPublishesActiveDayAndRemainingDays() async throws {
+        let current = try date("2026-07-21T04:00:00Z")
+        let scheduler = DreamScheduler(calendar: calendar, now: { current })
+        let started = expectation(description: "dream started")
+        let release = AsyncStream<Void>.makeStream()
+
+        scheduler.configure(
+            .init(enabled: true, hour: 4, firstEligibleDayKey: "2026-07-18"),
+            hasReport: { $0 == "2026-07-19" },
+            canRun: { true },
+            dream: { _ in
+                started.fulfill()
+                for await _ in release.stream { break }
+            },
+            onError: { XCTFail($0) })
+
+        await fulfillment(of: [started], timeout: 5)
+        XCTAssertEqual(scheduler.activeDayKey, "2026-07-18")
+        XCTAssertEqual(scheduler.remainingCatchUpDays, 1)
+        scheduler.stop()
+        release.continuation.finish()
+        XCTAssertNil(scheduler.activeDayKey)
+        XCTAssertEqual(scheduler.remainingCatchUpDays, 0)
     }
 
     func testOldestMissingTargetCatchesUpGapAcrossMultipleDays() throws {
@@ -1112,13 +1162,9 @@ final class DreamingTests: XCTestCase {
 
     // MARK: - Power gate
 
-    func testDreamingRequiresACPowerAndNormalPowerMode() {
-        XCTAssertTrue(DreamScheduler.powerAllowsDreaming(
-            isOnBattery: false, isLowPower: false))
-        XCTAssertFalse(DreamScheduler.powerAllowsDreaming(
-            isOnBattery: true, isLowPower: false))
-        XCTAssertFalse(DreamScheduler.powerAllowsDreaming(
-            isOnBattery: false, isLowPower: true))
+    func testDreamingRequiresACPower() {
+        XCTAssertTrue(DreamScheduler.powerAllowsDreaming(isOnBattery: false))
+        XCTAssertFalse(DreamScheduler.powerAllowsDreaming(isOnBattery: true))
     }
 
     // MARK: - Headless flag
