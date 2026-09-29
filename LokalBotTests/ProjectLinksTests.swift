@@ -118,6 +118,17 @@ final class ProjectLinksTests: XCTestCase {
         XCTAssertEqual(merged.first?.source, .overnightReview)
     }
 
+    func testMentionDropsTranscriptMarkers() {
+        let summary = """
+            # Vireo sync
+            - Them 5: Merged the first **Vireo** pull request, with polish still on top. — [00:06:46]
+            """
+        XCTAssertEqual(ProjectLinks.mention(of: ["vireo"], in: summary),
+                       "Merged the first Vireo pull request, with polish still on top.")
+        XCTAssertEqual(ProjectLinks.mention(of: ["vireo"], in: "[00:52:13] Vireo ships to auditors on Friday."),
+                       "Vireo ships to auditors on Friday.")
+    }
+
     func testTopicDetectorSkipsCommonWordsAndRareTerms() {
         let meetings = (1...4).map { meeting("Weekly sync", daysAgo: Double($0)) }
         var summaries: [UUID: String] = [:]

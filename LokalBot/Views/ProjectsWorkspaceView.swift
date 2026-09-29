@@ -268,7 +268,8 @@ struct ProjectDetailView: View {
         }
     }
 
-    /// "13 meetings · 2 open · 3h 20m this week · last Sep 28".
+    /// "13 meetings · 2 open · 3h 20m this week", plus decisions and the
+    /// last mention in the detail header.
     static func summary(_ project: ProjectProfile, long: Bool = false) -> String {
         var parts: [String] = []
         if !project.meetings.isEmpty {
@@ -279,7 +280,7 @@ struct ProjectDetailView: View {
             parts.append("\(project.decisions.count) decision\(project.decisions.count == 1 ? "" : "s")")
         }
         if project.trackedSeconds >= 60 { parts.append(duration(project.trackedSeconds) + " this week") }
-        if let last = project.meetings.first?.startedAt ?? AskDayScope.date(for: project.lastActiveDay) {
+        if long, let last = project.meetings.first?.startedAt ?? AskDayScope.date(for: project.lastActiveDay) {
             parts.append("last " + PersonDetailView.relativeDay(last))
         }
         return parts.isEmpty ? project.status : parts.joined(separator: " · ")

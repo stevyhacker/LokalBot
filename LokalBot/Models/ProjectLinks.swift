@@ -227,13 +227,17 @@ enum ProjectLinks {
         return Array(ranked.prefix(8)).map(\.name)
     }
 
-    /// The first summary line naming every term, without markdown markers.
+    /// The first summary line naming every term, without markdown markers,
+    /// transcript timestamps, or speaker labels.
     static func mention(of terms: Set<String>, in summary: String) -> String? {
         for rawLine in summary.components(separatedBy: "\n") {
             let line: String = rawLine
                 .replacingOccurrences(of: #"^\s*(#+|[-*•]|\d+\.)\s*"#, with: "", options: .regularExpression)
                 .replacingOccurrences(of: "**", with: "")
                 .replacingOccurrences(of: "`", with: "")
+                .replacingOccurrences(of: #"\s*[—–-]?\s*\[\d{1,2}:\d{2}(:\d{2})?\]"#, with: "", options: .regularExpression)
+                .replacingOccurrences(of: #"^(Them|Me|Local|Remote|Speaker)( \d+)?:\s*"#, with: "",
+                                      options: [.regularExpression, .caseInsensitive])
                 .trimmingCharacters(in: .whitespaces)
             guard line.count >= 12, !rawLine.hasPrefix("# "), matches(terms, in: line) else { continue }
             return line.count > maximumMentionCharacters
