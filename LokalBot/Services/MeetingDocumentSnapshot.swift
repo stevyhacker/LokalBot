@@ -14,6 +14,7 @@ struct MeetingDocumentSnapshot: Sendable {
     var attributionNeedsRefresh = false
     var captureNeedsAttention = false
     var recoveryNeedsAttention = false
+    var screenContext = MeetingScreenContext()
 
     static func load(meeting: Meeting, root: URL, template: NoteTemplate, databaseURL: URL) -> Self {
         let folder = root.appendingPathComponent(meeting.relativePath)
@@ -30,8 +31,14 @@ struct MeetingDocumentSnapshot: Sendable {
         }
         let fallback = meeting.startedAt.addingTimeInterval(max(meeting.recordedDuration ?? 60, 60))
         let end = meeting.endedAt.map { $0 > meeting.startedAt ? $0 : fallback } ?? fallback
-        let text = ActivityStore(databaseURL: databaseURL, readOnly: true)
-            .ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
+        let screenStore = ActivityStore(databaseURL: databaseURL, readOnly: true)
+        let text = screenStore.ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
+        let screenContext = MeetingScreenContext.build(
+            meeting: meeting,
+            screenshots: screenStore.screenshots(
+                forMeeting: meeting.id,
+                from: meeting.startedAt.addingTimeInterval(-5),
+                to: end.addingTimeInterval(5)))
         return Self(notes: MeetingNotes.load(from: folder), transcript: transcript,
                     partialNotes: partial, partialProjection: projection, summary: summary,
                     speakerNameHints: SpeakerNameHintExtractor.hints(
@@ -40,6 +47,7 @@ struct MeetingDocumentSnapshot: Sendable {
                     speakerPresentation: MeetingSpeakerPresentation(transcript: transcript),
                     attributionNeedsRefresh: MeetingAttributionArtifacts.needsRefresh(in: folder),
                     captureNeedsAttention: RecordingHealthReport.load(in: folder)?.hasCaptureIssues == true,
-                    recoveryNeedsAttention: MeetingAudioFiles.recoveryNeedsAttention(in: folder))
+                    recoveryNeedsAttention: MeetingAudioFiles.recoveryNeedsAttention(in: folder),
+                    screenContext: screenContext)
     }
 }

@@ -165,6 +165,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var speechTask: Task<Void, Never>?
     @State private var speechSessionID: UUID?
     @State private var searchQuery = ""
+    @State private var screenContext = MeetingScreenContext()
     private var tab: MeetingWorkspaceTab {
         get { app.meetingWorkspaceTabs[meeting.id] ?? .summary }
         nonmutating set {
@@ -191,6 +192,7 @@ private struct MeetingWorkspaceDetail: View {
         _attributionNeedsRefresh = State(initialValue: document.attributionNeedsRefresh)
         _captureNeedsAttention = State(initialValue: document.captureNeedsAttention)
         _recoveryNeedsAttention = State(initialValue: document.recoveryNeedsAttention)
+        _screenContext = State(initialValue: document.screenContext)
     }
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
@@ -722,6 +724,15 @@ private struct MeetingWorkspaceDetail: View {
                 }
             }
         }
+        if !screenContext.materials.isEmpty {
+            MeetingScreenMaterialsSection(
+                context: screenContext,
+                onPlay: { material in
+                    player.seek(to: material.firstOffset)
+                    player.play(at: material.firstOffset)
+                },
+                onOpen: { app.openScreenSnapshot($0.firstSnapshotID) })
+        }
     }
 
     private var actionItemsSection: some View {
@@ -817,6 +828,17 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private var transcriptSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !screenContext.isEmpty {
+                MeetingOnScreenNowBar(context: screenContext, player: player) {
+                    app.openScreenSnapshot($0.snapshotID)
+                }
+            }
+            transcriptEvidenceList
+        }
+    }
+
+    private var transcriptEvidenceList: some View {
         TranscriptEvidenceList(
             transcript: transcript, display: transcriptDisplay, player: player,
             speakerPresentation: speakerPresentation,
@@ -1080,6 +1102,7 @@ private struct MeetingWorkspaceDetail: View {
         attributionNeedsRefresh = document.attributionNeedsRefresh
         captureNeedsAttention = document.captureNeedsAttention
         recoveryNeedsAttention = document.recoveryNeedsAttention
+        screenContext = document.screenContext
         summary = document.summary
         speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
