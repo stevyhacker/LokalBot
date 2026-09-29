@@ -151,7 +151,7 @@ enum SessionFormatter {
         var folder: String
     }
 
-    private static let iso8601: ISO8601DateFormatter = {
+    static let iso8601: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime]
         return f
@@ -170,7 +170,7 @@ enum SessionFormatter {
         return f
     }()
 
-    private static func renderTable(header: [String], rows: [[String]]) -> String {
+    static func renderTable(header: [String], rows: [[String]]) -> String {
         let all = [header] + rows
         let widths = (0..<header.count).map { col in
             all.map { $0[col].count }.max() ?? 0

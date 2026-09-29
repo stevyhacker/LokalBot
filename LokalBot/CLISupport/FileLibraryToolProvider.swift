@@ -96,6 +96,31 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                     "required": ["question"],
                 ]),
             ToolDefinition(
+                name: "get_action_items",
+                description: "List action items extracted from recent meetings, with the user's saved corrections and status applied. Overdue and soon-due work comes first. Due phrases are resolved to a date only when unambiguous (due_date); otherwise only the spoken phrase is returned.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "status": [
+                            "type": "string",
+                            "description": "active (default: open or deferred), open, deferred, done, or all.",
+                        ],
+                        "owner": [
+                            "type": "string",
+                            "description": "\"me\" for the user's own commitments, \"others\", or a participant name substring. Default: anyone.",
+                        ],
+                        "days": [
+                            "type": "integer",
+                            "description": "Meetings from the last N days (default 30, maximum 365). Ignored with meeting_id.",
+                        ],
+                        "meeting_id": [
+                            "type": "string",
+                            "description": "Optional short id or full UUID to limit results to one meeting.",
+                        ],
+                        "limit": ["type": "integer", "description": "Maximum action threads (default 50, maximum 200)."],
+                    ],
+                ]),
+            ToolDefinition(
                 name: "search_screen",
                 description: "Search locally captured screen text and window titles. Returns text snippets and context metadata only; never pixels or encrypted file paths. Requires the separate screen-memory permission.",
                 inputSchema: [
@@ -175,6 +200,8 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                     "ask_library requires a non-empty \"question\" string.")
             }
             return await ask(question)
+        case "get_action_items":
+            return getActionItems(arguments)
         case "search_screen":
             return searchScreen(arguments)
         case "get_timeline":
@@ -193,7 +220,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     }
 
     private static let meetingToolNames: Set<String> = [
-        "list_meetings", "get_meeting", "search_meetings", "ask_library",
+        "list_meetings", "get_meeting", "search_meetings", "ask_library", "get_action_items",
     ]
     private static let screenToolNames: Set<String> = [
         "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
@@ -303,6 +330,52 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             }
             return .text(SessionFormatter.searchJSON(
                 try LibrarySearch.hits(query: query, limit: limit)))
+        } catch {
+            return .error(
+                .meetingNotFound,
+                "Could not read the meeting library: \(error.localizedDescription)")
+        }
+    }
+
+    private func getActionItems(_ arguments: JSONValue?) -> ToolResult {
+        var filter = ActionItemsReport.Filter()
+        if let raw = arguments?["status"]?.stringValue {
+            guard let status = ActionStatusFilter(rawValue: raw.lowercased()) else {
+                return .error(
+                    .invalidArguments,
+                    "\"status\" must be one of all, active, open, deferred, or done.")
+            }
+            filter.status = status
+        }
+        if let owner = arguments?["owner"]?.stringValue {
+            guard owner.count <= 120 else {
+                return .error(.invalidArguments, "\"owner\" must be at most 120 characters.")
+            }
+            filter.owner = ActionItemsReport.OwnerFilter(owner)
+        }
+        switch boundedInteger(arguments?["days"], name: "days",
+                              default: ActionItemsReport.defaultDays,
+                              maximum: ActionItemsReport.maximumDays) {
+        case .success(let value): filter.days = value
+        case .failure(let result): return result
+        }
+        switch boundedInteger(arguments?["limit"], name: "limit", default: 50,
+                              maximum: ActionItemsReport.maximumEntries) {
+        case .success(let value): filter.limit = value
+        case .failure(let result): return result
+        }
+        do {
+            let meetings = try SessionLookup.loadAllMeetings()
+            if let id = arguments?["meeting_id"]?.stringValue, !id.isEmpty {
+                guard id.count <= 64, let meeting = try SessionLookup.find(id: id, in: meetings) else {
+                    return .error(
+                        .meetingNotFound,
+                        "No meeting matches \"\(id)\". Use list_meetings or search_meetings to find ids.")
+                }
+                filter.meetingID = meeting.id
+            }
+            return .text(ActionItemsReport.json(ActionItemsReport.entries(
+                meetings: meetings, root: SessionLookup.storageRootURL, filter: filter, now: now())))
         } catch {
             return .error(
                 .meetingNotFound,

@@ -142,6 +142,7 @@ final class FileLibraryToolProviderTests: XCTestCase {
             provider.tools.map(\.name),
             [
                 "list_meetings", "get_meeting", "search_meetings", "ask_library",
+                "get_action_items",
                 "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
                 "get_screenshot_detail",
             ])
@@ -152,7 +153,7 @@ final class FileLibraryToolProviderTests: XCTestCase {
 
     func testEveryToolRefusedWhenGateDisabled() async {
         gate.disable()
-        for name in ["list_meetings", "get_meeting", "search_meetings", "ask_library"] {
+        for name in ["list_meetings", "get_meeting", "search_meetings", "ask_library", "get_action_items"] {
             let result = await provider.call(
                 name: name,
                 arguments: ["id": "latest", "query": "x", "question": "x"])
@@ -183,6 +184,41 @@ final class FileLibraryToolProviderTests: XCTestCase {
 
         let meetingResult = await provider.call(name: "list_meetings", arguments: nil)
         XCTAssertTrue(meetingResult.text.hasPrefix("[access_disabled]"))
+    }
+
+    func testActionItemsApplySavedCorrectionsStatusAndOwnerFilter() async throws {
+        let meetings = try SessionLookup.loadAllMeetings(root: root)
+        let cache = try XCTUnwrap(meetings.first { $0.title == "Cache planning" })
+        let folder = root.appendingPathComponent(cache.relativePath, isDirectory: true)
+        let mine = MeetingOutcomes.ActionItem(text: "Draft the synthetic caching memo", owner: "Me", due: "2026-05-20")
+        let theirs = MeetingOutcomes.ActionItem(text: "Benchmark the synthetic cluster", owner: "Ana")
+        let finished = MeetingOutcomes.ActionItem(text: "Book the synthetic review room", owner: "Me")
+        try MeetingOutcomes(actionItems: [mine, theirs, finished]).write(to: folder)
+        var state = MeetingOutcomeState()
+        state.actions[finished.id] = .init(status: .done, userEdited: true)
+        state.actions[theirs.id] = .init(textCorrection: "Benchmark the synthetic Redis cluster", userEdited: true)
+        try MeetingOutcomeStore.writeState(state, to: folder)
+
+        let active = await provider.call(name: "get_action_items", arguments: ["days": 365])
+        XCTAssertFalse(active.isError, active.text)
+        XCTAssertTrue(active.text.contains("Draft the synthetic caching memo"))
+        XCTAssertTrue(active.text.contains("Benchmark the synthetic Redis cluster"))
+        XCTAssertFalse(active.text.contains("Book the synthetic review room"))
+        XCTAssertTrue(active.text.contains("\"due_date\" : \"2026-05-20\""))
+        XCTAssertTrue(active.text.contains("\"overdue\" : true"))
+
+        let mineOnly = await provider.call(
+            name: "get_action_items", arguments: ["owner": "me", "status": "all", "days": 365])
+        XCTAssertTrue(mineOnly.text.contains("Book the synthetic review room"))
+        XCTAssertFalse(mineOnly.text.contains("Redis cluster"))
+
+        let named = await provider.call(
+            name: "get_action_items", arguments: ["owner": "ana", "meeting_id": "aaaaaaaa"])
+        XCTAssertTrue(named.text.contains("Redis cluster"))
+        XCTAssertFalse(named.text.contains("caching memo"))
+
+        let invalid = await provider.call(name: "get_action_items", arguments: ["status": "pending"])
+        XCTAssertTrue(invalid.text.hasPrefix("[invalid_arguments]"), invalid.text)
     }
 
     func testListMeetingsReturnsBothNewestFirst() async {

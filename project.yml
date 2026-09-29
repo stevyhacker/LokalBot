@@ -321,6 +321,18 @@ targets:
       - path: LokalBot/Models/CalendarParticipantIdentity.swift
       - path: LokalBot/Models/AppIdentifiers.swift
       - path: LokalBot/Models/AppDirectories.swift
+      # Outcome read model shared with the app so CLI/MCP action items use
+      # the same corrections, status, threading, and due-date resolution.
+      - path: LokalBot/Models/MeetingOutcomes.swift
+      - path: LokalBot/Models/MeetingOutcomeState.swift
+      - path: LokalBot/Models/MeetingOutcomeProjection.swift
+      - path: LokalBot/Models/MeetingAttributionArtifactFiles.swift
+      - path: LokalBot/Models/ActionThreads.swift
+      - path: LokalBot/Models/ActionStatusFilter.swift
+      - path: LokalBot/Models/ActionDueResolver.swift
+      - path: LokalBot/Models/ActionDuePresentation.swift
+      - path: LokalBot/Services/MeetingOutcomeStore.swift
+      - path: LokalBot/Support/OutcomeProse.swift
     dependencies:
       - package: ArgumentParser
         product: ArgumentParser
