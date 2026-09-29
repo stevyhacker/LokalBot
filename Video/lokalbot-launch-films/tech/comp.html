@@ -312,7 +312,7 @@ function cabinet(t) {
 const WINS = [
   {app: 'Slack · #engineering', text: 'Redis failover benchmark is booked for Thursday with the search team’s load harness.', mode: 'ax'},
   {app: 'Notion · Q3 planning doc', text: 'Postgres migration timeline, Q3 priorities, onboarding first.', mode: 'ocr'},
-  {app: 'Terminal', text: 'export API_TOKEN=sk-live-4f9a8c21 && make release', mode: 'secret'},
+  {app: 'Terminal', text: 'export API_TOKEN=demo-token-0000 && make release', mode: 'secret'},   // an obvious placeholder, not a real key format
 ];
 const WIN_W = 440, WIN_H = 150;
 function screenLane(t) {
@@ -358,8 +358,9 @@ function windowCard(w, i, t) {
   txt(w.app, 78, 26, F('mono', 18), MUTE);
   const read = x >= RC - 10 && (w.mode !== 'ocr' || t >= T.OCR + 0.05), red = w.mode === 'secret' && t >= T.REDACT + 0.18;
   g.save(); rr(0, 0, WIN_W, WIN_H, 16); g.clip();
-  if (w.mode === 'secret') { const pre = 'export API_TOKEN=', post = ' make release'; g.font = F('text', 22, 500); const px = g.measureText(pre).width; txt(pre, 20, 72, F('text', 22, 500), read ? INK : '#9aa5a8');
-    if (red) { g.fillStyle = INK; rr(22 + px, 54, 150, 24, 4); g.fill(); txt(post, 26 + px + 150, 72, F('text', 22, 500), INK); } else txt('sk-live-4f9a8c21 &&' + post, 20 + px, 72, F('text', 22, 500), read ? INK : '#9aa5a8'); }
+  if (w.mode === 'secret') { const pre = 'export API_TOKEN=', key = 'demo-token-0000', post = ' && make release', f = F('text', 22, 500);
+    g.font = f; const px = g.measureText(pre).width, kw = g.measureText(key).width; txt(pre, 20, 72, f, read ? INK : '#9aa5a8');
+    if (red) { g.fillStyle = INK; rr(21 + px, 54, kw + 4, 24, 4); g.fill(); txt(post, 25 + px + kw, 72, f, INK); } else txt(key + post, 20 + px, 72, f, read ? INK : '#9aa5a8'); }
   else wrapTxt(w.text, 20, 72, WIN_W - 40, F('text', 22, 500), read ? INK : '#9aa5a8', 28);
   if (read) { g.fillStyle = hexA(TEAL, 0.12); g.fillRect(16, 52, WIN_W - 32, w.mode === 'secret' ? 28 : 58); }
   if (sealed > 0) { g.fillStyle = hexA('#0e141c', 0.55 * sealed); g.fillRect(0, 0, WIN_W, WIN_H); }

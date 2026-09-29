@@ -1,0 +1,99 @@
+1
+00:00:00,800 --> 00:00:02,860
+LokalBot records two tracks,
+
+2
+00:00:02,880 --> 00:00:05,000
+your microphone and the meeting app.
+
+3
+00:00:05,020 --> 00:00:06,630
+No bot joins the call.
+
+4
+00:00:06,900 --> 00:00:09,069
+Nemotron tells the voices apart.
+
+5
+00:00:09,300 --> 00:00:12,060
+Qwen3-ASR transcribes each turn,
+
+6
+00:00:12,080 --> 00:00:13,537
+with its timestamp.
+
+7
+00:00:14,000 --> 00:00:17,860
+Qwen3.5, on the built-in llama.cpp server,
+
+8
+00:00:17,880 --> 00:00:20,161
+writes the decisions and action items.
+
+9
+00:00:20,450 --> 00:00:23,350
+It all lands in a local SQLite library,
+
+10
+00:00:23,370 --> 00:00:24,690
+searchable by keyword,
+
+11
+00:00:24,710 --> 00:00:26,890
+and by meaning with Harrier.
+
+12
+00:00:27,200 --> 00:00:29,160
+Screen text is opt-in:
+
+13
+00:00:29,180 --> 00:00:29,920
+read from accessibility,
+
+14
+00:00:29,940 --> 00:00:32,603
+with OCR as a fallback.
+
+15
+00:00:32,850 --> 00:00:34,530
+Credentials are redacted,
+
+16
+00:00:34,550 --> 00:00:35,990
+screenshots encrypted,
+
+17
+00:00:36,010 --> 00:00:38,885
+and both expire in fourteen days by default.
+
+18
+00:00:39,200 --> 00:00:41,448
+Search opens the exact moment.
+
+19
+00:00:41,750 --> 00:00:44,637
+[Meeting] I'll draft the eviction-policy doc by Thursday.
+
+20
+00:00:44,950 --> 00:00:46,470
+Agents get read-only access
+
+21
+00:00:46,490 --> 00:00:48,670
+through the CLI and MCP,
+
+22
+00:00:48,690 --> 00:00:50,505
+off until you turn it on.
+
+23
+00:00:50,800 --> 00:00:53,300
+No account, no telemetry.
+
+24
+00:00:53,320 --> 00:00:55,532
+Remote servers only with your approval.
+
+25
+00:00:55,800 --> 00:00:58,586
+LokalBot. Free and open source.

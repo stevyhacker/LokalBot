@@ -2,7 +2,8 @@
 # Render one film from its composition: look → sound events → mix → draft → onetake's verify.
 #   ONETAKE=<onetake checkout> tools/build.sh <pullout|streams|machine|tech> [--final]
 # Needs the narration audio from tools/voice.sh. Drafts are 1920×1080 at 30 fps; --final renders 3840×2160 at 60 fps,
-# only for an accepted cut. Output: <film>/renders/draft.mp4 (ignored by git; accepted drafts are copied to drafts/).
+# only for an accepted cut. Output: <film>/renders/draft.mp4, or final.mp4 with --final (ignored by git; accepted drafts
+# are copied to drafts/).
 set -euo pipefail
 : "${ONETAKE:?set ONETAKE to a checkout of github.com/feitangyuan/onetake (see README)}"
 cd "$(dirname "$0")/.."
@@ -21,6 +22,7 @@ cp "$ONETAKE/lib/motion.js" "$D/motion.js"
 "${PY[@]}" "${PW[@]}" python tools/dump_events.py "$D/comp.html"
 "${PY[@]}" --with numpy --with scipy python tools/mix.py "$D"
 mkdir -p "$D/renders"
-"${PY[@]}" "${PW[@]}" --with numpy --with pillow python "$ONETAKE/scripts/render.py" "$D/comp.html" --out "$D/renders/draft.mp4" --sfx "$D/mix.wav" "$@"
+OUT="$D/renders/draft.mp4"; for a in "$@"; do [ "$a" = --final ] && OUT="$D/renders/final.mp4"; done
+"${PY[@]}" "${PW[@]}" --with numpy --with pillow python "$ONETAKE/scripts/render.py" "$D/comp.html" --out "$OUT" --sfx "$D/mix.wav" "$@"
 "${PY[@]}" "${PW[@]}" --with numpy --with pillow --with scipy --with opencv-python --with matplotlib \
-  python "$ONETAKE/scripts/verify_promo.py" "$D/renders/draft.mp4" --comp "$D/comp.html" --shots "$SHOTS"
+  python "$ONETAKE/scripts/verify_promo.py" "$OUT" --comp "$D/comp.html" --shots "$SHOTS"

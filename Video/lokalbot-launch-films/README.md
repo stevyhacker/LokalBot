@@ -32,6 +32,11 @@ extends the third in LokalBot's own branding. All were made with the [onetake](h
   speak the seeded meeting lines; film 4 replays Sarah's line from film 1 at 00:00:26. `vo/lines.txt` is the script; `vo/read.txt` is what is spoken ("LocalBot",
   "Qwen three A S R").
 
+Film 4 also has captions timed from its narration, [`tech/captions.srt`](tech/captions.srt) and
+[`tech/captions.vtt`](tech/captions.vtt), written by `tools/captions.py`. Its 4K 60 fps master (52 MB) is not
+committed; `tools/build.sh tech --final` renders it to `tech/renders/final.mp4`. The terminal token in its screen lane
+is a placeholder (`demo-token-0000`), not a real key format.
+
 ## Checks
 
 onetake's `verify_promo.py` on the committed drafts, plus a faster-whisper transcript of each mix:
@@ -58,11 +63,12 @@ regenerated after the transcript check heard them wrong. `tools/voice.sh` record
 
 | Path | What |
 | --- | --- |
+| `<film>/captions.srt`, `captions.vtt` | Captions from the narration timings (`tools/captions.py <film>`) |
 | `<film>/comp.html` | The composition: one canvas, every value a function of time (`window.__seek`), on onetake's `lib/motion.js` |
 | `<film>/look.json` | Palette and faces. `look.js` is generated from it by onetake's `look.py` |
 | `<film>/timeline.js`, `timeline.json` | Narration starts, word times, meeting-line waveform. Beats find their words by text |
 | `<film>/vo/` | `lines.txt`, `read.txt`, and the meeting line |
-| `tools/` | `eleven_vo.py`, `build_timeline.py`, `dump_events.py`, `mix.py`, `voice.sh`, `build.sh` |
+| `tools/` | `eleven_vo.py`, `build_timeline.py`, `dump_events.py`, `mix.py`, `captions.py`, `voice.sh`, `build.sh` |
 
 ## License
 
