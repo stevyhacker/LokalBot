@@ -217,7 +217,7 @@ struct ModelConnectionsView: View {
 
     private func modelField<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(Font.scaled(.body))
+            Text(title).font(AppFont.scaled(.body))
             content().textFieldStyle(.roundedBorder)
         }
     }
@@ -285,17 +285,17 @@ struct ModelConnectionsView: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Remote processing · \(url.host ?? origin)", systemImage: "network")
-                        .font(Font.scaled(.body).weight(.semibold))
+                        .font(AppFont.scaled(.body).weight(.semibold))
                     Text("Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features.")
                         .workspaceTextRole(.trust)
                         .fixedSize(horizontal: false, vertical: true)
                     Toggle("Allow sending context to \(origin)",
                            isOn: remoteApprovalBinding(rawURL: rawURL))
-                        .font(Font.scaled(.body))
+                        .font(AppFont.scaled(.body))
                         .accessibilityIdentifier("models.remoteConsent")
                     Toggle("Allow scheduled daily summaries and overnight review to send context to \(origin)",
                            isOn: remoteAutomationApprovalBinding(rawURL: rawURL))
-                        .font(Font.scaled(.body))
+                        .font(AppFont.scaled(.body))
                         .disabled(!app.settings.approvedRemoteInferenceOrigins.contains(origin))
                         .accessibilityIdentifier("models.remoteAutomationConsent")
                     Text("Scheduled runs can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time. This approval applies only to this server origin.")
@@ -313,7 +313,7 @@ struct ModelConnectionsView: View {
         } else if let url = URL(string: rawURL), InferenceEndpointPolicy.isLoopback(url) {
             Label("Loopback server: inference context stays on this Mac.",
                   systemImage: "checkmark.shield.fill")
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .settingsSecondary()
         }
     }
@@ -355,7 +355,7 @@ struct ModelConnectionsView: View {
     private var openRouterDataPolicyControl: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Provider data use")
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
             Picker("Provider data use", selection: openRouterDataPolicyBinding) {
                 Text("Private endpoints only (Recommended)")
                     .tag(OpenRouterDataPolicy.privateOnly)

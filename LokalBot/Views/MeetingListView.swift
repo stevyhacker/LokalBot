@@ -37,7 +37,7 @@ struct MeetingListView: View {
                 }
                 TextField("Search meetings", text: $query)
                     .textFieldStyle(.roundedBorder)
-                    .font(Font.scaled(.body))
+                    .font(AppFont.scaled(.body))
                     .accessibilityLabel("Search meetings")
                     .accessibilityIdentifier("meeting.search")
                 if app.evidenceMeetingID != nil, !query.isEmpty {
@@ -88,7 +88,7 @@ struct MeetingListView: View {
                 if !app.libraryReady {
                     LoadingStateLabel(
                         "Loading your meeting library…",
-                        font: Font.scaled(.body))
+                        font: AppFont.scaled(.body))
                     .accessibilityIdentifier("meeting.libraryLoading")
                 } else if groupedMeetings.isEmpty {
                     meetingEmptyState
@@ -128,11 +128,11 @@ struct MeetingListView: View {
                 .foregroundStyle(Brand.teal)
             VStack(alignment: .leading, spacing: 1) {
                 Text("\(app.selectedMeetingIDs.count) meetings selected")
-                    .font(Font.scaled(.body).weight(.semibold))
+                    .font(AppFont.scaled(.body).weight(.semibold))
                 Text(canMergeSelected
                      ? "Create one timeline and fold the originals into it"
                      : "Select completed meetings that are not processing")
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 6)
@@ -292,13 +292,13 @@ struct MeetingRowView: View {
         if stage.isFailure {
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Failed", systemImage: "exclamationmark.triangle.fill")
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .foregroundStyle(Brand.error)
                 Button("Retry") {
                     app.retryProcessing(meeting)
                 }
                 .buttonStyle(.borderless)
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
             }
             .help(stage.label)
             .accessibilityIdentifier("meeting.retry.\(meeting.id.uuidString)")
@@ -307,13 +307,13 @@ struct MeetingRowView: View {
             // about what it does — it starts the missing model downloads.
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Waiting for models", systemImage: "arrow.down.circle")
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .foregroundStyle(.secondary)
                 Button("Download & process") {
                     app.retryProcessing(meeting)
                 }
                 .buttonStyle(.borderless)
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
             }
             .help(stage.label)
             .accessibilityIdentifier("meeting.waitingModels.\(meeting.id.uuidString)")

@@ -78,7 +78,7 @@ struct ScreenRewindView: View {
             .onDisappear { isPlaying = false }
             .sheet(item: $deletionReview) { review in
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Review capture deletion").font(Font.scaled(.headline))
+                    Text("Review capture deletion").font(AppFont.scaled(.headline))
                     Text("\(review.interval.start.formatted(date: .abbreviated, time: .standard)) – \(review.interval.end.addingTimeInterval(-0.001).formatted(date: .omitted, time: .standard))")
                     Text("\(review.captures.count) moments, including \(review.pixelCount) image records. Their captured text, search vectors and saved notes will also be removed permanently.")
                     Text("\(review.savedExcluded) saved moments excluded · \(review.savedIncluded) saved moments included")

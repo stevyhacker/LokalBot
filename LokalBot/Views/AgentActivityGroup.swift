@@ -34,7 +34,7 @@ struct AgentActivityGroup: View {
         } label: {
             HStack(spacing: 8) {
                 if running { ProgressView().controlSize(.mini) } else { Image(systemName: failed ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(failed ? Color.orange : Color.secondary) }
-                Text(group.summary).font(Font.scaled(.callout).weight(.semibold))
+                Text(group.summary).font(AppFont.scaled(.callout).weight(.semibold))
                 if running { Text("In progress").font(.scaled(.caption)).foregroundStyle(.secondary) }
             }
         }

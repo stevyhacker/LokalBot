@@ -75,7 +75,7 @@ struct MainWindowView: View {
                                 Spacer()
                                 Button("Dismiss") { app.outcomeIndex.dismissUndo() }
                             }
-                            .font(Font.scaled(.body))
+                            .font(AppFont.scaled(.body))
                             .padding(12).background(.bar)
                         }
                     }

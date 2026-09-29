@@ -104,7 +104,7 @@ struct MeetingNotesRefreshSection: View {
         WorkspaceSection(title: "Refresh Notes", icon: "arrow.trianglehead.2.clockwise") {
             Label(needsRefresh ? "Notes need a refresh" : hasNotes ? "Notes use the latest saved speaker details" : "No derived notes yet",
                   systemImage: needsRefresh ? "exclamationmark.triangle" : hasNotes ? "checkmark.circle" : "doc.text")
-                .font(Font.scaled(.body).weight(.semibold))
+                .font(AppFont.scaled(.body).weight(.semibold))
                 .accessibilityIdentifier("meeting.review.freshness")
             Text("Refresh the summary and extracted owners after reviewing speakers. Saved action corrections stay separate; unmatched edits remain available for review.")
                 .workspaceTextRole(.supporting)

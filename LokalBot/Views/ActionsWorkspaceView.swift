@@ -223,7 +223,7 @@ struct ActionsWorkspaceView: View {
                 if selected.isEmpty {
                     if selecting {
                         Text("Choose actions to change together")
-                            .font(Font.scaled(.callout))
+                            .font(AppFont.scaled(.callout))
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("actions.batch.hint")
                     }
@@ -272,7 +272,7 @@ struct ActionsWorkspaceView: View {
                         .accessibilityIdentifier("actions.selection.hidden")
                     Button("Clear selection") { selection = [] }
                     Spacer()
-                }.font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                }.font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
         }.padding(.horizontal, 20).padding(.bottom, 12)
     }
@@ -362,7 +362,7 @@ struct ActionsWorkspaceView: View {
                 if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate)) }
                 Button("Correct Action or Resolve Date…") { correction = reference }
                 Divider()
-                Text("Original Wording").font(Font.scaled(.callout).weight(.semibold))
+                Text("Original Wording").font(AppFont.scaled(.callout).weight(.semibold))
                 Text(reference.action.displayText).textSelection(.enabled)
                 if let originalDue = reference.action.due { Text("Original due phrase: \(originalDue)") }
                 ActionEvidencePassages(reference: reference).id(reference.id)
@@ -410,8 +410,8 @@ private struct ActionEditorSheet: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Correct action").font(Font.scaled(.largeTitle).bold())
-            Text("Action").font(Font.scaled(.callout).weight(.semibold))
+            Text("Correct action").font(AppFont.scaled(.largeTitle).bold())
+            Text("Action").font(AppFont.scaled(.callout).weight(.semibold))
             TextEditor(text: $text).frame(height: 100).padding(8).workspaceControl()
             LabeledContent("Owner") {
                 TextField("Me or named participant", text: Binding(

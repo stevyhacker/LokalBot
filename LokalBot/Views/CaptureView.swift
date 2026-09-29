@@ -740,11 +740,11 @@ struct TimelineRawCaptureView: View {
         let meetings = model.meetings(in: app)
         VStack(alignment: .leading, spacing: 14) {
             Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(.secondary)
             if !model.blocks.isEmpty || !meetings.isEmpty {
                 Label("App activity", systemImage: "calendar.day.timeline.left")
-                    .font(Font.scaled(.headline))
+                    .font(AppFont.scaled(.headline))
                     .accessibilityIdentifier("timeline.track")
                 CaptureTrackView(
                     items: CaptureTrackItem.items(blocks: model.blocks, meetings: meetings, now: Date()),
@@ -775,9 +775,9 @@ struct TimelineRawCaptureView: View {
 /// The work-session rail is a scannable index beside the digest, so its rows
 /// use list-sized medium titles and a small tile instead of page-body weight.
 private enum TimelineRailStyle {
-    static var title: Font { Font.scaledSystem(size: 13, weight: .medium) }
-    static var detail: Font { Font.scaledSystem(size: 12) }
-    static var detailEmphasis: Font { Font.scaledSystem(size: 12, weight: .semibold) }
+    static var title: AppFont { AppFont.scaledSystem(size: 13, weight: .medium) }
+    static var detail: AppFont { AppFont.scaledSystem(size: 12) }
+    static var detailEmphasis: AppFont { AppFont.scaledSystem(size: 12, weight: .semibold) }
     static let iconSize: CGFloat = 24
     static let timeWidth: CGFloat = 60
     static let padding: CGFloat = 10

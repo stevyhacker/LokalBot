@@ -11,6 +11,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     let activeMatchIndex: Int?
     let identifier: String
     let action: () -> Void
+    @Environment(\.appTextScale) private var textScale
 
     func makeCoordinator() -> Coordinator {
         Coordinator(action: action)
@@ -46,13 +47,15 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     }
 
     private func update(_ button: NSButton, coordinator: Coordinator) {
-        let presentation = Presentation(title: title, query: query, activeMatchIndex: activeMatchIndex)
+        let presentation = Presentation(title: title, query: query, activeMatchIndex: activeMatchIndex,
+                                        textScale: textScale)
         guard coordinator.presentation != presentation else { return }
         coordinator.presentation = presentation
         button.attributedTitle = Self.attributedTitle(
             title,
             query: query,
-            activeMatchIndex: activeMatchIndex)
+            activeMatchIndex: activeMatchIndex,
+            textScale: textScale)
         button.setAccessibilityLabel(title)
         button.toolTip = "Rename speaker: \(title)"
     }
@@ -60,7 +63,8 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     private static func attributedTitle(
         _ title: String,
         query: String,
-        activeMatchIndex: Int?
+        activeMatchIndex: Int?,
+        textScale: CGFloat
     ) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingTail
@@ -68,7 +72,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
             string: title,
             attributes: [
                 .font: NSFont.systemFont(
-                    ofSize: (NSFont.smallSystemFontSize * AppTextScale.current).rounded(),
+                    ofSize: (NSFont.smallSystemFontSize * textScale).rounded(),
                     weight: .bold),
                 .foregroundColor: NSColor.labelColor,
                 .paragraphStyle: paragraph,
@@ -90,6 +94,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
         let title: String
         let query: String
         let activeMatchIndex: Int?
+        let textScale: CGFloat
     }
 
     final class Coordinator: NSObject {

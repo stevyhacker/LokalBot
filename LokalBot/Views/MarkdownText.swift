@@ -15,14 +15,16 @@ struct SelectableDigestText: View {
     }
 
     let text: String
-    var font: Font = .scaled(.body)
+    var font: AppFont = .scaled(.body)
     var searchQuery: String = ""
     var activeMatchIndex: Int?
     var style: Style = .standard
 
+    @Environment(\.appTextScale) private var textScale
+
     init(
         _ text: String,
-        font: Font = .scaled(.body),
+        font: AppFont = .scaled(.body),
         searchQuery: String = "",
         activeMatchIndex: Int? = nil,
         style: Style = .standard
@@ -37,7 +39,7 @@ struct SelectableDigestText: View {
     var body: some View {
         Text(Self.attributedText(
             from: text,
-            font: font,
+            font: font.resolved(scale: textScale),
             searchQuery: searchQuery,
             activeMatchIndex: activeMatchIndex,
             style: style))
@@ -57,7 +59,7 @@ struct SelectableDigestText: View {
 
     static func attributedText(
         from markdown: String,
-        font: Font = .scaled(.body),
+        font: Font = AppFont.scaled(.body).currentFont,
         searchQuery: String = "",
         activeMatchIndex: Int? = nil,
         style: Style = .standard
@@ -283,7 +285,7 @@ struct SelectableDigestText: View {
 
     private static func baseFont(for style: Style, fallback: Font) -> Font {
         switch style {
-        case .editorial: return Font.scaled(.body)
+        case .editorial: return AppFont.scaled(.body).currentFont
         case .agent: return fallback
         case .standard: return fallback
         }
@@ -494,15 +496,15 @@ struct SelectableDigestText: View {
         switch style {
         case .editorial, .agent:
             switch level {
-            case 1: return Font.scaled(.title2).weight(.semibold)
-            case 2: return Font.scaled(.headline)
-            default: return Font.scaled(.body).weight(.semibold)
+            case 1: return AppFont.scaled(.title2).weight(.semibold).currentFont
+            case 2: return AppFont.scaled(.headline).currentFont
+            default: return AppFont.scaled(.body).weight(.semibold).currentFont
             }
         case .standard:
             switch level {
-            case 1: return Font.scaled(.title2).bold()
-            case 2: return Font.scaled(.title3).bold()
-            default: return Font.scaled(.headline)
+            case 1: return AppFont.scaled(.title2).bold().currentFont
+            case 2: return AppFont.scaled(.title3).bold().currentFont
+            default: return AppFont.scaled(.headline).currentFont
             }
         }
     }
@@ -570,7 +572,7 @@ struct SelectableDigestText: View {
     }
 
     private static func prefixed(_ prefix: String, content: String,
-                                 font: Font = .scaled(.body),
+                                 font: Font = AppFont.scaled(.body).currentFont,
                                  foreground: Color? = nil,
                                  style: Style) -> AttributedString {
         var result = styled(prefix, font: font, foreground: foreground)
@@ -594,7 +596,7 @@ struct SelectableDigestText: View {
         if style == .editorial {
             styleNumericCitations(in: &result)
             for run in result.runs where run.link?.scheme == "lokalbot-citation" {
-                result[run.range].font = Font.scaled(.callout).weight(.semibold).monospacedDigit()
+                result[run.range].font = AppFont.scaled(.callout).weight(.semibold).monospacedDigit().currentFont
                 result[run.range].foregroundColor = Brand.teal
                 result[run.range].backgroundColor = Brand.teal.opacity(0.12)
             }
@@ -617,7 +619,7 @@ struct SelectableDigestText: View {
                digits.allSatisfy(\.isNumber),
                let lowerBound = AttributedString.Index(open, within: attributedText),
                let upperBound = AttributedString.Index(afterClose, within: attributedText) {
-                attributedText[lowerBound..<upperBound].font = Font.scaled(.callout).weight(.semibold)
+                attributedText[lowerBound..<upperBound].font = AppFont.scaled(.callout).weight(.semibold).currentFont
                 attributedText[lowerBound..<upperBound].foregroundColor = Brand.teal
             }
 

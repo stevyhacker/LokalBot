@@ -46,7 +46,7 @@ private struct LaterTodayList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Later today")
-                .font(Font.scaled(.callout).weight(.semibold))
+                .font(AppFont.scaled(.callout).weight(.semibold))
                 .foregroundStyle(.secondary)
             ForEach(showsAll ? events : Array(events.prefix(Self.inlineLimit)), id: \.externalID) { event in
                 row(event)
@@ -56,7 +56,7 @@ private struct LaterTodayList: View {
                     showsAll.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(Brand.teal)
                 .accessibilityIdentifier("today.meetings.later.more")
             }
@@ -70,15 +70,15 @@ private struct LaterTodayList: View {
     private func row(_ event: CalendarMeetingCandidate) -> some View {
         HStack(spacing: 12) {
             Text(UpcomingMeetingPresentation.timeRange(event))
-                .font(Font.scaled(.callout).monospacedDigit())
+                .font(AppFont.scaled(.callout).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 118, alignment: .leading)
             Text(event.title)
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(UpcomingMeetingPresentation.statusLabel(event: event, now: now))
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -95,18 +95,18 @@ private struct TodayMeetingRow: View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             HStack(alignment: .center, spacing: 12) {
                 Text(UpcomingMeetingPresentation.timeRange(event))
-                    .font(Font.scaled(.callout).weight(.semibold).monospacedDigit())
+                    .font(AppFont.scaled(.callout).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 118, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title)
-                        .font(Font.scaled(.body).weight(.semibold))
+                        .font(AppFont.scaled(.body).weight(.semibold))
                         .lineLimit(1)
                         .textSelection(.enabled)
                     if let participants = UpcomingMeetingPresentation.participantLabel(event) {
                         Text(participants)
-                            .font(Font.scaled(.callout))
+                            .font(AppFont.scaled(.callout))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -115,7 +115,7 @@ private struct TodayMeetingRow: View {
                 Spacer(minLength: 8)
 
                 Text(UpcomingMeetingPresentation.statusLabel(event: event, now: context.date))
-                    .font(Font.scaled(.callout).weight(.semibold))
+                    .font(AppFont.scaled(.callout).weight(.semibold))
                     .foregroundStyle(event.endDate < context.date ? .tertiary : .secondary)
                     .lineLimit(1)
 

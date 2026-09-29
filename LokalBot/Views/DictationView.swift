@@ -48,9 +48,9 @@ struct DictationView: View {
                 IconTile(systemImage: "mic", tint: Brand.teal, size: 32)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Dictation").font(Font.scaled(.body).weight(.semibold))
+                    Text("Dictation").font(AppFont.scaled(.body).weight(.semibold))
                     Text(statusText)
-                        .font(Font.scaled(.callout))
+                        .font(AppFont.scaled(.callout))
                         .settingsSecondary()
                 }
                 Spacer()

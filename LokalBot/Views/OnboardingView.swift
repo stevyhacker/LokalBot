@@ -185,8 +185,8 @@ struct OnboardingView: View {
     private func modelRow(_ title: String, model: String, role: ModelRole) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(Font.scaled(.body).weight(.semibold))
-                Text(model).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                Text(title).font(AppFont.scaled(.body).weight(.semibold))
+                Text(model).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
             Spacer()
             Text(app.modelRoles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))

@@ -124,8 +124,11 @@ final class AppState: ObservableObject {
         didSet {
             guard settings != oldValue else { return }
             settingsStore.current = settings
-            if settings.appTheme != oldValue.appTheme || settings.textSize != oldValue.textSize {
-                AppAppearance.apply(theme: settings.appTheme, textSize: settings.textSize)
+            if settings.appTheme != oldValue.appTheme {
+                AppAppearance.apply(theme: settings.appTheme)
+            }
+            if settings.textSize != oldValue.textSize {
+                AppAppearance.apply(textSize: settings.textSize)
             }
             modelRoles.settingsDidChange(from: oldValue, to: settings)
             if settings.stopDebounceSeconds != oldValue.stopDebounceSeconds {
@@ -867,8 +870,8 @@ final class AppState: ObservableObject {
     init() {
         AppLog.bootstrap()
         settings = settingsStore.current
-        // Fonts are built from this scale, so it must be set before any window.
-        AppTextScale.current = settings.textSize.scale
+        // AppKit-drawn text reads this before any window exists.
+        AppAppearance.apply(textSize: settings.textSize)
         if let raw = Self.navigationDefaults.string(forKey: Self.settingsTabDefaultsKey),
            let stored = SettingsTab(rawValue: raw) {
             settingsTab = stored

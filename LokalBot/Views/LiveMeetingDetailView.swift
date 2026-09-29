@@ -243,7 +243,7 @@ struct LiveMeetingDetailView: View {
                 .accessibilityIdentifier("live.notes")
                 .onChange(of: notes) { scheduleSave() }
             Text(notesSaveState)
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(notesSaveState.hasPrefix("Not saved:") ? Brand.error : .secondary)
         }
         .padding(.leading, 12)

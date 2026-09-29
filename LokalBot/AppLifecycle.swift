@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// back to a pure menu-bar accessory.
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let settings = Self.appState?.settings {
-            AppAppearance.apply(theme: settings.appTheme, textSize: settings.textSize)
+            AppAppearance.apply(theme: settings.appTheme)
         }
         if AppState.isUITesting {
             uiTestDiagnosticLog(

@@ -86,7 +86,7 @@ struct AgentSessionView: View {
                 .font(.scaled(.title2).weight(.semibold)).lineLimit(2)
                 .help(sessions.selectedTab?.title ?? "New task")
                 .accessibilityIdentifier("agent.taskTitle")
-            Text(controller.taskStatus).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+            Text(controller.taskStatus).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
         }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 

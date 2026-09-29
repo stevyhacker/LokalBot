@@ -27,7 +27,7 @@ struct BriefContextView: View {
         Toggle(isOn: Binding(get: { value }, set: { app.setDreamMemoryPinned($0, for: entry) })) {
             VStack(alignment: .leading) {
                 Text(title)
-                Text(detail).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                Text(detail).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
         }.disabled(app.dreaming.isDreaming)
     }

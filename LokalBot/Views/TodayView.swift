@@ -126,7 +126,7 @@ struct TodayView: View {
     private var digestTitle: some View {
         HStack(spacing: 10) {
             Image(systemName: "sparkles").foregroundStyle(Brand.teal).accessibilityHidden(true)
-            Text("Day Digest").font(Font.scaled(.headline))
+            Text("Day Digest").font(AppFont.scaled(.headline))
         }
     }
 

@@ -52,32 +52,114 @@ enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// The scale read while views build their fonts. Written only on the main
-/// actor when the preference changes; windows then rebuild their content.
+/// The current scale for AppKit-drawn text and code that has no SwiftUI
+/// environment. SwiftUI text reads `\.appTextScale` instead.
 enum AppTextScale {
     nonisolated(unsafe) static var current: CGFloat = 1
 
-    static var isDefault: Bool { abs(current - 1) < 0.001 }
+    static func isDefault(_ scale: CGFloat) -> Bool { abs(scale - 1) < 0.001 }
 }
 
-extension Font {
-    /// A macOS text style at the user's text size. The default size returns
-    /// the system text style itself, so standard rendering is unchanged.
-    static func scaled(_ style: Font.TextStyle, design: Font.Design? = nil) -> Font {
-        guard !AppTextScale.isDefault else {
-            return design.map { .system(style, design: $0) } ?? .system(style)
-        }
-        let metrics = macTextStyleMetrics(style)
-        return .system(size: (metrics.size * AppTextScale.current).rounded(),
-                       weight: metrics.weight, design: design ?? .default)
+private struct AppTextScaleKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+extension EnvironmentValues {
+    /// The user's text size. Window roots set it; `AppFont` reads it when a
+    /// view renders, so a change redraws text without rebuilding windows.
+    var appTextScale: CGFloat {
+        get { self[AppTextScaleKey.self] }
+        set { self[AppTextScaleKey.self] = newValue }
+    }
+}
+
+/// A font description resolved against the environment's text scale at
+/// render time. The default size resolves to the system text style itself,
+/// so standard rendering is unchanged.
+struct AppFont: Hashable, Sendable {
+    enum Base: Hashable, Sendable {
+        case style(Font.TextStyle, design: Font.Design?)
+        case size(CGFloat, weight: Font.Weight, design: Font.Design)
+    }
+
+    enum Modifier: Hashable, Sendable {
+        case weight(Font.Weight)
+        case bold
+        case monospaced
+        case monospacedDigit
+    }
+
+    var base: Base
+    var modifiers: [Modifier] = []
+
+    /// A macOS text style at the user's text size.
+    static func scaled(_ style: Font.TextStyle, design: Font.Design? = nil) -> AppFont {
+        AppFont(base: .style(style, design: design))
     }
 
     /// A fixed-size text font that still follows the user's text size.
     static func scaledSystem(size: CGFloat, weight: Font.Weight = .regular,
-                             design: Font.Design = .default) -> Font {
-        .system(size: (size * AppTextScale.current).rounded(), weight: weight, design: design)
+                             design: Font.Design = .default) -> AppFont {
+        AppFont(base: .size(size, weight: weight, design: design))
     }
 
+    func weight(_ weight: Font.Weight) -> AppFont { adding(.weight(weight)) }
+    func bold() -> AppFont { adding(.bold) }
+    func monospaced() -> AppFont { adding(.monospaced) }
+    func monospacedDigit() -> AppFont { adding(.monospacedDigit) }
+
+    func resolved(scale: CGFloat) -> Font {
+        var font: Font
+        switch base {
+        case let .style(style, design):
+            if AppTextScale.isDefault(scale) {
+                font = design.map { .system(style, design: $0) } ?? .system(style)
+            } else {
+                let metrics = Font.macTextStyleMetrics(style)
+                font = .system(size: (metrics.size * scale).rounded(),
+                               weight: metrics.weight, design: design ?? .default)
+            }
+        case let .size(size, weight, design):
+            font = .system(size: (size * scale).rounded(), weight: weight, design: design)
+        }
+        for modifier in modifiers {
+            switch modifier {
+            case .weight(let weight): font = font.weight(weight)
+            case .bold: font = font.bold()
+            case .monospaced: font = font.monospaced()
+            case .monospacedDigit: font = font.monospacedDigit()
+            }
+        }
+        return font
+    }
+
+    /// For code without a SwiftUI environment (AppKit bridges, attributed text).
+    var currentFont: Font { resolved(scale: AppTextScale.current) }
+
+    private func adding(_ modifier: Modifier) -> AppFont {
+        var copy = self
+        copy.modifiers.append(modifier)
+        return copy
+    }
+}
+
+private struct AppFontModifier: ViewModifier {
+    @Environment(\.appTextScale) private var scale
+    let font: AppFont
+
+    func body(content: Content) -> some View {
+        content.font(font.resolved(scale: scale))
+    }
+}
+
+extension View {
+    /// Applies a font that follows the user's text size.
+    func font(_ font: AppFont) -> some View {
+        modifier(AppFontModifier(font: font))
+    }
+}
+
+extension Font {
     /// Point sizes and weights of the macOS text styles.
     static func macTextStyleMetrics(_ style: Font.TextStyle) -> (size: CGFloat, weight: Font.Weight) {
         switch style {
@@ -97,28 +179,27 @@ extension Font {
     }
 }
 
-extension NSFont {
-    /// AppKit-drawn text that should follow the user's text size.
-    static func scaledSystemFont(ofSize size: CGFloat, weight: NSFont.Weight = .regular) -> NSFont {
-        .systemFont(ofSize: (size * AppTextScale.current).rounded(), weight: weight)
-    }
-}
-
 enum AppAppearance {
-    /// Applies theme and text size app-wide. Capture builds that pin an
-    /// appearance through the environment keep that pinned appearance.
+    /// Applies the theme app-wide. Capture builds that pin an appearance
+    /// through the environment keep it. Reassigning an unchanged appearance
+    /// would make every window re-resolve its colors, so it is skipped.
     @MainActor
-    static func apply(theme: AppTheme, textSize: AppTextSize) {
+    static func apply(theme: AppTheme) {
+        guard ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_APPEARANCE"] == nil,
+              let app = NSApp, app.appearance?.name != theme.appearance?.name else { return }
+        app.appearance = theme.appearance
+    }
+
+    /// Keeps AppKit-drawn text in step; SwiftUI text follows the environment.
+    @MainActor
+    static func apply(textSize: AppTextSize) {
         AppTextScale.current = textSize.scale
-        guard ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_APPEARANCE"] == nil else { return }
-        NSApp?.appearance = theme.appearance
     }
 }
 
 extension View {
-    /// Window roots rebuild when the text size changes so every view picks
-    /// up fonts computed at the new scale.
+    /// Window roots publish the text size; only text redraws when it changes.
     func appTextSizeRoot(_ textSize: AppTextSize) -> some View {
-        id(textSize)
+        environment(\.appTextScale, textSize.scale)
     }
 }

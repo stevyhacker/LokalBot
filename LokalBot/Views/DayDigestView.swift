@@ -1,9 +1,9 @@
 import SwiftUI
 
 private enum DayDigestTaskType {
-    static var sectionTitle: Font { Font.scaled(.headline) }
-    static var taskTitle: Font { Font.scaled(.body).weight(.semibold) }
-    static var summary: Font { Font.scaled(.callout) }
+    static var sectionTitle: AppFont { AppFont.scaled(.headline) }
+    static var taskTitle: AppFont { AppFont.scaled(.body).weight(.semibold) }
+    static var summary: AppFont { AppFont.scaled(.callout) }
 }
 
 /// Human-first rendering of the lossless Markdown day journal. Summary and
@@ -86,7 +86,7 @@ struct DayDigestView: View {
                                         Text(extraFocusExpanded
                                              ? "Hide additional sessions"
                                              : "Show \(additional.count) more session\(additional.count == 1 ? "" : "s")")
-                                            .font(Font.scaled(.body))
+                                            .font(AppFont.scaled(.body))
                                     })
                                 .accessibilityIdentifier("dayDigest.moreSummaryDetails")
                             }
@@ -197,7 +197,7 @@ struct DayDigestView: View {
                     extraFocusExpanded.toggle()
                 }
                 .buttonStyle(.workspaceLink)
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .accessibilityIdentifier("dayDigest.moreSummaryDetails")
             }
         }
@@ -259,7 +259,7 @@ struct DayDigestView: View {
                         Text(title)
                             .font(prominent
                                   ? DayDigestTaskType.taskTitle
-                                  : .body.weight(.semibold))
+                                  : .scaled(.body).weight(.semibold))
                             .foregroundStyle(.primary)
                             .textSelection(.enabled)
                     }
@@ -280,10 +280,10 @@ struct DayDigestView: View {
                     if let shot = app.activityStore.screenshot(id: id) {
                         Button { app.openScreenSnapshot(id) } label: {
                             Label("\(shot.documentName.isEmpty ? shot.app : shot.documentName) · \(shot.ts.formatted(date: .omitted, time: .shortened))", systemImage: "doc.text.magnifyingglass")
-                                .font(Font.scaled(.callout))
+                                .font(AppFont.scaled(.callout))
                         }.buttonStyle(.workspaceLink)
                     } else {
-                        Text("Source moment unavailable").font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                        Text("Source moment unavailable").font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -371,7 +371,7 @@ private struct ExpandableDigestSummary: View {
                     expanded.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .foregroundStyle(Brand.teal)
                 .accessibilityHint(expanded
                     ? "Hides the extra task description"

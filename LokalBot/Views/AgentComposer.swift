@@ -68,7 +68,7 @@ struct AgentComposer: View {
                 Button { showingAccess.toggle() } label: { Image(systemName: "info.circle").frame(width: 24, height: 24) }
                     .buttonStyle(.borderless).accessibilityLabel("Task access details")
                     .popover(isPresented: $showingAccess) { accessDetails }
-            }.font(Font.scaled(.callout)).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
+            }.font(AppFont.scaled(.callout)).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("agent.model")
         }
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.text, .sourceCode, .json, .pdf], allowsMultipleSelection: true) { result in
@@ -134,7 +134,7 @@ struct AgentComposer: View {
                 .menuStyle(.borderlessButton).fixedSize()
                 .help(controller.approvalMode.detail).accessibilityLabel("Agent approval mode")
                 .accessibilityValue(controller.approvalMode.title).accessibilityIdentifier("agent.approvalMode")
-        }.font(Font.scaled(.callout).weight(.semibold)).foregroundStyle(.primary)
+        }.font(AppFont.scaled(.callout).weight(.semibold)).foregroundStyle(.primary)
     }
 
     @ViewBuilder private var sendControls: some View {

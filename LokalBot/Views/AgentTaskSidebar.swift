@@ -101,7 +101,7 @@ private struct AgentTaskRow: View {
                 Text(task.title).lineLimit(2).font(.scaled(.body).weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                 if let detail {
-                    Text(detail).font(Font.scaled(.callout))
+                    Text(detail).font(AppFont.scaled(.callout))
                         .foregroundStyle(needsAttention ? LBTokens.Palette.attentionText : Color.secondary).lineLimit(1)
                 }
             }

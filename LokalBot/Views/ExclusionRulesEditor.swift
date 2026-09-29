@@ -18,7 +18,7 @@ struct ExclusionRulesEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(title).font(Font.scaled(.callout).weight(.semibold))
+            Text(title).font(AppFont.scaled(.callout).weight(.semibold))
             VStack(spacing: 0) {
                 List(selection: $selectedRule) {
                     ForEach(Array(rules.enumerated()), id: \.offset) { index, rule in

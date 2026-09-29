@@ -117,14 +117,14 @@ struct ResourceMonitorSection: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.role)
                 Text(model.label)
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .settingsSecondary()
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(model.label)
                 if let note = model.leaseNote {
                     Text(note)
-                        .font(Font.scaled(.callout))
+                        .font(AppFont.scaled(.callout))
                         .settingsSecondary()
                         .lineLimit(1)
                 }
@@ -143,8 +143,8 @@ struct ResourceMonitorSection: View {
             } icon: {
                 Image(systemName: icon).foregroundStyle(Brand.teal)
             }
-                .font(Font.scaled(.body).weight(.semibold).monospacedDigit())
-            Text(label).font(Font.scaled(.body)).settingsSecondary()
+                .font(AppFont.scaled(.body).weight(.semibold).monospacedDigit())
+            Text(label).font(AppFont.scaled(.body)).settingsSecondary()
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

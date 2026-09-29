@@ -77,7 +77,7 @@ private struct AskContent: View {
                     Spacer()
                     Button("Retry") { model.retryPersistence() }
                 }
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .padding(12)
                 .accessibilityIdentifier("ask.persistenceError")
             }
@@ -241,7 +241,7 @@ private struct AskContent: View {
                 text: queryBinding,
                 axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .lineLimit(1...4)
                 .frame(minWidth: 60, maxWidth: .infinity, alignment: .topLeading)
                 .focused($inputFocused)
@@ -346,7 +346,7 @@ private struct AskContent: View {
                  ? "Answer sources: \(CountLabel.format(groupedMeetings.count, "meeting")) · \(CountLabel.format(answerScreenIDs.count, "screen moment"))"
                  : "Answer sources: \(sourceSummary) · \(timeScopeLabel)")
         }
-        .font(Font.scaled(.callout))
+        .font(AppFont.scaled(.callout))
         .foregroundStyle(.secondary)
         .accessibilityIdentifier("ask.answerScope")
     }
@@ -391,7 +391,7 @@ private struct AskContent: View {
             sourceScopeControl
             dateScopeControls
         }
-        .font(Font.scaled(.callout).weight(.semibold))
+        .font(AppFont.scaled(.callout).weight(.semibold))
         .controlSize(.small)
     }
 
@@ -453,7 +453,7 @@ private struct AskContent: View {
                 HStack(spacing: 8) { searchFilterButtons }
                 VStack(alignment: .leading, spacing: 6) { searchFilterButtons }
             }
-            .font(Font.scaled(.body))
+            .font(AppFont.scaled(.body))
             .controlSize(.small)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("ask.activeFilters")
@@ -520,7 +520,7 @@ private struct AskContent: View {
 
     private var timeScopePopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Date scope").font(Font.scaled(.headline))
+            Text("Date scope").font(AppFont.scaled(.headline))
             Text("Applies to search results and answers across all selected sources.")
                 .workspaceTextRole(.supporting)
                 .fixedSize(horizontal: false, vertical: true)
@@ -575,7 +575,7 @@ private struct AskContent: View {
                 Text(inferenceState.label)
                     .foregroundStyle(inferenceState.isRemote || inferenceState.isBlocked ? .primary : .secondary)
             }
-            .font(Font.scaled(.callout))
+            .font(AppFont.scaled(.callout))
             .frame(minHeight: 24)
             .contentShape(Rectangle())
         }
@@ -597,7 +597,7 @@ private struct AskContent: View {
     private var pinnedContextRow: some View {
         HStack(spacing: 8) {
             Label("Context", systemImage: "pin.fill")
-                .font(Font.scaled(.callout).weight(.semibold))
+                .font(AppFont.scaled(.callout).weight(.semibold))
                 .foregroundStyle(.secondary)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
@@ -606,9 +606,9 @@ private struct AskContent: View {
                             ScreenThumbnailView(snapshotID: context.snapshotID, height: 34)
                                 .frame(width: 54)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(context.app).font(Font.scaled(.callout).weight(.semibold)).lineLimit(1)
+                                Text(context.app).font(AppFont.scaled(.callout).weight(.semibold)).lineLimit(1)
                                 Text(context.timestamp.formatted(date: .omitted, time: .shortened))
-                                    .font(Font.scaled(.callout).monospacedDigit())
+                                    .font(AppFont.scaled(.callout).monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
                             Button {
@@ -628,7 +628,7 @@ private struct AskContent: View {
             }
             Button("Clear") { clearPinnedScreens(restoringScope: true) }
                 .buttonStyle(.plain)
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(.secondary)
         }
         .accessibilityIdentifier("ask.screen.context")
@@ -865,11 +865,11 @@ private struct AskContent: View {
                 .font(.system(size: 32))
                 .accessibilityHidden(true)
             Text("Ask your work memory")
-                .font(Font.scaled(.largeTitle).bold())
+                .font(AppFont.scaled(.largeTitle).bold())
                 .foregroundStyle(.primary)
             VStack(spacing: 10) {
                 Text("Type keywords to find meetings and screen moments, or ask a question. Return opens a keyword result or asks a question; ⌘Return always asks.")
-                    .font(Font.scaled(.body))
+                    .font(AppFont.scaled(.body))
                     .foregroundStyle(Color.primary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 400)

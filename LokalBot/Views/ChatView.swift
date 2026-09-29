@@ -216,7 +216,7 @@ private struct ConversationDateDivider: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(title)
-                .font(Font.scaled(.callout).weight(.semibold))
+                .font(AppFont.scaled(.callout).weight(.semibold))
                 .foregroundStyle(.secondary)
             Color.primary.opacity(0.10)
                 .frame(height: 1)
@@ -269,7 +269,7 @@ private struct EditorialTurn: View {
                 systemImage: "person.crop.circle",
                 scopeSummary: showsQuestionScope ? questionScopeSummary : nil)
             Text(message.text)
-                .font(Font.scaled(.title2).weight(.semibold))
+                .font(AppFont.scaled(.title2).weight(.semibold))
                 .lineLimit(questionIsExpanded ? nil : 3)
                 .textSelection(.enabled)
             if ChatTranscriptPresentation.isLongQuestion(message.text), !isLatestQuestion {
@@ -277,7 +277,7 @@ private struct EditorialTurn: View {
                     questionExpanded.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.scaled(.callout).weight(.semibold))
+                .font(AppFont.scaled(.callout).weight(.semibold))
                 .foregroundStyle(Brand.teal)
                 .frame(minHeight: 28)
                 .accessibilityIdentifier("chat.question.expand")
@@ -420,11 +420,11 @@ private struct EditorialTurn: View {
             Image(systemName: systemImage)
                 .frame(width: 14)
             Text(title)
-                .font(Font.scaled(.callout).weight(.semibold))
+                .font(AppFont.scaled(.callout).weight(.semibold))
             if !message.createdAtIsEstimated {
                 Text("·").foregroundStyle(.tertiary)
                 Text(message.createdAt.formatted(date: .omitted, time: .shortened))
-                    .font(Font.scaled(.callout).monospacedDigit())
+                    .font(AppFont.scaled(.callout).monospacedDigit())
             }
             if let scopeSummary {
                 Text("·").foregroundStyle(.tertiary)
@@ -432,7 +432,7 @@ private struct EditorialTurn: View {
                 Text(scopeSummary).lineLimit(1)
             }
         }
-        .font(Font.scaled(.callout))
+        .font(AppFont.scaled(.callout))
         .foregroundStyle(Color.primary.opacity(0.68))
         .accessibilityElement(children: .combine)
     }
@@ -449,9 +449,9 @@ private struct EditorialTurn: View {
                 .foregroundStyle(tint)
                 .frame(width: 20, height: 20)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(Font.scaled(.body).weight(.semibold))
+                Text(title).font(AppFont.scaled(.body).weight(.semibold))
                 Text(detail)
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -675,16 +675,16 @@ private struct EvidenceDisclosure: View {
                 }
             }
             Text("LokalBot used only the sources enabled for this question. Citation numbers remain stable even when a local source is later removed.")
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 10)
         } label: {
             HStack(spacing: 8) {
                 Label("Evidence", systemImage: "checkmark.shield")
-                    .font(Font.scaled(.body))
+                    .font(AppFont.scaled(.body))
                 Text(evidenceSummary)
-                    .font(Font.scaled(.callout))
+                    .font(AppFont.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
         }
@@ -720,7 +720,7 @@ private struct EvidenceDisclosure: View {
         } label: {
             HStack(spacing: 10) {
                 Text("\(number)")
-                    .font(Font.scaled(.callout).weight(.semibold).monospacedDigit())
+                    .font(AppFont.scaled(.callout).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.white)
                     .frame(width: 20, height: 20)
                     .background(Brand.tealFill, in: RoundedRectangle(cornerRadius: 4))
@@ -730,12 +730,12 @@ private struct EvidenceDisclosure: View {
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(source.title)
-                        .font(Font.scaled(.body).weight(.semibold))
+                        .font(AppFont.scaled(.body).weight(.semibold))
                         .foregroundStyle(source.available ? .primary : .secondary)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(source.detail)
-                        .font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                        .font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if source.available {
@@ -744,7 +744,7 @@ private struct EvidenceDisclosure: View {
                         .foregroundStyle(.tertiary)
                 } else {
                     Text("Unavailable")
-                        .font(Font.scaled(.callout))
+                        .font(AppFont.scaled(.callout))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -818,7 +818,7 @@ private struct WorkedLine: View {
                             .font(.scaled(.caption2))
                     }
                 }
-                .font(Font.scaled(.callout))
+                .font(AppFont.scaled(.callout))
                 .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
@@ -838,7 +838,7 @@ private struct ActivityRow: View {
         HStack(spacing: 6) {
             if activity.done {
                 Image(systemName: activity.icon).font(.scaled(.caption2)).foregroundStyle(.secondary)
-                Text(activity.text).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                Text(activity.text).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             } else {
                 LoadingStateLabel(activity.text, controlSize: .mini)
             }
@@ -867,13 +867,13 @@ private struct ConversationListContent: View {
             List(selection: conversationSelection) {
                 if historySections.isEmpty {
                     Text("No questions match “\(historyQuery)”.")
-                        .font(Font.scaled(.callout))
+                        .font(AppFont.scaled(.callout))
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(historySections, id: \.title) { section in
                         Group {
                             Text(section.title)
-                                .font(Font.scaled(.callout).weight(.semibold))
+                                .font(AppFont.scaled(.callout).weight(.semibold))
                                 .workspaceTextRole(.metadata)
                                 .accessibilityAddTraits(.isHeader)
                             ForEach(section.conversations) { conversation in
@@ -935,7 +935,7 @@ private struct ConversationListContent: View {
                 model.newConversation()
             } label: {
                 Label("New Conversation", systemImage: "square.and.pencil").labelStyle(.iconOnly)
-                    .font(Font.scaled(.body))
+                    .font(AppFont.scaled(.body))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.bordered)
@@ -952,7 +952,7 @@ private struct ConversationListContent: View {
                     .foregroundStyle(.secondary)
                 TextField("Search questions", text: $historyQuery)
                     .textFieldStyle(.plain)
-                    .font(Font.scaled(.body))
+                    .font(AppFont.scaled(.body))
                     .accessibilityIdentifier("chat.history.search")
                 if !historyQuery.isEmpty {
                     Button {
@@ -1027,10 +1027,10 @@ private struct ConversationListContent: View {
         return Button { model.select(conversation.id) } label: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(Font.scaled(.body).weight(.semibold))
+                    .font(AppFont.scaled(.body).weight(.semibold))
                     .lineLimit(1)
                 Text(timestamp)
-                    .font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                    .font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 5)

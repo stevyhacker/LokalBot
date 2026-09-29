@@ -15,17 +15,17 @@ struct MeetingNotesEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Your notes").font(Font.scaled(.headline))
+                Text("Your notes").font(AppFont.scaled(.headline))
                 Spacer()
-                Text(status).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+                Text(status).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
             SearchableNotesEditor(text: $text, query: searchQuery, occurrence: activeMatchIndex)
-                .font(Font.scaled(.body))
+                .font(AppFont.scaled(.body))
                 .frame(minHeight: 460)
                 .overlay(alignment: .topLeading) {
                     if text.isEmpty {
                         Text("Add context, reminders, or your own wording. Notes save automatically.")
-                            .font(Font.scaled(.body))
+                            .font(AppFont.scaled(.body))
                             .foregroundStyle(.tertiary)
                             .padding(.leading, 5)
                             .allowsHitTesting(false)

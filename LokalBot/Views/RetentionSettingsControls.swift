@@ -86,7 +86,7 @@ private struct RetentionReviewSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Review retention change").font(Font.scaled(.largeTitle).bold())
+            Text("Review retention change").font(AppFont.scaled(.largeTitle).bold())
             Text("Keep images and activity titles for \(review.days) days. " + (review.keepTextForever ? "Keep unsaved screen text and metadata indefinitely." : "Delete unsaved screen text, metadata, and search vectors on the same schedule."))
             Grid(alignment: .leading, horizontalSpacing: 28, verticalSpacing: 8) {
                 GridRow { Text("Images to remove"); Text("\(review.pixelCount)") }
