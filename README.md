@@ -142,7 +142,7 @@ No. LokalBot records your microphone and the meeting app's audio on your Mac. Au
 <details>
 <summary><strong>Does it record everything on my screen?</strong></summary>
 
-No. New installs use activity-only tracking, which you can turn off. Saving visible text or screenshots requires a separate choice and the relevant macOS permissions. Private windows, excluded apps and domains, and secure fields are skipped by default. Detected credentials are redacted and associated pixels are dropped, but detection is not perfect. See [PRIVACY.md](PRIVACY.md).
+No. New installs use activity-only tracking, which you can turn off. Saving visible text or screenshots requires a separate choice and the relevant macOS permissions. Excluded apps and domains and secure fields are skipped; private browser windows are captured unless you exclude the browser or site. Detected credentials are redacted and associated pixels are dropped, but detection is not perfect. See [PRIVACY.md](PRIVACY.md).
 
 </details>
 

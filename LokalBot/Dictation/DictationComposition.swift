@@ -63,15 +63,13 @@ enum DictationScreenPrivacy {
         !isExcluded(target: target, excludedApps: policy.excludedApps)
             && ScreenContextPrivacy.permitsContent(
                 snapshot.privacyObservation(appName: target.appName, bundleIdentifier: target.bundleID),
-                excludedApps: policy.excludedApps, excludedDomains: policy.excludedDomains,
-                capturePrivateWindows: policy.capturePrivateWindows)
+                excludedApps: policy.excludedApps, excludedDomains: policy.excludedDomains)
     }
 }
 
 struct DictationScreenCapturePolicy: Equatable, Sendable {
     var excludedApps: [String] = []
     var excludedDomains: [String] = []
-    var capturePrivateWindows = false
 }
 
 /// The exact Accessibility window whose metadata may be attached to a compose

@@ -19,17 +19,14 @@ enum ScreenContextPrivacy {
     static func permitsContent(
         _ observation: Observation,
         excludedApps: [String],
-        excludedDomains: [String],
-        capturePrivateWindows: Bool
+        excludedDomains: [String]
     ) -> Bool {
+        // Every window is tracked, including browser, web-app, and private
+        // windows. App and domain exclusions and focused secure fields are
+        // the boundaries; credential text is redacted separately.
         guard !isExcluded(appName: observation.appName, rules: excludedApps),
-              let title = observation.windowTitle,
+              observation.windowTitle != nil,
               observation.focusedSecureField == false else { return false }
-        // Absence of a localized title marker does not establish a normal
-        // browser window. Until a browser exposes a verified mode signal,
-        // private/unverified browser capture requires the explicit opt-in.
-        if !capturePrivateWindows,
-           isPrivateWindow(title: title) || isBrowser(observation) || observation.hasWebContent { return false }
         guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
             return false
         }

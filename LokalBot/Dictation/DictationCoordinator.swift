@@ -276,8 +276,7 @@ final class DictationCoordinator: ObservableObject {
         if initialConfig.dictationIntent == .compose, initialConfig.dictationUseScreenContext, let screenTarget {
             let policy = DictationScreenCapturePolicy(
                 excludedApps: initialConfig.excludedAppList,
-                excludedDomains: initialConfig.excludedScreenDomainList,
-                capturePrivateWindows: initialConfig.capturePrivateWindows)
+                excludedDomains: initialConfig.excludedScreenDomainList)
             screenContextTask = Task { [screenContextProvider] in
                 let capture = await focusCaptureTask.value
                 guard DictationScreenPrivacy.allowsCapture(

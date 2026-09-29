@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: September 28, 2026
+Effective: September 29, 2026
 
 LokalBot is a local-first macOS application. It has no LokalBot account,
 analytics service, advertising SDK, or telemetry backend. The project does not
@@ -192,8 +192,10 @@ terms.
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
 captured text, and semantic search vector until you unsave or delete that
-moment. Private/incognito windows, excluded apps and domains, and focused
-secure fields are skipped by default. Detected credential text is redacted and
+moment. Excluded apps and domains and focused secure fields are skipped.
+Private and incognito browser windows are captured like any other window, so
+add a browser or site to the exclusions to keep it out. Detected credential
+text is redacted and
 causes the associated pixel payload to be dropped; no detector is perfect, so
 exclude any source whose content should never be retained. Daily-memory exports
 and routine outputs are ordinary unencrypted Markdown files written only to
@@ -207,11 +209,11 @@ state cannot be established, text and pixels are skipped. Activity-only tracking
 uses the same exclusions and records denied or unknown samples as anonymous
 “Private” duration blocks.
 
-Browser titles cannot reliably establish normal versus private mode. Browser and
-embedded-web windows with unverified mode are skipped unless **Allow private or
-unverified browser windows** is enabled. Known private-title markers are also
-skipped by default in other apps. App/domain exclusions and secure-field checks
-still apply after that opt-in. Accessibility text is limited to visible-character
+Browsers, web-based apps, and private or incognito windows are tracked and
+captured like native apps; there is no separate private-window setting.
+App/domain exclusions and secure-field checks always apply, and a browser whose
+address cannot be read is skipped while site exclusions are configured.
+Accessibility text is limited to visible-character
 ranges and fully visible static labels within the window/scroll viewport; whole
 document values, selected text, help, and descriptions are not collected. If an
 app does not expose a usable visible range, text capture may be incomplete.

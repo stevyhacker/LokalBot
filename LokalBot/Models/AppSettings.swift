@@ -193,8 +193,6 @@ struct AppSettings: Codable, Equatable {
     /// Capture change-driven visual context while a meeting is recording.
     /// Off by default and throttled more aggressively than normal capture.
     var meetingVisualContextEnabled: Bool = false
-    /// Private/incognito browser windows are excluded unless explicitly opted in.
-    var capturePrivateWindows: Bool = false
     /// Comma-separated hosts or URL prefixes excluded from both text and pixels.
     var excludedScreenDomains: String = ""
     var excludedScreenDomainList: [String] {
@@ -661,7 +659,6 @@ struct AppSettings: Codable, Equatable {
         case screenshotsEnabled
         case screenshotIntervalMinutes
         case meetingVisualContextEnabled
-        case capturePrivateWindows
         case excludedScreenDomains
         case retentionDays
         case keepOCRTextForever
@@ -821,7 +818,6 @@ struct AppSettings: Codable, Equatable {
         try c.encode(effectiveScreenContextCaptureMode.capturesPixels, forKey: .screenshotsEnabled)
         try c.encode(screenshotIntervalMinutes, forKey: .screenshotIntervalMinutes)
         try c.encode(meetingVisualContextEnabled, forKey: .meetingVisualContextEnabled)
-        try c.encode(capturePrivateWindows, forKey: .capturePrivateWindows)
         try c.encode(excludedScreenDomains, forKey: .excludedScreenDomains)
         try c.encode(retentionDays, forKey: .retentionDays)
         try c.encode(keepOCRTextForever, forKey: .keepOCRTextForever)
@@ -959,7 +955,6 @@ struct AppSettings: Codable, Equatable {
         screenshotIntervalMinutes = decode(.screenshotIntervalMinutes, defaults.screenshotIntervalMinutes)
         meetingVisualContextEnabled = decode(
             .meetingVisualContextEnabled, defaults.meetingVisualContextEnabled)
-        capturePrivateWindows = decode(.capturePrivateWindows, defaults.capturePrivateWindows)
         excludedScreenDomains = decode(.excludedScreenDomains, defaults.excludedScreenDomains)
         retentionDays = decode(.retentionDays, defaults.retentionDays)
         keepOCRTextForever = decode(.keepOCRTextForever, defaults.keepOCRTextForever)

@@ -20,11 +20,11 @@ final class DictationContextBoundaryTests: XCTestCase {
             in: windows, processID: 42, focusedWindowTitle: "Reply", focusedWindowFrame: large))
     }
 
-    func testComposeUsesDomainPrivateWindowAndSecureFieldExclusions() {
+    func testComposeUsesDomainAndSecureFieldExclusions() {
         let target = DictationScreenTarget(processID: 42, appName: "Google Chrome", bundleID: "com.google.Chrome")
         var snapshot = ScreenAccessibilitySnapshot(text: "", sourceURL: "https://blocked.example/doc",
             focusedSecureField: false, windowTitle: "Document", windowFrame: .zero, hasWebContent: true)
-        let policy = DictationScreenCapturePolicy(excludedDomains: ["blocked.example"], capturePrivateWindows: true)
+        let policy = DictationScreenCapturePolicy(excludedDomains: ["blocked.example"])
         XCTAssertFalse(DictationScreenPrivacy.permits(snapshot, target: target, policy: policy))
         snapshot.sourceURL = "https://allowed.example"
         XCTAssertTrue(DictationScreenPrivacy.permits(snapshot, target: target, policy: policy))
@@ -32,7 +32,8 @@ final class DictationContextBoundaryTests: XCTestCase {
         XCTAssertFalse(DictationScreenPrivacy.permits(snapshot, target: target, policy: policy))
         snapshot.focusedSecureField = false
         snapshot.windowTitle = "Incognito"
-        XCTAssertFalse(DictationScreenPrivacy.permits(snapshot, target: target, policy: .init()))
+        XCTAssertTrue(DictationScreenPrivacy.permits(snapshot, target: target, policy: .init()),
+                      "Private browser windows are no longer skipped")
     }
 
     func testContextIdentityRejectsChangedSameAppWindowMetadata() throws {

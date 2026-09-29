@@ -1276,7 +1276,6 @@ final class ActivitySampler: ObservableObject {
     /// Injected by AppState; apps matching these are logged as "Private".
     var excludedApps: () -> [String] = { [] }
     var excludedDomains: () -> [String] = { [] }
-    var capturePrivateWindows: () -> Bool = { false }
     /// Event-driven capture hook: fired when the sampled (app, title) pair
     /// changes — i.e. at the same boundaries that close activity blocks.
     /// `appChanged` distinguishes an app switch from a window/tab change
@@ -1377,8 +1376,7 @@ final class ActivitySampler: ObservableObject {
             appName: appName, bundleIdentifier: bundleIdentifier)
         let allowed = !accessibility.timedOut && observation.map {
             ScreenContextPrivacy.permitsContent(
-                $0, excludedApps: excludedApps(), excludedDomains: excludedDomains(),
-                capturePrivateWindows: capturePrivateWindows())
+                $0, excludedApps: excludedApps(), excludedDomains: excludedDomains())
         } == true
         let storedApp = allowed ? appName : "Private"
         let title = allowed ? ScreenContextPrivacy.redact(observation?.windowTitle ?? "").text : ""

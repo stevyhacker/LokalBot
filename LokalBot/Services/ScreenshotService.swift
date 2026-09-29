@@ -119,8 +119,7 @@ struct ScreenshotCaptureLayout {
         frontmostProcessID: pid_t,
         focusedWindowTitle: String,
         focusedWindowFrame: CGRect?,
-        excludedApps: [String],
-        excludePrivateWindows: Bool = true
+        excludedApps: [String]
     ) -> Selection? {
         guard let focusedWindowFrame, !focusedWindowFrame.isEmpty,
               !focusedWindowFrame.isNull else { return nil }
@@ -132,8 +131,7 @@ struct ScreenshotCaptureLayout {
         // A title alone can identify several windows. Never guess another
         // window or fall back to the display when AX cannot bind the source.
         guard matches.count == 1, let window = matches.first,
-              !isExcluded(appName: window.appName, excludedApps: excludedApps),
-              !(excludePrivateWindows && ScreenContextPrivacy.isPrivateWindow(title: window.title))
+              !isExcluded(appName: window.appName, excludedApps: excludedApps)
         else { return nil }
         return Selection(windowID: window.id)
     }
@@ -193,7 +191,6 @@ struct ScreenshotCaptureConsent: Equatable {
     let tracking: Bool
     let text: Bool
     let pixels: Bool
-    let privateWindows: Bool
     let excludedApps: [String]
     let excludedDomains: [String]
     let meetingVisualContext: Bool
@@ -204,7 +201,6 @@ struct ScreenshotCaptureConsent: Equatable {
         tracking = settings.trackingEnabled
         text = settings.effectiveScreenContextCaptureMode.capturesText
         pixels = settings.effectiveScreenContextCaptureMode.capturesPixels
-        privateWindows = settings.capturePrivateWindows
         excludedApps = settings.excludedAppList
         excludedDomains = settings.excludedScreenDomainList
         meetingVisualContext = settings.meetingVisualContextEnabled
@@ -728,8 +724,7 @@ final class ScreenshotService: ObservableObject {
                 snapshot.privacyObservation(
                     appName: frontmost, bundleIdentifier: frontmostApp.bundleIdentifier),
                 excludedApps: config.excludedAppList,
-                excludedDomains: config.excludedScreenDomainList,
-                capturePrivateWindows: config.capturePrivateWindows),
+                excludedDomains: config.excludedScreenDomainList),
               let windowTitle = snapshot.windowTitle else {
             policy.noteCheck(at: current)
             lokalbotLog("context skip: excluded or unavailable focused-window privacy metadata")
@@ -779,7 +774,6 @@ final class ScreenshotService: ObservableObject {
                     storedWindowTitle: redactedWindowTitle.text,
                     excludedApps: config.excludedAppList,
                     excludedDomains: config.excludedScreenDomainList,
-                    excludePrivateWindows: !config.capturePrivateWindows,
                     trigger: trigger,
                     accessibleText: redactedAccessibility.text,
                     accessibilityRedactionCount: preCaptureRedactions,
@@ -845,7 +839,6 @@ final class ScreenshotService: ObservableObject {
                          storedWindowTitle: String,
                          excludedApps: [String],
                          excludedDomains: [String],
-                         excludePrivateWindows: Bool,
                          trigger: ScreenCaptureTrigger,
                          accessibleText: String,
                          accessibilityRedactionCount: Int,
@@ -872,8 +865,7 @@ final class ScreenshotService: ObservableObject {
             frontmostProcessID: frontmostProcessID,
             focusedWindowTitle: windowTitle,
             focusedWindowFrame: accessibilitySnapshot.windowFrame,
-            excludedApps: excludedApps,
-            excludePrivateWindows: excludePrivateWindows)
+            excludedApps: excludedApps)
         guard let layout,
               let window = content.windows.first(where: { $0.windowID == layout.windowID })
         else { return }
@@ -905,8 +897,7 @@ final class ScreenshotService: ObservableObject {
               let currentSnapshot = currentAccessibility.snapshot,
               ScreenContextPrivacy.permitsContent(
                 currentSnapshot.privacyObservation(appName: frontApp, bundleIdentifier: bundleIdentifier),
-                excludedApps: excludedApps, excludedDomains: excludedDomains,
-                capturePrivateWindows: !excludePrivateWindows) else {
+                excludedApps: excludedApps, excludedDomains: excludedDomains) else {
             // The focused window, browser URL or secure-field state can change
             // while ScreenCaptureKit suspends. Discard its pixels on any change.
             lokalbotLog("shot skip: focused source or privacy state changed during capture")

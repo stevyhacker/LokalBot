@@ -240,9 +240,7 @@ struct SettingsView: View {
                 .settingTarget("settings.excludedApps", selected: app.focusedSettingID)
             ExclusionRulesEditor(title: "Never capture these sites", value: $app.settings.excludedScreenDomains, kind: .domains)
                 .settingTarget("settings.excludedScreenDomains", selected: app.focusedSettingID)
-            Toggle("Allow private or unverified browser windows", isOn: $app.settings.capturePrivateWindows)
-                    .settingTarget("settings.capturePrivateWindows", selected: app.focusedSettingID)
-            SettingsHelp("Browser titles cannot reliably prove normal browsing mode. Browser windows are skipped unless you allow this; app and site exclusions still apply.")
+            SettingsHelp("Every app and window is tracked, including browsers and private windows. Add apps or sites here to keep them out; focused password fields and detected credentials are never captured.")
         }
     }
 

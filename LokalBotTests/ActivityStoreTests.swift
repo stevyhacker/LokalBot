@@ -885,10 +885,39 @@ final class ActivityStoreTests: XCTestCase {
         sampler.stop()
 
         let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
-        XCTAssertEqual(blocks.count, 3)
-        XCTAssertEqual(blocks.map(\.title), ["Public report", "", "Public report"])
-        XCTAssertEqual(blocks.map(\.app), ["Notes", "Private", "Notes"])
-        XCTAssertEqual(blocks[1].duration, 50)
+        XCTAssertEqual(blocks.count, 4)
+        XCTAssertEqual(blocks.map(\.title),
+                       ["Public report", "Sensitive account — Private Window", "", "Public report"])
+        XCTAssertEqual(blocks.map(\.app), ["Notes", "Notes", "Private", "Notes"])
+        XCTAssertEqual(blocks[2].duration, 40)
+    }
+
+    /// Regression: browsers and web-based apps were recorded as "Private"
+    /// whenever their browsing mode could not be verified.
+    func testSamplerTracksBrowserAndWebAppWindowsByName() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityBrowserTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        let sampler = ActivitySampler(store: store)
+        let base = Date().addingTimeInterval(-60)
+        let browser = ScreenAccessibilitySnapshot(
+            text: "", sourceURL: "https://docs.example/plan", documentName: nil,
+            focusedSecureField: false, windowTitle: "Plan - Google Docs", windowFrame: nil,
+            hasWebContent: true)
+        var webApp = browser
+        webApp.sourceURL = nil
+        webApp.windowTitle = "Claude"
+        sampler.recordSample(appName: "Google Chrome", bundleIdentifier: "com.google.Chrome",
+                             accessibility: .init(snapshot: browser, timedOut: false), at: base)
+        sampler.recordSample(appName: "Claude", bundleIdentifier: "com.anthropic.claudefordesktop",
+                             accessibility: .init(snapshot: webApp, timedOut: false),
+                             at: base.addingTimeInterval(20))
+        sampler.stop()
+
+        let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
+        XCTAssertEqual(blocks.map(\.app), ["Google Chrome", "Claude"])
+        XCTAssertEqual(blocks.map(\.title), ["Plan - Google Docs", "Claude"])
     }
 
     func testClearOCRTextRemovesOnlyRowsOlderThanCutoff() throws {

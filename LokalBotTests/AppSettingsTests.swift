@@ -347,7 +347,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertFalse(settings.screenshotsEnabled)
         XCTAssertEqual(settings.screenContextCaptureMode, .activityOnly)
         XCTAssertFalse(settings.meetingVisualContextEnabled)
-        XCTAssertFalse(settings.capturePrivateWindows)
     }
 
     func testPersistedDayTrackingOptOutSurvivesDefaultFlip() throws {
@@ -430,7 +429,6 @@ final class AppSettingsTests: XCTestCase {
         var settings = AppSettings()
         settings.screenContextCaptureMode = .accessibleText
         settings.meetingVisualContextEnabled = true
-        settings.capturePrivateWindows = true
         settings.excludedScreenDomains = "example.com, *.private.test"
         settings.memoryRoutinesEnabled = true
         settings.memoryRoutineFolder = "/tmp/Memory Drafts"
@@ -444,7 +442,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.screenContextCaptureMode, .accessibleText)
         XCTAssertFalse(decoded.screenshotsEnabled)
         XCTAssertTrue(decoded.meetingVisualContextEnabled)
-        XCTAssertTrue(decoded.capturePrivateWindows)
         XCTAssertEqual(decoded.excludedScreenDomainList, ["example.com", "*.private.test"])
         XCTAssertTrue(decoded.memoryRoutinesEnabled)
         XCTAssertEqual(decoded.memoryRoutineFolder, "/tmp/Memory Drafts")

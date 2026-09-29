@@ -56,8 +56,7 @@ final class ScreenContextPrivacyTests: XCTestCase {
             windowTitle: "Account", sourceURL: nil, focusedSecureField: false)
         func allowed(_ value: ScreenContextPrivacy.Observation) -> Bool {
             ScreenContextPrivacy.permitsContent(
-                value, excludedApps: [], excludedDomains: ["private.test"],
-                capturePrivateWindows: true)
+                value, excludedApps: [], excludedDomains: ["private.test"])
         }
         XCTAssertFalse(allowed(observation), "An unreadable browser address cannot establish domain consent")
         observation.sourceURL = "https://private.test/account"
@@ -72,19 +71,23 @@ final class ScreenContextPrivacyTests: XCTestCase {
         observation.windowTitle = nil
         XCTAssertFalse(allowed(observation))
         observation.windowTitle = ""
-        XCTAssertTrue(allowed(observation), "The browser opt-in explicitly accepts unverified private-window status")
+        XCTAssertTrue(allowed(observation), "An untitled browser window is still tracked")
     }
 
-    func testUnknownBrowserModeRequiresExplicitOptInRegardlessOfTitleOrLocale() {
-        for title in ["Quarterly plan", "Privat", "Navigation privée", ""] {
+    func testBrowserWebAppAndPrivateWindowsAreTrackedRegardlessOfTitleOrLocale() {
+        for title in ["Quarterly plan", "Privat", "Navigation privée", "New Incognito Window", ""] {
             let observation = ScreenContextPrivacy.Observation(
                 appName: "Safari", bundleIdentifier: "com.apple.Safari",
                 windowTitle: title, sourceURL: "https://public.test", focusedSecureField: false)
-            XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-                observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: false))
             XCTAssertTrue(ScreenContextPrivacy.permitsContent(
-                observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+                observation, excludedApps: [], excludedDomains: []), title)
         }
+        var webApp = ScreenContextPrivacy.Observation(
+            appName: "Claude", bundleIdentifier: "com.anthropic.claudefordesktop",
+            windowTitle: "Claude", sourceURL: nil, focusedSecureField: false)
+        webApp.hasWebContent = true
+        XCTAssertTrue(ScreenContextPrivacy.permitsContent(webApp, excludedApps: [], excludedDomains: []),
+                      "Web-based desktop apps are tracked like native apps")
     }
 
     func testVisibleTextPolicyDoesNotReadWholeDocumentsOrClippedLabels() {
@@ -115,29 +118,25 @@ final class ScreenContextPrivacyTests: XCTestCase {
             appName: "Editor", bundleIdentifier: "test.editor",
             windowTitle: "Work.swift", sourceURL: nil, focusedSecureField: false)
         XCTAssertTrue(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: ["private.test"],
-            capturePrivateWindows: false))
+            observation, excludedApps: [], excludedDomains: ["private.test"]))
         observation.hasWebContent = true
         XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: ["private.test"],
-            capturePrivateWindows: false))
+            observation, excludedApps: [], excludedDomains: ["private.test"]))
     }
 
-    func testPrivateWindowOptInDoesNotBypassAppDomainOrSecureFieldExclusions() {
+    func testPrivateWindowsStillRespectAppDomainAndSecureFieldExclusions() {
         var observation = ScreenContextPrivacy.Observation(
             appName: "Safari", bundleIdentifier: "com.apple.Safari",
             windowTitle: "Private Window", sourceURL: "https://public.test", focusedSecureField: false)
-        XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: false))
         XCTAssertTrue(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+            observation, excludedApps: [], excludedDomains: []))
         XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: ["Safari"], excludedDomains: [], capturePrivateWindows: true))
+            observation, excludedApps: ["Safari"], excludedDomains: []))
         XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: ["public.test"], capturePrivateWindows: true))
+            observation, excludedApps: [], excludedDomains: ["public.test"]))
         observation.focusedSecureField = true
         XCTAssertFalse(ScreenContextPrivacy.permitsContent(
-            observation, excludedApps: [], excludedDomains: [], capturePrivateWindows: true))
+            observation, excludedApps: [], excludedDomains: []))
     }
 
     func testScreenAccessibilityReaderTimeoutReturnsNoPartialPrivacySnapshot() async {

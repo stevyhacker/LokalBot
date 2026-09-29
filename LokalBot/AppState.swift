@@ -214,7 +214,6 @@ final class AppState: ObservableObject {
             || old.meetingVisualContextEnabled != new.meetingVisualContextEnabled
             || old.excludedApps != new.excludedApps
             || old.excludedScreenDomains != new.excludedScreenDomains
-            || old.capturePrivateWindows != new.capturePrivateWindows
     }
 
     private static func memoryRoutinesChanged(from old: AppSettings,
@@ -1622,7 +1621,6 @@ final class AppState: ObservableObject {
         }
         sampler.excludedApps = { [weak self] in self?.settings.excludedAppList ?? [] }
         sampler.excludedDomains = { [weak self] in self?.settings.excludedScreenDomainList ?? [] }
-        sampler.capturePrivateWindows = { [weak self] in self?.settings.capturePrivateWindows ?? false }
         if settings.trackingEnabled { sampler.start() } else { sampler.stop() }
         screenshots.restart()
     }
