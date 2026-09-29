@@ -71,13 +71,7 @@ struct DayDigestControls: View {
     }
 
     private var generate: some View {
-        Button { Task { await model.generateDigest(app: app) } } label: {
-            Label(model.generating ? "Writing Digest…" : model.digest == nil ? "Write Digest" : "Regenerate",
-                  systemImage: model.generating ? "hourglass" : "arrow.clockwise")
-        }
-        .buttonStyle(.bordered)
-        .disabled(model.generating)
-        .accessibilityIdentifier("\(identifier).dayDigest.generate")
+        DayDigestGenerateButton(model: model, lifecycle: app.dayDigest, identifier: identifier)
     }
 
     @ViewBuilder private var actions: some View {
@@ -91,6 +85,32 @@ struct DayDigestControls: View {
                 .fixedSize()
                 .accessibilityLabel("Day digest actions")
                 .accessibilityIdentifier("\(identifier).dayDigest.actions")
+        }
+    }
+}
+
+/// Reflects every digest run for the shown day, including a scheduled
+/// catch-up, so a manual request cannot start a competing generation.
+private struct DayDigestGenerateButton: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var model: CaptureModel
+    @ObservedObject var lifecycle: DayDigestLifecycle
+    let identifier: String
+
+    var body: some View {
+        let scheduledRun = lifecycle.isGenerating(on: model.day) && !model.generating
+        let busy = model.generating || scheduledRun
+        Button { Task { await model.generateDigest(app: app) } } label: {
+            Label(busy ? "Writing Digest…" : model.digest == nil ? "Write Digest" : "Regenerate",
+                  systemImage: busy ? "hourglass" : "arrow.clockwise")
+        }
+        .buttonStyle(.bordered)
+        .disabled(busy)
+        .help(scheduledRun ? "The scheduled digest for this day is being written" : "")
+        .accessibilityIdentifier("\(identifier).dayDigest.generate")
+        .onChange(of: scheduledRun) { wasRunning, isRunning in
+            // Show the scheduled result as soon as it is saved.
+            if wasRunning, !isRunning { model.refreshOverview(app: app) }
         }
     }
 }

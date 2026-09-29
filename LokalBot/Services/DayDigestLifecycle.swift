@@ -57,6 +57,12 @@ final class DayDigestLifecycle: ObservableObject {
     /// Runs in start order; manual and scheduled runs may overlap.
     @Published private(set) var activeRuns: [ActiveRun] = []
 
+    /// True while any entry point is generating the digest for `day`, so a
+    /// second request cannot race the first one's journal write.
+    func isGenerating(on day: Date) -> Bool {
+        activeRuns.contains { calendar.isDate($0.day, inSameDayAs: day) }
+    }
+
     init(
         storageRoot: URL,
         calendar: Calendar = .current,

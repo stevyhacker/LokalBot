@@ -145,7 +145,7 @@ final class CaptureModel: ObservableObject {
     }
 
     func generateDigest(app: AppState) async {
-        guard !generating else { return }
+        guard !generating, !app.dayDigest.isGenerating(on: day) else { return }
         digestGeneration &+= 1
         let generation = digestGeneration
         let requestedDay = day

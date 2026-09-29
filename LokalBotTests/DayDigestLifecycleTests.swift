@@ -69,6 +69,7 @@ final class DayDigestLifecycleTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let now = try date("2026-08-23T12:00:00Z")
         var observed: [DayDigestLifecycle.ActiveRun] = []
+        var generatingDuringRun = false
         var lifecycle: DayDigestLifecycle?
         lifecycle = DayDigestLifecycle(
             storageRoot: root, calendar: calendar,
@@ -78,6 +79,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             generator: { _, _, _, progress in
                 progress(DayDigestProgress(completedSegments: 2, totalSegments: 4))
                 observed = lifecycle?.activeRuns ?? []
+                generatingDuringRun = lifecycle?.isGenerating(on: now) ?? false
                 return DayDigestGenerationResult(text: "fixture", url: root.appendingPathComponent("journal.md"), quality: .complete)
             })
         _ = try await XCTUnwrap(lifecycle).generate(for: now)
@@ -85,6 +87,8 @@ final class DayDigestLifecycleTests: XCTestCase {
         XCTAssertEqual(observed.first?.day, calendar.startOfDay(for: now))
         XCTAssertEqual(observed.first?.progress?.completedSegments, 2)
         XCTAssertEqual(try XCTUnwrap(lifecycle).activeRuns, [])
+        XCTAssertTrue(generatingDuringRun)
+        XCTAssertFalse(try XCTUnwrap(lifecycle).isGenerating(on: now))
     }
 
     func testDigestProgressFractionReservesTheAggregationStep() {

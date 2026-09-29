@@ -164,6 +164,46 @@ final class DayDigestSchedulerTests: XCTestCase {
     }
 
     @MainActor
+    func testDegradedPastDayRepairsLaterWithoutBlockingLaterDays() async throws {
+        var current = try date("2026-07-22T08:00:00Z")
+        let scheduler = DayDigestScheduler(calendar: calendar, now: { current })
+        let degradedDay = try date("2026-07-20T00:00:00Z")
+        let yesterday = try date("2026-07-21T00:00:00Z")
+        var generated: [Date] = []
+        var written: [Date: Date] = [:]
+        let reachedYesterday = expectation(description: "yesterday generated during the repair backoff")
+        let repaired = expectation(description: "degraded day repaired after its backoff")
+
+        scheduler.configure(
+            .init(enabled: true, hour: 18),
+            digestModifiedAt: { written[self.calendar.startOfDay(for: $0)] },
+            latestEvidenceAt: { $0 == degradedDay || $0 == yesterday ? $0.addingTimeInterval(60) : nil },
+            canRun: { true },
+            generate: { day in
+                generated.append(day)
+                if day == yesterday {
+                    written[day] = current
+                    reachedYesterday.fulfill()
+                    return .completed
+                }
+                if generated.filter({ $0 == degradedDay }).count == 2 { repaired.fulfill() }
+                return .needsRepair
+            },
+            onError: { XCTFail($0) })
+
+        await fulfillment(of: [reachedYesterday], timeout: 2)
+        XCTAssertEqual(generated, [degradedDay, yesterday])
+        scheduler.tick()
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(generated.filter { $0 == degradedDay }.count, 1, "the repair waits for its backoff")
+
+        current = current.addingTimeInterval(DayDigestScheduler.failureBackoff + 1)
+        scheduler.tick()
+        await fulfillment(of: [repaired], timeout: 2)
+        scheduler.stop()
+    }
+
+    @MainActor
     func testDeferredPastDayDoesNotBlockLaterDays() async throws {
         let current = try date("2026-07-22T08:00:00Z")
         let scheduler = DayDigestScheduler(calendar: calendar, now: { current })
@@ -229,7 +269,7 @@ final class DayDigestSchedulerTests: XCTestCase {
         scheduler.configure(
             .init(enabled: true, hour: 18),
             digestModifiedAt: { _ in nil },
-            latestEvidenceAt: { _ in current },
+            latestEvidenceAt: { self.calendar.isDate($0, inSameDayAs: current) ? current : nil },
             canRun: { true },
             generate: { _ in
                 calls += 1

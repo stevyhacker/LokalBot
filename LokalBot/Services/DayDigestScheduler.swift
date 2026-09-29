@@ -26,6 +26,8 @@ final class DayDigestScheduler {
 
     /// Yesterday plus the six days before it.
     nonisolated static let catchUpDays = 7
+    /// Wait before retrying a failed or degraded generation.
+    nonisolated static let failureBackoff: TimeInterval = 15 * 60
 
     /// A local day before today, with the markers the policy needs.
     struct PastDay: Equatable, Sendable {
@@ -68,6 +70,10 @@ final class DayDigestScheduler {
     /// Past days whose generation deferred (no usable evidence). Skipped until
     /// evidence changes, so one empty day cannot block later days or today.
     private var deferredDays: Set<Date> = []
+    /// Past days whose digest needs a quiet repair, with the time the repair
+    /// may run. Other missed days proceed meanwhile instead of waiting behind
+    /// the shared failure backoff.
+    private var repairAfter: [Date: Date] = [:]
     /// A past day that just finished, so the chained catch-up tick cannot
     /// select it again before its durable marker is observed.
     private var justFinishedDay: Date?
@@ -134,6 +140,7 @@ final class DayDigestScheduler {
         scanCursorDay = nil
         scanToday = nil
         deferredDays = []
+        repairAfter = [:]
     }
 
     func tick() {
@@ -153,6 +160,7 @@ final class DayDigestScheduler {
             scanToday = todayStart
             scanCursorDay = nil
             deferredDays = []
+            repairAfter = [:]
         }
         let windowStart = calendar.date(
             byAdding: .day, value: -Self.catchUpDays, to: todayStart) ?? previousDay
@@ -164,7 +172,8 @@ final class DayDigestScheduler {
                 day: cursor,
                 latestEvidenceAt: latestEvidenceAt(cursor),
                 digestModifiedAt: digestModifiedAt(cursor))
-            if !deferredDays.contains(cursor) { pastDays.append(past) }
+            let coolingDown = repairAfter[cursor].map { current < $0 } ?? false
+            if !deferredDays.contains(cursor), !coolingDown { pastDays.append(past) }
             if cursor < previousDay, firstPendingOlderDay == nil,
                Self.needsFinalization(past, calendar: calendar) {
                 firstPendingOlderDay = cursor
@@ -184,7 +193,7 @@ final class DayDigestScheduler {
         // A failed generation (model unreachable, disk error) should be
         // visible but not retried every minute; generation itself can take a
         // while, so give the system room between attempts.
-        if let lastFailure, current.timeIntervalSince(lastFailure) < 15 * 60 { return }
+        if let lastFailure, current.timeIntervalSince(lastFailure) < Self.failureBackoff { return }
         // Not downtime yet — recording, processing, dictation, or cotyping is
         // active. Don't burn the backoff; just wait for a quieter tick.
         guard canRun() else { return }
@@ -196,7 +205,7 @@ final class DayDigestScheduler {
             do {
                 let outcome = try await generate(day)
                 if generation == runGeneration {
-                    continueCatchUp = outcome != .needsRepair && runDay < todayStart
+                    continueCatchUp = runDay < todayStart
                     switch outcome {
                     case .completed:
                         lastFailure = nil
@@ -206,8 +215,14 @@ final class DayDigestScheduler {
                     case .needsRepair:
                         // The fallback/partial journal stays visible. Its
                         // sidecar keeps the durable completion marker absent,
-                        // and this timestamp prevents a retry every minute.
-                        lastFailure = self.now()
+                        // and the backoff prevents a retry every minute. A
+                        // past day backs off alone so later days still run.
+                        if runDay < todayStart {
+                            lastFailure = nil
+                            repairAfter[runDay] = self.now().addingTimeInterval(Self.failureBackoff)
+                        } else {
+                            lastFailure = self.now()
+                        }
                     }
                 }
             } catch is CancellationError {
