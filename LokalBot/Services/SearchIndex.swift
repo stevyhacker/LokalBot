@@ -2,15 +2,26 @@ import Foundation
 import SQLite3
 
 /// SQLite + FTS5 full-text index (design doc §4.1) over meeting titles,
-/// transcript segments and summaries. Lives at <storage root>/lokalbotv3.sqlite.
+/// transcript segments, summaries, the user's own notes, and extracted
+/// outcomes with their saved corrections. Lives at <storage root>/lokalbotv3.sqlite.
 /// Segment-level rows let transcript hits deep-link to their audio timestamp.
 /// macOS ships SQLite with FTS5 enabled, so this adds no dependency.
 final class SearchIndex {
 
     private static let documentRowsMigration = "search-document-rows-v1"
+    /// Notes and outcomes were added after libraries were already indexed.
+    /// Clearing the freshness marks once makes the next pass include them
+    /// even when those files are older than the recorded source mtime.
+    private static let notesOutcomesMigration = "search-notes-outcomes-v1"
+
+    /// Files whose contents become documents. Any newer write reindexes.
+    static let sourceFileNames = [
+        "meta.json", "transcript.json", "summary.md", MeetingNotes.fileName,
+        MeetingOutcomes.fileName, MeetingOutcomeState.fileName,
+    ]
 
     enum Kind: String, Sendable {
-        case title, segment, summary
+        case title, segment, summary, notes, outcome
     }
 
     struct Hit: Identifiable, Sendable {
@@ -64,6 +75,7 @@ final class SearchIndex {
             );
             """)
         Self.backfillDocumentRowsIfNeeded(in: database)
+        Self.scheduleNotesOutcomesBackfillIfNeeded(in: database)
         _ = reconcileDeletedMeetings()
     }
 
@@ -103,6 +115,12 @@ final class SearchIndex {
         if let summary = try? String(contentsOf: folder.appendingPathComponent("summary.md"),
                                      encoding: .utf8) {
             documents.append(Document(text: summary, kind: .summary, start: 0, speaker: ""))
+        }
+        if let notes = MeetingNotes.load(from: folder) {
+            documents.append(Document(text: notes, kind: .notes, start: 0, speaker: ""))
+        }
+        documents += Self.outcomeTexts(for: meeting, root: storage.rootURL).map {
+            Document(text: $0, kind: .outcome, start: 0, speaker: "")
         }
         documents = documents.compactMap { document in
             let text = document.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -296,7 +314,8 @@ final class SearchIndex {
         let candidates: [(String, Kind, TimeInterval, String)] = database.query("""
             SELECT text, kind, start, speaker FROM search_document_rows AS source
             JOIN docs ON docs.rowid = source.doc_rowid
-            WHERE source.meeting_id = ?1 AND (kind = 'summary' OR (kind = 'segment' AND start >= ?2 AND start < ?3))
+            WHERE source.meeting_id = ?1
+              AND (kind IN ('summary', 'notes') OR (kind = 'segment' AND start >= ?2 AND start < ?3))
               AND NOT EXISTS (SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1)
             LIMIT 100
             """, bind: [meetingID.uuidString, start, start + 120]) { statement in
@@ -310,7 +329,11 @@ final class SearchIndex {
             let line = String(line)
             return line.range(of: ": ").map { String(line[$0.upperBound...]) } ?? line
         }.filter { !$0.isEmpty }
-        let summaries = candidates.filter { $0.1 == .summary && $0.0.contains(String(text.prefix(100))) }
+        let bodyText = text.hasPrefix(EmbeddingIndex.notesChunkMarker)
+            ? String(text.dropFirst(EmbeddingIndex.notesChunkMarker.count)) : text
+        let summaries = candidates.filter {
+            ($0.1 == .summary || $0.1 == .notes) && $0.0.contains(String(bodyText.prefix(100)))
+        }
         let matching = summaries.isEmpty ? candidates.filter { candidate in
             candidate.1 == .segment && fragments.contains { candidate.0.contains(String($0.prefix(80))) }
         } : summaries
@@ -390,6 +413,42 @@ final class SearchIndex {
         }
     }
 
+    /// One searchable row per current decision, action, and open question.
+    /// Actions use the user's saved text, owner, and due corrections so a
+    /// corrected commitment is found by the words the user chose.
+    static func outcomeTexts(for meeting: Meeting, root: URL) -> [String] {
+        guard let projection = MeetingOutcomeProjection.load(for: meeting, root: root),
+              !projection.isArchived else { return [] }
+        let decisions = projection.outcomes.decisionRecords.map { "Decision: \($0.text)" }
+        let actions = projection.actionReferences.map { reference -> String in
+            var details: [String] = []
+            if let owner = reference.owner?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !owner.isEmpty {
+                details.append("owner \(owner)")
+            }
+            if let due = reference.due?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !due.isEmpty {
+                details.append("due \(due)")
+            }
+            let suffix = details.isEmpty ? "" : " (\(details.joined(separator: ", ")))"
+            return "Action: \(reference.text)\(suffix)"
+        }
+        let questions = projection.outcomes.openQuestions.map { "Open question: \($0)" }
+        return decisions + actions + questions
+    }
+
+    private static func scheduleNotesOutcomesBackfillIfNeeded(in database: SQLiteDatabase) {
+        guard !database.hasRow(
+            "SELECT 1 FROM search_index_migrations WHERE name = ?1",
+            bind: [notesOutcomesMigration]) else { return }
+        database.transaction {
+            database.run("UPDATE indexed_meetings SET source_mtime = 0")
+                && database.run(
+                    "INSERT INTO search_index_migrations (name) VALUES (?1)",
+                    bind: [notesOutcomesMigration])
+        }
+    }
+
     private static func deleteDocuments(for meetingID: String,
                                         in database: SQLiteDatabase) -> Bool {
         database.run("""
@@ -409,7 +468,7 @@ final class SearchIndex {
     }
 
     private static func latestMtime(in folder: URL) -> TimeInterval {
-        ["meta.json", "transcript.json", "summary.md"].compactMap { name -> TimeInterval? in
+        sourceFileNames.compactMap { name -> TimeInterval? in
             let url = folder.appendingPathComponent(name)
             let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
             return (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970

@@ -263,6 +263,20 @@ final class EmbeddingIndex {
         }
     }
 
+    /// Prefix that identifies a semantic chunk taken from the user's own
+    /// meeting notes, so a hit can be mapped back to its notes passage.
+    nonisolated static let notesChunkMarker = "My meeting notes: "
+
+    nonisolated static func notesChunks(_ notes: String) -> [(start: TimeInterval, text: String)] {
+        splitEmbeddingText(notes, maximumCharacters: 700).map { (start: 0, text: notesChunkMarker + $0) }
+    }
+
+    private func hasNotesChunks(_ meetingID: UUID) -> Bool {
+        database?.hasRow(
+            "SELECT 1 FROM embeddings WHERE meeting_id = ?1 AND substr(text, 1, ?2) = ?3 LIMIT 1",
+            bind: [meetingID.uuidString, Self.notesChunkMarker.count, Self.notesChunkMarker]) ?? false
+    }
+
     /// Matches the historical ~500-character transcript chunks for ordinary
     /// segments. A malformed or low-quality ASR segment can contain thousands
     /// of characters, so enforce a separate hard ceiling before it reaches the
@@ -341,11 +355,15 @@ final class EmbeddingIndex {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
               isDirectory.boolValue else { return }
-        let mtime = ["transcript.json", "summary.md"].compactMap {
+        let mtime = ["transcript.json", "summary.md", MeetingNotes.fileName].compactMap {
             (try? FileManager.default.attributesOfItem(
                 atPath: folder.appendingPathComponent($0).path))?[.modificationDate] as? Date
         }.map(\.timeIntervalSince1970).max() ?? 0
-        guard mtime > 0, indexedMtime(meeting.id) ?? -1 < mtime else { return }
+        let notes = MeetingNotes.load(from: folder)
+        // Notes joined the semantic corpus after libraries were embedded.
+        // Backfill only meetings that have notes instead of re-embedding all.
+        let needsNotesBackfill = notes != nil && !hasNotesChunks(meeting.id)
+        guard mtime > 0, (indexedMtime(meeting.id) ?? -1 < mtime) || needsNotesBackfill else { return }
 
         var chunks: [(start: TimeInterval, text: String)] = []
         if let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),
@@ -358,6 +376,7 @@ final class EmbeddingIndex {
                 chunks.append((0, String(section.prefix(700))))
             }
         }
+        if let notes { chunks.append(contentsOf: Self.notesChunks(notes)) }
         guard !chunks.isEmpty else { return }
 
         let vectors = try await Self.embed(chunks.map(\.text), prefix: Self.documentPrefix,
@@ -390,7 +409,8 @@ final class EmbeddingIndex {
                     """
                     SELECT source_mtime FROM embedded_meetings
                     WHERE meeting_id = ?1 AND model_id = ?2
-                    """, bind: [meetingID, Self.indexVersion]), indexed >= mtime {
+                    """, bind: [meetingID, Self.indexVersion]), indexed >= mtime,
+                   !needsNotesBackfill || hasNotesChunks(meeting.id) {
                     return true
                 }
             } catch {

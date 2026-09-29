@@ -397,6 +397,8 @@ final class AppState: ObservableObject {
         },
         onEvidenceChanged: { [weak self] meetings in
             self?.primaryEvidenceDidChange(for: meetings)
+            // Outcome corrections and status are searchable.
+            for meeting in meetings { self?.reindexSearchInBackground(meeting) }
         })
     private(set) lazy var cotypingLearning = CotypingLearningStore(storageRoot: storage.rootURL)
     let detector = MeetingDetector()
@@ -1052,6 +1054,22 @@ final class AppState: ObservableObject {
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
         let worker = searchIndexWorkQueue
         Task { await worker.enqueue(meetings) }
+    }
+
+    private var notesEmbeddingDebounce: [Meeting.ID: Task<Void, Never>] = [:]
+
+    /// The user's own notes are keyword- and meaning-searchable. Re-embedding
+    /// a whole meeting is expensive, so it waits for typing to settle.
+    func meetingNotesDidChange(_ meeting: Meeting) {
+        reindexSearchInBackground(meeting)
+        guard settings.semanticSearchEnabled else { return }
+        notesEmbeddingDebounce[meeting.id]?.cancel()
+        notesEmbeddingDebounce[meeting.id] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(20))
+            guard !Task.isCancelled, let self else { return }
+            self.notesEmbeddingDebounce[meeting.id] = nil
+            self.reindexEmbeddingInBackground(meeting)
+        }
     }
 
     private func reindexSearchInBackground(_ meeting: Meeting) {

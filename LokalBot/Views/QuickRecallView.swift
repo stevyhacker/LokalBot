@@ -241,7 +241,11 @@ private struct QuickRecallContent: View {
             groups: screenGroups, savedMoments: savedMoments, hasQuery: !trimmedQuery.isEmpty)
         let meetings = meetingHits.map { hit in
             let meeting = app.meetings.first(where: { $0.id == hit.meetingID })
-            let kind = hit.kind == .segment ? "Transcript" : hit.kind.rawValue.capitalized
+            let kind = switch hit.kind {
+            case .segment: "Transcript"
+            case .notes: "Your notes"
+            default: hit.kind.rawValue.capitalized
+            }
             let appName = meeting?.appName ?? "Meeting"
             return QuickRecallRowModel.meeting(
                 hit: hit,

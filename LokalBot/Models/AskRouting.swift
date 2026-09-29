@@ -242,6 +242,8 @@ enum AskFacet: String, CaseIterable, Identifiable {
     case all = "All"
     case transcripts = "Transcripts"
     case summaries = "Summaries"
+    case notes = "Notes"
+    case outcomes = "Outcomes"
     case screen = "Screen"
 
     var id: String { rawValue }
@@ -253,6 +255,8 @@ enum AskFacet: String, CaseIterable, Identifiable {
         case .all, .screen: nil
         case .transcripts: .segment
         case .summaries: .summary
+        case .notes: .notes
+        case .outcomes: .outcome
         }
     }
 }

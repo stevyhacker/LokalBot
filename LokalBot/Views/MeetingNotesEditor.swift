@@ -63,6 +63,7 @@ struct MeetingNotesEditor: View {
         do {
             try MeetingNotes.writeChecked(text, to: meeting.folderURL(in: app.storage))
             savedText = text
+            app.meetingNotesDidChange(meeting)
             app.meetingNoteDrafts.removeValue(forKey: meeting.id)
             status = "Saved on this Mac"
             error = nil

@@ -484,6 +484,63 @@ final class IndexPersistenceTests: XCTestCase {
         XCTAssertTrue(database.hasRow("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 2"))
     }
 
+    func testSearchIndexesUserNotesAndCorrectedOutcomes() throws {
+        let storage = StorageManager(rootURL: root.appendingPathComponent("notes-library", isDirectory: true))
+        let meeting = Meeting(
+            id: UUID(), title: "Synthetic planning", appName: "Tests",
+            startedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            endedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            relativePath: "meetings/notes", hasSystemTrack: false)
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try writeTranscript(text: "ordinary transcript words",
+                            to: folder.appendingPathComponent("transcript.json"),
+                            modificationDate: Date(timeIntervalSince1970: 1_700_000_200))
+        try MeetingNotes.writeChecked("Remember the zephyrcanary rollout", to: folder)
+        let action = MeetingOutcomes.ActionItem(text: "Prepare the synthetic memo", owner: "Me", due: "Friday")
+        try MeetingOutcomes(actionItems: [action], decisions: ["Adopt the quokkaplan"]).write(to: folder)
+        var state = MeetingOutcomeState()
+        state.actions[action.id] = .init(textCorrection: "Prepare the velvetbudget memo", userEdited: true)
+        try MeetingOutcomeStore.writeState(state, to: folder)
+
+        let index = SearchIndex(databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        index.reindex(meeting, storage: storage)
+
+        XCTAssertEqual(index.search("zephyrcanary").map(\.kind), [.notes])
+        XCTAssertEqual(index.search("quokkaplan").map(\.kind), [.outcome])
+        XCTAssertEqual(index.search("velvetbudget").map(\.kind), [.outcome])
+        XCTAssertEqual(index.search("velvetbudget", kind: .notes).count, 0)
+    }
+
+    func testNotesOutcomesMigrationReindexesMeetingsIndexedBeforeIt() throws {
+        let storage = StorageManager(rootURL: root.appendingPathComponent("migration-library", isDirectory: true))
+        let meeting = Meeting(
+            id: UUID(), title: "Earlier meeting", appName: "Tests",
+            startedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            endedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            relativePath: "meetings/earlier", hasSystemTrack: false)
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try MeetingNotes.writeChecked("legacy harborlight notes", to: folder)
+        try FileManager.default.setAttributes(
+            [.modificationDate: Date(timeIntervalSince1970: 1_700_000_050)],
+            ofItemAtPath: folder.appendingPathComponent(MeetingNotes.fileName).path)
+        let databaseURL = storage.rootURL.appendingPathComponent("lokalbotv3.sqlite")
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        _ = SearchIndex(databaseURL: databaseURL)
+        // Simulate a library indexed by a build that ignored notes, with a
+        // freshness mark newer than the notes file.
+        XCTAssertTrue(database.run("DELETE FROM search_index_migrations WHERE name = 'search-notes-outcomes-v1'"))
+        XCTAssertTrue(database.run(
+            "INSERT OR REPLACE INTO indexed_meetings (meeting_id, source_mtime) VALUES (?1, ?2)",
+            bind: [meeting.id.uuidString, 1_800_000_000.0]))
+
+        let index = SearchIndex(databaseURL: databaseURL)
+        index.reindex(meeting, storage: storage)
+
+        XCTAssertEqual(index.search("harborlight").map(\.meetingID), [meeting.id])
+    }
+
     private func writeTranscript(text: String, to url: URL,
                                  modificationDate: Date) throws {
         let transcript = Transcript(
