@@ -157,12 +157,37 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         processID == ProcessInfo.processInfo.processIdentifier
     }
 
+    private static let failureLock = NSLock()
+    private nonisolated(unsafe) static var textReadFailures: [pid_t: String] = [:]
+
+    /// Why the most recent text read of `processID` produced no snapshot, for
+    /// the screen-capture skip log. Names the failed check, never contents.
+    static func lastTextReadFailure(for processID: pid_t) -> String? {
+        failureLock.lock()
+        defer { failureLock.unlock() }
+        return textReadFailures[processID]
+    }
+
+    private static func noteTextReadFailure(_ reason: String?, processID: pid_t, includeText: Bool) {
+        // Metadata-only activity sampling runs every few seconds; only the
+        // screen-capture read is diagnosed.
+        guard includeText else { return }
+        failureLock.lock()
+        defer { failureLock.unlock() }
+        textReadFailures[processID] = reason
+    }
+
     static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
-        guard AXIsProcessTrusted(), processID > 0, !isOwnProcess(processID) else { return nil }
+        func fail(_ reason: String) -> ScreenAccessibilitySnapshot? {
+            noteTextReadFailure(reason, processID: processID, includeText: includeText)
+            return nil
+        }
+        guard processID > 0, !isOwnProcess(processID) else { return nil }
+        guard AXIsProcessTrusted() else { return fail("accessibility not trusted") }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, perElementMessagingTimeout)
         guard let window = elementAttribute(app, kAXFocusedWindowAttribute as String) else {
-            return nil
+            return fail("no focused window")
         }
         let windowTitle = textualAttribute(window, kAXTitleAttribute as String)
         let windowFrame = frame(of: window)
@@ -242,11 +267,19 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         // AX calls are asynchronous with respect to the other application.
         // Never attach one window's text to a different focused window.
         guard let currentWindow = elementAttribute(app, kAXFocusedWindowAttribute as String),
-              CFEqual(window, currentWindow),
-              textualAttribute(currentWindow, kAXTitleAttribute as String) == windowTitle,
-              frame(of: currentWindow) == windowFrame,
-              elementAttribute(app, kAXFocusedUIElementAttribute as String)
-                .flatMap(secureFieldStatus) == focusedSecureField else { return nil }
+              CFEqual(window, currentWindow) else { return fail("focused window changed during read") }
+        guard textualAttribute(currentWindow, kAXTitleAttribute as String) == windowTitle else {
+            return fail("window title changed during read")
+        }
+        guard frame(of: currentWindow) == windowFrame else { return fail("window frame changed during read") }
+        let finalFocus = elementAttribute(app, kAXFocusedUIElementAttribute as String)
+            .flatMap(secureFieldStatus)
+        guard finalFocus == focusedSecureField else {
+            func describe(_ value: Bool?) -> String { value.map { $0 ? "secure" : "plain" } ?? "unknown" }
+            return fail("focused-field state changed during read (\(describe(focusedSecureField))"
+                + " to \(describe(finalFocus)))")
+        }
+        noteTextReadFailure(nil, processID: processID, includeText: includeText)
         let text = parts.joined(separator: "\n")
         return ScreenAccessibilitySnapshot(
             text: text,
