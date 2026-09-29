@@ -21,6 +21,9 @@ struct TodayView: View {
                     threads: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads),
                     limit: 3,
                     showsPlanInAgent: true)
+                    .task(id: app.outcomeIndex.openUserActionThreads.map(\.id)) {
+                        app.refreshActionCompletionHints()
+                    }
                 digestSection
                 if let dream { previousDayCard(dream) }
                 if !gettingStartedDismissed { GettingStartedCard() }

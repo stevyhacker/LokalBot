@@ -633,6 +633,11 @@ struct SettingsView: View {
                             Text("Idle fallback: at least every \(Int(app.settings.screenshotIntervalMinutes)) min")
                         }
                         .settingTarget("settings.screenshotIntervalMinutes", selected: app.focusedSettingID)
+                        Toggle(isOn: $app.settings.suggestActionCompletion) {
+                            SettingsLabel("Suggest actions that look done",
+                                          help: "When later captured text shows an action's words with a completion such as “message sent” or “merged”, the action offers Mark Done. Nothing changes until you confirm.")
+                        }
+                        .settingTarget("settings.suggestActionCompletion", selected: app.focusedSettingID)
                         Button("Manage retention and cleanup…") { app.openSettings(tab: .privacy) }
                         Button("Manage capture exclusions…") { app.openSettings(tab: .privacy) }
                         if app.settings.effectiveScreenContextCaptureMode.capturesPixels {

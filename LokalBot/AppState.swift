@@ -280,6 +280,45 @@ final class AppState: ObservableObject {
         navSection = .projects
     }
 
+    @Published private(set) var actionCompletionHints: [String: ActionCompletionHint] = [:]
+    private var completionHintTask: Task<Void, Never>?
+    private static let dismissedCompletionHintsKey = "actions.dismissedCompletionHints"
+    private static let maximumDismissedCompletionHints = 500
+
+    /// "Looks done?" suggestions for open actions from later retained screen
+    /// text. Suggestions only; status changes stay the user's.
+    func refreshActionCompletionHints() {
+        guard settings.suggestActionCompletion,
+              settings.effectiveScreenContextCaptureMode.capturesText else {
+            completionHintTask?.cancel()
+            if !actionCompletionHints.isEmpty { actionCompletionHints = [:] }
+            return
+        }
+        let threads = outcomeIndex.openUserActionThreads
+        let databaseURL = activityStore.databaseURL
+        let dismissed = Set(UserDefaults.standard.stringArray(forKey: Self.dismissedCompletionHintsKey) ?? [])
+        completionHintTask?.cancel()
+        completionHintTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            let hints = await Task.detached(priority: .utility) {
+                ActionCompletionDetector.hints(
+                    for: threads, store: ActivityStore(databaseURL: databaseURL, readOnly: true),
+                    dismissed: dismissed)
+            }.value
+            guard !Task.isCancelled, let self else { return }
+            if self.actionCompletionHints != hints { self.actionCompletionHints = hints }
+        }
+    }
+
+    func dismissActionCompletionHint(_ hint: ActionCompletionHint) {
+        var dismissed = UserDefaults.standard.stringArray(forKey: Self.dismissedCompletionHintsKey) ?? []
+        dismissed.append(hint.dismissalKey)
+        UserDefaults.standard.set(Array(dismissed.suffix(Self.maximumDismissedCompletionHints)),
+                                  forKey: Self.dismissedCompletionHintsKey)
+        actionCompletionHints[hint.threadID] = nil
+    }
+
     func refreshConnections() {
         connections.refresh(.init(
             meetings: meetings.filter { !$0.isMergedSource },

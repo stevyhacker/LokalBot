@@ -102,6 +102,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.summaryLanguage", title: "Notes language", category: .recording, aliases: "summaryLanguage"),
         .init(id: "settings.trackingEnabled", title: "Track app & window activity", category: .dayMemory, aliases: "trackingEnabled"),
         .init(id: "settings.effectiveScreenContextCaptureMode", title: "Screen context", category: .dayMemory, aliases: "effectiveScreenContextCaptureMode"),
+        .init(id: "settings.suggestActionCompletion", title: "Suggest actions that look done", category: .dayMemory, aliases: "completed actions done mark done screen evidence"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .dayMemory, aliases: "dayDigestAutoEnabled"),
         .init(id: "settings.dailyMemoryExportEnabled", title: "Export a daily memory note", category: .dayMemory, aliases: "dailyMemoryExportEnabled"),

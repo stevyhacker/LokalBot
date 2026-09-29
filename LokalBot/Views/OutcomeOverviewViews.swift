@@ -141,6 +141,13 @@ struct ActionThreadRow: View {
                         }
                     }
                 }
+                if let hint = app.actionCompletionHints[thread.id] {
+                    ActionCompletionHintLine(
+                        hint: hint,
+                        onDone: { set(.done) },
+                        onView: { app.openScreenSnapshot(hint.snapshotID) },
+                        onDismiss: { app.dismissActionCompletionHint(hint) })
+                }
             }
 
             Menu {
@@ -215,6 +222,42 @@ struct ActionThreadRow: View {
             app.lastError = "Could not update this action thread. "
                 + (app.outcomeIndex.lastError ?? "The action is no longer available.")
         }
+    }
+}
+
+/// "Looks done?" evidence from a later screen capture. It never changes
+/// status by itself; Mark Done goes through the normal status path.
+private struct ActionCompletionHintLine: View {
+    let hint: ActionCompletionHint
+    let onDone: () -> Void
+    let onView: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Label("Looks done?", systemImage: "checkmark.circle.badge.questionmark")
+                .font(Font.callout.weight(.semibold))
+                .foregroundStyle(Brand.teal)
+            Text(evidence)
+                .font(Font.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 4)
+            Button("Mark Done", action: onDone).buttonStyle(.workspaceLink)
+            Button("View", action: onView).buttonStyle(.workspaceLink)
+            Button("Not Yet", action: onDismiss).buttonStyle(.workspaceLink)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Looks done? \(evidence)")
+        .accessibilityIdentifier("outcome.thread.completionHint")
+        .help("A later screen capture shows “\(hint.cue)” with this action's words. Nothing changes until you choose Mark Done.")
+    }
+
+    private var evidence: String {
+        let time = hint.capturedAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())
+        let title = hint.title.isEmpty ? "" : " · \(hint.title)"
+        return "“\(hint.cue)” in \(hint.app) · \(time)\(title)"
     }
 }
 

@@ -134,6 +134,9 @@ struct AppSettings: Codable, Equatable {
     /// Adds names LokalBot already knows (calendar attendees, names applied
     /// in related meetings, Dream projects) to prompt-capable speech models.
     var autoTranscriptionVocabulary: Bool = true
+    /// Offers "Looks done?" on open actions when later retained screen text
+    /// shows a matching completion (sent, merged, submitted). Never auto-completes.
+    var suggestActionCompletion: Bool = true
     var autoTranscribe: Bool = true
     var autoSummarize: Bool = true
     var speechVoice: KokoroVoice = .heart
@@ -647,6 +650,7 @@ struct AppSettings: Codable, Equatable {
         case languageHint // legacy key used by builds before typed language selection
         case transcriptionPrompt
         case autoTranscriptionVocabulary
+        case suggestActionCompletion
         case autoTranscribe
         case autoSummarize
         case speechVoice
@@ -805,6 +809,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionLanguage, forKey: .transcriptionLanguage)
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
+        try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
         try c.encode(autoTranscribe, forKey: .autoTranscribe)
         try c.encode(autoSummarize, forKey: .autoSummarize)
         try c.encode(speechVoice, forKey: .speechVoice)
@@ -940,6 +945,7 @@ struct AppSettings: Codable, Equatable {
         }
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
+        suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
         autoTranscribe = decode(.autoTranscribe, defaults.autoTranscribe)
         autoSummarize = decode(.autoSummarize, defaults.autoSummarize)
         speechVoice = decode(.speechVoice, defaults.speechVoice)

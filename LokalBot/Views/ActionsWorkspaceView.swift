@@ -92,7 +92,10 @@ struct ActionsWorkspaceView: View {
             }
         }
         .navigationTitle("Actions")
-        .task { app.refreshConnections() }
+        .task {
+            app.refreshConnections()
+            app.refreshActionCompletionHints()
+        }
         .onChange(of: actions.map(\.id)) { _, ids in app.actionSelection.formIntersection(ids) }
         .sheet(item: $correction) { reference in
             ActionEditorSheet(reference: reference)
