@@ -211,6 +211,19 @@ struct ScreenshotCaptureConsent: Equatable {
     }
 }
 
+extension ScreenshotService {
+    /// Names which capture precondition failed, without window contents, so
+    /// a skipped app can be diagnosed from the debug log.
+    static func accessibilitySkipReason(_ result: ScreenAccessibilityCaptureResult, app: String) -> String {
+        if result.timedOut { return "\(app): accessibility timed out" }
+        guard let snapshot = result.snapshot else { return "\(app): no accessibility snapshot" }
+        if snapshot.windowTitle == nil { return "\(app): no window title" }
+        let focus = snapshot.focusedSecureField.map { $0 ? "secure" : "plain" } ?? "unknown"
+        return "\(app): focus=\(focus) secureVisible=\(snapshot.containsSecureField) "
+            + "web=\(snapshot.hasWebContent) url=\(snapshot.sourceURL == nil ? "unknown" : "known")"
+    }
+}
+
 enum ScreenshotWindowFocusValidation {
     static func matches(
         expected: ScreenAccessibilitySnapshot,
@@ -734,7 +747,8 @@ final class ScreenshotService: ObservableObject {
                 allowsUnknownFocus: true),
               let windowTitle = snapshot.windowTitle else {
             policy.noteCheck(at: current)
-            lokalbotLog("context skip: excluded or unavailable focused-window privacy metadata")
+            lokalbotLog("context skip: excluded or unavailable focused-window privacy metadata ("
+                + Self.accessibilitySkipReason(accessibility, app: frontmost) + ")")
             return
         }
         lastAccessibilityCapture = current
