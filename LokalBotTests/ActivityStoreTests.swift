@@ -724,6 +724,32 @@ final class ActivityStoreTests: XCTestCase {
             focusedWindowFrame: frame, excludedApps: [])?.windowID, 3)
     }
 
+    func testCaptureLayoutBindsTheCheckedFrameEvenWhenTheListedTitleLags() {
+        let frame = CGRect(x: 0, y: 0, width: 800, height: 600)
+        let other = CGRect(x: 40, y: 40, width: 800, height: 600)
+        func select(_ windows: [ScreenshotCaptureLayout.Window]) -> CGWindowID? {
+            ScreenshotCaptureLayout.selection(
+                windows: windows, frontmostProcessID: 42, focusedWindowTitle: "New tab title",
+                focusedWindowFrame: frame, excludedApps: [])?.windowID
+        }
+        XCTAssertEqual(select([
+            .init(id: 1, processID: 42, appName: "Google Chrome", title: "Previous tab title", frame: frame),
+            .init(id: 2, processID: 42, appName: "Google Chrome", title: "New tab title", frame: other),
+        ]), 1, "Only one window has the checked frame; a stale listed title does not matter")
+        XCTAssertEqual(select([
+            .init(id: 1, processID: 42, appName: "Google Chrome", title: "Previous tab title", frame: frame),
+            .init(id: 3, processID: 42, appName: "Google Chrome", title: "New tab title", frame: frame),
+        ]), 3, "The title tells apart windows stacked on the same frame")
+        XCTAssertNil(select([
+            .init(id: 1, processID: 42, appName: "Google Chrome", title: "One", frame: frame),
+            .init(id: 3, processID: 42, appName: "Google Chrome", title: "Two", frame: frame),
+        ]), "Stacked windows without a title match are ambiguous")
+        XCTAssertNil(select([
+            .init(id: 2, processID: 42, appName: "Google Chrome", title: "New tab title", frame: other),
+            .init(id: 4, processID: 7, appName: "Safari", title: "New tab title", frame: frame),
+        ]), "A matching title elsewhere, or another app's window, never stands in")
+    }
+
     func testCaptureFileNamesAndInFlightGateCannotCollide() {
         let root = URL(fileURLWithPath: "/tmp/screenshot-path-test", isDirectory: true)
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000.125)

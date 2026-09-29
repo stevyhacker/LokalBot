@@ -123,13 +123,15 @@ struct ScreenshotCaptureLayout {
     ) -> Selection? {
         guard let focusedWindowFrame, !focusedWindowFrame.isEmpty,
               !focusedWindowFrame.isNull else { return nil }
-        let matches = windows.filter {
-            $0.processID == frontmostProcessID
-                && $0.title == focusedWindowTitle
-                && $0.frame == focusedWindowFrame
+        // The Accessibility-checked frame identifies the window. The window
+        // title ScreenCaptureKit reports can lag the live one (Chrome), so a
+        // title only tells apart windows that share that exact frame.
+        let framed = windows.filter {
+            $0.processID == frontmostProcessID && $0.frame == focusedWindowFrame
         }
-        // A title alone can identify several windows. Never guess another
-        // window or fall back to the display when AX cannot bind the source.
+        let matches = framed.count == 1 ? framed : framed.filter { $0.title == focusedWindowTitle }
+        // Never guess another window or fall back to the display when AX
+        // cannot bind the source.
         guard matches.count == 1, let window = matches.first,
               !isExcluded(appName: window.appName, excludedApps: excludedApps)
         else { return nil }
@@ -277,6 +279,8 @@ enum ScreenshotWindowFocusValidation {
             && snapshot.sourceURL == expected.sourceURL
             && snapshot.hasWebContent == expected.hasWebContent
             && snapshot.containsSecureField == expected.containsSecureField
+            && ScreenAccessibilityReader.settledFocus(
+                before: expected.focusedSecureField, after: snapshot.focusedSecureField).accepted
     }
 }
 
