@@ -3,6 +3,29 @@ import XCTest
 
 @MainActor
 final class ActionThreadRevisionTests: XCTestCase {
+    func testOtherPeoplesThreadsCanChangeStatusButStaleSnapshotsAreRejected() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("others-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = StorageManager(rootURL: root)
+        let meeting = Meeting(id: UUID(), title: "Synthetic sync", appName: "Meet",
+                              startedAt: Date(timeIntervalSince1970: 1_780_000_000),
+                              endedAt: Date(timeIntervalSince1970: 1_780_001_800),
+                              relativePath: "meetings/others")
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try MeetingOutcomes(actionItems: [.init(text: "Benchmark the synthetic replica cluster", owner: "Ana")])
+            .write(to: folder)
+        let index = OutcomeIndex(storage: storage)
+        index.refresh(meetings: [meeting])
+        XCTAssertTrue(index.userActionThreads.isEmpty)
+        let thread = try XCTUnwrap(ActionThreadClusterer.cluster(
+            index.all.flatMap(\.actionReferences)).first)
+
+        XCTAssertTrue(index.setStatus(.done, thread: thread), index.lastError ?? "")
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .done)
+        XCTAssertFalse(index.setStatus(.open, thread: thread), "A snapshot taken before the change is stale")
+    }
+
     func testRejectedEvidenceMutationLeavesCorrectionAndNarrativeIntact() throws {
         let (storage, meetings, action) = try fixture()
         let meeting = meetings[0]

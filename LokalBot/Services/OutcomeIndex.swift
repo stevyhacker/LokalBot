@@ -15,6 +15,9 @@ final class OutcomeIndex: ObservableObject {
     private var projectionRevisions: [UUID: Int] = [:]
     @Published private(set) var projections: [Meeting.ID: MeetingOutcomeProjection] = [:]
     @Published private(set) var userActionThreads: [ActionThread] = []
+    /// Every current thread, including other people's, so People and
+    /// Projects can change status through the same stale-snapshot check.
+    private(set) var allActionThreads: [ActionThread] = []
 
     private let storage: StorageManager
     private let mutateEvidence: ([Meeting], () throws -> Void) throws -> Void
@@ -160,7 +163,7 @@ final class OutcomeIndex: ObservableObject {
 
     @discardableResult
     func setStatus(_ status: OutcomeStatus, thread: ActionThread) -> Bool {
-        guard let current = userActionThreads.first(where: { $0.id == thread.id }),
+        guard let current = allActionThreads.first(where: { $0.id == thread.id }),
               current == thread else {
             lastError = "The action thread changed. Review its sources and try again."
             return false
@@ -325,8 +328,8 @@ final class OutcomeIndex: ObservableObject {
     }
 
     private func rebuildActionThreads() {
-        userActionThreads = ActionThreadClusterer.cluster(
-            all.flatMap(\.actionReferences)).filter(\.isForUser)
+        allActionThreads = ActionThreadClusterer.cluster(all.flatMap(\.actionReferences))
+        userActionThreads = allActionThreads.filter(\.isForUser)
     }
 
     private static func nilIfBlank(_ value: String?) -> String? {
