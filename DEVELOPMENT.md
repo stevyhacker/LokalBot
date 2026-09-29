@@ -182,7 +182,7 @@ Models auto-download on first use (Hugging Face; the ONNX specialists fetch sher
 
 Everything lives in **Settings**, organized into searchable categories:
 
-- **General** — launch at login, menu-bar-only mode, appearance (theme: Match System / Light / Dark; five text sizes applied through `Font.scaled`, since macOS text styles ignore SwiftUI Dynamic Type), the opt-in `⌃⇧Space` Quick Recall shortcut, permission status + repair, storage location, update checks.
+- **General** — launch at login, menu-bar-only mode, appearance (theme: Match System / Light / Dark; five text sizes applied through `AppFont` and the `\appTextScale` environment, since macOS text styles ignore SwiftUI Dynamic Type; Default renders body text at 14 pt, one point above macOS, and Small is the unscaled system size), the opt-in `⌃⇧Space` Quick Recall shortcut, permission status + repair, storage location, update checks.
 - **Recording** — auto-record behavior, calendar-assisted detection, auto-transcribe/summarize, notes template + language, neural diarization, day tracking modes, scheduled Markdown/Obsidian/Logseq daily-memory export, and safe local routines.
 - **Models** — readiness for the Transcribe, Think, and Autocomplete roles; recommended/lightweight presets; transcription engines; Main LLM backends (Built-in / Apple Intelligence / Ollama / OpenAI-compatible); the GGUF catalog and Hugging Face browser; embeddings; and Kokoro TTS.
 - **Privacy** — screen-text retention plus independent meeting-library and time-scoped screen-memory MCP permission profiles.

@@ -3,8 +3,8 @@ import SwiftUI
 @testable import LokalBot
 
 final class AppAppearanceTests: XCTestCase {
-    func testDefaultTextSizeKeepsSystemTextStyles() {
-        let scale = AppTextSize.standard.scale
+    func testSmallTextSizeKeepsSystemTextStyles() {
+        let scale = AppTextSize.small.scale
         XCTAssertEqual(AppFont.scaled(.body).resolved(scale: scale), Font.body)
         XCTAssertEqual(AppFont.scaled(.callout).resolved(scale: scale), Font.callout)
         XCTAssertEqual(AppFont.scaled(.headline).resolved(scale: scale), Font.headline)
@@ -14,16 +14,29 @@ final class AppAppearanceTests: XCTestCase {
                        Font.callout.weight(.semibold).monospacedDigit())
     }
 
+    func testDefaultTextSizeIsOnePointLargerThanMacBodyText() {
+        let scale = AppTextSize.standard.scale
+        XCTAssertEqual(AppFont.scaled(.body).resolved(scale: scale),
+                       Font.system(size: 14, weight: .regular, design: .default))
+        XCTAssertEqual(AppFont.scaled(.callout).resolved(scale: scale),
+                       Font.system(size: 13, weight: .regular, design: .default))
+        XCTAssertEqual(AppFont.scaled(.headline).resolved(scale: scale),
+                       Font.system(size: 14, weight: .bold, design: .default))
+        XCTAssertEqual(AppFont.scaled(.largeTitle).resolved(scale: scale),
+                       Font.system(size: 28, weight: .regular, design: .default))
+        XCTAssertEqual(AppTextSize.allCases.map(\.scale), AppTextSize.allCases.map(\.scale).sorted())
+    }
+
     func testLargerTextSizesScaleMacTextStyleMetrics() {
         let largest = AppTextSize.largest.scale
         XCTAssertEqual(AppFont.scaled(.body).resolved(scale: largest),
-                       Font.system(size: 18, weight: .regular, design: .default))
+                       Font.system(size: 19, weight: .regular, design: .default))
         XCTAssertEqual(AppFont.scaled(.headline).resolved(scale: largest),
-                       Font.system(size: 18, weight: .bold, design: .default))
+                       Font.system(size: 19, weight: .bold, design: .default))
         XCTAssertEqual(AppFont.scaledSystem(size: 14).resolved(scale: largest),
                        Font.system(size: 20, weight: .regular, design: .default))
         XCTAssertEqual(AppFont.scaled(.callout).bold().resolved(scale: AppTextSize.small.scale),
-                       Font.system(size: 11, weight: .regular, design: .default).bold())
+                       Font.callout.bold())
     }
 
     func testFontDescriptionsCompareByValueSoUnchangedTextIsNotRedrawn() {

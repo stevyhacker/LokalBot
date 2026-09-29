@@ -25,7 +25,8 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable, Sendable {
 }
 
 /// App-wide text size. macOS text styles ignore SwiftUI's Dynamic Type, so
-/// LokalBot scales its own text styles; the default size is unchanged.
+/// LokalBot scales its own text styles. Default reads one point larger than
+/// macOS body text (14 pt); Small is the unscaled system size.
 enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
     case small, standard, large, larger, largest
 
@@ -43,11 +44,11 @@ enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var scale: CGFloat {
         switch self {
-        case .small: 0.9
-        case .standard: 1
-        case .large: 1.12
-        case .larger: 1.25
-        case .largest: 1.4
+        case .small: 1
+        case .standard: 14.0 / 13.0
+        case .large: 1.18
+        case .larger: 1.3
+        case .largest: 1.45
         }
     }
 }
@@ -57,7 +58,8 @@ enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
 enum AppTextScale {
     nonisolated(unsafe) static var current: CGFloat = 1
 
-    static func isDefault(_ scale: CGFloat) -> Bool { abs(scale - 1) < 0.001 }
+    /// The unscaled macOS size, where text styles are used as they are.
+    static func isSystemSize(_ scale: CGFloat) -> Bool { abs(scale - 1) < 0.001 }
 }
 
 private struct AppTextScaleKey: EnvironmentKey {
@@ -74,8 +76,7 @@ extension EnvironmentValues {
 }
 
 /// A font description resolved against the environment's text scale at
-/// render time. The default size resolves to the system text style itself,
-/// so standard rendering is unchanged.
+/// render time. The unscaled size resolves to the system text style itself.
 struct AppFont: Hashable, Sendable {
     enum Base: Hashable, Sendable {
         case style(Font.TextStyle, design: Font.Design?)
@@ -112,7 +113,7 @@ struct AppFont: Hashable, Sendable {
         var font: Font
         switch base {
         case let .style(style, design):
-            if AppTextScale.isDefault(scale) {
+            if AppTextScale.isSystemSize(scale) {
                 font = design.map { .system(style, design: $0) } ?? .system(style)
             } else {
                 let metrics = Font.macTextStyleMetrics(style)
