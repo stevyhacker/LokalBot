@@ -360,10 +360,13 @@ final class EmbeddingIndex {
                 atPath: folder.appendingPathComponent($0).path))?[.modificationDate] as? Date
         }.map(\.timeIntervalSince1970).max() ?? 0
         let notes = MeetingNotes.load(from: folder)
-        // Notes joined the semantic corpus after libraries were embedded.
-        // Backfill only meetings that have notes instead of re-embedding all.
-        let needsNotesBackfill = notes != nil && !hasNotesChunks(meeting.id)
-        guard mtime > 0, (indexedMtime(meeting.id) ?? -1 < mtime) || needsNotesBackfill else { return }
+        // Notes joined the semantic corpus after libraries were embedded, and
+        // clearing notes deletes the file without raising the newest mtime.
+        // Either way, notes present on only one side force a fresh embedding.
+        let hasNotesVectors = hasNotesChunks(meeting.id)
+        let notesChanged = (notes != nil) != hasNotesVectors
+        guard mtime > 0 || hasNotesVectors,
+              (indexedMtime(meeting.id) ?? -1 < mtime) || notesChanged else { return }
 
         var chunks: [(start: TimeInterval, text: String)] = []
         if let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),
@@ -377,7 +380,17 @@ final class EmbeddingIndex {
             }
         }
         if let notes { chunks.append(contentsOf: Self.notesChunks(notes)) }
-        guard !chunks.isEmpty else { return }
+        guard !chunks.isEmpty else {
+            // Nothing left to embed; drop vectors of the removed notes.
+            if hasNotesVectors, let database {
+                _ = database.transaction {
+                    database.run("DELETE FROM embeddings WHERE meeting_id = ?1", bind: [meeting.id.uuidString])
+                        && database.run("DELETE FROM embedded_meetings WHERE meeting_id = ?1",
+                                        bind: [meeting.id.uuidString])
+                }
+            }
+            return
+        }
 
         let vectors = try await Self.embed(chunks.map(\.text), prefix: Self.documentPrefix,
                                            storage: storage)
@@ -410,7 +423,7 @@ final class EmbeddingIndex {
                     SELECT source_mtime FROM embedded_meetings
                     WHERE meeting_id = ?1 AND model_id = ?2
                     """, bind: [meetingID, Self.indexVersion]), indexed >= mtime,
-                   !needsNotesBackfill || hasNotesChunks(meeting.id) {
+                   (notes != nil) == hasNotesChunks(meeting.id) {
                     return true
                 }
             } catch {

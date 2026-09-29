@@ -97,7 +97,11 @@ final class SearchIndex {
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
               isDirectory.boolValue else { return }
         let mtime = Self.latestMtime(in: folder)
-        if let indexed = indexedMtime(of: meeting.id), indexed >= mtime { return }
+        if let indexed = indexedMtime(of: meeting.id), indexed >= mtime,
+           let database, (try? Self.hasRemovedSource(meetingID: meeting.id.uuidString,
+                                                     folder: folder, in: database)) == false {
+            return
+        }
 
         var documents = [Document(text: "\(meeting.title) \(meeting.appName)",
                                   kind: .title, start: 0, speaker: "")]
@@ -149,7 +153,8 @@ final class SearchIndex {
                 // commit after and overwrite a newer snapshot.
                 if let indexed = try database.firstDoubleChecked(
                     "SELECT source_mtime FROM indexed_meetings WHERE meeting_id = ?1",
-                    bind: [meetingID]), indexed >= mtime {
+                    bind: [meetingID]), indexed >= mtime,
+                   try !Self.hasRemovedSource(meetingID: meetingID, folder: folder, in: database) {
                     return true
                 }
             } catch {
@@ -435,6 +440,30 @@ final class SearchIndex {
         }
         let questions = projection.outcomes.openQuestions.map { "Open question: \($0)" }
         return decisions + actions + questions
+    }
+
+    /// Source file behind each removable document kind. Deleting a file
+    /// (clearing notes, archiving outcomes) cannot raise the newest source
+    /// modification time, so freshness alone would keep its rows searchable.
+    private static let documentSources: [(kind: Kind, fileName: String)] = [
+        (.segment, "transcript.json"), (.summary, "summary.md"),
+        (.notes, MeetingNotes.fileName), (.outcome, MeetingOutcomes.fileName),
+    ]
+
+    static func hasRemovedSource(meetingID: String, folder: URL,
+                                 in database: SQLiteDatabase) throws -> Bool {
+        let indexedKinds: [String] = try database.queryChecked("""
+            SELECT DISTINCT docs.kind FROM search_document_rows AS source
+            JOIN docs ON docs.rowid = source.doc_rowid
+            WHERE source.meeting_id = ?1
+            """, bind: [meetingID]) { statement in
+            sqlite3_column_text(statement, 0).map { String(cString: $0) }
+        }
+        return documentSources.contains { source in
+            indexedKinds.contains(source.kind.rawValue)
+                && !FileManager.default.fileExists(
+                    atPath: folder.appendingPathComponent(source.fileName).path)
+        }
     }
 
     private static func scheduleNotesOutcomesBackfillIfNeeded(in database: SQLiteDatabase) {

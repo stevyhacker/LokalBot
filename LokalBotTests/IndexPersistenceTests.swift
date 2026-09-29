@@ -512,6 +512,39 @@ final class IndexPersistenceTests: XCTestCase {
         XCTAssertEqual(index.search("velvetbudget", kind: .notes).count, 0)
     }
 
+    func testClearedNotesAndRemovedOutcomesLeaveTheSearchIndex() throws {
+        let storage = StorageManager(rootURL: root.appendingPathComponent("cleared-library", isDirectory: true))
+        let meeting = Meeting(
+            id: UUID(), title: "Synthetic cleanup", appName: "Tests",
+            startedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            endedAt: Date(timeIntervalSince1970: 1_700_000_100),
+            relativePath: "meetings/cleared", hasSystemTrack: false)
+        let folder = meeting.folderURL(in: storage)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        // The transcript stays the newest file, so deleting notes or outcomes
+        // cannot raise the newest modification time.
+        try MeetingNotes.writeChecked("ephemeralnebula reminder", to: folder)
+        try MeetingOutcomes(decisions: ["Adopt the transientquartz plan"]).write(to: folder)
+        try writeTranscript(text: "ordinary words", to: folder.appendingPathComponent("transcript.json"),
+                            modificationDate: Date().addingTimeInterval(60))
+        let databaseURL = storage.rootURL.appendingPathComponent("lokalbotv3.sqlite")
+        let index = SearchIndex(databaseURL: databaseURL)
+        index.reindex(meeting, storage: storage)
+        XCTAssertEqual(index.search("ephemeralnebula").count, 1)
+        XCTAssertEqual(index.search("transientquartz").count, 1)
+
+        try MeetingNotes.writeChecked("", to: folder)
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingOutcomes.fileName))
+        index.reindex(meeting, storage: storage)
+
+        XCTAssertTrue(index.search("ephemeralnebula").isEmpty)
+        XCTAssertTrue(index.search("transientquartz").isEmpty)
+        let reopened = SearchIndex(databaseURL: databaseURL)
+        reopened.reindex(meeting, storage: storage)
+        XCTAssertTrue(reopened.search("ephemeralnebula").isEmpty)
+        XCTAssertEqual(reopened.search("ordinary").count, 1)
+    }
+
     func testNotesOutcomesMigrationReindexesMeetingsIndexedBeforeIt() throws {
         let storage = StorageManager(rootURL: root.appendingPathComponent("migration-library", isDirectory: true))
         let meeting = Meeting(
