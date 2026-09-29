@@ -139,6 +139,35 @@ struct ScreenshotCaptureLayout {
     static func isExcluded(appName: String, excludedApps: [String]) -> Bool {
         ScreenContextPrivacy.isExcluded(appName: appName, rules: excludedApps)
     }
+
+    /// Why `selection` found no single window, as counts only: never titles.
+    static func mismatchSummary(
+        windows: [Window],
+        frontmostProcessID: pid_t,
+        focusedWindowTitle: String,
+        focusedWindowFrame: CGRect?
+    ) -> String {
+        let own = windows.filter { $0.processID == frontmostProcessID }
+        let titles = own.filter { $0.title == focusedWindowTitle }.count
+        let frames = own.filter { $0.frame == focusedWindowFrame }.count
+        let both = own.filter { $0.title == focusedWindowTitle && $0.frame == focusedWindowFrame }.count
+        let emptyTitles = own.filter { $0.title.isEmpty }.count
+        let related = own.filter {
+            !$0.title.isEmpty && $0.title != focusedWindowTitle
+                && ($0.title.contains(focusedWindowTitle) || focusedWindowTitle.contains($0.title))
+        }.count
+        let nearestFrameDelta = focusedWindowFrame.map { focused in
+            own.map { window in
+                [window.frame.minX - focused.minX, window.frame.minY - focused.minY,
+                 window.frame.width - focused.width, window.frame.height - focused.height]
+                    .map(abs).max() ?? 0
+            }.min()
+        } ?? nil
+        return "appWindows=\(own.count) titleMatches=\(titles) frameMatches=\(frames) bothMatch=\(both) "
+            + "emptyTitles=\(emptyTitles) containedTitles=\(related) "
+            + "nearestFrameDelta=\(nearestFrameDelta.map { String(format: "%.1f", $0) } ?? "none") "
+            + "axFrame=\(focusedWindowFrame == nil ? "none" : "known")"
+    }
 }
 
 /// ScreenCaptureKit allocates the requested frame before the background worker
@@ -900,16 +929,17 @@ final class ScreenshotService: ObservableObject {
             lokalbotLog("shot skip: focus changed while preparing capture")
             return
         }
+        let candidateWindows: [ScreenshotCaptureLayout.Window] = content.windows.compactMap { window in
+            guard let application = window.owningApplication else { return nil }
+            return .init(
+                id: window.windowID,
+                processID: application.processID,
+                appName: application.applicationName,
+                title: window.title ?? "",
+                frame: window.frame)
+        }
         let layout = ScreenshotCaptureLayout.selection(
-            windows: content.windows.compactMap { window in
-                guard let application = window.owningApplication else { return nil }
-                return .init(
-                    id: window.windowID,
-                    processID: application.processID,
-                    appName: application.applicationName,
-                    title: window.title ?? "",
-                    frame: window.frame)
-            },
+            windows: candidateWindows,
             frontmostProcessID: frontmostProcessID,
             focusedWindowTitle: windowTitle,
             focusedWindowFrame: accessibilitySnapshot.windowFrame,
@@ -917,7 +947,13 @@ final class ScreenshotService: ObservableObject {
         guard let layout,
               let window = content.windows.first(where: { $0.windowID == layout.windowID })
         else {
-            lokalbotLog("shot skip: no on-screen window matched the focused window (\(frontApp))")
+            policy.noteCheck(at: Date())
+            let summary = ScreenshotCaptureLayout.mismatchSummary(
+                windows: candidateWindows,
+                frontmostProcessID: frontmostProcessID,
+                focusedWindowTitle: windowTitle,
+                focusedWindowFrame: accessibilitySnapshot.windowFrame)
+            lokalbotLog("shot skip: no on-screen window matched the focused window (\(frontApp): \(summary))")
             return
         }
 
