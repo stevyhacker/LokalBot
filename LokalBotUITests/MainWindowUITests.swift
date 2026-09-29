@@ -363,14 +363,14 @@ final class MainWindowUITests: XCTestCase {
                       "persistent Timeline actions did not render")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
             .waitForExistence(timeout: 6), "work sessions should be visible immediately")
-        let usesContextDrawer = revealTimelineContext()
-        if usesContextDrawer { closeTimelineContext() }
-        if !usesContextDrawer {
-            XCTAssertLessThan(
-                identified("capture.dayOverview").frame.minY,
-                identified("timeline.workSessions").frame.minY,
-                "Day overview should appear above Work Sessions")
-        }
+        XCTAssertFalse(identified("timeline.evidencePane").exists || identified("timeline.contextPanel").exists,
+                       "Timeline details should stay closed until something is selected")
+        XCTAssertFalse(identified("timeline.context.toggle").exists,
+                       "there are no details to open before a selection")
+        XCTAssertLessThan(
+            identified("capture.dayOverview").frame.minY,
+            identified("timeline.workSessions").frame.minY,
+            "Day overview should appear above Work Sessions")
         XCTAssertTrue(identified("timeline.dayDigest.generate").waitForExistence(timeout: 5),
                       "day-digest action should remain directly visible")
         XCTAssertTrue(identified("timeline.dayDigest.actions").exists,
@@ -395,7 +395,6 @@ final class MainWindowUITests: XCTestCase {
                        "private evidence identifier leaked into the collapsed overview")
         XCTAssertFalse(textWithContent("No activity recorded").firstMatch.exists,
                        "empty state shown despite seeded activity blocks")
-        if usesContextDrawer { closeTimelineContext() }
         // The grounded block title becomes the human-scale session title.
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
@@ -488,7 +487,6 @@ final class MainWindowUITests: XCTestCase {
                       "previous-day control is missing")
         previousDay.click()
 
-        if revealTimelineContext() { closeTimelineContext() }
         XCTAssertTrue(textWithContent(SyntheticFixture.previousDayDigestMarker).firstMatch
             .waitForExistence(timeout: 4), "previous day's digest did not replace today's")
         XCTAssertFalse(textWithContent(SyntheticFixture.todayDigestMarker).firstMatch.exists,
@@ -1239,8 +1237,6 @@ final class MainWindowUITests: XCTestCase {
 
     /// Prefer the stable identifier; fall back to visible copy if AX role differs.
     private func digestTasksVisible() -> Bool {
-        let fullDigest = app.disclosureTriangles["timeline.fullDigest"]
-        if fullDigest.exists { fullDigest.click() }
         let identifiedHeader = app.descendants(matching: .any)["dayDigest.tasks"]
         if identifiedHeader.waitForExistence(timeout: 5) { return true }
         return textWithContent("Work summary").firstMatch.exists
@@ -1249,20 +1245,6 @@ final class MainWindowUITests: XCTestCase {
     private func switchToKeywordSearch() {
         XCTAssertTrue(identified("search.field").waitForExistence(timeout: 5))
         XCTAssertFalse(identified("ask.retrieval").exists)
-    }
-
-    /// Timeline keeps the day context side by side when wide and behind an
-    /// explicit drawer when narrow. Return whether the responsive drawer was
-    /// needed so callers only make wide-layout frame assertions when valid.
-    @discardableResult
-    private func revealTimelineContext() -> Bool {
-        let toggle = identified("timeline.context.toggle")
-        let usesDrawer = toggle.exists
-        let panel = identified(usesDrawer ? "timeline.contextPanel" : "timeline.evidencePane")
-        if usesDrawer, !panel.exists { toggle.click() }
-        XCTAssertTrue(panel.waitForExistence(timeout: 6),
-                      "Timeline context panel did not render")
-        return usesDrawer
     }
 
     /// Work sessions and raw capture follow Day Overview, the digest and

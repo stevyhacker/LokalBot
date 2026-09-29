@@ -1,6 +1,6 @@
 import XCTest
 
-/// Hosted regressions for retrieval submission and Timeline rewind lifetimes.
+/// Hosted regressions for retrieval submission and Timeline capture cleanup.
 final class RecallInteractionUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -17,7 +17,7 @@ final class RecallInteractionUITests: XCTestCase {
         fixture?.cleanUp()
     }
 
-    func testRawCaptureRewindKeepsPlayingAndSeekingAcrossMomentDetails() throws {
+    func testRawCaptureOffersReviewedTimeRangeDeletion() throws {
         try SyntheticFixture.plantActivityMoment(in: fixture, count: 3)
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let raw = app.buttons["timeline.rawCapture"]
@@ -25,31 +25,22 @@ final class RecallInteractionUITests: XCTestCase {
         // Raw capture follows the day's summary sections, below a 700 pt fold.
         UITestHarness.scrollTo(raw, in: app)
         raw.click()
-        let play = app.buttons["Play context rewind"]
-        XCTAssertTrue(play.waitForExistence(timeout: 5))
-        play.click()
-        // Two timer ticks must survive mounting the first moment detail.
-        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 8))
-        XCTAssertTrue(app.sliders["Rewind position"].exists)
-        let previous = app.buttons["Previous context moment"]
-        XCTAssertTrue(previous.isHittable)
-        previous.click()
-        XCTAssertTrue(element("timeline.screenDetail.9002").waitForExistence(timeout: 4))
-        app.buttons["Next context moment"].click()
-        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
-
-        let position = app.sliders["Rewind position"]
-        let first = position.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
-        let last = position.coordinate(withNormalizedOffset: CGVector(dx: 0.98, dy: 0.5))
-        last.press(forDuration: 0.1, thenDragTo: first)
-        XCTAssertTrue(element("timeline.screenDetail.9001").waitForExistence(timeout: 4))
-        first.press(forDuration: 0.1, thenDragTo: last)
-        XCTAssertTrue(element("timeline.screenDetail.9003").waitForExistence(timeout: 4))
-        let lastPosition = String(describing: position.value)
-        app.buttons["Back to raw capture"].click()
-        XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 4))
-        XCTAssertEqual(String(describing: position.value), lastPosition,
-                       "Returning to raw capture must preserve the rewind cursor")
+        XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Play context rewind"].exists, "Context rewind was removed")
+        let toggle = app.buttons["timeline.deleteRange.toggle"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.click()
+        let review = app.buttons["timeline.deleteRange"]
+        XCTAssertTrue(review.waitForExistence(timeout: 3))
+        XCTAssertTrue(review.isEnabled, "The default range covers the day's captures")
+        review.click()
+        XCTAssertTrue(UITestHarness.staticText(containing: "Review capture deletion", in: app)
+            .waitForExistence(timeout: 3))
+        app.buttons["Cancel"].click()
+        XCTAssertTrue(UITestHarness.waitUntil {
+            !UITestHarness.staticText(containing: "Review capture deletion", in: self.app).exists
+        })
+        XCTAssertTrue(element("timeline.track").exists, "Cancelling the review deletes nothing")
     }
 
     func testQuestionReturnWaitsForSourcesAndSubmitsOnce() throws {

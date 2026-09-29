@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// The bounded context panel inside Timeline's one-day workspace. Selection
-/// replaces only this panel; the date, stats, moments strip, and chronology
-/// remain stable so inspecting evidence never turns Timeline into another
-/// Meetings or Today screen.
+/// replaces only this panel; the date, stats, and chronology remain stable so
+/// inspecting evidence never turns Timeline into another Meetings or Today
+/// screen.
 struct TimelineContextPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
@@ -12,32 +12,11 @@ struct TimelineContextPanel: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Selection replaces the detail below, not the owner of the rewind
-            // timer, cursor, and range-selection state.
-            if model.showsRawCapture, !model.rewindFrames.isEmpty {
-                ScreenRewindView(
-                    frames: model.rewindFrames,
-                    selectedSnapshotID: rawCaptureScreenSelection,
-                    onReload: { model.reload(app: app) },
-                    presentation: .compact)
-                    .padding(16)
-            }
             selectedContent
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("timeline.contextPanel")
-    }
-
-    private var rawCaptureScreenSelection: Binding<Int64?> {
-        Binding(get: { model.selectedSnapshotID }, set: { snapshotID in
-            model.selectedSnapshotID = snapshotID
-            if snapshotID != nil {
-                model.selection = nil
-                model.selectedSessionID = nil
-                app.selectedMeetingIDs = []
-            }
-        })
     }
 
     @ViewBuilder
@@ -97,6 +76,10 @@ struct TimelineContextPanel: View {
                 onBack: clearSelection,
                 onDismiss: onDismiss)
                 .accessibilityIdentifier("timeline.rawCapturePanel")
+            CaptureRangeDeletionView(frames: model.rewindFrames) {
+                model.selectedSnapshotID = nil
+                model.reload(app: app)
+            }
             TimelineRawCaptureView(model: model)
         }
         .padding(16)
@@ -120,7 +103,7 @@ struct TimelineContextPanel: View {
 
     private var dayBrief: some View {
         VStack(alignment: .leading, spacing: 14) {
-            TimelinePanelHeader(title: "Moment Details", subtitle: "", icon: "rectangle.and.text.magnifyingglass",
+            TimelinePanelHeader(title: "Details", subtitle: "", icon: "rectangle.and.text.magnifyingglass",
                                 onBack: nil, onDismiss: onDismiss)
             Text("Select a work session, meeting, or captured moment to review its details.")
                 .foregroundStyle(.secondary)

@@ -311,42 +311,22 @@ final class RedesignUITests: XCTestCase {
         snapshot("meeting-review-ready-to-refresh")
     }
 
-    func testTimelineFiltersRetainedMomentsWithoutHidingWorkSessions() throws {
-        // Rewind renders only when the day has retained moments to play.
-        try SyntheticFixture.plantActivityMoment(in: fixture)
-        try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
-        let search = app.textFields["timeline.search"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.click()
-        search.typeText("no-matching-retained-moment-9382")
-        XCTAssertTrue(UITestHarness.staticText(containing: "No moments match these filters", in: app).waitForExistence(timeout: 5))
-        XCTAssertTrue(element("timeline.workSessions").exists, "Moment filters must preserve work sessions")
-        search.typeKey("a", modifierFlags: .command)
-        search.typeKey(.delete, modifierFlags: [])
-        UITestHarness.selectSegment("Rewind", pickerIdentifier: "timeline.mode", in: app)
-        XCTAssertTrue(element("timeline.rewind").waitForExistence(timeout: 5))
-        snapshot("timeline-rewind-with-sessions")
-    }
-
-    func testTimelineResetsAppFilterOnDayChangeAndEmptyDetailsCanClose() throws {
+    func testTimelineOpensDetailsOnlyForASelection() throws {
         try SyntheticFixture.plantActivityMoment(in: fixture)
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
-        let filter = app.popUpButtons["timeline.appFilter"]
-        XCTAssertTrue(filter.waitForExistence(timeout: 5))
-        filter.click()
-        XCTAssertTrue(app.menuItems["Xcode"].waitForExistence(timeout: 3))
-        app.menuItems["Xcode"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { (filter.value as? String) == "Xcode" })
-        app.buttons["timeline.previousDay"].click()
-        XCTAssertTrue(UITestHarness.waitUntil { (filter.value as? String) == "All Apps" },
-                      "A previous day's app filter cannot hide this day's moments")
-        let toggle = app.buttons["timeline.context.toggle"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 3))
-        toggle.click()
+        XCTAssertTrue(element("timeline.workSessions").waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["timeline.search"].exists, "Retained moments search was removed")
+        XCTAssertFalse(element("timeline.moments").exists, "Retained moments list was removed")
+        XCTAssertFalse(element("timeline.fullDigest").exists, "The digest is always shown in full")
+        XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
+        XCTAssertFalse(element("timeline.contextPanel").exists)
+        openFirstTimelineSession()
         XCTAssertTrue(element("timeline.contextPanel").waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["Close context panel"].waitForExistence(timeout: 3))
         app.buttons["Close context panel"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !self.element("timeline.contextPanel").exists })
+        XCTAssertTrue(app.buttons["timeline.context.toggle"].waitForExistence(timeout: 3),
+                      "The selection's details can be reopened")
     }
 
     func testTranscriptSearchIsPersistentAndCommandFStillFindsAcrossMeeting() throws {
@@ -469,14 +449,14 @@ final class RedesignUITests: XCTestCase {
         let rail = element("timeline.sessionRail")
         let evidence = element("timeline.evidencePane")
         XCTAssertTrue(rail.waitForExistence(timeout: 5))
+        XCTAssertFalse(evidence.exists, "The day page is full width until something is selected")
+        app.buttons["timeline.session.1"].click()
+        XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
         XCTAssertTrue(evidence.waitForExistence(timeout: 5))
         XCTAssertEqual(evidence.frame.width, 320, accuracy: 4)
         XCTAssertGreaterThan(rail.frame.width, evidence.frame.width)
         XCTAssertLessThanOrEqual(rail.frame.maxX, evidence.frame.minX,
                                  "Details belong to the right of the day page")
-        app.buttons["timeline.session.1"].click()
-        XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
-        XCTAssertGreaterThan(rail.frame.width, evidence.frame.width)
         snapshot("timeline-reading-pane")
     }
 
@@ -485,6 +465,7 @@ final class RedesignUITests: XCTestCase {
         let rail = element("timeline.sessionRail")
         let evidence = element("timeline.evidencePane")
         XCTAssertTrue(rail.waitForExistence(timeout: 5))
+        openFirstTimelineSession()
         XCTAssertTrue(evidence.waitForExistence(timeout: 5))
         let opening = evidence.frame.width
         let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
@@ -770,6 +751,16 @@ final class RedesignUITests: XCTestCase {
 
     private func element(_ id: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
+    }
+
+    /// Work sessions follow the day's summary sections, so the first one can
+    /// start below the fold.
+    private func openFirstTimelineSession() {
+        let session = app.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH %@", "timeline.session.")).firstMatch
+        XCTAssertTrue(session.waitForExistence(timeout: 5), "Timeline has no work session to select")
+        UITestHarness.scrollTo(session, in: app)
+        session.click()
     }
     private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil) throws {
         // Report every app issue. The hosted virtual Mac also exposes a
