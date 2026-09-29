@@ -10,7 +10,15 @@ struct ActionsWorkspaceView: View {
     @SceneStorage("actions.sort") private var sort = "due"
     @SceneStorage("actions.reviewMode") private var reviewMode = "actions"
     @SceneStorage("actions.meetingID") private var storedMeetingID = ""
+    @SceneStorage("actions.personID") private var personID = ""
     private var meetingID: UUID? { UUID(uuidString: storedMeetingID) }
+    /// The user's open actions that name a person or came from a small
+    /// meeting with them, using the same rules as the People workspace.
+    private var personActionIDs: Set<String>? {
+        guard !personID.isEmpty,
+              let person = app.connections.people.first(where: { $0.id == personID }) else { return nil }
+        return Set(person.myActions.flatMap(\.references).map(\.id))
+    }
     private var selection: Set<String> {
         get { app.actionSelection }
         nonmutating set { app.actionSelection = newValue }
@@ -25,9 +33,11 @@ struct ActionsWorkspaceView: View {
     }
     private func visibleActions(in actions: [OutcomeActionReference]) -> [OutcomeActionReference] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let personActionIDs = personActionIDs
         return actions.filter { action in
             (status.isEmpty || action.status.rawValue == status)
                 && (meetingID == nil || action.meetingID == meetingID)
+                && (personActionIDs?.contains(action.id) ?? true)
                 && (needle.isEmpty || [action.text, action.meetingTitle, action.due ?? ""].contains { $0.localizedCaseInsensitiveContains(needle) })
                 && matchesDue(action)
         }.sorted { lhs, rhs in
@@ -82,6 +92,7 @@ struct ActionsWorkspaceView: View {
             }
         }
         .navigationTitle("Actions")
+        .task { app.refreshConnections() }
         .onChange(of: actions.map(\.id)) { _, ids in app.actionSelection.formIntersection(ids) }
         .sheet(item: $correction) { reference in
             ActionEditorSheet(reference: reference)
@@ -246,8 +257,11 @@ struct ActionsWorkspaceView: View {
                     .accessibilityIdentifier("actions.search")
             }
             ViewThatFits(in: .horizontal) {
-                HStack { statusPicker; duePicker; meetingPicker; sortPicker }
-                VStack { HStack { statusPicker; duePicker }; HStack { meetingPicker; sortPicker } }
+                HStack { statusPicker; duePicker; meetingPicker; personPicker; sortPicker }
+                VStack {
+                    HStack { statusPicker; duePicker; personPicker }
+                    HStack { meetingPicker; sortPicker }
+                }
             }
             if hiddenSelectionCount > 0 && reviewMode == "actions" {
                 HStack {
@@ -294,6 +308,16 @@ struct ActionsWorkspaceView: View {
             Text("All meetings").tag(nil as UUID?)
             ForEach(app.outcomeIndex.all) { Text($0.meeting.displayTitle).tag(Optional($0.id)) }
         }
+    }
+    private var personPicker: some View {
+        Picker("With", selection: $personID) {
+            Text("Anyone").tag("")
+            ForEach(app.connections.people.filter { !$0.myActions.isEmpty || $0.id == personID }) { person in
+                Text(person.name).tag(person.id)
+            }
+        }
+        .accessibilityIdentifier("actions.person")
+        .help("Your commitments that name this person or came from a small meeting with them")
     }
     private var sortPicker: some View {
         Picker("Sort", selection: $sort) {

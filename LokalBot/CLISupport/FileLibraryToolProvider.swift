@@ -121,6 +121,26 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                     ],
                 ]),
             ToolDefinition(
+                name: "list_people",
+                description: "List people the user meets, joined from calendar attendee names, speaker names applied in LokalBot, and action owners. Returns names, meeting counts, last meeting, and open-action counts in each direction. Email addresses are never returned.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "query": ["type": "string", "description": "Optional name substring."],
+                        "limit": ["type": "integer", "description": "Maximum people (default 50, maximum 200)."],
+                    ],
+                ]),
+            ToolDefinition(
+                name: "get_person",
+                description: "One person's open commitments in both directions (what the user owes them and what they owe the user), recent decisions made in small meetings together, and shared meetings.",
+                inputSchema: [
+                    "type": "object",
+                    "properties": [
+                        "person": ["type": "string", "description": "Person id from list_people, or a name."],
+                    ],
+                    "required": ["person"],
+                ]),
+            ToolDefinition(
                 name: "search_screen",
                 description: "Search locally captured screen text and window titles. Returns text snippets and context metadata only; never pixels or encrypted file paths. Requires the separate screen-memory permission.",
                 inputSchema: [
@@ -202,6 +222,10 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return await ask(question)
         case "get_action_items":
             return getActionItems(arguments)
+        case "list_people":
+            return listPeople(arguments)
+        case "get_person":
+            return getPerson(arguments)
         case "search_screen":
             return searchScreen(arguments)
         case "get_timeline":
@@ -221,6 +245,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
 
     private static let meetingToolNames: Set<String> = [
         "list_meetings", "get_meeting", "search_meetings", "ask_library", "get_action_items",
+        "list_people", "get_person",
     ]
     private static let screenToolNames: Set<String> = [
         "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
@@ -380,6 +405,45 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return .error(
                 .meetingNotFound,
                 "Could not read the meeting library: \(error.localizedDescription)")
+        }
+    }
+
+    private func listPeople(_ arguments: JSONValue?) -> ToolResult {
+        let query = arguments?["query"]?.stringValue
+        if let query, query.count > 120 {
+            return .error(.invalidArguments, "\"query\" must be at most 120 characters.")
+        }
+        let limit: Int
+        switch boundedInteger(arguments?["limit"], name: "limit", default: 50,
+                              maximum: PeopleReport.maximumEntries) {
+        case .success(let value): limit = value
+        case .failure(let result): return result
+        }
+        do {
+            let people = PeopleReport.people(
+                meetings: try SessionLookup.loadAllMeetings(), root: SessionLookup.storageRootURL, now: now())
+            return .text(PeopleReport.json(PeopleReport.summaries(people, query: query, limit: limit)))
+        } catch {
+            return .error(.meetingNotFound, "Could not read the meeting library: \(error.localizedDescription)")
+        }
+    }
+
+    private func getPerson(_ arguments: JSONValue?) -> ToolResult {
+        guard let needle = arguments?["person"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !needle.isEmpty, needle.count <= 120 else {
+            return .error(.invalidArguments, "get_person requires a \"person\" id or name of at most 120 characters.")
+        }
+        do {
+            let people = PeopleReport.people(
+                meetings: try SessionLookup.loadAllMeetings(), root: SessionLookup.storageRootURL, now: now())
+            guard let person = PeopleReport.find(needle, in: people) else {
+                return .error(.meetingNotFound,
+                              "No single person matches \"\(needle)\". Use list_people to find ids.")
+            }
+            return .text(PeopleReport.json(PeopleReport.detail(person, now: now())))
+        } catch {
+            return .error(.meetingNotFound, "Could not read the meeting library: \(error.localizedDescription)")
         }
     }
 

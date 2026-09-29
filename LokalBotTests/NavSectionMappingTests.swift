@@ -9,6 +9,8 @@ final class NavSectionMappingTests: XCTestCase {
     func testCaptureNamesMapToTheirSections() {
         XCTAssertEqual(AppState.NavSection(captureName: "timeline"), .timeline)
         XCTAssertEqual(AppState.NavSection(captureName: "meetings"), .meetings)
+        XCTAssertEqual(AppState.NavSection(captureName: "people"), .people)
+        XCTAssertEqual(AppState.NavSection(captureName: "Projects"), .projects)
         XCTAssertEqual(AppState.NavSection(captureName: "type"), .settings)
         XCTAssertEqual(AppState.NavSection(captureName: "ask"), .ask)
         XCTAssertEqual(AppState.NavSection(captureName: "settings"), .settings)

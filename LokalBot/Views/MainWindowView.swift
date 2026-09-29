@@ -114,6 +114,12 @@ struct MainWindowView: View {
                     .splitPaneAccessibilityLabel("Meeting details")
             }
             .id("workspace.meetings")
+        case .people:
+            PeopleWorkspaceView(connections: app.connections)
+                .id("workspace.people")
+        case .projects:
+            ProjectsWorkspaceView(connections: app.connections)
+                .id("workspace.projects")
         case .ask:
             HSplitView {
                 ChatConversationList()
@@ -145,6 +151,12 @@ struct MainWindowView: View {
                 systemImage: "calendar.day.timeline.left",
                 section: .timeline,
                 identifier: "sidebar.timeline")
+            sidebarDestination(
+                "People", systemImage: "person.2", section: .people,
+                identifier: "sidebar.people")
+            sidebarDestination(
+                "Projects", systemImage: "folder", section: .projects,
+                identifier: "sidebar.projects")
             sidebarDestination(
                 "Ask", systemImage: "sparkle.magnifyingglass", section: .ask,
                 identifier: "sidebar.ask")

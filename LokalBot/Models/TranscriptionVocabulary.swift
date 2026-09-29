@@ -137,7 +137,7 @@ enum TranscriptionVocabulary {
         "all", "and", "call", "catch", "check", "daily", "demo", "for", "hands", "in",
         "kickoff", "meeting", "monthly", "office", "hours", "on", "one", "planning",
         "quarterly", "retro", "review", "standup", "stand", "up", "sync", "team", "the",
-        "to", "up", "weekly", "with", "workshop", "interview", "onboarding", "update",
+        "to", "weekly", "with", "workshop", "interview", "onboarding", "update",
     ]
 
     /// Capitalized or mixed-case words and acronyms from a title ("Acme",

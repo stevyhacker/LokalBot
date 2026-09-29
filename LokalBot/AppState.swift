@@ -12,7 +12,7 @@ import CoreGraphics
 final class AppState: ObservableObject {
 
     enum NavSection: Hashable {
-        case today, timeline, meetings, ask, agent, settings
+        case today, timeline, meetings, people, projects, ask, agent, settings
 
         /// Section names accepted from the UI-test capture environment and
         /// deep links. Legacy names keep working: "capture" (the pre-split
@@ -24,6 +24,8 @@ final class AppState: ObservableObject {
             case "today": self = .today
             case "timeline", "capture": self = .timeline
             case "meetings": self = .meetings
+            case "people": self = .people
+            case "projects": self = .projects
             case "write", "type", "dictation", "cotyping", "autocomplete": self = .settings
             case "ask", "search", "chat": self = .ask
             case "agent": self = .agent
@@ -262,6 +264,30 @@ final class AppState: ObservableObject {
     var meetingPlaybackPositions: [UUID: TimeInterval] = [:]
     var meetingPlaybackSpeeds: [UUID: Float] = [:]
     func openActions() { showingActions = true; navSection = .today }
+
+    /// People and Projects share one derived read model.
+    @Published var selectedPersonID: String?
+    @Published var selectedProjectID: String?
+    private(set) lazy var connections = WorkMemoryConnections()
+
+    func openPerson(_ id: String) {
+        selectedPersonID = id
+        navSection = .people
+    }
+
+    func openProject(_ id: String) {
+        selectedProjectID = id
+        navSection = .projects
+    }
+
+    func refreshConnections() {
+        connections.refresh(.init(
+            meetings: meetings.filter { !$0.isMergedSource },
+            projections: outcomeIndex.all,
+            memory: dreamMemory,
+            root: storage.rootURL,
+            activityDatabaseURL: activityStore.databaseURL))
+    }
     private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
         if let suite = UITestRuntime.defaultsSuiteName,

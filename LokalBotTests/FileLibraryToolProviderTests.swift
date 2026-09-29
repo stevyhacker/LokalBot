@@ -142,7 +142,7 @@ final class FileLibraryToolProviderTests: XCTestCase {
             provider.tools.map(\.name),
             [
                 "list_meetings", "get_meeting", "search_meetings", "ask_library",
-                "get_action_items",
+                "get_action_items", "list_people", "get_person",
                 "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
                 "get_screenshot_detail",
             ])
@@ -153,7 +153,8 @@ final class FileLibraryToolProviderTests: XCTestCase {
 
     func testEveryToolRefusedWhenGateDisabled() async {
         gate.disable()
-        for name in ["list_meetings", "get_meeting", "search_meetings", "ask_library", "get_action_items"] {
+        for name in ["list_meetings", "get_meeting", "search_meetings", "ask_library", "get_action_items",
+                     "list_people", "get_person"] {
             let result = await provider.call(
                 name: name,
                 arguments: ["id": "latest", "query": "x", "question": "x"])
@@ -219,6 +220,34 @@ final class FileLibraryToolProviderTests: XCTestCase {
 
         let invalid = await provider.call(name: "get_action_items", arguments: ["status": "pending"])
         XCTAssertTrue(invalid.text.hasPrefix("[invalid_arguments]"), invalid.text)
+    }
+
+    func testPeopleToolsReturnNamesButNeverEmailAddresses() async throws {
+        let meetings = try SessionLookup.loadAllMeetings(root: root)
+        var cache = try XCTUnwrap(meetings.first { $0.title == "Cache planning" })
+        cache.calendarParticipantIdentities = [
+            try XCTUnwrap(CalendarParticipantIdentity(name: "Mila Novak", emailAddress: "mila@example.com")),
+        ]
+        let folder = root.appendingPathComponent(cache.relativePath, isDirectory: true)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(cache).write(to: folder.appendingPathComponent("meta.json"))
+        let action = MeetingOutcomes.ActionItem(text: "Benchmark the synthetic replica set", owner: "Mila")
+        try MeetingOutcomes(actionItems: [action]).write(to: folder)
+
+        let list = await provider.call(name: "list_people", arguments: nil)
+        XCTAssertFalse(list.isError, list.text)
+        XCTAssertTrue(list.text.contains("Mila Novak"))
+        XCTAssertTrue(list.text.contains("\"they_owe\" : 1"))
+        XCTAssertFalse(list.text.contains("@"))
+
+        let person = await provider.call(name: "get_person", arguments: ["person": "mila"])
+        XCTAssertFalse(person.isError, person.text)
+        XCTAssertTrue(person.text.contains("Benchmark the synthetic replica set"))
+        XCTAssertFalse(person.text.contains("mila@example.com"))
+
+        let missing = await provider.call(name: "get_person", arguments: ["person": "nobody"])
+        XCTAssertTrue(missing.isError)
     }
 
     func testListMeetingsReturnsBothNewestFirst() async {
