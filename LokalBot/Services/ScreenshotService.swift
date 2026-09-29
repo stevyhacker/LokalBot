@@ -247,7 +247,6 @@ enum ScreenshotWindowFocusValidation {
             && snapshot.windowFrame == expected.windowFrame
             && snapshot.sourceURL == expected.sourceURL
             && snapshot.hasWebContent == expected.hasWebContent
-            && snapshot.focusedSecureField == expected.focusedSecureField
             && snapshot.containsSecureField == expected.containsSecureField
     }
 }

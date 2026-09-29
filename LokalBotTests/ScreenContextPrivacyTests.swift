@@ -133,9 +133,24 @@ final class ScreenContextPrivacyTests: XCTestCase {
             expected: expected, current: .init(snapshot: current, timedOut: false)))
         current.containsSecureField = false
         current.focusedSecureField = false
+        XCTAssertTrue(ScreenshotWindowFocusValidation.matches(
+            expected: expected, current: .init(snapshot: current, timedOut: false)),
+                      "Learning that an unknown focus is a plain field keeps the pixels")
+        current.focusedSecureField = true
         XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
             expected: expected, current: .init(snapshot: current, timedOut: false)),
-                       "A focus state change during capture discards the pixels")
+                       "Focus moving into a secure field during capture discards the pixels")
+    }
+
+    func testReadKeepsOnlyAnUnknownFocusThatTurnsOutPlain() {
+        XCTAssertTrue(ScreenAccessibilityReader.settledFocus(before: nil, after: false) == (true, false),
+                      "Chrome exposes focus only after its tree is read")
+        XCTAssertTrue(ScreenAccessibilityReader.settledFocus(before: false, after: false) == (true, false))
+        XCTAssertTrue(ScreenAccessibilityReader.settledFocus(before: nil, after: nil) == (true, nil))
+        XCTAssertFalse(ScreenAccessibilityReader.settledFocus(before: nil, after: true).accepted)
+        XCTAssertFalse(ScreenAccessibilityReader.settledFocus(before: false, after: true).accepted)
+        XCTAssertFalse(ScreenAccessibilityReader.settledFocus(before: false, after: nil).accepted)
+        XCTAssertFalse(ScreenAccessibilityReader.settledFocus(before: true, after: false).accepted)
     }
 
     func testVisibleTextPolicyDoesNotReadWholeDocumentsOrClippedLabels() {

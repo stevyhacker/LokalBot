@@ -287,7 +287,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         }
         let finalFocus = elementAttribute(app, kAXFocusedUIElementAttribute as String)
             .flatMap(secureFieldStatus)
-        guard finalFocus == focusedSecureField else {
+        let settledFocus = Self.settledFocus(before: focusedSecureField, after: finalFocus)
+        guard settledFocus.accepted else {
             func describe(_ value: Bool?) -> String { value.map { $0 ? "secure" : "plain" } ?? "unknown" }
             return fail("focused-field state changed during read (\(describe(focusedSecureField))"
                 + " to \(describe(finalFocus)))", transient: true)
@@ -298,11 +299,21 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             text: text,
             sourceURL: !hasUnknownWebURL && sourceURLs.count == 1 ? sourceURLs.first : nil,
             documentName: ScreenContextPrivacy.sanitizedDocumentName(document),
-            focusedSecureField: focusedSecureField,
+            focusedSecureField: settledFocus.focus,
             windowTitle: windowTitle,
             windowFrame: windowFrame,
             hasWebContent: hasWebContent,
             containsSecureField: containsSecureField)
+    }
+
+    /// The focused-field state across one read. Chrome reports no focused
+    /// element until reading its page builds its accessibility tree, so an
+    /// unknown focus that turns out to be a plain field keeps the read. Any
+    /// other change, including into or out of a secure field, discards it.
+    static func settledFocus(before: Bool?, after: Bool?) -> (accepted: Bool, focus: Bool?) {
+        if before == after { return (true, before) }
+        if before == nil, after == false { return (true, false) }
+        return (false, before)
     }
 
     /// Only an input can hold a secret. The secure-field markers also match
