@@ -12,12 +12,27 @@ import AppKit
 /// reliable point.
 @main
 enum LokalBotMain {
+    /// Held for the process lifetime; see `LibraryInstanceLock`.
+    @MainActor private static var libraryLock: LibraryInstanceLock?
+
     @MainActor
     static func main() {
         routeStartup(
             migrate: { DataMigration.runIfNeeded() },
             launchApplication: {
                 HeadlessCommand.requested = HeadlessCommand.parse(CommandLine.arguments)
+                if HeadlessCommand.requested == nil, !UITestRuntime.isEnabled, !UITestRuntime.isUnitTesting {
+                    let root = AppDirectories.libraryRoot
+                    guard let lock = LibraryInstanceLock.acquire(root: root) else {
+                        lokalbotLog("another LokalBot is using \(root.path); activating it and exiting")
+                        let current = ProcessInfo.processInfo.processIdentifier
+                        NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentifiers.bundleID)
+                            .first { $0.processIdentifier != current }?
+                            .activate()
+                        exit(0)
+                    }
+                    libraryLock = lock
+                }
                 UserDefaults.standard.set(lokalbotLaunchesMenuBarOnly(),
                                           forKey: "ApplePersistenceIgnoreState")
                 LokalBotApp.main()

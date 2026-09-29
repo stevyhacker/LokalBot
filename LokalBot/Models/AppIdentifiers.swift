@@ -77,6 +77,7 @@ enum UITestRuntime {
             ?? argumentValue(after: storageRootArgument)
             ?? nonEmpty(UserDefaults.standard.string(forKey: storageRootKey))
             ?? unitTestStorageRoot
+            ?? localBuildStorageRoot
     }
 
     static var defaultsSuiteName: String? {
@@ -84,6 +85,34 @@ enum UITestRuntime {
             ?? argumentValue(after: defaultsSuiteArgument)
             ?? nonEmpty(UserDefaults.standard.string(forKey: defaultsSuiteKey))
             ?? unitTestDefaultsSuite
+            ?? localBuildDefaultsSuite
+    }
+
+    /// The folder and settings suite of a release-identity copy run from
+    /// Xcode build products.
+    static let localBuildName = "me.dotenv.LokalBot.local-build"
+
+    /// A release-identity app run from Xcode build products (DerivedData or a
+    /// custom derived-data path) keeps its own library and settings, so a
+    /// development copy never writes the installed app's activity, journals,
+    /// or scheduled runs. `LOKALBOT_STORAGE_ROOT` still points it anywhere.
+    static var isLocalBuild: Bool {
+        guard !isEnabled, !isUnitTesting, AppIdentifiers.identity == .release else { return false }
+        return isBuildProductsPath(Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? "")
+    }
+
+    static func isBuildProductsPath(_ path: String) -> Bool {
+        path.contains("/Build/Products/") || path.contains("/DerivedData/")
+    }
+
+    private static var localBuildStorageRoot: String? {
+        guard isLocalBuild else { return nil }
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent(localBuildName, isDirectory: true).path
+    }
+
+    private static var localBuildDefaultsSuite: String? {
+        isLocalBuild ? localBuildName : nil
     }
 
     private static var unitTestStorageRoot: String? {

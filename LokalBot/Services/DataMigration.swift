@@ -129,6 +129,9 @@ enum DataMigration {
             || arguments.contains("--lokalbot-ui-test") {
             return false
         }
+        // A copy run from Xcode build products has its own library and must
+        // never move the installed app's data.
+        if UITestRuntime.isLocalBuild { return false }
         return true
     }
 
