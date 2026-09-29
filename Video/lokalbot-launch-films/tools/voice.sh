@@ -26,7 +26,7 @@ case $D in
     STARTS=0.9,2.8,7.3,9.8,14.3,17.5,22.6 ;;
   tech)
     python3 tools/eleven_vo.py "$D/vo/meeting.txt" "$D/vo/meeting" --voice EXAVITQu4vr4xnSDxMaL --first 0   # Sarah
-    STARTS=0.9,7.8,11.8,16.3,24.5,29.2,36.1,42.1,48.9,57.1,63.3,68.1; EXTRA=(--meet 53.95 --bars 72); DUR=72.5 ;;
+    STARTS=0.8,6.9,9.3,14.0,20.45,27.2,32.85,39.2,44.95,50.8,55.8; EXTRA=(--meet 41.75 --bars 72); DUR=60 ;;
   *) echo "unknown film: $D" >&2; exit 2 ;;
 esac
 words "$D/vo/liam" --lines "$D/vo/lines.txt"
