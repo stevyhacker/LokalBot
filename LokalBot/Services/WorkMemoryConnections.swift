@@ -12,8 +12,8 @@ final class WorkMemoryConnections: ObservableObject {
 
     /// Applied speaker names are read from transcripts; only meetings from
     /// this window are opened, and results are cached by file date.
-    static let transcriptLookbackDays = 180
-    static let projectMeetingLookbackDays = 120
+    nonisolated static let transcriptLookbackDays = 180
+    nonisolated static let projectMeetingLookbackDays = 120
 
     struct Input: Sendable {
         var meetings: [Meeting]

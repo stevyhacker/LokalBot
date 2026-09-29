@@ -55,61 +55,94 @@ enum ProjectLinks {
     }
 
     static func build(_ input: Input, now: Date = Date(), calendar: Calendar = .current) -> [ProjectProfile] {
-        let meetings = input.meetings.filter { $0.mergedIntoMeetingID == nil }
-        let threads = ActionThreadClusterer.cluster(
-            input.projections.filter { !$0.isArchived }.flatMap(\.actionReferences))
+        let meetings: [Meeting] = input.meetings.filter { $0.mergedIntoMeetingID == nil }
+        let references: [OutcomeActionReference] = input.projections
+            .filter { !$0.isArchived }
+            .flatMap(\.actionReferences)
+        let threads: [ActionThread] = ActionThreadClusterer.cluster(references)
             .filter { $0.status != .done }
-        let windowStart = calendar.date(byAdding: .day, value: -(reviewDays - 1),
-                                        to: calendar.startOfDay(for: now)) ?? now
-
-        return input.memory.activeProjects.map { project in
-            let terms = significantTerms(project.name)
-            let linkedMeetings = meetings.filter { meeting in
-                let summary = input.summaries[meeting.id].map { String($0.prefix(maximumSummaryCharacters)) } ?? ""
-                return matches(terms, in: [meeting.displayTitle, meeting.calendarTitle ?? "", summary]
-                    .joined(separator: "\n"))
-            }
-            .sorted { $0.startedAt > $1.startedAt }
-            let linkedIDs = Set(linkedMeetings.map(\.id))
-            let actions = threads.filter { thread in
-                matches(terms, in: thread.text)
-                    || thread.references.contains { linkedIDs.contains($0.meetingID) }
-            }
-
-            var perDay: [String: TimeInterval] = [:]
-            var perWindow: [String: (app: String, title: String, seconds: TimeInterval)] = [:]
-            for block in input.activity where block.end > windowStart && block.start < now {
-                guard matches(terms, in: block.title) else { continue }
-                let start = max(block.start, windowStart)
-                let end = min(block.end, now)
-                guard end > start else { continue }
-                let seconds = end.timeIntervalSince(start)
-                perDay[dayKey(start, calendar: calendar), default: 0] += seconds
-                let title = TimelineWorkSession.strippingBrowserChrome(block.title)
-                let key = block.app + "|" + title
-                perWindow[key] = (block.app, title, (perWindow[key]?.seconds ?? 0) + seconds)
-            }
-
-            let people = input.people
-                .filter { !$0.meetingIDs.isDisjoint(with: linkedIDs) }
-                .sorted { $0.meetingIDs.intersection(linkedIDs).count > $1.meetingIDs.intersection(linkedIDs).count }
-                .map(\.name)
-
-            return ProjectProfile(
-                id: PeopleDirectory.normalized(project.name),
-                name: project.name,
-                status: project.status,
-                lastActiveDay: project.lastActiveDay,
-                pinned: project.pinned,
-                meetings: linkedMeetings.map { .init(id: $0.id, title: $0.displayTitle, startedAt: $0.startedAt) },
-                openActions: ActionAttentionOrder.sorted(actions, now: now, calendar: calendar),
-                days: perDay.map { ProjectProfile.DayTime(dayKey: $0.key, seconds: $0.value) }.sorted { $0.dayKey > $1.dayKey },
-                windows: perWindow.values
-                    .map { ProjectProfile.WindowTime(app: $0.app, title: $0.title, seconds: $0.seconds) }
-                    .sorted { $0.seconds == $1.seconds ? $0.title < $1.title : $0.seconds > $1.seconds }
-                    .prefix(maximumWindows).map { $0 },
-                people: Array(people.prefix(8)))
+        let windowStart: Date = calendar.date(byAdding: .day, value: -(reviewDays - 1),
+                                              to: calendar.startOfDay(for: now)) ?? now
+        return input.memory.activeProjects.map { (project: DreamMemory.Project) -> ProjectProfile in
+            profile(for: project, input: input, meetings: meetings, threads: threads,
+                    windowStart: windowStart, now: now, calendar: calendar)
         }
+    }
+
+    // Split into small, explicitly typed steps: one large closure exceeded
+    // the CI compiler's type-checking time limit.
+    private static func profile(
+        for project: DreamMemory.Project, input: Input, meetings: [Meeting],
+        threads: [ActionThread], windowStart: Date, now: Date, calendar: Calendar
+    ) -> ProjectProfile {
+        let terms: Set<String> = significantTerms(project.name)
+        let linkedMeetings: [Meeting] = linkedMeetings(terms: terms, meetings: meetings,
+                                                       summaries: input.summaries)
+        let linkedIDs: Set<UUID> = Set(linkedMeetings.map(\.id))
+        let actions: [ActionThread] = threads.filter { (thread: ActionThread) -> Bool in
+            if matches(terms, in: thread.text) { return true }
+            return thread.references.contains { linkedIDs.contains($0.meetingID) }
+        }
+        let time = trackedTime(terms: terms, activity: input.activity,
+                               windowStart: windowStart, now: now, calendar: calendar)
+        let meetingRefs: [ProjectProfile.MeetingRef] = linkedMeetings.map {
+            ProjectProfile.MeetingRef(id: $0.id, title: $0.displayTitle, startedAt: $0.startedAt)
+        }
+        return ProjectProfile(
+            id: PeopleDirectory.normalized(project.name),
+            name: project.name,
+            status: project.status,
+            lastActiveDay: project.lastActiveDay,
+            pinned: project.pinned,
+            meetings: meetingRefs,
+            openActions: ActionAttentionOrder.sorted(actions, now: now, calendar: calendar),
+            days: time.days,
+            windows: time.windows,
+            people: people(in: linkedIDs, from: input.people))
+    }
+
+    private static func linkedMeetings(terms: Set<String>, meetings: [Meeting],
+                                       summaries: [UUID: String]) -> [Meeting] {
+        let linked: [Meeting] = meetings.filter { (meeting: Meeting) -> Bool in
+            let summary: String = summaries[meeting.id].map { String($0.prefix(maximumSummaryCharacters)) } ?? ""
+            let text: String = meeting.displayTitle + "\n" + (meeting.calendarTitle ?? "") + "\n" + summary
+            return matches(terms, in: text)
+        }
+        return linked.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    private static func trackedTime(
+        terms: Set<String>, activity: [ActivityBlock], windowStart: Date, now: Date, calendar: Calendar
+    ) -> (days: [ProjectProfile.DayTime], windows: [ProjectProfile.WindowTime]) {
+        var perDay: [String: TimeInterval] = [:]
+        var perWindow: [String: ProjectProfile.WindowTime] = [:]
+        for block in activity where block.end > windowStart && block.start < now {
+            guard matches(terms, in: block.title) else { continue }
+            let start: Date = max(block.start, windowStart)
+            let end: Date = min(block.end, now)
+            guard end > start else { continue }
+            let seconds: TimeInterval = end.timeIntervalSince(start)
+            perDay[dayKey(start, calendar: calendar), default: 0] += seconds
+            let title: String = TimelineWorkSession.strippingBrowserChrome(block.title)
+            let key: String = block.app + "|" + title
+            let previous: TimeInterval = perWindow[key]?.seconds ?? 0
+            perWindow[key] = ProjectProfile.WindowTime(app: block.app, title: title, seconds: previous + seconds)
+        }
+        let days: [ProjectProfile.DayTime] = perDay
+            .map { ProjectProfile.DayTime(dayKey: $0.key, seconds: $0.value) }
+            .sorted { $0.dayKey > $1.dayKey }
+        let windows: [ProjectProfile.WindowTime] = perWindow.values.sorted {
+            $0.seconds == $1.seconds ? $0.title < $1.title : $0.seconds > $1.seconds
+        }
+        return (days, Array(windows.prefix(maximumWindows)))
+    }
+
+    private static func people(in linkedIDs: Set<UUID>, from people: [PersonProfile]) -> [String] {
+        let related: [PersonProfile] = people.filter { !$0.meetingIDs.isDisjoint(with: linkedIDs) }
+        let ranked: [PersonProfile] = related.sorted { (lhs: PersonProfile, rhs: PersonProfile) -> Bool in
+            lhs.meetingIDs.intersection(linkedIDs).count > rhs.meetingIDs.intersection(linkedIDs).count
+        }
+        return Array(ranked.prefix(8)).map(\.name)
     }
 
     /// Words of a project name that can identify it: at least three
