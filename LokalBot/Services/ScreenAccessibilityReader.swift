@@ -202,7 +202,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             let secure = includeText ? secureFieldStatus(element) : nil
             let elementFrame = includeText ? frame(of: element) : nil
             let hidden = attribute(element, "AXHidden") as? Bool == true
-            if secure == true { containsSecureField = true }
+            if secure == true, Self.isTextEntry(role: role) { containsSecureField = true }
             if includeText, secure == false {
                 let visibleText = ScreenVisibleTextPolicy.text(
                     role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
@@ -257,6 +257,16 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             windowFrame: windowFrame,
             hasWebContent: hasWebContent,
             containsSecureField: containsSecureField)
+    }
+
+    /// Only an input can hold a secret. The secure-field markers also match
+    /// labels and buttons such as a browser's "Connection is secure" site
+    /// information or "Manage passwords"; those stay out of captured text but
+    /// do not make the whole window count as showing a password field.
+    static func isTextEntry(role: String?) -> Bool {
+        guard let role else { return false }
+        return ["AXTextField", "AXSecureTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
+            .contains(role)
     }
 
     private static func append(

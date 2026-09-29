@@ -112,6 +112,15 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertFalse(capture(chrome))
     }
 
+    func testOnlyInputsCountAsVisibleSecureFields() {
+        XCTAssertTrue(ScreenAccessibilityReader.isTextEntry(role: "AXTextField"))
+        XCTAssertTrue(ScreenAccessibilityReader.isTextEntry(role: "AXSecureTextField"))
+        XCTAssertFalse(ScreenAccessibilityReader.isTextEntry(role: "AXButton"),
+                       "Chrome's 'Connection is secure' and 'Manage passwords' buttons are not inputs")
+        XCTAssertFalse(ScreenAccessibilityReader.isTextEntry(role: "AXStaticText"))
+        XCTAssertFalse(ScreenAccessibilityReader.isTextEntry(role: nil))
+    }
+
     func testCaptureValidationRejectsSecureFieldsAppearingDuringCapture() {
         let expected = ScreenAccessibilitySnapshot(
             text: "", sourceURL: nil, documentName: nil, focusedSecureField: nil,
