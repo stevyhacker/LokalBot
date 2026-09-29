@@ -16,7 +16,11 @@ struct ProjectsWorkspaceView: View {
                 .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
                 .splitPaneAccessibilityLabel("Project details")
         }
-        .task { app.refreshConnections() }
+        .task {
+            // Projects come from Dream memory, which other sections load lazily.
+            app.refreshDreamMemory()
+            app.refreshConnections()
+        }
         .onReceive(app.outcomeIndex.$projections.dropFirst()) { _ in app.refreshConnections() }
         .onChange(of: app.dreamMemory) { app.refreshConnections() }
     }
@@ -85,7 +89,9 @@ private struct ProjectRow: View {
 
     private var summary: String {
         var parts: [String] = []
-        if !project.meetings.isEmpty { parts.append("\(project.meetings.count) meetings") }
+        if !project.meetings.isEmpty {
+            parts.append("\(project.meetings.count) meeting\(project.meetings.count == 1 ? "" : "s")")
+        }
         if !project.openActions.isEmpty { parts.append("\(project.openActions.count) open") }
         if project.trackedSeconds >= 60 { parts.append(ProjectDetailView.duration(project.trackedSeconds) + " this week") }
         return parts.isEmpty ? project.status : parts.joined(separator: " · ")
@@ -112,7 +118,7 @@ struct ProjectDetailView: View {
                             Label("Ask About This Project", systemImage: "sparkle.magnifyingglass")
                         }
                         .buttonStyle(.bordered)
-                        Toggle("Pin", isOn: Binding(
+                        Toggle(project.pinned ? "Pinned" : "Pin", isOn: Binding(
                             get: { project.pinned },
                             set: { app.setDreamMemoryPinned($0, for: .project(name: project.name)) }))
                             .toggleStyle(.button)

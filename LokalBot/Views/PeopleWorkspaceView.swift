@@ -83,19 +83,24 @@ private struct PersonRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(person.name).font(.body.weight(.medium))
-            HStack(spacing: 6) {
-                Text(meetingSummary)
-                if !person.myActions.isEmpty {
-                    Text("· You owe \(person.myActions.count)")
-                        .foregroundStyle(LBTokens.Palette.attentionText)
+            Text(meetingSummary)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            if !person.myActions.isEmpty || !person.theirActions.isEmpty {
+                HStack(spacing: 8) {
+                    if !person.myActions.isEmpty {
+                        Text("You owe \(person.myActions.count)")
+                            .foregroundStyle(LBTokens.Palette.attentionText)
+                    }
+                    if !person.theirActions.isEmpty {
+                        Text("Owes you \(person.theirActions.count)")
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                if !person.theirActions.isEmpty {
-                    Text("· Owes you \(person.theirActions.count)")
-                }
+                .font(.callout)
+                .lineLimit(1)
             }
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
         }
         .padding(.vertical, 3)
         .accessibilityElement(children: .combine)

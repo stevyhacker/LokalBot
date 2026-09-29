@@ -1761,6 +1761,7 @@ private struct OutcomeActionRow: View {
                             location: .action(
                                 id: reference.action.id,
                                 field: .due))
+                        .help(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate))
                     }
                     if let citation = reference.action.citations.first {
                         EvidencePill(
