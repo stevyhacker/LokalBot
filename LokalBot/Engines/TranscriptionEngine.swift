@@ -90,6 +90,14 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
+    var acceptsVocabularyPrompt: Bool {
+        switch self {
+        case .whisperLarge, .qwenASR17B, .qwenASR06B: true
+        default: false
+        }
+    }
+
     /// Download size from the blurb ("0.6 GB"), when the blurb leads with one.
     var sizeLabel: String? {
         guard let lead = blurb.components(separatedBy: " · ").first,

@@ -584,7 +584,9 @@ final class AppState: ObservableObject {
     /// delivery inserts it.
     private(set) lazy var dictation = DictationCoordinator(
         storageRoot: storage.rootURL,
-        settingsProvider: { [store = settingsStore] in store.current },
+        settingsProvider: { [weak self, store = settingsStore] in
+            self?.dictationTranscriptionSettings(store.current) ?? store.current
+        },
         makeTextEngine: { [weak self] sessionSettings in
             guard let self else {
                 throw TextEngineError.unavailable("LokalBot is shutting down.")
@@ -1558,6 +1560,30 @@ final class AppState: ObservableObject {
         return SpeakerNameHintExtractor.hints(
             calendarNames: meeting.resolvedCalendarParticipantIdentities.compactMap(\.name),
             ocrText: ocr)
+    }
+
+    private var dictationVocabularyCache: (key: String, terms: [String])?
+
+    /// Dictation has no meeting of its own, so prompt-capable speech models
+    /// receive recent attendee and project names beside the manual vocabulary.
+    func dictationTranscriptionSettings(_ base: AppSettings) -> AppSettings {
+        guard base.autoTranscriptionVocabulary,
+              base.transcriptionModel.acceptsVocabularyPrompt else { return base }
+        let dayKey = DreamDay.key(for: Date())
+        let key = "\(dayKey)|\(meetings.count)|\(meetings.map(\.startedAt).max()?.timeIntervalSince1970 ?? 0)"
+        let terms: [String]
+        if let cached = dictationVocabularyCache, cached.key == key {
+            terms = cached.terms
+        } else {
+            let memory = (try? dreamStore.loadMemory()) ?? nil
+            terms = TranscriptionVocabulary.terms(
+                TranscriptionVocabulary.recentSources(library: meetings, memory: memory))
+            dictationVocabularyCache = (key, terms)
+        }
+        var settings = base
+        settings.transcriptionPrompt = TranscriptionVocabulary.prompt(
+            manual: base.transcriptionPrompt, terms: terms)
+        return settings
     }
 
     /// One invalidation route for every meeting-evidence write. Processing and

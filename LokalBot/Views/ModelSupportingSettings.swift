@@ -133,6 +133,14 @@ struct ModelTranscriptionOptionsSheet: View {
                         TextField("Names, acronyms, and domain vocabulary", text: $app.settings.transcriptionPrompt, axis: .vertical)
                             .lineLimit(3...6).textFieldStyle(.roundedBorder)
                             .settingTarget("settings.transcriptionPrompt", selected: app.focusedSettingID)
+                        Toggle("Add names LokalBot already knows", isOn: $app.settings.autoTranscriptionVocabulary)
+                            .settingTarget("settings.autoTranscriptionVocabulary", selected: app.focusedSettingID)
+                        Text("Calendar attendee names, names you applied in related meetings, and active project names are added on this Mac. Email addresses are never used.")
+                            .font(.callout).foregroundStyle(.secondary)
+                        if !app.settings.transcriptionModel.acceptsVocabularyPrompt {
+                            Text("\(app.settings.transcriptionModelDisplayName) ignores vocabulary. Whisper and Qwen3-ASR use it.")
+                                .font(.callout).foregroundStyle(.secondary)
+                        }
                     }
                 }
             }

@@ -69,6 +69,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.transcriptionModel", title: "Transcribe model", category: .models, aliases: "ASR speech whisper qwen"),
         .init(id: "settings.transcriptionLanguage", title: "Transcription language", category: .models, aliases: "ASR spoken language"),
         .init(id: "settings.transcriptionPrompt", title: "Transcription vocabulary", category: .models, aliases: "names acronyms spelling"),
+        .init(id: "settings.autoTranscriptionVocabulary", title: "Add known names to transcription", category: .models, aliases: "names attendees calendar vocabulary spelling"),
         .init(id: "settings.cotypingBuiltInModelID", title: "Autocomplete model", category: .models, aliases: "writing code suggestions weights"),
         .init(id: "settings.capturePrivateWindows", title: "Allow private/incognito browser windows", category: .privacy, aliases: "capturePrivateWindows"),
         .init(id: "settings.menuBarOnly", title: "Menu bar only (hide Dock icon)", category: .general, aliases: "menuBarOnly"),

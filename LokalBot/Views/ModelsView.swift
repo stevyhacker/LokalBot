@@ -97,7 +97,8 @@ struct ModelsView: View {
         guard let id = app.focusedSettingID, id != "settings.models" else { return }
         switch id {
         case "settings.transcriptionModel": sheet = .transcription
-        case "settings.transcriptionLanguage", "settings.transcriptionPrompt": sheet = .transcriptionOptions
+        case "settings.transcriptionLanguage", "settings.transcriptionPrompt",
+             "settings.autoTranscriptionVocabulary": sheet = .transcriptionOptions
         case "settings.cotypingBuiltInModelID": sheet = .autocomplete
         case "settings.dictationCompositionBuiltInModelID": sheet = .dictation
         case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":

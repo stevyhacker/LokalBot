@@ -575,8 +575,15 @@ final class ProcessingPipeline: ObservableObject {
                 stages[meeting.id] = .preparingTranscriptionModel
                 let engine = config.transcriptionEngine()   // engines prepare lazily inside transcribe
 
+                let root = storage.rootURL
+                let resumed = job.resumed
+                let prompt = await Task.detached(priority: .utility) {
+                    Self.transcriptionPrompt(for: meeting, folder: folder, root: root,
+                                             config: config, reuseSaved: resumed)
+                }.value
                 stages[meeting.id] = .transcribing
-                let batch = try await transcribeTracks(meeting: meeting, folder: folder, engine: engine, config: config)
+                let batch = try await transcribeTracks(meeting: meeting, folder: folder, engine: engine,
+                                                       config: config, prompt: prompt)
                 var transcript = meeting.contentRange?.applying(to: batch.transcript) ?? batch.transcript
                 // Lexical similarity only marks uncertainty. Removing a full
                 // duplicate additionally requires matching waveform evidence.
@@ -850,8 +857,33 @@ final class ProcessingPipeline: ObservableObject {
         var transcript: Transcript
     }
 
+    /// The user's manual vocabulary plus names LokalBot already knows, for
+    /// speech models that read a prompt. A crash resume reuses the terms
+    /// saved with the meeting so its per-track checkpoints stay valid.
+    nonisolated static func transcriptionPrompt(for meeting: Meeting, folder: URL, root: URL,
+                                                config: AppSettings, reuseSaved: Bool) -> String {
+        guard config.autoTranscriptionVocabulary,
+              config.transcriptionModel.acceptsVocabularyPrompt else {
+            return config.transcriptionPrompt
+        }
+        if reuseSaved, let saved = TranscriptionVocabulary.load(from: folder) {
+            return TranscriptionVocabulary.prompt(manual: config.transcriptionPrompt, terms: saved.terms)
+        }
+        let library = (try? SessionLookup.loadAllMeetings(root: root)) ?? []
+        let memory = (try? DreamStore(root: root).loadMemory()) ?? nil
+        let terms = TranscriptionVocabulary.terms(TranscriptionVocabulary.sources(
+            for: meeting, library: library, root: root, memory: memory))
+        do {
+            try TranscriptionVocabulary.save(.init(terms: terms, createdAt: Date()), to: folder)
+        } catch {
+            lokalbotLog("transcription vocabulary not saved: \(error.localizedDescription)")
+        }
+        return TranscriptionVocabulary.prompt(manual: config.transcriptionPrompt, terms: terms)
+    }
+
     private func transcribeTracks(meeting: Meeting, folder: URL,
-                                  engine: TranscriptionEngine, config: AppSettings) async throws -> TranscribedTracks {
+                                  engine: TranscriptionEngine, config: AppSettings,
+                                  prompt: String) async throws -> TranscribedTracks {
         let sources = [MeetingAudioFiles.Track.mic, .system].compactMap { track -> (MeetingAudioFiles.Track, URL)? in
             guard let url = MeetingAudioFiles.transcribableURL(for: track, in: folder) else { return nil }
             return (track, url)
@@ -879,7 +911,7 @@ final class ProcessingPipeline: ObservableObject {
             let checkpoint = Self.checkpointURL(track: name, in: folder)
             do {
                 let checkpointInput = try JSONEncoder().encode([audioRevision, name, engine.displayName,
-                    language ?? "", config.transcriptionPrompt,
+                    language ?? "", prompt,
                     String(config.multiSpeakerDiarization), String(config.echoCancellation),
                     config.diarizationModel.checkpointIdentity,
                     meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"])
@@ -902,7 +934,7 @@ final class ProcessingPipeline: ObservableObject {
                     result = cached.transcript
                 } else {
                     result = try await transcribeTrack(name: name, url: audio, speaker: speaker, engine: engine,
-                        language: language, prompt: config.transcriptionPrompt,
+                        language: language, prompt: prompt,
                         diarization: diarization.segments, source: source, contentRange: meeting.contentRange)
                 }
                 if var transcript = result {
