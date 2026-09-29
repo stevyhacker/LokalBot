@@ -177,7 +177,9 @@ grant optional permissions until you approve them:
   meeting until it is deleted. Attendee emails remain in meeting metadata, are
   deleted with the meeting, and are never added to transcripts, exports, CLI
   or MCP results, or model prompts. On this Mac they only help recognize the
-  same person across meetings in People and are never shown there.
+  same person across meetings in People and are never shown there. When an
+  attendee has no display name, People uses the name suggested from a company
+  address ("dragan@…" becomes "Dragan"); the address itself is not shown.
 - Accessibility for browser-meeting detection, Autocomplete (the Cotyping
   engine), dictation insertion, visible-text context, and approved agent
   interaction.
@@ -235,9 +237,10 @@ app does not expose a usable visible range, text capture may be incomplete.
 Pausing, changing exclusions, or disabling capture invalidates pending work
 before any pixel file or text record is committed.
 
-People and Projects are derived on this Mac from meeting metadata, outcomes,
-applied speaker names, Dream projects, and activity titles each time they are
-shown; nothing new is stored for them. **Suggest actions that look done**
+People and Projects are derived on this Mac from meeting metadata, summaries,
+outcomes, applied speaker names, Dream projects, and activity titles each time
+they are shown; nothing new is stored for them. Your Mac account name is read
+only to leave you out of People. **Suggest actions that look done**
 reads retained screen text locally to offer Mark Done on an open action; it
 never changes an action by itself and sends nothing. Captures you dismiss are
 remembered in local preferences so they are not offered again. A meeting's
