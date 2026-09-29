@@ -14,19 +14,43 @@ enum ScreenContextPrivacy {
         var sourceURL: String?
         var focusedSecureField: Bool?
         var hasWebContent: Bool = false
+        /// Any inspected element of the window is a secure field.
+        var containsSecureField: Bool = false
     }
 
+    /// Whether the focused-field state allows screen capture. Some apps
+    /// (Chrome) never expose keyboard focus through Accessibility; for them,
+    /// capture only while no secure field is visible in the inspected window,
+    /// so sign-in forms stay out of screen memory.
+    static func focusPermitsCapture(focusedSecureField: Bool?, containsSecureField: Bool) -> Bool {
+        switch focusedSecureField {
+        case false?: true
+        case true?: false
+        case nil: !containsSecureField
+        }
+    }
+
+    /// `allowsUnknownFocus` is for screen capture only. Dictation and other
+    /// consumers that act on the focused field keep requiring a known,
+    /// non-secure focus.
     static func permitsContent(
         _ observation: Observation,
         excludedApps: [String],
-        excludedDomains: [String]
+        excludedDomains: [String],
+        allowsUnknownFocus: Bool = false
     ) -> Bool {
         // Every window is tracked, including browser, web-app, and private
         // windows. App and domain exclusions and focused secure fields are
         // the boundaries; credential text is redacted separately.
         guard !isExcluded(appName: observation.appName, rules: excludedApps),
-              observation.windowTitle != nil,
-              observation.focusedSecureField == false else { return false }
+              observation.windowTitle != nil else { return false }
+        if allowsUnknownFocus {
+            guard focusPermitsCapture(
+                focusedSecureField: observation.focusedSecureField,
+                containsSecureField: observation.containsSecureField) else { return false }
+        } else {
+            guard observation.focusedSecureField == false else { return false }
+        }
         guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
             return false
         }

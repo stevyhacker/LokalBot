@@ -90,6 +90,45 @@ final class ScreenContextPrivacyTests: XCTestCase {
                       "Web-based desktop apps are tracked like native apps")
     }
 
+    func testScreenCaptureAcceptsUnknownFocusOnlyWithoutVisibleSecureFields() {
+        // Chrome exposes window titles and text but not keyboard focus.
+        var chrome = ScreenContextPrivacy.Observation(
+            appName: "Google Chrome", bundleIdentifier: "com.google.Chrome",
+            windowTitle: "Meet - Product Standup", sourceURL: nil, focusedSecureField: nil)
+        chrome.hasWebContent = true
+        func capture(_ observation: ScreenContextPrivacy.Observation, domains: [String] = []) -> Bool {
+            ScreenContextPrivacy.permitsContent(
+                observation, excludedApps: [], excludedDomains: domains, allowsUnknownFocus: true)
+        }
+        XCTAssertTrue(capture(chrome))
+        XCTAssertFalse(ScreenContextPrivacy.permitsContent(chrome, excludedApps: [], excludedDomains: []),
+                       "Other consumers still require a known, non-secure focus")
+        chrome.containsSecureField = true
+        XCTAssertFalse(capture(chrome), "A visible password field keeps an unknown-focus window out")
+        chrome.containsSecureField = false
+        XCTAssertFalse(capture(chrome, domains: ["private.test"]),
+                       "An unreadable address still cannot rule out a site exclusion")
+        chrome.focusedSecureField = true
+        XCTAssertFalse(capture(chrome))
+    }
+
+    func testCaptureValidationRejectsSecureFieldsAppearingDuringCapture() {
+        let expected = ScreenAccessibilitySnapshot(
+            text: "", sourceURL: nil, documentName: nil, focusedSecureField: nil,
+            windowTitle: "Meet", windowFrame: CGRect(x: 0, y: 0, width: 10, height: 10))
+        var current = expected
+        XCTAssertTrue(ScreenshotWindowFocusValidation.matches(
+            expected: expected, current: .init(snapshot: current, timedOut: false)))
+        current.containsSecureField = true
+        XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
+            expected: expected, current: .init(snapshot: current, timedOut: false)))
+        current.containsSecureField = false
+        current.focusedSecureField = false
+        XCTAssertFalse(ScreenshotWindowFocusValidation.matches(
+            expected: expected, current: .init(snapshot: current, timedOut: false)),
+                       "A focus state change during capture discards the pixels")
+    }
+
     func testVisibleTextPolicyDoesNotReadWholeDocumentsOrClippedLabels() {
         let viewport = CGRect(x: 0, y: 0, width: 100, height: 100)
         let frame = CGRect(x: 10, y: 10, width: 80, height: 80)

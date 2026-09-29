@@ -218,12 +218,18 @@ enum ScreenshotWindowFocusValidation {
     ) -> Bool {
         guard !current.timedOut, let snapshot = current.snapshot,
               expected.windowTitle != nil, expected.windowFrame != nil,
-              expected.focusedSecureField == false,
-              snapshot.focusedSecureField == false else { return false }
+              ScreenContextPrivacy.focusPermitsCapture(
+                focusedSecureField: expected.focusedSecureField,
+                containsSecureField: expected.containsSecureField),
+              ScreenContextPrivacy.focusPermitsCapture(
+                focusedSecureField: snapshot.focusedSecureField,
+                containsSecureField: snapshot.containsSecureField) else { return false }
         return snapshot.windowTitle == expected.windowTitle
             && snapshot.windowFrame == expected.windowFrame
             && snapshot.sourceURL == expected.sourceURL
             && snapshot.hasWebContent == expected.hasWebContent
+            && snapshot.focusedSecureField == expected.focusedSecureField
+            && snapshot.containsSecureField == expected.containsSecureField
     }
 }
 
@@ -724,7 +730,8 @@ final class ScreenshotService: ObservableObject {
                 snapshot.privacyObservation(
                     appName: frontmost, bundleIdentifier: frontmostApp.bundleIdentifier),
                 excludedApps: config.excludedAppList,
-                excludedDomains: config.excludedScreenDomainList),
+                excludedDomains: config.excludedScreenDomainList,
+                allowsUnknownFocus: true),
               let windowTitle = snapshot.windowTitle else {
             policy.noteCheck(at: current)
             lokalbotLog("context skip: excluded or unavailable focused-window privacy metadata")
@@ -897,7 +904,8 @@ final class ScreenshotService: ObservableObject {
               let currentSnapshot = currentAccessibility.snapshot,
               ScreenContextPrivacy.permitsContent(
                 currentSnapshot.privacyObservation(appName: frontApp, bundleIdentifier: bundleIdentifier),
-                excludedApps: excludedApps, excludedDomains: excludedDomains) else {
+                excludedApps: excludedApps, excludedDomains: excludedDomains,
+                allowsUnknownFocus: true) else {
             // The focused window, browser URL or secure-field state can change
             // while ScreenCaptureKit suspends. Discard its pixels on any change.
             lokalbotLog("shot skip: focused source or privacy state changed during capture")

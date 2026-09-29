@@ -10,11 +10,13 @@ struct ScreenAccessibilitySnapshot: Equatable, Sendable {
     var windowTitle: String?
     var windowFrame: CGRect?
     var hasWebContent: Bool = false
+    var containsSecureField: Bool = false
 
     func privacyObservation(appName: String, bundleIdentifier: String?) -> ScreenContextPrivacy.Observation {
         .init(appName: appName, bundleIdentifier: bundleIdentifier,
               windowTitle: windowTitle, sourceURL: sourceURL,
-              focusedSecureField: focusedSecureField, hasWebContent: hasWebContent)
+              focusedSecureField: focusedSecureField, hasWebContent: hasWebContent,
+              containsSecureField: containsSecureField)
     }
 }
 
@@ -178,6 +180,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             sourceURLs.insert(document)
         }
         var hasWebContent = false
+        var containsSecureField = false
         var hasUnknownWebURL = false
         var totalCharacters = 0
         let started = ContinuousClock.now
@@ -199,6 +202,7 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             let secure = includeText ? secureFieldStatus(element) : nil
             let elementFrame = includeText ? frame(of: element) : nil
             let hidden = attribute(element, "AXHidden") as? Bool == true
+            if secure == true { containsSecureField = true }
             if includeText, secure == false {
                 let visibleText = ScreenVisibleTextPolicy.text(
                     role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
@@ -251,7 +255,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             focusedSecureField: focusedSecureField,
             windowTitle: windowTitle,
             windowFrame: windowFrame,
-            hasWebContent: hasWebContent)
+            hasWebContent: hasWebContent,
+            containsSecureField: containsSecureField)
     }
 
     private static func append(
