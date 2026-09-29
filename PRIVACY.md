@@ -205,9 +205,10 @@ modify source meetings.
 
 Visual capture includes only the focused window checked through Accessibility;
 background and child windows are excluded. If the focused window or its privacy
-state cannot be established, text and pixels are skipped. Activity-only tracking
-uses the same exclusions and records denied or unknown samples as anonymous
-“Private” duration blocks.
+state cannot be established, text and pixels are skipped. Activity tracking
+records excluded apps and excluded sites as anonymous “Private” duration blocks.
+Every other window keeps its app name, and its title unless a password field is
+focused or a site exclusion cannot be ruled out.
 
 Browsers, web-based apps, and private or incognito windows are tracked and
 captured like native apps; there is no separate private-window setting.

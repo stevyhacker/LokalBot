@@ -124,6 +124,27 @@ final class ScreenContextPrivacyTests: XCTestCase {
             observation, excludedApps: [], excludedDomains: ["private.test"]))
     }
 
+    func testActivityKeepsAppNamesUnlessTheAppOrKnownSiteIsExcluded() {
+        func disposition(_ observation: ScreenContextPrivacy.Observation?, apps: [String] = [],
+                         domains: [String] = []) -> ScreenContextPrivacy.ActivityDisposition {
+            ScreenContextPrivacy.activityDisposition(
+                appName: "Claude", observation: observation, excludedApps: apps, excludedDomains: domains)
+        }
+        var webApp = ScreenContextPrivacy.Observation(
+            appName: "Claude", bundleIdentifier: "com.anthropic.claudefordesktop",
+            windowTitle: "Planning chat", sourceURL: nil, focusedSecureField: nil)
+        webApp.hasWebContent = true
+        XCTAssertEqual(disposition(webApp), .init(keepsApp: true, keepsTitle: true))
+        XCTAssertEqual(disposition(nil), .init(keepsApp: true, keepsTitle: false))
+        XCTAssertEqual(disposition(webApp, apps: ["claude"]), .init(keepsApp: false, keepsTitle: false))
+        XCTAssertEqual(disposition(webApp, domains: ["private.test"]), .init(keepsApp: true, keepsTitle: false))
+        webApp.sourceURL = "https://private.test/chat"
+        XCTAssertEqual(disposition(webApp, domains: ["private.test"]), .init(keepsApp: false, keepsTitle: false))
+        webApp.sourceURL = nil
+        webApp.focusedSecureField = true
+        XCTAssertEqual(disposition(webApp), .init(keepsApp: true, keepsTitle: false))
+    }
+
     func testPrivateWindowsStillRespectAppDomainAndSecureFieldExclusions() {
         var observation = ScreenContextPrivacy.Observation(
             appName: "Safari", bundleIdentifier: "com.apple.Safari",

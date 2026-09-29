@@ -41,6 +41,41 @@ enum ScreenContextPrivacy {
         return true
     }
 
+    /// What activity tracking may store for one sample. Every window keeps
+    /// its app name and duration unless the app or its known address is
+    /// excluded. The title is dropped only when a secure field is focused or
+    /// a configured site exclusion cannot be ruled out; unknown Accessibility
+    /// state no longer turns ordinary time into "Private".
+    struct ActivityDisposition: Equatable, Sendable {
+        var keepsApp: Bool
+        var keepsTitle: Bool
+    }
+
+    static func activityDisposition(
+        appName: String,
+        observation: Observation?,
+        excludedApps: [String],
+        excludedDomains: [String]
+    ) -> ActivityDisposition {
+        guard !isExcluded(appName: appName, rules: excludedApps) else {
+            return ActivityDisposition(keepsApp: false, keepsTitle: false)
+        }
+        guard let observation else { return ActivityDisposition(keepsApp: true, keepsTitle: false) }
+        guard !isExcluded(sourceURL: observation.sourceURL, rules: excludedDomains) else {
+            return ActivityDisposition(keepsApp: false, keepsTitle: false)
+        }
+        let hasDomainRules = excludedDomains.contains {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        let unverifiableSite = hasDomainRules
+            && (observation.hasWebContent || isBrowser(observation))
+            && sanitizedURL(observation.sourceURL) == nil
+        let keepsTitle = observation.windowTitle != nil
+            && observation.focusedSecureField != true
+            && !unverifiableSite
+        return ActivityDisposition(keepsApp: true, keepsTitle: keepsTitle)
+    }
+
     static func isExcluded(appName: String, rules: [String]) -> Bool {
         rules.contains { rawTerm in
             let term = rawTerm.trimmingCharacters(in: .whitespacesAndNewlines)

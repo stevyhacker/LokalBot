@@ -847,7 +847,7 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertFalse(sampler.hasTerminationObserver)
     }
 
-    func testActivityOnlySamplerNeverPersistsExcludedOrUnknownTitles() throws {
+    func testActivitySamplerKeepsAppNamesAndDropsOnlyExcludedOrUnsafeTitles() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityPrivacyTests-\(UUID().uuidString).sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
@@ -886,11 +886,17 @@ final class ActivityStoreTests: XCTestCase {
         sampler.stop()
 
         let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
-        XCTAssertEqual(blocks.count, 4)
-        XCTAssertEqual(blocks.map(\.title),
-                       ["Public report", "Sensitive account — Private Window", "", "Public report"])
-        XCTAssertEqual(blocks.map(\.app), ["Notes", "Notes", "Private", "Notes"])
-        XCTAssertEqual(blocks[2].duration, 40)
+        // Only the excluded site is anonymous. An unreadable address under
+        // site rules and a timed-out read keep the app without a title; an
+        // unknown secure-field state keeps the window title.
+        XCTAssertEqual(blocks.count, 6)
+        XCTAssertEqual(blocks.map(\.title), [
+            "Public report", "Sensitive account — Private Window", "", "", "Unknown secure title",
+            "Public report",
+        ])
+        XCTAssertEqual(blocks.map(\.app), ["Notes", "Notes", "Private", "Notes", "Notes", "Notes"])
+        XCTAssertEqual(blocks[2].duration, 10)
+        XCTAssertEqual(blocks[3].duration, 20)
     }
 
     /// Regression: browsers and web-based apps were recorded as "Private"

@@ -1372,14 +1372,14 @@ final class ActivitySampler: ObservableObject {
     /// Exclusions and unknown AX state preserve duration without title or URL.
     func recordSample(appName: String, bundleIdentifier: String?,
                       accessibility: ScreenAccessibilityCaptureResult, at timestamp: Date = Date()) {
-        let observation = accessibility.snapshot?.privacyObservation(
+        let observation = accessibility.timedOut ? nil : accessibility.snapshot?.privacyObservation(
             appName: appName, bundleIdentifier: bundleIdentifier)
-        let allowed = !accessibility.timedOut && observation.map {
-            ScreenContextPrivacy.permitsContent(
-                $0, excludedApps: excludedApps(), excludedDomains: excludedDomains())
-        } == true
-        let storedApp = allowed ? appName : "Private"
-        let title = allowed ? ScreenContextPrivacy.redact(observation?.windowTitle ?? "").text : ""
+        let disposition = ScreenContextPrivacy.activityDisposition(
+            appName: appName, observation: observation,
+            excludedApps: excludedApps(), excludedDomains: excludedDomains())
+        let storedApp = disposition.keepsApp ? appName : "Private"
+        let title = disposition.keepsTitle
+            ? ScreenContextPrivacy.redact(observation?.windowTitle ?? "").text : ""
         lastSampleAt = timestamp
         currentApp = storedApp
 
