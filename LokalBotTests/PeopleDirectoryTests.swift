@@ -69,6 +69,28 @@ final class PeopleDirectoryTests: XCTestCase {
         XCTAssertEqual(people.first?.name, "Marko Jovanović")
     }
 
+    func testMergedPeopleKeepTheirMeetingActionsAndDecisionsInEitherInputOrder() throws {
+        // A 1:1 recorded without a calendar event, where the user applied the
+        // speaker name, and a later calendar meeting with the same person.
+        let oneOnOne = meeting("Roadmap chat", day: -3)
+        let calendarMeeting = meeting("Planning", day: -1,
+                                      attendees: [("Ana Petrović", "ana@example.com", "a")])
+        let action = MeetingOutcomes.ActionItem(text: "Send the synthetic roadmap draft", owner: "Me")
+        let projections = [projection(oneOnOne, actions: [action], decisions: ["Ship the synthetic beta"]),
+                           projection(calendarMeeting)]
+        let applied: [UUID: MeetingAppliedSpeakerNames] = [oneOnOne.id: .init(names: ["Ana Petrović"])]
+
+        for order in [[oneOnOne, calendarMeeting], [calendarMeeting, oneOnOne]] {
+            let people = PeopleDirectory.build(
+                .init(meetings: order, projections: projections, appliedNames: applied), now: base)
+            XCTAssertEqual(people.count, 1, "\(order.map(\.title))")
+            let ana = try XCTUnwrap(people.first)
+            XCTAssertEqual(ana.myActions.map(\.text), ["Send the synthetic roadmap draft"])
+            XCTAssertEqual(ana.decisions.map(\.text), ["Ship the synthetic beta"])
+            XCTAssertEqual(Set(ana.meetings.map(\.id)), [oneOnOne.id, calendarMeeting.id])
+        }
+    }
+
     func testEmailOnlyAttendeesWithoutANameAreNotListed() {
         let call = meeting("Vendor call", day: -1, attendees: [(nil, "vendor.contact@example.com", "v")])
         XCTAssertTrue(PeopleDirectory.build(.init(meetings: [call], projections: []), now: base).isEmpty)

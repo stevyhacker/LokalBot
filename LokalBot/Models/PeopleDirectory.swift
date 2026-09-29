@@ -120,9 +120,15 @@ enum PeopleDirectory {
         let threads = ActionThreadClusterer.cluster(projections.flatMap(\.actionReferences))
             .filter { $0.status != .done }
 
+        // Rosters were recorded while people were still being merged; resolve
+        // each stored key to the person it now belongs to.
+        func roster(_ meetingID: UUID) -> Set<String> {
+            Set((participantsByMeeting[meetingID] ?? []).map(people.canonical))
+        }
+
         for thread in threads {
             let reference = thread.latestReference
-            let roster = participantsByMeeting[reference.meetingID] ?? []
+            let roster = roster(reference.meetingID)
             if thread.isForUser {
                 let text = thread.text
                 var targets = Set(roster.filter { key in
@@ -140,7 +146,7 @@ enum PeopleDirectory {
         }
 
         for projection in projections {
-            let roster = participantsByMeeting[projection.meeting.id] ?? []
+            let roster = roster(projection.meeting.id)
             guard roster.count <= decisionMeetingSize else { continue }
             for decision in projection.outcomes.decisionRecords {
                 let ref = PersonProfile.DecisionRef(
@@ -226,6 +232,16 @@ enum PeopleDirectory {
         var entries: [String: Entry] = [:]
         var order: [String] = []
         var keyByName: [String: Set<String>] = [:]
+        /// A merged-away key points to the person it joined, so keys stored
+        /// before the merge (meeting rosters) still reach the right person.
+        var redirects: [String: String] = [:]
+
+        func canonical(_ key: String) -> String {
+            var current = key
+            var visited: Set<String> = []
+            while let next = redirects[current], visited.insert(current).inserted { current = next }
+            return current
+        }
 
         mutating func register(email: String?, name: String) -> String {
             let nameKey = normalized(name)
@@ -244,23 +260,24 @@ enum PeopleDirectory {
                 key = "name:" + nameKey
             }
             addName(name, to: key)
-            return key
+            return canonical(key)
         }
 
-        mutating func addName(_ name: String, to key: String) {
+        mutating func addName(_ name: String, to rawKey: String) {
+            let key = canonical(rawKey)
             if entries[key] == nil { entries[key] = Entry(); order.append(key) }
             entries[key]?.nameCounts[name.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
             keyByName[normalized(name), default: []].insert(key)
         }
 
         func names(of key: String) -> [String] {
-            entries[key].map { Array($0.nameCounts.keys) } ?? []
+            entries[canonical(key)].map { Array($0.nameCounts.keys) } ?? []
         }
 
         /// Exact full-name match first, then a unique first-name match.
         func resolve(name: String, among keys: Set<String>?) -> String? {
             let target = normalized(name)
-            let candidates = keys.map(Array.init) ?? order
+            let candidates = keys.map { Array(Set($0.map(canonical))) } ?? order
             let exact = candidates.filter { names(of: $0).map(normalized).contains(target) }
             if exact.count == 1 { return exact[0] }
             guard !target.contains(" "), target.count >= 2 else { return nil }
@@ -271,20 +288,20 @@ enum PeopleDirectory {
         }
 
         mutating func addMeeting(_ meeting: Meeting, to key: String) {
-            entries[key]?.meetings[meeting.id] = .init(
+            entries[canonical(key)]?.meetings[meeting.id] = .init(
                 id: meeting.id, title: meeting.displayTitle, startedAt: meeting.startedAt)
         }
 
         mutating func addTheirAction(_ thread: ActionThread, to key: String) {
-            entries[key]?.theirActions[thread.id] = thread
+            entries[canonical(key)]?.theirActions[thread.id] = thread
         }
 
         mutating func addMyAction(_ thread: ActionThread, to key: String) {
-            entries[key]?.myActions[thread.id] = thread
+            entries[canonical(key)]?.myActions[thread.id] = thread
         }
 
         mutating func addDecision(_ decision: PersonProfile.DecisionRef, to key: String) {
-            entries[key]?.decisions[decision.id] = decision
+            entries[canonical(key)]?.decisions[decision.id] = decision
         }
 
         private func sortedByRecency(_ threads: Dictionary<String, ActionThread>.Values) -> [ActionThread] {
@@ -297,6 +314,7 @@ enum PeopleDirectory {
         private mutating func merge(_ source: String, into target: String) {
             guard let moved = entries.removeValue(forKey: source) else { return }
             order.removeAll { $0 == source }
+            redirects[source] = target
             if entries[target] == nil { entries[target] = Entry(); order.append(target) }
             for (name, count) in moved.nameCounts {
                 entries[target]?.nameCounts[name, default: 0] += count
