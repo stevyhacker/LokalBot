@@ -363,14 +363,16 @@ final class MainWindowUITests: XCTestCase {
                       "persistent Timeline actions did not render")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"]
             .waitForExistence(timeout: 6), "work sessions should be visible immediately")
-        XCTAssertFalse(identified("timeline.evidencePane").exists || identified("timeline.contextPanel").exists,
-                       "Timeline details should stay closed until something is selected")
+        XCTAssertFalse(identified("timeline.contextPanel").exists,
+                       "the day digest shows until something is selected")
         XCTAssertFalse(identified("timeline.context.toggle").exists,
                        "there are no details to open before a selection")
+        let needsAttention = textWithContent("Needs Attention").firstMatch
+        XCTAssertTrue(needsAttention.waitForExistence(timeout: 6))
         XCTAssertLessThan(
+            needsAttention.frame.minY,
             identified("capture.dayOverview").frame.minY,
-            identified("timeline.workSessions").frame.minY,
-            "Day overview should appear above Work Sessions")
+            "Day overview belongs below the digest")
         XCTAssertTrue(identified("timeline.dayDigest.generate").waitForExistence(timeout: 5),
                       "day-digest action should remain directly visible")
         XCTAssertTrue(identified("timeline.dayDigest.actions").exists,

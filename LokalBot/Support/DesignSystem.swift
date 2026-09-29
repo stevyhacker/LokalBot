@@ -49,11 +49,18 @@ enum WorkspaceMetric {
     /// Today is a glanceable page: wide enough for a row of session cards,
     /// with prose still held to `readingMaxWidth`.
     static let todayMaxWidth: CGFloat = 956
-    /// Keep the day readable beside a 320-point inspector, then use a drawer.
+    /// Keep the day readable beside the work-session rail, then use a drawer.
     static let timelineDayMinWidth: CGFloat = 440
-    static let timelineContextMinWidth: CGFloat = LBTokens.Metric.detailsPaneWidth
+    static let timelineRailMinWidth: CGFloat = 260
+    static let timelineRailIdealWidth: CGFloat = 360
+    static let timelineRailMaxWidth: CGFloat = 640
     static let timelineDrawerBreakpoint: CGFloat = 820
     static let timelineDrawerMaxWidth: CGFloat = 520
+
+    /// The rail may widen until the day column reaches its readable minimum.
+    static func timelineRailMaxWidth(in paneWidth: CGFloat) -> CGFloat {
+        min(timelineRailMaxWidth, max(timelineRailMinWidth, paneWidth - timelineDayMinWidth))
+    }
 
 }
 

@@ -443,48 +443,49 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    func testTimelineUsesDayPageAndTrailingDetails() throws {
+    func testTimelineReservesMostWidthForEvidence() throws {
         try SyntheticFixture.plantActivityMoment(in: fixture)
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let rail = element("timeline.sessionRail")
         let evidence = element("timeline.evidencePane")
         XCTAssertTrue(rail.waitForExistence(timeout: 5))
-        XCTAssertFalse(evidence.exists, "The day page is full width until something is selected")
+        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(rail.frame.width, 361)
+        XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
+        XCTAssertLessThanOrEqual(evidence.frame.maxX, rail.frame.minX,
+                                 "Work sessions belong to the right of the day digest")
+        XCTAssertTrue(element("capture.dayOverview").exists, "Day Overview stays below the digest")
         app.buttons["timeline.session.1"].click()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 5))
-        XCTAssertTrue(evidence.waitForExistence(timeout: 5))
-        XCTAssertEqual(evidence.frame.width, 320, accuracy: 4)
-        XCTAssertGreaterThan(rail.frame.width, evidence.frame.width)
-        XCTAssertLessThanOrEqual(rail.frame.maxX, evidence.frame.minX,
-                                 "Details belong to the right of the day page")
+        XCTAssertGreaterThan(evidence.frame.width, rail.frame.width * 1.5)
+        XCTAssertFalse(element("capture.dayOverview").exists, "A selection replaces the digest column")
         snapshot("timeline-reading-pane")
     }
 
-    func testTimelineDetailsResizeBesideTheDay() throws {
+    func testTimelineRailResizesAgainstTheDigest() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let rail = element("timeline.sessionRail")
         let evidence = element("timeline.evidencePane")
         XCTAssertTrue(rail.waitForExistence(timeout: 5))
-        openFirstTimelineSession()
         XCTAssertTrue(evidence.waitForExistence(timeout: 5))
-        let opening = evidence.frame.width
+        let opening = rail.frame.width
         let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
-            abs($0.frame.midX - evidence.frame.minX) < abs($1.frame.midX - evidence.frame.minX)
+            abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
         }, "Timeline divider missing")
 
         app.activate()
         let grip = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         grip.press(forDuration: 0.1, thenDragTo: grip.withOffset(CGVector(dx: -160, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { evidence.frame.width >= opening + 120 },
-                      "Details should widen past their opening width (\(evidence.frame.width) from \(opening))")
-        XCTAssertGreaterThanOrEqual(rail.frame.width, 440, "The day keeps its readable minimum")
+        XCTAssertTrue(UITestHarness.waitUntil { rail.frame.width >= opening + 120 },
+                      "Work sessions should widen past their opening width (\(rail.frame.width) from \(opening))")
+        XCTAssertGreaterThanOrEqual(evidence.frame.width, 420, "The digest keeps its readable minimum")
         snapshot("timeline-wide-sessions")
 
         // Divider positions persist in the host's defaults; leave the next
         // launch at the opening width.
         let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: evidence.frame.width - opening, dy: 0)))
-        XCTAssertTrue(UITestHarness.waitUntil { abs(evidence.frame.width - opening) < 8 })
+        widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening, dy: 0)))
+        XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening) < 8 })
     }
 
     func testSettingsCategoryResetsScrollAndDictationHasDirectNavigation() throws {
