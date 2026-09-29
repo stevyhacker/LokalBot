@@ -791,6 +791,10 @@ final class AppState: ObservableObject {
     private var cotypingRuntimeTaskID: UUID?
     private var libraryLoadTask: Task<Void, Never>?
     private var embeddingBackfillTask: (token: UUID, task: Task<Void, Never>)?
+    /// Meetings re-embedded so far by the library backfill, while it runs.
+    @Published private(set) var embeddingBackfill: BackgroundCount?
+    /// Long-running work for the sticky sidebar progress card.
+    let backgroundActivity = BackgroundActivityMonitor()
     private var embeddingIndexTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
     private var indexCleanupTasks: [Meeting.ID: (token: UUID, task: Task<Void, Never>)] = [:]
     /// Meeting IDs excluded from search for this session. This includes
@@ -1066,6 +1070,7 @@ final class AppState: ObservableObject {
         applyDayDigestSetting()
         applyMemoryRoutineSetting()
         applyDreamingSetting()
+        bindBackgroundActivity()
         // First-run check. A genuinely-new user with missing permissions gets
         // onboarding (windowed — see AppDelegate); the flag persists only when
         // they explicitly finish or defer the wizard (OnboardingView footer),
@@ -1167,9 +1172,13 @@ final class AppState: ObservableObject {
         let token = UUID()
         let task = Task { @MainActor [weak self] in
             guard let self, !Task.isCancelled else { return }
-            await self.embeddingIndex.reindexAll(meetings)
+            await self.embeddingIndex.reindexAll(meetings) { [weak self] done, total in
+                guard let self, self.embeddingBackfillTask?.token == token else { return }
+                self.embeddingBackfill = BackgroundCount(done: done, total: total)
+            }
             guard self.embeddingBackfillTask?.token == token else { return }
             self.embeddingBackfillTask = nil
+            self.embeddingBackfill = nil
         }
         embeddingBackfillTask = (token, task)
     }
@@ -1283,6 +1292,7 @@ final class AppState: ObservableObject {
             libraryLoadTask = nil
             embeddingBackfillTask?.task.cancel()
             embeddingBackfillTask = nil
+            embeddingBackfill = nil
             for entry in embeddingIndexTasks.values { entry.task.cancel() }
             embeddingIndexTasks.removeAll()
             for entry in indexCleanupTasks.values { entry.task.cancel() }
@@ -1825,6 +1835,46 @@ final class AppState: ObservableObject {
             onError: { [weak self] message in
                 self?.lastError = message
             })
+    }
+
+    private func bindBackgroundActivity() {
+        backgroundActivity.bind(.init(
+            pipeline: pipeline,
+            dayDigest: dayDigest,
+            dreaming: dreaming,
+            downloads: ModelDownloadManager.shared,
+            reindex: $embeddingBackfill.eraseToAnyPublisher(),
+            meetingTitle: { [weak self] id in
+                self?.meetings.first { $0.id == id }?.displayTitle
+            },
+            modelName: { [weak self] id in
+                ModelCatalog.entry(id: id, custom: self?.settings.customBuiltInModels ?? [])?.displayName ?? id
+            }))
+    }
+
+    /// Navigate to the screen that owns a background activity.
+    func openBackgroundActivity(_ destination: BackgroundActivity.Destination) {
+        switch destination {
+        case .meeting(let id):
+            openMeeting(id)
+        case .day(let day):
+            if Calendar.current.isDateInToday(day) {
+                navSection = .today
+            } else {
+                openTimelineDay(day)
+            }
+        case .dream:
+            navSection = .today
+        case .models:
+            openSettings(tab: .models)
+        }
+    }
+
+    /// Open Timeline on a local day, e.g. to read that day's digest.
+    func openTimelineDay(_ day: Date) {
+        navigationHandoff.stageTimelineDay(day)
+        selectedMeetingIDs = []
+        navSection = .timeline
     }
 
     func applyMemoryRoutineSetting() {

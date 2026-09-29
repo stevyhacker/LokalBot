@@ -708,6 +708,24 @@ struct DayDigestOverviewGeneration: Equatable, Sendable {
     var quality: DayDigestGenerationQuality
 }
 
+/// How far a digest run has come, for progress surfaces. Segment extraction
+/// is most of the work; aggregation is the final step.
+struct DayDigestProgress: Equatable, Sendable {
+    var completedSegments: Int
+    var totalSegments: Int
+    var isAggregating = false
+
+    var fraction: Double? {
+        guard totalSegments > 0 else { return nil }
+        let steps = Double(totalSegments + 1)
+        return isAggregating
+            ? Double(totalSegments) / steps
+            : Double(min(completedSegments, totalSegments)) / steps
+    }
+}
+
+typealias DayDigestProgressHandler = @MainActor @Sendable (DayDigestProgress) -> Void
+
 /// Converts deterministic, gap-aware evidence segments into the compact
 /// human layer shown above the lossless journal. A first model pass rejects
 /// metadata-only segments and extracts structured work candidates. A second
@@ -801,7 +819,8 @@ enum DayDigestOverviewGenerator {
         evidence: DayDigestEvidence,
         engine: TextEngine,
         customPrompt: String,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        progress: DayDigestProgressHandler? = nil
     ) async throws -> DayDigestOverviewGeneration {
         let segments = evidence.summarySegments()
         guard !segments.isEmpty else {
@@ -827,6 +846,7 @@ enum DayDigestOverviewGenerator {
 
         segmentLoop: for (index, segment) in segments.enumerated() {
             try Task.checkCancellation()
+            await progress?(DayDigestProgress(completedSegments: index, totalSegments: segments.count))
             let startedAt = Date()
             let focusPrompt = """
                 Extract a substantive-work candidate from evidence segment \(index + 1) of \(segments.count).
@@ -961,6 +981,8 @@ enum DayDigestOverviewGenerator {
 
         let digest: DigestDraft?
         let digestStartedAt = Date()
+        await progress?(DayDigestProgress(
+            completedSegments: segments.count, totalSegments: segments.count, isAggregating: true))
         do {
             let aggregationInstruction = usesBestAvailableActivity
                 ? "Retain the best grounded activity even without a concrete outcome."

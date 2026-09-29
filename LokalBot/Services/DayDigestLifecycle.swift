@@ -5,7 +5,14 @@ import Foundation
 /// owns what evidence belongs to that request, where the journal lives, how
 /// freshness is derived, and how automatic repair is scheduled.
 @MainActor
-final class DayDigestLifecycle {
+final class DayDigestLifecycle: ObservableObject {
+    /// A digest generation in flight, from any entry point.
+    struct ActiveRun: Identifiable, Equatable, Sendable {
+        let id: UUID
+        let day: Date
+        var progress: DayDigestProgress?
+    }
+
     struct Snapshot: Equatable, Sendable {
         var text: String?
         var modifiedAt: Date?
@@ -22,7 +29,8 @@ final class DayDigestLifecycle {
     typealias Generator = @MainActor (
         _ evidence: DailyEvidenceSnapshot,
         _ settings: AppSettings,
-        _ validateEvidence: EvidenceValidator
+        _ validateEvidence: EvidenceValidator,
+        _ progress: @escaping DayDigestProgressHandler
     ) async throws -> DayDigestGenerationResult
 
     typealias EvidenceValidator = @MainActor () throws -> Void
@@ -46,6 +54,8 @@ final class DayDigestLifecycle {
     private let calendar: Calendar
     private let scheduler: DayDigestScheduler
     private var invalidatedDays: Set<String> = []
+    /// Runs in start order; manual and scheduled runs may overlap.
+    @Published private(set) var activeRuns: [ActiveRun] = []
 
     init(
         storageRoot: URL,
@@ -86,11 +96,12 @@ final class DayDigestLifecycle {
             meetings: meetings,
             latestActivityEvidenceAt: { activityStore.latestEvidenceAt(on: $0) },
             settings: settings,
-            generator: { evidence, settings, validateEvidence in
+            generator: { evidence, settings, validateEvidence, progress in
                 try await pipeline.generateDayDigest(
                     from: evidence,
                     config: settings,
-                    validateEvidence: validateEvidence)
+                    validateEvidence: validateEvidence,
+                    progress: progress)
             },
             onGenerated: onGenerated)
     }
@@ -182,13 +193,29 @@ final class DayDigestLifecycle {
     ) async throws -> DayDigestGenerationResult {
         let evidence = try evidenceInput(for: day)
         let validateEvidence = evidenceValidator(for: evidence)
-        let result = try await generator(
-            evidence,
-            override ?? settings(),
-            validateEvidence)
+        let result = try await trackingRun(for: evidence.day) { progress in
+            try await self.generator(
+                evidence,
+                override ?? self.settings(),
+                validateEvidence,
+                progress)
+        }
         try validateEvidence()
         onGenerated(evidence.day)
         return result
+    }
+
+    private func trackingRun<T>(
+        for day: Date,
+        _ body: (@escaping DayDigestProgressHandler) async throws -> T
+    ) async throws -> T {
+        let id = UUID()
+        activeRuns.append(ActiveRun(id: id, day: day))
+        defer { activeRuns.removeAll { $0.id == id } }
+        return try await body { [weak self] progress in
+            guard let self, let index = self.activeRuns.firstIndex(where: { $0.id == id }) else { return }
+            self.activeRuns[index].progress = progress
+        }
     }
 
     func configureAutomaticGeneration(
@@ -221,10 +248,13 @@ final class DayDigestLifecycle {
                     DayDigestGenerationMetadataStore.journalMatches($0, at: url)
                 } == true
                 guard !evidence.isEmpty || ownedJournal else { return .deferred }
-                let result = try await self.generator(
-                    evidence,
-                    self.settings(),
-                    validateEvidence)
+                let result = try await self.trackingRun(for: evidence.day) { progress in
+                    try await self.generator(
+                        evidence,
+                        self.settings(),
+                        validateEvidence,
+                        progress)
+                }
                 try validateEvidence()
                 self.invalidatedDays.remove(DreamDay.key(for: day, calendar: self.calendar))
                 self.onGenerated(evidence.day)

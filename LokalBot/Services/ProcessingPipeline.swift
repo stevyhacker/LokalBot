@@ -1133,7 +1133,8 @@ final class ProcessingPipeline: ObservableObject {
     func generateDayDigest(
         from snapshot: DailyEvidenceSnapshot,
         config: AppSettings,
-        validateEvidence: DayDigestLifecycle.EvidenceValidator
+        validateEvidence: DayDigestLifecycle.EvidenceValidator,
+        progress: DayDigestProgressHandler? = nil
     ) async throws -> DayDigestGenerationResult {
         let evidence = snapshot.digestEvidence()
         let name = DreamDay.key(for: snapshot.day)
@@ -1154,7 +1155,8 @@ final class ProcessingPipeline: ObservableObject {
                 overview = try await generateDayOverview(
                     evidence: evidence,
                     engine: engine,
-                    customPrompt: config.dayDigestCustomPrompt)
+                    customPrompt: config.dayDigestCustomPrompt,
+                    progress: progress)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -1182,12 +1184,14 @@ final class ProcessingPipeline: ObservableObject {
     private func generateDayOverview(
         evidence: DayDigestEvidence,
         engine: TextEngine,
-        customPrompt: String
+        customPrompt: String,
+        progress: DayDigestProgressHandler?
     ) async throws -> DayDigestOverviewGeneration {
         try await DayDigestOverviewGenerator.generateResult(
             evidence: evidence,
             engine: engine,
-            customPrompt: customPrompt)
+            customPrompt: customPrompt,
+            progress: progress)
     }
 
     enum PipelineError: LocalizedError {

@@ -256,10 +256,20 @@ final class EmbeddingIndex {
 
     // MARK: - Indexing
 
-    func reindexAll(_ meetings: [Meeting]) async {
-        for meeting in meetings {
+    /// Re-embeds meetings whose sources changed. `progress` receives
+    /// `(done, total)` over only the meetings that need work, starting at
+    /// `(0, total)` when any do, so an up-to-date library reports nothing.
+    func reindexAll(
+        _ meetings: [Meeting],
+        progress: ((_ done: Int, _ total: Int) -> Void)? = nil
+    ) async {
+        let pending = meetings.filter { pendingIndexState(for: $0) != nil }
+        guard !pending.isEmpty else { return }
+        progress?(0, pending.count)
+        for (offset, meeting) in pending.enumerated() {
             guard !Task.isCancelled else { return }
             try? await index(meeting)
+            progress?(offset + 1, pending.count)
         }
     }
 
@@ -349,12 +359,16 @@ final class EmbeddingIndex {
         return pieces
     }
 
-    func index(_ meeting: Meeting) async throws {
-        guard !isDeleted(meeting.id) else { return }
+    /// Sources of a meeting whose vectors are missing or stale; nil when
+    /// `index(_:)` has nothing to do.
+    private func pendingIndexState(
+        for meeting: Meeting
+    ) -> (folder: URL, mtime: TimeInterval, notes: String?, hasNotesVectors: Bool)? {
+        guard !isDeleted(meeting.id) else { return nil }
         let folder = meeting.folderURL(in: storage)
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else { return }
+              isDirectory.boolValue else { return nil }
         let mtime = ["transcript.json", "summary.md", MeetingNotes.fileName].compactMap {
             (try? FileManager.default.attributesOfItem(
                 atPath: folder.appendingPathComponent($0).path))?[.modificationDate] as? Date
@@ -366,7 +380,13 @@ final class EmbeddingIndex {
         let hasNotesVectors = hasNotesChunks(meeting.id)
         let notesChanged = (notes != nil) != hasNotesVectors
         guard mtime > 0 || hasNotesVectors,
-              (indexedMtime(meeting.id) ?? -1 < mtime) || notesChanged else { return }
+              (indexedMtime(meeting.id) ?? -1 < mtime) || notesChanged else { return nil }
+        return (folder, mtime, notes, hasNotesVectors)
+    }
+
+    func index(_ meeting: Meeting) async throws {
+        guard let state = pendingIndexState(for: meeting) else { return }
+        let (folder, mtime, notes, hasNotesVectors) = state
 
         var chunks: [(start: TimeInterval, text: String)] = []
         if let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),

@@ -51,7 +51,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             scheduler: DayDigestScheduler(calendar: calendar, now: { now }),
             blocks: { _ in [ActivityBlock(id: 1, app: "Notes", title: "Work", start: now.addingTimeInterval(-60), end: now)] },
             screenContexts: { _ in [] }, meetings: { [] }, latestActivityEvidenceAt: { _ in now },
-            settings: { settings }, generator: { _, _, _ in
+            settings: { settings }, generator: { _, _, _, _ in
                 if settings.approvedRemoteInferenceOrigins.isEmpty { unexpected.fulfill() } else { approved.fulfill() }
                 return DayDigestGenerationResult(text: "fixture", url: root.appendingPathComponent("journal.md"), quality: .complete)
             })
@@ -62,6 +62,36 @@ final class DayDigestLifecycleTests: XCTestCase {
         lifecycle.configureAutomaticGeneration(.init(enabled: true, hour: 18), canRun: { true }, onError: { XCTFail($0) })
         await fulfillment(of: [approved], timeout: 2)
         lifecycle.stopAutomaticGeneration()
+    }
+
+    func testRunsPublishProgressAndClearWhenFinished() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("digest-progress-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let now = try date("2026-08-23T12:00:00Z")
+        var observed: [DayDigestLifecycle.ActiveRun] = []
+        var lifecycle: DayDigestLifecycle?
+        lifecycle = DayDigestLifecycle(
+            storageRoot: root, calendar: calendar,
+            blocks: { _ in [ActivityBlock(id: 1, app: "Notes", title: "Work", start: now.addingTimeInterval(-60), end: now)] },
+            screenContexts: { _ in [] }, meetings: { [] }, latestActivityEvidenceAt: { _ in now },
+            settings: { AppSettings() },
+            generator: { _, _, _, progress in
+                progress(DayDigestProgress(completedSegments: 2, totalSegments: 4))
+                observed = lifecycle?.activeRuns ?? []
+                return DayDigestGenerationResult(text: "fixture", url: root.appendingPathComponent("journal.md"), quality: .complete)
+            })
+        _ = try await XCTUnwrap(lifecycle).generate(for: now)
+        XCTAssertEqual(observed.count, 1)
+        XCTAssertEqual(observed.first?.day, calendar.startOfDay(for: now))
+        XCTAssertEqual(observed.first?.progress?.completedSegments, 2)
+        XCTAssertEqual(try XCTUnwrap(lifecycle).activeRuns, [])
+    }
+
+    func testDigestProgressFractionReservesTheAggregationStep() {
+        XCTAssertNil(DayDigestProgress(completedSegments: 0, totalSegments: 0).fraction)
+        XCTAssertEqual(DayDigestProgress(completedSegments: 0, totalSegments: 3).fraction, 0)
+        XCTAssertEqual(DayDigestProgress(completedSegments: 3, totalSegments: 3).fraction, 0.75)
+        XCTAssertEqual(DayDigestProgress(completedSegments: 3, totalSegments: 3, isAggregating: true).fraction, 0.75)
     }
 
     func testSnapshotOwnsJournalFreshnessAndLatestEvidence() throws {
@@ -137,7 +167,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             meetings: { [finished, inProgress] },
             latestActivityEvidenceAt: { _ in nil },
             settings: AppSettings.init,
-            generator: { evidence, _, _ in
+            generator: { evidence, _, _, _ in
                 receivedBlocks = evidence.activityBlocks
                 receivedMeetings = evidence.meetings.map(\.meeting)
                 receivedScreens = evidence.screenContexts
@@ -250,7 +280,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             meetings: { [meeting] },
             latestActivityEvidenceAt: { _ in nil },
             settings: AppSettings.init,
-            generator: { evidence, _, _ in
+            generator: { evidence, _, _, _ in
                 XCTAssertEqual(DreamDay.key(for: evidence.day, calendar: self.calendar),
                                "2026-08-23")
                 XCTAssertEqual(evidence.meetings.map(\.meeting), [meeting])
@@ -317,7 +347,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             meetings: { [meeting] },
             latestActivityEvidenceAt: { _ in nil },
             settings: AppSettings.init,
-            generator: { evidence, _, _ in
+            generator: { evidence, _, _, _ in
                 XCTAssertEqual(DreamDay.key(for: evidence.day, calendar: self.calendar),
                                "2026-08-23")
                 generated.fulfill()
@@ -378,7 +408,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             scheduler: DayDigestScheduler(calendar: calendar, now: { now }),
             blocks: { _ in [] }, screenContexts: { _ in [] }, meetings: { [] },
             latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-            generator: { evidence, _, _ in
+            generator: { evidence, _, _, _ in
                 XCTAssertTrue(evidence.isEmpty)
                 regenerated.fulfill()
                 return DayDigestGenerationResult(text: "Empty day", url: journal, quality: .complete)
@@ -402,7 +432,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             scheduler: DayDigestScheduler(calendar: calendar, now: { now }),
             blocks: { _ in [] }, screenContexts: { _ in [] }, meetings: { [] },
             latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-            generator: { _, _, _ in
+            generator: { _, _, _, _ in
                 shouldNotGenerate.fulfill()
                 return DayDigestGenerationResult(text: "Unexpected", url: journal, quality: .complete)
             })
@@ -425,7 +455,7 @@ final class DayDigestLifecycleTests: XCTestCase {
             meetings: meetings,
             latestActivityEvidenceAt: latestActivityEvidenceAt,
             settings: AppSettings.init,
-            generator: { evidence, _, _ in
+            generator: { evidence, _, _, _ in
                 DayDigestGenerationResult(
                     text: "",
                     url: root.appendingPathComponent(

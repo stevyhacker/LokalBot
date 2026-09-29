@@ -78,7 +78,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             meetings: { [] },
             latestActivityEvidenceAt: { _ in nil },
             settings: AppSettings.init,
-            generator: { _, _, _ in throw IntegrationError.unavailable })
+            generator: { _, _, _, _ in throw IntegrationError.unavailable })
         try lifecycle.retractGeneratedJournals(for: [day])
         XCTAssertEqual(
             try String(contentsOf: journal, encoding: .utf8),
@@ -136,7 +136,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             meetings: { [meeting] },
             latestActivityEvidenceAt: { _ in nil },
             settings: { settings },
-            generator: { _, _, _ in throw IntegrationError.unavailable })
+            generator: { _, _, _, _ in throw IntegrationError.unavailable })
         pipeline.onArtifactsWillChange = { changedMeeting in
             try lifecycle.retractGeneratedJournals(
                 for: [changedMeeting.startedAt])
@@ -190,7 +190,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             scheduler: DayDigestScheduler(calendar: calendar, now: { current }),
             blocks: { _ in [] }, screenContexts: { _ in [] }, meetings: { meetings },
             latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-            generator: { snapshot, _, validateEvidence in
+            generator: { snapshot, _, validateEvidence, _ in
                 let revision = try DayDigestJournalWriter.revision(at: journal)
                 generationStarted.fulfill()
                 await allowGeneration.wait()
@@ -233,7 +233,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
         let lifecycle = DayDigestLifecycle(
             storageRoot: root, blocks: { _ in [] }, screenContexts: { _ in [] }, meetings: { [] },
             latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-            generator: { snapshot, _, validateEvidence in
+            generator: { snapshot, _, validateEvidence, _ in
                 let revision = try DayDigestJournalWriter.revision(at: journal)
                 started.fulfill()
                 await gate.wait()
@@ -275,7 +275,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             meetings: { [] },
             latestActivityEvidenceAt: { _ in nil },
             settings: AppSettings.init,
-            generator: { snapshot, _, validateEvidence in
+            generator: { snapshot, _, validateEvidence, _ in
                 let revision = try DayDigestJournalWriter.revision(at: journal)
                 generationStarted.fulfill()
                 await gate.wait()
@@ -329,7 +329,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             scheduler: DayDigestScheduler(now: { day }),
             blocks: { _ in blocks }, screenContexts: { _ in contexts }, meetings: { meetings },
             latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-            generator: { snapshot, _, validateEvidence in
+            generator: { snapshot, _, validateEvidence, _ in
                 let revision = try DayDigestJournalWriter.revision(at: journal)
                 let evidence = snapshot.digestEvidence()
                 originalSignature = evidence.contentSignature
@@ -401,7 +401,7 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             let lifecycle = DayDigestLifecycle(
                 storageRoot: root, blocks: { _ in blocks }, screenContexts: { _ in contexts },
                 meetings: { meetings }, latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
-                generator: { snapshot, _, validateEvidence in
+                generator: { snapshot, _, validateEvidence, _ in
                     let revision = try DayDigestJournalWriter.revision(at: journal)
                     blocks.append(ActivityBlock(id: 2, app: "Notes", title: "New work",
                                                 start: day, end: day.addingTimeInterval(60)))

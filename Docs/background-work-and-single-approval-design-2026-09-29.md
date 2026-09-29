@@ -81,7 +81,7 @@ Sources, each remaining the source of truth:
 | Day digest | new `DayDigestLifecycle.activeRun` (day, completed and total segments, phase) for manual, scheduled, and headless runs |
 | Dream | `DreamScheduler.isDreaming` plus new published `activeDayKey` and `remainingCatchUpDays` |
 | Download | `ModelDownloadManager.progress`, with model names from the catalog |
-| Reindex | new published counts on the semantic embedding backfill |
+| Reindex | new `AppState.embeddingBackfill` count over meetings that actually need re-embedding |
 
 Digest progress is reported through an optional progress callback passed from
 `DayDigestLifecycle` into `ProcessingPipeline.generateDayDigest`, called when
@@ -94,9 +94,10 @@ planning finishes, after each segment, and during aggregation.
 - Shows the top activity: icon, title, detail, and a determinate bar when a
   fraction is known (spinner otherwise). With more than one activity, a
   "+N more" affordance opens a popover listing all of them.
-- Tapping an item navigates: meeting processing to the meeting, digest to
-  Today on that day, dream to Today (Dream brief), download to Settings →
-  Models; reindex has no destination.
+- Tapping an item navigates: meeting processing to the meeting, today's
+  digest to Today and an earlier digest to Timeline on that day, dream to
+  Today, download to Settings → Models; reindex and a queued-only meeting
+  summary have no destination.
 - Hidden when nothing is running. Failures keep the existing error surfaces.
 
 Out of scope: "waiting" states such as a dream deferred for AC power.
@@ -106,4 +107,6 @@ Out of scope: "waiting" states such as a dream deferred for AC power.
 - Unit: approval merge in `AppSettingsTests` and `DayDigestLifecycleTests`;
   7-day window, finished rules, and cursor for `DayDigestScheduler`; window
   clamp for `DreamScheduler`; `BackgroundActivity.derive` mapping and order.
-- UI: sidebar progress card presence runs on hosted CI only.
+- UI: no hosted UI test; the card only appears while real model work runs,
+  and seeding it would need a test-only hook. Its content and ordering are
+  covered by the `BackgroundActivity.derive` unit tests.

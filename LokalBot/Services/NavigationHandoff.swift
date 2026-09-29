@@ -36,6 +36,7 @@ final class NavigationHandoff: ObservableObject {
     private var pendingAsk: AskNavigationHandoff?
     private var pendingMeetingSeek: MeetingSeekHandoff?
     private var pendingScreenSnapshotID: Int64?
+    private var pendingTimelineDay: Date?
     private(set) var agentContext: AgentLaunchContext?
 
     func stageAsk(
@@ -91,6 +92,18 @@ final class NavigationHandoff: ObservableObject {
         self.pendingScreenSnapshotID = nil
         changed()
         return pendingScreenSnapshotID
+    }
+
+    func stageTimelineDay(_ day: Date) {
+        pendingTimelineDay = day
+        changed()
+    }
+
+    func consumeTimelineDay() -> Date? {
+        guard let pendingTimelineDay else { return nil }
+        self.pendingTimelineDay = nil
+        changed()
+        return pendingTimelineDay
     }
 
     func stageAgent(_ context: AgentLaunchContext?) {

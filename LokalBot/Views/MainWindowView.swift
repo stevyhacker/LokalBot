@@ -321,6 +321,7 @@ private struct SidebarPrivacyFooter: View {
                 .padding(10)
                 .lbStatusSurface(.red)
             }
+            BackgroundActivityCard(monitor: app.backgroundActivity)
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "lock.shield").foregroundStyle(Brand.teal)
                     .accessibilityHidden(true)
