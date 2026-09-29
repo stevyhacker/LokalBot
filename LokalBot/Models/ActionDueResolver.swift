@@ -78,10 +78,12 @@ enum ActionDueResolver {
         guard let groups = captures(text, pattern), groups.count == 2,
               let target = weekdayNames.first(where: { $0.1.contains(groups[1]) })?.0 else { return nil }
         let current = calendar.component(.weekday, from: day)
-        var offset = (target - current + 7) % 7
-        if offset == 0 { offset = 7 }
-        guard var date = calendar.date(byAdding: .day, value: offset, to: day) else { return nil }
         let modifier = groups[0].trimmingCharacters(in: .whitespaces)
+        var offset = (target - current + 7) % 7
+        // "This Friday" said on a Friday is that day; a bare or "next"
+        // weekday said on the same weekday means the following week.
+        if offset == 0, modifier != "this" { offset = 7 }
+        guard var date = calendar.date(byAdding: .day, value: offset, to: day) else { return nil }
         if ["next", "sledeci", "sledeći"].contains(modifier),
            calendar.isDate(date, equalTo: day, toGranularity: .weekOfYear) {
             // "Next Friday" said on a Tuesday means Friday of the following week.

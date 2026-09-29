@@ -42,6 +42,14 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("do petka"), "2026-09-25")
     }
 
+    func testThisWeekdaySaidOnThatWeekdayMeansToday() {
+        let friday = calendar.date(byAdding: .day, value: 3, to: tuesday)
+        XCTAssertEqual(resolved("this Friday", from: friday), "2026-09-25")
+        XCTAssertEqual(resolved("by this Friday", from: friday), "2026-09-25")
+        XCTAssertEqual(resolved("Friday", from: friday), "2026-10-02")
+        XCTAssertEqual(resolved("this Friday"), "2026-09-25")
+    }
+
     func testNextWeekdayMeansTheFollowingWeek() {
         XCTAssertEqual(resolved("next Friday"), "2026-10-02")
         // Said on a Saturday, the next Monday is already in the following week.
