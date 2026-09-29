@@ -312,6 +312,8 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testTimelineFiltersRetainedMomentsWithoutHidingWorkSessions() throws {
+        // Rewind renders only when the day has retained moments to play.
+        try SyntheticFixture.plantActivityMoment(in: fixture)
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_SCREEN_MEMORY_DEMO": "1"])
         let search = app.textFields["timeline.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))

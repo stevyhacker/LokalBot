@@ -208,6 +208,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingView = NSHostingView(rootView: uiTestRootView(app: app, windowKind: windowKind))
         hostingView.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window.host")
         hostingView.setAccessibilityLabel(showsOnboarding ? "LokalBot setup" : (showsQuickRecall ? "Quick Recall" : "LokalBot workspace"))
+#if LOKALBOT_UI_TEST_HOST
+        // This full-size-content window counts the 52 pt titlebar and toolbar
+        // twice when the SwiftUI minimum becomes a window minimum, so Settings'
+        // 600 pt minimum grew 1000x700 captures to 704 pt. A requested capture
+        // size is authoritative; keep the content minimum out of the window.
+        if captureSize.count == 2 {
+            hostingView.sizingOptions.remove(.minSize)
+        }
+#endif
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false

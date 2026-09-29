@@ -49,7 +49,7 @@ final class OnboardingUITests: XCTestCase {
         assertPage(title: "Enable the access you need", step: 2)
         XCTAssertTrue(text(containing: "Screen Recording").waitForExistence(timeout: 5),
                       "Existing visual capture must retain its permission requirement")
-        app.buttons["Continue with current access"].click()
+        app.buttons["Continue with Current Access"].click()
         assertPage(title: "Prepare your workflows", step: 3)
         XCTAssertTrue(app.buttons["onboarding.downloadModels"].exists)
         XCTAssertTrue(UITestHarness.toggle("Also prepare Autocomplete (optional)", in: app).exists)

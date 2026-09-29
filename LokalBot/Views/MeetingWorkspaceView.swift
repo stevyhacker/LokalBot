@@ -2274,10 +2274,13 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // A plain button hit-tests only its drawn content; the whole card
+            // chooses the suggestion.
+            .padding(12)
+            .lbGroupedSurface()
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(12)
-        .lbGroupedSurface()
         .foregroundStyle(selected ? LBTokens.Palette.accentText : .primary)
         .accessibilityLabel(label)
         .accessibilityIdentifier(suggestion.accessibilityID)

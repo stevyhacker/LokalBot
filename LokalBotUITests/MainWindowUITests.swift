@@ -409,6 +409,7 @@ final class MainWindowUITests: XCTestCase {
                       "raw capture disclosure is missing")
         XCTAssertFalse(app.descendants(matching: .any)["timeline.track"].exists,
                        "raw block chart should not be the default Timeline presentation")
+        scrollTimelineDay(to: rawCapture)
         rawCapture.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.track"]
             .waitForExistence(timeout: 4), "raw block chart did not expand on request")
@@ -457,6 +458,7 @@ final class MainWindowUITests: XCTestCase {
         let meeting = app.buttons["capture.meeting.\(fixture.designReview.id.uuidString)"]
         XCTAssertTrue(meeting.waitForExistence(timeout: 4),
                       "meeting block is not an accessible Timeline button")
+        scrollTimelineDay(to: meeting)
         meeting.click()
         XCTAssertTrue(app.descendants(matching: .any)["timeline.meetingPreview"]
             .waitForExistence(timeout: 4), "Timeline did not open its compact meeting preview")
@@ -1261,6 +1263,13 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(panel.waitForExistence(timeout: 6),
                       "Timeline context panel did not render")
         return usesDrawer
+    }
+
+    /// Work sessions and raw capture follow Day Overview, the digest and
+    /// Needs Attention, so they can start below the fold of the day page.
+    private func scrollTimelineDay(to element: XCUIElement) {
+        let rail = app.scrollViews["timeline.sessionRail"]
+        UITestHarness.scrollTo(element, in: app, within: rail.exists ? rail : nil)
     }
 
     private func closeTimelineContext() {

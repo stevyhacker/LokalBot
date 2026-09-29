@@ -55,6 +55,8 @@ final class SettingsUITests: XCTestCase {
                       "resource monitor CPU metric missing")
         XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.memory"].exists,
                       "resource monitor memory metric missing")
+        // The metrics are a lazy grid; its second row may start below the fold.
+        UITestHarness.scrollTo(app.descendants(matching: .any)["settings.resourceMonitor.modelMemory"], in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.models"].exists,
                       "resource monitor model count missing")
         XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.modelMemory"].exists,

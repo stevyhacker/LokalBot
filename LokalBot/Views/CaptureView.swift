@@ -574,9 +574,16 @@ struct CaptureDayView: View {
                             SelectableDigestText(highlights)
                                 .lineLimit(4)
                         }
-                        DisclosureGroup("Show Full Digest", isExpanded: $digestExpanded) {
+                        DisclosureGroup(isExpanded: $digestExpanded) {
                             DayDigestCard(model: model, identifier: "capture", showsControls: false)
                                 .padding(.top, 10)
+                        } label: {
+                            // macOS toggles a disclosure group only from its
+                            // chevron; the label reads as the action, so it
+                            // toggles too.
+                            Text("Show Full Digest")
+                                .contentShape(Rectangle())
+                                .onTapGesture { digestExpanded.toggle() }
                         }
                         .accessibilityIdentifier("timeline.fullDigest")
                     } else {
@@ -626,7 +633,10 @@ struct CaptureDayView: View {
         now: Date
     ) -> some View {
         let items = TimelineDayItem.items(sessions: sessions, meetings: meetings, now: now)
-        return LazyVStack(spacing: 8) {
+        // One day's sessions and meetings start below Day Overview, the digest
+        // and Needs Attention. A lazy stack would leave those rows out of the
+        // accessibility tree until scrolled; the bounded list stays eager.
+        return VStack(spacing: 8) {
                 if items.isEmpty {
                     ContentUnavailableView(
                         "No meaningful sessions",

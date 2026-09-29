@@ -22,6 +22,8 @@ final class RecallInteractionUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let raw = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(raw.waitForExistence(timeout: 8))
+        // Raw capture follows the day's summary sections, below a 700 pt fold.
+        UITestHarness.scrollTo(raw, in: app)
         raw.click()
         let play = app.buttons["Play context rewind"]
         XCTAssertTrue(play.waitForExistence(timeout: 5))
