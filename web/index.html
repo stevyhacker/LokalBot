@@ -88,7 +88,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-09-28",
+        "dateModified": "2026-09-29",
         "image": "https://www.lokalbot.com/assets/screens/quick-recall.png",
         "screenshot": "https://www.lokalbot.com/assets/screens/quick-recall.png",
         "sameAs": [
@@ -96,6 +96,40 @@
           "https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks",
           "https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack"
         ]
+      },
+      {
+        "@type": "VideoObject",
+        "@id": "https://www.lokalbot.com/#demo-video",
+        "name": "LokalBot in 45 seconds",
+        "description": "What LokalBot keeps, the local models that do the work, and the real Mac app in use with fictional demo data.",
+        "thumbnailUrl": "https://www.lokalbot.com/assets/lokalbot-demo-poster.webp",
+        "contentUrl": "https://www.lokalbot.com/assets/lokalbot-demo.mp4",
+        "uploadDate": "2026-09-29",
+        "duration": "PT45S",
+        "inLanguage": "en",
+        "about": {
+          "@id": "https://www.lokalbot.com/#software"
+        },
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        }
+      },
+      {
+        "@type": "VideoObject",
+        "@id": "https://www.lokalbot.com/#how-video",
+        "name": "How LokalBot works in 60 seconds",
+        "description": "The pipeline on your Mac: two-track capture, speaker separation, transcription, summaries, a local search index, opt-in screen text, and read-only agent access.",
+        "thumbnailUrl": "https://www.lokalbot.com/assets/lokalbot-how-it-works-poster.webp",
+        "contentUrl": "https://www.lokalbot.com/assets/lokalbot-how-it-works.mp4",
+        "uploadDate": "2026-09-29",
+        "duration": "PT1M",
+        "inLanguage": "en",
+        "about": {
+          "@id": "https://www.lokalbot.com/#software"
+        },
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        }
       },
       {
         "@type": "FAQPage",
@@ -167,7 +201,8 @@
     </a>
     <nav class="nav__links" aria-label="Primary">
       <a href="#features">What it does</a>
-      <a href="#how">Demo</a>
+      <a href="#demo">Demo</a>
+      <a href="#how">How it works</a>
       <a href="#proof">Privacy</a>
       <a href="guides">Guides</a>
     </nav>
@@ -276,18 +311,35 @@
       </div>
     </section>
 
-    <section class="section home-demo" id="how" aria-labelledby="demo-title">
+    <section class="section home-demo" id="demo" aria-labelledby="demo-title">
       <header class="section__head">
         <p class="eyebrow">A quick look</p>
         <h2 class="section__title" id="demo-title">See it in action.</h2>
-        <p class="section__lead">A 30-second tour of recall, recording, and writing.</p>
+        <p class="section__lead">A 45-second tour: what LokalBot keeps, the local models that do the work, and the real app in use.</p>
       </header>
       <figure class="home-demo__video">
-        <video class="hero__demo" controls playsinline preload="none" poster="assets/screens/meetings-summary.png" width="1920" height="1080" aria-label="LokalBot 30-second app tour: recall, meeting recording, dictation, and autocomplete.">
-          <source src="assets/hero-demo.mp4" type="video/mp4" />
-          <p><a href="assets/hero-demo.mp4">Watch the 30-second LokalBot demo.</a></p>
+        <video class="hero__demo" controls playsinline preload="none" poster="assets/lokalbot-demo-poster.webp" width="1920" height="1080" aria-label="LokalBot 45-second demo: why it keeps your calls and, if you turn it on, what you saw on screen; the local models it runs; then Quick Recall, cited decisions, transcript search, Ask, Today, Timeline, and autocomplete.">
+          <source src="assets/lokalbot-demo.mp4" type="video/mp4" />
+          <track kind="captions" src="assets/lokalbot-demo.en.vtt" srclang="en" label="English" />
+          <p><a href="assets/lokalbot-demo.mp4">Watch the 45-second LokalBot demo.</a></p>
         </video>
-        <figcaption><a href="assets/hero-demo.mp4">Open the video</a> &middot; The examples above also explain what it does.</figcaption>
+        <figcaption>Real app, fictional demo data &middot; <a href="assets/lokalbot-demo.mp4">Open the video</a></figcaption>
+      </figure>
+    </section>
+
+    <section class="section home-demo" id="how" aria-labelledby="how-title">
+      <header class="section__head">
+        <p class="eyebrow">Under the hood</p>
+        <h2 class="section__title" id="how-title">How it works.</h2>
+        <p class="section__lead">A 60-second walk through the pipeline on your Mac: two-track capture, speaker separation, transcription, summaries, a local search index, opt-in screen text, and read-only agent access.</p>
+      </header>
+      <figure class="home-demo__video">
+        <video class="hero__demo" controls playsinline preload="none" poster="assets/lokalbot-how-it-works-poster.webp" width="1920" height="1080" aria-label="How LokalBot works in 60 seconds: microphone and meeting-app capture, Nemotron speaker separation, Qwen3-ASR transcription, Qwen3.5 summaries on the built-in llama.cpp server, a local SQLite library with keyword and semantic search, opt-in screen text, and read-only CLI and MCP access.">
+          <source src="assets/lokalbot-how-it-works.mp4" type="video/mp4" />
+          <track kind="captions" src="assets/lokalbot-how-it-works.en.vtt" srclang="en" label="English" />
+          <p><a href="assets/lokalbot-how-it-works.mp4">Watch how LokalBot works in 60 seconds.</a></p>
+        </video>
+        <figcaption><a href="assets/lokalbot-how-it-works.mp4">Open the video</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/blob/master/DEVELOPMENT.md" target="_blank" rel="noopener">Technical deep dive</a> &middot; <a href="benchmarks">Model benchmarks</a></figcaption>
       </figure>
     </section>
 
@@ -367,7 +419,8 @@
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="#features">What it does</a>
-      <a href="#how">Watch the demo</a>
+      <a href="#demo">Watch the demo</a>
+      <a href="#how">How it works</a>
       <a href="guides">Guides</a>
       <a href="enshittification-proof">Keeping your data</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg">Download for Mac</a>
