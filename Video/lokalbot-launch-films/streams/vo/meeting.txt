@@ -1,0 +1,1 @@
+Agreed on Redis. Open question: do we need cluster mode from day one?

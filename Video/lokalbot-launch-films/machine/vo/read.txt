@@ -1,0 +1,7 @@
+You say it in a meeting.
+Qwen three A S R writes it down, right on your Mac.
+Nemotron works out who said it.
+Qwen three point five pulls out the decisions and the follow-ups.
+Each one leads back to the moment it was said.
+Search brings it back, next to what you saw on screen, if you turn that on.
+LocalBot. No bot in the call, no account. Free and open source.

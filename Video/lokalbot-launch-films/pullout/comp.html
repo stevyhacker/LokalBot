@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LokalBot · the pull-out</title>
+<style>
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#fcfcfc}
+#c{position:absolute;left:0;top:0;width:1920px;height:1080px}
+#hud{position:absolute;right:14px;bottom:10px;font:13px monospace;color:#c00;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<img id="today" src="../../../Assets/screenshots/today.png" alt="" style="display:none">
+<img id="icon" src="../../lokalbot-readme-45s/assets/lokalbot-icon.svg" alt="" style="display:none">
+<script src="motion.js"></script>
+<script src="look.js"></script>
+<script src="timeline.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// CONCEPT — the pull-out. One take, pulling out, nothing replaced: every frame contains the last.
+//   a waveform bar (the spoken "Thursday") → the transcript moment card → the 00:00:26 citation chip it folds
+//   into → the action item on Today → the LokalBot window → the desktop, whose screen text lights up →
+//   Quick Recall drops in and finds the same moment → its waveform icon becomes the app icon → the name.
+// Look: the product's own light theme (look.json from today.png + Quick Recall). UI text is the system face
+// (SF, as the app); the name and tagline are Instrument Serif / Inter from look.js.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+const TLd = window.TL, DUR = TLd.dur, FPS = 30;
+const {clamp, lerp, sstep, ssstep, seg, spring} = OM, E = OM.ease;
+const VO = TLd.vo, MEET = TLd.meet;
+// absolute start of a word in a VO line, found by its text (n-th match; -1 = last), so a new take keeps its beats
+const wd = (line, w, n = 0) => { const m = VO[line - 1].words.filter(x => x[0].toLowerCase().replace(/[^a-z0-9]/g, '') === w);
+  const x = n < 0 ? m[m.length + n] : m[n]; if (!x) throw new Error(`no "${w}" in VO line ${line}`); return x[1]; };
+const C = LOOK.color;                                                    // ground deep card line mute ink accent accent2
+const ACC = C.accent, INK = C.ink, MUTE = C.mute;
+const SYS = '-apple-system, "SF Pro Text", system-ui, sans-serif';
+const font = (w, px) => `${w} ${px}px ${SYS}`;
+
+// ─────────────────────────────── beats (absolute seconds; each names the word it sits on) ───────────────────────────────
+const T = {
+  PULL1: [0.55, 2.85],                      // bar → card, while "I'll draft the eviction-policy doc by Thursday" plays
+  THU:   wd(1, 'thursday'),                        // "Thursday" in "You promised Thursday." — the word is punched
+  MAC:   wd(2, 'mac'),                        // "Mac" — recorded on this Mac
+  NOBOT: wd(2, 'bot', -1),                        // "bot" — no bot joined
+  ASR:   wd(2, 'call'),                       // "call" — the model chip
+  PULL2: [8.75, 10.45],                     // card → the action row (the chip holds the card)
+  FOLD:  [wd(3, 'linked') - 0.02, wd(3, 'linked') + 0.48],   // "linked": the card folds back into its chip
+  RING:  wd(3, 'moment'),                        // "moment": the chip glows
+  PULL3: [13.75, 15.0],                     // row → the Today window
+  TODAY: wd(4, 'to'),                        // "to-day"
+  PULL4: [16.25, 17.85],                    // window → the desktop
+  SWITCH: wd(5, 'text') + 0.08,                // "text," — the switch flips
+  SCAN:  [17.3, 18.45],                     // the screen text lights up
+  SAW:   wd(5, 'saw'),                        // "saw"
+  PILL_OUT: 19.35,
+  PUSH:  [21.1, 22.15],                     // desktop → Quick Recall
+  QR_IN: 21.35,
+  TYPE:  wd(6, 'search') - 0.02,                 // "search"
+  RES:   23.32,
+  ECHO:  23.95,                             // the Design review row: the same moment
+  END:   [25.45, 26.15],                    // its waveform icon becomes the app icon
+  NAME:  VO[6].t + 0.1,                     // "LocalBot."
+  TAG:   VO[6].t + 0.62,
+  FREE:  wd(7, 'free'),                        // "free"
+};
+
+// ─────────────────────────────── world ───────────────────────────────
+// The world is the desktop at zoom 1 (1920×1080). The LokalBot window is the README's today.png (2800×1760 at 2×) at 0.4 world/px.
+const LW = {x: 700, y: 200, k: 0.4, iw: 2800, ih: 1760};
+const img2w = (x, y) => [LW.x + x * LW.k, LW.y + y * LW.k];
+const box2w = (x0, y0, x1, y1, pad = 0) => { const [a, b] = img2w(x0, y0), [c, d] = img2w(x1, y1); return {x: a - pad, y: b - pad, w: c - a + 2 * pad, h: d - b + 2 * pad}; };
+const WIN = box2w(0, 0, 2800, 1760);
+const CHIP = Object.assign(box2w(974, 412, 1120, 437, 3), {r: 5});      // "💬 00:00:26" measured in today.png
+const ROW = box2w(700, 316, 2498, 466);                                    // the Needs Attention row
+const SIDE_TODAY = Object.assign(box2w(20, 104, 412, 167), {r: 8});
+const cen = b => [b.x + b.w / 2, b.y + b.h / 2];
+// the moment card: 1100×480 units at 0.2 world/unit, hanging under the chip
+const CU = 0.2, CARD = {w: 1100, h: 540};
+const CARD_W = {x: cen(CHIP)[0] - CARD.w * CU / 2, y: CHIP.y + CHIP.h + 8, w: CARD.w * CU, h: CARD.h * CU, r: 36 * CU};
+const u2w = (ux, uy) => [CARD_W.x + ux * CU, CARD_W.y + uy * CU];
+const NB = MEET.bars.length, BAR0 = 40, BAR1 = 1060, PITCH = (BAR1 - BAR0) / NB, BAR_Y = 238, BAR_H = 64;
+const HOOK_BAR = MEET.bars.indexOf(Math.max(...MEET.bars));
+const barX = i => BAR0 + PITCH * (i + 0.5);
+const PLAY = t => clamp((t - MEET.t) / MEET.dur, 0, 1);                  // playhead 0→1 over the meeting line
+// other windows on the desktop (screen text sources: the seeded screen moments)
+const FW = {x: 60, y: 76, w: 600, h: 350};        // browser: Pull request #42 — caching
+const SW = {x: 110, y: 468, w: 560, h: 440};      // chat: #engineering
+// Quick Recall: 660×512 pt at 1.5 world/pt, centred on the desktop
+const QS = 1.5, QR = {w: 660 * QS, h: 512 * QS}; QR.x = 960 - QR.w / 2; QR.y = 548 - QR.h / 2;
+const q2w = (x, y) => [QR.x + x * QS, QR.y + y * QS];
+
+// ─────────────────────────────── camera: screen-keyed, log zoom ───────────────────────────────
+// Each leg zooms about an anchor A while A's screen offset eases to where the next level is centred.
+const Z0 = 230, ZC = 7.5, ZR = 2.6, ZW = 1.3, ZD = 0.78, ZQ = 1.3;
+const HOOK = u2w(barX(HOOK_BAR), BAR_Y), CARDC = cen(CARD_W), ROWC = cen(ROW), WINC = cen(WIN), DESKC = [960, 540];
+const LEGS = [];
+(function buildLegs() {
+  let F = HOOK.slice(), z = Z0;
+  const leg = (t0, t1, A, z1, F1, curve = E.cubicInOut) => {
+    LEGS.push({t0, t1, A, z0: z, z1, o0: [(A[0] - F[0]) * z, (A[1] - F[1]) * z], o1: [(A[0] - F1[0]) * z1, (A[1] - F1[1]) * z1], curve, F0: F.slice()});
+    F = F1.slice(); z = z1;
+  };
+  leg(...T.PULL1, HOOK, ZC, CARDC, E.cubicInOut);
+  leg(...T.PULL2, cen(CHIP), ZR, ROWC);
+  leg(...T.PULL3, ROWC, ZW, WINC);
+  leg(...T.PULL4, WINC, ZD, DESKC);
+  leg(...T.PUSH, DESKC, ZQ, [960, 548]);
+})();
+function camAt(t) {
+  let c = {x: HOOK[0], y: HOOK[1], zoom: Z0, rot: 0};
+  for (const L of LEGS) {
+    if (t < L.t0) break;
+    const e = L.curve(seg(t, L.t0, L.t1)), z = Math.exp(lerp(Math.log(L.z0), Math.log(L.z1), e));
+    const ox = lerp(L.o0[0], L.o1[0], e), oy = lerp(L.o0[1], L.o1[1], e);
+    c = {x: L.A[0] - ox / z, y: L.A[1] - oy / z, zoom: z, rot: 0};
+  }
+  return c;
+}
+
+// ─────────────────────────────── canvas ───────────────────────────────
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+let DPR = 1, CAM, VIEW;
+function sizeCanvas() { DPR = window.devicePixelRatio || 1; cv.width = Math.round(1920 * DPR); cv.height = Math.round(1080 * DPR); }
+const mat = M => g.setTransform(M[0] * DPR, M[1] * DPR, M[2] * DPR, M[3] * DPR, M[4] * DPR, M[5] * DPR);
+const screen = () => g.setTransform(DPR, 0, 0, DPR, 0, 0);
+function rr(x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function shadow(blurW, dyW, a) { const s = CAM.zoom * DPR; g.shadowColor = `rgba(12,20,28,${a})`; g.shadowBlur = Math.min(blurW * s, 200 * DPR); g.shadowOffsetY = Math.min(dyW * s, 80 * DPR); g.shadowOffsetX = 0; }
+const noShadow = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
+function txt(s, x, y, f, col, align = 'left', base = 'alphabetic') { g.font = f; g.fillStyle = col; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
+// text with runs: [[str, font, colour], …] from x on one baseline; returns the x after it
+function runs(list, x, y) { for (const [s, f, col] of list) { g.font = f; g.fillStyle = col; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(s, x, y); x += g.measureText(s).width; } return x; }
+const onScreenScale = () => CAM.zoom;           // world px → screen px
+
+// ─────────────────────────────── the moment card (units, drawn under the world matrix) ───────────────────────────────
+let WORDS = [];                                  // measured in __ready: [{s, x, w, t}]
+function cardContent(t, alpha) {
+  // header
+  g.globalAlpha = alpha;
+  txt('Design review', 40, 78, font(600, 34), INK);
+  const hw = (g.font = font(500, 30), g.measureText('00:00:26').width);
+  txt('00:00:26', 1060, 78, font(500, 30), ACC, 'right');
+  quoteIcon(1060 - hw - 44, 56, 30, ACC);
+  txt('Zoom · Today', 40, 118, font(450, 24), MUTE);
+  // waveform
+  const k = PLAY(t), live = rmsAt(t);
+  for (let i = 0; i < NB; i++) {
+    const x = barX(i), played = (i + 0.5) / NB <= k;
+    const cur = Math.abs((i + 0.5) / NB - k) < 0.8 / NB && t > MEET.t && t < MEET.end;
+    const h = BAR_H * MEET.bars[i] * (cur ? 0.9 + 0.35 * live : 1);
+    g.fillStyle = played ? ACC : '#d3dad8';
+    rr(x - 4, BAR_Y - h, 8, 2 * h, 4); g.fill();
+  }
+  if (t > MEET.t - 0.2) {                        // playhead
+    const px = lerp(BAR0, BAR1, k);
+    g.globalAlpha = alpha * (1 - sstep(MEET.end + 0.6, MEET.end + 1.0, t));
+    g.fillStyle = INK; g.fillRect(px - 1.2, BAR_Y - 78, 2.4, 156); g.beginPath(); g.arc(px, BAR_Y - 80, 5, 0, 7); g.fill();
+    g.globalAlpha = alpha;
+  }
+  // transcript: words arrive as they are spoken (live transcription)
+  txt('You', 40, 352, font(600, 26), ACC);
+  WORDS.forEach((w, i) => {
+    const r = OM.wordRise(t, w.t, {dist: 16, zeta: 0.7, omega: 26});
+    if (t < w.t) return;
+    const isThu = i === WORDS.length - 1;
+    if (isThu) {                                 // the promise: highlighted as the narrator says it
+      const k2 = spring(t - T.THU + 0.05, 0.55, 22), im = OM.impact(t, T.THU, {sqx: 0.08, sqy: 0.1});
+      if (k2 > 0) { g.globalAlpha = alpha * clamp(k2, 0, 1) * 0.18; g.fillStyle = ACC; rr(w.x - 8, 372, w.w + 16, 60 * clamp(k2, 0, 1.05), 10); g.fill(); g.globalAlpha = alpha; }
+      g.save(); g.translate(w.x + w.w / 2, 418); g.scale(im.sx, im.sy); g.translate(-(w.x + w.w / 2), -418);
+      g.globalAlpha = alpha * r.op; txt(w.s, w.x, 418 + r.y, font(650, 42), t >= T.THU ? ACC : INK); g.restore(); g.globalAlpha = alpha;
+    } else { g.globalAlpha = alpha * r.op; txt(w.s, w.x, 418 + r.y, font(500, 42), INK); g.globalAlpha = alpha; }
+  });
+  // footer: recorded here, no bot, the model that heard it
+  const f1 = OM.wordRise(t, T.MAC - 0.12, {dist: 14}), f2 = OM.wordRise(t, T.NOBOT - 0.1, {dist: 14}), f3 = OM.popIn(t, T.ASR - 0.15, {rise: 10});
+  g.globalAlpha = alpha * f1.op; g.fillStyle = ACC; g.beginPath(); g.arc(48, 491 + f1.y, 7, 0, 7); g.fill();
+  txt('Recorded on this Mac', 64, 500 + f1.y, font(500, 26), INK);
+  g.globalAlpha = alpha * f2.op; txt('·  no bot joined', 334, 500 + f2.y, font(450, 26), MUTE);
+  g.globalAlpha = alpha * f3.op;
+  g.save(); g.translate(1060, 491 + f3.dy); g.scale(f3.s, f3.s);
+  g.font = font(600, 24); const cw = g.measureText('Qwen3-ASR 1.7B').width + 36;
+  g.strokeStyle = ACC; g.lineWidth = 2; rr(-cw, -22, cw, 44, 22); g.stroke(); txt('Qwen3-ASR 1.7B', -cw / 2, 8, font(600, 24), ACC, 'center');
+  g.restore();
+  g.globalAlpha = 1;
+}
+function quoteIcon(x, y, s, col) { g.strokeStyle = col; g.lineWidth = s * 0.09; rr(x, y, s, s * 0.78, s * 0.2); g.stroke(); g.fillStyle = col; g.fillRect(x + s * 0.28, y + s * 0.3, s * 0.1, s * 0.2); g.fillRect(x + s * 0.55, y + s * 0.3, s * 0.1, s * 0.2); }
+function rmsAt(t) { const i = Math.floor((t - MEET.t) * 60); return i >= 0 && i < MEET.rms60.length ? MEET.rms60[i] : 0; }
+
+function drawCard(t) {
+  if (t >= T.FOLD[1] + 0.02) return;
+  const k = E.cubicInOut(seg(t, ...T.FOLD));
+  const B = OM.morphRect(t, ...T.FOLD, CARD_W, CHIP, {curve: E.cubicInOut});
+  const body = 1 - sstep(0.88, 1, k);
+  noShadow();
+  if (k < 0.9) { shadow(9, 3, 0.16 * (1 - k)); }
+  g.globalAlpha = body; g.fillStyle = '#ffffff'; rr(B.x, B.y, B.w, B.h, lerp(CARD_W.r, CHIP.r, k)); g.fill(); noShadow();
+  g.strokeStyle = C.line; g.lineWidth = 0.25; g.stroke();
+  // the little arrow up to the chip
+  if (k < 0.3) { g.fillStyle = '#ffffff'; g.beginPath(); const ax = cen(CHIP)[0]; g.moveTo(ax - 4, B.y + 0.2); g.lineTo(ax, B.y - 4.5); g.lineTo(ax + 4, B.y + 0.2); g.fill(); }
+  g.globalAlpha = 1;
+  const content = 1 - sstep(0.4, 0.75, k);          // the moment shrinks into its citation before it fades
+  if (content > 0.01) {
+    g.save(); const sx = B.w / (CARD.w * CU), sy = B.h / (CARD.h * CU), su = Math.min(sx, sy);
+    rr(B.x, B.y, B.w, B.h, lerp(CARD_W.r, CHIP.r, k)); g.clip();
+    g.transform(CU * su, 0, 0, CU * su, B.x + (B.w - CARD.w * CU * su) / 2, B.y + (B.h - CARD.h * CU * su) / 2); rr(0, 0, CARD.w, CARD.h, 36); g.clip();
+    cardContent(t, content); g.restore();
+  }
+}
+
+// ─────────────────────────────── desktop ───────────────────────────────
+const SCANBOX = [];   // text lines the scan finds: {x, y, w, h}
+function wallpaper() {
+  const gr = g.createLinearGradient(0, 0, 1920, 1080); gr.addColorStop(0, '#dfeae7'); gr.addColorStop(0.55, '#eef0ec'); gr.addColorStop(1, '#f3ece2');
+  g.fillStyle = gr; rr(0, 0, 1920, 1080, 22); g.fill();
+  const r1 = g.createRadialGradient(1500, 880, 20, 1500, 880, 760); r1.addColorStop(0, 'rgba(12,132,116,0.12)'); r1.addColorStop(1, 'rgba(12,132,116,0)');
+  g.fillStyle = r1; g.fillRect(0, 0, 1920, 1080);
+  // menu bar
+  g.fillStyle = 'rgba(255,255,255,0.72)'; g.fillRect(0, 0, 1920, 30);
+  txt('LokalBot', 26, 21, font(700, 14), INK); txt('File    Edit    View    Window    Help', 112, 21, font(450, 14), INK);
+  txt('Mon Sep 28   9:41', 1894, 21, font(500, 14), INK, 'right');
+  g.fillStyle = ACC; rr(1720, 8, 16, 14, 4); g.fill();
+}
+function chrome(W, title) {
+  shadow(26, 12, 0.22); g.fillStyle = '#ffffff'; rr(W.x, W.y, W.w, W.h, 12); g.fill(); noShadow();
+  g.strokeStyle = 'rgba(0,0,0,0.08)'; g.lineWidth = 1; g.stroke();
+  g.save(); rr(W.x, W.y, W.w, W.h, 12); g.clip();
+  g.fillStyle = '#f4f4f3'; g.fillRect(W.x, W.y, W.w, 38); g.fillStyle = '#e6e6e4'; g.fillRect(W.x, W.y + 38, W.w, 1);
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { g.fillStyle = c; g.beginPath(); g.arc(W.x + 20 + i * 20, W.y + 19, 6, 0, 7); g.fill(); });
+  txt(title, W.x + W.w / 2, W.y + 24, font(600, 13), '#4b4b49', 'center');
+  g.restore();
+}
+function wrap(s, maxW, f) { g.font = f; const out = []; let line = ''; for (const w of s.split(' ')) { const n = line ? line + ' ' + w : w; if (g.measureText(n).width > maxW && line) { out.push(line); line = w; } else line = n; } if (line) out.push(line); return out; }
+function browserWin() {
+  const W = FW; chrome(W, 'Pull request #42 — caching');
+  g.save(); rr(W.x, W.y, W.w, W.h, 12); g.clip();
+  g.fillStyle = '#ecefee'; rr(W.x + 150, W.y + 48, W.w - 300, 24, 8); g.fill();
+  txt('Pull request #42 — caching', W.x + 28, W.y + 112, font(700, 24), INK);
+  const f = font(450, 17), L = wrap('Redis caching layer review. Benchmark failover latency before enabling cluster mode.', W.w - 56, f);
+  L.forEach((s, i) => { txt(s, W.x + 28, W.y + 150 + i * 26, f, '#2b2f2e'); SCANBOX.push(lineBox(s, W.x + 28, W.y + 150 + i * 26, f)); });
+  // a diff
+  const rows = [['#e6f4ea', 0.72], ['#e6f4ea', 0.55], ['#fbe9e9', 0.64], ['#e6f4ea', 0.8], ['#f3f3f2', 0.5]];
+  rows.forEach(([c, w], i) => { g.fillStyle = c; g.fillRect(W.x + 28, W.y + 218 + i * 22, (W.w - 56), 18); g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(W.x + 44, W.y + 225 + i * 22, (W.w - 90) * w, 4); });
+  g.restore();
+}
+function chatWin() {
+  const W = SW; chrome(W, '#engineering');
+  g.save(); rr(W.x, W.y, W.w, W.h, 12); g.clip();
+  g.fillStyle = '#f6f5f3'; g.fillRect(W.x, W.y + 39, 150, W.h - 39);
+  ['# general', '# engineering', '# design', '# search'].forEach((s, i) => { if (i === 1) { g.fillStyle = 'rgba(12,132,116,0.14)'; rr(W.x + 8, W.y + 56 + i * 30, 134, 24, 6); g.fill(); } txt(s, W.x + 18, W.y + 73 + i * 30, font(i === 1 ? 600 : 450, 14), i === 1 ? INK : '#6e6e6b'); });
+  const msg = (y, name, lines, real) => {
+    g.fillStyle = real ? '#7aa6d8' : '#d9d6cf'; rr(W.x + 168, y, 34, 34, 8); g.fill();
+    txt(name, W.x + 214, y + 13, font(700, 14), INK);
+    const f = font(450, 16);
+    if (real) { wrap(lines, W.w - 236, f).forEach((s, i) => { txt(s, W.x + 214, y + 36 + i * 23, f, '#26292a'); SCANBOX.push(lineBox(s, W.x + 214, y + 36 + i * 23, f)); }); }
+    else lines.forEach((w, i) => { g.fillStyle = '#e2e0db'; g.fillRect(W.x + 214, y + 26 + i * 20, (W.w - 250) * w, 9); });
+  };
+  msg(W.y + 62, 'Design', [0.8, 0.55], false);
+  msg(W.y + 150, 'Search team', 'Redis failover benchmark is booked for Thursday with the search team’s load harness.', true);
+  msg(W.y + 262, 'Infra', [0.66, 0.4], false);
+  g.fillStyle = '#ffffff'; g.strokeStyle = '#dcdad5'; g.lineWidth = 1; rr(W.x + 168, W.y + W.h - 58, W.w - 188, 38, 8); g.fill(); g.stroke();
+  txt('Message #engineering', W.x + 182, W.y + W.h - 33, font(450, 14), '#9a9893');
+  g.restore();
+}
+function lineBox(s, x, y, f) { g.font = f; const w = g.measureText(s).width, px = parseFloat(f.split(' ')[1]); return {x: x - 4, y: y - px * 0.9, w: w + 8, h: px * 1.25}; }
+function lokalWin(t) {
+  const im = document.getElementById('today');
+  shadow(30, 14, 0.24); g.fillStyle = '#ffffff'; rr(WIN.x, WIN.y, WIN.w, WIN.h, 12); g.fill(); noShadow();
+  g.save(); rr(WIN.x, WIN.y, WIN.w, WIN.h, 12); g.clip();
+  g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  // depth of field: while the camera is inside the card, the window behind it is out of focus and washed
+  const dof = clamp((CAM.zoom - 2.8) / 4.5, 0, 1);
+  if (dof > 0) g.filter = `blur(${(dof * 7 * DPR).toFixed(2)}px)`;
+  g.drawImage(im, WIN.x, WIN.y, WIN.w, WIN.h); g.filter = 'none';
+  if (dof > 0) { g.fillStyle = `rgba(252,252,252,${(0.62 * dof).toFixed(3)})`; g.fillRect(WIN.x, WIN.y, WIN.w, WIN.h); }
+  // the chip lights when the card lands in it; the ring on "moment"
+  const p = OM.press(t, T.FOLD[1], {depth: 0.12, flash: 0.5});
+  if (t >= T.FOLD[1] - 0.01) {
+    const fl = Math.exp(-(t - T.FOLD[1]) * 3.2);
+    g.globalAlpha = 0.22 * fl + 0.1 * (1 - fl) * (1 - sstep(T.PULL3[0], T.PULL3[1], t));
+    g.fillStyle = ACC; const cx = cen(CHIP); g.save(); g.translate(cx[0], cx[1]); g.scale(p.s, p.s); rr(-CHIP.w / 2, -CHIP.h / 2, CHIP.w, CHIP.h, CHIP.r); g.fill(); g.restore(); g.globalAlpha = 1;
+  }
+  g.restore();
+  g.strokeStyle = 'rgba(0,0,0,0.10)'; g.lineWidth = 1 / CAM.zoom; rr(WIN.x, WIN.y, WIN.w, WIN.h, 12); g.stroke();
+  glowRing(CHIP, t, T.RING - 0.05, T.RING + 0.9, 3);
+  glowRing(SIDE_TODAY, t, T.TODAY - 0.1, T.TODAY + 1.05, 4);
+}
+function glowRing(B, t, t0, t1, pad) {
+  const a = sstep(t0, t0 + 0.22, t) * (1 - sstep(t1 - 0.3, t1, t)); if (a <= 0.001) return;
+  const grow = 1 + 0.06 * (1 - spring(t - t0, 0.55, 18));
+  const cx = B.x + B.w / 2, cy = B.y + B.h / 2, w = (B.w + 2 * pad) * grow, h = (B.h + 2 * pad) * grow;
+  g.save(); g.globalAlpha = a; g.shadowColor = 'rgba(12,132,116,0.55)'; g.shadowBlur = 10 * DPR * Math.min(CAM.zoom, 3);
+  g.strokeStyle = ACC; g.lineWidth = 2.2 / Math.min(CAM.zoom, 3) * 1.6; rr(cx - w / 2, cy - h / 2, w, h, (B.r || 6) + pad); g.stroke(); g.restore();
+}
+function scanLight(t) {
+  if (t < T.SCAN[0]) return;
+  const sx = lerp(-80, 2000, E.cubicInOut(seg(t, ...T.SCAN)));
+  const fade = 1 - sstep(T.PUSH[0] - 0.2, T.PUSH[0] + 0.4, t);
+  if (t < T.SCAN[1] + 0.3) {                     // the band
+    const gr = g.createLinearGradient(sx - 160, 0, sx + 20, 0); gr.addColorStop(0, 'rgba(12,132,116,0)'); gr.addColorStop(0.85, 'rgba(12,132,116,0.16)'); gr.addColorStop(1, 'rgba(12,132,116,0.5)');
+    g.save(); rr(0, 0, 1920, 1080, 22); g.clip(); g.fillStyle = gr; g.globalAlpha = 1 - sstep(T.SCAN[1] - 0.1, T.SCAN[1] + 0.3, t); g.fillRect(sx - 160, 30, 180, 1050); g.restore();
+  }
+  const pulse = 1 + 0.5 * Math.exp(-Math.max(0, t - T.SAW) * 4) * (t >= T.SAW ? 1 : 0);
+  for (const b of SCANBOX) {
+    const k = spring(t - (T.SCAN[0] + (b.x + 80) / 2080 * (T.SCAN[1] - T.SCAN[0])), 0.7, 20); if (k <= 0) continue;
+    g.globalAlpha = fade * clamp(k, 0, 1);
+    g.fillStyle = `rgba(12,132,116,${0.12 * pulse})`; rr(b.x, b.y, b.w * clamp(k, 0, 1.03), b.h, 4); g.fill();
+    g.strokeStyle = ACC; g.lineWidth = 1.4; g.stroke(); g.globalAlpha = 1;
+  }
+}
+
+// ─────────────────────────────── Quick Recall (pt layout from the real panel, query "Thursday") ───────────────────────────────
+const QROWS = [
+  {sec: 'Screens', y: 122, title: 'Redis benchmark decision', text: ['Redis failover benchmark is booked for ', 'Thursday', ' with the search team’s load harness.'], meta: 'Slack  ·  Today  ·  11:26 AM', sel: true},
+  {sec: 'Meetings', y: 232, title: 'Design review', text: ['I’ll draft the eviction-policy doc by ', 'Thursday', '.'], meta: 'Zoom  ·  Transcript  ·  Today'},
+  {y: 306, title: 'Engineering standup', text: ['Also scheduling the Redis failover benchmark for ', 'Thursday', ' morning.'], meta: 'Slack  ·  Transcript  ·  Today'},
+  {y: 380, title: '1:1 with Maya', text: ['Let’s rotate you into the ', 'Thursday', ' design reviews starting next week.'], meta: 'FaceTime  ·  Transcript  ·  Fri'},
+];
+const QICON = i => ({x: q2w(34, QROWS[i].y + 10)[0], y: q2w(34, QROWS[i].y + 10)[1], w: 40 * QS, h: 40 * QS, r: 9 * QS});
+function waveGlyph(cx, cy, s, col) { const hs = [0.35, 0.7, 1, 0.55, 0.85, 0.45, 0.3]; g.fillStyle = col; hs.forEach((h, i) => { const x = cx + (i - 3) * s * 0.16; rr(x - s * 0.045, cy - h * s * 0.36, s * 0.09, h * s * 0.72, s * 0.045); g.fill(); }); }
+function quickRecall(t) {
+  if (t < T.QR_IN - 0.05 || t > T.END[0] + 0.5) return;
+  const pin = OM.popIn(t, T.QR_IN, {rise: 60, s0: 0.96, zeta: 0.72, omega: 17});
+  const fadeOut = 1 - sstep(T.END[0], T.END[0] + 0.35, t);
+  g.save(); g.globalAlpha = pin.op * fadeOut;
+  g.translate(960, 548 + pin.dy); g.scale(pin.s, pin.s); g.translate(-960, -548);
+  shadow(40, 18, 0.28); g.fillStyle = '#ffffff'; rr(QR.x, QR.y, QR.w, QR.h, 16 * QS); g.fill(); noShadow();
+  g.strokeStyle = 'rgba(0,0,0,0.09)'; g.lineWidth = 1; g.stroke();
+  g.translate(QR.x, QR.y); g.scale(QS, QS);                         // now in pt
+  rr(0, 0, 660, 512, 16); g.clip();
+  // search field
+  g.strokeStyle = ACC; g.lineWidth = 2.4; g.beginPath(); g.arc(24, 60, 8, 0, 7); g.stroke(); g.beginPath(); g.moveTo(30, 66); g.lineTo(36, 72); g.stroke();
+  g.beginPath(); g.moveTo(20.5, 60); g.lineTo(27.5, 60); g.moveTo(24, 56.5); g.lineTo(24, 63.5); g.lineWidth = 1.8; g.stroke();
+  const ty = OM.typeOn(t, T.TYPE, 'Thursday', {cps: 13});
+  txt(ty.str, 46, 70, font(400, 22), INK);
+  if (t >= T.QR_IN + 0.15) { g.font = font(400, 22); const cx = 46 + g.measureText(ty.str).width + 2; if (ty.caret) { g.fillStyle = ACC; g.fillRect(cx, 50, 1.6, 26); } }
+  if (!ty.str) txt('Search meetings and screens', 46, 70, font(400, 22), '#b3b3b0');
+  g.fillStyle = '#9d9d9a'; g.beginPath(); g.arc(612, 61, 6.5, 0, 7); g.fill(); g.strokeStyle = '#9d9d9a'; g.lineWidth = 1.3; rr(632, 55, 11, 11, 2); g.stroke();
+  g.fillStyle = '#e6e6e4'; g.fillRect(0, 90, 660, 1);
+  // results
+  QROWS.forEach((r, i) => {
+    const e = OM.popIn(t, T.RES + i * 0.07, {rise: 10, zeta: 0.75, omega: 20});
+    if (t < T.RES + i * 0.07) return;
+    g.save(); g.globalAlpha *= e.op; g.translate(0, e.dy);
+    if (r.sec) txt(r.sec, 22, r.y - 9, font(600, 10), '#8c8c8a');
+    if (r.sel) { g.fillStyle = '#0e7f72'; rr(10, r.y, 623, 69, 10); g.fill();
+      g.fillStyle = '#1b2430'; rr(22, r.y + 15, 64, 39, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,0.35)'; for (let k = 0; k < 5; k++) g.fillRect(34, r.y + 22 + k * 6, 20 + (k * 13) % 26, 2); }
+    else { g.fillStyle = '#f1f1f0'; rr(34, r.y + 10, 40, 40, 9); g.fill(); waveGlyph(54, r.y + 30, 22, ACC); }
+    const fg = r.sel ? '#ffffff' : INK, mu = r.sel ? 'rgba(255,255,255,0.86)' : '#8b8b88';
+    txt(r.title, 98, r.y + 22, font(600, 12.5), fg);
+    runs([[r.text[0], font(400, 12), r.sel ? fg : '#7e7e7b'], [r.text[1], font(700, 12), fg], [r.text[2], font(400, 12), r.sel ? fg : '#7e7e7b']], 98, r.y + 40);
+    txt(r.meta, 98, r.y + 57, font(400, 10), mu);
+    if (!r.sel) { g.fillStyle = '#ececea'; g.fillRect(44, r.y + 66, 578, 1); }
+    g.restore();
+  });
+  // footer
+  g.globalAlpha *= sstep(T.RES, T.RES + 0.2, t);
+  g.fillStyle = '#e6e6e4'; g.fillRect(0, 450, 660, 1);
+  txt('↑↓ Navigate     ↩ Open', 20, 485, font(400, 10), '#8c8c8a');
+  g.fillStyle = '#f1f1f0'; rr(444, 462, 196, 23, 6); g.fill(); txt('✨  Ask about “Thursday”', 542, 478, font(500, 11), INK, 'center');
+  g.restore();
+  // the echo: the Design review row is the moment the film began with
+  const I = QICON(1), rowB = {x: q2w(22, 0)[0], y: q2w(0, QROWS[1].y + 2)[1], w: 616 * QS, h: 64 * QS, r: 10 * QS};
+  if (t < T.END[0]) glowRing(rowB, t, T.ECHO, T.END[0] + 0.25, 2);
+}
+
+// ─────────────────────────────── the end: the row's waveform icon becomes the app icon ───────────────────────────────
+const END_ICON = {x: 960 - 92, y: 360 - 92, w: 184, h: 184, r: 42};
+let TITLE_W = 0;
+function endCard(t) {
+  if (t < T.END[0]) return;
+  screen();
+  const bg = sstep(T.END[0] + 0.05, T.END[0] + 0.45, t);
+  g.fillStyle = `rgba(252,252,252,${bg})`; g.fillRect(0, 0, 1920, 1080);
+  const I = QICON(1), s0 = OM.projectBox(VIEW, I);
+  const A = {x: s0.x, y: s0.y, w: s0.w, h: s0.h, r: 9 * QS * CAM.zoom};
+  const B = OM.morphRect(t, ...T.END, A, END_ICON, {curve: E.expoInOut});
+  const k = B.k, ic = document.getElementById('icon');
+  g.save(); shadow(0, 0, 0); g.shadowColor = `rgba(12,20,28,${0.25 * k})`; g.shadowBlur = 40 * DPR * k; g.shadowOffsetY = 16 * DPR * k;
+  g.fillStyle = mixColor('#f1f1f0', '#18212c', sstep(0.2, 0.7, k)); rr(B.x, B.y, B.w, B.h, B.r); g.fill(); g.restore();
+  g.save(); rr(B.x, B.y, B.w, B.h, B.r); g.clip();
+  g.globalAlpha = 1 - sstep(0.35, 0.75, k); waveGlyph(B.x + B.w / 2, B.y + B.h / 2, B.w * 0.55, ACC);
+  g.globalAlpha = sstep(0.45, 0.9, k); const pad = B.w * 0.0715; g.drawImage(ic, B.x - pad, B.y - pad, B.w + 2 * pad, B.h + 2 * pad);
+  g.restore(); g.globalAlpha = 1;
+  // the name drops in, letter by letter; the tagline rises
+  const NAME = 'LokalBot'; g.font = LOOK.font('display', 150); g.letterSpacing = LOOK.track('display', 150);
+  let x = 960 - TITLE_W / 2;
+  [...NAME].forEach((ch, i) => { const d = OM.letterDrop(t, T.NAME, i, {stagger: 0.05});
+    const w = g.measureText(ch).width; if (d.op > 0) { g.save(); g.globalAlpha = d.op; g.translate(x + w / 2, 620 + d.y); g.scale(d.sx, d.sy); g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(ch, 0, 0); g.restore(); }
+    x += w; });
+  g.letterSpacing = '0px';
+  const tg = OM.wordRise(t, T.TAG, {dist: 18}); g.globalAlpha = tg.op;
+  txt('Find what you said or saw on your Mac.', 960, 706 + tg.y, LOOK.font('text', 40), INK, 'center');
+  const fr = OM.wordRise(t, T.FREE - 0.05, {dist: 12}); g.globalAlpha = fr.op;
+  txt('Free  ·  Open source  ·  Runs on your Mac', 960, 782 + fr.y, LOOK.font('text', 28, 600), ACC, 'center');
+  g.globalAlpha = 1;
+}
+function mixColor(a, b, k) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], k))).join(',')})`; }
+
+// ─────────────────────────────── the screen-space pill: the opt-in ───────────────────────────────
+function pill(t) {
+  const t0 = T.SWITCH - 0.55; if (t < t0 || t > T.PILL_OUT + 0.4) return;
+  screen();
+  const e = OM.popIn(t, t0, {rise: 24, zeta: 0.7, omega: 18}), o = OM.liftOut(t, T.PILL_OUT, {dist: 30, blur: 0});
+  g.save(); g.globalAlpha = e.op * o.op; g.translate(960, 62 + e.dy + o.dy); g.scale(e.s, e.s);
+  g.shadowColor = 'rgba(12,20,28,0.18)'; g.shadowBlur = 24 * DPR; g.shadowOffsetY = 8 * DPR;
+  g.fillStyle = '#ffffff'; rr(-230, -34, 460, 68, 34); g.fill(); g.shadowColor = 'transparent';
+  txt('Save screen text', -196, 11, font(600, 28), INK);
+  const on = spring(t - T.SWITCH, 0.62, 22), p = OM.press(t, T.SWITCH, {depth: 0.08});
+  g.fillStyle = mixColor('#d5d8d7', '#0c8474', clamp(on, 0, 1)); rr(106, -19, 76, 38, 19); g.fill();
+  g.fillStyle = '#ffffff'; g.shadowColor = 'rgba(0,0,0,0.25)'; g.shadowBlur = 4 * DPR; g.beginPath(); g.arc(125 + 38 * clamp(on, -0.05, 1.08), 0, 15 * p.s, 0, 7); g.fill();
+  g.restore();
+}
+
+// ─────────────────────────────── seek ───────────────────────────────
+function seek(t) {
+  CAM = camAt(t); VIEW = OM.view(CAM);
+  screen(); g.globalAlpha = 1; noShadow();
+  g.fillStyle = '#edf0ef'; g.fillRect(0, 0, 1920, 1080);                   // the ground around the desktop
+  if (CAM.zoom < 1.25) {                                                     // a far lattice, so the last pull reads
+    const L = OM.lattice(CAM, {depth: 1.2, spacing: 56, px: 1.6}); mat(L.matrix); g.fillStyle = '#d6dbd9';
+    for (let y = L.y0; y <= L.y1; y += L.spacing) for (let x = L.x0; x <= L.x1; x += L.spacing) { g.beginPath(); g.arc(x, y, L.r, 0, 7); g.fill(); }
+  }
+  mat(VIEW);
+  const cardB = t < T.FOLD[0] ? OM.projectBox(VIEW, CARD_W) : null;
+  const covered = cardB && cardB.x < -2 && cardB.y < -2 && cardB.x + cardB.w > 1922 && cardB.y + cardB.h > 1082;
+  if (!covered) {
+  shadow(40, 20, 0.18); g.fillStyle = '#ffffff'; rr(0, 0, 1920, 1080, 22); g.fill(); noShadow();
+  wallpaper(); SCANBOX.length = 0; browserWin(); chatWin(); lokalWin(t);
+  scanLight(t);
+  }
+  if (t > T.QR_IN - 0.1) { const dim = sstep(T.QR_IN - 0.1, T.QR_IN + 0.35, t) * (1 - sstep(T.END[0], T.END[0] + 0.3, t)); g.fillStyle = `rgba(20,26,28,${0.2 * dim})`; rr(0, 0, 1920, 1080, 22); g.fill(); }
+  drawCard(t);
+  quickRecall(t);
+  pill(t);
+  endCard(t);
+  document.getElementById('hud').textContent = 't=' + t.toFixed(3) + '  z=' + CAM.zoom.toFixed(2);
+  return Promise.resolve();
+}
+
+// ─────────────────────────────── probe / render / sound contract ───────────────────────────────
+window.__meta = {dur: DUR, fps: FPS, w: 1920, h: 1080,
+  inFrame: {card: [0.7, T.FOLD[0]], chip: [T.FOLD[1], T.PULL3[0]], qr: [T.RES, T.END[0]], mark: [T.NAME + 0.6, DUR, 'whole']}};
+function boxes(t) {
+  const c = camAt(t), V = OM.view(c), P = b => OM.projectBox(V, b);
+  const out = {};
+  if (t < T.FOLD[1]) { const B = OM.morphRect(t, ...T.FOLD, CARD_W, CHIP, {curve: E.cubicInOut}); out.card = P(B); }
+  if (t >= T.FOLD[1] && t < T.QR_IN) out.chip = P(CHIP);
+  if (t >= T.PULL2[1] && t < T.QR_IN) out.window = P(WIN);
+  if (t >= T.RES && t < T.END[0]) { out.qr = P(QR); out.icon = P(QICON(1)); }
+  if (t >= T.END[0]) { const I = QICON(1), s0 = OM.projectBox(V, I); out.icon = OM.morphRect(t, ...T.END, s0, END_ICON, {curve: E.expoInOut}); }
+  if (t >= T.NAME + 0.6) out.mark = {x: 960 - TITLE_W / 2, y: 500, w: TITLE_W, h: 150};
+  return out;
+}
+window.__track = t => { const b = boxes(t), o = {}; for (const [k, v] of Object.entries(b)) o[k] = {x: v.x, y: v.y, w: v.w, h: v.h, op: 1}; return o; };
+window.__motion = (t0, t1) => {
+  const tm = (t0 + t1) / 2; let d = OM.screenTravel(camAt(t0), camAt(t1), camAt(tm));
+  const A = boxes(t0), B = boxes(t1);
+  for (const k of Object.keys(A)) if (B[k]) d = Math.max(d, Math.abs(A[k].x - B[k].x) + Math.abs(A[k].w - B[k].w), Math.abs(A[k].y - B[k].y) + Math.abs(A[k].h - B[k].h));
+  return d;
+};
+window.__events = () => {
+  const ev = [], at = (t, kind, x = 960, v = 1) => ev.push({t: +t.toFixed(3), kind, pan: clamp((x - 960) / 960, -1, 1), v});
+  at(T.PULL1[0], 'pull', 960, 0.7); at(T.THU, 'punch'); at(T.MAC - 0.12, 'tick', 700, 0.5); at(T.NOBOT - 0.1, 'tick', 1100, 0.4); at(T.ASR - 0.15, 'pop', 1500, 0.6);
+  at(T.PULL2[0], 'pull', 960, 0.8); at(T.FOLD[0], 'fold', 960); at(T.FOLD[1], 'click', 800); at(T.RING, 'ring', 800, 0.6);
+  at(T.PULL3[0], 'pull', 960, 0.7); at(T.TODAY, 'ring', 500, 0.45); at(T.PULL4[0], 'pull', 960, 0.9);
+  at(T.SWITCH, 'switch', 1100); at(T.SCAN[0], 'scan', 0); at(T.SAW, 'tick', 400, 0.5);
+  at(T.PUSH[0], 'pull', 960, 0.6); at(T.QR_IN, 'drop'); const n = 'Thursday'.length; for (let i = 0; i < n; i++) at(T.TYPE + i / 13, 'key', 700 + i * 30, 0.6 + 0.4 * ((i * 7) % 3) / 2);
+  at(T.RES, 'results', 960); at(T.ECHO, 'ring', 900, 0.5); at(T.END[0], 'lift'); at(T.NAME, 'land'); at(T.FREE, 'tick', 960, 0.5);
+  return {T, events: ev.sort((a, b) => a.t - b.t)};
+};
+
+// ─────────────────────────────── ready ───────────────────────────────
+function decode(el) { return el.complete && el.naturalWidth ? Promise.resolve() : new Promise(r => { el.onload = r; el.onerror = r; }); }
+function measure() {
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.font = font(500, 42); const sp = g.measureText(' ').width;
+  const toks = MEET.text.split(' '); let x = 40, wi = 0;
+  WORDS = toks.map((s, i) => {
+    const last = i === toks.length - 1, t0 = MEET.words[Math.min(wi, MEET.words.length - 1)][1];
+    wi += s.split('-').length;                   // "eviction-policy" is two words to whisper
+    g.font = font(last ? 650 : 500, 42); const w = g.measureText(s).width;
+    const o = {s, x, w, t: t0}; g.font = font(500, 42); x += w + sp; return o;
+  });
+  g.font = LOOK.font('display', 150); g.letterSpacing = LOOK.track('display', 150); TITLE_W = g.measureText('LokalBot').width; g.letterSpacing = '0px';
+}
+window.__ready = Promise.all([LOOK.ready, document.fonts.ready, decode(document.getElementById('today')), decode(document.getElementById('icon'))])
+  .then(() => { sizeCanvas(); measure(); return seek(0); });
+window.__seek = async t => { await seek(t); return true; };
+const q = new URLSearchParams(location.search);
+if (q.has('hud')) document.getElementById('hud').style.display = 'block';
+if (q.has('t')) __ready.then(() => seek(parseFloat(q.get('t'))));
+if (q.has('play')) __ready.then(() => { const t0 = performance.now(); (function loop() { seek(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); });
+</script>
+</body>
+</html>
