@@ -245,7 +245,6 @@ final class AppState: ObservableObject {
         old.summarizerBackend != new.summarizerBackend
             || old.openAIBaseURL != new.openAIBaseURL || old.ollamaBaseURL != new.ollamaBaseURL
             || old.approvedRemoteInferenceOrigins != new.approvedRemoteInferenceOrigins
-            || old.approvedRemoteAutomationOrigins != new.approvedRemoteAutomationOrigins
     }
 
     // Navigation (main window): sidebar section and selected meeting.

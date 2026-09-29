@@ -63,9 +63,7 @@ struct ModelRemoteOverview: View {
                             Button("Revoke…") { revokingOrigin = origin }
                                 .accessibilityLabel("Revoke access to \(origin)")
                         }
-                        Toggle("Allow scheduled summaries and overnight review", isOn: automationApproval(origin))
-                            .accessibilityIdentifier("models.overview.automationConsent.\(origin)")
-                        Text("Scheduled runs can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.")
+                        Text("Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.")
                             .font(.scaled(.callout)).settingsSecondary()
                     }
                     if origin != app.settings.approvedRemoteInferenceOrigins.last { SettingsSeparator() }
@@ -78,22 +76,10 @@ struct ModelRemoteOverview: View {
             Button("Revoke Access", role: .destructive) {
                 guard let origin = revokingOrigin else { return }
                 app.settings.approvedRemoteInferenceOrigins.removeAll { $0 == origin }
-                app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin }
                 revokingOrigin = nil
             }
         } message: {
             Text("This also revokes scheduled processing for this origin. Any model using it will require approval again.")
-        }
-    }
-
-    private func automationApproval(_ origin: String) -> Binding<Bool> {
-        Binding {
-            app.settings.approvedRemoteAutomationOrigins.contains(origin)
-        } set: { approved in
-            app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin }
-            if approved && app.settings.approvedRemoteInferenceOrigins.contains(origin) {
-                app.settings.approvedRemoteAutomationOrigins.append(origin)
-            }
         }
     }
 }

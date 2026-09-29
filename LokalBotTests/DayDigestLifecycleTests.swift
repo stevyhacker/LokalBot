@@ -36,36 +36,29 @@ final class DayDigestLifecycleTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: lifecycle.journalURL(for: legacy).path))
     }
 
-    func testScheduledDigestNeedsAutomationApprovalButManualRunKeepsGeneralConsent() async throws {
+    func testScheduledDigestRunsOnlyAfterTheRemoteOriginIsApproved() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("digest-consent-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
         let now = try date("2026-08-23T19:00:00Z")
         var settings = AppSettings()
         settings.summarizerBackend = .openAICompatible
         settings.openAIBaseURL = "https://remote.example/v1"
-        settings.approvedRemoteInferenceOrigins = ["https://remote.example"]
         let unexpected = expectation(description: "No unattended request before approval")
         unexpected.isInverted = true
         let approved = expectation(description: "Approved scheduled request")
-        var manual = false
         let lifecycle = DayDigestLifecycle(
             storageRoot: root, calendar: calendar,
             scheduler: DayDigestScheduler(calendar: calendar, now: { now }),
             blocks: { _ in [ActivityBlock(id: 1, app: "Notes", title: "Work", start: now.addingTimeInterval(-60), end: now)] },
             screenContexts: { _ in [] }, meetings: { [] }, latestActivityEvidenceAt: { _ in now },
             settings: { settings }, generator: { _, _, _ in
-                if !manual {
-                    if settings.approvedRemoteAutomationOrigins.isEmpty { unexpected.fulfill() } else { approved.fulfill() }
-                }
+                if settings.approvedRemoteInferenceOrigins.isEmpty { unexpected.fulfill() } else { approved.fulfill() }
                 return DayDigestGenerationResult(text: "fixture", url: root.appendingPathComponent("journal.md"), quality: .complete)
             })
         lifecycle.configureAutomaticGeneration(.init(enabled: true, hour: 18), canRun: { true }, onError: { XCTFail($0) })
         await fulfillment(of: [unexpected], timeout: 0.15)
         lifecycle.stopAutomaticGeneration()
-        manual = true
-        _ = try await lifecycle.generate(for: now)
-        manual = false
-        settings.approvedRemoteAutomationOrigins = ["https://remote.example"]
+        settings.approvedRemoteInferenceOrigins = ["https://remote.example"]
         lifecycle.configureAutomaticGeneration(.init(enabled: true, hour: 18), canRun: { true }, onError: { XCTFail($0) })
         await fulfillment(of: [approved], timeout: 2)
         lifecycle.stopAutomaticGeneration()

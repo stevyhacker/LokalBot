@@ -137,11 +137,11 @@ The app may make these outbound connections:
   and, when enabled, the invitation agenda; each has its own setting.
   Follow-up drafts and pre-meeting briefs are written only by an on-device
   Think model.
-  Scheduled daily summaries and overnight Dream runs require a separate approval
-  for that exact remote origin in Models settings. They may send activity titles,
-  captured screen text, meeting evidence, and retained Dream memory without a
-  prompt each time. This unattended approval is off for new and migrated settings;
-  changing or revoking the server approval cancels pending scheduled work.
+  The same origin approval covers scheduled daily summaries and overnight Dream
+  runs, which may send activity titles, captured screen text, meeting evidence,
+  and retained Dream memory without a prompt each time. Missed runs catch up
+  for at most the last seven days. Changing or revoking the server approval
+  cancels pending scheduled work.
 - **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime.
   Commands you approve can read files or access the network with your macOS
   user permissions; their destinations and data handling are outside

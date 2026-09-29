@@ -286,20 +286,13 @@ struct ModelConnectionsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Remote processing · \(url.host ?? origin)", systemImage: "network")
                         .font(AppFont.scaled(.body).weight(.semibold))
-                    Text("Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features.")
+                    Text("Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.")
                         .workspaceTextRole(.trust)
                         .fixedSize(horizontal: false, vertical: true)
                     Toggle("Allow sending context to \(origin)",
                            isOn: remoteApprovalBinding(rawURL: rawURL))
                         .font(AppFont.scaled(.body))
                         .accessibilityIdentifier("models.remoteConsent")
-                    Toggle("Allow scheduled daily summaries and overnight review to send context to \(origin)",
-                           isOn: remoteAutomationApprovalBinding(rawURL: rawURL))
-                        .font(AppFont.scaled(.body))
-                        .disabled(!app.settings.approvedRemoteInferenceOrigins.contains(origin))
-                        .accessibilityIdentifier("models.remoteAutomationConsent")
-                    Text("Scheduled runs can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time. This approval applies only to this server origin.")
-                        .workspaceTextRole(.trust)
                     if connection == .openAICompatible && isOpenRouterEndpoint {
                         Divider()
                         openRouterDataPolicyControl
@@ -327,22 +320,8 @@ struct ModelConnectionsView: View {
             guard let url = URL(string: rawURL),
                   let origin = InferenceEndpointPolicy.origin(for: url) else { return }
             app.settings.approvedRemoteInferenceOrigins.removeAll { $0 == origin }
-            if !approved { app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin } }
             if approved {
                 app.settings.approvedRemoteInferenceOrigins.append(origin)
-            }
-        }
-    }
-
-    private func remoteAutomationApprovalBinding(rawURL: String) -> Binding<Bool> {
-        Binding {
-            guard let url = URL(string: rawURL), let origin = InferenceEndpointPolicy.origin(for: url) else { return false }
-            return app.settings.approvedRemoteAutomationOrigins.contains(origin)
-        } set: { approved in
-            guard let url = URL(string: rawURL), let origin = InferenceEndpointPolicy.origin(for: url) else { return }
-            app.settings.approvedRemoteAutomationOrigins.removeAll { $0 == origin }
-            if approved && app.settings.approvedRemoteInferenceOrigins.contains(origin) {
-                app.settings.approvedRemoteAutomationOrigins.append(origin)
             }
         }
     }
