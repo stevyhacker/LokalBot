@@ -30,6 +30,17 @@
     heroIO.observe(heroDemo);
   }
 
+  /* ---------- full-size screenshot links open the appearance on screen ---------- */
+  $$(".home-image-link").forEach(function (link) {
+    var source = $("source[media]", link);
+    var img = $("img", link);
+    if (!source || !img || !window.matchMedia) return;
+    var mq = window.matchMedia(source.media);
+    var sync = function () { link.href = mq.matches ? source.getAttribute("srcset") : img.getAttribute("src"); };
+    sync();
+    if (mq.addEventListener) { mq.addEventListener("change", sync); } else if (mq.addListener) { mq.addListener(sync); }
+  });
+
   /* ---------- waveform: randomize bar timing for an organic pulse ---------- */
   if (!reduce) {
     $$("[data-wave] span").forEach(function (bar) {

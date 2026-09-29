@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LokalBot — Find what you said or saw on your Mac</title>
   <meta name="description" content="LokalBot is a free, open-source Mac app that finds what you said or saw: bot-free meeting notes, on-device transcription, saved screen text, and dictation." />
-  <meta name="theme-color" content="#0b1119" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
   <meta name="google-site-verification" content="lFM4iF9Ki1rYDro5yRHgbWsy0_kwdIkXOhAOcM-oVP0" />
   <link rel="canonical" href="https://www.lokalbot.com/" />
   <meta property="og:type" content="website" />
@@ -235,7 +237,10 @@
       </div>
       <figure class="home-recall">
         <a class="home-image-link" href="assets/screens/quick-recall.png" target="_blank" rel="noopener" aria-label="Open the full-size Quick Recall screenshot">
-          <img src="assets/screens/quick-recall.png" width="2640" height="2048" alt="A Redis search shows a saved Slack moment, Safari screen text, meeting transcripts, and a separate Ask action." fetchpriority="high" />
+          <picture>
+            <source srcset="assets/screens/quick-recall-light.png" media="(prefers-color-scheme: light)" width="2640" height="2048" />
+            <img src="assets/screens/quick-recall.png" width="2640" height="2048" alt="A Redis search shows a saved Slack moment, Safari screen text, meeting transcripts, and a separate Ask action." fetchpriority="high" />
+          </picture>
         </a>
         <figcaption>One search across saved moments, screen text, and meetings.</figcaption>
       </figure>
@@ -251,7 +256,10 @@
         </div>
         <figure class="home-shot">
           <a class="home-image-link" href="assets/screens/meetings-summary.png" target="_blank" rel="noopener" aria-label="Open the full-size meeting summary screenshot">
-            <img src="assets/screens/meetings-summary.png" width="2800" height="1864" alt="A design review with action items, decisions about Redis and Postgres, and timestamps linking back to the audio." loading="lazy" decoding="async" />
+            <picture>
+              <source srcset="assets/screens/meetings-summary-light.png" media="(prefers-color-scheme: light)" width="2800" height="1864" />
+              <img src="assets/screens/meetings-summary.png" width="2800" height="1864" alt="A design review with action items, decisions about Redis and Postgres, and timestamps linking back to the audio." loading="lazy" decoding="async" />
+            </picture>
           </a>
           <figcaption>Decisions and action items link back to the recording.</figcaption>
         </figure>
@@ -266,7 +274,10 @@
         </div>
         <figure class="home-shot home-shot--recall">
           <a class="home-image-link" href="assets/screens/screen-search-onboarding.png" target="_blank" rel="noopener" aria-label="Open the full-size saved screen search screenshot">
-            <img src="assets/screens/screen-search-onboarding.png" width="2640" height="2048" alt="Searching for onboarding finds the Q3 planning doc from Notion and related meetings, with a separator after every result." loading="lazy" decoding="async" />
+            <picture>
+              <source srcset="assets/screens/screen-search-onboarding-light.png" media="(prefers-color-scheme: light)" width="2640" height="2048" />
+              <img src="assets/screens/screen-search-onboarding.png" width="2640" height="2048" alt="Searching for onboarding finds the Q3 planning doc from Notion and related meetings, with a separator after every result." loading="lazy" decoding="async" />
+            </picture>
           </a>
           <figcaption>“Onboarding” finds the Q3 planning doc you had open in Notion.</figcaption>
         </figure>
@@ -280,7 +291,10 @@
         </div>
         <figure class="home-shot">
           <a class="home-image-link" href="assets/screens/today.png" target="_blank" rel="noopener" aria-label="Open the full-size Today screenshot">
-            <img src="assets/screens/today.png" width="2800" height="1864" alt="Today shows a day digest, tasks, and unfinished actions linked to the meetings they came from." loading="lazy" decoding="async" />
+            <picture>
+              <source srcset="assets/screens/today-light.png" media="(prefers-color-scheme: light)" width="2800" height="1864" />
+              <img src="assets/screens/today.png" width="2800" height="1864" alt="Today shows a day digest, tasks, and unfinished actions linked to the meetings they came from." loading="lazy" decoding="async" />
+            </picture>
           </a>
           <figcaption>The day's summary and the work that still needs attention.</figcaption>
         </figure>
