@@ -73,5 +73,61 @@ final class ProjectLinksTests: XCTestCase {
         let unrelatedProject = try XCTUnwrap(projects.first { $0.name == "Unrelated effort" })
         XCTAssertTrue(unrelatedProject.meetings.isEmpty)
         XCTAssertEqual(unrelatedProject.trackedSeconds, 0)
+        XCTAssertEqual(orion.source, .overnightReview)
+    }
+
+    func testTopicsRecurringInMeetingsBecomeProjectsWithoutAReview() throws {
+        let meetings = (1...3).map { meeting("Google Chrome meeting", daysAgo: Double($0)) }
+        var summaries: [UUID: String] = [:]
+        for (index, meeting) in meetings.enumerated() {
+            summaries[meeting.id] = """
+                # Synthetic sync
+                **Duration:** 30 min
+                ## Key Points
+                - The Vireo pool migration moved ahead with Mila reviewing it in Chrome.
+                - Mila shared the synthetic dashboard \(index).
+                """
+        }
+        let outcomes = MeetingOutcomes(actionItems: [.init(text: "Ship the Vireo synthetic oracle", owner: "Me")],
+                                       decisions: ["Keep Vireo on the synthetic testnet"])
+        let projection = MeetingOutcomeProjection(
+            meeting: meetings[0], outcomes: outcomes, state: MeetingOutcomeState(),
+            followUp: FollowUpDraft.seeded(for: meetings[0], outcomes: outcomes))
+
+        let projects = ProjectLinks.build(.init(
+            memory: nil, meetings: meetings, summaries: summaries, projections: [projection],
+            excludedTopicWords: ["mila"]), now: now)
+
+        XCTAssertEqual(projects.map(\.name), ["Vireo"])
+        let vireo = try XCTUnwrap(projects.first)
+        XCTAssertEqual(vireo.source, .recurringTopic)
+        XCTAssertFalse(vireo.pinned)
+        XCTAssertEqual(vireo.meetings.count, 3)
+        XCTAssertEqual(vireo.meetings.first?.mention,
+                       "The Vireo pool migration moved ahead with Mila reviewing it in Chrome.")
+        XCTAssertEqual(vireo.openActions.map(\.text), ["Ship the Vireo synthetic oracle"])
+        XCTAssertEqual(vireo.decisions.map(\.text), ["Keep Vireo on the synthetic testnet"])
+
+        // A reviewed project with the same name replaces the detected topic.
+        var reviewed = memory(["Vireo pool"])
+        reviewed.activeProjects[0].pinned = true
+        let merged = ProjectLinks.build(.init(
+            memory: reviewed, meetings: meetings, summaries: summaries, projections: [projection],
+            excludedTopicWords: ["mila"]), now: now)
+        XCTAssertEqual(merged.map(\.name), ["Vireo pool"])
+        XCTAssertEqual(merged.first?.source, .overnightReview)
+    }
+
+    func testTopicDetectorSkipsCommonWordsAndRareTerms() {
+        let meetings = (1...4).map { meeting("Weekly sync", daysAgo: Double($0)) }
+        var summaries: [UUID: String] = [:]
+        for (index, meeting) in meetings.enumerated() {
+            // "Launch" starts sentences but is mostly lowercase; "Kestrel"
+            // appears in only two meetings.
+            summaries[meeting.id] = "The Launch timing was discussed. We agreed the launch waits for the launch checklist."
+                + (index < 2 ? " Then Kestrel came up briefly." : "")
+        }
+        XCTAssertTrue(ProjectTopicDetector.topics(
+            meetings: meetings, summaries: summaries, projections: [], excludedWords: []).isEmpty)
     }
 }

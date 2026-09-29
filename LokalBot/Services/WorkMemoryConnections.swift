@@ -72,29 +72,47 @@ final class WorkMemoryConnections: ObservableObject {
             .init(meetings: input.meetings, projections: input.projections, appliedNames: appliedNames),
             now: input.now)
 
-        var projects: [ProjectProfile] = []
-        if let memory = input.memory, !memory.activeProjects.isEmpty {
-            let meetingCutoff = input.now.addingTimeInterval(-TimeInterval(projectMeetingLookbackDays) * 86_400)
-            let recent = input.meetings.filter { $0.startedAt >= meetingCutoff }
-            let recentIDs = Set(recent.map(\.id))
-            var summaries: [UUID: String] = [:]
-            for meeting in recent {
-                let url = input.root.appendingPathComponent(meeting.relativePath, isDirectory: true)
-                    .appendingPathComponent("summary.md")
-                if let text = try? String(contentsOf: url, encoding: .utf8) {
-                    summaries[meeting.id] = String(text.prefix(ProjectLinks.maximumSummaryCharacters))
-                }
+        let meetingCutoff = input.now.addingTimeInterval(-TimeInterval(projectMeetingLookbackDays) * 86_400)
+        let recent = input.meetings.filter { $0.startedAt >= meetingCutoff }
+        let recentIDs = Set(recent.map(\.id))
+        var summaries: [UUID: String] = [:]
+        for meeting in recent {
+            let url = input.root.appendingPathComponent(meeting.relativePath, isDirectory: true)
+                .appendingPathComponent("summary.md")
+            if let text = try? String(contentsOf: url, encoding: .utf8) {
+                summaries[meeting.id] = String(text.prefix(ProjectLinks.maximumSummaryCharacters))
             }
-            let calendar = Calendar.current
-            let start = calendar.date(byAdding: .day, value: -(ProjectLinks.reviewDays - 1),
-                                      to: calendar.startOfDay(for: input.now)) ?? input.now
-            let activity = ActivityStore(databaseURL: input.activityDatabaseURL, readOnly: true)
-                .blocks(in: DateInterval(start: start, end: max(start, input.now)))
-            projects = ProjectLinks.build(.init(
-                memory: memory, meetings: recent, summaries: summaries,
-                projections: input.projections.filter { recentIDs.contains($0.meeting.id) },
-                activity: activity, people: people), now: input.now)
         }
+        let calendar = Calendar.current
+        let start = calendar.date(byAdding: .day, value: -(ProjectLinks.reviewDays - 1),
+                                  to: calendar.startOfDay(for: input.now)) ?? input.now
+        let activity = ActivityStore(databaseURL: input.activityDatabaseURL, readOnly: true)
+            .blocks(in: DateInterval(start: start, end: max(start, input.now)))
+        let projects = ProjectLinks.build(.init(
+            memory: input.memory, meetings: recent, summaries: summaries,
+            projections: input.projections.filter { recentIDs.contains($0.meeting.id) },
+            activity: activity, people: people,
+            excludedTopicWords: excludedTopicWords(people: people, activity: activity)), now: input.now)
         return (people, projects, nextCache)
+    }
+
+    /// People, the user, and apps are recurring capitalized words but never
+    /// projects of their own.
+    nonisolated static func excludedTopicWords(
+        people: [PersonProfile], activity: [ActivityBlock]
+    ) -> Set<String> {
+        let names = people.flatMap { [$0.name] + $0.otherNames } + PeopleDirectory.defaultSelfNames
+        var words: Set<String> = []
+        for name in names {
+            for word in ProjectTopicDetector.tokens(name).map({ $0.lowercased() }) {
+                words.insert(word)
+                // Short forms people are called by ("Ben" for Benjamin).
+                if word.count >= 5 { words.formUnion([String(word.prefix(3)), String(word.prefix(4))]) }
+            }
+        }
+        for app in activity.map(\.app) {
+            for word in ProjectTopicDetector.tokens(app) { words.insert(word.lowercased()) }
+        }
+        return words
     }
 }

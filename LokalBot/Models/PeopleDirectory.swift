@@ -78,6 +78,14 @@ enum PeopleDirectory {
         var meetings: [Meeting]
         var projections: [MeetingOutcomeProjection]
         var appliedNames: [UUID: MeetingAppliedSpeakerNames] = [:]
+        /// The user's own names (the Mac account's full name by default);
+        /// matching names are never listed as other people.
+        var selfNames: [String] = PeopleDirectory.defaultSelfNames
+    }
+
+    static var defaultSelfNames: [String] {
+        let name = NSFullUserName().trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? [] : [name]
     }
 
     static func loadAppliedNames(for meetings: [Meeting], root: URL) -> [UUID: MeetingAppliedSpeakerNames] {
@@ -95,25 +103,30 @@ enum PeopleDirectory {
         let meetings = input.meetings.filter { $0.mergedIntoMeetingID == nil }
         var participantsByMeeting: [UUID: Set<String>] = [:]
 
+        let isSelf = SelfMatcher(selfNames: input.selfNames)
+
         for meeting in meetings {
             let applied = input.appliedNames[meeting.id] ?? MeetingAppliedSpeakerNames()
             var keys = Set<String>()
             for identity in meeting.resolvedCalendarParticipantIdentities {
-                let appliedName = applied.namesByCalendarIdentityID[identity.id]
-                guard let name = appliedName ?? identity.name else { continue }
+                let appliedName = applied.namesByCalendarIdentityID[identity.id].map(cleanedName)
+                    .flatMap { isPlaceholder($0) ? nil : $0 }
+                guard let name = appliedName ?? identity.name ?? nameFromAddress(identity),
+                      !isSelf(name) else { continue }
                 let key = people.register(email: identity.emailAddress, name: name)
                 if let appliedName, let calendarName = identity.name, appliedName != calendarName {
                     people.addName(calendarName, to: key)
                 }
                 keys.insert(key)
             }
-            for name in applied.names where !isPlaceholder(name) {
+            for name in applied.names.map(cleanedName) where !isPlaceholder(name) && !isSelf(name) {
                 let key = people.resolve(name: name, among: keys) ?? people.register(email: nil, name: name)
                 keys.insert(key)
             }
             participantsByMeeting[meeting.id] = keys
             for key in keys { people.addMeeting(meeting, to: key) }
         }
+        people.mergeFirstNamesIntoFullNames()
 
         let meetingsByID = Dictionary(uniqueKeysWithValues: meetings.map { ($0.id, $0) })
         let projections = input.projections.filter { meetingsByID[$0.meeting.id] != nil && !$0.isArchived }
@@ -136,7 +149,7 @@ enum PeopleDirectory {
                 })
                 if targets.isEmpty, (1...smallMeetingSize).contains(roster.count) { targets = roster }
                 for key in targets { people.addMyAction(thread, to: key) }
-            } else if let owner = thread.owner, !isPlaceholder(owner) {
+            } else if let owner = thread.owner.map(cleanedName), isPersonName(owner), !isSelf(owner) {
                 let key = people.resolve(name: owner, among: roster)
                     ?? people.resolve(name: owner, among: nil)
                     ?? people.register(email: nil, name: owner)
@@ -189,11 +202,89 @@ enum PeopleDirectory {
             .joined(separator: " ")
     }
 
+    /// Speaker labels are per meeting ("Them 4" is someone different in
+    /// every call) and collective words name no one, so neither is a person.
     static func isPlaceholder(_ name: String) -> Bool {
-        let key = normalized(name)
-        return key.isEmpty || ["me", "you", "them", "we", "us", "team", "everyone", "unknown",
-                               "other speaker", "speaker", "remote"].contains(key)
-            || key.range(of: #"^speaker \d+$"#, options: .regularExpression) != nil
+        let key = normalized(cleanedName(name))
+        guard !key.isEmpty else { return true }
+        let collective: Set<String> = [
+            "you", "we", "us", "team", "everyone", "all", "both", "someone", "nobody", "the team",
+            "everybody", "group", "unknown", "owner unclear",
+        ]
+        if collective.contains(key) { return true }
+        return key.range(
+            of: #"^(me|them|local|local speaker|speaker|remote|remote speaker|other speaker|unknown speaker|participant|guest)( \d+)?$"#,
+            options: .regularExpression) != nil
+    }
+
+    /// Removes the "· source 2" suffixes meeting merges add to speaker names
+    /// and trailing notes such as "(Them 3)" or "(host)".
+    static func cleanedName(_ name: String) -> String {
+        name.replacingOccurrences(of: #"(\s*·\s*source\s*\d+)+\s*$"#, with: "",
+                                  options: [.regularExpression, .caseInsensitive])
+            .replacingOccurrences(of: #"(\s*\([^)]*\))+\s*$"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Action owners are model-written and often name a group or a role
+    /// ("Engineering team", "Product/research", "Go roadmap owner"). Only
+    /// one to four name-like words count as a person.
+    static func isPersonName(_ name: String) -> Bool {
+        guard !isPlaceholder(name), !name.contains("/"), !name.contains("'s "), !name.contains("’s ") else {
+            return false
+        }
+        let words = normalized(name).split(separator: " ").map(String.init)
+        guard (1...4).contains(words.count),
+              words.allSatisfy({ $0.allSatisfy(\.isLetter) }) else { return false }
+        let groupWords: Set<String> = [
+            "team", "teams", "owner", "owners", "group", "department", "engineering", "research",
+            "product", "design", "marketing", "sales", "legal", "ops", "operations", "support",
+            "company", "client", "customer", "vendor", "partner", "partners", "folks", "people",
+            "crew", "squad", "lead", "leads", "management", "committee", "board", "tbd",
+        ]
+        return groupWords.isDisjoint(with: words)
+    }
+
+    /// The name the rename picker suggests from an attendee address. Company
+    /// mailboxes are usually a first name ("dragan@…"); on public providers a
+    /// single-word mailbox ("donaldkevlee@gmail…") is a handle, so only a
+    /// spelled-out "first.last" counts there.
+    static func nameFromAddress(_ identity: CalendarParticipantIdentity) -> String? {
+        guard identity.name == nil, let name = identity.suggestedSpeakerName,
+              let domain = identity.emailAddress?.split(separator: "@").last.map(String.init) else { return nil }
+        guard publicMailDomains.contains(domain) else { return name }
+        return name.contains(" ") ? name : nil
+    }
+
+    private static let publicMailDomains: Set<String> = [
+        "gmail.com", "googlemail.com", "yahoo.com", "hotmail.com", "outlook.com", "live.com",
+        "msn.com", "icloud.com", "me.com", "mac.com", "aol.com", "proton.me", "protonmail.com",
+        "gmx.com", "gmx.de", "mail.com", "yandex.com", "yandex.ru", "mail.ru", "qq.com", "163.com",
+        "zoho.com", "fastmail.com", "hey.com",
+    ]
+
+    /// Matches the user's own full name or a bare first name equal to theirs.
+    /// When the account name is a single word ("Stevan"), any name that
+    /// starts with it ("Stevan Bogosavljevic") is treated as the user too.
+    struct SelfMatcher: Sendable {
+        let fullNames: Set<String>
+        let firstNames: Set<String>
+        let singleWordNames: Set<String>
+
+        init(selfNames: [String]) {
+            fullNames = Set(selfNames.map(PeopleDirectory.normalized).filter { !$0.isEmpty })
+            firstNames = Set(fullNames.compactMap { $0.split(separator: " ").first.map(String.init) })
+            singleWordNames = fullNames.filter { !$0.contains(" ") }
+        }
+
+        func callAsFunction(_ name: String) -> Bool {
+            let key = PeopleDirectory.normalized(PeopleDirectory.cleanedName(name))
+            guard !key.isEmpty else { return false }
+            if fullNames.contains(key) { return true }
+            guard let first = key.split(separator: " ").first.map(String.init) else { return false }
+            if !key.contains(" ") { return firstNames.contains(key) }
+            return singleWordNames.contains(first)
+        }
     }
 
     /// Whole-word match of a full name or a first name of 3+ letters.
@@ -266,7 +357,9 @@ enum PeopleDirectory {
         mutating func addName(_ name: String, to rawKey: String) {
             let key = canonical(rawKey)
             if entries[key] == nil { entries[key] = Entry(); order.append(key) }
-            entries[key]?.nameCounts[name.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            let display = trimmed == trimmed.lowercased() ? trimmed.capitalized : trimmed
+            entries[key]?.nameCounts[display, default: 0] += 1
             keyByName[normalized(name), default: []].insert(key)
         }
 
@@ -302,6 +395,27 @@ enum PeopleDirectory {
 
         mutating func addDecision(_ decision: PersonProfile.DecisionRef, to key: String) {
             entries[canonical(key)]?.decisions[decision.id] = decision
+        }
+
+        /// A first name alone ("Dragan", often applied to a speaker) joins the
+        /// one person whose full name starts with it ("Dragan Cabarkapa").
+        /// Two different attendee addresses are never joined.
+        mutating func mergeFirstNamesIntoFullNames() {
+            var fullNamesByFirst: [String: Set<String>] = [:]
+            for key in order {
+                for name in names(of: key) {
+                    let words = normalized(name).split(separator: " ")
+                    if words.count >= 2, let first = words.first { fullNamesByFirst[String(first), default: []].insert(key) }
+                }
+            }
+            for key in order {
+                let keys = Set(names(of: key).map(normalized))
+                guard keys.count == 1, let only = keys.first, !only.contains(" "), only.count >= 3,
+                      let targets = fullNamesByFirst[only], targets.count == 1,
+                      let target = targets.first, target != key,
+                      !(key.hasPrefix("email:") && target.hasPrefix("email:")) else { continue }
+                merge(key, into: target)
+            }
         }
 
         private func sortedByRecency(_ threads: Dictionary<String, ActionThread>.Values) -> [ActionThread] {

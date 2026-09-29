@@ -31,12 +31,24 @@ struct PeopleWorkspaceView: View {
         }
     }
 
+    private var countSummary: String {
+        let count = connections.people.count
+        return "\(count) \(count == 1 ? "person" : "people") from your meetings"
+    }
+
+    private var grouped: (recent: [PersonProfile], earlier: [PersonProfile]) {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -14, to: Date()) ?? .distantPast
+        let people = filtered
+        return (people.filter { ($0.lastMetAt ?? .distantPast) >= cutoff },
+                people.filter { ($0.lastMetAt ?? .distantPast) < cutoff })
+    }
+
     private var list: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("People").font(.scaled(.title3).bold())
-                    Text(connections.hasLoaded ? "\(connections.people.count) people" : "Loading…")
+                    Text(connections.hasLoaded ? countSummary : "Loading…")
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
                 }
                 TextField("Search people", text: $query)
@@ -46,8 +58,16 @@ struct PeopleWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(WorkspaceMetric.cardPadding)
             List(selection: $app.selectedPersonID) {
-                ForEach(filtered) { person in
-                    PersonRow(person: person).tag(person.id)
+                let groups = grouped
+                if !groups.recent.isEmpty {
+                    Section("Last 2 Weeks") {
+                        ForEach(groups.recent) { PersonRow(person: $0).tag($0.id) }
+                    }
+                }
+                if !groups.earlier.isEmpty {
+                    Section("Earlier") {
+                        ForEach(groups.earlier) { PersonRow(person: $0).tag($0.id) }
+                    }
                 }
             }
             .listStyle(.inset)
@@ -81,26 +101,17 @@ private struct PersonRow: View {
     let person: PersonProfile
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(person.name).font(.scaled(.body).weight(.medium))
-            Text(meetingSummary)
-                .font(.scaled(.callout))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            if !person.myActions.isEmpty || !person.theirActions.isEmpty {
-                HStack(spacing: 8) {
-                    if !person.myActions.isEmpty {
-                        Text("You owe \(person.myActions.count)")
-                            .foregroundStyle(LBTokens.Palette.attentionText)
-                    }
-                    if !person.theirActions.isEmpty {
-                        Text("Owes you \(person.theirActions.count)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.scaled(.callout))
-                .lineLimit(1)
+        HStack(spacing: 10) {
+            InitialsAvatar(name: person.name, size: 30)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(person.name).font(.scaled(.body).weight(.medium)).lineLimit(1)
+                Text(meetingSummary)
+                    .font(.scaled(.callout))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
+            Spacer(minLength: 4)
+            OpenWorkBadge(youOwe: person.myActions.count, theyOwe: person.theirActions.count)
         }
         .padding(.vertical, 3)
         .accessibilityElement(children: .combine)
@@ -110,7 +121,67 @@ private struct PersonRow: View {
         let count = person.meetings.count
         let label = "\(count) meeting\(count == 1 ? "" : "s")"
         guard let last = person.lastMetAt else { return label }
-        return label + " · last " + last.formatted(date: .abbreviated, time: .omitted)
+        return label + " · " + PersonDetailView.relativeDay(last)
+    }
+}
+
+/// Open work between the user and one person, as a compact count.
+private struct OpenWorkBadge: View {
+    let youOwe: Int
+    let theyOwe: Int
+
+    var body: some View {
+        if youOwe + theyOwe > 0 {
+            Text("\(youOwe + theyOwe)")
+                .font(.scaled(.caption).weight(.semibold).monospacedDigit())
+                .foregroundStyle(youOwe > 0 ? LBTokens.Palette.attentionText : .secondary)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(Capsule().fill((youOwe > 0 ? LBTokens.Palette.attention : Color.secondary)
+                    .opacity(LBTokens.Palette.statusFillOpacity * 1.5)))
+                .help(help)
+                .accessibilityLabel(help)
+        }
+    }
+
+    private var help: String {
+        var parts: [String] = []
+        if youOwe > 0 { parts.append("You owe \(youOwe)") }
+        if theyOwe > 0 { parts.append("they owe you \(theyOwe)") }
+        return parts.joined(separator: ", ")
+    }
+}
+
+/// A person's initials on a tint chosen from their name, matching the
+/// speaker colors used in transcripts.
+struct InitialsAvatar: View {
+    let name: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        let color = Self.color(for: name)
+        Circle()
+            .fill(color.opacity(0.16))
+            .overlay(Circle().strokeBorder(color.opacity(0.28), lineWidth: 0.5))
+            .overlay {
+                Text(Self.initials(name))
+                    .font(.system(size: size * 0.4, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+            }
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+
+    static func initials(_ name: String) -> String {
+        let words = name.split(separator: " ").filter { $0.first?.isLetter == true }
+        let letters = words.count >= 2 ? [words.first, words.last] : [words.first]
+        return letters.compactMap { $0?.first.map { String($0).uppercased() } }.joined()
+    }
+
+    static func color(for name: String) -> Color {
+        let palette = LBTokens.Palette.speakers
+        let hash = PeopleDirectory.normalized(name).unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
+        return palette[hash % palette.count]
     }
 }
 
@@ -122,16 +193,7 @@ struct PersonDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
                 header
-                threadSection(
-                    title: "You Owe \(person.firstName)",
-                    icon: "arrow.up.right.circle",
-                    threads: person.myActions,
-                    empty: "No open commitments of yours name \(person.firstName) or came from a small meeting together.")
-                threadSection(
-                    title: "\(person.firstName) Owes You",
-                    icon: "arrow.down.left.circle",
-                    threads: person.theirActions,
-                    empty: "No open actions are assigned to \(person.firstName).")
+                openWork
                 if !person.decisions.isEmpty {
                     WorkspaceSection(title: "Decisions Together", icon: "checkmark.seal") {
                         ForEach(person.decisions) { decision in
@@ -147,26 +209,33 @@ struct PersonDetailView: View {
                         }
                     }
                 }
-                WorkspaceSection(title: "Meetings", icon: "waveform.circle") {
-                    ForEach(person.meetings.prefix(20)) { meeting in
-                        Button {
-                            app.openMeeting(meeting.id)
-                        } label: {
-                            HStack {
-                                Text(meeting.title).lineLimit(1)
-                                Spacer()
-                                Text(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))
-                                    .foregroundStyle(.secondary)
+                WorkspaceSection(title: "Meetings Together", icon: "waveform.circle") {
+                    VStack(spacing: 0) {
+                        ForEach(person.meetings.prefix(20)) { meeting in
+                            Button {
+                                app.openMeeting(meeting.id)
+                            } label: {
+                                HStack {
+                                    Text(meeting.title).lineLimit(1)
+                                    Spacer()
+                                    Text(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
+                            .padding(.vertical, 5)
+                            if meeting.id != person.meetings.prefix(20).last?.id { Divider() }
                         }
-                        .buttonStyle(.plain)
-                        .padding(.vertical, 3)
                     }
                     if person.meetings.count > 20 {
                         Text("And \(person.meetings.count - 20) earlier meetings.")
                             .font(.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
+                Text("Built on this Mac from calendar attendees, names you gave speakers, and action owners. Email addresses are never shown or shared.")
+                    .font(.scaled(.caption)).foregroundStyle(.tertiary)
             }
             .padding(WorkspaceMetric.pagePadding)
             .frame(maxWidth: WorkspaceMetric.contentMaxWidth, alignment: .leading)
@@ -178,11 +247,17 @@ struct PersonDetailView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(person.name).font(.scaled(.largeTitle).bold())
-            if !person.otherNames.isEmpty {
-                Text("Also appears as " + person.otherNames.joined(separator: ", "))
-                    .font(.scaled(.callout)).foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 14) {
+                InitialsAvatar(name: person.name, size: 56)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(person.name).font(.scaled(.largeTitle).bold())
+                    Text(stats).font(.scaled(.callout)).foregroundStyle(.secondary)
+                    if !person.otherNames.isEmpty {
+                        Text("Also appears as " + person.otherNames.joined(separator: ", "))
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
+                    }
+                }
             }
             HStack(spacing: 8) {
                 Button {
@@ -212,8 +287,48 @@ struct PersonDetailView: View {
                 }
                 .buttonStyle(.bordered)
             }
-            Text("Built on this Mac from calendar attendee names, names you applied to speakers, and action owners. Email addresses are not shown or shared.")
-                .font(.scaled(.callout)).foregroundStyle(.secondary)
+        }
+    }
+
+    private var stats: String {
+        let count = person.meetings.count
+        var parts = ["\(count) meeting\(count == 1 ? "" : "s")"]
+        if let first = person.meetings.last?.startedAt, count > 1 {
+            parts[0] += " since " + first.formatted(.dateTime.month(.abbreviated).day())
+        }
+        if let last = person.lastMetAt { parts.append("last met " + Self.relativeDay(last)) }
+        let open = person.myActions.count + person.theirActions.count
+        if open > 0 { parts.append("\(open) open") }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "today", "yesterday", "3 days ago", then a date.
+    static func relativeDay(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
+        let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date),
+                                           to: calendar.startOfDay(for: now)).day ?? 0
+        switch days {
+        case ..<1: return "today"
+        case 1: return "yesterday"
+        case 2...6: return "\(days) days ago"
+        default: return date.formatted(.dateTime.month(.abbreviated).day())
+        }
+    }
+
+    /// Both directions of open work; one quiet line when nothing is open.
+    @ViewBuilder private var openWork: some View {
+        if person.myActions.isEmpty && person.theirActions.isEmpty {
+            WorkspaceSection(title: "Open Work", icon: "checklist") {
+                EmptyWorkspaceRow(text: "Nothing open between you and \(person.firstName).")
+            }
+        } else {
+            if !person.myActions.isEmpty {
+                threadSection(title: "You Owe \(person.firstName)", icon: "arrow.up.right.circle",
+                              threads: person.myActions)
+            }
+            if !person.theirActions.isEmpty {
+                threadSection(title: "\(person.firstName) Owes You", icon: "arrow.down.left.circle",
+                              threads: person.theirActions)
+            }
         }
     }
 
@@ -224,17 +339,12 @@ struct PersonDetailView: View {
             .first
     }
 
-    private func threadSection(title: String, icon: String, threads: [ActionThread],
-                               empty: String) -> some View {
+    private func threadSection(title: String, icon: String, threads: [ActionThread]) -> some View {
         WorkspaceSection(title: title, icon: icon) {
-            if threads.isEmpty {
-                EmptyWorkspaceRow(text: empty)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(threads) { thread in
-                        ActionThreadRow(thread: thread)
-                        if thread.id != threads.last?.id { Divider() }
-                    }
+            VStack(spacing: 0) {
+                ForEach(threads) { thread in
+                    ActionThreadRow(thread: thread)
+                    if thread.id != threads.last?.id { Divider() }
                 }
             }
         }

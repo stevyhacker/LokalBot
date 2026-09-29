@@ -91,9 +91,61 @@ final class PeopleDirectoryTests: XCTestCase {
         }
     }
 
-    func testEmailOnlyAttendeesWithoutANameAreNotListed() {
-        let call = meeting("Vendor call", day: -1, attendees: [(nil, "vendor.contact@example.com", "v")])
-        XCTAssertTrue(PeopleDirectory.build(.init(meetings: [call], projections: []), now: base).isEmpty)
+    func testAttendeeAddressesNameCompanyMailboxesButNotPublicHandles() {
+        let call = meeting("Vendor call", day: -1, attendees: [
+            (nil, "ana.petrovic@example.com", "a"), (nil, "dragan@example.com", "d"),
+            (nil, "info@example.com", "i"), (nil, "synthetichandle@gmail.com", "h"),
+            (nil, "mila.novak@gmail.com", "m"),
+        ])
+        let people = PeopleDirectory.build(.init(meetings: [call], projections: [], selfNames: []), now: base)
+        XCTAssertEqual(Set(people.map(\.name)), ["Ana Petrovic", "Dragan", "Mila Novak"])
+    }
+
+    func testSpeakerLabelsGroupsRolesAndTheUserAreNotPeople() {
+        let call = meeting("Launch review", day: -1)
+        let actions: [MeetingOutcomes.ActionItem] = [
+            .init(text: "Fix the synthetic build cache", owner: "Engineering team"),
+            .init(text: "Survey synthetic beta customers", owner: "Product/research"),
+            .init(text: "Publish the synthetic Go roadmap", owner: "Go roadmap owner"),
+            .init(text: "Renew the synthetic vendor contract", owner: "Milo (Them 3)"),
+            .init(text: "Archive the synthetic staging bucket", owner: "Them 1 team"),
+            .init(text: "Write the synthetic launch recap", owner: "Stevan Bogosavljevic"),
+        ]
+        let people = PeopleDirectory.build(.init(
+            meetings: [call], projections: [projection(call, actions: actions)],
+            appliedNames: [call.id: .init(names: ["Them 4", "Local 3", "Speaker 2 · source 2",
+                                                  "Ana Petrović · source 2", "Stevan Bogosavljevic"])],
+            selfNames: ["Stevan"]), now: base)
+        XCTAssertEqual(Set(people.map(\.name)), ["Ana Petrović", "Milo"])
+    }
+
+    func testAFirstNameJoinsTheOnePersonWithThatFullName() throws {
+        let standup = meeting("Standup", day: -2)
+        let planning = meeting("Planning", day: -1, attendees: [("Dragan Ilić", "dragan.i@example.com", "d")])
+        let review = meeting("Review", day: -1, attendees: [
+            ("Ana Petrović", "ana@example.com", "a"), ("Ana Kovač", "kovac@example.com", "k"),
+        ])
+        let people = PeopleDirectory.build(.init(
+            meetings: [standup, planning, review], projections: [],
+            appliedNames: [standup.id: .init(names: ["Dragan", "Ana"])], selfNames: []), now: base)
+
+        let dragan = try XCTUnwrap(people.first { $0.name == "Dragan Ilić" })
+        XCTAssertEqual(dragan.otherNames, ["Dragan"])
+        XCTAssertEqual(Set(dragan.meetings.map(\.id)), [standup.id, planning.id])
+        // Two people share the first name, so "Ana" alone stays separate.
+        XCTAssertEqual(people.count, 4)
+    }
+
+    func testSelfMatcherRecognizesTheUsersNames() {
+        let single = PeopleDirectory.SelfMatcher(selfNames: ["Stevan"])
+        XCTAssertTrue(single("stevan"))
+        XCTAssertTrue(single("Stevan Bogosavljevic · source 2"))
+        XCTAssertFalse(single("Stefan"))
+        let full = PeopleDirectory.SelfMatcher(selfNames: ["Ana Petrović"])
+        XCTAssertTrue(full("Ana Petrovic"))
+        XCTAssertTrue(full("Ana"))
+        XCTAssertFalse(full("Ana Kovač"))
+        XCTAssertFalse(PeopleDirectory.SelfMatcher(selfNames: [])("Ana"))
     }
 
     func testUnmatchedOwnerBecomesANamedPersonAndMergesByFullName() {
