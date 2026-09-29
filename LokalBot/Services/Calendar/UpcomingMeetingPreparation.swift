@@ -75,7 +75,7 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
     let commitments: [UpcomingMeetingReference]
     let projects: [UpcomingMeetingProjectContext]
     /// Sanitized invitation agenda, present only when agenda use is enabled.
-    var agenda: String? = nil
+    var agenda: String?
 
     var hasPreparationContext: Bool {
         !relatedMeetings.isEmpty || !decisions.isEmpty || !commitments.isEmpty || !projects.isEmpty

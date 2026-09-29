@@ -139,7 +139,7 @@ struct DreamReport: Codable, Equatable, Sendable {
     /// The action thread behind each top action, aligned by index; nil for
     /// advice that is not one of the recorded action candidates. Absent in
     /// reports written before actions were linked.
-    var topActionThreadIDs: [String?]? = nil
+    var topActionThreadIDs: [String?]?
 
     func topActionThreadID(at index: Int) -> String? {
         guard let ids = topActionThreadIDs, ids.indices.contains(index) else { return nil }
