@@ -705,7 +705,7 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertNil(selection)
     }
 
-    func testCaptureLayoutRejectsAmbiguousAndPrivateFocusedWindows() {
+    func testCaptureLayoutRejectsAmbiguousAndExcludedFocusedWindows() {
         let frame = CGRect(x: 0, y: 0, width: 800, height: 600)
         let windows = [
             ScreenshotCaptureLayout.Window(id: 1, processID: 42, appName: "Safari", title: "Report", frame: frame),
@@ -717,10 +717,11 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertNil(ScreenshotCaptureLayout.selection(
             windows: Array(windows.prefix(1)), frontmostProcessID: 42, focusedWindowTitle: "Report",
             focusedWindowFrame: frame, excludedApps: ["Safari"]))
-        XCTAssertNil(ScreenshotCaptureLayout.selection(
+        // Private windows are captured like any other focused window.
+        XCTAssertEqual(ScreenshotCaptureLayout.selection(
             windows: [.init(id: 3, processID: 42, appName: "Safari", title: "Private Window", frame: frame)],
             frontmostProcessID: 42, focusedWindowTitle: "Private Window",
-            focusedWindowFrame: frame, excludedApps: []))
+            focusedWindowFrame: frame, excludedApps: [])?.windowID, 3)
     }
 
     func testCaptureFileNamesAndInFlightGateCannotCollide() {
