@@ -219,7 +219,8 @@ extension ScreenshotService {
     ) -> String {
         if result.timedOut { return "\(app): accessibility timed out" }
         guard let snapshot = result.snapshot else {
-            let detail = ScreenAccessibilityReader.lastTextReadFailure(for: processID).map { " (\($0))" } ?? ""
+            let detail = ScreenAccessibilityReader.lastTextReadFailure(for: processID)
+                .map { " (\($0.reason))" } ?? ""
             return "\(app): no accessibility snapshot\(detail)"
         }
         if snapshot.windowTitle == nil { return "\(app): no window title" }
@@ -739,8 +740,19 @@ final class ScreenshotService: ObservableObject {
             isCapturing = false
         }
 
-        let accessibility = await accessibilityReader.capture(
+        var accessibility = await accessibilityReader.capture(
             processID: frontmostApp.processIdentifier)
+        if accessibility.snapshot == nil, !accessibility.timedOut,
+           ScreenAccessibilityReader.lastTextReadFailure(
+            for: frontmostApp.processIdentifier)?.isTransient == true {
+            // A tab switch or page load can change the window while it is
+            // read; the capture event often fires at exactly that moment.
+            // Let it settle once instead of losing the capture to the cooldown.
+            try? await Task.sleep(for: .milliseconds(750))
+            if NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostApp.processIdentifier {
+                accessibility = await accessibilityReader.capture(processID: frontmostApp.processIdentifier)
+            }
+        }
         guard captureIsAuthorized(consent), !accessibility.timedOut, let snapshot = accessibility.snapshot,
               NSWorkspace.shared.frontmostApplication?.processIdentifier
                 == frontmostApp.processIdentifier,

@@ -157,18 +157,26 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         processID == ProcessInfo.processInfo.processIdentifier
     }
 
-    private static let failureLock = NSLock()
-    private nonisolated(unsafe) static var textReadFailures: [pid_t: String] = [:]
+    /// Why a text read produced no snapshot. Names the failed check, never
+    /// window contents.
+    struct TextReadFailure: Equatable, Sendable {
+        let reason: String
+        /// The window was readable but changed while it was read, as during
+        /// a tab switch or page load; a read moments later can succeed.
+        let isTransient: Bool
+    }
 
-    /// Why the most recent text read of `processID` produced no snapshot, for
-    /// the screen-capture skip log. Names the failed check, never contents.
-    static func lastTextReadFailure(for processID: pid_t) -> String? {
+    private static let failureLock = NSLock()
+    private nonisolated(unsafe) static var textReadFailures: [pid_t: TextReadFailure] = [:]
+
+    /// Why the most recent text read of `processID` produced no snapshot.
+    static func lastTextReadFailure(for processID: pid_t) -> TextReadFailure? {
         failureLock.lock()
         defer { failureLock.unlock() }
         return textReadFailures[processID]
     }
 
-    private static func noteTextReadFailure(_ reason: String?, processID: pid_t, includeText: Bool) {
+    private static func noteTextReadFailure(_ reason: TextReadFailure?, processID: pid_t, includeText: Bool) {
         // Metadata-only activity sampling runs every few seconds; only the
         // screen-capture read is diagnosed.
         guard includeText else { return }
@@ -178,8 +186,9 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     }
 
     static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
-        func fail(_ reason: String) -> ScreenAccessibilitySnapshot? {
-            noteTextReadFailure(reason, processID: processID, includeText: includeText)
+        func fail(_ reason: String, transient: Bool = false) -> ScreenAccessibilitySnapshot? {
+            noteTextReadFailure(.init(reason: reason, isTransient: transient),
+                                processID: processID, includeText: includeText)
             return nil
         }
         guard processID > 0, !isOwnProcess(processID) else { return nil }
@@ -267,17 +276,21 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         // AX calls are asynchronous with respect to the other application.
         // Never attach one window's text to a different focused window.
         guard let currentWindow = elementAttribute(app, kAXFocusedWindowAttribute as String),
-              CFEqual(window, currentWindow) else { return fail("focused window changed during read") }
-        guard textualAttribute(currentWindow, kAXTitleAttribute as String) == windowTitle else {
-            return fail("window title changed during read")
+              CFEqual(window, currentWindow) else {
+            return fail("focused window changed during read", transient: true)
         }
-        guard frame(of: currentWindow) == windowFrame else { return fail("window frame changed during read") }
+        guard textualAttribute(currentWindow, kAXTitleAttribute as String) == windowTitle else {
+            return fail("window title changed during read", transient: true)
+        }
+        guard frame(of: currentWindow) == windowFrame else {
+            return fail("window frame changed during read", transient: true)
+        }
         let finalFocus = elementAttribute(app, kAXFocusedUIElementAttribute as String)
             .flatMap(secureFieldStatus)
         guard finalFocus == focusedSecureField else {
             func describe(_ value: Bool?) -> String { value.map { $0 ? "secure" : "plain" } ?? "unknown" }
             return fail("focused-field state changed during read (\(describe(focusedSecureField))"
-                + " to \(describe(finalFocus)))")
+                + " to \(describe(finalFocus)))", transient: true)
         }
         noteTextReadFailure(nil, processID: processID, includeText: includeText)
         let text = parts.joined(separator: "\n")
