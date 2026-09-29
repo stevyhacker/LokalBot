@@ -19,7 +19,7 @@ struct CotypingModelPreparationView: View {
             if !CotypingModelPreparer.recommendedIsActive(settings: app.settings),
                let entry = status.entry {
                 Text("This selects \(entry.displayName) and keeps inline suggestions separate from the model used for meetings and Ask.")
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(.secondary)
             }
             if status.entry?.id == ModelCatalog.recommendedCotypingID {
@@ -28,7 +28,7 @@ struct CotypingModelPreparationView: View {
                     Link("Review license", destination: ModelCatalog.recommendedCotypingLicenseURL)
                         .buttonStyle(.workspaceLink)
                 }
-                .font(.caption)
+                .font(.scaled(.caption))
                 .foregroundStyle(.secondary)
             }
         }

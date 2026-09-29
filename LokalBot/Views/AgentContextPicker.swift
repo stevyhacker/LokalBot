@@ -11,14 +11,14 @@ struct AgentContextPicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Attach context").font(.title3.weight(.semibold))
+                Text("Attach context").font(.scaled(.title3).weight(.semibold))
                 Spacer()
                 Button("Done") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             TextField("Search meetings and saved moments", text: $query).textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("agent.contextSearch")
             Text("Choose sources to include with your next message. Screen pixels are never attached.")
-                .font(.callout).foregroundStyle(.secondary)
+                .font(.scaled(.callout)).foregroundStyle(.secondary)
             List {
                 Section("Meetings") {
                     ForEach(app.meetings.filter { query.isEmpty || $0.displayTitle.localizedCaseInsensitiveContains(query) }.prefix(50)) { meeting in
@@ -29,7 +29,7 @@ struct AgentContextPicker: View {
                 }
                 Section("Saved moments") {
                     if let momentError {
-                        Text(momentError).font(.callout).foregroundStyle(.secondary)
+                        Text(momentError).font(.scaled(.callout)).foregroundStyle(.secondary)
                         Button("Open Privacy settings") { dismiss(); app.openSettings(tab: .privacy) }
                     }
                     ForEach(moments.filter { query.isEmpty || "\($0.windowTitle) \($0.note)".localizedCaseInsensitiveContains(query) }, id: \.snapshotID) { moment in
@@ -54,7 +54,7 @@ struct AgentContextPicker: View {
                 Image(systemName: source.icon).frame(width: 20)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(source.title).lineLimit(1)
-                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                    Text(detail).font(.scaled(.caption)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Image(systemName: controller.attachments.contains(where: { $0.id == source.id }) ? "checkmark.circle.fill" : "plus.circle")

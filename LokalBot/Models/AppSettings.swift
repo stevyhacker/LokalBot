@@ -121,6 +121,10 @@ struct AppSettings: Codable, Equatable {
     /// main window is never required to know a meeting is being captured.
     /// When off, LokalBot behaves like a normal windowed app with a Dock icon.
     var menuBarOnly: Bool = true
+    /// Light, dark, or the system appearance for LokalBot's windows.
+    var appTheme: AppTheme = .system
+    /// App-wide text size for LokalBot's windows.
+    var textSize: AppTextSize = .standard
 
     // MARK: Models (M2)
 
@@ -651,6 +655,8 @@ struct AppSettings: Codable, Equatable {
         case useCalendarTitles
         case requireCalendarForBrowser
         case menuBarOnly
+        case appTheme
+        case textSize
         case transcriptionModel
         case graniteSpeechModel
         case transcriptionLanguage
@@ -814,6 +820,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(useCalendarTitles, forKey: .useCalendarTitles)
         try c.encode(requireCalendarForBrowser, forKey: .requireCalendarForBrowser)
         try c.encode(menuBarOnly, forKey: .menuBarOnly)
+        try c.encode(appTheme, forKey: .appTheme)
+        try c.encode(textSize, forKey: .textSize)
         try c.encode(transcriptionModel, forKey: .transcriptionModel)
         try c.encode(graniteSpeechModel, forKey: .graniteSpeechModel)
         try c.encode(transcriptionLanguage, forKey: .transcriptionLanguage)
@@ -947,6 +955,8 @@ struct AppSettings: Codable, Equatable {
         useCalendarTitles = decode(.useCalendarTitles, defaults.useCalendarTitles)
         requireCalendarForBrowser = decode(.requireCalendarForBrowser, defaults.requireCalendarForBrowser)
         menuBarOnly = decode(.menuBarOnly, defaults.menuBarOnly)
+        appTheme = decode(.appTheme, defaults.appTheme)
+        textSize = decode(.textSize, defaults.textSize)
         transcriptionModel = decode(.transcriptionModel, defaults.transcriptionModel)
         graniteSpeechModel = decode(.graniteSpeechModel, defaults.graniteSpeechModel)
         if c.contains(.transcriptionLanguage) {

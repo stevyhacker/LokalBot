@@ -29,7 +29,7 @@ struct GraniteSpeechModelPicker: View {
             Divider()
             VStack(alignment: .leading, spacing: 14) {
                 Text("Choose a llama.cpp-compatible Granite Speech model and its matching multimodal projector. This supports alternate quantizations such as Q8; ordinary Hugging Face ASR safetensors are not compatible.")
-                    .font(.callout)
+                    .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
@@ -67,7 +67,7 @@ struct GraniteSpeechModelPicker: View {
                         }
                         LabeledContent("Pinned revision") {
                             Text(String(candidateConfiguration.revision.prefix(12)))
-                                .font(.system(.body, design: .monospaced))
+                                .font(.scaled(.body, design: .monospaced))
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -75,7 +75,7 @@ struct GraniteSpeechModelPicker: View {
 
                 if let errorMessage {
                     Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
+                        .font(.scaled(.caption))
                         .foregroundStyle(Brand.error)
                         .textSelection(.enabled)
                 }
@@ -94,10 +94,10 @@ struct GraniteSpeechModelPicker: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Custom Granite Speech model")
-                    .font(.headline)
+                    .font(.scaled(.headline))
                     .accessibilityIdentifier("models.granite.picker.title")
                 Text("Hugging Face GGUF + projector")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
             Spacer()
             Button("Cancel") { dismiss() }

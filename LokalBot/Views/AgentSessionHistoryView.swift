@@ -93,7 +93,7 @@ struct AgentSessionHistoryView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 7) {
                         Text(session.title)
-                            .font(.title2.weight(.semibold))
+                            .font(.scaled(.title2).weight(.semibold))
                             .textSelection(.enabled)
                         Label(
                             sessions.workspaceDisplayName(for: session.workspace),
@@ -110,7 +110,7 @@ struct AgentSessionHistoryView: View {
 
                     Divider()
                     if !session.preview.isEmpty {
-                        Text("Last message preview").font(Font.headline)
+                        Text("Last message preview").font(Font.scaled(.headline))
                         Text(session.preview).textSelection(.enabled)
                         Text("Preview only. The session starts when you choose Open.").workspaceTextRole(.supporting)
                     }
@@ -170,10 +170,10 @@ struct AgentSessionHistoryView: View {
                 .foregroundStyle(Brand.teal)
             VStack(alignment: .leading, spacing: 3) {
                 Text(session.title)
-                    .font(Font.body.weight(.semibold))
+                    .font(Font.scaled(.body).weight(.semibold))
                     .lineLimit(2)
                 Text("\(sessions.workspaceDisplayName(for: session.workspace)) · \(formatted(session.modifiedAt))")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

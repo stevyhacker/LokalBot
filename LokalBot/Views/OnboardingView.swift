@@ -57,7 +57,7 @@ struct OnboardingView: View {
                     .accessibilityValue("Step \(step.rawValue + 1) of 4")
                     .accessibilityIdentifier("onboarding.progress")
                 }
-                Text(step.title).font(.largeTitle.bold()).multilineTextAlignment(.center)
+                Text(step.title).font(.scaled(.largeTitle).bold()).multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 28).padding(.top, 24).padding(.bottom, 8)
@@ -74,7 +74,7 @@ struct OnboardingView: View {
             Divider()
             HStack {
                 if mode == .welcome {
-                    Text("Step \(step.rawValue + 1) of 4").font(.callout).foregroundStyle(.secondary)
+                    Text("Step \(step.rawValue + 1) of 4").font(.scaled(.callout)).foregroundStyle(.secondary)
                 }
                 Spacer()
                 if mode == .welcome {
@@ -111,7 +111,7 @@ struct OnboardingView: View {
     private var captureChoices: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Keep meeting evidence and a useful memory of your day. You can change each choice later in Settings.")
-                .font(.body).foregroundStyle(.secondary)
+                .font(.scaled(.body)).foregroundStyle(.secondary)
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
                     Picker("Detected Meetings", selection: $draft.meetingMode) {
@@ -185,11 +185,11 @@ struct OnboardingView: View {
     private func modelRow(_ title: String, model: String, role: ModelRole) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(Font.body.weight(.semibold))
-                Text(model).font(Font.callout).foregroundStyle(.secondary)
+                Text(title).font(Font.scaled(.body).weight(.semibold))
+                Text(model).font(Font.scaled(.callout)).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(app.modelRoles.snapshot[role].label).font(.callout.weight(.semibold))
+            Text(app.modelRoles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))
         }.workspacePanel()
     }
 

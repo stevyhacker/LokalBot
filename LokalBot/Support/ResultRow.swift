@@ -82,7 +82,7 @@ struct ResultRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text(title).font(Font.body.weight(.semibold)).lineLimit(1)
+                Text(title).font(Font.scaled(.body).weight(.semibold)).lineLimit(1)
                 if let timestamp {
                     Text(timestamp).workspaceTextRole(.metadata)
                 }
@@ -93,7 +93,7 @@ struct ResultRow: View {
                     .chipChrome(.compact)
             }
             if let matchLabel {
-                Text(matchLabel).font(Font.callout).foregroundStyle(.secondary)
+                Text(matchLabel).font(Font.scaled(.callout)).foregroundStyle(.secondary)
             }
             highlighted
                 .workspaceTextRole(.supporting)

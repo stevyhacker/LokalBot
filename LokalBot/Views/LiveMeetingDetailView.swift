@@ -67,15 +67,15 @@ struct LiveMeetingDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(meeting.title).font(.largeTitle.bold())
+            Text(meeting.title).font(.scaled(.largeTitle).bold())
                 .accessibilityIdentifier("live.title")
             HStack(spacing: 6) {
                 HStack(spacing: 6) {
                     StatusDot(color: Brand.recording, size: 7, pulses: true)
-                    Text("Recording").font(.callout)
+                    Text("Recording").font(.scaled(.callout))
                     LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
                     MeetingRecordingTimerText(recording: app.recording)
-                        .font(.caption.monospacedDigit())
+                        .font(.scaled(.caption).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 .padding(.horizontal, 10).padding(.vertical, 5)
@@ -129,18 +129,18 @@ struct LiveMeetingDetailView: View {
 
     private var transcriptColumn: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Live Transcript").font(.headline)
+            Text("Live Transcript").font(.scaled(.headline))
             previewControls
             if let error = transcriber.errorMessage, !transcriber.lines.isEmpty {
                 Label(error, systemImage: "exclamationmark.triangle")
-                    .font(.callout).foregroundStyle(Brand.error)
+                    .font(.scaled(.callout)).foregroundStyle(Brand.error)
                     .accessibilityIdentifier("live.previewError")
             }
             transcript
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .lbGroupedSurface()
             Text("Preview — the full transcript and summary arrive after the meeting.")
-                .font(.caption2)
+                .font(.scaled(.caption2))
                 .foregroundStyle(.tertiary)
         }
         .padding(.trailing, 12)
@@ -164,7 +164,7 @@ struct LiveMeetingDetailView: View {
                     case .running:
                         LoadingStateLabel(
                             transcriber.statusMessage ?? "Listening…",
-                            font: .callout)
+                            font: .scaled(.callout))
                     }
                 }
                 .multilineTextAlignment(.center)
@@ -218,10 +218,10 @@ struct LiveMeetingDetailView: View {
     private func lineView(_ line: LiveMeetingTranscriber.Line) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(Self.timestamp(line.time))
-                .font(.callout.monospacedDigit())
+                .font(.scaled(.callout).monospacedDigit())
                 .foregroundStyle(LBTokens.Palette.accentText)
             Text(line.speaker == "local" || line.speaker == "me" ? "Me" : "Remote speaker")
-                .font(.caption.weight(.semibold))
+                .font(.scaled(.caption).weight(.semibold))
                 .foregroundStyle(.secondary)
             Text(line.text)
                 .font(LBTokens.Typography.reading)
@@ -233,9 +233,9 @@ struct LiveMeetingDetailView: View {
 
     private var notesColumn: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Meeting Notes").font(.headline)
+            Text("Meeting Notes").font(.scaled(.headline))
             TextEditor(text: $notes)
-                .font(.callout)
+                .font(.scaled(.callout))
                 .scrollContentBackground(.hidden)
                 .padding(6)
                 .lbGroupedSurface()
@@ -243,7 +243,7 @@ struct LiveMeetingDetailView: View {
                 .accessibilityIdentifier("live.notes")
                 .onChange(of: notes) { scheduleSave() }
             Text(notesSaveState)
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(notesSaveState.hasPrefix("Not saved:") ? Brand.error : .secondary)
         }
         .padding(.leading, 12)

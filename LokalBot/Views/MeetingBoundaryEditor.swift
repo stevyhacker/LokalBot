@@ -10,7 +10,7 @@ struct MeetingBoundaryEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Meeting boundaries").font(.title2.bold())
+            Text("Meeting boundaries").font(.scaled(.title2).bold())
             Text("Keep the part that belongs to this meeting. Transcripts, summaries, and search will be rebuilt. The full audio stays available for playback.")
                 .foregroundStyle(.secondary)
             Form {
@@ -18,7 +18,7 @@ struct MeetingBoundaryEditor: View {
                 TextField("End (seconds)", value: $end, format: .number.precision(.fractionLength(0...2)))
             }
             Text("Use the original playback timeline; for example, 2:30 is 150 seconds.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.scaled(.caption)).foregroundStyle(.secondary)
             if let error { Text(error).foregroundStyle(.red) }
             HStack {
                 Button("Use full recording") { start = 0; end = meeting.recordedDuration ?? meeting.duration ?? 0 }

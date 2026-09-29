@@ -24,13 +24,13 @@ struct QuickRecallRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(row.title)
-                        .font(.callout.weight(.semibold))
+                        .font(.scaled(.callout).weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer(minLength: 8)
                     // Slot is always reserved so selection doesn't reflow the line.
                     Image(systemName: "return")
-                        .font(.caption)
+                        .font(.scaled(.caption))
                         .foregroundStyle(selected ? .white : accent)
                         .opacity(selected ? 1 : 0)
                         .frame(width: 14, alignment: .trailing)
@@ -38,7 +38,7 @@ struct QuickRecallRow: View {
                 }
                 if let snippet = row.snippet, !snippet.isEmpty {
                     highlighted(snippet)
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         .foregroundStyle(selected ? Color.white : Color.secondary)
                         .lineLimit(1)
                 }
@@ -58,7 +58,7 @@ struct QuickRecallRow: View {
                             .fixedSize()
                     }
                 }
-                .font(.caption)
+                .font(.scaled(.caption))
                 .foregroundStyle(selected ? Color.white : Color.secondary)
             }
         }
@@ -87,7 +87,7 @@ struct QuickRecallRow: View {
                     }
                 if row.isSaved {
                     Image(systemName: "bookmark.fill")
-                        .font(.caption2)
+                        .font(.scaled(.caption2))
                         .foregroundStyle(Brand.amber)
                         .padding(3)
                         .background(.regularMaterial, in: Circle())
@@ -96,7 +96,7 @@ struct QuickRecallRow: View {
             }
         } else {
             Image(systemName: row.icon)
-                .font(.title3)
+                .font(.scaled(.title3))
                 .foregroundStyle(selected ? .white : accent)
                 .frame(width: 40, height: 40)
                 .background(.quaternary.opacity(0.45),

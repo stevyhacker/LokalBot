@@ -14,7 +14,7 @@ struct RecordingHealthStrip: View {
                 }
                 if recording.callObservationUnavailable {
                     Text("Browser audio is captured by process and may include other tabs in that process.")
-                        .font(.caption)
+                        .font(.scaled(.caption))
                         .foregroundStyle(.secondary)
                 }
                 ViewThatFits(in: .horizontal) {
@@ -44,7 +44,7 @@ struct RecordingHealthStrip: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .font(.callout)
+            .font(.scaled(.callout))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
             .lbGroupedSurface()

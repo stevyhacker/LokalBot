@@ -19,17 +19,17 @@ struct ModelChecksSheet: View {
             ModelSheetHeading(title: "Check model setup", subtitle: "Check each available model independently using sample content.")
             VStack(alignment: .leading, spacing: 18) {
                 Label(disclosure, systemImage: InferencePresentation(settings: app.settings).icon)
-                    .font(.body).foregroundStyle(.secondary)
+                    .font(.scaled(.body)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Checks confirm that a model responds. They do not measure transcription accuracy or answer quality.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
                 Divider()
                 ForEach(ModelRole.allCases, id: \.self) { role in
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: role.settingsIcon).font(.system(size: 19)).frame(width: 26)
                             .settingsModelIcon(role == .think ? InferencePresentation(settings: app.settings) : .onDevice)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(role.settingsTitle).font(.body.weight(.semibold))
+                            Text(role.settingsTitle).font(.scaled(.body).weight(.semibold))
                             if checks.testingRole == role {
                                 Text("Checking…").foregroundStyle(.secondary)
                             } else if let result = checks.results[role] {
@@ -44,7 +44,7 @@ struct ModelChecksSheet: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         Spacer()
                         if checks.testingRole == role { ProgressView().controlSize(.small) }
                         Button(checks.results[role]?.failure == nil ? "Check" : "Retry") { checks.run([role], app: app) }

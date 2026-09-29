@@ -567,7 +567,7 @@ struct CaptureDayView: View {
                 DayActivityOverview(model: model)
                     .accessibilityIdentifier("capture.dayOverview")
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Day Digest").font(.headline)
+                    Text("Day Digest").font(.scaled(.headline))
                     if let digest = model.digest {
                         let highlights = DayDigestPresentation(markdown: digest).atAGlanceMarkdown
                         if !highlights.isEmpty, !digestExpanded {
@@ -596,7 +596,7 @@ struct CaptureDayView: View {
                             ? "Blocks appear as you use your Mac (sampled every 5 s, idle-aware)."
                             : "Day tracking is off — enable it in Settings."))
                 } else {
-                    Text("Work Sessions").font(.headline)
+                    Text("Work Sessions").font(.scaled(.headline))
                         .accessibilityIdentifier("timeline.workSessions")
                     if meetings.contains(where: { $0.endedAt == nil }) {
                         TimelineView(.periodic(from: .now, by: 1)) { context in
@@ -685,7 +685,7 @@ struct CaptureDayView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(TimelineRailStyle.padding)
@@ -740,11 +740,11 @@ struct TimelineRawCaptureView: View {
         let meetings = model.meetings(in: app)
         VStack(alignment: .leading, spacing: 14) {
             Text("Individual app activity and retained screen moments. Use this for exact evidence or cleanup.")
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(.secondary)
             if !model.blocks.isEmpty || !meetings.isEmpty {
                 Label("App activity", systemImage: "calendar.day.timeline.left")
-                    .font(Font.headline)
+                    .font(Font.scaled(.headline))
                     .accessibilityIdentifier("timeline.track")
                 CaptureTrackView(
                     items: CaptureTrackItem.items(blocks: model.blocks, meetings: meetings, now: Date()),
@@ -775,9 +775,9 @@ struct TimelineRawCaptureView: View {
 /// The work-session rail is a scannable index beside the digest, so its rows
 /// use list-sized medium titles and a small tile instead of page-body weight.
 private enum TimelineRailStyle {
-    static let title = Font.system(size: 13, weight: .medium)
-    static let detail = Font.system(size: 12)
-    static let detailEmphasis = Font.system(size: 12, weight: .semibold)
+    static var title: Font { Font.scaledSystem(size: 13, weight: .medium) }
+    static var detail: Font { Font.scaledSystem(size: 12) }
+    static var detailEmphasis: Font { Font.scaledSystem(size: 12, weight: .semibold) }
     static let iconSize: CGFloat = 24
     static let timeWidth: CGFloat = 60
     static let padding: CGFloat = 10
@@ -815,7 +815,7 @@ private struct TimelineWorkSessionRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(TimelineRailStyle.padding)
@@ -906,7 +906,7 @@ private struct TimelineSessionMeetingRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(TimelineRailStyle.padding)
@@ -966,7 +966,7 @@ private struct CaptureTrackView: View {
                             .frame(width: laneWidth, height: 1)
                             .offset(x: gutter, y: y)
                         Text(hourLabel(start, i))
-                            .font(.caption2.monospacedDigit()).foregroundStyle(.tertiary)
+                            .font(.scaled(.caption2).monospacedDigit()).foregroundStyle(.tertiary)
                             .frame(width: gutter - 8, alignment: .trailing)
                             .offset(y: y - 6)
                     }
@@ -1002,9 +1002,9 @@ private struct CaptureTrackView: View {
                 .overlay(alignment: .topLeading) {
                     if h >= 20 {
                         VStack(alignment: .leading, spacing: 1) {
-                            Text(block.app).font(.caption.weight(.medium)).lineLimit(1)
+                            Text(block.app).font(.scaled(.caption).weight(.medium)).lineLimit(1)
                             if !block.title.isEmpty && h >= 38 {
-                                Text(block.title).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                                Text(block.title).font(.scaled(.caption2)).foregroundStyle(.secondary).lineLimit(1)
                             }
                         }
                         .padding(.horizontal, 6).padding(.top, 3)
@@ -1039,11 +1039,11 @@ private struct CaptureTrackView: View {
                 .overlay(alignment: .topLeading) {
                     VStack(alignment: .leading, spacing: 1) {
                         HStack(spacing: 4) {
-                            Image(systemName: "waveform").font(.caption2)
-                            Text(meeting.title).font(.caption.weight(.medium)).lineLimit(1)
+                            Image(systemName: "waveform").font(.scaled(.caption2))
+                            Text(meeting.title).font(.scaled(.caption).weight(.medium)).lineLimit(1)
                         }
                         if h >= 38 {
-                            Text(meeting.displayDuration).font(.caption2).opacity(0.8)
+                            Text(meeting.displayDuration).font(.scaled(.caption2)).opacity(0.8)
                         }
                     }
                     .foregroundStyle(.white)

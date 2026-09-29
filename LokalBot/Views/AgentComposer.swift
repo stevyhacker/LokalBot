@@ -21,12 +21,12 @@ struct AgentComposer: View {
         VStack(alignment: .leading, spacing: 8) {
             if !controller.queuedPrompts.isEmpty { queue }
             if let notice = controller.workspaceAccessNotice {
-                Text(notice).font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                Text(notice).font(.scaled(.callout)).foregroundStyle(.orange).textSelection(.enabled)
                     .accessibilityIdentifier("agent.workspaceNotice")
             }
             if let error = controller.composerError {
                 HStack(alignment: .top) {
-                    Text(error).font(.callout).foregroundStyle(.orange).textSelection(.enabled)
+                    Text(error).font(.scaled(.callout)).foregroundStyle(.orange).textSelection(.enabled)
                     Spacer()
                     Button { controller.composerError = nil } label: { Image(systemName: "xmark") }
                         .buttonStyle(.borderless).accessibilityLabel("Dismiss message")
@@ -68,7 +68,7 @@ struct AgentComposer: View {
                 Button { showingAccess.toggle() } label: { Image(systemName: "info.circle").frame(width: 24, height: 24) }
                     .buttonStyle(.borderless).accessibilityLabel("Task access details")
                     .popover(isPresented: $showingAccess) { accessDetails }
-            }.font(Font.callout).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
+            }.font(Font.scaled(.callout)).foregroundStyle(contrast == .increased ? Color.primary : Color.secondary)
                 .accessibilityElement(children: .contain).accessibilityIdentifier("agent.model")
         }
         .fileImporter(isPresented: $pickingFiles, allowedContentTypes: [.text, .sourceCode, .json, .pdf], allowsMultipleSelection: true) { result in
@@ -134,7 +134,7 @@ struct AgentComposer: View {
                 .menuStyle(.borderlessButton).fixedSize()
                 .help(controller.approvalMode.detail).accessibilityLabel("Agent approval mode")
                 .accessibilityValue(controller.approvalMode.title).accessibilityIdentifier("agent.approvalMode")
-        }.font(Font.callout.weight(.semibold)).foregroundStyle(.primary)
+        }.font(Font.scaled(.callout).weight(.semibold)).foregroundStyle(.primary)
     }
 
     @ViewBuilder private var sendControls: some View {
@@ -151,10 +151,10 @@ struct AgentComposer: View {
                 submit(steer: false)
             }
             .primaryActionButton().controlSize(.large)
-            .font(.system(size: 13, weight: .semibold))
+            .font(.scaledSystem(size: 13, weight: .semibold))
             .disabled(!hasPrompt || submitting || controller.isStopping || controller.state == .starting)
             .accessibilityIdentifier("agent.send")
-        }.font(.callout)
+        }.font(.scaled(.callout))
     }
 
     private var attachmentChips: some View {
@@ -168,7 +168,7 @@ struct AgentComposer: View {
                             .buttonStyle(.borderless).help("Preview attached source")
                         Button { controller.attachments.removeAll { $0.id == attachment.id } } label: { Image(systemName: "xmark").frame(width: 24, height: 24) }
                             .buttonStyle(.borderless).accessibilityLabel("Remove \(attachment.title)")
-                    }.font(.caption).padding(.leading, 8).background(.quaternary, in: Capsule())
+                    }.font(.scaled(.caption)).padding(.leading, 8).background(.quaternary, in: Capsule())
                 }
             }
         }.scrollIndicators(.hidden).frame(height: controller.attachments.isEmpty ? 0 : 30)
@@ -181,7 +181,7 @@ struct AgentComposer: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(controller.queuedPrompts) { prompt in
                         HStack {
-                            Text(prompt.text).font(.callout).lineLimit(2)
+                            Text(prompt.text).font(.scaled(.callout)).lineLimit(2)
                             Spacer()
                             Button("Edit") { controller.editQueued(prompt.id); focused = true }
                             Button("Cancel") { controller.cancelQueued(prompt.id) }
@@ -191,19 +191,19 @@ struct AgentComposer: View {
                 }.padding(.top, 6)
             }.frame(maxHeight: 120)
         }
-        .font(.callout).accessibilityIdentifier("agent.queue")
+        .font(.scaled(.callout)).accessibilityIdentifier("agent.queue")
         .overlay(alignment: .topTrailing) {
             if controller.state != .running && controller.state != .starting {
                 Button("Send next") {
                     Task { if await sessions.start(taskID) { await controller.deliverNextQueued() } }
-                }.buttonStyle(.borderless).font(.caption)
+                }.buttonStyle(.borderless).font(.scaled(.caption))
             }
         }
     }
 
     private var accessDetails: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("This task’s access").font(.headline)
+            Text("This task’s access").font(.scaled(.headline))
             Label(controller.workspace.path, systemImage: "folder")
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -218,7 +218,7 @@ struct AgentComposer: View {
                 }
             }
             .fixedSize(horizontal: false, vertical: true)
-        }.font(.callout).padding(18).frame(width: 360)
+        }.font(.scaled(.callout)).padding(18).frame(width: 360)
     }
 
     private func submit(steer: Bool) {

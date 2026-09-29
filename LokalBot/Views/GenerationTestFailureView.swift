@@ -86,13 +86,13 @@ struct GenerationTestFailurePopover: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title2)
+                    .font(.scaled(.title2))
                     .foregroundStyle(Brand.error)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(failure.title)
-                        .font(.headline)
+                        .font(.scaled(.headline))
                     Text(failure.explanation)
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -109,7 +109,7 @@ struct GenerationTestFailurePopover: View {
             }
 
             Text(failure.recovery)
-                .font(.callout)
+                .font(.scaled(.callout))
                 .fixedSize(horizontal: false, vertical: true)
 
             if let actionTitle = failure.actionTitle,
@@ -129,7 +129,7 @@ struct GenerationTestFailurePopover: View {
                 } icon: {
                     Image(systemName: "hand.raised.fill")
                 }
-                .font(.caption)
+                .font(.scaled(.caption))
                 .foregroundStyle(.secondary)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -142,11 +142,11 @@ struct GenerationTestFailurePopover: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Technical details — select to copy")
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                     .foregroundStyle(.secondary)
                 ScrollView {
                     Text(failure.technicalDetails)
-                        .font(.system(.caption, design: .monospaced))
+                        .font(.scaled(.caption, design: .monospaced))
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }

@@ -24,7 +24,7 @@ struct SessionMomentBrowser: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Retained moments · \(filtered.count) of \(moments.count)")
-                .font(Font.headline)
+                .font(Font.scaled(.headline))
             TextField("Find in this session", text: $query).textFieldStyle(.roundedBorder)
             if searching { LoadingStateLabel("Searching retained text…") }
             Picker("App", selection: $application) {
@@ -40,7 +40,7 @@ struct SessionMomentBrowser: View {
                                 Text(shot.documentName.isEmpty ? (shot.windowTitle.isEmpty ? shot.app : shot.windowTitle) : shot.documentName)
                                     .lineLimit(2)
                                 Text("\(shot.app) · \(shot.ts.formatted(date: .omitted, time: .standard))")
-                                    .font(Font.callout).foregroundStyle(.secondary)
+                                    .font(Font.scaled(.callout)).foregroundStyle(.secondary)
                             }
                             Spacer()
                             if shot.isBookmarked { Image(systemName: "bookmark.fill") }

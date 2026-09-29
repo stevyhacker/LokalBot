@@ -28,9 +28,9 @@ struct ProjectsWorkspaceView: View {
     private var list: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Projects").font(.title3.bold())
+                Text("Projects").font(.scaled(.title3).bold())
                 Text(connections.hasLoaded ? "\(connections.projects.count) active" : "Loading…")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(WorkspaceMetric.cardPadding)
@@ -46,7 +46,7 @@ struct ProjectsWorkspaceView: View {
                 if connections.hasLoaded && connections.projects.isEmpty {
                     VStack(spacing: 10) {
                         Text("Projects come from the overnight review of your work. They appear once a review has identified active projects.")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                             .multilineTextAlignment(.center)
                         Button("Configure Overnight Review") { app.openSettings(tab: .dayMemory) }
                     }
@@ -74,14 +74,14 @@ private struct ProjectRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 6) {
-                Text(project.name).font(.body.weight(.medium))
+                Text(project.name).font(.scaled(.body).weight(.medium))
                 if project.pinned {
-                    Image(systemName: "pin.fill").font(.caption).foregroundStyle(.secondary)
+                    Image(systemName: "pin.fill").font(.scaled(.caption)).foregroundStyle(.secondary)
                         .accessibilityLabel("Pinned")
                 }
             }
             Text(summary)
-                .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                .font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(1)
         }
         .padding(.vertical, 3)
         .accessibilityElement(children: .combine)
@@ -106,10 +106,10 @@ struct ProjectDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: WorkspaceMetric.sectionGap) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(project.name).font(.largeTitle.bold())
+                    Text(project.name).font(.scaled(.largeTitle).bold())
                     Text(project.status).textSelection(.enabled)
                     Text("Last active \(project.lastActiveDay)\(project.pinned ? " · Pinned" : "")")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Button {
                             app.openAsk(query: "What is the latest on \(project.name)?",
@@ -126,7 +126,7 @@ struct ProjectDetailView: View {
                             .help("Keep this project in future overnight reviews")
                     }
                     Text("Linked on this Mac by the project name appearing in meeting titles and summaries, action text, and window titles.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                 }
 
                 WorkspaceSection(title: "Open Actions", icon: "checklist") {
@@ -156,7 +156,7 @@ struct ProjectDetailView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(window.title).lineLimit(1)
-                                    Text(window.app).font(.callout).foregroundStyle(.secondary)
+                                    Text(window.app).font(.scaled(.callout)).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Text(Self.duration(window.seconds)).foregroundStyle(.secondary)

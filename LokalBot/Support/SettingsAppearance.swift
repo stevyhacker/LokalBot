@@ -94,7 +94,7 @@ struct SettingsHelp: View {
 
     var body: some View {
         Text(text)
-            .font(.callout)
+            .font(.scaled(.callout))
             .settingsSecondary()
             .fixedSize(horizontal: false, vertical: true)
     }
@@ -136,7 +136,7 @@ struct SettingsDetails: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, 4)
         } label: {
-            Text(title).font(.callout.weight(.medium)).settingsSecondary()
+            Text(title).font(.scaled(.callout).weight(.medium)).settingsSecondary()
         }
     }
 }

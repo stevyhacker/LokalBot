@@ -147,7 +147,7 @@ struct TimelineContextPanel: View {
                         VStack(alignment: .leading, spacing: 9) {
                             if representative.isEmpty {
                                 Text("No context moments were captured during this session.")
-                                    .font(Font.body)
+                                    .font(Font.scaled(.body))
                                     .foregroundStyle(.secondary)
                             } else {
                                 ForEach(representative) { frame in
@@ -155,7 +155,7 @@ struct TimelineContextPanel: View {
                                 }
                                 if frames.count > representative.count {
                                     Text("Showing \(representative.count) representative scenes from \(frames.count). Browse raw capture for every scene.")
-                                        .font(Font.callout)
+                                        .font(Font.scaled(.callout))
                                         .foregroundStyle(.secondary)
                                 }
                             }
@@ -196,7 +196,7 @@ struct TimelineContextPanel: View {
                                     }
                                 } label: {
                                     VStack(alignment: .leading, spacing: 3) {
-                                        Text(evidence.title).font(Font.body.weight(.semibold))
+                                        Text(evidence.title).font(Font.scaled(.body).weight(.semibold))
                                             .lineLimit(2).help(evidence.title)
                                         Text("\(CaptureStyle.hm(evidence.duration)) observed · \(evidence.blocks.count) activity \(evidence.blocks.count == 1 ? "block" : "blocks")")
                                             .workspaceTextRole(.supporting)
@@ -214,7 +214,7 @@ struct TimelineContextPanel: View {
                     VStack(alignment: .leading, spacing: 10) {
                         sessionMetrics(session)
                         Text(session.apps.prefix(5).joined(separator: " · "))
-                            .font(Font.callout)
+                            .font(Font.scaled(.callout))
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                     }
@@ -302,7 +302,7 @@ struct TimelineContextPanel: View {
                 VStack(alignment: .leading, spacing: 8) {
                     if !block.title.isEmpty {
                         Text(block.title)
-                            .font(Font.body.weight(.semibold))
+                            .font(Font.scaled(.body).weight(.semibold))
                             .textSelection(.enabled)
                     }
                     HStack(spacing: 8) {
@@ -320,15 +320,15 @@ struct TimelineContextPanel: View {
                 VStack(alignment: .leading, spacing: 9) {
                     HStack {
                         Label("Related moments", systemImage: "rectangle.and.text.magnifyingglass")
-                            .font(Font.headline)
+                            .font(Font.scaled(.headline))
                         Spacer()
                         Text("\(scoped.count)")
-                            .font(Font.callout.monospacedDigit())
+                            .font(Font.scaled(.callout).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     if scoped.isEmpty {
                         Text("No context moments were captured during this activity.")
-                            .font(Font.body)
+                            .font(Font.scaled(.body))
                             .foregroundStyle(.secondary)
                     } else {
                         VStack(spacing: 8) {
@@ -366,15 +366,15 @@ struct TimelineContextPanel: View {
                     .frame(width: 86)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(screenshot.windowTitle.isEmpty ? screenshot.app : screenshot.windowTitle)
-                        .font(Font.body.weight(.semibold))
+                        .font(Font.scaled(.body).weight(.semibold))
                         .lineLimit(2)
                     Text(screenshot.ts.formatted(date: .omitted, time: .shortened))
-                        .font(Font.callout.monospacedDigit())
+                        .font(Font.scaled(.callout).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(.tertiary)
             }
             .contentShape(Rectangle())
@@ -392,7 +392,7 @@ struct TimelineContextPanel: View {
                 onBack: clearSelection,
                 onDismiss: onDismiss)
             Text("Return to the day or select one meeting in Work sessions.")
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(.secondary)
             Spacer()
         }
@@ -436,7 +436,7 @@ private struct TimelineMeetingPreview: View {
 
                 if meeting.endedAt == nil {
                     Label("Recording in progress", systemImage: "record.circle.fill")
-                        .font(Font.body.weight(.semibold))
+                        .font(Font.scaled(.body).weight(.semibold))
                         .foregroundStyle(Brand.recording)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -473,7 +473,7 @@ private struct TimelineMeetingPreview: View {
                                     Image(systemName: "checkmark")
                                         .foregroundStyle(Brand.teal)
                                     Text(decision.displayText)
-                                        .font(Font.body)
+                                        .font(Font.scaled(.body))
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
@@ -486,7 +486,7 @@ private struct TimelineMeetingPreview: View {
                    projection?.outcomes.decisionRecords.isEmpty != false,
                    meeting.endedAt != nil {
                     Text("No outcome summary has been extracted for this meeting yet.")
-                        .font(Font.body)
+                        .font(Font.scaled(.body))
                         .foregroundStyle(.secondary)
                 }
 
@@ -530,7 +530,7 @@ private struct TimelineMeetingActionRow: View {
             }
             .buttonStyle(.plain)
             Text(reference.text)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .strikethrough(reference.status == .done)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -559,7 +559,7 @@ private struct TimelinePanelHeader: View {
                     if let onBack {
                         Button(action: onBack) {
                             Label(backTitle, systemImage: "chevron.left")
-                                .font(Font.body)
+                                .font(Font.scaled(.body))
                         }
                         .buttonStyle(.workspaceLink)
                         .help(backLabel)
@@ -582,15 +582,15 @@ private struct TimelinePanelHeader: View {
 
     private var titleRow: some View {
         HStack(alignment: .top, spacing: 9) {
-            Image(systemName: icon).font(.title3).foregroundStyle(LBTokens.Palette.accentText)
+            Image(systemName: icon).font(.scaled(.title3)).foregroundStyle(LBTokens.Palette.accentText)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .lineLimit(2)
                     .help(title)
-                    .font(Font.title2.weight(.semibold))
+                    .font(Font.scaled(.title2).weight(.semibold))
                     .lineLimit(2)
                 Text(subtitle)
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
             }
@@ -607,7 +607,7 @@ private struct TimelineContextSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label(title, systemImage: icon)
-                .font(Font.headline)
+                .font(Font.scaled(.headline))
             content
         }
         .padding(12)

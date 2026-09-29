@@ -68,7 +68,7 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
             string: title,
             attributes: [
                 .font: NSFont.systemFont(
-                    ofSize: NSFont.smallSystemFontSize,
+                    ofSize: (NSFont.smallSystemFontSize * AppTextScale.current).rounded(),
                     weight: .bold),
                 .foregroundColor: NSColor.labelColor,
                 .paragraphStyle: paragraph,

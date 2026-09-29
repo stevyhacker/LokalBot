@@ -35,7 +35,7 @@ struct ScreenMomentDetailView: View {
                 } else {
                     Label("This moment retained text context without screen pixels.",
                           systemImage: "text.viewfinder")
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         .foregroundStyle(.secondary)
                         .padding(WorkspaceMetric.cardPadding)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -44,7 +44,7 @@ struct ScreenMomentDetailView: View {
                 }
                 if !screenshot.windowTitle.isEmpty {
                     Text(screenshot.windowTitle)
-                        .font(Font.body.weight(.semibold))
+                        .font(Font.scaled(.body).weight(.semibold))
                         .lineLimit(3)
                         .textSelection(.enabled)
                 }
@@ -59,7 +59,7 @@ struct ScreenMomentDetailView: View {
                         metadata
                     } label: {
                         Label("Capture Details", systemImage: "info.circle")
-                            .font(Font.headline)
+                            .font(Font.scaled(.headline))
                     }
                 Button("Delete Moment…", role: .destructive) { confirmingDeletion = true }
                     .buttonStyle(.bordered)
@@ -101,7 +101,7 @@ struct ScreenMomentDetailView: View {
             HStack {
                 Button(action: onClear) {
                     Label(backTitle, systemImage: "chevron.left")
-                        .font(Font.body)
+                        .font(Font.scaled(.body))
                 }
                 .buttonStyle(.workspaceLink)
                 .help(backLabel)
@@ -122,10 +122,10 @@ struct ScreenMomentDetailView: View {
                          tint: Brand.teal, size: 30)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(screenshot.app)
-                        .font(Font.title2.weight(.semibold))
+                        .font(Font.scaled(.title2).weight(.semibold))
                         .accessibilityIdentifier("timeline.screenDetail.\(screenshot.id)")
                     Text(screenshot.ts.formatted(date: .abbreviated, time: .shortened))
-                        .font(Font.callout.monospacedDigit())
+                        .font(Font.scaled(.callout).monospacedDigit())
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -157,7 +157,7 @@ struct ScreenMomentDetailView: View {
             }
             if !screenshot.sourceURL.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Source").font(Font.body.weight(.semibold))
+                    Text("Source").font(Font.scaled(.body).weight(.semibold))
                     Text(screenshot.sourceURL)
                         .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
@@ -179,15 +179,15 @@ struct ScreenMomentDetailView: View {
                 }
             }
         }
-        .font(Font.body)
+        .font(Font.scaled(.body))
     }
 
     private var capturedTextSection: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("Text Context", systemImage: "text.quote")
-                .font(Font.headline)
+                .font(Font.scaled(.headline))
             Text(fullTextExpanded ? capturedText : (SnippetCleaner.withoutTitleEcho(capturedText, title: screenshot.windowTitle) ?? capturedText))
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .textSelection(.enabled)
                 .lineLimit(fullTextExpanded ? nil : 6)
             if capturedText.count > 280 {
@@ -195,7 +195,7 @@ struct ScreenMomentDetailView: View {
                     fullTextExpanded.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.callout.weight(.semibold))
+                .font(Font.scaled(.callout).weight(.semibold))
                 .foregroundStyle(Brand.teal)
             }
         }
@@ -228,7 +228,7 @@ struct ScreenMomentDetailView: View {
     private var savedNote: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Saved until you unsave or delete it.").workspaceTextRole(.supporting)
-            Text("Saved Moment Note").font(Font.headline)
+            Text("Saved Moment Note").font(Font.scaled(.headline))
             TextField("Why does this moment matter?", text: $note, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...5)

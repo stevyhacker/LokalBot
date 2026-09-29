@@ -16,12 +16,12 @@ struct AgentResultsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Results & sources").font(.headline).padding(16)
+            Text("Results & sources").font(.scaled(.headline)).padding(16)
             if !controller.sourceAttachments.isEmpty || !results.isEmpty {
                 ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     if !controller.sourceAttachments.isEmpty {
-                        Text("Sources used").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text("Sources used").font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
                         ForEach(controller.sourceAttachments) { source in
                             Button {
                                 do { selection = try controller.contextResolver.resolve(source); previewError = nil } catch { previewError = error.localizedDescription }
@@ -30,12 +30,12 @@ struct AgentResultsPanel: View {
                         }
                     }
                     if !results.isEmpty {
-                        Text("Activity results").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text("Activity results").font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
                         ForEach(results) { result in
                             Button { selection = result; previewError = nil } label: {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(result.title).font(.callout.weight(.medium)).lineLimit(1)
-                                    Text(result.detail).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                                    Text(result.title).font(.scaled(.callout).weight(.medium)).lineLimit(1)
+                                    Text(result.detail).font(.scaled(.caption)).foregroundStyle(.secondary).lineLimit(2)
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(8).background(selected?.id == result.id ? Brand.teal.opacity(0.12) : .clear,
                                                            in: RoundedRectangle(cornerRadius: 8))
@@ -46,10 +46,10 @@ struct AgentResultsPanel: View {
                 }.frame(maxHeight: 200)
                 Divider()
             }
-            if let previewError { Text(previewError).font(.callout).foregroundStyle(.orange).padding(16) }
+            if let previewError { Text(previewError).font(.scaled(.callout)).foregroundStyle(.orange).padding(16) }
             if let selected {
                 HStack {
-                    Text(selected.title).font(.headline).lineLimit(2)
+                    Text(selected.title).font(.scaled(.headline)).lineLimit(2)
                     Spacer()
                     Button { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(selected.text, forType: .string) } label: { Image(systemName: "doc.on.doc") }
                         .accessibilityLabel("Copy result")
@@ -58,7 +58,7 @@ struct AgentResultsPanel: View {
                 }.buttonStyle(.borderless).padding(16)
                 ScrollView(.vertical) {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(selected.detail).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                        Text(selected.detail).font(.scaled(.caption)).foregroundStyle(.secondary).textSelection(.enabled)
                         if let original = selected.original, let proposed = selected.proposed {
                             change("Before", text: original, color: .red)
                             change("After", text: proposed, color: .green)
@@ -66,7 +66,7 @@ struct AgentResultsPanel: View {
                         SelectableDigestText(selected.text, style: .agent)
                             .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
                         Text("Preview of recorded output or selected source. Opening a preview does not run a tool.")
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.scaled(.caption)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }.padding(.horizontal, 16).padding(.bottom, 16)
                 }
@@ -85,8 +85,8 @@ struct AgentResultsPanel: View {
 
     private func change(_ label: String, text: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.caption.weight(.semibold))
-            Text(text.isEmpty ? "(empty)" : text).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            Text(label).font(.scaled(.caption).weight(.semibold))
+            Text(text.isEmpty ? "(empty)" : text).font(.scaled(.caption, design: .monospaced)).textSelection(.enabled)
         }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
             .background(color.opacity(0.09), in: RoundedRectangle(cornerRadius: 8))
     }

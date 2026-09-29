@@ -215,7 +215,7 @@ struct ActionsWorkspaceView: View {
     private func header(total: Int, visible: Int, threads: Int, selected: [OutcomeActionReference]) -> some View {
         HStack(spacing: 12) {
             Button { app.showingActions = false } label: { Label("Today", systemImage: "chevron.left") }
-            Text("Actions").font(.title3.bold())
+            Text("Actions").font(.scaled(.title3).bold())
             Text(reviewMode == "threads" ? "\(threads) threads" : "\(visible) of \(total)")
                 .foregroundStyle(.secondary)
             Spacer()
@@ -223,7 +223,7 @@ struct ActionsWorkspaceView: View {
                 if selected.isEmpty {
                     if selecting {
                         Text("Choose actions to change together")
-                            .font(Font.callout)
+                            .font(Font.scaled(.callout))
                             .foregroundStyle(.secondary)
                             .accessibilityIdentifier("actions.batch.hint")
                     }
@@ -272,7 +272,7 @@ struct ActionsWorkspaceView: View {
                         .accessibilityIdentifier("actions.selection.hidden")
                     Button("Clear selection") { selection = [] }
                     Spacer()
-                }.font(Font.callout).foregroundStyle(.secondary)
+                }.font(Font.scaled(.callout)).foregroundStyle(.secondary)
             }
         }.padding(.horizontal, 20).padding(.bottom, 12)
     }
@@ -344,8 +344,8 @@ struct ActionsWorkspaceView: View {
     private func inspector(_ reference: OutcomeActionReference) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Action Details").font(.title3.bold())
-                Text(reference.text).font(.body.weight(.semibold)).textSelection(.enabled)
+                Text("Action Details").font(.scaled(.title3).bold())
+                Text(reference.text).font(.scaled(.body).weight(.semibold)).textSelection(.enabled)
                 Button(reference.meetingTitle) { app.openMeeting(reference.meetingID) }
                     .buttonStyle(.workspaceLink)
                 Picker("Status", selection: Binding(get: { reference.status }, set: { setStatus($0, for: reference) })) {
@@ -362,12 +362,12 @@ struct ActionsWorkspaceView: View {
                 if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate)) }
                 Button("Correct Action or Resolve Date…") { correction = reference }
                 Divider()
-                Text("Original Wording").font(Font.callout.weight(.semibold))
+                Text("Original Wording").font(Font.scaled(.callout).weight(.semibold))
                 Text(reference.action.displayText).textSelection(.enabled)
                 if let originalDue = reference.action.due { Text("Original due phrase: \(originalDue)") }
                 ActionEvidencePassages(reference: reference).id(reference.id)
                 Text("Saved corrections stay separate from the original action and its supporting passage.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
                 if reference.action.citations.isEmpty { Text("No supporting passage was stored.").foregroundStyle(.secondary) }
             }.padding(20)
         }
@@ -410,8 +410,8 @@ private struct ActionEditorSheet: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Correct action").font(Font.largeTitle.bold())
-            Text("Action").font(Font.callout.weight(.semibold))
+            Text("Correct action").font(Font.scaled(.largeTitle).bold())
+            Text("Action").font(Font.scaled(.callout).weight(.semibold))
             TextEditor(text: $text).frame(height: 100).padding(8).workspaceControl()
             LabeledContent("Owner") {
                 TextField("Me or named participant", text: Binding(

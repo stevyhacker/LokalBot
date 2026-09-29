@@ -35,9 +35,9 @@ struct PeopleWorkspaceView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("People").font(.title3.bold())
+                    Text("People").font(.scaled(.title3).bold())
                     Text(connections.hasLoaded ? "\(connections.people.count) people" : "Loading…")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                 }
                 TextField("Search people", text: $query)
                     .textFieldStyle(.roundedBorder)
@@ -56,7 +56,7 @@ struct PeopleWorkspaceView: View {
             .overlay {
                 if connections.hasLoaded && connections.people.isEmpty {
                     Text("People appear after meetings with calendar attendees, named speakers, or named action owners.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(24)
                 }
@@ -82,9 +82,9 @@ private struct PersonRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(person.name).font(.body.weight(.medium))
+            Text(person.name).font(.scaled(.body).weight(.medium))
             Text(meetingSummary)
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             if !person.myActions.isEmpty || !person.theirActions.isEmpty {
@@ -98,7 +98,7 @@ private struct PersonRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-                .font(.callout)
+                .font(.scaled(.callout))
                 .lineLimit(1)
             }
         }
@@ -141,7 +141,7 @@ struct PersonDetailView: View {
                                     app.openMeeting(decision.meetingID)
                                 }
                                 .buttonStyle(.workspaceLink)
-                                .font(.callout)
+                                .font(.scaled(.callout))
                             }
                             .padding(.vertical, 4)
                         }
@@ -164,7 +164,7 @@ struct PersonDetailView: View {
                     }
                     if person.meetings.count > 20 {
                         Text("And \(person.meetings.count - 20) earlier meetings.")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -179,10 +179,10 @@ struct PersonDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(person.name).font(.largeTitle.bold())
+            Text(person.name).font(.scaled(.largeTitle).bold())
             if !person.otherNames.isEmpty {
                 Text("Also appears as " + person.otherNames.joined(separator: ", "))
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
                 Button {
@@ -213,7 +213,7 @@ struct PersonDetailView: View {
                 .buttonStyle(.bordered)
             }
             Text("Built on this Mac from calendar attendee names, names you applied to speakers, and action owners. Email addresses are not shown or shared.")
-                .font(.callout).foregroundStyle(.secondary)
+                .font(.scaled(.callout)).foregroundStyle(.secondary)
         }
     }
 

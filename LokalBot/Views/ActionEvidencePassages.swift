@@ -26,7 +26,7 @@ struct ActionEvidencePassages: View {
                         .buttonStyle(.bordered)
                         .disabled(!player.isLoaded || citation.end <= citation.start)
                         .accessibilityIdentifier("actions.passage.play.\(citation.id)")
-                        Text(Transcript.stamp(citation.start)).font(.callout.monospacedDigit())
+                        Text(Transcript.stamp(citation.start)).font(.scaled(.callout).monospacedDigit())
                     }
                     Button("Show Passage in Meeting") {
                         player.pause()

@@ -103,12 +103,12 @@ private struct QuickRecallContent: View {
                     Image(systemName: "chevron.left")
                 }
                 .buttonStyle(.plain)
-                .font(.title2)
+                .font(.scaled(.title2))
                 .foregroundStyle(.tint)
                 .accessibilityLabel("Back to recall")
             } else {
                 Image(systemName: "sparkle.magnifyingglass")
-                    .font(.title2)
+                    .font(.scaled(.title2))
                     .foregroundStyle(.tint)
             }
             TextField(
@@ -192,7 +192,7 @@ private struct QuickRecallContent: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if isSearching {
-                            LoadingStateLabel("Searching your local memory…", font: .callout)
+                            LoadingStateLabel("Searching your local memory…", font: .scaled(.callout))
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 10)
                                 .accessibilityIdentifier("quickRecall.searching")
@@ -202,7 +202,7 @@ private struct QuickRecallContent: View {
 
                         ForEach(sections) { section in
                             Text(section.title)
-                                .font(.caption.weight(.semibold))
+                                .font(.scaled(.caption).weight(.semibold))
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 12)
                                 .padding(.top, 12)
@@ -291,11 +291,11 @@ private struct QuickRecallContent: View {
                 Image(systemName: "magnifyingglass")
                     .accessibilityHidden(true)
                 Text("No local matches")
-                    .font(.headline)
+                    .font(.scaled(.headline))
                     .accessibilityIdentifier("quickRecall.noMatches")
             }
             Text("Nothing in saved moments, captured screens, or meetings matches this search.")
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }

@@ -50,7 +50,7 @@ struct ResourceMonitorSection: View {
 
             if loadedModels.isEmpty {
                 Label("No LokalBot model runtimes are loaded.", systemImage: "moon.zzz")
-                    .font(.system(size: 12))
+                    .font(.scaledSystem(size: 12))
                     .settingsSecondary()
             } else {
                 ForEach(loadedModels) { model in
@@ -111,20 +111,20 @@ struct ResourceMonitorSection: View {
         let value = ResourceMonitorPresentation.modelMemoryValue(reading)
         return LabeledContent {
             Text(value)
-                .font(.callout.monospacedDigit())
+                .font(.scaled(.callout).monospacedDigit())
                 .settingsSecondary()
         } label: {
             VStack(alignment: .leading, spacing: 1) {
                 Text(model.role)
                 Text(model.label)
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .settingsSecondary()
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(model.label)
                 if let note = model.leaseNote {
                     Text(note)
-                        .font(Font.callout)
+                        .font(Font.scaled(.callout))
                         .settingsSecondary()
                         .lineLimit(1)
                 }
@@ -143,8 +143,8 @@ struct ResourceMonitorSection: View {
             } icon: {
                 Image(systemName: icon).foregroundStyle(Brand.teal)
             }
-                .font(Font.body.weight(.semibold).monospacedDigit())
-            Text(label).font(Font.body).settingsSecondary()
+                .font(Font.scaled(.body).weight(.semibold).monospacedDigit())
+            Text(label).font(Font.scaled(.body)).settingsSecondary()
                 .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

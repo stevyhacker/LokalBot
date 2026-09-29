@@ -78,7 +78,7 @@ struct ScreenRewindView: View {
             .onDisappear { isPlaying = false }
             .sheet(item: $deletionReview) { review in
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Review capture deletion").font(Font.headline)
+                    Text("Review capture deletion").font(Font.scaled(.headline))
                     Text("\(review.interval.start.formatted(date: .abbreviated, time: .standard)) – \(review.interval.end.addingTimeInterval(-0.001).formatted(date: .omitted, time: .standard))")
                     Text("\(review.captures.count) moments, including \(review.pixelCount) image records. Their captured text, search vectors and saved notes will also be removed permanently.")
                     Text("\(review.savedExcluded) saved moments excluded · \(review.savedIncluded) saved moments included")
@@ -98,10 +98,10 @@ struct ScreenRewindView: View {
         HStack(spacing: 7) {
             Label(presentation == .compact ? "Context moments" : "Context rewind",
                   systemImage: "clock.arrow.circlepath")
-                .font(.headline)
+                .font(.scaled(.headline))
                 .accessibilityIdentifier("timeline.rewind")
             Text("\(frames.count) scene\(frames.count == 1 ? "" : "s")")
-                .font(.caption)
+                .font(.scaled(.caption))
                 .foregroundStyle(.secondary)
             Spacer()
             if let screenshot = currentFrame?.screenshot {
@@ -146,22 +146,22 @@ struct ScreenRewindView: View {
                     HStack(alignment: .bottom, spacing: 6) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(frame.screenshot.app)
-                                .font(.callout.weight(.semibold))
+                                .font(.scaled(.callout).weight(.semibold))
                             if !frame.screenshot.windowTitle.isEmpty {
                                 Text(frame.screenshot.windowTitle)
-                                    .font(.caption)
+                                    .font(.scaled(.caption))
                                     .lineLimit(1)
                             }
                         }
                         Spacer(minLength: 6)
                         if frame.duplicateCount > 1 {
                             Text("\(frame.duplicateCount) similar")
-                                .font(.caption2.weight(.medium))
+                                .font(.scaled(.caption2).weight(.medium))
                                 .padding(.horizontal, 6).padding(.vertical, 3)
                                 .background(.black.opacity(0.45), in: Capsule())
                         }
                         Text(frame.screenshot.ts.formatted(date: .omitted, time: .shortened))
-                            .font(.caption.monospacedDigit())
+                            .font(.scaled(.caption).monospacedDigit())
                     }
                     .foregroundStyle(.white)
                     .padding(9)
@@ -198,7 +198,7 @@ struct ScreenRewindView: View {
                 .disabled(frames.count < 2)
                 .accessibilityLabel("Rewind position")
             Text("\(currentIndex + 1)/\(frames.count)")
-                .font(.caption2.monospacedDigit())
+                .font(.scaled(.caption2).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 34, alignment: .trailing)
         }
@@ -225,7 +225,7 @@ struct ScreenRewindView: View {
                                 .overlay(alignment: .topTrailing) {
                                     if frame.screenshot.isBookmarked {
                                         Image(systemName: "bookmark.fill")
-                                            .font(.caption2)
+                                            .font(.scaled(.caption2))
                                             .foregroundStyle(Brand.amber)
                                             .padding(4)
                                     }
@@ -260,30 +260,30 @@ struct ScreenRewindView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label("Delete range", systemImage: "trash")
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                 Spacer()
                 Text("\(selectedCaptureCount) capture\(selectedCaptureCount == 1 ? "" : "s")")
-                    .font(.caption2.monospacedDigit())
+                    .font(.scaled(.caption2).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 7) {
-                Text("From").font(.caption2).foregroundStyle(.secondary).frame(width: 28)
+                Text("From").font(.scaled(.caption2)).foregroundStyle(.secondary).frame(width: 28)
                 Slider(value: rangeStartBinding,
                        in: 0...Double(max(frames.count - 1, 1)), step: 1)
                 DatePicker("From", selection: rangeDateBinding(isStart: true), displayedComponents: .hourAndMinute)
                     .labelsHidden().accessibilityLabel("Delete range from time")
             }
             HStack(spacing: 7) {
-                Text("To").font(.caption2).foregroundStyle(.secondary).frame(width: 28)
+                Text("To").font(.scaled(.caption2)).foregroundStyle(.secondary).frame(width: 28)
                 Slider(value: rangeEndBinding,
                        in: 0...Double(max(frames.count - 1, 1)), step: 1)
                 DatePicker("To", selection: rangeDateBinding(isStart: false), displayedComponents: .hourAndMinute)
                     .labelsHidden().accessibilityLabel("Delete range to time")
             }
             Toggle("Include saved moments", isOn: $includeSavedMoments)
-                .font(.caption)
+                .font(.scaled(.caption))
             Text("Times snap to the nearest captured scene. Review shows the exact affected moments.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.scaled(.caption)).foregroundStyle(.secondary)
             ForEach(deletionFailures, id: \.self) { Text($0).foregroundStyle(Brand.error) }
             HStack {
                 Spacer()

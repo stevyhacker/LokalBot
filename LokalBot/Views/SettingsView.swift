@@ -29,11 +29,11 @@ struct SettingsView: View {
         HSplitView {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Settings")
-                    .font(.title3.bold())
+                    .font(.scaled(.title3).bold())
                     .padding(.horizontal, 20)
                     .padding(.top, 14)
                 Text("LokalBot " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""))
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
                     .padding(.horizontal, 20)
                 settingsSearchField.padding(.horizontal, 14)
                 List(selection: Binding(get: { queryIsEmpty ? Optional(app.settingsTab) : nil }, set: {
@@ -119,9 +119,9 @@ struct SettingsView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
                 Text(queryIsEmpty ? app.settingsTab.displayName : "Search settings")
-                    .font(Font.largeTitle.bold())
+                    .font(Font.scaled(.largeTitle).bold())
                 Text(queryIsEmpty ? settingsTabSubtitle : "Results across all categories. Choose a setting to edit its value.")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .settingsSecondary()
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -135,7 +135,7 @@ struct SettingsView: View {
                 .accessibilityHidden(true)
             TextField("Search settings…", text: $settingsQuery)
                 .textFieldStyle(.plain)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .accessibilityIdentifier("settings.search")
             if !settingsQuery.isEmpty {
                 Button { settingsQuery = "" } label: {
@@ -218,11 +218,11 @@ struct SettingsView: View {
                 settingsQuery = ""
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(result.title).font(Font.body.weight(.semibold))
+                    Text(result.title).font(Font.scaled(.body).weight(.semibold))
                     Text(result.currentValue(in: app.settings) + " · " + result.category.displayName)
-                        .font(Font.callout).settingsSecondary()
+                        .font(Font.scaled(.callout)).settingsSecondary()
                     if let prerequisite = result.prerequisite(in: app.settings) {
-                        Text(prerequisite).font(Font.callout).settingsSecondary()
+                        Text(prerequisite).font(Font.scaled(.callout)).settingsSecondary()
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.buttonStyle(.plain)
@@ -268,6 +268,7 @@ struct SettingsView: View {
 
     @ViewBuilder private var generalSection: some View {
         if shows("General", ["launch", "login", "startup", "open at login", "auto start",
+                                 "appearance", "theme", "dark", "light", "text size", "font",
                                  "menu bar", "menubar", "dock", "dock icon", "hide dock",
                                  "window", "background", "tray", "quick recall", "shortcut",
                                  "hotkey", "global search"]) {
@@ -288,6 +289,26 @@ struct SettingsView: View {
                             DockPolicy.sync()
                             if !menuBarOnly { openWindow(id: "main") }
                         }
+                }
+                Section("Appearance") {
+                    Picker(selection: $app.settings.appTheme) {
+                        ForEach(AppTheme.allCases) { Text($0.displayName).tag($0) }
+                    } label: {
+                        SettingsLabel("Theme", help: "Use light or dark windows regardless of the system setting, or follow it.")
+                    }
+                    .pickerStyle(.segmented)
+                    .settingTarget("settings.appTheme", selected: app.focusedSettingID)
+                    Picker(selection: $app.settings.textSize) {
+                        ForEach(AppTextSize.allCases) { Text($0.displayName).tag($0) }
+                    } label: {
+                        SettingsLabel("Text size", help: "Scales text across LokalBot's windows. Agent keeps its own size (⌘+ and ⌘−).")
+                    }
+                    .pickerStyle(.segmented)
+                    .settingTarget("settings.textSize", selected: app.focusedSettingID)
+                    Text("Meeting notes, transcripts, and actions will look like this.")
+                        .font(.scaled(.body))
+                        .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
                 Section("Shortcut") {
                     Toggle(isOn: $app.settings.quickRecallEnabled) {
@@ -732,7 +753,7 @@ struct SettingsView: View {
                           help: "Shapes both scheduled and manual digests.")
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $app.settings.dayDigestCustomPrompt)
-                    .font(Font.body)
+                    .font(Font.scaled(.body))
                     .multilineTextAlignment(.leading)
                     .scrollContentBackground(.hidden)
                     .padding(.horizontal, 6)
@@ -742,7 +763,7 @@ struct SettingsView: View {
 
                 if app.settings.dayDigestCustomPrompt.isEmpty {
                     Text("Example: Emphasize decisions, blockers, and next steps.")
-                        .font(Font.body)
+                        .font(Font.scaled(.body))
                         .settingsSecondary()
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -814,7 +835,7 @@ struct SettingsView: View {
                             }
                         }
                         if app.memoryRoutines.isRunning, let kind = app.memoryRoutines.currentKind {
-                            LoadingStateLabel(kind.displayName, font: .caption)
+                            LoadingStateLabel(kind.displayName, font: .scaled(.caption))
                         }
                     }
                     if !app.memoryRoutines.recentRuns.isEmpty {
@@ -856,14 +877,14 @@ struct SettingsView: View {
                         Button("Review now") { app.dreamNow() }
                             .disabled(app.dreaming.isDreaming || !app.libraryReady)
                         if app.dreaming.isDreaming {
-                            LoadingStateLabel("Reviewing…", font: .caption)
+                            LoadingStateLabel("Reviewing…", font: .scaled(.caption))
                         } else if let last = app.dreaming.lastDreamedAt {
                             SettingsHelp("Last reviewed " + last.formatted(.relative(presentation: .named)))
                         }
                     }
                     if let error = app.dreaming.lastError {
                         Label(error, systemImage: "exclamationmark.triangle")
-                            .font(Font.body).foregroundStyle(Brand.error)
+                            .font(Font.scaled(.body)).foregroundStyle(Brand.error)
                     }
                 }
                 if let memory = app.dreamMemory,
@@ -872,7 +893,7 @@ struct SettingsView: View {
                         SettingsHelp("Pin items to keep them during automatic memory cleanup.")
                         if !memory.activeProjects.isEmpty {
                             Text("Active projects")
-                                .font(.caption.weight(.semibold))
+                                .font(.scaled(.caption).weight(.semibold))
                                 .settingsSecondary()
                             ForEach(memory.activeProjects, id: \.name) { project in
                                 dreamMemoryPinRow(
@@ -884,7 +905,7 @@ struct SettingsView: View {
                         }
                         if !memory.workGoals.isEmpty {
                             Text("Current goals")
-                                .font(.caption.weight(.semibold))
+                                .font(.scaled(.caption).weight(.semibold))
                                 .settingsSecondary()
                             ForEach(memory.workGoals, id: \.text) { goal in
                                 dreamMemoryPinRow(
@@ -967,7 +988,7 @@ struct SettingsView: View {
                 Link("Support", destination: URL(string: "https://www.lokalbot.com/support")!)
                     .buttonStyle(.workspaceLink)
             }
-            .font(Font.body)
+            .font(Font.scaled(.body))
         }
     }
 
@@ -1004,10 +1025,10 @@ struct SettingsView: View {
                     }
                     if power.isLowPower {
                         Label("Low Power Mode is on — summaries may run slower.", systemImage: "bolt.slash")
-                            .font(.callout).settingsSecondary()
+                            .font(.scaled(.callout)).settingsSecondary()
                     } else if power.isOnBattery {
                         Label("Running on battery.", systemImage: "battery.75")
-                            .font(.callout).settingsSecondary()
+                            .font(.scaled(.callout)).settingsSecondary()
                     }
                     if metrics.recent.isEmpty {
                         LabeledContent("Recent generations") {
@@ -1018,7 +1039,7 @@ struct SettingsView: View {
                             LabeledContent(metric.label) {
                                 Text(String(format: "%.1fs · ~%d tok · %.0f tok/s",
                                             metric.durationSec, metric.approxTokens, metric.tokensPerSec))
-                                    .font(Font.callout).settingsSecondary()
+                                    .font(Font.scaled(.callout)).settingsSecondary()
                             }
                         }
                     }
@@ -1108,7 +1129,7 @@ struct SettingsView: View {
                 Button("Grant Calendar Access…") { app.calendar.requestAccess { _ in } }
                 if let error = app.calendar.accessRequestError {
                     Text(error)
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         .foregroundStyle(Brand.error)
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 320, alignment: .trailing)
@@ -1203,7 +1224,7 @@ private struct SettingsCategoryLabel: View {
             Image(systemName: category.icon)
                 .foregroundStyle(prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(Brand.teal))
         }
-        .font(.body)
+        .font(.scaled(.body))
     }
 }
 

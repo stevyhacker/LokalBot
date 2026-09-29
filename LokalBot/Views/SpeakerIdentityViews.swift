@@ -30,9 +30,9 @@ private struct SpeakerVoiceProfileManager: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Remembered people").font(.title2.bold())
+            Text("Remembered people").font(.scaled(.title2).bold())
             Text("Voice profiles stay on this Mac. Forgetting a person removes their samples and identity links. Existing transcript names remain.")
-                .font(.callout).foregroundStyle(.secondary)
+                .font(.scaled(.callout)).foregroundStyle(.secondary)
             if people.isEmpty {
                 Text("No remembered voices yet. Confirm a speaker after a recording with enough clear speech.")
                     .foregroundStyle(.secondary).padding(.vertical)
@@ -49,7 +49,7 @@ private struct SpeakerVoiceProfileManager: View {
                 }
             }
             .frame(maxHeight: 320)
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            if let error { Text(error).font(.scaled(.caption)).foregroundStyle(.red) }
             HStack {
                 Button("Clear all", role: .destructive) { perform { try await identity.forgetProfile(nil) } }
                     .disabled(people.isEmpty)
@@ -89,7 +89,7 @@ private struct SpeakerVoiceProfileRow: View {
                 Button("Forget", role: .destructive, action: onForget)
             }
             Text("\(person.contributions.count) confirmed recording(s) · Profile \(person.id.uuidString.prefix(6))")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.scaled(.caption)).foregroundStyle(.secondary)
         }
     }
 }
@@ -124,7 +124,7 @@ struct SpeakerIdentityReview: View {
         VStack(alignment: .leading, spacing: 10) {
             if canConfirmIdentity {
                 Text(identityDescription)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.scaled(.subheadline).weight(.semibold))
                 HStack {
                     if let time = assignment?.anchors.first?.start { Button("Play Speech") { onPlay(time) } }
                     Button("This Is Me") { onAction(.confirmUser, name, remember, profileID) }
@@ -132,22 +132,22 @@ struct SpeakerIdentityReview: View {
                 }
             } else {
                 Text("This audio mixes voices, so it can't be confirmed as one person. You can still name it.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
             if let match = assignment?.match, assignment?.origin.isProtected == false {
-                Text("Automatically identified").font(.subheadline.weight(.semibold))
-                Text(match.explanation).font(.caption).foregroundStyle(.secondary)
+                Text("Automatically identified").font(.scaled(.subheadline).weight(.semibold))
+                Text(match.explanation).font(.scaled(.caption)).foregroundStyle(.secondary)
                 HStack {
                     if let time = match.evidence.first?.start { Button("Play supporting speech") { onPlay(time) } }
                     Button("Undo") { onAction(.undo, assignment?.name, false, nil) }
                 }
             }
             if assignment?.automaticDisabled == true {
-                Text("Automatic naming is paused for this speaker.").font(.caption).foregroundStyle(.secondary)
+                Text("Automatic naming is paused for this speaker.").font(.scaled(.caption)).foregroundStyle(.secondary)
                 Button("Resume automatic identification") { onAction(.resume, nil, false, nil) }
             }
             if let candidates = state?.suggestions[speaker], !candidates.isEmpty, assignment?.origin.isProtected != true {
-                Text("Suggested Names").font(.headline)
+                Text("Suggested Names").font(.scaled(.headline))
                 ForEach(candidates) { candidate in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -156,7 +156,7 @@ struct SpeakerIdentityReview: View {
                             if let time = candidate.evidence.first?.start { Button("Play") { onPlay(time) } }
                             Button("Dismiss") { onAction(.dismiss, candidate.name, false, nil) }
                         }
-                        Text(candidate.explanation).font(.caption).foregroundStyle(.secondary)
+                        Text(candidate.explanation).font(.scaled(.caption)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
@@ -176,13 +176,13 @@ struct SpeakerIdentityReview: View {
                         }
                     }
                     Text("Select an existing person explicitly to add voice samples to their profile. Similar names are never merged automatically.")
-                        .font(.caption).foregroundStyle(.secondary)
+                        .font(.scaled(.caption)).foregroundStyle(.secondary)
                 }
             }
             if let previous = state?.assignments.filter({ $0.label.hasPrefix("unresolved-") && $0.name != nil }), !previous.isEmpty {
-                Text("Previously named voices").font(.subheadline.weight(.semibold))
+                Text("Previously named voices").font(.scaled(.subheadline).weight(.semibold))
                 Text("Speaker separation changed. Play the saved speech before choosing a previous name for this speaker.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
                 ForEach(previous.prefix(6)) { item in
                     HStack {
                         Button(item.name ?? "Unnamed") { name = item.name ?? ""; profileID = nil }
@@ -192,9 +192,9 @@ struct SpeakerIdentityReview: View {
             }
             if state?.revision ?? 0 > 0 {
                 Button("Delete meeting speaker evidence", role: .destructive, action: onDeleteEvidence)
-                    .font(.caption)
+                    .font(.scaled(.caption))
                 Text("Keeps your saved speaker names and remembered voice profiles.")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
         }
     }

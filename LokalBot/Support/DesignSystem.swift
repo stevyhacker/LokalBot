@@ -78,19 +78,19 @@ private struct WorkspaceTextRoleModifier: ViewModifier {
         switch role {
         case .metadata:
             content
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.supporting))
         case .supporting:
             content
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.supporting))
         case .trust:
             content
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(Color.primary)
         case .warning:
             content
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(contrast == .increased ? Color.primary : Color(nsColor: WorkspaceTextColor.warning))
         }
     }
@@ -131,7 +131,7 @@ struct InferenceDisclosure: View {
             Image(systemName: destination.icon)
                 .foregroundStyle(destination == .onDevice ? Brand.teal : Brand.amber)
             VStack(alignment: .leading, spacing: 3) {
-                Text(destination.label).font(Font.callout.weight(.semibold))
+                Text(destination.label).font(Font.scaled(.callout).weight(.semibold))
                 Text(destination.detail(local: localText, remote: remoteText))
                     .workspaceTextRole(destination.isBlocked ? .warning : .trust)
                     .fixedSize(horizontal: false, vertical: true)
@@ -293,7 +293,7 @@ struct WorkspaceDisclosure<Label: View, Content: View>: View {
                     label()
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
+                        .font(.scaled(.caption).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
@@ -319,7 +319,7 @@ enum ChipSize {
     case regular, compact
 
     var font: Font {
-        self == .regular ? Font.callout : .system(size: 11, weight: .medium)
+        self == .regular ? Font.scaled(.callout) : .scaledSystem(size: 11, weight: .medium)
     }
     var horizontalPadding: CGFloat { self == .regular ? 10 : 8 }
     var verticalPadding: CGFloat { self == .regular ? 5 : 3 }
@@ -401,7 +401,7 @@ struct LoadingStateLabel: View {
 
     init(
         _ text: String,
-        font: Font = Font.callout,
+        font: Font = Font.scaled(.callout),
         controlSize: ControlSize = .small
     ) {
         self.text = text
@@ -435,7 +435,7 @@ struct ErrorToast: View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Brand.error)
                 .accessibilityHidden(true)
-            Text(message).font(.callout).lineLimit(2).help(message)
+            Text(message).font(.scaled(.callout)).lineLimit(2).help(message)
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
                     .buttonStyle(.bordered)
@@ -486,7 +486,7 @@ struct SectionHeader: View {
 
     var body: some View {
         Text(text)
-            .font(Font.subheadline.weight(.semibold))
+            .font(Font.scaled(.subheadline).weight(.semibold))
             .foregroundStyle(.secondary)
     }
 }
@@ -502,9 +502,9 @@ struct StatTile: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            Image(systemName: icon).font(Font.callout).foregroundStyle(.secondary)
-            Text(value).font(Font.callout.weight(.semibold).monospacedDigit())
-            Text(label).font(Font.callout).foregroundStyle(.secondary)
+            Image(systemName: icon).font(Font.scaled(.callout)).foregroundStyle(.secondary)
+            Text(value).font(Font.scaled(.callout).weight(.semibold).monospacedDigit())
+            Text(label).font(Font.scaled(.callout)).foregroundStyle(.secondary)
         }
         .fixedSize()
         .chipChrome()

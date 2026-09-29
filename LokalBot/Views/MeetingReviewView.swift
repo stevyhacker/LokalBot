@@ -33,7 +33,7 @@ struct MeetingSpeakerReviewSection: View {
                         }
                     }
                     if let sample = speaker.sample {
-                        Text("“" + sample.text + "”").font(.body).foregroundStyle(.secondary)
+                        Text("“" + sample.text + "”").font(.scaled(.body)).foregroundStyle(.secondary)
                             .lineLimit(3).textSelection(.enabled)
                     } else {
                         Text("No clear voice excerpt available. Review the transcript before assigning a name.")
@@ -64,7 +64,7 @@ struct MeetingSpeakerReviewSection: View {
             HStack(spacing: 6) {
                 Circle().fill(LBTokens.Palette.speaker(at: presentation.colorIndex(for: speaker.id)))
                     .frame(width: 7, height: 7).accessibilityHidden(true)
-                Text(SpeakerDisplayName.label(speaker.name)).font(.body.weight(.semibold))
+                Text(SpeakerDisplayName.label(speaker.name)).font(.scaled(.body).weight(.semibold))
             }
             Text(speaker.status).workspaceTextRole(.supporting)
             if speaker.actionCount > 0 {
@@ -104,7 +104,7 @@ struct MeetingNotesRefreshSection: View {
         WorkspaceSection(title: "Refresh Notes", icon: "arrow.trianglehead.2.clockwise") {
             Label(needsRefresh ? "Notes need a refresh" : hasNotes ? "Notes use the latest saved speaker details" : "No derived notes yet",
                   systemImage: needsRefresh ? "exclamationmark.triangle" : hasNotes ? "checkmark.circle" : "doc.text")
-                .font(Font.body.weight(.semibold))
+                .font(Font.scaled(.body).weight(.semibold))
                 .accessibilityIdentifier("meeting.review.freshness")
             Text("Refresh the summary and extracted owners after reviewing speakers. Saved action corrections stay separate; unmatched edits remain available for review.")
                 .workspaceTextRole(.supporting)

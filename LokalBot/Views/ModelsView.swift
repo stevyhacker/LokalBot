@@ -22,7 +22,7 @@ struct ModelsView: View {
                         Label("Models", systemImage: "chevron.left")
                     }
                     .accessibilityIdentifier("models.back")
-                    Text(page.wrappedValue.title).font(.headline)
+                    Text(page.wrappedValue.title).font(.scaled(.headline))
                 }
                 Spacer(minLength: 12)
                 Button("Check Setup…") { sheet = .checks }
@@ -118,9 +118,9 @@ struct ModelSetupFeedback: View {
             HStack(spacing: 10) {
                 ProgressView().controlSize(.small)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Preparing \(pending.title)…").font(.body.weight(.medium))
+                    Text("Preparing \(pending.title)…").font(.scaled(.body).weight(.medium))
                     Text("Your current models stay active until preparation finishes.")
-                        .font(.callout).settingsSecondary()
+                        .font(.scaled(.callout)).settingsSecondary()
                 }
                 Spacer()
                 Button("Cancel Switch") { controller.cancelSwitch() }
@@ -130,7 +130,7 @@ struct ModelSetupFeedback: View {
         } else if let failure = controller.failure {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
-                Text(failure).font(.body).textSelection(.enabled)
+                Text(failure).font(.scaled(.body)).textSelection(.enabled)
                 Spacer()
                 Button("Retry") { controller.retry() }
                 Button("Dismiss") { controller.dismissFeedback() }
@@ -139,7 +139,7 @@ struct ModelSetupFeedback: View {
         } else if let completed = controller.completed {
             HStack {
                 Label("Using \(completed.title)", systemImage: "checkmark.circle")
-                    .font(.body)
+                    .font(.scaled(.body))
                 Spacer()
                 if completed.patch != completed.previous {
                     Button("Undo") { controller.undo() }.accessibilityIdentifier("models.undo")
@@ -168,12 +168,12 @@ struct ModelStorageSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Model Storage").font(.headline)
+            Text("Model Storage").font(.scaled(.headline))
             HStack(spacing: 12) {
                 Image(systemName: "internaldrive").font(.system(size: 20)).settingsSecondary()
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Text models: \(roles.snapshot.storageSummary)").font(.body)
-                    Text(memorySummary).font(.callout).settingsSecondary()
+                    Text("Text models: \(roles.snapshot.storageSummary)").font(.scaled(.body))
+                    Text(memorySummary).font(.scaled(.callout)).settingsSecondary()
                 }
                 Spacer(minLength: 8)
                 Button("Show in Finder") {

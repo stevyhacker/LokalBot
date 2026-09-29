@@ -15,14 +15,14 @@ struct SelectableDigestText: View {
     }
 
     let text: String
-    var font: Font = .body
+    var font: Font = .scaled(.body)
     var searchQuery: String = ""
     var activeMatchIndex: Int?
     var style: Style = .standard
 
     init(
         _ text: String,
-        font: Font = .body,
+        font: Font = .scaled(.body),
         searchQuery: String = "",
         activeMatchIndex: Int? = nil,
         style: Style = .standard
@@ -57,7 +57,7 @@ struct SelectableDigestText: View {
 
     static func attributedText(
         from markdown: String,
-        font: Font = .body,
+        font: Font = .scaled(.body),
         searchQuery: String = "",
         activeMatchIndex: Int? = nil,
         style: Style = .standard
@@ -283,7 +283,7 @@ struct SelectableDigestText: View {
 
     private static func baseFont(for style: Style, fallback: Font) -> Font {
         switch style {
-        case .editorial: return Font.body
+        case .editorial: return Font.scaled(.body)
         case .agent: return fallback
         case .standard: return fallback
         }
@@ -494,15 +494,15 @@ struct SelectableDigestText: View {
         switch style {
         case .editorial, .agent:
             switch level {
-            case 1: return Font.title2.weight(.semibold)
-            case 2: return Font.headline
-            default: return Font.body.weight(.semibold)
+            case 1: return Font.scaled(.title2).weight(.semibold)
+            case 2: return Font.scaled(.headline)
+            default: return Font.scaled(.body).weight(.semibold)
             }
         case .standard:
             switch level {
-            case 1: return Font.title2.bold()
-            case 2: return Font.title3.bold()
-            default: return Font.headline
+            case 1: return Font.scaled(.title2).bold()
+            case 2: return Font.scaled(.title3).bold()
+            default: return Font.scaled(.headline)
             }
         }
     }
@@ -570,7 +570,7 @@ struct SelectableDigestText: View {
     }
 
     private static func prefixed(_ prefix: String, content: String,
-                                 font: Font = .body,
+                                 font: Font = .scaled(.body),
                                  foreground: Color? = nil,
                                  style: Style) -> AttributedString {
         var result = styled(prefix, font: font, foreground: foreground)
@@ -594,7 +594,7 @@ struct SelectableDigestText: View {
         if style == .editorial {
             styleNumericCitations(in: &result)
             for run in result.runs where run.link?.scheme == "lokalbot-citation" {
-                result[run.range].font = Font.callout.weight(.semibold).monospacedDigit()
+                result[run.range].font = Font.scaled(.callout).weight(.semibold).monospacedDigit()
                 result[run.range].foregroundColor = Brand.teal
                 result[run.range].backgroundColor = Brand.teal.opacity(0.12)
             }
@@ -617,7 +617,7 @@ struct SelectableDigestText: View {
                digits.allSatisfy(\.isNumber),
                let lowerBound = AttributedString.Index(open, within: attributedText),
                let upperBound = AttributedString.Index(afterClose, within: attributedText) {
-                attributedText[lowerBound..<upperBound].font = Font.callout.weight(.semibold)
+                attributedText[lowerBound..<upperBound].font = Font.scaled(.callout).weight(.semibold)
                 attributedText[lowerBound..<upperBound].foregroundColor = Brand.teal
             }
 

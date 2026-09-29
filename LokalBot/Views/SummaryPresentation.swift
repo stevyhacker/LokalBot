@@ -117,14 +117,14 @@ struct MeetingRecapView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array((isExpanded ? points : Array(points.prefix(5))).enumerated()), id: \.offset) { _, point in
-                SelectableDigestText(point, font: Font.body)
+                SelectableDigestText(point, font: Font.scaled(.body))
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("meeting.recap.text")
             }
             if points.count > 5 {
                 Button(isExpanded ? "Show Less" : "Show \(points.count - 5) More Points") { isExpanded.toggle() }
                     .buttonStyle(.plain)
-                    .font(Font.callout.weight(.semibold))
+                    .font(Font.scaled(.callout).weight(.semibold))
                     .foregroundStyle(Brand.teal)
                     .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
                     .accessibilityIdentifier("meeting.recap.expand")
@@ -144,7 +144,7 @@ struct SummaryMetadataRow: View {
             Self.displayText(for: items),
             query: searchQuery,
             activeMatchIndex: activeMatchIndex)
-            .font(Font.callout)
+            .font(Font.scaled(.callout))
             .foregroundStyle(.secondary)
             .textSelection(.enabled)
             .fixedSize(horizontal: false, vertical: true)

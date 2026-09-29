@@ -56,6 +56,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// → show the Dock icon + app menu for full window UX; nothing open → fall
     /// back to a pure menu-bar accessory.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let settings = Self.appState?.settings {
+            AppAppearance.apply(theme: settings.appTheme, textSize: settings.textSize)
+        }
         if AppState.isUITesting {
             uiTestDiagnosticLog(
                 "didFinishLaunching application=\(NSStringFromClass(type(of: NSApp!))) "

@@ -53,18 +53,18 @@ enum LBTokens {
     // MARK: - Typography (macOS default sizes in comments)
 
     enum Typography {
-        static let pageTitle = Font.largeTitle.bold()           // 26 bold
-        static let question = Font.title2.weight(.semibold)     // 17 semibold, Ask
-        static let digestLead = Font.title3                     // 15, Day Digest highlights
-        static let columnTitle = Font.title3.bold()             // 15 bold, toolbar column titles
-        static let section = Font.headline                      // 13 bold
-        static let body = Font.body                             // 13
-        static let reading = Font.system(size: 14)              // transcript lines
-        static let secondary = Font.callout                     // 12
-        static let caption = Font.subheadline                   // 11
-        static let sidebarSection = Font.subheadline.bold()     // 11 bold
-        static let timestamp = Font.callout.monospacedDigit()
-        static let path = Font.system(.callout, design: .monospaced)
+        static var pageTitle: Font { Font.scaled(.largeTitle).bold() }           // 26 bold
+        static var question: Font { Font.scaled(.title2).weight(.semibold) }     // 17 semibold, Ask
+        static var digestLead: Font { Font.scaled(.title3) }                     // 15, Day Digest highlights
+        static var columnTitle: Font { Font.scaled(.title3).bold() }             // 15 bold, toolbar column titles
+        static var section: Font { Font.scaled(.headline) }                      // 13 bold
+        static var body: Font { Font.scaled(.body) }                             // 13
+        static var reading: Font { Font.scaledSystem(size: 14) }              // transcript lines
+        static var secondary: Font { Font.scaled(.callout) }                     // 12
+        static var caption: Font { Font.scaled(.subheadline) }                   // 11
+        static var sidebarSection: Font { Font.scaled(.subheadline).bold() }     // 11 bold
+        static var timestamp: Font { Font.scaled(.callout).monospacedDigit() }
+        static var path: Font { Font.scaled(.callout, design: .monospaced) }
     }
 
     // MARK: - Metrics

@@ -31,7 +31,7 @@ struct DayDigestCard: View {
                             .accessibilityIdentifier("\(identifier).dayDigest.stale")
                     }
                 }
-                .font(Font.callout).foregroundStyle(.secondary)
+                .font(Font.scaled(.callout)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             }
             if let yesterday {
@@ -141,7 +141,7 @@ struct YesterdayDigestLine: View {
             }
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(label).font(Font.body.weight(.semibold))
+                Text(label).font(Font.scaled(.body).weight(.semibold))
                 Text(report.narrative).lineLimit(1).foregroundStyle(.secondary)
             }
         }

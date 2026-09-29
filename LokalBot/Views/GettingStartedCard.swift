@@ -24,15 +24,15 @@ struct GettingStartedCard: View {
                         IconTile(systemImage: "waveform.badge.magnifyingglass",
                                  tint: Brand.teal, size: 48)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Welcome to LokalBot").font(.title2.bold())
+                            Text("Welcome to LokalBot").font(.scaled(.title2).bold())
                                 .foregroundStyle(.primary)
                             Text("Your private AI memory for work — on-device by default.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(.scaled(.callout)).foregroundStyle(.secondary)
                         }
                         Spacer()
                         Button { dismissed = true } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .font(.title3).foregroundStyle(.secondary)
+                                .font(.scaled(.title3)).foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
                         .help("Dismiss")
@@ -52,7 +52,7 @@ struct GettingStartedCard: View {
                            "Create inspectable drafts, exports, and approved agent sessions.", isRecording: nil)
                 }
 
-                Text("Get started").font(.headline)
+                Text("Get started").font(.scaled(.headline))
                 VStack(alignment: .leading, spacing: 10) {
                     stepRow(done: modelDownloaded ? true : nil) {
                         modelStep
@@ -81,7 +81,7 @@ struct GettingStartedCard: View {
                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: Brand.Radius.panel))
 
                 Text("Tip: press ⌘K anywhere to record, navigate, or jump to a meeting.")
-                    .font(.caption).foregroundStyle(.tertiary)
+                    .font(.scaled(.caption)).foregroundStyle(.tertiary)
             }
             .padding(WorkspaceMetric.pagePadding)
             .frame(maxWidth: 560, alignment: .leading)
@@ -104,7 +104,7 @@ struct GettingStartedCard: View {
             HStack(spacing: 8) {
                 ProgressView(value: modelProgress).frame(width: 160)
                 Text(modelStatus ?? "Downloading…")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -114,7 +114,7 @@ struct GettingStartedCard: View {
                     Text("one-time — or it downloads with your first recap.")
                 }
                 if let modelError {
-                    Text(modelError).font(.caption).foregroundStyle(Brand.error)
+                    Text(modelError).font(.scaled(.caption)).foregroundStyle(Brand.error)
                 }
             }
         }
@@ -144,10 +144,10 @@ struct GettingStartedCard: View {
                         isRecording: Bool?) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: icon)
-                .font(.title2)
+                .font(.scaled(.title2))
                 .foregroundStyle(isRecording == true ? AnyShapeStyle(Brand.amber) : AnyShapeStyle(.tint))
-            Text(title).font(.headline)
-            Text(body).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Text(title).font(.scaled(.headline))
+            Text(body).font(.scaled(.caption)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
@@ -160,7 +160,7 @@ struct GettingStartedCard: View {
             Image(systemName: done == true ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(done == true ? Color.green : Brand.teal)
                 .padding(.top, 2)
-            content().font(.callout)
+            content().font(.scaled(.callout))
         }
     }
 }

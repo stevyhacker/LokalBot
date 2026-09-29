@@ -57,7 +57,7 @@ struct AgentSessionView: View {
             if let request = controller.pendingApprovals.first {
                 VStack(alignment: .leading, spacing: 4) {
                     if controller.pendingApprovals.count > 1 {
-                        Text("\(controller.pendingApprovals.count) approvals waiting").font(.caption)
+                        Text("\(controller.pendingApprovals.count) approvals waiting").font(.scaled(.caption))
                     }
                     // Keep the expanded preview scrollable without consuming
                     // the conversation above it in a compact window.
@@ -83,10 +83,10 @@ struct AgentSessionView: View {
     private var taskHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(sessions.selectedTab?.title ?? "New task")
-                .font(.title2.weight(.semibold)).lineLimit(2)
+                .font(.scaled(.title2).weight(.semibold)).lineLimit(2)
                 .help(sessions.selectedTab?.title ?? "New task")
                 .accessibilityIdentifier("agent.taskTitle")
-            Text(controller.taskStatus).font(Font.callout).foregroundStyle(.secondary)
+            Text(controller.taskStatus).font(Font.scaled(.callout)).foregroundStyle(.secondary)
         }.frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
     }
 
@@ -110,7 +110,7 @@ struct AgentSessionView: View {
         HStack {
             TextField("Find in this task", text: $findQuery).textFieldStyle(.roundedBorder)
                 .focused($findFocused).onSubmit { nextMatch(1) }.accessibilityIdentifier("agent.findField")
-            Text(matches.isEmpty ? "0 matches" : "\(matchIndex + 1) of \(matches.count)").font(.caption).monospacedDigit()
+            Text(matches.isEmpty ? "0 matches" : "\(matchIndex + 1) of \(matches.count)").font(.scaled(.caption)).monospacedDigit()
             Button { nextMatch(-1) } label: { Image(systemName: "chevron.up") }.accessibilityLabel("Previous match")
             Button { nextMatch(1) } label: { Image(systemName: "chevron.down") }.accessibilityLabel("Next match")
             Button { findVisible = false; findQuery = "" } label: { Image(systemName: "xmark") }.accessibilityLabel("Close find")
@@ -164,7 +164,7 @@ struct AgentSessionView: View {
 
     private var emptyState: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("What would you like to work on?").font(.title2.weight(.semibold))
+            Text("What would you like to work on?").font(.scaled(.title2).weight(.semibold))
             Text("Start with your work memory or a file. The agent starts when you send.")
                 .foregroundStyle(.secondary)
             ViewThatFits(in: .horizontal) {
@@ -227,7 +227,7 @@ struct AgentSessionView: View {
             }.frame(maxWidth: .infinity, alignment: .leading)
         case .notice(_, let text, let error):
             Label(text, systemImage: error ? "exclamationmark.triangle" : "info.circle")
-                .font(.callout).foregroundStyle(error ? Color.orange : Color.secondary).textSelection(.enabled)
+                .font(.scaled(.callout)).foregroundStyle(error ? Color.orange : Color.secondary).textSelection(.enabled)
         default: EmptyView()
         }
     }
@@ -253,8 +253,8 @@ struct AgentSessionView: View {
     }
     private func recovery(_ message: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Task needs attention", systemImage: "exclamationmark.triangle").font(.headline)
-            Text(message).font(.callout).textSelection(.enabled)
+            Label("Task needs attention", systemImage: "exclamationmark.triangle").font(.scaled(.headline))
+            Text(message).font(.scaled(.callout)).textSelection(.enabled)
             HStack {
                 if controller.recoveryAction == .openModels {
                     Button("Open Models") { app.openSettings(tab: .models) }.accessibilityIdentifier("agent.openModels")
@@ -279,7 +279,7 @@ private struct AgentMessageActionStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.callout.weight(.semibold))
+            .font(.scaled(.callout).weight(.semibold))
             .foregroundStyle(enabled ? Color.primary : Color.secondary)
             .opacity(configuration.isPressed ? 0.65 : 1)
             .padding(.vertical, 4)

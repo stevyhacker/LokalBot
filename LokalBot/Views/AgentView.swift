@@ -50,14 +50,14 @@ struct AgentView: View {
         VStack(spacing: 12) {
             Image(systemName: "wand.and.sparkles").font(.system(size: 36))
                 .foregroundStyle(.secondary)
-            Text("Agent Mode").font(.title2.bold())
+            Text("Agent Mode").font(.scaled(.title2).bold())
             Text(installDescription)
                 .multilineTextAlignment(.center)
                 .workspaceTextRole(.trust)
                 .frame(maxWidth: 420)
             switch installer.phase {
             case .checking:
-                LoadingStateLabel("Verifying Agent runtime…", font: .caption)
+                LoadingStateLabel("Verifying Agent runtime…", font: .scaled(.caption))
             case .idle:
                 Button("Download & Enable Agent Mode") {
                     Task { await installer.installIfNeeded() }
@@ -67,9 +67,9 @@ struct AgentView: View {
             case .downloading(let name, let progress):
                 ProgressView(value: progress >= 0 ? progress : nil)
                     .frame(maxWidth: 320)
-                Text("Downloading \(name)…").font(.caption).foregroundStyle(.secondary)
+                Text("Downloading \(name)…").font(.scaled(.caption)).foregroundStyle(.secondary)
             case .installing(let name):
-                LoadingStateLabel("Installing \(name)…", font: .caption)
+                LoadingStateLabel("Installing \(name)…", font: .scaled(.caption))
             case .failed(let message):
                 Text(message).workspaceTextRole(.warning)
                     .frame(maxWidth: 420)

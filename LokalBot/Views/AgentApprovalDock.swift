@@ -9,7 +9,7 @@ struct AgentApprovalDock: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("Approval required: \(request.tool)", systemImage: "hand.raised.fill")
-                .font(.headline)
+                .font(.scaled(.headline))
                 .foregroundStyle(LBTokens.Palette.attentionText)
 
             Text(approvalEffect(request.tool)).workspaceTextRole(.trust)
@@ -47,7 +47,7 @@ struct AgentApprovalDock: View {
             ForEach(Array(request.edits.enumerated()), id: \.offset) { index, edit in
                 VStack(alignment: .leading, spacing: 6) {
                     if request.edits.count > 1 {
-                        Text("Edit \(index + 1)").font(.caption.weight(.semibold))
+                        Text("Edit \(index + 1)").font(.scaled(.caption).weight(.semibold))
                     }
                     approvalCode(label: "Remove", value: edit.oldText, tint: .red)
                     approvalCode(label: "Replace with", value: edit.newText, tint: .green)
@@ -112,14 +112,14 @@ struct AgentApprovalDock: View {
 
     private func approvalText(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(label).font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
             Text(value).font(LBTokens.Typography.path).textSelection(.enabled)
         }
     }
 
     private func approvalCode(label: String, value: String, tint: Color = .gray) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(label).font(.scaled(.caption).weight(.semibold)).foregroundStyle(.secondary)
             ScrollView([.horizontal, .vertical]) {
                 Text(value.isEmpty ? "(empty)" : value)
                     .font(LBTokens.Typography.path)

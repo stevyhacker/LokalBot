@@ -121,7 +121,7 @@ private struct MigrationRecoveryView: View {
                     .foregroundStyle(recovery.outcome == .ready ? .green : .orange)
                 VStack(alignment: .leading, spacing: 10) {
                     Text(presentation.title)
-                        .font(.title2.weight(.semibold))
+                        .font(.scaled(.title2).weight(.semibold))
                     Text(presentation.detail)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
@@ -227,6 +227,7 @@ struct LokalBotApp: App {
         Window("Welcome to LokalBot", id: "onboarding") {
             OnboardingView()
                 .environmentObject(app)
+                .appTextSizeRoot(app.settings.textSize)
         }
         .windowResizability(.contentSize)
 
@@ -236,6 +237,7 @@ struct LokalBotApp: App {
             CommandPaletteView()
                 .environmentObject(app)
                 .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
@@ -245,6 +247,7 @@ struct LokalBotApp: App {
             QuickRecallView()
                 .environmentObject(app)
                 .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
@@ -255,6 +258,7 @@ struct LokalBotApp: App {
             MenuBarView(dictation: app.dictation)
                 .environmentObject(app)
                 .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
         } label: {
             MenuBarLabel(app: app, dictation: app.dictation)
         }
@@ -266,6 +270,7 @@ struct LokalBotApp: App {
         MainWindowView()
             .environmentObject(app)
             .brandTinted()
+            .appTextSizeRoot(app.settings.textSize)
     }
 }
 

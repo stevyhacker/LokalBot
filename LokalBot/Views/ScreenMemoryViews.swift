@@ -92,10 +92,10 @@ struct ScreenThumbnailView: View {
                 if finishedLoading {
                     VStack(spacing: 5) {
                         Image(systemName: hasPixels ? "rectangle.slash" : "text.viewfinder")
-                            .font(.title3)
+                            .font(.scaled(.title3))
                         if !hasPixels, height >= 70 {
                             Text("Text context")
-                                .font(.caption2.weight(.medium))
+                                .font(.scaled(.caption2).weight(.medium))
                         }
                     }
                     .foregroundStyle(.tertiary)
@@ -180,7 +180,7 @@ struct ScreenSearchResultRow: View {
                     // window title leads, app and time follow, then the match.
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)
-                            .font(Font.body.weight(.semibold))
+                            .font(Font.scaled(.body).weight(.semibold))
                             .lineLimit(1)
                         HStack(spacing: 5) {
                             if !hit.windowTitle.isEmpty {

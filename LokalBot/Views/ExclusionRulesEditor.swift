@@ -18,7 +18,7 @@ struct ExclusionRulesEditor: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            Text(title).font(Font.callout.weight(.semibold))
+            Text(title).font(Font.scaled(.callout).weight(.semibold))
             VStack(spacing: 0) {
                 List(selection: $selectedRule) {
                     ForEach(Array(rules.enumerated()), id: \.offset) { index, rule in
@@ -26,9 +26,9 @@ struct ExclusionRulesEditor: View {
                             Label { Text(rule) } icon: { ruleIcon(rule).accessibilityHidden(true) }
                             Spacer()
                             Text(kind == .applications ? "App" : "Domain / URL")
-                                .font(.caption).foregroundStyle(.secondary)
+                                .font(.scaled(.caption)).foregroundStyle(.secondary)
                             if kind != .applications, !validDomain(rule) {
-                                Text("Legacy rule · review").font(.callout).foregroundStyle(Brand.amber)
+                                Text("Legacy rule · review").font(.scaled(.callout)).foregroundStyle(Brand.amber)
                             }
                         }
                         .tag(index)
@@ -67,7 +67,7 @@ struct ExclusionRulesEditor: View {
 
     private var addRulePopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Add Exclusion").font(.headline)
+            Text("Add Exclusion").font(.scaled(.headline))
             TextField(placeholder, text: $draft)
                 .textFieldStyle(.roundedBorder).onSubmit(add)
             if let error { Text(error).workspaceTextRole(.warning) }

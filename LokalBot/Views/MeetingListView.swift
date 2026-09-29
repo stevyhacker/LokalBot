@@ -18,9 +18,9 @@ struct MeetingListView: View {
             VStack(spacing: 10) {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Meetings").font(.title3.bold())
+                        Text("Meetings").font(.scaled(.title3).bold())
                         Text("\(app.meetings.filter { !$0.isMergedSource }.count) meetings")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 4)
                     Button {
@@ -37,12 +37,12 @@ struct MeetingListView: View {
                 }
                 TextField("Search meetings", text: $query)
                     .textFieldStyle(.roundedBorder)
-                    .font(Font.body)
+                    .font(Font.scaled(.body))
                     .accessibilityLabel("Search meetings")
                     .accessibilityIdentifier("meeting.search")
                 if app.evidenceMeetingID != nil, !query.isEmpty {
                     Text("The opened source remains visible outside these filters.")
-                        .font(.callout).foregroundStyle(.secondary).lineLimit(1)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if !failedMeetings.isEmpty {
                     HStack {
@@ -88,7 +88,7 @@ struct MeetingListView: View {
                 if !app.libraryReady {
                     LoadingStateLabel(
                         "Loading your meeting library…",
-                        font: Font.body)
+                        font: Font.scaled(.body))
                     .accessibilityIdentifier("meeting.libraryLoading")
                 } else if groupedMeetings.isEmpty {
                     meetingEmptyState
@@ -128,11 +128,11 @@ struct MeetingListView: View {
                 .foregroundStyle(Brand.teal)
             VStack(alignment: .leading, spacing: 1) {
                 Text("\(app.selectedMeetingIDs.count) meetings selected")
-                    .font(Font.body.weight(.semibold))
+                    .font(Font.scaled(.body).weight(.semibold))
                 Text(canMergeSelected
                      ? "Create one timeline and fold the originals into it"
                      : "Select completed meetings that are not processing")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 6)
@@ -265,7 +265,7 @@ struct MeetingRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     if live { StatusDot(color: Brand.recording, size: 9) }
-                    Text(meeting.displayTitle).font(.body.weight(.semibold)).lineLimit(1)
+                    Text(meeting.displayTitle).font(.scaled(.body).weight(.semibold)).lineLimit(1)
                     if live {
                         Spacer(minLength: 6)
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
@@ -273,7 +273,7 @@ struct MeetingRowView: View {
                 }
                 Text(meeting.isMergedMeeting ? "\(time) · \(duration)"
                      : "\(meeting.appName) · \(time) · \(duration)")
-                    .font(.callout).foregroundStyle(prominence == .increased ? Color.white.opacity(0.85) : .secondary).lineLimit(1)
+                    .font(.scaled(.callout)).foregroundStyle(prominence == .increased ? Color.white.opacity(0.85) : .secondary).lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
@@ -292,13 +292,13 @@ struct MeetingRowView: View {
         if stage.isFailure {
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Failed", systemImage: "exclamationmark.triangle.fill")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(Brand.error)
                 Button("Retry") {
                     app.retryProcessing(meeting)
                 }
                 .buttonStyle(.borderless)
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
             }
             .help(stage.label)
             .accessibilityIdentifier("meeting.retry.\(meeting.id.uuidString)")
@@ -307,13 +307,13 @@ struct MeetingRowView: View {
             // about what it does — it starts the missing model downloads.
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Waiting for models", systemImage: "arrow.down.circle")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
                 Button("Download & process") {
                     app.retryProcessing(meeting)
                 }
                 .buttonStyle(.borderless)
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
             }
             .help(stage.label)
             .accessibilityIdentifier("meeting.waitingModels.\(meeting.id.uuidString)")

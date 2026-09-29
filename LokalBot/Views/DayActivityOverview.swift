@@ -14,7 +14,7 @@ struct DayActivityOverview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).font(.headline)
+            Text(title).font(.scaled(.headline))
             ViewThatFits(in: .horizontal) {
                 DayStatRow(trackedSeconds: perApp.reduce(0) { $0 + $1.seconds }, appCount: perApp.count,
                            momentCount: model.shots.count, meetingCount: model.meetings(in: app).count)
@@ -40,7 +40,7 @@ struct DayActivityOverview: View {
                                 StatusDot(color: row.isOther ? .gray : CaptureStyle.color(for: row.label), size: 6)
                                 Text(row.label).lineLimit(1)
                                 Text(CaptureStyle.hm(row.seconds)).monospacedDigit().foregroundStyle(.secondary)
-                            }.font(.callout)
+                            }.font(.scaled(.callout))
                         }
                     }
                 }

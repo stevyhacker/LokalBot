@@ -46,7 +46,7 @@ private struct LaterTodayList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Later today")
-                .font(Font.callout.weight(.semibold))
+                .font(Font.scaled(.callout).weight(.semibold))
                 .foregroundStyle(.secondary)
             ForEach(showsAll ? events : Array(events.prefix(Self.inlineLimit)), id: \.externalID) { event in
                 row(event)
@@ -56,7 +56,7 @@ private struct LaterTodayList: View {
                     showsAll.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(Brand.teal)
                 .accessibilityIdentifier("today.meetings.later.more")
             }
@@ -70,15 +70,15 @@ private struct LaterTodayList: View {
     private func row(_ event: CalendarMeetingCandidate) -> some View {
         HStack(spacing: 12) {
             Text(UpcomingMeetingPresentation.timeRange(event))
-                .font(Font.callout.monospacedDigit())
+                .font(Font.scaled(.callout).monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(width: 118, alignment: .leading)
             Text(event.title)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .lineLimit(1)
             Spacer(minLength: 8)
             Text(UpcomingMeetingPresentation.statusLabel(event: event, now: now))
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
@@ -95,18 +95,18 @@ private struct TodayMeetingRow: View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             HStack(alignment: .center, spacing: 12) {
                 Text(UpcomingMeetingPresentation.timeRange(event))
-                    .font(Font.callout.weight(.semibold).monospacedDigit())
+                    .font(Font.scaled(.callout).weight(.semibold).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .frame(width: 118, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.title)
-                        .font(Font.body.weight(.semibold))
+                        .font(Font.scaled(.body).weight(.semibold))
                         .lineLimit(1)
                         .textSelection(.enabled)
                     if let participants = UpcomingMeetingPresentation.participantLabel(event) {
                         Text(participants)
-                            .font(Font.callout)
+                            .font(Font.scaled(.callout))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -115,7 +115,7 @@ private struct TodayMeetingRow: View {
                 Spacer(minLength: 8)
 
                 Text(UpcomingMeetingPresentation.statusLabel(event: event, now: context.date))
-                    .font(Font.callout.weight(.semibold))
+                    .font(Font.scaled(.callout).weight(.semibold))
                     .foregroundStyle(event.endDate < context.date ? .tertiary : .secondary)
                     .lineLimit(1)
 
@@ -186,7 +186,7 @@ private struct UpcomingMeetingCard: View {
                     additionalContext
                         .padding(.top, 7)
                 }
-                .font(.callout)
+                .font(.scaled(.callout))
             }
         }
         .padding(16)
@@ -203,10 +203,10 @@ private struct UpcomingMeetingCard: View {
     private var brief: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 8) {
-                Text("Brief").font(.headline)
+                Text("Brief").font(.scaled(.headline))
                 Spacer()
                 if model.isGenerating(evidence) {
-                    LoadingStateLabel("Preparing…", font: .caption)
+                    LoadingStateLabel("Preparing…", font: .scaled(.caption))
                 } else if evidence.hasPreparationContext {
                     Button {
                         Task { await model.generate(app: app, evidence: evidence) }
@@ -226,14 +226,14 @@ private struct UpcomingMeetingCard: View {
                 }
             }
             Text(model.brief(for: evidence))
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .accessibilityIdentifier("today.upcomingMeeting.brief")
             if let generationError = model.generationError(for: evidence) {
                 Label(generationError, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(Brand.error)
             }
         }
@@ -331,15 +331,15 @@ private struct UpcomingMeetingCard: View {
                 .foregroundStyle(Brand.teal)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.caption.weight(.semibold))
+                    .font(.scaled(.caption).weight(.semibold))
                     .foregroundStyle(.secondary)
                 Text(text)
-                    .font(.callout)
+                    .font(.scaled(.callout))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(source)
-                    .font(.caption2)
+                    .font(.scaled(.caption2))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }

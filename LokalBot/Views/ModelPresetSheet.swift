@@ -41,7 +41,7 @@ struct ModelPresetSheet: View {
                         Text("Current")
                         Text("After applying")
                     }
-                    .font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                    .font(.scaled(.callout).weight(.semibold)).foregroundStyle(.secondary)
                     previewRow("Transcribe", before: app.settings.transcriptionModelDisplayName,
                                after: selected.transcription.displayName)
                     previewRow("Think", before: ModelSettingsPresentation.assistantName(app.settings),
@@ -49,7 +49,7 @@ struct ModelPresetSheet: View {
                     previewRow("Autocomplete", before: name(app.settings.cotypingBuiltInModelID),
                                after: name(selected.autocompleteModelID))
                 }
-                .font(.body)
+                .font(.scaled(.body))
                 Divider()
                 VStack(alignment: .leading, spacing: 9) {
                     Label("All three core models will run on this Mac.", systemImage: "desktopcomputer")
@@ -61,7 +61,7 @@ struct ModelPresetSheet: View {
                     Text("Existing models are kept. Your current setup stays active until preparation finishes. You can undo the switch.")
                         .foregroundStyle(.secondary)
                 }
-                .font(.body)
+                .font(.scaled(.body))
             }
             .padding(.horizontal, 24).padding(.bottom, 24)
             Divider()

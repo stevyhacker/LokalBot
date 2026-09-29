@@ -9,7 +9,7 @@ struct TodaySessionsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Sessions").font(.headline)
+                Text("Sessions").font(.scaled(.headline))
                 Spacer()
                 Button("Open Timeline") { app.navSection = .timeline }.buttonStyle(.workspaceLink)
             }
@@ -24,15 +24,15 @@ struct TodaySessionsSection: View {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "briefcase").foregroundStyle(Brand.teal).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(session.title).font(.body.weight(.semibold)).foregroundStyle(.primary).lineLimit(2)
-                            Text(session.apps.joined(separator: " · ")).font(.callout).foregroundStyle(.secondary)
+                            Text(session.title).font(.scaled(.body).weight(.semibold)).foregroundStyle(.primary).lineLimit(2)
+                            Text(session.apps.joined(separator: " · ")).font(.scaled(.callout)).foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
                         VStack(alignment: .trailing, spacing: 5) {
                             Text(session.start.formatted(date: .omitted, time: .shortened))
                             Text(CaptureStyle.hm(session.activeDuration))
                         }
-                        .font(.callout.monospacedDigit()).foregroundStyle(.secondary)
+                        .font(.scaled(.callout).monospacedDigit()).foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12).lbGroupedSurface()

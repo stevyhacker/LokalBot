@@ -14,7 +14,7 @@ struct AgentTaskSidebar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Tasks").font(.title3.bold())
+                Text("Tasks").font(.scaled(.title3).bold())
                 Spacer()
                 Button { sessions.addSession() } label: { Image(systemName: "square.and.pencil").frame(width: 28, height: 28) }
                     .buttonStyle(.borderless).help("New task (⌘N)")
@@ -37,7 +37,7 @@ struct AgentTaskSidebar: View {
                 .padding(12).accessibilityIdentifier("agent.taskSearch")
             if showArchived {
                 HStack {
-                    Label("Archived", systemImage: "archivebox").font(.caption)
+                    Label("Archived", systemImage: "archivebox").font(.scaled(.caption))
                     Spacer()
                     Button("Show Active") { showArchived = false }.buttonStyle(.workspaceLink)
                 }.padding(.horizontal, 12).padding(.bottom, 8)
@@ -98,10 +98,10 @@ private struct AgentTaskRow: View {
             Image(systemName: icon).foregroundStyle(needsAttention ? LBTokens.Palette.attentionText : Color.secondary)
                 .frame(width: 16).padding(.top, 2)
             VStack(alignment: .leading, spacing: 3) {
-                Text(task.title).lineLimit(2).font(.body.weight(.semibold))
+                Text(task.title).lineLimit(2).font(.scaled(.body).weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
                 if let detail {
-                    Text(detail).font(Font.callout)
+                    Text(detail).font(Font.scaled(.callout))
                         .foregroundStyle(needsAttention ? LBTokens.Palette.attentionText : Color.secondary).lineLimit(1)
                 }
             }

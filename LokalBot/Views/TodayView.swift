@@ -126,7 +126,7 @@ struct TodayView: View {
     private var digestTitle: some View {
         HStack(spacing: 10) {
             Image(systemName: "sparkles").foregroundStyle(Brand.teal).accessibilityHidden(true)
-            Text("Day Digest").font(Font.headline)
+            Text("Day Digest").font(Font.scaled(.headline))
         }
     }
 
@@ -160,8 +160,8 @@ struct TodayView: View {
             HStack(spacing: 10) {
                 StatusDot(color: Brand.recording)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Recording — \(live.title)").font(.body.weight(.semibold))
-                    MeetingRecordingTimerText(recording: app.recording).font(.callout.monospacedDigit())
+                    Text("Recording — \(live.title)").font(.scaled(.body).weight(.semibold))
+                    MeetingRecordingTimerText(recording: app.recording).font(.scaled(.callout).monospacedDigit())
                 }
                 Spacer()
                 Button("Live Transcript & Notes") { app.showLiveMeeting() }.buttonStyle(.bordered)

@@ -10,7 +10,7 @@ struct ModelImportSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("Add a model from Hugging Face").font(.headline)
+                Text("Add a model from Hugging Face").font(.scaled(.headline))
                 Spacer()
                 Button("Done") { dismiss() }
             }
@@ -26,7 +26,7 @@ struct ModelImportSheet: View {
             }
             .padding(12)
             if let error = hfSearch.errorMessage {
-                Text(error).font(.caption).foregroundStyle(Brand.error)
+                Text(error).font(.scaled(.caption)).foregroundStyle(Brand.error)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 12)
             }
@@ -40,9 +40,9 @@ struct ModelImportSheet: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(model.id).font(.body.weight(.medium))
+                                Text(model.id).font(.scaled(.body).weight(.medium))
                                 Text("↓ \(model.downloads)   ♥ \(model.likes)")
-                                    .font(.caption2).foregroundStyle(.secondary)
+                                    .font(.scaled(.caption2)).foregroundStyle(.secondary)
                             }
                             Spacer()
                             Image(systemName: hfSelectedModel == model.id ? "chevron.down" : "chevron.right")
@@ -53,13 +53,13 @@ struct ModelImportSheet: View {
                     if hfSelectedModel == model.id {
                         if hfFiles.isEmpty {
                             Text("No compatible model files in this repository.")
-                                .font(.caption2).foregroundStyle(.secondary).padding(.leading, 16)
+                                .font(.scaled(.caption2)).foregroundStyle(.secondary).padding(.leading, 16)
                         } else {
                             ForEach(hfFiles) { file in
                                 HStack(spacing: 8) {
-                                    Text(file.fileName).font(.caption)
+                                    Text(file.fileName).font(.scaled(.caption))
                                     if let size = file.sizeLabel {
-                                        Text(size).font(.caption2).foregroundStyle(.secondary)
+                                        Text(size).font(.scaled(.caption2)).foregroundStyle(.secondary)
                                     }
                                     Spacer()
                                     Button("Add model") {

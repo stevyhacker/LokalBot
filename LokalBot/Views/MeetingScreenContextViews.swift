@@ -17,7 +17,7 @@ struct MeetingScreenMaterialsSection: View {
                             onPlay(material)
                         } label: {
                             Text(Transcript.stamp(material.firstOffset))
-                                .font(.callout.monospacedDigit())
+                                .font(.scaled(.callout).monospacedDigit())
                         }
                         .buttonStyle(.workspaceLink)
                         .help("Play the recording from when this first appeared")
@@ -27,7 +27,7 @@ struct MeetingScreenMaterialsSection: View {
                                 .lineLimit(2)
                                 .textSelection(.enabled)
                             Text(detail(material))
-                                .font(.callout)
+                                .font(.scaled(.callout))
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -40,7 +40,7 @@ struct MeetingScreenMaterialsSection: View {
                 }
             }
             Text("From screen memory on this Mac. Captures follow your screen retention setting.")
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
         }
         .accessibilityIdentifier("meeting.onScreen")
@@ -69,7 +69,7 @@ struct MeetingOnScreenNowBar: View {
             if let moment {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("On screen at \(Transcript.stamp(moment.offset))")
-                        .font(.callout)
+                        .font(.scaled(.callout))
                         .foregroundStyle(.secondary)
                     Text(moment.title)
                         .lineLimit(1)
@@ -77,13 +77,13 @@ struct MeetingOnScreenNowBar: View {
                 }
                 Spacer(minLength: 8)
                 Text(moment.app)
-                    .font(.callout)
+                    .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                 Button("Open Capture") { onOpen(moment) }
                     .buttonStyle(.workspaceLink)
             } else {
                 Text("Play or select a transcript line to see what was on screen.")
-                    .font(.callout)
+                    .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
             }

@@ -18,7 +18,7 @@ struct FollowUpDraftSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Follow-up").font(.largeTitle.bold())
+            Text("Follow-up").font(.scaled(.largeTitle).bold())
             Text("From \(meeting.displayTitle) · \(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))")
                 .foregroundStyle(.secondary)
             if projection == nil {
@@ -29,7 +29,7 @@ struct FollowUpDraftSheet: View {
                     TextField("Subject", text: $subject).textFieldStyle(.roundedBorder)
                 }
                 TextEditor(text: $bodyText)
-                    .font(.body)
+                    .font(.scaled(.body))
                     .frame(minHeight: 260)
                     .padding(6)
                     .workspaceControl()

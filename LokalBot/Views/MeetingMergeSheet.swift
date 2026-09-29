@@ -55,7 +55,7 @@ struct MeetingMergeSheet: View {
                     trustNote
                     if let errorMessage {
                         Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(Font.body)
+                            .font(Font.scaled(.body))
                             .foregroundStyle(Brand.error)
                             .fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("meeting.mergeError")
@@ -81,9 +81,9 @@ struct MeetingMergeSheet: View {
                 .background(Brand.teal.opacity(0.12), in: RoundedRectangle(cornerRadius: Brand.Radius.control))
             VStack(alignment: .leading, spacing: 4) {
                 Text("Merge meetings")
-                    .font(Font.largeTitle.bold())
+                    .font(Font.scaled(.largeTitle).bold())
                 Text("Create one reviewable timeline from \(meetings.count) recordings.")
-                    .font(Font.body)
+                    .font(Font.scaled(.body))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -95,13 +95,13 @@ struct MeetingMergeSheet: View {
     private var titleSection: some View {
         VStack(alignment: .leading, spacing: 7) {
             Text("New meeting name")
-                .font(Font.headline)
+                .font(Font.scaled(.headline))
             TextField("Merged meeting", text: $title)
                 .textFieldStyle(.roundedBorder)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .accessibilityIdentifier("meeting.mergeTitle")
             Text("You can rename it later from the meeting workspace.")
-                .font(Font.callout)
+                .font(Font.scaled(.callout))
                 .foregroundStyle(.secondary)
         }
     }
@@ -110,10 +110,10 @@ struct MeetingMergeSheet: View {
         VStack(alignment: .leading, spacing: 9) {
             HStack {
                 Text("Sources")
-                    .font(Font.headline)
+                    .font(Font.scaled(.headline))
                 Spacer()
                 Text("\(meetings.count) recordings · \(formattedDuration(totalDuration))")
-                    .font(Font.callout.monospacedDigit())
+                    .font(Font.scaled(.callout).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
             VStack(spacing: 0) {
@@ -146,21 +146,21 @@ struct MeetingMergeSheet: View {
                 Circle()
                     .fill(index.isMultiple(of: 2) ? Brand.teal.opacity(0.13) : Brand.them.opacity(0.14))
                 Text("\(index + 1)")
-                    .font(Font.callout.weight(.semibold).monospacedDigit())
+                    .font(Font.scaled(.callout).weight(.semibold).monospacedDigit())
                     .foregroundStyle(index.isMultiple(of: 2) ? Brand.teal : Brand.them)
             }
             .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 3) {
                 Text(meeting.displayTitle)
-                    .font(Font.body.weight(.semibold))
+                    .font(Font.scaled(.body).weight(.semibold))
                     .lineLimit(1)
                 Text("\(meeting.startedAt.formatted(date: .abbreviated, time: .shortened)) · \(meeting.appName)")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
             Text(sourceDurations[meeting.id].map(formattedDuration) ?? "—")
-                .font(Font.callout.monospacedDigit())
+                .font(Font.scaled(.callout).monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
@@ -172,11 +172,11 @@ struct MeetingMergeSheet: View {
         Toggle(isOn: $generateSummary) {
             VStack(alignment: .leading, spacing: 3) {
                 Text("Generate a fresh combined summary")
-                    .font(Font.body.weight(.semibold))
+                    .font(Font.scaled(.body).weight(.semibold))
                 Text(hasTranscript
                      ? "Runs on the merged transcript after the new meeting is created."
                      : "No source transcript is available, so there is nothing to summarize yet.")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
         }
@@ -190,7 +190,7 @@ struct MeetingMergeSheet: View {
             Image(systemName: "lock.shield")
                 .foregroundStyle(Brand.teal)
             Text("Original audio, transcripts, summaries, and speaker decisions stay preserved in their source folders. After the merge, those source rows are folded into one meeting, and each speaker keeps a source label so identities do not get mixed automatically.")
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -212,7 +212,7 @@ struct MeetingMergeSheet: View {
                 ProgressView()
                     .controlSize(.small)
                 Text("Building merged meeting…")
-                    .font(Font.callout)
+                    .font(Font.scaled(.callout))
                     .foregroundStyle(.secondary)
             }
             Button("Merge meetings") { merge() }

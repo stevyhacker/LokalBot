@@ -31,7 +31,7 @@ struct WaveformView: View {
                 waveform(in: geo.size)
                 if let previewProgress {
                     Text(Transcript.stamp(previewProgress * duration))
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.scaledSystem(size: 10, weight: .medium, design: .monospaced))
                         .padding(.horizontal, 4).padding(.vertical, 1)
                         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 3))
                         .fixedSize()

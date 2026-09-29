@@ -14,7 +14,7 @@ struct QuickRecallFooter: View {
                     Text("↑↓ Navigate")
                     Text("↩ Open")
                 }
-                .font(.caption)
+                .font(.scaled(.caption))
                 .foregroundStyle(.secondary)
                 .accessibilityLabel("Use the arrow keys to navigate and Return to open a result")
             }
@@ -28,10 +28,10 @@ struct QuickRecallFooter: View {
                                 .lineLimit(1)
                                 .truncationMode(.middle)
                             Text("⌘↩")
-                                .font(.caption.monospaced())
+                                .font(.scaled(.caption).monospaced())
                                 .padding(.leading, 3)
                         }
-                        .font(.callout.weight(.medium))
+                        .font(.scaled(.callout).weight(.medium))
                     }
                     .buttonStyle(.bordered)
                     .keyboardShortcut(.return, modifiers: .command)
@@ -39,7 +39,7 @@ struct QuickRecallFooter: View {
                     .accessibilityIdentifier("quickRecall.ask")
                     .help("Open Ask with this query and its matching sources")
                     Label(inference.label, systemImage: inference.icon)
-                        .font(.caption)
+                        .font(.scaled(.caption))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .help(inference.detail(

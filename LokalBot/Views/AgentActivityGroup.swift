@@ -14,18 +14,18 @@ struct AgentActivityGroup: View {
                         HStack(alignment: .top, spacing: 8) {
                             statusIcon(status)
                             VStack(alignment: .leading, spacing: 5) {
-                                Text(summary(name, args: args)).font(.callout)
+                                Text(summary(name, args: args)).font(.scaled(.callout))
                                 DisclosureGroup("Details") {
                                     ScrollView {
                                         Text(args + (output.isEmpty ? "" : "\n\n" + output))
-                                            .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                                            .font(.scaled(.caption, design: .monospaced)).textSelection(.enabled)
                                             .frame(maxWidth: .infinity, alignment: .leading)
                                     }.frame(maxHeight: 180)
-                                }.font(.caption).foregroundStyle(.secondary)
+                                }.font(.scaled(.caption)).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
                             Button("Open") { if let result = AgentResultPreview.tool(item) { showPreview(result) } }
-                                .buttonStyle(.borderless).font(.caption)
+                                .buttonStyle(.borderless).font(.scaled(.caption))
                                 .accessibilityLabel("Open \(name) result")
                         }
                     }
@@ -34,8 +34,8 @@ struct AgentActivityGroup: View {
         } label: {
             HStack(spacing: 8) {
                 if running { ProgressView().controlSize(.mini) } else { Image(systemName: failed ? "exclamationmark.circle" : "checkmark.circle").foregroundStyle(failed ? Color.orange : Color.secondary) }
-                Text(group.summary).font(Font.callout.weight(.semibold))
-                if running { Text("In progress").font(.caption).foregroundStyle(.secondary) }
+                Text(group.summary).font(Font.scaled(.callout).weight(.semibold))
+                if running { Text("In progress").font(.scaled(.caption)).foregroundStyle(.secondary) }
             }
         }
         .padding(.vertical, 8).padding(.horizontal, 10)

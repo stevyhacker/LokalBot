@@ -58,9 +58,9 @@ struct ModelPreparationView: View {
                 .foregroundStyle(tint)
             VStack(alignment: .leading, spacing: 1) {
                 Text(presentation.title)
-                    .font(style == .compact ? .caption : .callout)
+                    .font(style == .compact ? .scaled(.caption) : .scaled(.callout))
                 Text(presentation.status)
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -75,10 +75,10 @@ struct ModelPreparationView: View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 7) {
                 Image(systemName: iconName)
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(tint)
                 Text(presentation.title)
-                    .font(.callout.weight(.semibold))
+                    .font(.scaled(.callout).weight(.semibold))
                     .lineLimit(1)
                 Spacer(minLength: 6)
                 actionButton
@@ -86,7 +86,7 @@ struct ModelPreparationView: View {
             HStack(spacing: 7) {
                 preparationProgress(width: 72)
                 Text(presentation.status)
-                    .font(.subheadline)
+                    .font(.scaled(.subheadline))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.tail)

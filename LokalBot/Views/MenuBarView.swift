@@ -142,7 +142,7 @@ struct MenuBarView: View {
 
             if let error = app.lastError {
                 Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption).foregroundStyle(Brand.error).lineLimit(2)
+                    .font(.scaled(.caption)).foregroundStyle(Brand.error).lineLimit(2)
             }
 
             if app.micRecoveryNeeded {
@@ -152,7 +152,7 @@ struct MenuBarView: View {
                 } label: {
                     Label("Turn on microphone access in System Settings",
                           systemImage: "mic.slash.fill")
-                        .font(.caption)
+                        .font(.scaled(.caption))
                 }
                 .buttonStyle(.plain).foregroundStyle(Brand.error)
             }
@@ -160,7 +160,7 @@ struct MenuBarView: View {
             if !permissions.allGranted {
                 Button { WindowAccess.shared.open("onboarding") } label: {
                     Label("Grant permissions to record", systemImage: "exclamationmark.shield.fill")
-                        .font(.caption)
+                        .font(.scaled(.caption))
                 }
                 .buttonStyle(.plain).foregroundStyle(Brand.error)
             }
@@ -186,16 +186,16 @@ struct MenuBarView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 statusDot
-                Text(statusTitle).font(.headline)
+                Text(statusTitle).font(.scaled(.headline))
                 Spacer()
                 if app.isRecording || app.dictation.state.isWorking {
-                    primaryTimer.font(.body.monospacedDigit())
+                    primaryTimer.font(.scaled(.body).monospacedDigit())
                 }
             }
-            Text(statusSubtitle).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+            Text(statusSubtitle).font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(2)
             if app.isRecording || app.dictation.state.isWorking {
                 Label(audioSourceLabel, systemImage: "waveform")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
                 Button {
@@ -321,13 +321,13 @@ struct MenuBarView: View {
                         WindowAccess.shared.open("main")
                     }
                     .buttonStyle(.plain)
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(.secondary)
                 }
             }
 
             if app.meetings.isEmpty {
-                Text("No meetings yet").font(.caption).foregroundStyle(.secondary)
+                Text("No meetings yet").font(.scaled(.caption)).foregroundStyle(.secondary)
             } else {
                 VStack(spacing: 2) {
                     ForEach(app.meetings.prefix(2)) { meeting in
@@ -337,21 +337,21 @@ struct MenuBarView: View {
                         } label: {
                             HStack(spacing: 8) {
                                 Image(systemName: "waveform")
-                                    .font(.caption)
+                                    .font(.scaled(.caption))
                                     .foregroundStyle(.secondary)
                                     .frame(width: 18)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(shortMenuTitle(meeting.title))
-                                        .font(.callout.weight(.medium))
+                                        .font(.scaled(.callout).weight(.medium))
                                         .lineLimit(1)
                                     Text(meeting.appName)
-                                        .font(.caption2)
+                                        .font(.scaled(.caption2))
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
                                 }
                                 Spacer(minLength: 8)
                                 Text(meeting.displayDuration)
-                                    .font(.caption2.monospacedDigit())
+                                    .font(.scaled(.caption2).monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
                             .padding(.vertical, 4)
@@ -402,7 +402,7 @@ struct MenuBarView: View {
             menuAction("Quit LokalBot", icon: "power") { NSApp.terminate(nil) }
         }
         .buttonStyle(.plain)
-        .font(.body)
+        .font(.scaled(.body))
     }
 
     private func menuAction(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -417,13 +417,13 @@ struct MenuBarView: View {
     private var cotypingRow: some View {
         HStack(spacing: 8) {
             Image(systemName: "text.cursor")
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Autocomplete").font(.callout.weight(.medium))
+                Text("Autocomplete").font(.scaled(.callout).weight(.medium))
                 Text("Suggests text as you type")
-                    .font(.caption2)
+                    .font(.scaled(.caption2))
                     .foregroundStyle(.secondary)
             }
             Spacer()
@@ -439,13 +439,13 @@ struct MenuBarView: View {
     private var dictationRow: some View {
         HStack(spacing: 8) {
             Image(systemName: "mic")
-                .font(.callout)
+                .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
             VStack(alignment: .leading, spacing: 1) {
-                Text("Dictation").font(.callout.weight(.medium))
+                Text("Dictation").font(.scaled(.callout).weight(.medium))
                 Text("Shortcut · \(DictationShortcut.label)")
-                    .font(.caption2)
+                    .font(.scaled(.caption2))
                     .foregroundStyle(.secondary)
             }
             Spacer()

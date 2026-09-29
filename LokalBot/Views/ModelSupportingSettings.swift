@@ -49,13 +49,13 @@ struct ModelSpeechSettingsSheet: View {
                 }
                 Text(download.isDownloaded ? "Downloaded. Voice synthesis runs locally."
                      : "Download once to use this voice offline.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
                 if let error = sampleError ?? download.error {
                     Label(error, systemImage: "exclamationmark.triangle")
-                        .font(.body).foregroundStyle(.orange)
+                        .font(.scaled(.body)).foregroundStyle(.orange)
                 }
             }
-            .font(.body).padding(.horizontal, 24).padding(.bottom, 24)
+            .font(.scaled(.body)).padding(.horizontal, 24).padding(.bottom, 24)
             Divider()
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }.padding(20)
         }
@@ -118,7 +118,7 @@ struct ModelTranscriptionOptionsSheet: View {
         VStack(alignment: .leading, spacing: 0) {
             ModelSheetHeading(title: "Language & vocabulary", subtitle: "Options for the transcription model currently in use.")
             VStack(alignment: .leading, spacing: 18) {
-                Text(app.settings.transcriptionModelDisplayName).font(.body.weight(.semibold))
+                Text(app.settings.transcriptionModelDisplayName).font(.scaled(.body).weight(.semibold))
                 Picker("Language", selection: $app.settings.transcriptionLanguage) {
                     ForEach(TranscriptionLanguage.allCases) { Text($0.displayName).tag($0) }
                 }
@@ -126,20 +126,20 @@ struct ModelTranscriptionOptionsSheet: View {
                 .settingTarget("settings.transcriptionLanguage", selected: app.focusedSettingID)
                 if app.settings.transcriptionModel == .graniteTurbo {
                     Text("This model supports English only and does not use vocabulary prompts.")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                 } else {
                     VStack(alignment: .leading, spacing: 7) {
-                        Text("Names and vocabulary").font(.body.weight(.medium))
+                        Text("Names and vocabulary").font(.scaled(.body).weight(.medium))
                         TextField("Names, acronyms, and domain vocabulary", text: $app.settings.transcriptionPrompt, axis: .vertical)
                             .lineLimit(3...6).textFieldStyle(.roundedBorder)
                             .settingTarget("settings.transcriptionPrompt", selected: app.focusedSettingID)
                         Toggle("Add names LokalBot already knows", isOn: $app.settings.autoTranscriptionVocabulary)
                             .settingTarget("settings.autoTranscriptionVocabulary", selected: app.focusedSettingID)
                         Text("Calendar attendee names, names you applied in related meetings, and active project names are added on this Mac. Email addresses are never used.")
-                            .font(.callout).foregroundStyle(.secondary)
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                         if !app.settings.transcriptionModel.acceptsVocabularyPrompt {
                             Text("\(app.settings.transcriptionModelDisplayName) ignores vocabulary. Whisper and Qwen3-ASR use it.")
-                                .font(.callout).foregroundStyle(.secondary)
+                                .font(.scaled(.callout)).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -166,7 +166,7 @@ struct ModelSearchSettingsSheet: View {
                 Text("LokalBot manages this model and rebuilds the local index when it changes.")
                     .foregroundStyle(.secondary)
             }
-            .font(.body).padding(.horizontal, 24).padding(.bottom, 24)
+            .font(.scaled(.body)).padding(.horizontal, 24).padding(.bottom, 24)
             Divider()
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }.padding(20)
         }

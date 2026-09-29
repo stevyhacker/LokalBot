@@ -7,16 +7,16 @@ struct ModelPresetsSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Presets").font(.headline)
+            Text("Presets").font(.scaled(.headline))
             ForEach(ModelStackPreset.allCases) { preset in
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(preset.title).font(.body.weight(.medium))
-                        Text(preset.subtitle).font(.callout).settingsSecondary()
+                        Text(preset.title).font(.scaled(.body).weight(.medium))
+                        Text(preset.subtitle).font(.scaled(.callout)).settingsSecondary()
                     }
                     Spacer(minLength: 8)
                     if preset.patch.matches(settings) {
-                        Text("Current").font(.callout).foregroundStyle(Brand.teal)
+                        Text("Current").font(.scaled(.callout)).foregroundStyle(Brand.teal)
                     }
                     Button("Apply…") { choose(preset) }
                         .buttonStyle(.bordered)
@@ -27,7 +27,7 @@ struct ModelPresetsSection: View {
                 if preset != ModelStackPreset.allCases.last { SettingsSeparator() }
             }
             Text("Review model changes and download sizes before applying. Existing models are kept.")
-                .font(.callout).settingsSecondary()
+                .font(.scaled(.callout)).settingsSecondary()
         }
         .padding(16).settingsPanel()
     }
@@ -43,7 +43,7 @@ struct ModelRemoteOverview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Remote Server").font(.headline)
+                Text("Remote Server").font(.scaled(.headline))
                 Spacer()
                 Button("Manage Connections…", action: connections)
                     .buttonStyle(.workspaceLink)
@@ -51,9 +51,9 @@ struct ModelRemoteOverview: View {
             }
             if app.settings.approvedRemoteInferenceOrigins.isEmpty {
                 Label("No remote servers approved", systemImage: "lock.shield")
-                    .font(.body).settingsSecondary()
+                    .font(.scaled(.body)).settingsSecondary()
                 Text("Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac.")
-                    .font(.callout).settingsSecondary()
+                    .font(.scaled(.callout)).settingsSecondary()
             } else {
                 ForEach(app.settings.approvedRemoteInferenceOrigins, id: \.self) { origin in
                     VStack(alignment: .leading, spacing: 10) {
@@ -66,7 +66,7 @@ struct ModelRemoteOverview: View {
                         Toggle("Allow scheduled summaries and overnight review", isOn: automationApproval(origin))
                             .accessibilityIdentifier("models.overview.automationConsent.\(origin)")
                         Text("Scheduled runs can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.")
-                            .font(.callout).settingsSecondary()
+                            .font(.scaled(.callout)).settingsSecondary()
                     }
                     if origin != app.settings.approvedRemoteInferenceOrigins.last { SettingsSeparator() }
                 }

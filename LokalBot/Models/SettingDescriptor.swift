@@ -10,6 +10,8 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.models" { return InferencePresentation(settings: settings).label }
         if id == "settings.effectiveScreenContextCaptureMode" { return settings.effectiveScreenContextCaptureMode.rawValue }
         if id == "settings.generationBudgetPreset" { return settings.generationBudgetPreset.displayName }
+        if id == "settings.appTheme" { return settings.appTheme.displayName }
+        if id == "settings.textSize" { return settings.textSize.displayName }
         guard let data = try? JSONEncoder().encode(settings),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let value = object[String(id.dropFirst("settings.".count))] else { return "Open details" }
@@ -74,6 +76,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingBuiltInModelID", title: "Autocomplete model", category: .models, aliases: "writing code suggestions weights"),
         .init(id: "settings.capturePrivateWindows", title: "Allow private/incognito browser windows", category: .privacy, aliases: "capturePrivateWindows"),
         .init(id: "settings.menuBarOnly", title: "Menu bar only (hide Dock icon)", category: .general, aliases: "menuBarOnly"),
+        .init(id: "settings.appTheme", title: "Theme", category: .general, aliases: "appearance dark mode light mode color scheme"),
+        .init(id: "settings.textSize", title: "Text size", category: .general, aliases: "font size larger text smaller text zoom readability"),
         .init(id: "settings.quickRecallEnabled", title: "Enable the system-wide Ask shortcut", category: .general, aliases: "quickRecallEnabled"),
         .init(id: "settings.cotypingEnabled", title: "Enable autocomplete", category: .writing, aliases: "cotypingEnabled"),
         .init(id: "settings.cotypingMultiLine", title: "Allow multi-line suggestions", category: .writing, aliases: "cotypingMultiLine"),

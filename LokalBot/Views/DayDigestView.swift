@@ -1,9 +1,9 @@
 import SwiftUI
 
 private enum DayDigestTaskType {
-    static let sectionTitle = Font.headline
-    static let taskTitle = Font.body.weight(.semibold)
-    static let summary = Font.callout
+    static var sectionTitle: Font { Font.scaled(.headline) }
+    static var taskTitle: Font { Font.scaled(.body).weight(.semibold) }
+    static var summary: Font { Font.scaled(.callout) }
 }
 
 /// Human-first rendering of the lossless Markdown day journal. Summary and
@@ -86,7 +86,7 @@ struct DayDigestView: View {
                                         Text(extraFocusExpanded
                                              ? "Hide additional sessions"
                                              : "Show \(additional.count) more session\(additional.count == 1 ? "" : "s")")
-                                            .font(Font.body)
+                                            .font(Font.scaled(.body))
                                     })
                                 .accessibilityIdentifier("dayDigest.moreSummaryDetails")
                             }
@@ -103,10 +103,10 @@ struct DayDigestView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Label("Other activity", systemImage: "ellipsis.circle")
-                            .font(.subheadline.weight(.medium))
+                            .font(.scaled(.subheadline).weight(.medium))
                         Spacer()
                         Text("\(presentation.otherActivityBlocks.count) item\(presentation.otherActivityBlocks.count == 1 ? "" : "s")")
-                            .font(.caption.monospacedDigit())
+                            .font(.scaled(.caption).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -135,10 +135,10 @@ struct DayDigestView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Label("Full activity log", systemImage: "clock.arrow.circlepath")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.scaled(.subheadline).weight(.semibold))
                         Spacer()
                         Text("\(presentation.activityCount) events")
-                            .font(.caption.monospacedDigit())
+                            .font(.scaled(.caption).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -197,7 +197,7 @@ struct DayDigestView: View {
                     extraFocusExpanded.toggle()
                 }
                 .buttonStyle(.workspaceLink)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .accessibilityIdentifier("dayDigest.moreSummaryDetails")
             }
         }
@@ -210,7 +210,7 @@ struct DayDigestView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: icon)
-                .font(.subheadline.weight(.semibold))
+                .font(.scaled(.subheadline).weight(.semibold))
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,7 +252,7 @@ struct DayDigestView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     if let timeRange = block.timeRange {
                         Text(timeRange)
-                            .font(.caption.monospacedDigit())
+                            .font(.scaled(.caption).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
                     if let title = block.title {
@@ -280,10 +280,10 @@ struct DayDigestView: View {
                     if let shot = app.activityStore.screenshot(id: id) {
                         Button { app.openScreenSnapshot(id) } label: {
                             Label("\(shot.documentName.isEmpty ? shot.app : shot.documentName) · \(shot.ts.formatted(date: .omitted, time: .shortened))", systemImage: "doc.text.magnifyingglass")
-                                .font(Font.callout)
+                                .font(Font.scaled(.callout))
                         }.buttonStyle(.workspaceLink)
                     } else {
-                        Text("Source moment unavailable").font(Font.callout).foregroundStyle(.secondary)
+                        Text("Source moment unavailable").font(Font.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -313,7 +313,7 @@ struct DayDigestView: View {
                         Spacer(minLength: 12)
                         Text(allocation.detail)
                             .font(allocation.seconds > 0
-                                ? .callout.monospacedDigit() : .callout)
+                                ? .scaled(.callout).monospacedDigit() : .scaled(.callout))
                             .foregroundStyle(.secondary)
                             .multilineTextAlignment(.trailing)
                         }
@@ -323,10 +323,10 @@ struct DayDigestView: View {
         } label: {
             HStack(spacing: 8) {
                 Label("Time allocation", systemImage: "chart.bar.xaxis")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.scaled(.subheadline).weight(.semibold))
                 Spacer()
                 Text("Activity details")
-                    .font(.caption)
+                    .font(.scaled(.caption))
                     .foregroundStyle(.secondary)
             }
         }
@@ -371,7 +371,7 @@ private struct ExpandableDigestSummary: View {
                     expanded.toggle()
                 }
                 .buttonStyle(.plain)
-                .font(Font.body)
+                .font(Font.scaled(.body))
                 .foregroundStyle(Brand.teal)
                 .accessibilityHint(expanded
                     ? "Hides the extra task description"
@@ -437,10 +437,10 @@ private struct DayDigestActivityHourView: View {
         } label: {
             HStack {
                 Text(group.label)
-                    .font(.callout.weight(.medium).monospacedDigit())
+                    .font(.scaled(.callout).weight(.medium).monospacedDigit())
                 Spacer()
                 Text("\(group.entries.count) event\(group.entries.count == 1 ? "" : "s")")
-                    .font(.caption.monospacedDigit())
+                    .font(.scaled(.caption).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
@@ -461,14 +461,14 @@ private struct DayDigestActivityEntryView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(Array(entry.evidenceMarkdown.enumerated()), id: \.offset) { _, line in
                             SelectableDigestText("- " + line)
-                                .font(.callout)
+                                .font(.scaled(.callout))
                                 .foregroundStyle(.secondary)
                         }
                     }
                     .padding(.top, 6)
                 } label: {
                     Text("Captured evidence · \(entry.evidenceMarkdown.count)")
-                        .font(.caption.weight(.medium))
+                        .font(.scaled(.caption).weight(.medium))
                         .foregroundStyle(.secondary)
                 }
                 .accessibilityIdentifier("dayDigest.activityEvidence.\(entry.id)")

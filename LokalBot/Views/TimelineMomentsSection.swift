@@ -71,9 +71,9 @@ struct TimelineMomentsSection: View {
         let groups = Dictionary(grouping: moments) { Calendar.current.dateInterval(of: .hour, for: $0.ts)!.start }
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Retained Moments").font(.headline)
+                Text("Retained Moments").font(.scaled(.headline))
                 Spacer()
-                Text("\(moments.count) of \(model.shots.count)").font(.callout).foregroundStyle(.secondary)
+                Text("\(moments.count) of \(model.shots.count)").font(.scaled(.callout)).foregroundStyle(.secondary)
             }
             if searchResults.isSearching { LoadingStateLabel("Searching retained text…") }
             if mode == .rewind {
@@ -83,11 +83,11 @@ struct TimelineMomentsSection: View {
             }
             if moments.isEmpty {
                 Text(needle.isEmpty && application.isEmpty ? "No retained moments for this day." : "No moments match these filters.")
-                    .font(.body).foregroundStyle(.secondary)
+                    .font(.scaled(.body)).foregroundStyle(.secondary)
             }
             LazyVStack(alignment: .leading, spacing: 14) {
                 ForEach(groups.keys.sorted(), id: \.self) { hour in
-                    Text(hour.formatted(.dateTime.hour().minute())).font(.callout.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(hour.formatted(.dateTime.hour().minute())).font(.scaled(.callout).weight(.semibold)).foregroundStyle(.secondary)
                     ForEach(groups[hour] ?? []) { shot in
                         momentRow(shot)
                     }
@@ -128,9 +128,9 @@ struct TimelineMomentsSection: View {
                 ScreenThumbnailView(screenshot: shot, height: 56).frame(width: 90)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(shot.documentName.isEmpty ? (shot.windowTitle.isEmpty ? shot.app : shot.windowTitle) : shot.documentName)
-                        .font(.body.weight(.medium)).foregroundStyle(.primary).lineLimit(2)
+                        .font(.scaled(.body).weight(.medium)).foregroundStyle(.primary).lineLimit(2)
                     Text("\(shot.app) · \(shot.ts.formatted(date: .omitted, time: .standard))")
-                        .font(.callout).foregroundStyle(.secondary)
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 if shot.isBookmarked { Image(systemName: "bookmark.fill").foregroundStyle(Brand.teal) }
