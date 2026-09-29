@@ -15,6 +15,8 @@ If `lokalbot-cli` isn't on PATH, use the embedded copy directly:
 - Use `list` when you need candidate meeting ids, titles, and dates.
 - Use `get` when the meeting is known; `latest` works without listing first. Request `metadata,summary` for a cited summary; include `transcript` when the question needs exact wording.
 - Use `search` directly when the user remembers a phrase or wants cross-meeting mentions.
+- Use `actions` for commitments: what the user owes, overdue work, or one meeting's next steps.
+- Use `people` for everything about one person: what the user owes them, what they owe the user, decisions made together, and shared meetings.
 - Use `path` only when the task needs an on-disk folder or audio file.
 - For viewed screen text or app activity, use the screen-memory MCP tools within the user's separate permission and history scope.
 
@@ -47,6 +49,27 @@ lokalbot-cli search "auth refactor" --table --limit 20
 
 Transcript hits include a `timestamp` (HH:MM:SS) so the user can jump to that moment in the in-app player.
 
+## Action items
+
+```bash
+lokalbot-cli actions
+lokalbot-cli actions --owner me --table
+lokalbot-cli actions --owner ana --status all --days 90
+lokalbot-cli actions --meeting 4f7c2a91
+```
+
+Actions use the user's saved corrections and status. `due_date` (YYYY-MM-DD) appears only when the spoken due phrase resolves unambiguously; otherwise use `due` as said. Overdue and soon-due work comes first.
+
+## People
+
+```bash
+lokalbot-cli people --table
+lokalbot-cli people --query ana
+lokalbot-cli people "Ana Petrović"
+```
+
+People are joined from calendar attendee names, speaker names applied in LokalBot, and action owners. Only names are returned; never ask for or infer email addresses.
+
 ## Path lookup
 
 ```bash
@@ -57,7 +80,7 @@ cd "$(lokalbot-cli path latest)"
 
 ## MCP alternative (and ask_library)
 
-The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `list_meetings`, `get_meeting`, `search_meetings`, and `ask_library` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths.
+The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths.
 
 ```bash
 claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp

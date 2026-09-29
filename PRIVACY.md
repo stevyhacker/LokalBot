@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: September 28, 2026
+Effective: September 29, 2026
 
 LokalBot is a local-first macOS application. It has no LokalBot account,
 analytics service, advertising SDK, or telemetry backend. The project does not
@@ -13,7 +13,10 @@ LokalBot can store the following under its Application Support directory:
 
 - meeting microphone and system-audio tracks;
 - transcripts, summaries, notes, search indexes, and meeting metadata,
-  including attendee names and emails for calendar-matched meetings;
+  including attendee names and emails for calendar-matched meetings and,
+  only when you turn on **Use invitation agendas**, the invitation's agenda
+  with joining details, links, phone numbers, and addresses removed;
+- the names LokalBot added to a meeting's transcription vocabulary;
 - downloaded transcription, embedding, speech, and language models;
 - permission-gated app/window activity history;
 - permission-gated visible screen text and encrypted screenshots;
@@ -129,6 +132,11 @@ The app may make these outbound connections:
   origin; Agent inference rejects redirects entirely. Configure the final
   endpoint URL when a server redirects. The operator of that server controls
   its privacy terms.
+  Meeting notes sent to an approved server can include the calendar title,
+  invited participants' names, titles of documents on screen during the call,
+  and, when enabled, the invitation agenda; each has its own setting.
+  Follow-up drafts and pre-meeting briefs are written only by an on-device
+  Think model.
   Scheduled daily summaries and overnight Dream runs require a separate approval
   for that exact remote origin in Models settings. They may send activity titles,
   captured screen text, meeting evidence, and retained Dream memory without a
@@ -161,9 +169,15 @@ LokalBot asks only for permissions needed by enabled features. macOS does not
 grant optional permissions until you approve them:
 
 - Microphone and system audio for recording meetings.
-- Calendar access for meeting detection, titles, and local speaker-name
-  suggestions. Attendee emails remain in meeting metadata, are deleted with
-  the meeting, and are never added to transcripts, exports, or model prompts.
+- Calendar access for meeting detection, titles, local speaker-name
+  suggestions, and names used as transcription vocabulary and meeting-notes
+  context. The separate, off-by-default **Use invitation agendas** setting
+  also reads the invitation's notes, keeps only the agenda text, and saves it
+  with calendar-matched recordings; agendas already saved stay with their
+  meeting until it is deleted. Attendee emails remain in meeting metadata, are
+  deleted with the meeting, and are never added to transcripts, exports, CLI
+  or MCP results, or model prompts. On this Mac they only help recognize the
+  same person across meetings in People and are never shown there.
 - Accessibility for browser-meeting detection, Autocomplete (the Cotyping
   engine), dictation insertion, visible-text context, and approved agent
   interaction.
@@ -178,7 +192,10 @@ before recording other people.
 ## External-agent access
 
 The bundled `lokalbot-cli` and MCP interface are read-only. They refuse library
-access unless you explicitly enable Agent Access under Settings → Privacy. An
+access unless you explicitly enable Agent Access under Settings → Privacy.
+Meeting access includes action items with your saved corrections and a People
+view of names, open actions, decisions, and shared meetings; it never
+includes attendee email addresses. An
 enabled external tool runs as your macOS user, so only connect tools you trust.
 Screen-memory MCP tools require a second, independent toggle and a history
 profile: today, the rolling last seven days, or all retained history. They
@@ -217,6 +234,15 @@ document values, selected text, help, and descriptions are not collected. If an
 app does not expose a usable visible range, text capture may be incomplete.
 Pausing, changing exclusions, or disabling capture invalidates pending work
 before any pixel file or text record is committed.
+
+People and Projects are derived on this Mac from meeting metadata, outcomes,
+applied speaker names, Dream projects, and activity titles each time they are
+shown; nothing new is stored for them. **Suggest actions that look done**
+reads retained screen text locally to offer Mark Done on an open action; it
+never changes an action by itself and sends nothing. Captures you dismiss are
+remembered in local preferences so they are not offered again. A meeting's
+page lists the titles, documents, and URLs captured on screen during the call
+from the same retained screen memory.
 
 Autocomplete learning stores encrypted accepted examples for at most 30 days
 and reuses them only in the same positively identified document. Mail, chat,
