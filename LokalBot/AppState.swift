@@ -1100,16 +1100,27 @@ final class AppState: ObservableObject {
         let rootURL = storage.rootURL
         libraryLoadTask = Task { @MainActor [weak self] in
             let worker = Task.detached(priority: .utility) {
-                guard !Task.isCancelled else { return [Meeting]() }
+                guard !Task.isCancelled else { return ([Meeting](), Set<UUID>()) }
                 let workerStorage = StorageManager(rootURL: rootURL)
-                return workerStorage.loadMeetings()
+                let loaded = workerStorage.loadMeetings()
+                // Earlier boundary reviews tombstoned live meetings, hiding
+                // them from search; clear those before the reindex below.
+                let restored = SearchIndex.clearStaleTombstones(
+                    liveMeetingIDs: Set(loaded.map(\.id)),
+                    databaseURL: rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+                return (loaded, restored)
             }
-            let loaded = await withTaskCancellationHandler {
+            let (loaded, restored) = await withTaskCancellationHandler {
                 await worker.value
             } onCancel: {
                 worker.cancel()
             }
             guard let self, !Task.isCancelled else { return }
+            for meetingID in restored {
+                lokalbotLog("search tombstone cleared for live meeting=\(meetingID)")
+                self.cachedSearchIndex?.noteRestoration(meetingID)
+                self.cachedEmbeddingIndex?.noteRestoration(meetingID)
+            }
 
             var byID = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
             // Preserve meetings created while the background scan was running.
@@ -1120,6 +1131,10 @@ final class AppState: ObservableObject {
             self.speakerIdentity.maintainRetention(meetings: { [weak self] in self?.meetings ?? [] })
             Task { await self.outcomeIndex.refreshInBackground(meetings: merged) }
             self.pipeline.resumePending(meetings: merged)
+            if self.settings.autoTranscribe {
+                self.pipeline.enqueueMissingTranscriptions(
+                    in: merged, summarize: self.settings.autoSummarize)
+            }
             // Dreaming was deliberately gated while launch recovery rebuilt
             // the library and durable processing queue. Re-check immediately;
             // pending pipeline work will keep the downtime gate closed until a
@@ -1593,7 +1608,7 @@ final class AppState: ObservableObject {
         primaryEvidenceDidChange(for: updated)
         searchIndex.reindex(updated, storage: storage)
         embeddingIndexTasks.removeValue(forKey: updated.id)?.task.cancel()
-        _ = embeddingIndex.remove(updated.id)
+        embeddingIndex.clearVectors(for: updated.id)
         reprocess(updated, transcribe: true, summarize: true)
     }
 

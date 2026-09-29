@@ -210,6 +210,28 @@ final class SearchIndex {
         locallyDeletedMeetingIDs.remove(meetingID)
     }
 
+    /// Deleting a meeting removes its folder before writing its tombstone, so
+    /// a tombstone on a meeting that still loads (and is not a merged source)
+    /// is stale; earlier boundary reviews wrote such tombstones. Clearing them
+    /// lets both indexes cover the meeting again. Returns the cleared IDs.
+    static func clearStaleTombstones(liveMeetingIDs: Set<UUID>, databaseURL: URL) -> Set<UUID> {
+        guard !liveMeetingIDs.isEmpty,
+              let database = SQLiteDatabase(url: databaseURL),
+              database.hasRow("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'deleted_meetings'")
+        else { return [] }
+        var cleared: Set<UUID> = []
+        let succeeded = database.transaction {
+            for id in liveMeetingIDs where database.hasRow(
+                "SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1", bind: [id.uuidString]) {
+                guard database.run("DELETE FROM deleted_meetings WHERE meeting_id = ?1",
+                                   bind: [id.uuidString]) else { return false }
+                cleared.insert(id)
+            }
+            return true
+        }
+        return succeeded ? cleared : []
+    }
+
     /// Both FTS and embeddings consult this shared tombstone table. Commit
     /// recovery before clearing the source's merge marker in meta.json so an
     /// interrupted/failed repair always retains enough information to retry.

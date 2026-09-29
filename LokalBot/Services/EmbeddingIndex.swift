@@ -487,6 +487,19 @@ final class EmbeddingIndex {
         locallyDeletedMeetingIDs.remove(meetingID)
     }
 
+    /// Drops a live meeting's vectors so the next pass re-embeds its changed
+    /// sources. Unlike `remove`, it writes no deletion tombstone: tombstones
+    /// are shared with keyword search and would hide the meeting from both.
+    @discardableResult
+    func clearVectors(for meetingID: UUID) -> Bool {
+        guard let database else { return false }
+        let id = meetingID.uuidString
+        return database.transaction {
+            database.run("DELETE FROM embeddings WHERE meeting_id = ?1", bind: [id])
+                && database.run("DELETE FROM embedded_meetings WHERE meeting_id = ?1", bind: [id])
+        }
+    }
+
     /// Utility-worker entry point used by AppState deletion. It deliberately
     /// opens its own FULLMUTEX connection so SQLite's busy timeout can never
     /// stall the main actor.

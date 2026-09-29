@@ -480,6 +480,38 @@ final class ProcessingPipeline: ObservableObject {
         drain()
     }
 
+    /// Queues finished recordings with a missing or incomplete transcript
+    /// that have no queued, parked, or running job (see
+    /// `MissingTranscription`). A merged gap is marked before queueing so it
+    /// is repaired at most once. Returns the queued meeting IDs.
+    @discardableResult
+    func enqueueMissingTranscriptions(in meetings: [Meeting], summarize: Bool) -> [Meeting.ID] {
+        var known = Set(queue.map(\.meeting.id)).union(waitingForModelsJobs.map(\.meeting.id))
+        if let activeMeetingID { known.insert(activeMeetingID) }
+        if let jobStore {
+            known.formUnion(jobStore.pendingJobs().map(\.meetingID))
+            known.formUnion(jobStore.parkedJobs().map(\.meetingID))
+        }
+        var queued: [Meeting.ID] = []
+        for meeting in meetings where !known.contains(meeting.id) && stages[meeting.id] == nil {
+            let folder = meeting.folderURL(in: storage)
+            guard let reason = MissingTranscription.reason(for: meeting, folder: folder) else { continue }
+            if reason == .mergedGap {
+                do {
+                    try MissingTranscription.markGapRepairRequested(in: folder)
+                } catch {
+                    lokalbotLog("pipeline missing transcript skip meeting=\(meeting.id) marker=\(error.localizedDescription)")
+                    continue
+                }
+            }
+            let outcome = enqueue(meeting, transcribe: true, summarize: summarize, origin: .automatic)
+            guard outcome != .persistenceFailed, outcome != .revoked else { continue }
+            lokalbotLog("pipeline queued missing transcript meeting=\(meeting.id) reason=\(reason)")
+            queued.append(meeting.id)
+        }
+        return queued
+    }
+
     private func drain() {
         guard !isDraining, !captureActive else { return }
         isDraining = true
