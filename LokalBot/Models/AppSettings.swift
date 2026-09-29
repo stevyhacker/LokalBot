@@ -137,6 +137,13 @@ struct AppSettings: Codable, Equatable {
     /// Offers "Looks done?" on open actions when later retained screen text
     /// shows a matching completion (sent, merged, submitted). Never auto-completes.
     var suggestActionCompletion: Bool = true
+    /// Meeting notes may use the calendar title and invited names, and the
+    /// titles of documents on screen during the call, as secondary context.
+    var meetingNotesUseCalendarContext: Bool = true
+    var meetingNotesUseScreenTitles: Bool = true
+    /// Off by default: reads the invitation agenda (notes without joining
+    /// details) and saves it with calendar-matched recordings.
+    var useCalendarAgenda: Bool = false
     var autoTranscribe: Bool = true
     var autoSummarize: Bool = true
     var speechVoice: KokoroVoice = .heart
@@ -651,6 +658,9 @@ struct AppSettings: Codable, Equatable {
         case transcriptionPrompt
         case autoTranscriptionVocabulary
         case suggestActionCompletion
+        case meetingNotesUseCalendarContext
+        case meetingNotesUseScreenTitles
+        case useCalendarAgenda
         case autoTranscribe
         case autoSummarize
         case speechVoice
@@ -810,6 +820,9 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
+        try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
+        try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
+        try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
         try c.encode(autoTranscribe, forKey: .autoTranscribe)
         try c.encode(autoSummarize, forKey: .autoSummarize)
         try c.encode(speechVoice, forKey: .speechVoice)
@@ -946,6 +959,9 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
+        meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
+        meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
+        useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)
         autoTranscribe = decode(.autoTranscribe, defaults.autoTranscribe)
         autoSummarize = decode(.autoSummarize, defaults.autoSummarize)
         speechVoice = decode(.speechVoice, defaults.speechVoice)

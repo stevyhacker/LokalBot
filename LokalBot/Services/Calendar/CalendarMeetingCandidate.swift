@@ -19,6 +19,9 @@ struct CalendarMeetingCandidate: Equatable, Sendable {
     let sourceCalendarTitle: String?
     var participantNames: [String] = []
     var participantIdentities: [CalendarParticipantIdentity] = []
+    /// Sanitized invitation agenda, held in memory. A recording keeps it
+    /// only when agenda use is enabled.
+    var agenda: String?
 
     /// Structured identities when the provider supplies them, otherwise a
     /// backwards-compatible projection of the legacy name-only roster.

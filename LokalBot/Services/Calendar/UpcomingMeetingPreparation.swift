@@ -74,9 +74,12 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
     let decisions: [UpcomingMeetingReference]
     let commitments: [UpcomingMeetingReference]
     let projects: [UpcomingMeetingProjectContext]
+    /// Sanitized invitation agenda, present only when agenda use is enabled.
+    var agenda: String? = nil
 
     var hasPreparationContext: Bool {
         !relatedMeetings.isEmpty || !decisions.isEmpty || !commitments.isEmpty || !projects.isEmpty
+            || agenda != nil
     }
 
     /// Stable within one process and deliberately includes extracted content,
@@ -100,6 +103,7 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
             decisions.map(\.text).joined(separator: "|"),
             commitmentParts.joined(separator: "|"),
             projectParts.joined(separator: "|"),
+            agenda ?? "",
         ]
         return parts.joined(separator: "\u{1f}")
     }
@@ -126,6 +130,9 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         if let project = projects.first {
             sentences.append("\(project.name): \(sentence(project.status))")
         }
+        if sentences.isEmpty, let agenda, let first = agenda.split(separator: "\n").first {
+            sentences.append("On the agenda: \(sentence(String(first)))")
+        }
         if sentences.isEmpty, let prior = relatedMeetings.first {
             sentences.append("The closest prior context is \(prior.meeting.title) from "
                 + prior.meeting.startedAt.formatted(date: .abbreviated, time: .omitted) + ".")
@@ -145,6 +152,9 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         ]
         if !event.participantNames.isEmpty {
             sections.append("Participants: \(event.participantNames.joined(separator: ", "))")
+        }
+        if let agenda {
+            sections.append("Agenda from the invitation:\n\(agenda)")
         }
         if !relatedMeetings.isEmpty {
             let rows = relatedMeetings.map { related in
@@ -290,7 +300,8 @@ enum UpcomingMeetingPreparationCompiler {
         meetings: [Meeting],
         storageRoot: URL,
         memory: DreamMemory?,
-        now: Date
+        now: Date,
+        includeAgenda: Bool = false
     ) -> UpcomingMeetingEvidence {
         let cutoff = now.addingTimeInterval(-TimeInterval(lookbackDays) * 86_400)
         let eventTitleTerms = terms(event.title)
@@ -364,7 +375,8 @@ enum UpcomingMeetingPreparationCompiler {
             relatedMeetings: related,
             decisions: Array(decisions.prefix(maximumReferencesPerKind)),
             commitments: Array(commitments.prefix(maximumReferencesPerKind)),
-            projects: projects)
+            projects: projects,
+            agenda: includeAgenda ? CalendarAgenda.sanitize(event.agenda) : nil)
     }
 
     private static func projectContext(
@@ -589,13 +601,15 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
         let meetings = app.meetings
         let root = app.storage.rootURL
         let memory = try? app.dreamStore.loadMemory()
+        let includeAgenda = app.settings.useCalendarAgenda
         let compiled = await Task.detached(priority: .utility) {
             UpcomingMeetingPreparationCompiler.compile(
                 event: primary,
                 meetings: meetings,
                 storageRoot: root,
                 memory: memory,
-                now: now)
+                now: now,
+                includeAgenda: includeAgenda)
         }.value
         guard refreshToken == token, !Task.isCancelled else { return }
 

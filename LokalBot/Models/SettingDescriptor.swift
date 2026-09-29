@@ -24,7 +24,8 @@ struct SettingDescriptor: Identifiable {
 
     func focusTarget(in settings: AppSettings) -> String {
         if !settings.calendarDetectionEnabled,
-           ["settings.useCalendarTitles", "settings.requireCalendarForBrowser"].contains(id) { return "settings.calendarDetectionEnabled" }
+           ["settings.useCalendarTitles", "settings.requireCalendarForBrowser",
+            "settings.useCalendarAgenda"].contains(id) { return "settings.calendarDetectionEnabled" }
         if !settings.dailyMemoryExportEnabled, id == "settings.dailyMemoryExportFormat" { return "settings.dailyMemoryExportEnabled" }
         if !settings.memoryRoutinesEnabled, id == "settings.memoryRoutineWeekday" { return "settings.memoryRoutinesEnabled" }
         if ["settings.openAIBaseURL", "settings.openAIModel"].contains(id), settings.summarizerBackend != .openAICompatible {
@@ -103,6 +104,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.trackingEnabled", title: "Track app & window activity", category: .dayMemory, aliases: "trackingEnabled"),
         .init(id: "settings.effectiveScreenContextCaptureMode", title: "Screen context", category: .dayMemory, aliases: "effectiveScreenContextCaptureMode"),
         .init(id: "settings.suggestActionCompletion", title: "Suggest actions that look done", category: .dayMemory, aliases: "completed actions done mark done screen evidence"),
+        .init(id: "settings.meetingNotesUseCalendarContext", title: "Give notes the calendar title and invited names", category: .recording, aliases: "attendees participants names summary context"),
+        .init(id: "settings.meetingNotesUseScreenTitles", title: "Give notes the titles of documents on screen", category: .recording, aliases: "screen documents slides summary context"),
+        .init(id: "settings.useCalendarAgenda", title: "Use invitation agendas", category: .recording, aliases: "agenda calendar invitation notes description"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .dayMemory, aliases: "dayDigestAutoEnabled"),
         .init(id: "settings.dailyMemoryExportEnabled", title: "Export a daily memory note", category: .dayMemory, aliases: "dailyMemoryExportEnabled"),

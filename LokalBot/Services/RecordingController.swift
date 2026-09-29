@@ -517,6 +517,9 @@ final class RecordingController: ObservableObject {
                     meeting.calendarParticipantIdentities = participants.isEmpty
                         ? nil
                         : participants
+                    if settings.useCalendarAgenda {
+                        meeting.calendarAgenda = CalendarAgenda.sanitize(calendarEvent.agenda)
+                    }
                     try? storage.saveMeta(meeting)
                 }
                 if let url = detectedApp?.meetingURL {

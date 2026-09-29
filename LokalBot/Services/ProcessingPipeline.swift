@@ -857,6 +857,27 @@ final class ProcessingPipeline: ObservableObject {
         var transcript: Transcript
     }
 
+    /// Calendar title and invited names, the optional agenda, and on-screen
+    /// document titles as secondary, source-labeled context for notes.
+    nonisolated static func meetingContextBlock(for meeting: Meeting, root: URL,
+                                                config: AppSettings) -> String? {
+        let options = MeetingGenerationContext.Options(
+            includeCalendar: config.meetingNotesUseCalendarContext,
+            includeAgenda: config.useCalendarAgenda,
+            includeScreenTitles: config.meetingNotesUseScreenTitles)
+        var titles: [String] = []
+        if options.includeScreenTitles {
+            let end = meeting.endedAt ?? meeting.startedAt.addingTimeInterval(meeting.recordedDuration ?? 0)
+            let store = ActivityStore(databaseURL: root.appendingPathComponent("lokalbotv3.sqlite"), readOnly: true)
+            titles = MeetingScreenContext.build(
+                meeting: meeting,
+                screenshots: store.screenshots(forMeeting: meeting.id,
+                                               from: meeting.startedAt.addingTimeInterval(-5),
+                                               to: end.addingTimeInterval(5))).materialTitles
+        }
+        return MeetingGenerationContext.block(for: meeting, screenTitles: titles, options: options)
+    }
+
     /// The user's manual vocabulary plus names LokalBot already knows, for
     /// speech models that read a prompt. A crash resume reuses the terms
     /// saved with the meeting so its per-track checkpoints stay valid.
@@ -1074,7 +1095,13 @@ final class ProcessingPipeline: ObservableObject {
         // labels can skew NaturalLanguage on short transcripts.
         let language = SummaryLanguage.resolvedForTranscript(config.summaryLanguage,
                                                              transcript: transcript)
-        let noteContext = MeetingNotes.promptContext(in: meeting.folderURL(in: storage))
+        var noteContext = MeetingNotes.promptContext(in: meeting.folderURL(in: storage))
+        let root = storage.rootURL
+        if let block = await Task.detached(priority: .utility, operation: {
+            Self.meetingContextBlock(for: meeting, root: root, config: config)
+        }).value {
+            noteContext.append(block)
+        }
         var generated = try await MeetingNotesGenerator.generate(
             transcript: transcript, engine: engine, template: config.noteTemplate,
             language: language, context: noteContext,

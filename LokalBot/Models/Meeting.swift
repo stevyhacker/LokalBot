@@ -30,6 +30,9 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// Structured calendar attendees. Email addresses remain in this local
     /// metadata only; transcript aliases retain opaque participant IDs.
     var calendarParticipantIdentities: [CalendarParticipantIdentity]?
+    /// The invitation's agenda with joining details, links, phone numbers,
+    /// and addresses removed. Saved only when the user enables agenda use.
+    var calendarAgenda: String?
 
     /// IDs of the source meetings when this record was created by the
     /// non-destructive merge flow. Source folders are never removed or

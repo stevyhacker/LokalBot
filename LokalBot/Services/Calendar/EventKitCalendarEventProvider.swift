@@ -139,7 +139,8 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
             meetingURL: meetingURL,
             sourceCalendarTitle: event.calendar?.title,
             participantNames: participants.compactMap(\.name),
-            participantIdentities: participants)
+            participantIdentities: participants,
+            agenda: CalendarAgenda.sanitize(event.notes))
     }
 
     /// Per-occurrence id: the event id alone is shared across a recurring

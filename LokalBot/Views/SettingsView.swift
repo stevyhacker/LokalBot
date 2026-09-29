@@ -488,6 +488,11 @@ struct SettingsView: View {
                                           help: "Only auto-record a browser tab while a scheduled event with a meeting link is in progress.")
                         }
                     .settingTarget("settings.requireCalendarForBrowser", selected: app.focusedSettingID)
+                        Toggle(isOn: $app.settings.useCalendarAgenda) {
+                            SettingsLabel("Use invitation agendas",
+                                          help: "Off by default. Saves the invitation's agenda (without joining details, links, phone numbers, or addresses) with calendar-matched recordings, and uses it for meeting notes and meeting preparation. Agendas already saved stay with their meeting until it is deleted.")
+                        }
+                        .settingTarget("settings.useCalendarAgenda", selected: app.focusedSettingID)
                         LabeledContent("Calendar access") { calendarAccessControl }
                     }
                 }
@@ -543,6 +548,16 @@ struct SettingsView: View {
                         }
                     }
                     .settingTarget("settings.summaryLanguage", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.meetingNotesUseCalendarContext) {
+                        SettingsLabel("Give notes the calendar title and invited names",
+                                      help: "Helps spell names and relate the discussion to the meeting. Names only; email addresses are never included. The transcript stays the only evidence for decisions and actions.")
+                    }
+                    .settingTarget("settings.meetingNotesUseCalendarContext", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.meetingNotesUseScreenTitles) {
+                        SettingsLabel("Give notes the titles of documents on screen",
+                                      help: "Adds titles of documents and pages captured during the call, never their captured text. Requires screen context in Day Memory.")
+                    }
+                    .settingTarget("settings.meetingNotesUseScreenTitles", selected: app.focusedSettingID)
                 }
                 Section("Speaker names") {
                     Toggle("Separate voices by speaker",
