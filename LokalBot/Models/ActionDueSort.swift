@@ -6,8 +6,8 @@ struct ActionDueSort: SortComparator {
     var order: SortOrder = .forward
 
     func compare(_ lhs: OutcomeActionReference, _ rhs: OutcomeActionReference) -> ComparisonResult {
-        let left = ActionDuePresentation.date(lhs.due)
-        let right = ActionDuePresentation.date(rhs.due)
+        let left = lhs.resolvedDueDate
+        let right = rhs.resolvedDueDate
         switch (left, right) {
         case (.none, .some): return .orderedDescending
         case (.some, .none): return .orderedAscending

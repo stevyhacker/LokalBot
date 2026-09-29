@@ -119,10 +119,13 @@ struct ActionThreadRow: View {
                         .font(Font.callout)
                         .foregroundStyle(Brand.teal)
                     }
-                    if let due = thread.due, let spokenAt = thread.dueSourceMeetingDate {
+                    if let due = thread.due, let spokenAt = thread.dueReferenceDate {
                         Text(ActionDuePresentation.label(due, spokenAt: spokenAt))
                             .font(Font.callout)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(thread.isOverdue() ? LBTokens.Palette.attentionText : .secondary)
+                            .accessibilityLabel(thread.isOverdue()
+                                ? "Overdue. " + ActionDuePresentation.label(due, spokenAt: spokenAt)
+                                : ActionDuePresentation.label(due, spokenAt: spokenAt))
                     }
                     if thread.dueHistory.count > 1 {
                         Text("Deadline updated")
@@ -342,7 +345,7 @@ struct OutcomeOverviewActionRow: View {
                         .font(Font.callout)
                         .foregroundStyle(Brand.teal)
                     if let due = reference.due {
-                        Text(ActionDuePresentation.label(due, spokenAt: reference.meetingStartedAt))
+                        Text(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate))
                             .font(Font.callout)
                             .foregroundStyle(.secondary)
                     }

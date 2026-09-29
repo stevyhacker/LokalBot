@@ -10,6 +10,9 @@ struct ActionThread: Identifiable, Equatable, Sendable {
     let owner: String?
     let due: String?
     let dueSourceMeetingDate: Date?
+    /// The day the effective due phrase was said or corrected.
+    let dueReferenceDate: Date?
+    let resolvedDueDate: Date?
 
     var latestReference: OutcomeActionReference { references[0] }
     var meetingCount: Int { Set(references.map(\.meetingID)).count }
@@ -23,6 +26,12 @@ struct ActionThread: Identifiable, Equatable, Sendable {
         return correction?.isForUser ?? references.allSatisfy(\.isForUser)
     }
     var statusLabel: String { hasMixedStatus ? "Mixed" : status.label }
+
+    /// Open work whose resolved due day is already behind the current day.
+    func isOverdue(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard status == .open, let resolvedDueDate else { return false }
+        return resolvedDueDate < calendar.startOfDay(for: now)
+    }
 
     /// A completed mention cannot hide unfinished work in another meeting.
     var status: OutcomeStatus {
@@ -69,6 +78,8 @@ struct ActionThread: Identifiable, Equatable, Sendable {
         let dueReference = correctedDue ?? sorted.first { $0.due != nil }
         due = dueReference?.due
         dueSourceMeetingDate = dueReference?.meetingStartedAt
+        dueReferenceDate = dueReference?.dueReferenceDate
+        resolvedDueDate = dueReference?.resolvedDueDate
         id = Self.stableID(for: sorted)
     }
 
@@ -80,6 +91,32 @@ struct ActionThread: Identifiable, Equatable, Sendable {
             hash = hash &* 1_099_511_628_211
         }
         return String(format: "thread-%016llx", hash)
+    }
+}
+
+/// Today's attention order: overdue work first, then work due within a week,
+/// each by due day, then everything else in the existing recency order.
+enum ActionAttentionOrder {
+    static let dueSoonWindowDays = 7
+
+    static func sorted(_ threads: [ActionThread], now: Date = Date(),
+                       calendar: Calendar = .current) -> [ActionThread] {
+        let today = calendar.startOfDay(for: now)
+        let soon = calendar.date(byAdding: .day, value: dueSoonWindowDays, to: today) ?? today
+        func bucket(_ thread: ActionThread) -> Int {
+            guard let due = thread.resolvedDueDate else { return 2 }
+            if due < today { return 0 }
+            return due <= soon ? 1 : 2
+        }
+        return threads.enumerated().sorted { lhs, rhs in
+            let left = bucket(lhs.element), right = bucket(rhs.element)
+            if left != right { return left < right }
+            if left < 2, let first = lhs.element.resolvedDueDate,
+               let second = rhs.element.resolvedDueDate, first != second {
+                return first < second
+            }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 }
 

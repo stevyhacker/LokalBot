@@ -86,10 +86,15 @@ final class RedesignContractTests: XCTestCase {
         XCTAssertEqual(RecallSearch.screenGroups([other] + ranked).map { $0.primary.snapshotID }, [2_001, 2_000])
     }
 
-    func testRelativeDuePhrasesAreNotInventedDates() {
-        XCTAssertNil(ActionDuePresentation.date("Tomorrow"))
-        XCTAssertNil(ActionDuePresentation.date("Friday"))
-        XCTAssertNotNil(ActionDuePresentation.date("2026-09-03"))
+    func testRelativeDuePhrasesResolveOnlyAgainstTheirSpokenDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let tuesday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 9, day: 22, hour: 10)))
+        let key = { (date: Date?) in date.map { AskDayScope.key(for: $0) } }
+        XCTAssertEqual(key(ActionDuePresentation.date("Tomorrow", spokenAt: tuesday)), "2026-09-23")
+        XCTAssertEqual(key(ActionDuePresentation.date("Friday", spokenAt: tuesday)), "2026-09-25")
+        XCTAssertEqual(key(ActionDuePresentation.date("2026-09-03", spokenAt: tuesday)), "2026-09-03")
+        XCTAssertNil(ActionDuePresentation.date("once the budget lands", spokenAt: tuesday))
     }
 
     func testActionListsOfZeroFortyAndFourHundredPersistCorrectionsAndUndo() throws {

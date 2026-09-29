@@ -1,9 +1,8 @@
 import Foundation
 
-enum MeetingAttributionArtifacts {
-    static let refreshMarker = "attribution-refresh-needed.json"
-    static let previousOutcomes = "outcomes.previous.json"
-
+/// Writers live here because they reach generation checkpoints; the file
+/// names and read-only helpers are shared with the CLI in Models.
+extension MeetingAttributionArtifacts {
     static func invalidate(in folder: URL, preservingOutcomes: Bool = false) throws {
         var files = ["summary.md": "summary.previous.md", "summary-claims.json": "summary-claims.previous.json"]
         if !preservingOutcomes { files["outcomes.json"] = previousOutcomes }
@@ -18,15 +17,6 @@ enum MeetingAttributionArtifacts {
         MeetingSummaryGenerator.removeCheckpoint(in: folder)
         MeetingOutcomesGenerator.removeCheckpoint(in: folder)
         try? FileManager.default.removeItem(at: folder.appendingPathComponent("summary.claims.partial.json"))
-    }
-
-    static func needsRefresh(in folder: URL) -> Bool {
-        FileManager.default.fileExists(atPath: folder.appendingPathComponent(refreshMarker).path)
-    }
-
-    static func previous(in folder: URL) -> MeetingOutcomes? {
-        guard let data = try? Data(contentsOf: folder.appendingPathComponent(previousOutcomes)) else { return nil }
-        return try? JSONDecoder().decode(MeetingOutcomes.self, from: data)
     }
 
     static func requireCurrent(_ transcript: Transcript, in folder: URL) throws {

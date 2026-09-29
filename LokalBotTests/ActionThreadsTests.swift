@@ -9,7 +9,7 @@ final class ActionThreadsTests: XCTestCase {
         let late = reference(meetingID: UUID(), meetingTitle: "Late", startedAt: start, text: "Late", due: "2026-09-30")
         let recentTie = reference(meetingID: UUID(), meetingTitle: "Recent", startedAt: start.addingTimeInterval(60),
                                   text: "Recent", due: "2026-09-29")
-        let unknown = reference(meetingID: UUID(), meetingTitle: "Unknown", startedAt: start, text: "Unknown", due: "Next week")
+        let unknown = reference(meetingID: UUID(), meetingTitle: "Unknown", startedAt: start, text: "Unknown", due: "After the launch")
         let undated = reference(meetingID: UUID(), meetingTitle: "Undated", startedAt: start, text: "Undated")
         let actions = [unknown, early, undated, late, recentTie]
         XCTAssertEqual(actions.sorted(using: ActionDueSort()).prefix(3).map(\.id), [recentTie.id, early.id, late.id])

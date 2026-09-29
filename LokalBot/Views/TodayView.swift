@@ -18,7 +18,7 @@ struct TodayView: View {
                 nowCard
                 UpcomingMeetingSection(model: upcomingMeeting)
                 NeedsAttentionSection(
-                    threads: app.outcomeIndex.openUserActionThreads,
+                    threads: ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads),
                     limit: 3,
                     showsPlanInAgent: true)
                 digestSection

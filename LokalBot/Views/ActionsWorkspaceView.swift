@@ -141,7 +141,7 @@ struct ActionsWorkspaceView: View {
                         .foregroundStyle(reference.owner == nil ? LBTokens.Palette.attentionText : .secondary)
                 }.width(90)
                 TableColumn("Due", sortUsing: ActionDueSort()) { reference in
-                    Text(reference.due.map { ActionDuePresentation.label($0, spokenAt: reference.meetingStartedAt) } ?? "—")
+                    Text(reference.due.map { ActionDuePresentation.label($0, spokenAt: reference.dueReferenceDate) } ?? "—")
                         .foregroundStyle(isOverdue(reference) ? LBTokens.Palette.recordingText : .secondary)
                 }.width(110)
                 TableColumn("Meeting") { reference in
@@ -305,7 +305,7 @@ struct ActionsWorkspaceView: View {
 
     private func matchesDue(_ action: OutcomeActionReference) -> Bool {
         guard dueFilter != "all" else { return true }
-        let date = ActionDuePresentation.date(action.due)
+        let date = action.resolvedDueDate
         switch dueFilter {
         case "overdue": return date.map { $0 < Calendar.current.startOfDay(for: Date()) } == true && action.status == .open
         case "dated": return date != nil
@@ -332,7 +332,7 @@ struct ActionsWorkspaceView: View {
                             $0,
                             identity: reference.isForUser ? .user : .unresolved)
                     } ?? "Not stated")
-                if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.meetingStartedAt)) }
+                if let due = reference.due { Text(ActionDuePresentation.label(due, spokenAt: reference.dueReferenceDate)) }
                 Button("Correct Action or Resolve Date…") { correction = reference }
                 Divider()
                 Text("Original Wording").font(Font.callout.weight(.semibold))
@@ -348,7 +348,7 @@ struct ActionsWorkspaceView: View {
     }
 
     private func isOverdue(_ reference: OutcomeActionReference) -> Bool {
-        reference.status == .open && ActionDuePresentation.date(reference.due).map {
+        reference.status == .open && reference.resolvedDueDate.map {
             $0 < Calendar.current.startOfDay(for: Date())
         } == true
     }
@@ -379,7 +379,7 @@ private struct ActionEditorSheet: View {
         _text = State(initialValue: reference.text)
         _owner = State(initialValue: reference.owner ?? "")
         _due = State(initialValue: reference.due ?? "")
-        _resolvedDate = State(initialValue: ActionDuePresentation.date(reference.due) ?? Date())
+        _resolvedDate = State(initialValue: reference.resolvedDueDate ?? Date())
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
