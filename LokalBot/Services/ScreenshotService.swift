@@ -883,8 +883,18 @@ final class ScreenshotService: ObservableObject {
                          sourceURL: String?,
                          documentName: String?,
                          meetingID: String?) async throws {
+        let clock = ContinuousClock()
+        let started = clock.now
+        var stages: [String] = []
+        func mark(_ stage: String) {
+            let elapsed = (clock.now - started).components
+            let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+            stages.append("\(stage)=\(String(format: "%.2f", seconds))s")
+        }
+        defer { lokalbotLog("shot timing app=\(frontApp) \(stages.joined(separator: " "))") }
         let content = try await SCShareableContent.excludingDesktopWindows(
             false, onScreenWindowsOnly: true)
+        mark("windows")
         guard captureIsAuthorized(consent),
               NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID else {
             lokalbotLog("shot skip: focus changed while preparing capture")
@@ -906,7 +916,10 @@ final class ScreenshotService: ObservableObject {
             excludedApps: excludedApps)
         guard let layout,
               let window = content.windows.first(where: { $0.windowID == layout.windowID })
-        else { return }
+        else {
+            lokalbotLog("shot skip: no on-screen window matched the focused window (\(frontApp))")
+            return
+        }
 
         // Bound the source frame before ScreenCaptureKit allocates it. Vision
         // receives this same readable 1,500 px frame in the worker; requesting
@@ -925,8 +938,13 @@ final class ScreenshotService: ObservableObject {
         configuration.ignoreShadowsSingleWindow = true
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: configuration)
-        guard captureIsAuthorized(consent), CGPreflightScreenCaptureAccess() else { return }
+        mark("image")
+        guard captureIsAuthorized(consent), CGPreflightScreenCaptureAccess() else {
+            lokalbotLog("shot skip: consent or screen recording access changed during capture")
+            return
+        }
         let currentAccessibility = await accessibilityReader.capture(processID: frontmostProcessID)
+        mark("recheck")
         guard captureIsAuthorized(consent),
               NSWorkspace.shared.frontmostApplication?.processIdentifier == frontmostProcessID,
               ScreenshotWindowFocusValidation.matches(
@@ -956,6 +974,7 @@ final class ScreenshotService: ObservableObject {
             accessibleText: accessibleText,
             accessibilityRedactionCount: accessibilityRedactionCount,
             stageOnly: true))
+        mark("process")
 
         guard case .stored(let stored) = outcome else {
             policy.noteCheck(at: timestamp)
