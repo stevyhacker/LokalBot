@@ -75,6 +75,7 @@ pub fn import_transcript(
     // Imported IDs are remapped so a file cannot overwrite another meeting or its evidence.
     meeting.id = new_id();
     meeting.summary = None;
+    meeting.retained_segments.clear();
     meeting.media.clear();
     for s in &mut meeting.segments {
         s.id = new_id();
@@ -420,19 +421,15 @@ fn digest_input(
 fn digest_inner(library: &Library, day: &str) -> Result<Digest> {
     let (start, end) = day_bounds(day)?;
     let settings = library.settings()?;
-    let meetings = library
-        .meetings()?
-        .into_iter()
-        .filter(|m| m.started_at >= start && m.started_at < end)
-        .collect::<Vec<_>>();
+    let meetings = library.meetings_between(start, end)?;
     let activity = library
-        .activity()?
+        .activity_between(start, end)?
         .into_iter()
         .filter(|a| a.start < end && a.end > start && !a.private)
         .collect::<Vec<_>>();
     let moments = if settings.screen_text_enabled {
         library
-            .moments()?
+            .moments_between(start, end)?
             .into_iter()
             .filter(|m| m.created_at >= start && m.created_at < end)
             .collect::<Vec<_>>()
@@ -454,7 +451,7 @@ fn digest_inner(library: &Library, day: &str) -> Result<Digest> {
             .iter()
             .map(|m| library.meeting(&m.id))
             .collect::<Result<Vec<_>>>()?;
-        let all_activity = library.activity()?;
+        let all_activity = library.activity_between(start, end)?;
         let current_activity = activity
             .iter()
             .map(|a| {
@@ -465,7 +462,7 @@ fn digest_inner(library: &Library, day: &str) -> Result<Digest> {
                     .context("Digest activity was removed")
             })
             .collect::<Result<Vec<_>>>()?;
-        let all_moments = library.moments()?;
+        let all_moments = library.moments_between(start, end)?;
         let current_moments = moments
             .iter()
             .map(|m| {
@@ -519,7 +516,8 @@ fn transcribe_inner(library: &mut Library, id: &str) -> Result<()> {
         let path = crate::audio::owned_media(library, &media.path)?;
         let mut track = if settings.remote_audio {
             let grant = EgressGrant::acquire(library)?;
-            let (segments, usage) = Engine::new(settings.clone())?.transcribe(&path)?;
+            let (segments, usage) = Engine::new(settings.clone())?
+                .transcribe_guarded(&path, || grant.verify(library))?;
             grant.verify(library)?;
             usage_records.push(usage);
             segments
@@ -542,8 +540,9 @@ fn transcribe_inner(library: &mut Library, id: &str) -> Result<()> {
             fingerprint(&(&current.media, &current.segments))? == version,
             "Audio or transcript changed while transcription ran"
         );
-        current.segments = segments;
-        current.summary = None;
+        // Keep the exact old passages used by preserved summaries/actions; never
+        // silently reassign a reviewed citation to a different ASR passage.
+        current.replace_transcript(segments);
         library.save_meeting(&current)?;
         for usage in usage_records {
             library.save_generation(&usage)?;

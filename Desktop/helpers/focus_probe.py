@@ -71,7 +71,7 @@ def probe():
     if queue:
         secure = None  # An incomplete inspection cannot authorize pixel capture.
     # Domain exclusions remain fail closed when the address is unavailable.
-    browser = any(name in (app.name or "").lower() for name in ("chrome", "chromium", "firefox", "brave", "edge"))
+    browser = any(name in (app.name or "").lower() for name in ("chrome", "chromium", "firefox", "brave", "edge", "vivaldi", "opera", "librewolf", "zen", "floorp", "waterfox", "epiphany", "falkon", "qutebrowser", "browser"))
     if os.environ.get("HYPRLAND_INSTANCE_SIGNATURE"):
         import subprocess
         current = json.loads(subprocess.check_output(["hyprctl", "activewindow", "-j"], timeout=3))

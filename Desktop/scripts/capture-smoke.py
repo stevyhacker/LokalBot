@@ -55,13 +55,16 @@ try:
             assert 'Fictional harmless' in saved['text']
             encrypted=LIB/saved['pixels']
             assert encrypted.is_file() and not encrypted.read_bytes().startswith(b'\x89PNG')
+            assert not list(LIB.rglob('*.png')), 'Capture persisted plaintext pixels'
+            again=run(str(CLI),'capture-screen')
+            assert again.returncode==0 and len(moments())==1, 'Unchanged capture was stored twice'
             first=observation['observation']['field']
             run('xdotool','key','Tab');time.sleep(.25)
             after=json.loads(run('python3',str(ROOT/'helpers/focus_probe.py'),'--text').stdout)
             assert after['observation']['window']==observation['observation']['window']
             assert after['observation']['field']!=first
         child.terminate();child.wait(timeout=5)
-    report={'passed':['visible accessibility text','encrypted focused pixels','focused-field identity change','password field refused with no persistence'],'synthetic_only':True}
+    report={'passed':['visible accessibility text','encrypted focused pixels with no plaintext file','unchanged capture deduplication','focused-field identity change','password field refused with no persistence'],'synthetic_only':True}
     (ROOT/'.eval/capture-report.json').write_text(json.dumps(report,indent=2))
     print(json.dumps(report,indent=2))
 finally:

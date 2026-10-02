@@ -47,11 +47,15 @@ impl Engine {
         } else {
             None
         };
-        let client = Client::builder()
+        let mut builder = Client::builder()
             .connect_timeout(Duration::from_secs(10))
             .timeout(Duration::from_secs(90))
-            .redirect(reqwest::redirect::Policy::none())
-            .build()?;
+            .redirect(reqwest::redirect::Policy::none());
+        if privacy::is_loopback_endpoint(&settings.endpoint)? {
+            // System proxy settings must never redirect plaintext local context.
+            builder = builder.no_proxy();
+        }
+        let client = builder.build()?;
         Ok(Self {
             client,
             settings,
@@ -137,6 +141,13 @@ impl Engine {
         ))
     }
     pub fn transcribe(&self, path: &std::path::Path) -> Result<(Vec<Segment>, Generation)> {
+        self.transcribe_guarded(path, || Ok(()))
+    }
+    pub fn transcribe_guarded(
+        &self,
+        path: &std::path::Path,
+        mut verify: impl FnMut() -> Result<()>,
+    ) -> Result<(Vec<Segment>, Generation)> {
         ensure!(
             self.settings.backend == Backend::OpenRouter && self.settings.remote_audio,
             "Remote audio transcription needs its separate opt-in"
@@ -146,57 +157,32 @@ impl Engine {
             self.settings.account_data_policy,
             "OpenRouter's transcription API cannot enforce private-only routing. Explicitly select account-policy routing or use local Whisper."
         );
-        let data = std::fs::read(path)?;
-        ensure!(
-            data.len() <= 25 * 1024 * 1024,
-            "Audio exceeds 25 MiB; split it before remote transcription"
-        );
-        use base64::Engine as _;
-        let format = path
-            .extension()
-            .and_then(|s| s.to_str())
-            .context("Audio format is missing")?
-            .to_ascii_lowercase();
-        ensure!(
-            ["wav", "mp3", "flac", "m4a", "ogg", "webm", "aac"].contains(&format.as_str()),
-            "Unsupported audio format"
-        );
-        let result=self.post("audio/transcriptions",&json!({"model":self.settings.transcription_model,"input_audio":{"data":base64::engine::general_purpose::STANDARD.encode(data),"format":format},"response_format":"verbose_json"}))?;
-        let segments = if let Some(segments) = result["segments"].as_array() {
-            segments
-                .iter()
-                .map(|s| Segment {
-                    id: new_id(),
-                    start: s["start"].as_f64().unwrap_or(0.),
-                    end: s["end"].as_f64().unwrap_or(0.),
-                    speaker: "Unidentified".into(),
-                    text: s["text"].as_str().unwrap_or("").trim().into(),
-                })
-                .filter(|s| !s.text.is_empty())
-                .collect()
-        } else {
-            vec![Segment {
-                id: new_id(),
-                start: 0.,
-                end: result["duration"].as_f64().unwrap_or(0.),
-                speaker: "Unidentified".into(),
-                text: result["text"]
-                    .as_str()
-                    .context("Transcription returned no text")?
-                    .into(),
-            }]
+        let parts = crate::audio::remote_audio_parts(path)?;
+        let mut segments = vec![];
+        let mut usage = Generation {
+            purpose: "transcription".into(),
+            model: self.settings.transcription_model.clone(),
+            input_tokens: 0,
+            output_tokens: 0,
+            cost: 0.,
+            created_at: now(),
         };
-        Ok((
-            segments,
-            Generation {
-                purpose: "transcription".into(),
-                model: self.settings.transcription_model.clone(),
-                input_tokens: result["usage"]["input_tokens"].as_u64().unwrap_or(0),
-                output_tokens: result["usage"]["output_tokens"].as_u64().unwrap_or(0),
-                cost: result["usage"]["cost"].as_f64().unwrap_or(0.),
-                created_at: now(),
-            },
-        ))
+        use base64::Engine as _;
+        for part in &parts.parts {
+            verify()?;
+            let data = std::fs::read(&part.path)?;
+            ensure!(
+                data.len() <= 25 * 1024 * 1024,
+                "Audio part exceeds the upload limit"
+            );
+            let result=self.post("audio/transcriptions",&json!({"model":self.settings.transcription_model,"input_audio":{"data":base64::engine::general_purpose::STANDARD.encode(data),"format":"wav"},"response_format":"verbose_json"}))?;
+            verify()?;
+            segments.extend(transcription_segments(&result, part.offset, part.duration)?);
+            usage.input_tokens += result["usage"]["input_tokens"].as_u64().unwrap_or(0);
+            usage.output_tokens += result["usage"]["output_tokens"].as_u64().unwrap_or(0);
+            usage.cost += result["usage"]["cost"].as_f64().unwrap_or(0.);
+        }
+        Ok((segments, usage))
     }
     pub fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
         ensure!(
@@ -216,6 +202,45 @@ impl Engine {
             })
             .collect()
     }
+}
+pub fn transcription_segments(result: &Value, offset: f64, duration: f64) -> Result<Vec<Segment>> {
+    let mut segments: Vec<Segment> = if let Some(segments) = result["segments"].as_array() {
+        segments
+            .iter()
+            .map(|s| Segment {
+                id: new_id(),
+                start: s["start"].as_f64().unwrap_or(0.),
+                end: s["end"].as_f64().unwrap_or(0.),
+                speaker: "Unidentified".into(),
+                text: s["text"].as_str().unwrap_or("").trim().into(),
+            })
+            .filter(|s| !s.text.is_empty())
+            .collect()
+    } else {
+        vec![Segment {
+            id: new_id(),
+            start: 0.,
+            end: result["duration"].as_f64().unwrap_or(duration),
+            speaker: "Unidentified".into(),
+            text: result["text"]
+                .as_str()
+                .context("Transcription returned no text")?
+                .into(),
+        }]
+    };
+    for segment in &mut segments {
+        ensure!(
+            segment.start.is_finite()
+                && segment.end.is_finite()
+                && segment.start >= 0.
+                && segment.end >= segment.start
+                && segment.end <= duration + 1.,
+            "Remote transcription returned invalid timestamps"
+        );
+        segment.start = offset + segment.start.min(duration);
+        segment.end = offset + segment.end.min(duration);
+    }
+    Ok(segments)
 }
 
 pub fn parse_json<T: serde::de::DeserializeOwned>(text: &str) -> Result<T> {

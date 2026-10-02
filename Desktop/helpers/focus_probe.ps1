@@ -1,4 +1,4 @@
-param([switch]$CaptureText, [string]$ScreenshotPath)
+param([switch]$CaptureText, [switch]$ScreenshotBytes)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
@@ -45,12 +45,20 @@ for ($index=0; $index -lt [Math]::Min(800,$nodes.Count); $index++) {
  }
 }
 $process = Get-Process -Id $processId
-$browser = $process.ProcessName -match 'chrome|firefox|msedge|brave'
-if ($ScreenshotPath) {
+$browser = $process.ProcessName -match 'chrome|chromium|firefox|msedge|brave|vivaldi|opera|librewolf|zen|floorp|waterfox|browser'
+if ($ScreenshotBytes) {
  if (-not $verified -or $secure -ne $false) { exit 2 }
  $bitmap = New-Object System.Drawing.Bitmap ([int]$rect.Width),([int]$rect.Height)
  $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
- try { $graphics.CopyFromScreen([int]$rect.X,[int]$rect.Y,0,0,$bitmap.Size); $bitmap.Save($ScreenshotPath,[System.Drawing.Imaging.ImageFormat]::Png) } finally { $graphics.Dispose(); $bitmap.Dispose() }
+ $memory = New-Object System.IO.MemoryStream
+ try {
+  $graphics.CopyFromScreen([int]$rect.X,[int]$rect.Y,0,0,$bitmap.Size)
+  $bitmap.Save($memory,[System.Drawing.Imaging.ImageFormat]::Png)
+  $bytes = $memory.ToArray()
+  $stdout = [Console]::OpenStandardOutput()
+  $stdout.Write($bytes,0,$bytes.Length)
+  $stdout.Flush()
+ } finally { $memory.Dispose(); $graphics.Dispose(); $bitmap.Dispose() }
  exit 0
 }
 @{observation=@{app=$process.ProcessName;title=$window.Current.Name;window=$handle.ToInt64().ToString();pid=$processId;field=$field;focus_verified=$verified;secure=$secure;domain=$null;browser=$browser};bounds=@([int]$rect.X,[int]$rect.Y,[int]$rect.Width,[int]$rect.Height);text=(($texts | Select-Object -Unique) -join "`n")} | ConvertTo-Json -Depth 5 -Compress

@@ -65,13 +65,16 @@ pub fn import_audio(library: &mut Library, path: &Path, title: Option<String>) -
     let directory = library.root.join("meetings").join(&meeting.id);
     private_directory(&directory)?;
     let output = directory.join("import.wav");
-    let result = Command::new("ffmpeg")
-        .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-i"])
-        .arg(path)
-        .args(["-vn", "-ac", "1", "-ar", "16000", "-y"])
-        .arg(&output)
-        .output()
-        .context("FFmpeg is needed to import audio")?;
+    let result = crate::process::bounded_output(
+        Command::new("ffmpeg")
+            .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-i"])
+            .arg(path)
+            .args(["-vn", "-ac", "1", "-ar", "16000", "-y"])
+            .arg(&output),
+        std::time::Duration::from_secs(600),
+        64 * 1024,
+    )
+    .context("FFmpeg is needed to import audio")?;
     ensure!(
         result.status.success(),
         "FFmpeg could not decode this audio file"
@@ -96,33 +99,38 @@ pub fn whisper(settings: &Settings, path: &Path) -> Result<Vec<Segment>> {
     ensure!(model.is_file(), "The local Whisper model is missing");
     let temporary = tempfile::tempdir()?;
     let wav = temporary.path().join("input.wav");
-    let status = Command::new("ffmpeg")
-        .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-i"])
-        .arg(path)
-        .args(["-vn", "-ac", "1", "-ar", "16000", "-y"])
-        .arg(&wav)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .context("FFmpeg is needed for transcription")?;
+    let status = crate::process::bounded_output(
+        Command::new("ffmpeg")
+            .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-i"])
+            .arg(path)
+            .args(["-vn", "-ac", "1", "-ar", "16000", "-y"])
+            .arg(&wav),
+        std::time::Duration::from_secs(600),
+        64 * 1024,
+    )
+    .context("FFmpeg is needed for transcription")?;
     ensure!(
-        status.success(),
+        status.status.success(),
         "Could not convert the audio for local transcription"
     );
     let output = temporary.path().join("transcript");
-    let status = Command::new(&settings.whisper_executable)
-        .arg("-m")
-        .arg(model)
-        .arg("-f")
-        .arg(&wav)
-        .args(["-oj", "-of"])
-        .arg(&output)
-        .args(["-t", "4", "-ng", "-l", "auto"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .context("Could not start whisper-cli; configure its executable path")?;
-    ensure!(status.success(), "Local Whisper transcription failed");
+    let status = crate::process::bounded_output(
+        Command::new(&settings.whisper_executable)
+            .arg("-m")
+            .arg(model)
+            .arg("-f")
+            .arg(&wav)
+            .args(["-oj", "-of"])
+            .arg(&output)
+            .args(["-t", "4", "-ng", "-l", "auto", "-np"]),
+        std::time::Duration::from_secs(7200),
+        256 * 1024,
+    )
+    .context("Could not start whisper-cli; configure its executable path")?;
+    ensure!(
+        status.status.success(),
+        "Local Whisper transcription failed"
+    );
     let value: serde_json::Value =
         serde_json::from_slice(&fs::read(output.with_extension("json"))?)?;
     let rows = value["transcription"]
@@ -141,6 +149,75 @@ pub fn whisper(settings: &Settings, path: &Path) -> Result<Vec<Segment>> {
         .collect())
 }
 
+pub struct AudioPart {
+    pub path: PathBuf,
+    pub offset: f64,
+    pub duration: f64,
+}
+pub struct AudioParts {
+    _directory: tempfile::TempDir,
+    pub parts: Vec<AudioPart>,
+}
+/// Decode once, then stream bounded PCM pieces. No full-recording allocation.
+pub fn remote_audio_parts(path: &Path) -> Result<AudioParts> {
+    let directory = tempfile::tempdir()?;
+    let mut source = path.to_path_buf();
+    let canonical = hound::WavReader::open(path).ok().is_some_and(|r| {
+        let spec = r.spec();
+        spec.channels == 1
+            && spec.bits_per_sample == 16
+            && spec.sample_format == hound::SampleFormat::Int
+    });
+    if !canonical {
+        source = directory.path().join("normalized.wav");
+        let output = crate::process::bounded_output(
+            Command::new("ffmpeg")
+                .args(["-nostdin", "-hide_banner", "-loglevel", "error", "-i"])
+                .arg(path)
+                .args(["-vn", "-ac", "1", "-ar", "16000", "-y"])
+                .arg(&source),
+            std::time::Duration::from_secs(600),
+            64 * 1024,
+        )?;
+        ensure!(
+            output.status.success(),
+            "Could not decode audio for remote transcription"
+        );
+    }
+    let mut reader = hound::WavReader::open(source)?;
+    let spec = reader.spec();
+    ensure!(spec.sample_rate > 0, "Invalid audio sample rate");
+    // A five-minute cap preserves progress; 20 MiB leaves headroom below the
+    // provider limit even for a high-rate microphone and its WAV header.
+    let frames = (u64::from(spec.sample_rate) * 300).min((20 * 1024 * 1024 - 44) / 2) as usize;
+    let mut samples = reader.samples::<i16>().peekable();
+    let mut total = 0usize;
+    let mut parts = vec![];
+    while samples.peek().is_some() {
+        let output = directory
+            .path()
+            .join(format!("part-{:06}.wav", parts.len()));
+        let mut writer = hound::WavWriter::create(&output, spec)?;
+        let mut count = 0;
+        for sample in samples.by_ref().take(frames) {
+            writer.write_sample(sample?)?;
+            count += 1;
+        }
+        writer.finalize()?;
+        parts.push(AudioPart {
+            path: output,
+            offset: total as f64 / f64::from(spec.sample_rate),
+            duration: count as f64 / f64::from(spec.sample_rate),
+        });
+        total += count;
+    }
+    ensure!(!parts.is_empty(), "Audio contains no samples");
+    Ok(AudioParts {
+        _directory: directory,
+        parts,
+    })
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Chunk {
     pub name: String,
@@ -153,6 +230,8 @@ pub struct Manifest {
     pub chunks: Vec<Chunk>,
     pub dropped_buffers: u64,
     pub complete: bool,
+    #[serde(default)]
+    pub output_sha256: Option<String>,
 }
 pub struct ChunkWriter {
     directory: PathBuf,
@@ -170,6 +249,7 @@ impl ChunkWriter {
                 chunks: vec![],
                 dropped_buffers: 0,
                 complete: false,
+                output_sha256: None,
             },
             samples: vec![],
         })
@@ -223,21 +303,27 @@ impl ChunkWriter {
         if !remaining.is_empty() {
             self.flush_chunk(&remaining)?;
         }
-        self.manifest.complete = true;
         self.manifest.dropped_buffers = dropped;
+        let duration = recover_chunks(&self.directory, output)?;
+        self.manifest.output_sha256 = Some(file_sha256(output)?);
+        self.manifest.complete = true;
         atomic_write(
             &self.directory.join("manifest.json"),
             &serde_json::to_vec_pretty(&self.manifest)?,
         )?;
-        recover_chunks(&self.directory, output)
+        Ok(duration)
     }
 }
 pub fn recover_chunks(directory: &Path, output: &Path) -> Result<f64> {
     let manifest: Manifest = serde_json::from_slice(&fs::read(directory.join("manifest.json"))?)?;
+    ensure!(manifest.rate > 0, "Invalid checkpoint sample rate");
     ensure!(!manifest.chunks.is_empty(), "No complete audio checkpoints");
-    let temporary = output.with_extension("recovery.wav");
+    let temporary = tempfile::Builder::new()
+        .prefix("audio-finalizing-")
+        .suffix(".wav")
+        .tempfile_in(output.parent().context("Missing audio directory")?)?;
     let mut writer = hound::WavWriter::create(
-        &temporary,
+        temporary.path(),
         hound::WavSpec {
             channels: 1,
             sample_rate: manifest.rate,
@@ -273,6 +359,7 @@ pub fn recover_chunks(directory: &Path, output: &Path) -> Result<f64> {
         }
     }
     writer.finalize()?;
+    temporary.as_file().sync_all()?;
     if output.exists() {
         let existing = hound::WavReader::open(output)?;
         ensure!(
@@ -280,43 +367,113 @@ pub fn recover_chunks(directory: &Path, output: &Path) -> Result<f64> {
             "Existing audio is longer; refusing a shorter recovery"
         );
     }
-    fs::rename(temporary, output)?;
+    temporary.persist(output).map_err(|e| e.error)?;
     Ok(frames as f64 / f64::from(manifest.rate))
+}
+fn file_sha256(path: &Path) -> Result<String> {
+    use std::io::Read;
+    let mut file = fs::File::open(path)?;
+    let mut hash = Sha256::new();
+    let mut bytes = [0; 65536];
+    loop {
+        let length = file.read(&mut bytes)?;
+        if length == 0 {
+            break;
+        }
+        hash.update(&bytes[..length]);
+    }
+    Ok(format!("{:x}", hash.finalize()))
 }
 
 /// Repairs closed checkpoints after a process exit without authorizing a new capture.
 pub fn recover_recordings(library: &mut Library) -> Result<Vec<String>> {
     let mut recovered = vec![];
-    for mut meeting in library.meetings()? {
-        let directory = library
-            .root
-            .join("meetings")
-            .join(&meeting.id)
-            .join("mic-chunks");
-        let manifest_path = directory.join("manifest.json");
-        if !manifest_path.is_file() || meeting.duration > 0. {
-            continue;
+    for preview in library.meeting_previews()? {
+        let id = preview.metadata.id;
+        // Each recording is independent. A corrupt manifest or lost piece must
+        // leave its originals available and cannot prevent other recovery.
+        let result = recover_recording(library, &id);
+        match result {
+            Ok(true) => recovered.push(id),
+            Ok(false) => {}
+            Err(error) => {
+                let warning = format!(
+                    "Audio recovery failed: {}. Original checkpoints were retained; other meetings remain available.",
+                    crate::privacy::redact(&error.to_string())
+                );
+                if let Ok(mut meeting) = library.meeting(&id) {
+                    if !meeting.warnings.contains(&warning) {
+                        meeting.warnings.push(warning.clone());
+                        library.save_meeting(&meeting)?;
+                    }
+                    library.save_job(&Job {
+                        id: format!("recovery-{id}"),
+                        meeting_id: Some(id),
+                        kind: "recording recovery".into(),
+                        status: "failed".into(),
+                        error: Some(warning),
+                        updated_at: now(),
+                    })?;
+                }
+            }
         }
-        let manifest: Manifest = serde_json::from_slice(&fs::read(&manifest_path)?)?;
-        if manifest.chunks.is_empty() {
-            continue;
-        }
-        let output = directory
-            .parent()
-            .context("Missing meeting directory")?
-            .join("mic.wav");
-        meeting.duration = recover_chunks(&directory, &output)?;
-        meeting.media = vec![Media {
-            track: "mic".into(),
-            path: format!("meetings/{}/mic.wav", meeting.id),
-        }];
-        if !manifest.complete {
-            meeting.warnings.push("Recovered verified microphone checkpoints after an interrupted recording; the uncommitted tail may be missing. Recording was not restarted.".into());
-        }
-        library.save_meeting(&meeting)?;
-        recovered.push(meeting.id);
     }
     Ok(recovered)
+}
+fn recover_recording(library: &mut Library, id: &str) -> Result<bool> {
+    crate::storage::valid_id(id)?;
+    let directory = library.root.join("meetings").join(id).join("mic-chunks");
+    let manifest_path = directory.join("manifest.json");
+    if !manifest_path.is_file() {
+        return Ok(false);
+    }
+    let mut meeting = library.meeting(id)?;
+    let manifest: Manifest = serde_json::from_slice(&fs::read(&manifest_path)?)?;
+    if manifest.chunks.is_empty() {
+        return Ok(false);
+    }
+    let output = directory
+        .parent()
+        .context("Missing meeting directory")?
+        .join("mic.wav");
+    if let Some(checksum) = &manifest.output_sha256
+        && output.is_file()
+        && file_sha256(&output)? == *checksum
+        && meeting.duration > 0.
+    {
+        fs::remove_dir_all(directory)?;
+        cleanup_audio_temporary_files(output.parent().unwrap())?;
+        return Ok(false);
+    }
+    meeting.duration = recover_chunks(&directory, &output)?;
+    meeting.media = vec![Media {
+        track: "mic".into(),
+        path: format!("meetings/{}/mic.wav", meeting.id),
+    }];
+    if !manifest.complete {
+        meeting.warnings.push("Recovered verified microphone checkpoints after an interrupted recording; the uncommitted tail may be missing. Recording was not restarted.".into());
+    }
+    library.save_meeting(&meeting)?;
+    fs::remove_dir_all(directory)?;
+    cleanup_audio_temporary_files(output.parent().unwrap())?;
+    Ok(true)
+}
+fn cleanup_audio_temporary_files(directory: &Path) -> Result<()> {
+    if !directory.is_dir() {
+        return Ok(());
+    }
+    for entry in fs::read_dir(directory)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if entry.file_type()?.is_file()
+            && (name == "mic.recovery.wav"
+                || (name.starts_with("audio-finalizing-") && name.ends_with(".wav")))
+        {
+            fs::remove_file(entry.path())?;
+        }
+    }
+    Ok(())
 }
 
 pub struct Playback {
@@ -451,23 +608,14 @@ impl Recording {
             path: format!("meetings/{}/mic.wav", meeting.id),
         });
         library.save_meeting(&meeting)?;
-        let stop_clone = stop.clone();
-        let dropped_clone = dropped.clone();
-        let thread = std::thread::spawn(move || {
-            let mut writer = writer;
-            loop {
-                match rx.recv_timeout(std::time::Duration::from_millis(100)) {
-                    Ok(samples) => writer.append(&samples)?,
-                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                        if stop_clone.load(Ordering::Acquire) {
-                            break;
-                        }
-                    }
-                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
-                }
-            }
-            writer.finish(dropped_clone.load(Ordering::Relaxed), &output)
-        });
+        let thread = spawn_recording_writer(
+            writer,
+            rx,
+            stop.clone(),
+            dropped.clone(),
+            stream_error.clone(),
+            output,
+        );
         Ok(Self {
             meeting_id: meeting.id,
             started: Instant::now(),
@@ -482,20 +630,80 @@ impl Recording {
     pub fn start(_library: &mut Library, _title: &str) -> Result<Self> {
         bail!("This build has no microphone backend")
     }
-    pub fn finish(mut self, library: &mut Library) -> Result<String> {
+    /// Drop the non-Send device stream on its owner thread, then move only the
+    /// writer's join handle to a worker for WAV assembly and database writes.
+    pub fn stop(mut self) -> FinalizingRecording {
         self.stop.store(true, Ordering::Release);
         #[cfg(feature = "audio")]
         {
             self.stream.take();
         }
-        let duration = self
+        FinalizingRecording {
+            meeting_id: self.meeting_id.clone(),
+            dropped: self.dropped.clone(),
+            stream_error: self.stream_error.clone(),
+            thread: self.thread.take(),
+        }
+    }
+    pub fn finish(self, library: &mut Library) -> Result<String> {
+        self.stop().finish(library)
+    }
+}
+#[cfg(any(feature = "audio", test))]
+fn spawn_recording_writer(
+    mut writer: ChunkWriter,
+    rx: std::sync::mpsc::Receiver<Vec<i16>>,
+    stop: Arc<AtomicBool>,
+    dropped: Arc<AtomicU64>,
+    error_state: Arc<Mutex<Option<String>>>,
+    output: PathBuf,
+) -> std::thread::JoinHandle<Result<f64>> {
+    std::thread::spawn(move || {
+        let result = (|| {
+            loop {
+                match rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                    Ok(samples) => writer.append(&samples)?,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        if stop.load(Ordering::Acquire) {
+                            break;
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            writer.finish(dropped.load(Ordering::Relaxed), &output)
+        })();
+        if let Err(error) = &result {
+            if let Ok(mut state) = error_state.lock() {
+                *state = Some(format!(
+                    "Recording stopped because audio could not be saved: {error}"
+                ));
+            }
+            stop.store(true, Ordering::Release);
+        }
+        result
+    })
+}
+pub struct FinalizingRecording {
+    meeting_id: String,
+    dropped: Arc<AtomicU64>,
+    stream_error: Arc<Mutex<Option<String>>>,
+    thread: Option<std::thread::JoinHandle<Result<f64>>>,
+}
+impl FinalizingRecording {
+    pub fn finish(mut self, library: &mut Library) -> Result<String> {
+        let result = self
             .thread
             .take()
             .context("Recording is already stopped")?
             .join()
-            .map_err(|_| anyhow::anyhow!("Audio writer stopped unexpectedly"))??;
+            .map_err(|_| anyhow::anyhow!("Audio writer stopped unexpectedly"))?;
         let mut meeting = library.meeting(&self.meeting_id)?;
-        meeting.duration = duration;
+        if let Ok(duration) = result.as_ref() {
+            meeting.duration = *duration;
+        } else if let Err(error) = &result {
+            meeting.warnings.push(format!("Recording stopped before it could be saved: {error}. Closed checkpoints will be checked on next launch."));
+        }
         let dropped = self.dropped.load(Ordering::Relaxed);
         if dropped > 0 {
             meeting.warnings.push(format!("{dropped} audio buffers were dropped; check the recording before relying on its transcript."));
@@ -504,6 +712,16 @@ impl Recording {
             meeting.warnings.push(error);
         }
         library.save_meeting(&meeting)?;
+        result?;
+        let chunks = library
+            .root
+            .join("meetings")
+            .join(&meeting.id)
+            .join("mic-chunks");
+        if chunks.is_dir() {
+            fs::remove_dir_all(chunks)?;
+        }
+        cleanup_audio_temporary_files(&library.root.join("meetings").join(&meeting.id))?;
         Ok(meeting.id)
     }
 }
@@ -514,8 +732,104 @@ impl Drop for Recording {
         {
             self.stream.take();
         }
-        if let Some(thread) = self.thread.take() {
-            let _ = thread.join();
+        // The writer finishes independently; relaunch repairs its metadata.
+        // Joining here would freeze the UI when a window closes.
+        self.thread.take();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn stopping_transfers_finalization_without_waiting_on_the_owner_thread() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut lib = Library::open(directory.path()).unwrap();
+        let meeting = Meeting::empty("Synthetic slow finalization");
+        lib.save_meeting(&meeting).unwrap();
+        let (release, gate) = std::sync::mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            gate.recv_timeout(std::time::Duration::from_secs(3))?;
+            Ok(10.)
+        });
+        let recording = Recording {
+            meeting_id: meeting.id,
+            started: Instant::now(),
+            dropped: Arc::new(AtomicU64::new(0)),
+            stream_error: Arc::new(Mutex::new(None)),
+            stop: Arc::new(AtomicBool::new(false)),
+            thread: Some(thread),
+            #[cfg(feature = "audio")]
+            stream: None,
+        };
+        let start = Instant::now();
+        let finalizing = recording.stop();
+        assert!(start.elapsed() < std::time::Duration::from_millis(100));
+        release.send(()).unwrap();
+        std::thread::spawn(move || {
+            finalizing.finish(&mut lib).unwrap();
+        })
+        .join()
+        .unwrap();
+    }
+    #[test]
+    fn disk_write_failure_stops_recording_and_persists_a_visible_warning() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut lib = Library::open(directory.path()).unwrap();
+        let meeting = Meeting::empty("Synthetic disk failure");
+        lib.save_meeting(&meeting).unwrap();
+        let chunks = directory
+            .path()
+            .join("meetings")
+            .join(&meeting.id)
+            .join("mic-chunks");
+        let writer = ChunkWriter::new(&chunks, 16000).unwrap();
+        fs::remove_dir(&chunks).unwrap();
+        fs::write(&chunks, b"synthetic unwritable directory").unwrap();
+        let (tx, rx) = std::sync::mpsc::channel();
+        let stop = Arc::new(AtomicBool::new(false));
+        let dropped = Arc::new(AtomicU64::new(0));
+        let error = Arc::new(Mutex::new(None));
+        let thread = spawn_recording_writer(
+            writer,
+            rx,
+            stop.clone(),
+            dropped.clone(),
+            error.clone(),
+            chunks.parent().unwrap().join("mic.wav"),
+        );
+        tx.send(vec![3; 32000]).unwrap();
+        drop(tx);
+        let deadline = Instant::now() + std::time::Duration::from_secs(2);
+        while !thread.is_finished() && Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(10));
         }
+        assert!(stop.load(Ordering::Acquire));
+        assert!(
+            error
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .contains("could not be saved")
+        );
+        let recording = Recording {
+            meeting_id: meeting.id.clone(),
+            started: Instant::now(),
+            dropped,
+            stream_error: error,
+            stop,
+            thread: Some(thread),
+            #[cfg(feature = "audio")]
+            stream: None,
+        };
+        assert!(recording.stop().finish(&mut lib).is_err());
+        assert!(
+            lib.meeting(&meeting.id)
+                .unwrap()
+                .warnings
+                .iter()
+                .any(|w| w.contains("stopped before it could be saved"))
+        );
     }
 }

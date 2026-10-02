@@ -4095,6 +4095,7 @@ dependencies = [
  "gpui-kit",
  "hound",
  "keyring",
+ "libc",
  "rand 0.8.8",
  "regex",
  "reqwest",
@@ -4105,6 +4106,7 @@ dependencies = [
  "tempfile",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

@@ -63,6 +63,9 @@ pub struct Meeting {
     pub people: Vec<String>,
     #[serde(default)]
     pub segments: Vec<Segment>,
+    /// Original passages cited by notes retained after re-transcription.
+    #[serde(default)]
+    pub retained_segments: Vec<Segment>,
     #[serde(default)]
     pub notes: String,
     pub summary: Option<Summary>,
@@ -70,6 +73,19 @@ pub struct Meeting {
     pub media: Vec<Media>,
     #[serde(default)]
     pub warnings: Vec<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MeetingPreview {
+    #[serde(flatten)]
+    pub metadata: Meeting,
+    #[serde(default)]
+    pub has_transcript: bool,
+}
+impl std::ops::Deref for MeetingPreview {
+    type Target = Meeting;
+    fn deref(&self) -> &Meeting {
+        &self.metadata
+    }
 }
 impl Meeting {
     pub fn empty(title: impl Into<String>) -> Self {
@@ -81,6 +97,7 @@ impl Meeting {
             app: "Manual".into(),
             people: vec![],
             segments: vec![],
+            retained_segments: vec![],
             notes: String::new(),
             summary: None,
             media: vec![],
@@ -93,6 +110,24 @@ impl Meeting {
             .map(|s| format!("[{}] {} {}: {}", s.id, timecode(s.start), s.speaker, s.text))
             .collect::<Vec<_>>()
             .join("\n")
+    }
+    pub fn replace_transcript(&mut self, segments: Vec<Segment>) {
+        if let Some(summary) = &self.summary {
+            self.retained_segments.extend(
+                self.segments
+                    .iter()
+                    .filter(|s| {
+                        summary.actions.iter().any(|a| a.source == s.id)
+                            || summary.decisions.iter().any(|d| d.source == s.id)
+                    })
+                    .cloned(),
+            );
+            let warning = "Transcript replaced. Existing notes and reviewed actions were retained with their original cited passages; regenerate notes to update them.".to_string();
+            if !self.warnings.contains(&warning) {
+                self.warnings.push(warning);
+            }
+        }
+        self.segments = segments;
     }
     pub fn markdown(&self) -> String {
         let mut text = format!(
@@ -124,6 +159,18 @@ impl Meeting {
             self.notes,
             self.transcript()
         ));
+        if !self.retained_segments.is_empty() {
+            text.push_str("\n## Original passages cited by retained notes\n\n");
+            for s in &self.retained_segments {
+                text.push_str(&format!(
+                    "[{}] {} {}: {}\n",
+                    s.id,
+                    timecode(s.start),
+                    s.speaker,
+                    s.text
+                ));
+            }
+        }
         text
     }
 }

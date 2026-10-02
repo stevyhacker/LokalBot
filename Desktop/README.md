@@ -38,7 +38,7 @@ lokalbot-desktop-cli --root /tmp/lokalbot-fictional mcp
 
 ## Build and checks
 
-Rust 1.95.0, GPUI Kit 0.7.0, and the full dependency graph are pinned by the toolchain and lockfile. On Ubuntu install the dependencies listed in [the workflow](../.github/workflows/desktop.yml), then:
+Rust 1.95.0, GPUI Kit 0.7.0, and the full dependency graph are pinned by the toolchain and lockfile. GPUI Kit uses third-party registry snapshots of Zed's GPUI; see [dependency provenance](docs/dependency-provenance.md) for the publisher, upstream revision, graph counts and verification limits. On Ubuntu install the dependencies listed in [the workflow](../.github/workflows/desktop.yml), then:
 
 ```sh
 cargo test --locked --no-default-features

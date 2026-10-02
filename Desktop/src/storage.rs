@@ -36,7 +36,13 @@ pub fn valid_id(id: &str) -> Result<()> {
             && id.len() <= 128
             && id
                 .chars()
-                .all(|c| c.is_ascii_alphanumeric() || "-_:".contains(c)),
+                .all(|c| c.is_ascii_alphanumeric() || "-_".contains(c))
+            && ![
+                "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+                "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
+                "LPT9"
+            ]
+            .contains(&id.to_ascii_uppercase().as_str()),
         "Invalid record ID"
     );
     Ok(())
@@ -77,7 +83,7 @@ impl Library {
         )?;
         let version: i64 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         ensure!(
-            version <= 2,
+            version <= 3,
             "This library was created by a newer app; refusing to downgrade it"
         );
         connection.execute_batch("BEGIN;
@@ -96,7 +102,50 @@ impl Library {
             CREATE TABLE IF NOT EXISTS embeddings(id TEXT PRIMARY KEY REFERENCES evidence(id) ON DELETE CASCADE,version TEXT NOT NULL,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS agent_tasks(id TEXT PRIMARY KEY,data TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS summary_parts(meeting_id TEXT REFERENCES meetings(id) ON DELETE CASCADE,version TEXT NOT NULL,part INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(meeting_id,version,part));
-            PRAGMA user_version=2; COMMIT;")?;
+            COMMIT;")?;
+        if version < 3 {
+            // Match the FTS rowid to the ordinary table's indexed integer rowid. An
+            // UNINDEXED FTS text column cannot support efficient record deletion.
+            connection.execute_batch("BEGIN IMMEDIATE")?;
+            // Another process may have migrated between our first version read
+            // and acquiring the writer lock. Recheck before changing the schema.
+            let locked_version: i64 =
+                connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+            ensure!(
+                locked_version <= 3,
+                "This library was created by a newer app"
+            );
+            if locked_version < 3 {
+                connection.execute_batch("
+                DROP TRIGGER IF EXISTS evidence_insert;
+                DROP TRIGGER IF EXISTS evidence_delete;
+                DROP TABLE evidence_fts;
+                CREATE VIRTUAL TABLE evidence_fts USING fts5(id UNINDEXED,title,text,tokenize='unicode61');
+                INSERT INTO evidence_fts(rowid,id,title,text) SELECT rowid,id,title,text FROM evidence;
+                CREATE TRIGGER evidence_insert AFTER INSERT ON evidence BEGIN INSERT INTO evidence_fts(rowid,id,title,text) VALUES(new.rowid,new.id,new.title,new.text); END;
+                CREATE TRIGGER evidence_delete AFTER DELETE ON evidence BEGIN DELETE FROM evidence_fts WHERE rowid=old.rowid; END;
+                CREATE TRIGGER evidence_update AFTER UPDATE ON evidence BEGIN
+                    DELETE FROM evidence_fts WHERE rowid=old.rowid;
+                    INSERT INTO evidence_fts(rowid,id,title,text) VALUES(new.rowid,new.id,new.title,new.text);
+                    DELETE FROM embeddings WHERE id=old.id;
+                END;
+                CREATE INDEX evidence_meeting ON evidence(meeting_id);
+                CREATE INDEX moments_expiry ON moments(created_at) WHERE saved=0;
+                CREATE INDEX moments_time ON moments(created_at);
+                CREATE INDEX activity_time ON activity(start,end);
+                CREATE INDEX activity_titles_expiry ON activity(end) WHERE json_extract(data,'$.title') <> '';
+                CREATE INDEX meetings_time ON meetings(started_at);
+                ALTER TABLE meetings ADD COLUMN preview TEXT;
+                UPDATE meetings SET preview=json_set(json_remove(data,'$.segments','$.retained_segments'),'$.has_transcript',json(CASE WHEN json_array_length(data,'$.segments')>0 THEN 'true' ELSE 'false' END));
+                CREATE TABLE library_revision(id INTEGER PRIMARY KEY CHECK(id=1),meetings INTEGER NOT NULL);
+                INSERT INTO library_revision VALUES(1,0);
+                CREATE TRIGGER meetings_insert AFTER INSERT ON meetings BEGIN UPDATE library_revision SET meetings=meetings+1 WHERE id=1; END;
+                CREATE TRIGGER meetings_update AFTER UPDATE ON meetings BEGIN UPDATE library_revision SET meetings=meetings+1 WHERE id=1; END;
+                CREATE TRIGGER meetings_delete AFTER DELETE ON meetings BEGIN UPDATE library_revision SET meetings=meetings+1 WHERE id=1; END;
+                PRAGMA user_version=3;")?;
+            }
+            connection.execute_batch("COMMIT")?;
+        }
         Ok(Self { root, connection })
     }
     // Hold the SQLite writer lock across permission/source validation and persistence.
@@ -187,13 +236,22 @@ impl Library {
         let current: Option<String> = tx
             .query_row("SELECT data FROM settings WHERE id=1", [], |r| r.get(0))
             .optional()?;
-        settings.revision = current
+        let revision = current
             .as_deref()
             .map(serde_json::from_str::<Settings>)
             .transpose()?
-            .map_or(1, |s| s.revision + 1);
-        tx.execute("INSERT INTO settings(id,data) VALUES(1,?1) ON CONFLICT(id) DO UPDATE SET data=excluded.data",[serde_json::to_string(settings)?])?;
+            .map_or(0, |s| s.revision);
+        ensure!(
+            settings.revision == revision,
+            "Settings changed in another session; reload before saving"
+        );
+        let mut next = settings.clone();
+        next.revision = revision
+            .checked_add(1)
+            .context("Settings revision overflow")?;
+        tx.execute("INSERT INTO settings(id,data) VALUES(1,?1) ON CONFLICT(id) DO UPDATE SET data=excluded.data",[serde_json::to_string(&next)?])?;
         tx.commit()?;
+        *settings = next;
         Ok(())
     }
     pub fn meeting(&self, id: &str) -> Result<Meeting> {
@@ -211,6 +269,20 @@ impl Library {
         let rows = statement.query_map([], |r| r.get::<_, String>(0))?;
         rows.map(|row| Ok(serde_json::from_str(&row?)?)).collect()
     }
+    /// List metadata without reading/deserializing every transcript.
+    pub fn meeting_previews(&self) -> Result<Vec<MeetingPreview>> {
+        self.json_rows("SELECT preview FROM meetings ORDER BY started_at DESC,id")
+    }
+    pub fn meeting_revision(&self) -> Result<u64> {
+        Ok(self.connection.query_row(
+            "SELECT meetings FROM library_revision WHERE id=1",
+            [],
+            |r| r.get(0),
+        )?)
+    }
+    pub fn meetings_between(&self, start: i64, end: i64) -> Result<Vec<Meeting>> {
+        self.json_range("SELECT data FROM meetings WHERE started_at>=?1 AND started_at<?2 ORDER BY started_at,id", start, end)
+    }
     pub fn save_meeting(&mut self, meeting: &Meeting) -> Result<()> {
         valid_id(&meeting.id)?;
         ensure!(
@@ -222,7 +294,7 @@ impl Library {
             "Invalid duration"
         );
         let mut ids = std::collections::HashSet::new();
-        for s in &meeting.segments {
+        for s in meeting.segments.iter().chain(&meeting.retained_segments) {
             valid_id(&s.id)?;
             ensure!(ids.insert(&s.id), "Duplicate segment ID");
             ensure!(
@@ -231,18 +303,39 @@ impl Library {
             );
         }
         let tx = self.connection.savepoint()?;
-        tx.execute("INSERT INTO meetings(id,title,started_at,data) VALUES(?1,?2,?3,?4) ON CONFLICT(id) DO UPDATE SET title=excluded.title,started_at=excluded.started_at,data=excluded.data",params![meeting.id,meeting.title,meeting.started_at,serde_json::to_string(meeting)?])?;
-        tx.execute("DELETE FROM evidence WHERE meeting_id=?1", [&meeting.id])?;
-        for s in &meeting.segments {
-            tx.execute(
-                "INSERT INTO evidence VALUES(?1,?2,?3,'transcript',?4,?5)",
-                params![
-                    s.id,
-                    meeting.id,
-                    meeting.title,
-                    s.start,
-                    format!("{}: {}", s.speaker, s.text)
-                ],
+        let mut preview = meeting.clone();
+        preview.segments.clear();
+        preview.retained_segments.clear();
+        let preview = MeetingPreview {
+            metadata: preview,
+            has_transcript: !meeting.segments.is_empty(),
+        };
+        tx.execute("INSERT INTO meetings(id,title,started_at,data,preview) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(id) DO UPDATE SET title=excluded.title,started_at=excluded.started_at,data=excluded.data,preview=excluded.preview",params![meeting.id,meeting.title,meeting.started_at,serde_json::to_string(meeting)?,serde_json::to_string(&preview)?])?;
+        let mut desired = std::collections::HashSet::new();
+        let mut upsert = tx.prepare_cached("INSERT INTO evidence(id,meeting_id,title,kind,start,text) VALUES(?1,?2,?3,?4,?5,?6)
+            ON CONFLICT(id) DO UPDATE SET title=excluded.title,kind=excluded.kind,start=excluded.start,text=excluded.text
+            WHERE evidence.meeting_id IS excluded.meeting_id AND (evidence.title<>excluded.title OR evidence.kind<>excluded.kind OR evidence.start<>excluded.start OR evidence.text<>excluded.text)")?;
+        let mut insert = |id: &str, kind: &str, start: f64, text: &str| -> Result<()> {
+            valid_id(id)?;
+            ensure!(desired.insert(id.to_owned()), "Duplicate evidence ID");
+            let owner: Option<Option<String>> = tx
+                .query_row("SELECT meeting_id FROM evidence WHERE id=?1", [id], |r| {
+                    r.get(0)
+                })
+                .optional()?;
+            ensure!(
+                owner.is_none_or(|owner| owner.as_deref() == Some(&meeting.id)),
+                "Evidence ID belongs to another source"
+            );
+            upsert.execute(params![id, meeting.id, meeting.title, kind, start, text])?;
+            Ok(())
+        };
+        for s in meeting.segments.iter().chain(&meeting.retained_segments) {
+            insert(
+                &s.id,
+                "transcript",
+                s.start,
+                &format!("{}: {}", s.speaker, s.text),
             )?;
         }
         for (suffix, kind, text) in [
@@ -258,38 +351,36 @@ impl Library {
             ),
         ] {
             if !text.is_empty() {
-                tx.execute(
-                    "INSERT INTO evidence VALUES(?1,?2,?3,?4,0,?5)",
-                    params![
-                        format!("{}-{suffix}", meeting.id),
-                        meeting.id,
-                        meeting.title,
-                        kind,
-                        text
-                    ],
-                )?;
+                insert(&format!("{}-{suffix}", meeting.id), kind, 0., &text)?;
             }
         }
         if let Some(summary) = &meeting.summary {
             for a in &summary.actions {
                 valid_id(&a.id)?;
-                tx.execute(
-                    "INSERT INTO evidence VALUES(?1,?2,?3,'action',0,?4)",
-                    params![
-                        a.id,
-                        meeting.id,
-                        meeting.title,
-                        format!(
-                            "{} · {} · {} · {}",
-                            a.text,
-                            a.owner,
-                            a.due,
-                            if a.done { "done" } else { "open" }
-                        )
-                    ],
+                insert(
+                    &a.id,
+                    "action",
+                    0.,
+                    &format!(
+                        "{} · {} · {} · {}",
+                        a.text,
+                        a.owner,
+                        a.due,
+                        if a.done { "done" } else { "open" }
+                    ),
                 )?;
             }
         }
+        drop(upsert);
+        let existing = tx
+            .prepare("SELECT id FROM evidence WHERE meeting_id=?1")?
+            .query_map([&meeting.id], |r| r.get::<_, String>(0))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        let mut delete = tx.prepare_cached("DELETE FROM evidence WHERE id=?1")?;
+        for id in existing.into_iter().filter(|id| !desired.contains(id)) {
+            delete.execute([id])?;
+        }
+        drop(delete);
         // Generated journals must never outlive a correction or source deletion.
         tx.execute("DELETE FROM digests", [])?;
         tx.commit()?;
@@ -357,7 +448,7 @@ impl Library {
             return Ok(vec![]);
         }
         let expression = words.join(" OR ");
-        let mut stmt=self.connection.prepare("SELECT e.id,e.meeting_id,e.title,e.kind,e.start,e.text FROM evidence_fts f JOIN evidence e ON e.id=f.id WHERE evidence_fts MATCH ?1 ORDER BY bm25(evidence_fts) LIMIT ?2")?;
+        let mut stmt=self.connection.prepare("SELECT e.id,e.meeting_id,e.title,e.kind,e.start,e.text FROM evidence_fts f JOIN evidence e ON e.rowid=f.rowid WHERE evidence_fts MATCH ?1 ORDER BY bm25(evidence_fts) LIMIT ?2")?;
         Ok(stmt
             .query_map(params![expression, limit.min(100) as i64], |r| {
                 Ok(Evidence {
@@ -407,6 +498,17 @@ impl Library {
             .map(|row| Ok(serde_json::from_str(&row?)?))
             .collect()
     }
+    fn json_range<T: serde::de::DeserializeOwned>(
+        &self,
+        sql: &str,
+        start: i64,
+        end: i64,
+    ) -> Result<Vec<T>> {
+        let mut s = self.connection.prepare_cached(sql)?;
+        s.query_map(params![start, end], |r| r.get::<_, String>(0))?
+            .map(|row| Ok(serde_json::from_str(&row?)?))
+            .collect()
+    }
     pub fn save_activity(&self, a: &Activity) -> Result<()> {
         valid_id(&a.id)?;
         self.connection.execute(
@@ -417,6 +519,36 @@ impl Library {
     }
     pub fn activity(&self) -> Result<Vec<Activity>> {
         self.json_rows("SELECT data FROM activity ORDER BY start DESC LIMIT 2000")
+    }
+    pub fn activity_between(&self, start: i64, end: i64) -> Result<Vec<Activity>> {
+        self.json_range(
+            "SELECT data FROM activity WHERE start<?2 AND end>?1 ORDER BY start,id",
+            start,
+            end,
+        )
+    }
+    pub fn save_activity_sample(&self, a: &Activity) -> Result<()> {
+        let previous: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT data FROM activity ORDER BY start DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(data) = previous {
+            let mut previous: Activity = serde_json::from_str(&data)?;
+            if previous.app == a.app
+                && previous.title == a.title
+                && previous.private == a.private
+                && previous.end >= a.start - 1
+                && previous.end <= a.end
+            {
+                previous.end = a.end;
+                return self.save_activity(&previous);
+            }
+        }
+        self.save_activity(a)
     }
     pub fn save_moment(&mut self, m: &Moment) -> Result<()> {
         valid_id(&m.id)?;
@@ -430,9 +562,19 @@ impl Library {
                 serde_json::to_string(m)?
             ],
         )?;
-        tx.execute("DELETE FROM evidence WHERE id=?1", [&m.id])?;
+        let owner: Option<Option<String>> = tx
+            .query_row(
+                "SELECT meeting_id FROM evidence WHERE id=?1",
+                [&m.id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        ensure!(
+            owner.is_none_or(|owner| owner.is_none()),
+            "Moment ID belongs to a meeting"
+        );
         tx.execute(
-            "INSERT INTO evidence VALUES(?1,NULL,?2,'screen',0,?3)",
+            "INSERT INTO evidence(id,meeting_id,title,kind,start,text) VALUES(?1,NULL,?2,'screen',0,?3) ON CONFLICT(id) DO UPDATE SET title=excluded.title,text=excluded.text WHERE evidence.title<>excluded.title OR evidence.text<>excluded.text",
             params![m.id, m.title, m.text],
         )?;
         tx.commit()?;
@@ -441,43 +583,138 @@ impl Library {
     pub fn moments(&self) -> Result<Vec<Moment>> {
         self.json_rows("SELECT data FROM moments ORDER BY created_at DESC LIMIT 1000")
     }
+    pub fn moments_between(&self, start: i64, end: i64) -> Result<Vec<Moment>> {
+        self.json_range("SELECT data FROM moments WHERE created_at>=?1 AND created_at<?2 ORDER BY created_at,id", start, end)
+    }
+    /// Unchanged windows produce at most one stored snapshot per five minutes.
+    pub fn duplicate_capture(
+        &self,
+        app: &str,
+        title: &str,
+        text: &str,
+        at: i64,
+    ) -> Result<Option<String>> {
+        let data: Option<String> = self
+            .connection
+            .query_row(
+                "SELECT data FROM moments ORDER BY created_at DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(data) = data {
+            let m: Moment = serde_json::from_str(&data)?;
+            if m.app == app
+                && m.title == title
+                && m.text == text
+                && (0..300).contains(&(at - m.created_at))
+            {
+                return Ok(Some(m.id));
+            }
+        }
+        Ok(None)
+    }
     pub fn delete_moment(&mut self, id: &str) -> Result<()> {
         valid_id(id)?;
         let tx = self.connection.savepoint()?;
         tx.execute("DELETE FROM evidence WHERE id=?1", [id])?;
         tx.execute("DELETE FROM moments WHERE id=?1", [id])?;
         tx.execute("DELETE FROM digests", [])?;
-        tx.commit()?;
         let pixels = self.root.join("pixels").join(format!("{id}.enc"));
         if pixels.exists() {
             fs::remove_file(pixels)?;
         }
+        tx.commit()?;
         Ok(())
     }
     pub fn expire(&mut self, at: i64) -> Result<usize> {
         let settings = self.settings()?;
         let cutoff = at - i64::from(settings.retention_days) * 86400;
-        let expired = self
-            .moments()?
-            .into_iter()
-            .filter(|m| !m.saved && m.created_at < cutoff)
-            .collect::<Vec<_>>();
-        let count = expired.len();
-        for m in expired {
-            self.delete_moment(&m.id)?;
+        let mut count = 0;
+        loop {
+            let tx = self.connection.savepoint()?;
+            let ids = tx
+                .prepare_cached("SELECT id FROM moments WHERE saved=0 AND created_at<?1 LIMIT 512")?
+                .query_map([cutoff], |r| r.get::<_, String>(0))?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            if ids.is_empty() {
+                break;
+            }
+            let mut evidence = tx.prepare_cached("DELETE FROM evidence WHERE id=?1")?;
+            let mut moments = tx.prepare_cached("DELETE FROM moments WHERE id=?1")?;
+            for id in &ids {
+                valid_id(id)?;
+                let path = self.root.join("pixels").join(format!("{id}.enc"));
+                if path.exists() {
+                    fs::remove_file(path)
+                        .context("Expired pixels could not be removed; cleanup will retry")?;
+                }
+                evidence.execute([id])?;
+                moments.execute([id])?;
+            }
+            drop(evidence);
+            drop(moments);
+            tx.execute("DELETE FROM digests", [])?;
+            tx.commit()?;
+            count += ids.len();
         }
-        let mut changed = false;
-        for mut a in self.activity()? {
-            if a.end < cutoff && !a.title.is_empty() {
-                a.title.clear();
-                self.save_activity(&a)?;
-                changed = true;
+        let tx = self.connection.savepoint()?;
+        let changed = tx.execute("UPDATE activity SET data=json_set(data,'$.title','') WHERE end<?1 AND json_extract(data,'$.title')<>''", [cutoff])?;
+        if changed > 0 {
+            tx.execute("DELETE FROM digests", [])?;
+        }
+        tx.commit()?;
+        Ok(count)
+    }
+    /// Removes crash leftovers under the writer lock, which also protects live
+    /// encrypted-file writes. Never follows symlinks or traverses other folders.
+    pub fn cleanup_capture_files(&mut self) -> Result<usize> {
+        let tx = self
+            .connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let mut removed = 0;
+        for entry in fs::read_dir(&self.root)? {
+            let entry = entry?;
+            if entry.file_name().to_string_lossy().starts_with(".tmp")
+                && entry.file_type()?.is_dir()
+            {
+                let path = entry.path().join("capture.png");
+                if path.symlink_metadata().is_ok_and(|m| m.is_file()) {
+                    fs::remove_file(path)?;
+                    removed += 1;
+                    let _ = fs::remove_dir(entry.path());
+                }
             }
         }
-        if changed {
-            self.connection.execute("DELETE FROM digests", [])?;
+        let pixels = self.root.join("pixels");
+        if pixels.is_dir() {
+            let mut exists = tx.prepare_cached(
+                "SELECT 1 FROM moments WHERE id=?1 AND json_extract(data,'$.pixels')=?2",
+            )?;
+            for entry in fs::read_dir(pixels)? {
+                let entry = entry?;
+                if !entry.file_type()?.is_file() {
+                    continue;
+                }
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                let orphan = if let Some(id) = name.strip_suffix(".enc") {
+                    valid_id(id).is_ok()
+                        && exists
+                            .query_row(params![id, format!("pixels/{name}")], |_| Ok(()))
+                            .optional()?
+                            .is_none()
+                } else {
+                    name.starts_with(".tmp")
+                };
+                if orphan {
+                    fs::remove_file(entry.path())?;
+                    removed += 1;
+                }
+            }
         }
-        Ok(count)
+        tx.commit()?;
+        Ok(removed)
     }
     pub fn save_digest(&self, d: &Digest) -> Result<()> {
         self.connection.execute(
@@ -505,7 +742,7 @@ impl Library {
     }
     pub fn recover_jobs(&self) -> Result<usize> {
         let mut count = 0;
-        for mut job in self.jobs()? {
+        for mut job in self.json_rows::<Job>("SELECT data FROM jobs WHERE status='running'")? {
             if job.status == "running" {
                 job.status = "interrupted".into();
                 job.error=Some("The app stopped before this job finished. Retry explicitly; recording was not restarted.".into());
@@ -578,7 +815,7 @@ impl Library {
             .map(|days| at - i64::from(days.max(1)) * 86400)
             .unwrap_or(i64::MIN);
         Ok(self
-            .moments()?
+            .json_range::<Moment>("SELECT data FROM moments WHERE created_at>=?1 AND created_at<?2 ORDER BY created_at DESC,id",cutoff,i64::MAX)?
             .into_iter()
             .filter(|m| m.created_at >= cutoff)
             .map(|mut m| {

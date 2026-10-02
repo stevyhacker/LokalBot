@@ -95,7 +95,9 @@ pub fn sample_activity(library: &Library) -> Result<Option<Activity>> {
         end: now(),
         private,
     };
-    library.guarded_write(settings.revision, |library| library.save_activity(&a))?;
+    library.guarded_write(settings.revision, |library| {
+        library.save_activity_sample(&a)
+    })?;
     Ok(Some(a))
 }
 pub fn capture_screen(library: &mut Library) -> Result<String> {
@@ -111,9 +113,11 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
         "This window exposes no visible accessible text"
     );
     let sensitive = text != before.text;
+    let title = privacy::redact(&before.observation.title);
+    if let Some(id) = library.duplicate_capture(&before.observation.app, &title, &text, now())? {
+        return Ok(id);
+    }
     let id = new_id();
-    let temporary = tempfile::tempdir_in(&library.root)?;
-    let pixels = temporary.path().join("capture.png");
     let mut pixel_bytes = None;
     if settings.pixels_enabled && !sensitive {
         let [_, _, w, h] = before.bounds;
@@ -129,9 +133,9 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
                     Command::new("grim")
                         .arg("-g")
                         .arg(format!("{x},{y} {w}x{h}"))
-                        .arg(&pixels),
+                        .arg("-"),
                     Duration::from_secs(4),
-                    4096,
+                    32 * 1024 * 1024,
                 )
             } else {
                 bounded_output(
@@ -151,10 +155,17 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
                             "{}+{x},{y}",
                             std::env::var("DISPLAY").context("No display")?
                         ))
-                        .args(["-frames:v", "1", "-y"])
-                        .arg(&pixels),
+                        .args([
+                            "-frames:v",
+                            "1",
+                            "-f",
+                            "image2pipe",
+                            "-c:v",
+                            "png",
+                            "pipe:1",
+                        ]),
                     Duration::from_secs(4),
-                    4096,
+                    32 * 1024 * 1024,
                 )
             }
             .context("A focused-window capture tool is unavailable")?;
@@ -162,6 +173,7 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
                 status.status.success(),
                 "Focused-window pixel capture failed"
             );
+            pixel_bytes = Some(status.stdout);
         }
         #[cfg(target_os = "windows")]
         {
@@ -175,18 +187,21 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
                         "-File",
                     ])
                     .arg(library.root.join("helpers/focus_probe.ps1"))
-                    .arg("-ScreenshotPath")
-                    .arg(&pixels),
+                    .arg("-ScreenshotBytes"),
                 Duration::from_secs(4),
-                4096,
+                32 * 1024 * 1024,
             )?;
             ensure!(
                 status.status.success(),
                 "Focused-window pixel capture failed"
             );
+            pixel_bytes = Some(status.stdout);
         }
-        if pixels.exists() {
-            pixel_bytes = Some(std::fs::read(&pixels)?);
+        if let Some(bytes) = &pixel_bytes {
+            ensure!(
+                bytes.starts_with(b"\x89PNG\r\n\x1a\n"),
+                "Pixel capture returned no PNG"
+            );
         }
     }
     let after = probe(library, true)?;
@@ -215,7 +230,7 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
         library.save_moment(&Moment {
             id: id.clone(),
             app: before.observation.app,
-            title: privacy::redact(&before.observation.title),
+            title,
             text,
             created_at: now(),
             saved: false,

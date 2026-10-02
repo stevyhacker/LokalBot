@@ -31,6 +31,37 @@ pub fn origin(endpoint: &str) -> Result<String> {
     );
     Ok(url.origin().ascii_serialization())
 }
+pub fn is_loopback_endpoint(endpoint: &str) -> Result<bool> {
+    Ok(match url::Url::parse(endpoint)?.host() {
+        Some(url::Host::Domain("localhost")) => true,
+        Some(url::Host::Ipv4(ip)) => ip.is_loopback(),
+        Some(url::Host::Ipv6(ip)) => ip.is_loopback(),
+        _ => false,
+    })
+}
+pub fn browser_app(app: &str) -> bool {
+    let app = app.to_ascii_lowercase();
+    [
+        "chrome",
+        "chromium",
+        "firefox",
+        "brave",
+        "edge",
+        "vivaldi",
+        "opera",
+        "librewolf",
+        "zen",
+        "floorp",
+        "waterfox",
+        "safari",
+        "epiphany",
+        "falkon",
+        "qutebrowser",
+        "browser",
+    ]
+    .iter()
+    .any(|name| app.contains(name))
+}
 pub fn check_inference(settings: &Settings) -> Result<String> {
     let origin = origin(&settings.endpoint)?;
     let url = url::Url::parse(&settings.endpoint)?;
@@ -107,7 +138,7 @@ pub fn excluded(o: &Observation, s: &Settings) -> bool {
     s.excluded_apps
         .iter()
         .any(|app| o.app.to_lowercase().contains(&app.to_lowercase()))
-        || (o.browser
+        || ((o.browser || browser_app(&o.app))
             && !s.excluded_domains.is_empty()
             && (o.domain.is_none()
                 || s.excluded_domains.iter().any(|domain| {
