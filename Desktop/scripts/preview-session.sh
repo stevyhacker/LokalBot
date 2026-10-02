@@ -57,8 +57,11 @@ case "${1:-start}" in
         if kill -0 "$process_pid" 2>/dev/null; then
           process_exe="$(readlink "/proc/$process_pid/exe" || true)"
           process_exe="${process_exe% (deleted)}"
-          expected_exe="$(readlink -f "$project_dir/target/debug/lokalbot-desktop")"
-          if [[ "$process" == app && -f "$session_dir/app.executable" ]]; then expected_exe="$(cat "$session_dir/app.executable")"; fi
+          if [[ "$process" == app && -f "$session_dir/app.executable" ]]; then
+            expected_exe="$(cat "$session_dir/app.executable")"
+          else
+            expected_exe="$(readlink -f "$project_dir/target/debug/lokalbot-desktop" || true)"
+          fi
           if [[ "$process_exe" == "$expected_exe" || "$process_exe" == /usr/bin/Xvfb ]]; then
             kill "$process_pid"
           fi

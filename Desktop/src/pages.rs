@@ -71,7 +71,7 @@ impl AppView {
             })
             .collect::<Vec<_>>();
         let activity = self
-            .activity
+            .today_activity
             .iter()
             .filter(|a| a.start >= start && a.start < end)
             .map(|a| a.end - a.start)
@@ -150,7 +150,7 @@ impl AppView {
                     .child(badge(
                         if m.summary.is_some() {
                             "Notes ready"
-                        } else if m.segments.is_empty() {
+                        } else if !m.has_transcript {
                             "Needs transcription"
                         } else {
                             "Transcript ready"
@@ -356,7 +356,7 @@ impl AppView {
                                             .child(label(
                                                 if m.summary.is_some() {
                                                     "Notes ready"
-                                                } else if m.segments.is_empty() {
+                                                } else if !m.has_transcript {
                                                     "Audio"
                                                 } else {
                                                     "Transcript"
@@ -455,7 +455,7 @@ impl AppView {
             );
         if !m.media.is_empty() {
             let media = m.clone();
-            let waveform = audio::envelope(&self.library, &m).unwrap_or_default();
+            let waveform = self.waveform.clone();
             let mut wave = row().gap(px(3.)).h(px(42.)).flex_1().overflow_hidden();
             for level in waveform {
                 wave = wave.child(
@@ -594,6 +594,27 @@ impl AppView {
                             ),
                     );
                 }
+                if !m.retained_segments.is_empty() {
+                    detail = detail.child(section_header(
+                        "Original passages cited by retained notes",
+                        IconName::Bookmark,
+                        "Previous transcript",
+                    ));
+                    for s in &m.retained_segments {
+                        detail = detail.child(
+                            panel()
+                                .id(format!("transcript-{}", s.id))
+                                .p(px(16.))
+                                .gap(px(8.))
+                                .child(label(
+                                    format!("{} · {}", timecode(s.start), s.speaker),
+                                    11.,
+                                    MUTED,
+                                ))
+                                .child(label(s.text.clone(), 13., TEXT).line_height(px(23.))),
+                        );
+                    }
+                }
             }
             2 => {
                 let note_id = id.clone();
@@ -610,12 +631,18 @@ impl AppView {
                         .child(
                             button("save-notes", "Save notes", IconName::Check, true).on_click(
                                 cx.listener(move |this, _, _, cx| {
-                                    let result = (|| {
-                                        let mut m = this.library.meeting(&note_id)?;
-                                        m.notes = this.notes.read(cx).value().to_string();
-                                        this.library.save_meeting(&m)
-                                    })();
-                                    this.show_result(result, "Notes saved", cx);
+                                    let id = note_id.clone();
+                                    let notes = this.notes.read(cx).value().to_string();
+                                    this.spawn(
+                                        "Notes",
+                                        move |lib| {
+                                            let mut m = lib.meeting(&id)?;
+                                            m.notes = notes;
+                                            lib.save_meeting(&m)?;
+                                            Ok(Output::Refresh)
+                                        },
+                                        cx,
+                                    );
                                 }),
                             ),
                         ),
@@ -710,9 +737,16 @@ impl AppView {
                             .child(
                                 button("confirm-delete", "Delete meeting", IconName::Trash, false)
                                     .on_click(cx.listener(move |this, _, _, cx| {
-                                        let result = this.library.delete_meeting(&delete_id);
+                                        let id = delete_id.clone();
                                         this.delete_confirm = false;
-                                        this.show_result(result, "Meeting deleted", cx);
+                                        this.spawn(
+                                            "Meeting deletion",
+                                            move |lib| {
+                                                lib.delete_meeting(&id)?;
+                                                Ok(Output::Refresh)
+                                            },
+                                            cx,
+                                        );
                                     })),
                             )
                             .child(

@@ -77,21 +77,43 @@ impl Page {
 }
 enum Output {
     Refresh,
+    Selected(String),
     Answer(Conversation),
     Text(String),
     Agent(agent::Task),
+    Settings(Settings),
+}
+struct Snapshot {
+    requested: Option<String>,
+    meeting_revision: u64,
+    meetings: Option<Vec<MeetingPreview>>,
+    detail: Option<Meeting>,
+    detail_loaded: bool,
+    waveform: Vec<f32>,
+    settings: Settings,
+    moments: Vec<Moment>,
+    activity: Vec<Activity>,
+    today_activity: Vec<Activity>,
 }
 struct Event {
     kind: String,
     result: Result<Output, String>,
+    backend_job: bool,
 }
 struct AppView {
     library: Library,
     _lock: GuiLock,
     page: Page,
-    meetings: Vec<Meeting>,
+    meetings: Vec<MeetingPreview>,
+    detail: Option<Meeting>,
+    waveform: Vec<f32>,
+    meeting_revision: u64,
+    notes_selection: Option<String>,
+    snapshot_worker: Option<std::thread::JoinHandle<anyhow::Result<Snapshot>>>,
+    refresh_requested: bool,
     moments: Vec<Moment>,
     activity: Vec<Activity>,
+    today_activity: Vec<Activity>,
     settings: Settings,
     selected: Option<String>,
     tab: usize,
@@ -136,17 +158,15 @@ struct AppView {
 }
 impl AppView {
     fn new(
-        mut library: Library,
+        library: Library,
         page: Page,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> anyhow::Result<Self> {
         let lock = library.gui_lock()?;
-        library.recover_jobs()?;
-        audio::recover_recordings(&mut library)?;
         let settings = library.settings()?;
-        let meetings = library.meetings()?;
-        let selected = meetings.first().map(|m| m.id.clone());
+        let meetings: Vec<MeetingPreview> = vec![];
+        let selected = None;
         let make =
             |value: String, placeholder: &str, window: &mut Window, cx: &mut Context<Self>| {
                 cx.new(|cx| {
@@ -255,15 +275,22 @@ impl AppView {
             }
         })
         .detach();
-        Ok(Self {
-            moments: library.moments()?,
-            activity: library.activity()?,
+        let mut view = Self {
+            moments: vec![],
+            activity: vec![],
+            today_activity: vec![],
             answer: library.conversations()?.into_iter().next(),
             agent_task: library.agent_tasks()?.into_iter().next(),
             library,
             _lock: lock,
             page,
             meetings,
+            detail: None,
+            waveform: vec![],
+            meeting_revision: u64::MAX,
+            notes_selection: None,
+            snapshot_worker: None,
+            refresh_requested: true,
             selected,
             tab: 0,
             query: String::new(),
@@ -303,21 +330,77 @@ impl AppView {
             capture_worker: None,
             capture_status: "Waiting for desktop accessibility".into(),
             settings,
-        })
+        };
+        view.spawn(
+            "Library recovery",
+            |lib| {
+                lib.recover_jobs()?;
+                lib.cleanup_capture_files()?;
+                audio::recover_recordings(lib)?;
+                lib.expire(now())?;
+                Ok(Output::Refresh)
+            },
+            cx,
+        );
+        view.refresh()?;
+        Ok(view)
     }
     fn refresh(&mut self) -> anyhow::Result<()> {
-        self.settings = self.library.settings()?;
-        self.library.expire(now())?;
-        self.meetings = self.library.meetings()?;
-        self.moments = self.library.moments()?;
-        self.activity = self.library.activity()?;
-        if self
-            .selected
-            .as_ref()
-            .is_none_or(|id| !self.meetings.iter().any(|m| &m.id == id))
-        {
-            self.selected = self.meetings.first().map(|m| m.id.clone());
+        self.refresh_requested = true;
+        if self.snapshot_worker.is_some() {
+            return Ok(());
         }
+        self.refresh_requested = false;
+        let root = self.library.root.clone();
+        let requested = self.selected.clone();
+        let revision = self.meeting_revision;
+        let cached_id = self.detail.as_ref().map(|m| m.id.clone());
+        self.snapshot_worker = Some(std::thread::spawn(move || {
+            let lib = Library::open(root)?;
+            let meeting_revision = lib.meeting_revision()?;
+            let meetings = if revision != meeting_revision {
+                Some(lib.meeting_previews()?)
+            } else {
+                None
+            };
+            let id = requested
+                .as_ref()
+                .filter(|id| {
+                    meetings
+                        .as_ref()
+                        .is_none_or(|ms| ms.iter().any(|m| &m.id == *id))
+                })
+                .cloned()
+                .or_else(|| {
+                    meetings
+                        .as_ref()
+                        .and_then(|ms| ms.first().map(|m| m.id.clone()))
+                });
+            // Load exactly one transcript only when selection or meeting data changed.
+            let detail_loaded = revision != meeting_revision || id != cached_id;
+            let detail = if detail_loaded {
+                id.as_deref().map(|id| lib.meeting(id)).transpose()?
+            } else {
+                None
+            };
+            let waveform = detail
+                .as_ref()
+                .and_then(|m| audio::envelope(&lib, m).ok())
+                .unwrap_or_default();
+            let (start, end) = services::day_bounds(&services::today())?;
+            Ok(Snapshot {
+                requested,
+                meeting_revision,
+                meetings,
+                detail,
+                detail_loaded,
+                waveform,
+                settings: lib.settings()?,
+                moments: lib.moments()?,
+                activity: lib.activity()?,
+                today_activity: lib.activity_between(start, end)?,
+            })
+        }));
         Ok(())
     }
     fn show_result(&mut self, result: anyhow::Result<()>, success: &str, cx: &mut Context<Self>) {
@@ -358,22 +441,87 @@ impl AppView {
             let result = Library::open(root)
                 .and_then(|mut library| operation(&mut library))
                 .map_err(|e| privacy::redact(&e.to_string()));
-            let _ = sender.send(Event { kind, result });
+            let _ = sender.send(Event {
+                kind,
+                result,
+                backend_job: true,
+            });
         });
         cx.notify();
     }
     fn poll(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self
+            .snapshot_worker
+            .as_ref()
+            .is_some_and(|w| w.is_finished())
+        {
+            let worker = self.snapshot_worker.take().unwrap();
+            match worker.join() {
+                Ok(Ok(snapshot)) => {
+                    self.meeting_revision = snapshot.meeting_revision;
+                    if let Some(meetings) = snapshot.meetings {
+                        self.meetings = meetings;
+                    }
+                    if self.selected == snapshot.requested && snapshot.detail_loaded {
+                        self.selected = snapshot.detail.as_ref().map(|m| m.id.clone());
+                        if self.notes_selection != self.selected {
+                            self.notes.update(cx, |s, cx| {
+                                s.set_value(
+                                    snapshot
+                                        .detail
+                                        .as_ref()
+                                        .map(|m| m.notes.clone())
+                                        .unwrap_or_default(),
+                                    window,
+                                    cx,
+                                )
+                            });
+                            self.notes_selection = self.selected.clone();
+                        }
+                        self.detail = snapshot.detail;
+                        self.waveform = snapshot.waveform;
+                    } else if self.selected != snapshot.requested {
+                        self.refresh_requested = true;
+                    }
+                    if snapshot.settings.revision >= self.settings.revision {
+                        self.settings = snapshot.settings;
+                    } else {
+                        self.refresh_requested = true;
+                    }
+                    self.moments = snapshot.moments;
+                    self.activity = snapshot.activity;
+                    self.today_activity = snapshot.today_activity;
+                }
+                Ok(Err(error)) => self.error = privacy::redact(&error.to_string()),
+                Err(_) => self.error = "Library refresh stopped unexpectedly".into(),
+            }
+            cx.notify();
+        }
+        if self.refresh_requested && self.snapshot_worker.is_none() {
+            let _ = self.refresh();
+        }
         while let Ok(event) = self.receiver.try_recv() {
-            self.busy = None;
+            if event.backend_job {
+                self.busy = None;
+            }
             match event.result {
                 Ok(output) => {
+                    if event.kind == "Action correction" {
+                        self.edit_action = None;
+                    }
                     match output {
                         Output::Refresh => {}
+                        Output::Selected(id) => self.selected = Some(id),
                         Output::Answer(answer) => self.answer = Some(answer),
                         Output::Text(text) => self
                             .writing
                             .update(cx, |s, cx| s.set_value(text, window, cx)),
                         Output::Agent(task) => self.agent_task = Some(task),
+                        Output::Settings(settings) => {
+                            self.settings = settings;
+                            self.key_input
+                                .update(cx, |input, cx| input.set_value("", window, cx));
+                        }
                     }
                     self.notice = format!("{} complete · saved locally", event.kind);
                     self.error.clear();
@@ -381,7 +529,10 @@ impl AppView {
                         self.error = error.to_string();
                     }
                 }
-                Err(error) => self.error = error,
+                Err(error) => {
+                    self.error = error;
+                    let _ = self.refresh();
+                }
             }
             cx.notify();
         }
@@ -389,10 +540,15 @@ impl AppView {
             self.playback = None;
             cx.notify();
         }
-        if let Some(recording) = &self.recording {
-            if let Some(error) = recording.stream_error.lock().ok().and_then(|s| s.clone()) {
-                self.error = error;
-            }
+        let recording_error = self
+            .recording
+            .as_ref()
+            .and_then(|recording| recording.stream_error.lock().ok().and_then(|s| s.clone()));
+        if let Some(error) = recording_error {
+            self.record(false, cx);
+            self.error = error;
+        }
+        if self.recording.is_some() {
             cx.notify();
         }
         if self
@@ -438,16 +594,15 @@ impl AppView {
         self.tab = tab;
         self.seek = 0.;
         self.playback = None;
-        if let Ok(m) = self.library.meeting(&id) {
-            self.notes
-                .update(cx, |s, cx| s.set_value(m.notes, window, cx));
-        }
+        self.detail = None;
+        self.waveform.clear();
+        let _ = self.refresh();
         self.navigate(Page::Meetings, window, cx);
     }
     fn current(&self) -> Option<&Meeting> {
-        self.selected
+        self.detail
             .as_ref()
-            .and_then(|id| self.meetings.iter().find(|m| &m.id == id))
+            .filter(|m| self.selected.as_ref() == Some(&m.id))
     }
     fn submit_question(&mut self, cx: &mut Context<Self>) {
         let question = self.ask_input.read(cx).value().to_string();
@@ -472,35 +627,35 @@ impl AppView {
     }
     fn record(&mut self, dictation: bool, cx: &mut Context<Self>) {
         if let Some(recording) = self.recording.take() {
-            match recording.finish(&mut self.library) {
-                Ok(id) => {
-                    self.notice = "Recording saved locally".into();
-                    if dictation {
-                        self.spawn(
-                            "Dictation",
-                            move |lib| {
-                                services::transcribe_meeting(lib, &id)?;
-                                let text = lib
-                                    .meeting(&id)?
-                                    .segments
-                                    .iter()
-                                    .map(|s| s.text.clone())
-                                    .collect::<Vec<_>>()
-                                    .join(" ");
-                                lib.delete_meeting(&id)?;
-                                Ok(Output::Text(text))
-                            },
-                            cx,
-                        );
-                    } else {
-                        self.selected = Some(id);
-                    }
-                }
-                Err(error) => self.error = error.to_string(),
-            }
+            let finalizing = recording.stop();
             self.dictating = false;
-            let _ = self.refresh();
+            self.spawn(
+                "Save recording",
+                move |lib| {
+                    let id = finalizing.finish(lib)?;
+                    if dictation {
+                        services::transcribe_meeting(lib, &id)?;
+                        let text = lib
+                            .meeting(&id)?
+                            .segments
+                            .iter()
+                            .map(|s| s.text.clone())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        lib.delete_meeting(&id)?;
+                        Ok(Output::Text(text))
+                    } else {
+                        Ok(Output::Selected(id))
+                    }
+                },
+                cx,
+            );
         } else {
+            if self.busy.is_some() {
+                self.error = "Wait for the current job to finish before recording.".into();
+                cx.notify();
+                return;
+            }
             match audio::Recording::start(
                 &mut self.library,
                 if dictation {
@@ -572,7 +727,7 @@ impl AppView {
         })
         .detach();
     }
-    fn save_config(&mut self, approve: bool, window: &mut Window, cx: &mut Context<Self>) {
+    fn save_config(&mut self, approve: bool, _window: &mut Window, cx: &mut Context<Self>) {
         let mut s = self.settings.clone();
         s.backend = self.backend_choice.clone();
         s.endpoint = self.endpoint.read(cx).value().to_string();
@@ -580,7 +735,7 @@ impl AppView {
         s.whisper_executable = self.whisper_exe.read(cx).value().to_string();
         s.whisper_model = self.whisper_model.read(cx).value().to_string();
         s.agent_workspace = self.workspace.read(cx).value().to_string();
-        let result = (|| {
+        let result: anyhow::Result<()> = (|| {
             s.retention_days = self
                 .retention
                 .read(cx)
@@ -618,22 +773,20 @@ impl AppView {
             if approve && !s.approved_origins.contains(&origin) {
                 s.approved_origins.push(origin);
             }
-            let key = self.key_input.read(cx).value().to_string();
-            if !key.is_empty() {
-                inference::save_api_key(&key)?;
-            }
-            self.library.save_settings(&mut s)
+            Ok(())
         })();
-        if result.is_ok() {
-            self.key_input
-                .update(cx, |input, cx| input.set_value("", window, cx));
+        if let Err(error) = result {
+            self.error = privacy::redact(&error.to_string());
+            cx.notify();
+            return;
         }
-        self.show_result(
-            result,
+        self.save_preferences(
+            s,
+            self.key_input.read(cx).value().to_string(),
             if approve {
-                "Inference origin approved"
+                "Inference origin approval"
             } else {
-                "Settings saved"
+                "Settings"
             },
             cx,
         );
@@ -641,8 +794,35 @@ impl AppView {
     fn toggle_setting(&mut self, change: impl FnOnce(&mut Settings), cx: &mut Context<Self>) {
         let mut settings = self.settings.clone();
         change(&mut settings);
-        let result = self.library.save_settings(&mut settings);
-        self.show_result(result, "Preference saved", cx);
+        self.save_preferences(settings, String::new(), "Preference", cx);
+    }
+    fn save_preferences(
+        &mut self,
+        mut settings: Settings,
+        key: String,
+        kind: &str,
+        cx: &mut Context<Self>,
+    ) {
+        let root = self.library.root.clone();
+        let sender = self.sender.clone();
+        let kind = kind.to_owned();
+        std::thread::spawn(move || {
+            let result = (|| {
+                let mut lib = Library::open(root)?;
+                if !key.is_empty() {
+                    inference::save_api_key(&key)?;
+                }
+                lib.save_settings(&mut settings)?;
+                Ok(Output::Settings(settings))
+            })()
+            .map_err(|e: anyhow::Error| privacy::redact(&e.to_string()));
+            let _ = sender.send(Event {
+                kind,
+                result,
+                backend_job: false,
+            });
+        });
+        cx.notify();
     }
     fn action_row(
         &self,
@@ -666,17 +846,19 @@ impl AppView {
                         .child(
                             button("save-action-edit", "Save correction", IconName::Check, true)
                                 .on_click(cx.listener(move |this, _, _, cx| {
-                                    let result = this.library.correct_action(
-                                        &meeting_id,
-                                        &id,
-                                        this.action_text.read(cx).value().to_string(),
-                                        this.action_owner.read(cx).value().to_string(),
-                                        this.action_due.read(cx).value().to_string(),
+                                    let meeting_id = meeting_id.clone();
+                                    let id = id.clone();
+                                    let text = this.action_text.read(cx).value().to_string();
+                                    let owner = this.action_owner.read(cx).value().to_string();
+                                    let due = this.action_due.read(cx).value().to_string();
+                                    this.spawn(
+                                        "Action correction",
+                                        move |lib| {
+                                            lib.correct_action(&meeting_id, &id, text, owner, due)?;
+                                            Ok(Output::Refresh)
+                                        },
+                                        cx,
                                     );
-                                    if result.is_ok() {
-                                        this.edit_action = None;
-                                    }
-                                    this.show_result(result, "Action correction saved", cx);
                                 })),
                         )
                         .child(
@@ -705,8 +887,16 @@ impl AppView {
                     .border_1()
                     .border_color(rgb(if action.done { ACCENT } else { MUTED }))
                     .on_click(cx.listener(move |this, _, _, cx| {
-                        let result = this.library.toggle_action(&meeting_id, &id);
-                        this.show_result(result, "Action updated", cx);
+                        let meeting_id = meeting_id.clone();
+                        let id = id.clone();
+                        this.spawn(
+                            "Action update",
+                            move |lib| {
+                                lib.toggle_action(&meeting_id, &id)?;
+                                Ok(Output::Refresh)
+                            },
+                            cx,
+                        );
                     }))
                     .when(action.done, |d| {
                         d.child(icon(IconName::Check, ACCENT).size(px(11.)))

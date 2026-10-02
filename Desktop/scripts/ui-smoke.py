@@ -37,6 +37,14 @@ run(str(CLI), "seed")
 meetings = rows("meetings")
 selected = sorted(meetings, key=lambda m: m["started_at"], reverse=True)[0]
 source = selected["segments"][0]["id"]
+# A missing microphone checkpoint must not prevent the native app from opening.
+broken = next(m for m in meetings if m["id"] != selected["id"])
+broken["duration"] = 0
+chunks = LIB / "meetings" / broken["id"] / "mic-chunks"
+chunks.mkdir(parents=True)
+(chunks / "manifest.json").write_text(json.dumps({"rate":16000,"chunks":[{"name":"000000.wav","frames":32000,"sha256":"missing-synthetic-piece"}],"dropped_buffers":0,"complete":False}))
+with sqlite3.connect(LIB / "desktop.sqlite") as db:
+    db.execute("UPDATE meetings SET data=? WHERE id=?", (json.dumps(broken),broken["id"]))
 
 class Model(BaseHTTPRequestHandler):
     def log_message(self, *_):
@@ -116,6 +124,16 @@ try:
     run("bash",str(ROOT/"scripts/preview-session.sh"),"start","--page","meetings")
     ENV["DISPLAY"]=(ROOT/".preview-session/display").read_text().strip()
     focus_ready_window()
+    def detail_ready():
+        try:
+            locate("Write source-linked meeting notes")
+            return True
+        except AssertionError:
+            return False
+    wait_for(detail_ready)
+    wait_for(lambda:any(m["id"]==broken["id"] and any("Audio recovery failed" in w for w in m.get("warnings",[])) for m in rows("meetings")))
+    assert (chunks / "manifest.json").is_file()
+    checks.append("Damaged recording isolated at native startup; originals retained")
     click(1245,92)
     wait_for(lambda:any(m["id"]==selected["id"] and m.get("summary") for m in rows("meetings")))
     checks.append("UI model summary persisted")
