@@ -98,7 +98,8 @@ def locate(label):
     capture("ui-current")
     run("ffmpeg","-nostdin","-hide_banner","-loglevel","error","-i",str(ROOT/"screenshots/ui-current.png"),"-vf","scale=2880:1920","-frames:v","1","-threads","1","-y",str(ROOT/".eval/ui-ocr.png"))
     text=run("tesseract",str(ROOT/".eval/ui-ocr.png"),"stdout","--psm","11","tsv")
-    words=[r for r in csv.DictReader(io.StringIO(text),delimiter="\t") if r["text"].strip()]
+    # An empty startup frame can leave the final TSV text field absent after strip().
+    words=[r for r in csv.DictReader(io.StringIO(text),delimiter="\t") if (r.get("text") or "").strip()]
     norm=lambda text:text.lower().replace("ul","ui")
     target=[norm(w) for w in label.split()]
     for i in range(len(words)-len(target)+1):
