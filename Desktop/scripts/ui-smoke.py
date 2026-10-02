@@ -95,7 +95,7 @@ def click_label(label):
         left,top,right,bottom=locate(label)
         click((left+right)//2,(top+bottom)//2)
     except AssertionError:
-        fixed={"Edit":(1378,618),"Save correction":(625,691),"Save notes":(615,647)}
+        fixed={"Edit":(1378,618),"Save correction":(625,691),"Save notes":(615,668)}
         if label not in fixed:
             raise
         click(*fixed[label])
@@ -125,7 +125,7 @@ try:
     click(790,435)
     key("ctrl+a")
     xdo("type","--clearmodifiers","--delay",1,"--","Fictional UI note survives restart")
-    click_label("Save notes")
+    click(625,668)
     wait_for(lambda:any(m["id"]==selected["id"] and m["notes"]=="Fictional UI note survives restart" for m in rows("meetings")))
     checks.append("UI note saved")
     capture("ui-notes")

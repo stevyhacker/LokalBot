@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: desktop-${{ github.ref }}
+  group: desktop-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 jobs:
   native:
@@ -24,6 +24,10 @@ jobs:
         working-directory: Desktop
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: Desktop
+          persist-credentials: false
       - name: Linux development dependencies
         if: runner.os == 'Linux'
         run: |
@@ -35,6 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: Desktop -> target
+          cache-on-failure: true
       - name: Format
         run: cargo fmt --check
       - name: Core regression tests

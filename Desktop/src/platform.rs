@@ -116,13 +116,14 @@ pub fn capture_screen(library: &mut Library) -> Result<String> {
     let pixels = temporary.path().join("capture.png");
     let mut pixel_bytes = None;
     if settings.pixels_enabled && !sensitive {
-        let [x, y, w, h] = before.bounds;
+        let [_, _, w, h] = before.bounds;
         ensure!(
             w > 0 && h > 0 && w <= 16384 && h <= 16384,
             "Invalid focused-window bounds"
         );
         #[cfg(target_os = "linux")]
         {
+            let [x, y, _, _] = before.bounds;
             let status = if std::env::var_os("WAYLAND_DISPLAY").is_some() {
                 bounded_output(
                     Command::new("grim")
