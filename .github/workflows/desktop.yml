@@ -44,10 +44,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Source fetch failed" }
           git update-ref HEAD $env:DESKTOP_SOURCE_REVISION
           $archive = Join-Path $env:RUNNER_TEMP 'lokalbot-desktop-source.tar'
-          git archive --format=tar --output=$archive HEAD Desktop LICENSE
+          git archive --format=tar --prefix=Desktop/ --output=$archive HEAD:Desktop
           if ($LASTEXITCODE -ne 0) { throw "Source export failed" }
           tar -xf $archive
           if ($LASTEXITCODE -ne 0) { throw "Source extraction failed" }
+          git show HEAD:LICENSE > LICENSE
       - name: Linux development dependencies
         if: runner.os == 'Linux'
         run: |
