@@ -1,0 +1,11 @@
+/target/
+/screenshots/
+/.preview-session/
+/.eval/
+/tools/
+/models/
+*.log
+.env*
+/dist/
+__pycache__/
+*.pyc
