@@ -200,7 +200,11 @@ impl ChunkWriter {
             writer.write_sample(*s)?;
         }
         writer.finalize()?;
-        fs::File::open(&temporary)?.sync_all()?;
+        // Windows FlushFileBuffers requires a write-capable file handle.
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&temporary)?
+            .sync_all()?;
         fs::rename(&temporary, &path)?;
         let chunk = Chunk {
             name,

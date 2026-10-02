@@ -51,10 +51,20 @@ def probe():
         if capture_text and visible and role != pyatspi.ROLE_PASSWORD_TEXT:
             try:
                 text = node.queryText()
-                ranges = text.getBoundedRanges(bounds.x, bounds.y, bounds.width, bounds.height, pyatspi.DESKTOP_COORDS, pyatspi.TEXT_CLIP_BOTH, pyatspi.TEXT_CLIP_BOTH)
-                for item in ranges:
-                    if item.content:
-                        texts.append(item.content[:4000])
+                # Ubuntu's AT-SPI getBoundedRanges GI binding can segfault.
+                # Verify each character rectangle before reading a visible run.
+                count = min(text.characterCount, 2000)
+                run_start = None
+                for offset in range(count):
+                    x, y, width, height = text.getCharacterExtents(offset, pyatspi.DESKTOP_COORDS)
+                    shown = width > 0 and height > 0 and x >= bounds.x and y >= bounds.y and x + width <= bounds.x + bounds.width and y + height <= bounds.y + bounds.height
+                    if shown and run_start is None:
+                        run_start = offset
+                    if not shown and run_start is not None:
+                        texts.append(text.getText(run_start, offset)[:2000])
+                        run_start = None
+                if run_start is not None:
+                    texts.append(text.getText(run_start, count)[:2000])
             except Exception:
                 pass
         queue.extend(list(node)[:100])
@@ -69,7 +79,7 @@ def probe():
         window_id = current.get("address", "")
     else:
         import subprocess
-        window_id = subprocess.check_output(["xdotool", "getactivewindow"], timeout=3).decode().strip()
+        window_id = subprocess.check_output(["xdotool", "getwindowfocus"], timeout=3).decode().strip()
         current_pid = int(subprocess.check_output(["xdotool", "getwindowpid", window_id], timeout=3))
         current_title = subprocess.check_output(["xdotool", "getwindowname", window_id], timeout=3).decode().strip()
         verified = current_pid == pid and current_title == title

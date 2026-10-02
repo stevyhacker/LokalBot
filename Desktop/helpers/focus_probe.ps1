@@ -18,7 +18,14 @@ $window = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
 $focus = [System.Windows.Automation.AutomationElement]::FocusedElement
 if ($null -eq $focus -or $null -eq $window) { exit 2 }
 $rect = $window.Current.BoundingRectangle
-$verified = ($focus.Current.ProcessId -eq $processId)
+$inside = $false
+$ancestor = $focus
+$windowIdentity = ($window.GetRuntimeId() -join ":")
+for ($depth=0; $depth -lt 64 -and $null -ne $ancestor; $depth++) {
+ if (($ancestor.GetRuntimeId() -join ":") -eq $windowIdentity) { $inside=$true; break }
+ $ancestor = [System.Windows.Automation.TreeWalker]::RawViewWalker.GetParent($ancestor)
+}
+$verified = ($inside -and -not $focus.Current.IsOffscreen -and $focus.Current.ProcessId -eq $processId)
 $secure = $focus.Current.IsPassword
 $field = ($focus.GetRuntimeId() -join ":")
 $nodes = $window.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition)

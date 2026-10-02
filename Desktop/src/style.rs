@@ -94,3 +94,31 @@ pub(crate) fn page_header(title: &str, subtitle: &str) -> Div {
         .child(heading(title.to_owned(), 27.))
         .child(label(subtitle.to_owned(), 12., MUTED))
 }
+
+pub(crate) fn markdown_view(text: String) -> AnyElement {
+    column()
+        .gap(px(8.))
+        .children(
+            text.lines()
+                .filter(|line| !line.trim().is_empty())
+                .map(|line| {
+                    let line = line.trim();
+                    if line.starts_with('#') {
+                        heading(line.trim_start_matches('#').trim().replace("**", ""), 15.)
+                            .mt(px(8.))
+                            .into_any_element()
+                    } else {
+                        let text = line
+                            .strip_prefix("- ")
+                            .or_else(|| line.strip_prefix("* "))
+                            .map(|s| format!("• {s}"))
+                            .unwrap_or_else(|| line.to_owned())
+                            .replace("**", "");
+                        label(text, 14., 0xc8d0da)
+                            .line_height(px(24.))
+                            .into_any_element()
+                    }
+                }),
+        )
+        .into_any_element()
+}

@@ -97,7 +97,7 @@ impl AppView {
         );
         let digest = self.library.digest(&day).ok().flatten();
         let digest_card=panel().p(px(23.)).gap(px(18.)).child(row().child(icon(IconName::Sparkles,ACCENT)).child(heading("Your day so far",15.)).child(div().flex_1()).child(button("write-digest",if digest.is_some(){"Update digest"}else{"Write digest"},IconName::Sparkles,false).on_click(cx.listener(move|this,_,_,cx|{let day=day.clone();this.spawn("Day digest",move|lib|{services::digest(lib,&day)?;Ok(Output::Refresh)},cx);}))))
-            .child(label(digest.map(|d|d.text).unwrap_or_else(||"Write a digest from the meetings and activity stored in your library. The selected inference destination is shown below.".into()),14.,0xc8d0da).line_height(px(24.))).child(label(self.inference_label(),10.,MUTED));
+            .child(markdown_view(digest.map(|d|d.text).unwrap_or_else(||"Write a digest from the meetings and activity stored in your library. The selected inference destination is shown below.".into()))).child(label(self.inference_label(),10.,MUTED));
         let mut action_card = panel().p(px(22.)).child(section_header(
             "Next actions",
             IconName::ListChecks,

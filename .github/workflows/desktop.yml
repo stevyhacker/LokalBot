@@ -53,7 +53,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev libdbus-1-dev libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libfontconfig1-dev libssl-dev libclang-dev mesa-vulkan-drivers xvfb xdotool ffmpeg tesseract-ocr
+          sudo apt-get install -y libasound2-dev libdbus-1-dev libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libfontconfig1-dev libssl-dev libclang-dev mesa-vulkan-drivers xvfb xdotool ffmpeg tesseract-ocr python3-pyatspi gir1.2-gtk-3.0
       - name: Pinned Rust
         shell: bash
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
@@ -85,6 +85,7 @@ jobs:
           cp target/release/lokalbot-desktop target/debug/lokalbot-desktop
           cp target/release/lokalbot-desktop-cli target/debug/lokalbot-desktop-cli
           python scripts/ui-smoke.py
+          dbus-run-session -- python3 scripts/capture-smoke.py
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'Linux'
         with:
@@ -93,3 +94,4 @@ jobs:
             Desktop/screenshots/*.png
             Desktop/.preview-session/app.log
             Desktop/.eval/ui-report.json
+            Desktop/.eval/capture-report.json

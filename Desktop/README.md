@@ -46,6 +46,7 @@ cargo fmt --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo build --locked
 python scripts/ui-smoke.py # remote/hosted Ubuntu only; also needs tesseract-ocr
+dbus-run-session -- python3 scripts/capture-smoke.py # python3-pyatspi and GTK3 introspection
 ```
 
 UI checks run on the isolated Ubuntu Xvfb display, with lavapipe Vulkan and fictional data. The smoke runner records screenshots and validates persisted state. Live model evaluation is explicitly enabled with `lokalbot-desktop-cli eval --live` on a freshly seeded synthetic library with an approved origin. Automated public CI uses only loopback responses and synthetic fixtures, never your credentials.
