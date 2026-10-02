@@ -19,6 +19,8 @@ jobs:
         os: [ubuntu-24.04, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    env:
+      LOKALBOT_BUILD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     defaults:
       run:
         working-directory: Desktop
@@ -73,25 +75,24 @@ jobs:
         run: python scripts/bootstrap-whisper.py --build
       - name: Package
         run: python scripts/package.py
+      - name: Extracted package smoke
+        run: python scripts/verify-package.py
       - uses: actions/upload-artifact@v4
         with:
-          name: lokalbot-${{ runner.os }}-${{ github.sha }}
+          name: lokalbot-${{ runner.os }}-${{ github.event.pull_request.head.sha || github.sha }}
           path: Desktop/dist/*
           if-no-files-found: error
       - name: Linux native UI smoke
         if: runner.os == 'Linux'
-        run: |
-          mkdir -p target/debug
-          cp target/release/lokalbot-desktop target/debug/lokalbot-desktop
-          cp target/release/lokalbot-desktop-cli target/debug/lokalbot-desktop-cli
-          python scripts/ui-smoke.py
-          dbus-run-session -- python3 scripts/capture-smoke.py
+        run: python scripts/verify-package.py --ui
       - uses: actions/upload-artifact@v4
         if: always() && runner.os == 'Linux'
         with:
-          name: native-ui-${{ github.sha }}
+          name: native-ui-${{ github.event.pull_request.head.sha || github.sha }}
+          include-hidden-files: true
           path: |
             Desktop/screenshots/*.png
             Desktop/.preview-session/app.log
+            Desktop/.preview-session/xvfb.log
             Desktop/.eval/ui-report.json
             Desktop/.eval/capture-report.json

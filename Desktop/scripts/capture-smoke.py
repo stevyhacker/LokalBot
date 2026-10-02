@@ -9,7 +9,7 @@ import time
 
 ROOT=Path(__file__).resolve().parents[1]
 LIB=ROOT/'.eval'/('capture-'+str(time.time_ns()))
-CLI=ROOT/'target/debug/lokalbot-desktop-cli'
+CLI=Path(os.environ.get('LOKALBOT_DESKTOP_CLI',ROOT/'target/debug/lokalbot-desktop-cli'))
 env={k:v for k,v in os.environ.items() if k!='OPENROUTER_API_KEY'}
 xvfb=subprocess.Popen(['Xvfb','-displayfd','1','-screen','0','1000x600x24','-nolisten','tcp'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True)
 env['DISPLAY']=':'+xvfb.stdout.readline().strip()

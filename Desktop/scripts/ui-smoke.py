@@ -13,7 +13,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 LIB = ROOT / ".eval" / ("ui-" + str(time.time_ns()))
-CLI = ROOT / "target/debug/lokalbot-desktop-cli"
+CLI = Path(os.environ.get("LOKALBOT_DESKTOP_CLI", ROOT / "target/debug/lokalbot-desktop-cli"))
 ENV = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
 ENV["LOKALBOT_STORAGE_ROOT"] = str(LIB)
 checks = []
@@ -63,6 +63,17 @@ run(str(CLI), "configure", "--local-endpoint", f"http://127.0.0.1:{server.server
 def xdo(*args):
     return run("xdotool", *map(str,args))
 
+def focus_ready_window():
+    pid=(ROOT/".preview-session/app.pid").read_text().strip()
+    def ready():
+        # A titled X11 window can exist before it becomes viewable.
+        found=subprocess.run(["xdotool","search","--onlyvisible","--pid",pid,"--name","LokalBot"],env=ENV,text=True,capture_output=True)
+        if found.returncode!=0 or not found.stdout.strip():
+            return False
+        focused=subprocess.run(["xdotool","windowfocus","--sync",found.stdout.splitlines()[-1]],env=ENV,text=True,capture_output=True,timeout=5)
+        return focused.returncode==0
+    wait_for(ready,timeout=30)
+
 def click(x,y):
     xdo("mousemove", x,y,"click",1)
     time.sleep(0.25)
@@ -104,9 +115,7 @@ try:
     run("bash",str(ROOT/"scripts/preview-session.sh"),"stop")
     run("bash",str(ROOT/"scripts/preview-session.sh"),"start","--page","meetings")
     ENV["DISPLAY"]=(ROOT/".preview-session/display").read_text().strip()
-    time.sleep(2)
-    window=xdo("search","--name","LokalBot").splitlines()[0]
-    xdo("windowfocus","--sync",window)
+    focus_ready_window()
     click(1245,92)
     wait_for(lambda:any(m["id"]==selected["id"] and m.get("summary") for m in rows("meetings")))
     checks.append("UI model summary persisted")
@@ -146,7 +155,8 @@ try:
     checks.append("All nine native pages rendered")
     run("bash",str(ROOT/"scripts/preview-session.sh"),"stop")
     run("bash",str(ROOT/"scripts/preview-session.sh"),"start","--page","meetings")
-    time.sleep(2)
+    ENV["DISPLAY"]=(ROOT/".preview-session/display").read_text().strip()
+    focus_ready_window()
     assert next(m for m in rows("meetings") if m["id"]==selected["id"])["notes"]=="Fictional UI note survives restart"
     checks.append("App restart retained UI note and summary")
     report={"passed":checks,"root":str(LIB),"synthetic_only":True,"native_ui":"X11 / lavapipe"}
