@@ -1,0 +1,32 @@
+{
+  "name": "tabletop",
+  "from": "cases/knockon-15s",
+  "mood": "warm grey table under soft light, white objects, a red-orange cause",
+  "color": {
+    "ground": "#f2efe9",
+    "deep": "#e3dfd7",
+    "card": "#ffffff",
+    "line": "#d5d0c6",
+    "mute": "#7d7970",
+    "ink": "#1b1a18",
+    "accent": "#ff5a36",
+    "accent2": "#17a05e"
+  },
+  "type": {
+    "display": {
+      "face": "Inter",
+      "weight": 700,
+      "tracking": -0.035
+    },
+    "text": {
+      "face": "Inter",
+      "weight": 500,
+      "tracking": -0.01
+    },
+    "mono": {
+      "face": "Geist Mono",
+      "weight": 400,
+      "tracking": 0
+    }
+  }
+}

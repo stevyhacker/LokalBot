@@ -1,0 +1,77 @@
+# LokalBot launch films
+
+Three 30-second launch-film drafts, each built on a different idea, and a 60-second technical overview that
+extends the third in LokalBot's own branding. All were made with the [onetake](https://github.com/feitangyuan/onetake) skill (commit
+`36072d3`). They are 1080p30 review renders; an accepted cut is rendered again at 4K60.
+
+| Film | Idea | Look | Camera | Draft | Source |
+| --- | --- | --- | --- | --- | --- |
+| 1 · The pull-out | One continuous pull-out from the spoken word "Thursday": the transcript moment folds into its `00:00:26` citation, the action waits on Today, the desktop's screen text lights up, and Quick Recall finds the same moment. | The app's own light theme | One take pulling out, log zoom | [lokalbot-launch-pullout.mp4](drafts/lokalbot-launch-pullout.mp4) | [pullout/](pullout/) |
+| 2 · Two streams, one search | What you hear (teal) and what you see (amber, off until you turn it on) run past and dissolve. LokalBot keeps both, braids them into "On this Mac", and one search pulls from both streams into the real results. A click plays the exact moment. | Dusk: night ground, LokalBot teal, amber | Locked wide; the streams move | [lokalbot-launch-streams.mp4](drafts/lokalbot-launch-streams.mp4) | [streams/](streams/) |
+| 3 · The desk machine | A tabletop chain reaction. Each default model is a station: Qwen3-ASR prints the transcript, Nemotron stamps who spoke, the Qwen3.5 press ejects a decision and two actions, and each card's timestamp threads back to its moment. Search pulls the Thursday card into the tray; a lever lets screen text in beside it. | Tabletop: warm grey, white objects, red-orange cause | An operator chasing the cause | [lokalbot-launch-machine.mp4](drafts/lokalbot-launch-machine.mp4) | [machine/](machine/) |
+| 4 · The desk machine: technical overview (60 s) | Film 3 as a walkthrough of how LokalBot works. The mic (AVAudioEngine) and the meeting app (Core Audio process tap) feed the LokalBot robot, whose foot is the recorder. Nemotron sorts the voices into speaker lanes, Qwen3-ASR prints a timestamped tape, and the Qwen3.5 press on the built-in llama.cpp server ejects the summary. Then the SQLite cabinet (FTS5 keywords, Harrier vectors) and the opt-in screen lane: Accessibility text, Vision OCR fallback, credential redaction, AES-GCM, 14-day expiry. Search opens and plays 00:00:26, the read-only CLI/MCP port switches on, and it ends on "Your Mac" and the LokalBot lockup. | LokalBot light theme: app teal, the icon's mint, SF type | An operator chasing the cause | [lokalbot-launch-tech.mp4](drafts/lokalbot-launch-tech.mp4) | [tech/](tech/) |
+
+## What is on screen
+
+- **Data:** every transcript line, timestamp, decision and action comes from the fictional library in
+  `Scripts/seed_demo_library.py` (the Design review meeting). The Quick Recall results are the app's real output for
+  "Thursday" and "Redis", captured from the UI test host at `master` `769068e`.
+- **Interface:** film 1's LokalBot window is the README's `Assets/screenshots/today.png`; its moment card, desktop and
+  Quick Recall panel are rebuilt on the canvas from the app's layout. Films 2 and 3 stylize the interface.
+- **Models:** names and roles follow the README's model table: Qwen3-ASR 1.7B transcribes, Nemotron 3 separates
+  speakers, Qwen3.5 4B summarizes, Harrier 0.6B indexes for semantic search.
+- **Brand (film 4):** colours from the app's `DesignTokens.swift` and `Brand.swift` (teal fill `#0C8275`, teal text
+  `#075F55`, the other speaker `#7D9EC2`, decisions green, open questions amber), the icon's mint on moving parts, the
+  app icon (`Assets/lokalbot-icon.svg`) as the capture station and in the end lockup, and SF type like the app.
+- **How it works (film 4):** each technical claim comes from the README's Privacy, Local AI and developer sections
+  and from `DEVELOPMENT.md`: two-track recording, diarization before transcription, SQLite FTS5 plus Harrier
+  vectors, Accessibility text with a Vision OCR fallback, credential redaction, AES-GCM with a 14-day default,
+  and read-only CLI/MCP access that is off by default. Its terminal output is illustrative.
+- **Not shown:** live recording or inference. The films are motion graphics built from product data.
+- **Narration:** ElevenLabs `eleven_v4` premade voices. Liam narrates all three; Sarah (film 1) and Chris (film 2)
+  speak the seeded meeting lines; film 4 replays Sarah's line from film 1 at 00:00:26. `vo/lines.txt` is the script; `vo/read.txt` is what is spoken ("LocalBot",
+  "Qwen three A S R").
+
+Film 4 also has captions timed from its narration, [`tech/captions.srt`](tech/captions.srt) and
+[`tech/captions.vtt`](tech/captions.vtt), written by `tools/captions.py`. Its 4K 60 fps master (52 MB) is not
+committed; `tools/build.sh tech --final` renders it to `tech/renders/final.mp4`. The terminal token in its screen lane
+is a placeholder (`demo-token-0000`), not a real key format.
+
+## Checks
+
+onetake's `verify_promo.py` on the committed drafts, plus a faster-whisper transcript of each mix:
+
+| Film | Cadence (CV) | Still frames | Continuity | Loudness | Verdict |
+| --- | ---: | ---: | --- | ---: | --- |
+| Pull-out | 0.58 | 66 % | 0.83 over 3 boundaries | −16.2 LUFS | PASS |
+| Two streams | 0.58 | 51 % | 1.00 over 2 boundaries | −16.3 LUFS | PASS |
+| Desk machine | 0.71 | 39 % | 1.00 over 1 boundary | −16.1 LUFS | PASS (no burst: the concept has no hard-cut hits) |
+| Technical overview | 0.29 | 33 % | 1.00 over 1 boundary | −16.1 LUFS | PASS |
+
+All four pass the curves (180° shutter) and framing legs, with true peak at −3.5 dBTP. Two narration lines were
+regenerated after the transcript check heard them wrong. `tools/voice.sh` records their seeds.
+
+## Rebuild
+
+1. Check out onetake at `36072d3` and export its path as `ONETAKE`. Its license is PolyForm Noncommercial 1.0.0.
+2. Install `uv` and `ffmpeg`. The tools pin Playwright `1.62.0` (Chromium 1234).
+3. `ELEVENLABS_API_KEY=… tools/voice.sh <pullout|streams|machine|tech>` regenerates the narration and rewrites
+   `timeline.js` / `timeline.json`. The timelines are committed, so this step is needed only to change the words.
+4. `tools/build.sh <film>` writes `look.js`, dumps the sound events, mixes to −16 LUFS, renders
+   `<film>/renders/draft.mp4`, and runs `verify_promo.py`. Add `--final` for 3840×2160 at 60 fps. Copy an
+   accepted render into `drafts/`.
+
+| Path | What |
+| --- | --- |
+| `<film>/captions.srt`, `captions.vtt` | Captions from the narration timings (`tools/captions.py <film>`) |
+| `<film>/comp.html` | The composition: one canvas, every value a function of time (`window.__seek`), on onetake's `lib/motion.js` |
+| `<film>/look.json` | Palette and faces. `look.js` is generated from it by onetake's `look.py` |
+| `<film>/timeline.js`, `timeline.json` | Narration starts, word times, meeting-line waveform. Beats find their words by text |
+| `<film>/vo/` | `lines.txt`, `read.txt`, and the meeting line |
+| `tools/` | `eleven_vo.py`, `build_timeline.py`, `dump_events.py`, `mix.py`, `captions.py`, `voice.sh`, `build.sh` |
+
+## License
+
+onetake is free for noncommercial use only. Its library, scripts, templates and generated `look.js` are not
+included here. The files in this folder are LokalBot's own and use onetake as an external tool. Anyone rebuilding
+the films accepts onetake's license.

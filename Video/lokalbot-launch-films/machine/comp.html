@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LokalBot · the desk machine</title>
+<style>
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#f2efe9}
+#c{position:absolute;left:0;top:0;width:1920px;height:1080px}
+#hud{position:absolute;right:14px;bottom:10px;font:13px monospace;color:#c00;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<script src="motion.js"></script>
+<script src="look.js"></script>
+<script src="timeline.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// CONCEPT — the desk machine. A light tabletop machine, seen from above; every beat is the collision that starts
+// the next. The mic puck lands → its thump sends a marble into the Qwen3-ASR block → it prints three transcript
+// strips → the belt carries them under the Nemotron gate, which stamps who spoke → the Qwen3.5 press slams and
+// ejects a decision and two actions → each card's timestamp threads back to its strip → a search pulls the
+// Thursday card into the tray, and a lever lets the screen-text card slide in beside it → the camera pulls back
+// over the whole machine and the name drops onto the table.
+// Look: tabletop (warm grey table, white objects, a red-orange cause). Camera: an operator chasing the cause.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+const TLd = window.TL, DUR = TLd.dur, FPS = 30, VO = TLd.vo;
+const {clamp, lerp, sstep, ssstep, seg, spring} = OM, E = Object.assign({}, OM.ease, {cubicIn: u => u * u * u, quadIn: u => u * u});
+const C = LOOK.color, ORANGE = C.accent, GREEN = C.accent2, INK = C.ink, MUTE = C.mute, LINE = C.line, DEEP = C.deep;
+const F = (role, px, w) => LOOK.font(role, px, w);
+const wd = (line, w, n = 0) => { const m = VO[line - 1].words.filter(x => x[0].toLowerCase().replace(/[^a-z0-9]/g, '') === w);
+  const x = n < 0 ? m[m.length + n] : m[n]; if (!x) throw new Error(`no "${w}" in VO line ${line}`); return x[1]; };
+
+// ─────────────────────────────── beats ───────────────────────────────
+const T = {
+  DROP: [0.22, 0.55],                                   // the puck falls onto the table
+  RINGS: [wd(1, 'say'), wd(1, 'meeting'), VO[0].end - 0.1],
+  ROLL: [VO[0].end + 0.05, 3.0],                        // the voice marble rolls into the ASR block
+  PRINT: [3.2, 3.75, 4.3],                               // strip A, B, C start printing
+  MAC: wd(2, 'mac') - 0.1,
+  BADGE_DUR: 0.3,
+  SLAM: wd(4, 'pulls'),                                 // the press comes down
+  EJECT: [wd(4, 'decisions') - 0.2, wd(4, 'follow') - 0.2, wd(4, 'ups') - 0.08],
+  THREAD: [wd(5, 'leads'), wd(5, 'back'), wd(5, 'back') + 0.3], THREAD_DUR: 0.5, MOMENT: wd(5, 'moment'),
+  TYPE: wd(6, 'search') - 0.15, ENTER: wd(6, 'brings') + 0.05, HOP: [wd(6, 'brings') + 0.15, wd(6, 'back') + 0.12],
+  SCREEN_IN: wd(6, 'next'), FLIP: wd(6, 'turn'), SLIDE: [wd(6, 'turn') + 0.14, wd(6, 'on', -1) + 0.4],
+  PULL: [VO[6].t - 0.75, VO[6].t + 0.45],
+  NAME: VO[6].t + 0.15, TILES: [wd(7, 'no'), wd(7, 'no', 1), wd(7, 'free')],
+};
+
+// ─────────────────────────────── the belt: a speed profile, integrated once at 240 Hz ───────────────────────────────
+const VKEYS = [[0, 0], [3.2, 0], [3.21, 220], [5.7, 220], [6.2, 330], [8.9, 330], [9.5, 150], [T.SLAM - 0.21, 150], [T.SLAM - 0.11, 0], [T.SLAM + 0.24, 0], [T.SLAM + 0.54, 500], [12.9, 500], [13.3, 0], [DUR, 0]];
+const vAt = t => { for (let i = 1; i < VKEYS.length; i++) if (t <= VKEYS[i][0]) { const [a, va] = VKEYS[i - 1], [b, vb] = VKEYS[i]; return lerp(va, vb, E.smooth(seg(t, a, b))); } return 0; };
+const BELT = (() => { const n = Math.ceil(DUR * 240) + 2, a = new Float64Array(n); let x = 0; for (let i = 1; i < n; i++) { x += vAt((i - 0.5) / 240) / 240; a[i] = x; } return a; })();
+const belt = t => { const f = clamp(t, 0, DUR) * 240, i = Math.floor(f), k = f - i; return lerp(BELT[i], BELT[Math.min(i + 1, BELT.length - 1)], k); };
+
+// ─────────────────────────────── the table (world px; zoom 1 = the 1920 frame) ───────────────────────────────
+const PUCK = [420, 540], BLOCK = {x: 1370, y: 380, w: 280, h: 320}, MOUTH = 1690;
+const LANES = [470, 540, 610], GATE_X = 2800, PRESS = {x: 3740, y: 330, w: 330, h: 470};
+const STRIPS = [   // Design review, as transcribed (seeded segments); who said it; its moment
+  {text: 'I propose Redis for the pub-sub support.', who: 'You', col: ORANGE, ts: '00:00:00'},
+  {text: 'I’ll draft the eviction-policy doc by Thursday.', who: 'You', col: ORANGE, ts: '00:00:26'},
+  {text: 'Please benchmark failover latency before we commit to a cluster.', who: 'Other speaker', col: GREEN, ts: '00:00:38'},
+];
+const CARDS = [   // Qwen3.5's summary of that meeting, with its citations
+  {kind: 'DECISION', text: 'Adopt Redis for the caching layer', owner: '', ts: '00:00:00', x: 3230, y: 1060, strip: 0},
+  {kind: 'ACTION', text: 'Draft the eviction-policy document by Thursday', owner: 'You', ts: '00:00:26', x: 3790, y: 1060, strip: 1},
+  {kind: 'ACTION', text: 'Benchmark failover latency before cluster mode', owner: 'Other speaker', ts: '00:00:38', x: 4350, y: 1060, strip: 2},
+];
+const CW = 520, CH = 168;
+const SEARCH = {x: 3560, y: 1370, w: 760, h: 96}, TRAY = {x: 2990, y: 1560, w: 1340, h: 250};
+const SLOT = [{x: 3040, y: 1600}, {x: 3620, y: 1600}];          // screen card left, action card right: "next to"
+const SCREEN0 = {x: 2440, y: 1600}, GATE2 = {x: 2975, y: 1560}, LEVER = [2760, 1440];
+const TW = 22;                                                // tile gap
+
+// strip geometry: its left end rides the belt from the mouth
+const stripX = (i, t) => MOUTH + 16 + belt(t) - belt(T.PRINT[i]);
+let TILES = [];                                               // measured: per strip [{s, dx, w}], total width
+const stripW = i => TILES[i].w;
+
+// ─────────────────────────────── camera: an operator, chasing ───────────────────────────────
+const KEYS = [
+  {t: 0, x: 560, y: 560, zoom: 1.28},
+  {t: T.ROLL[0], x: 560, y: 560, zoom: 1.28},
+  {t: T.ROLL[1] + 0.1, x: 1560, y: 540, zoom: 1.08, curve: E.sineInOut},
+  {t: 5.5, x: 2050, y: 545, zoom: 0.92, curve: E.sineInOut},
+  {t: 7.25, x: 2620, y: 545, zoom: 0.98, curve: E.expoInOut},
+  {t: 8.9, x: 2860, y: 545, zoom: 0.98, curve: E.sineInOut},
+  {t: 10.0, x: 3620, y: 600, zoom: 0.86, curve: E.expoInOut},
+  {t: T.SLAM + 0.3, x: 3850, y: 760, zoom: 0.88, curve: E.sineInOut},
+  {t: 13.1, x: 4050, y: 850, zoom: 1.02, curve: E.sineInOut},
+  {t: 16.7, x: 4070, y: 850, zoom: 1.02},
+  {t: 17.4, x: 3430, y: 1470, zoom: 0.95, curve: E.expoInOut},
+  {t: T.SLIDE[1] + 0.2, x: 3470, y: 1490, zoom: 0.95, curve: E.sineInOut},
+  {t: T.PULL[0], x: 3470, y: 1490, zoom: 0.95},
+  {t: T.PULL[1], x: 2760, y: 1640, zoom: 0.335, curve: E.expoInOut},
+];
+const HITS = [[T.DROP[1], 7, 9], [T.ROLL[1], 5, 10], [T.SLAM, 9, 8], [T.EJECT[0] + 0.3, 3, 10], [T.EJECT[2] + 0.3, 3, 10]];
+const handEnv = t => sstep(T.ROLL[0], T.ROLL[0] + 0.5, t) * (1 - sstep(16.5, 16.9, t)) + sstep(17.4, 17.8, t) * (1 - sstep(T.PULL[0] - 0.4, T.PULL[0], t));
+function camAt(t) {
+  const c = OM.camera(t, KEYS), e = handEnv(t) * 3.2;
+  let x = c.x + e * (Math.sin(1.7 * t) + 0.6 * Math.sin(2.9 * t + 1)) / c.zoom, y = c.y + e * (Math.sin(1.3 * t + 2) + 0.5 * Math.sin(3.3 * t)) / c.zoom, rot = c.rot;
+  for (const [th, amp, decay] of HITS) { const s = OM.shake(t, th, {amp, decay, seed: Math.round(th * 100)}); x += s.x / c.zoom; y += s.y / c.zoom; rot += s.rot * 0.3; }
+  return {x, y, zoom: c.zoom, rot};
+}
+
+// ─────────────────────────────── canvas helpers ───────────────────────────────
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+let DPR = 1, CAM, VIEW;
+const mat = M => g.setTransform(M[0] * DPR, M[1] * DPR, M[2] * DPR, M[3] * DPR, M[4] * DPR, M[5] * DPR);
+const screen = () => g.setTransform(DPR, 0, 0, DPR, 0, 0);
+function rr(x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function txt(s, x, y, f, col, align = 'left', base = 'alphabetic') { g.font = f; g.fillStyle = col; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
+// an object's height is its shadow: blur and offset in world px, scaled to device px (canvas shadows ignore the transform)
+function lift(h, a = 0.18) { const s = CAM.zoom * DPR; g.shadowColor = `rgba(40,32,20,${a})`; g.shadowBlur = Math.min(h * 1.6 * s, 160 * DPR); g.shadowOffsetY = Math.min(h * 0.7 * s, 60 * DPR); g.shadowOffsetX = Math.min(h * 0.25 * s, 20 * DPR); }
+const flat = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetX = 0; g.shadowOffsetY = 0; };
+function block(x, y, w, h, r, h3, fill = '#ffffff') { lift(h3); g.fillStyle = fill; rr(x, y, w, h, r); g.fill(); flat(); g.strokeStyle = 'rgba(40,32,20,0.10)'; g.lineWidth = 1.2 / Math.min(1, CAM.zoom); g.stroke(); }
+const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+
+// ─────────────────────────────── the table ───────────────────────────────
+function table(t) {
+  screen(); g.fillStyle = C.ground; g.fillRect(0, 0, 1920, 1080);
+  const L = OM.lattice(CAM, {depth: 1.2, spacing: 60, px: 1.5}); mat(L.matrix); g.fillStyle = '#e2ddd3';
+  for (let y = L.y0; y <= L.y1; y += L.spacing) for (let x = L.x0; x <= L.x1; x += L.spacing) { g.beginPath(); g.arc(x, y, L.r, 0, 7); g.fill(); }
+  mat(VIEW);
+  // grooves carved into the table: puck → block, the three-lane belt, the search groove, the screen lane
+  const groove = (pts, w) => { g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = DEEP; g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y + w / 2 - 1) : g.moveTo(x, y + w / 2 - 1)); g.stroke(); };
+  groove([[PUCK[0] + 60, 540], [BLOCK.x - 6, 540]], 34);
+  // the belt bed and its moving slats
+  g.fillStyle = DEEP; rr(MOUTH - 30, 430, 5300 - MOUTH, 220, 18); g.fill();
+  g.save(); rr(MOUTH - 30, 430, 5300 - MOUTH, 220, 18); g.clip();
+  g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 2; const ph = belt(t) % 48;
+  for (let x = MOUTH - 30 + ph; x < 5300; x += 48) { g.beginPath(); g.moveTo(x, 436); g.lineTo(x, 644); g.stroke(); }
+  g.restore();
+  groove([[SEARCH.x + SEARCH.w / 2, SEARCH.y - 20], [SEARCH.x + SEARCH.w / 2, CARDS[1].y + CH + 30]], 20);
+  groove([[SCREEN0.x + 40, SLOT[0].y + CH / 2], [TRAY.x + 30, SLOT[0].y + CH / 2]], 40);
+  // the results tray, sunk into the table
+  g.fillStyle = DEEP; rr(TRAY.x, TRAY.y, TRAY.w, TRAY.h, 26); g.fill();
+  g.strokeStyle = 'rgba(40,32,20,0.10)'; g.lineWidth = 2; g.stroke();
+  txt('RESULTS', TRAY.x + 24, TRAY.y - 16, F('mono', 22), MUTE);
+}
+
+// ─────────────────────────────── stations ───────────────────────────────
+function puck(t) {
+  if (t < T.DROP[0]) return;
+  const k = E.expoIn(seg(t, ...T.DROP)), im = OM.impact(t, T.DROP[1], {sqx: 0.08, sqy: 0.08}), s = lerp(1.35, 1, k) * (t >= T.DROP[1] ? im.sx : 1);
+  const h = lerp(120, 14, k);
+  g.save(); g.translate(...PUCK); g.scale(s, s); g.globalAlpha = sstep(T.DROP[0], T.DROP[0] + 0.12, t);
+  lift(h, 0.2); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(0, 0, 78, 0, 7); g.fill(); flat();
+  g.strokeStyle = LINE; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 60, 0, 7); g.stroke();
+  const live = t >= T.RINGS[0] && t < T.ROLL[0] + 0.3;
+  g.fillStyle = ORANGE; g.beginPath(); g.arc(0, 0, 20 * (live ? 1 + 0.08 * Math.sin(t * 18) : 1), 0, 7); g.fill();
+  g.restore();
+  // the voice leaves as rings
+  for (const r0 of T.RINGS) { const u = seg(t, r0, r0 + 1.1); if (u <= 0 || u >= 1) continue; g.strokeStyle = hexA(ORANGE, 0.5 * (1 - u)); g.lineWidth = 3; g.beginPath(); g.arc(...PUCK, 90 + 260 * E.quadOut(u), 0, 7); g.stroke(); }
+  txt('meeting audio', PUCK[0], PUCK[1] + 124, F('mono', 20), MUTE, 'center');
+}
+function marble(t) {
+  if (t < T.ROLL[0] || t > T.ROLL[1] + 0.06) return;
+  const k = E.cubicIn(seg(t, ...T.ROLL)) , x = lerp(PUCK[0] + 90, BLOCK.x - 18, k);
+  g.save(); lift(10, 0.25); const gr = g.createRadialGradient(x - 6, 534, 2, x, 540, 20); gr.addColorStop(0, '#ffb39d'); gr.addColorStop(1, ORANGE);
+  g.fillStyle = gr; g.beginPath(); g.arc(x, 540, 20, 0, 7); g.fill(); g.restore(); flat();
+}
+function asrBlock(t) {
+  const im = OM.impact(t, T.ROLL[1], {sqx: 0.06, sqy: 0.08}), B = BLOCK;
+  g.save(); g.translate(B.x + B.w / 2, B.y + B.h / 2); g.scale(im.sx, im.sy); g.translate(-(B.x + B.w / 2), -(B.y + B.h / 2));
+  block(B.x, B.y, B.w, B.h, 26, 40);
+  g.fillStyle = DEEP; rr(B.x - 8, 516, 26, 48, 8); g.fill(); rr(B.x + B.w - 14, 440, 22, 200, 8); g.fill();
+  txt('Qwen3-ASR', B.x + 30, B.y + 70, F('display', 36), INK); txt('1.7B · transcribes', B.x + 30, B.y + 104, F('mono', 20), MUTE);
+  const on = sstep(T.ROLL[1], T.ROLL[1] + 0.15, t), mac = sstep(T.MAC, T.MAC + 0.2, t);
+  g.fillStyle = on ? ORANGE : LINE; g.beginPath(); g.arc(B.x + 44, B.y + B.h - 52, 9, 0, 7); g.fill();
+  txt('on this Mac', B.x + 62, B.y + B.h - 44, F('mono', 20), mac > 0.5 ? INK : MUTE);
+  if (mac > 0) { g.strokeStyle = hexA(ORANGE, mac * (1 - sstep(T.MAC + 1.2, T.MAC + 1.6, t))); g.lineWidth = 2.5; rr(B.x + 22, B.y + B.h - 78, 196, 48, 12); g.stroke(); }
+  g.restore();
+}
+function gate(t) {
+  // two pillars and a bridge over the lanes: the strips stay visible as they pass under it
+  const x = GATE_X - 60; block(x, 320, 120, 104, 20, 60); block(x, 656, 120, 104, 20, 60);
+  let fl = 0; for (let i = 0; i < 3; i++) fl = Math.max(fl, Math.exp(-Math.max(0, t - badgeTime(i)) * 7) * (t >= badgeTime(i) ? 1 : 0));
+  g.fillStyle = `rgba(255,255,255,${0.42 + 0.3 * fl})`; g.fillRect(x + 14, 424, 92, 232);
+  g.fillStyle = fl > 0.02 ? hexA(GREEN, 0.25 + 0.6 * fl) : 'rgba(40,32,20,0.18)'; g.fillRect(x + 58, 424, 4, 232);
+  txt('Nemotron 3', GATE_X, 286, F('display', 34), INK, 'center'); txt('who spoke', GATE_X, 312, F('mono', 18), MUTE, 'center');
+}
+function press(t) {
+  const P = PRESS, down = t >= T.SLAM - 0.08 && t < T.SLAM + 0.35 ? 1 : 0, im = OM.impact(t, T.SLAM, {sqx: 0.05, sqy: 0.07});
+  const h = down ? 6 : 70 * (t < T.SLAM ? 1 - 0.4 * sstep(T.SLAM - 0.5, T.SLAM - 0.08, t) : sstep(T.SLAM + 0.35, T.SLAM + 0.9, t) * 0.9 + 0.1);
+  g.save(); g.translate(P.x + P.w / 2, P.y + P.h / 2); const s = (down ? 0.97 : 1) * (t >= T.SLAM ? im.sx : 1); g.scale(s, s); g.translate(-(P.x + P.w / 2), -(P.y + P.h / 2));
+  block(P.x, P.y, P.w, P.h, 30, h);
+  txt('Qwen3.5', P.x + 34, P.y + 72, F('display', 40), INK); txt('4B · summaries', P.x + 34, P.y + 106, F('mono', 20), MUTE);
+  g.fillStyle = down ? ORANGE : DEEP; rr(P.x + 34, P.y + P.h - 70, P.w - 68, 26, 13); g.fill();
+  g.restore();
+}
+function strip(i, t) {
+  const S = STRIPS[i], t0 = T.PRINT[i]; if (t < t0) return;
+  const x = stripX(i, t), y = LANES[i], Tl = TILES[i];
+  // a badge from the gate once the strip's head has passed it
+  const tBadge = badgeTime(i);
+  const glow = threadGlow(i, t);
+  Tl.tiles.forEach((tile, j) => {
+    const tp = t0 + j * 0.045; if (t < tp) return;
+    const e = OM.popIn(t, tp, {rise: 0, s0: 0.6, ds: 0.4, zeta: 0.6, omega: 26});
+    const X = x + tile.dx, W = tile.w;
+    g.save(); g.globalAlpha = e.op; g.translate(X + W / 2, y); g.scale(e.s, e.s);
+    lift(8, 0.14); g.fillStyle = glow > 0 ? mixC('#ffffff', '#ffe7df', glow) : '#ffffff'; rr(-W / 2, -24, W, 48, 10); g.fill(); flat();
+    txt(tile.s, 0, 9, F('text', 26), INK, 'center'); g.restore();
+  });
+  // the moment label at its head
+  txt(S.ts, x - 14, y + 9, F('mono', 20), glow > 0.2 ? ORANGE : MUTE, 'right');
+  if (t >= tBadge) {
+    const e = OM.popIn(t, tBadge, {rise: 0, s0: 0.5, ds: 0.5, zeta: 0.55, omega: 24});
+    g.font = F('text', 22, 700); const bw = g.measureText(S.who).width + 30;
+    g.save(); g.globalAlpha = e.op; g.translate(x - 136 - bw / 2, y); g.scale(e.s, e.s);
+    lift(6, 0.14); g.fillStyle = S.col; rr(-bw / 2, -22, bw, 44, 22); g.fill(); flat(); txt(S.who, 0, 8, F('text', 22, 700), '#ffffff', 'center'); g.restore();
+  }
+}
+function badgeTime(i) { // when the strip's head passes the gate (belt is monotonic: bisect)
+  const target = GATE_X + 62 - MOUTH - 16 + belt(T.PRINT[i]); let lo = T.PRINT[i], hi = DUR; for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; belt(m) < target ? lo = m : hi = m; } return hi;
+}
+function card(c, i, t) {
+  const te = T.EJECT[i]; if (t < te) return;
+  // it shoots out of the press and lands where it lives; the search later hops the Thursday card into the tray
+  const P0 = {x: PRESS.x + PRESS.w / 2 - CW / 2, y: PRESS.y + PRESS.h - CH}, P1 = {x: c.x, y: c.y};
+  let pos = OM.hop(t, te, te + 0.42, P0, P1, {height: 90}), h = 10 + 60 * Math.sin(Math.PI * seg(t, te, te + 0.42));
+  if (i === 1 && t >= T.HOP[0]) { pos = OM.hop(t, ...T.HOP, P1, SLOT[1], {height: 160}); h = 10 + 90 * Math.sin(Math.PI * seg(t, ...T.HOP)); }
+  const land = OM.impact(t, i === 1 && t >= T.HOP[1] ? T.HOP[1] : te + 0.42, {sqx: 0.05, sqy: 0.06});
+  const hit = searchHit(i, t);
+  g.save(); g.translate(pos.x + CW / 2, pos.y + CH / 2); g.scale(land.sx, land.sy); g.translate(-CW / 2, -CH / 2);
+  lift(h, 0.18); g.fillStyle = '#ffffff'; rr(0, 0, CW, CH, 18); g.fill(); flat();
+  if (hit > 0) { g.strokeStyle = hexA(ORANGE, hit); g.lineWidth = 4; rr(-2, -2, CW + 4, CH + 4, 20); g.stroke(); }
+  txt(c.kind, 26, 40, F('mono', 20), c.kind === 'ACTION' ? ORANGE : INK);
+  wrapTxt(c.text, 26, 78, CW - 52, F('text', 27, 600), INK, 34);
+  if (c.owner) txt(c.owner, 26, CH - 22, F('text', 20), MUTE);
+  const cx = CW - 26; g.font = F('mono', 20); const cw = g.measureText(c.ts).width + 26;
+  const gl = threadGlow(c.strip, t);
+  g.strokeStyle = ORANGE; g.lineWidth = 2; g.fillStyle = gl > 0 ? hexA(ORANGE, 0.14 * gl) : 'transparent'; rr(cx - cw, CH - 46, cw, 32, 16); g.fill(); g.stroke();
+  txt(c.ts, cx - cw / 2, CH - 23, F('mono', 20), ORANGE, 'center');
+  g.restore();
+}
+function wrapTxt(s, x, y, maxW, f, col, lh) { g.font = f; let line = '', yy = y; for (const w of s.split(' ')) { const n = line ? line + ' ' + w : w; if (g.measureText(n).width > maxW && line) { txt(line, x, yy, f, col); line = w; yy += lh; } else line = n; } if (line) txt(line, x, yy, f, col); }
+function chipPos(c, i) { return [c.x + CW - 26 - 60, c.y + CH - 30]; }
+function threadGlow(stripIdx, t) { const i = CARDS.findIndex(c => c.strip === stripIdx), t0 = T.THREAD[i] + T.THREAD_DUR; if (t < t0) return 0; return Math.min(1, spring(t - t0, 0.6, 16)) * (1 - sstep(16.9, 17.4, t)) + (t > T.MOMENT && t < 16.9 ? 0.25 * Math.exp(-(t - T.MOMENT) * 3) : 0); }
+function threads(t) {
+  CARDS.forEach((c, i) => {
+    const t0 = T.THREAD[i]; if (t < t0 || t > 17.4) return;
+    const [ax, ay] = chipPos(c, i), sx = stripX(c.strip, t) - 60, sy = LANES[c.strip] + 30;
+    const k = E.expoOut(seg(t, t0, t0 + T.THREAD_DUR)), a = 1 - sstep(16.9, 17.4, t);
+    const cx1 = ax, cy1 = ay - 260, cx2 = sx - 120, cy2 = sy + 240;
+    g.save(); g.globalAlpha = a; g.strokeStyle = ORANGE; g.lineWidth = 3.5; g.lineCap = 'round';
+    g.beginPath(); const N = 40; for (let j = 0; j <= N * k; j++) { const u = j / N, v = 1 - u;
+      const x = v * v * v * ax + 3 * v * v * u * cx1 + 3 * v * u * u * cx2 + u * u * u * sx, y = v * v * v * ay + 3 * v * v * u * cy1 + 3 * v * u * u * cy2 + u * u * u * sy; j ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.stroke(); g.restore();
+  });
+}
+function searchSlab(t) {
+  const S = SEARCH; block(S.x, S.y, S.w, S.h, 24, 30);
+  g.strokeStyle = ORANGE; g.lineWidth = 4; g.beginPath(); g.arc(S.x + 50, S.y + 46, 16, 0, 7); g.stroke(); g.beginPath(); g.moveTo(S.x + 62, S.y + 58); g.lineTo(S.x + 74, S.y + 70); g.stroke();
+  const ty = OM.typeOn(t, T.TYPE, 'Thursday', {cps: 14});
+  txt(ty.str || 'Search', S.x + 96, S.y + 62, F('text', 40, ty.str ? 600 : 400), ty.str ? INK : '#b7b1a6');
+  if (t > T.TYPE && t < T.ENTER + 0.3) { g.font = F('text', 40, 600); if (ty.caret) { g.fillStyle = ORANGE; g.fillRect(S.x + 98 + g.measureText(ty.str).width, S.y + 26, 3, 44); } }
+  const p = OM.press(t, T.ENTER, {depth: 0.14}); g.save(); g.translate(S.x + S.w - 70, S.y + 48); g.scale(p.s, p.s);
+  lift(p.down ? 2 : 10, 0.2); g.fillStyle = p.active ? ORANGE : '#ffffff'; rr(-44, -30, 88, 60, 14); g.fill(); flat(); g.strokeStyle = LINE; g.lineWidth = 2; g.stroke();
+  txt('↩', 0, 12, F('text', 34, 600), p.active ? '#ffffff' : INK, 'center'); g.restore();
+  // the enter pulse runs down the groove to the cards
+  const u = seg(t, T.ENTER, T.HOP[0]); if (u > 0 && u < 1) { const y = lerp(S.y - 20, CARDS[1].y + CH + 30, E.quadIn(u)); g.fillStyle = ORANGE; g.beginPath(); g.arc(S.x + S.w / 2, y, 10, 0, 7); g.fill(); }
+}
+function searchHit(i, t) { return i === 1 ? sstep(T.HOP[0] - 0.1, T.HOP[0], t) * (1 - sstep(T.PULL[0], T.PULL[0] + 0.3, t) * 0.0) : 0; }
+function screenCard(t) {
+  // waits behind the gate, grey, until the lever lets it in
+  const on = clamp(spring(t - T.FLIP, 0.6, 20), -0.05, 1.08), open = E.expoOut(seg(t, T.FLIP + 0.05, T.FLIP + 0.3));
+  const x = lerp(SCREEN0.x, SLOT[0].x, E.cubicInOut(seg(t, ...T.SLIDE))), y = SCREEN0.y;
+  const vis = sstep(T.SCREEN_IN - 0.4, T.SCREEN_IN, t);
+  if (vis > 0) {
+    g.save(); g.globalAlpha = vis; lift(10, 0.16); g.fillStyle = '#ffffff'; rr(x, y, CW, CH, 18); g.fill(); flat();
+    const live = sstep(T.FLIP, T.FLIP + 0.3, t);
+    g.strokeStyle = live > 0.5 ? INK : '#a8a296'; g.lineWidth = 2.5; rr(x + 26, y + 20, 30, 22, 4); g.stroke(); g.beginPath(); g.moveTo(x + 26, y + 28); g.lineTo(x + 56, y + 28); g.stroke();
+    txt('SCREEN TEXT · Slack', x + 70, y + 40, F('mono', 20), live > 0.5 ? ORANGE : '#a8a296');
+    wrapTxt('Redis failover benchmark is booked for Thursday with the search team’s load harness.', x + 26, y + 80, CW - 52, F('text', 25, 500), live > 0.5 ? INK : '#a8a296', 32);
+    g.globalAlpha = vis * (1 - live) * 0.35; g.fillStyle = C.ground; rr(x, y, CW, CH, 18); g.fill();
+    g.restore();
+  }
+  // the gate bar lifts
+  g.save(); lift(20 + 40 * open, 0.2); g.fillStyle = mixC('#d9d3c8', '#ffffff', open); rr(GATE2.x - 16, GATE2.y + 10 - 170 * open, 32, TRAY.h - 20, 12); g.fill(); flat(); g.restore();
+  // the lever
+  const [lx, ly] = LEVER; txt('Save screen text', lx - 20, ly - 70, F('mono', 22), on > 0.5 ? INK : MUTE, 'center');
+  g.fillStyle = DEEP; rr(lx - 90, ly - 34, 140, 68, 34); g.fill();
+  g.save(); lift(14, 0.22); g.fillStyle = on > 0.5 ? ORANGE : '#ffffff'; g.beginPath(); g.arc(lx - 56 + 72 * on, ly, 28, 0, 7); g.fill(); flat(); g.restore();
+}
+function mixC(a, b, k) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], k))).join(',')})`; }
+
+// ─────────────────────────────── the name drops onto the table ───────────────────────────────
+const NAME_AT = [2760, 2360], NAME_PX = 440;
+let NAME_W = 0;
+const TILE_TXT = ['No bot in the call', 'No account', 'Free and open source'];
+function nameOnTable(t) {
+  if (t < T.NAME) return;
+  g.font = F('display', NAME_PX); g.letterSpacing = LOOK.track('display', NAME_PX); let x = NAME_AT[0] - NAME_W / 2;
+  [...'LokalBot'].forEach((ch, i) => { const d = OM.letterDrop(t, T.NAME, i, {stagger: 0.05, dist: 260}); const w = g.measureText(ch).width;
+    if (d.op > 0) { g.save(); g.globalAlpha = d.op; g.translate(x + w / 2, NAME_AT[1] + d.y); g.scale(d.sx, d.sy); lift(60 * (1 - d.k) + 16, 0.2); g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(ch, 0, 0); flat(); g.restore(); } x += w; });
+  g.letterSpacing = '0px';
+  g.font = F('text', 84, 600); const ws = TILE_TXT.map(s => g.measureText(s).width + 110), gap = 70, tot = ws.reduce((a, b) => a + b, 0) + gap * 2;
+  let tx = NAME_AT[0] - tot / 2;
+  TILE_TXT.forEach((s, i) => { const t0 = T.TILES[i]; const w = ws[i]; if (t >= t0) { const e = OM.popIn(t, t0, {rise: 0, s0: 1.25, ds: -0.25, zeta: 0.5, omega: 20});
+    g.save(); g.globalAlpha = e.op; g.translate(tx + w / 2, NAME_AT[1] + 290); g.scale(e.s, e.s); lift(40 * (e.s - 1) * 4 + 14, 0.18);
+    g.fillStyle = i === 2 ? ORANGE : '#ffffff'; rr(-w / 2, -76, w, 152, 76); g.fill(); flat(); txt(s, 0, 29, F('text', 84, 600), i === 2 ? '#ffffff' : INK, 'center'); g.restore(); }
+    tx += w + gap; });
+}
+
+// ─────────────────────────────── seek ───────────────────────────────
+function seek(t) {
+  CAM = camAt(t); VIEW = OM.view(CAM);
+  table(t);
+  puck(t); marble(t); asrBlock(t);
+  for (let i = 0; i < 3; i++) strip(i, t);
+  gate(t); press(t);
+  threads(t);
+  searchSlab(t); screenCard(t);
+  CARDS.forEach((c, i) => card(c, i, t));
+  nameOnTable(t);
+  document.getElementById('hud').textContent = 't=' + t.toFixed(3) + '  belt=' + belt(t).toFixed(0) + '  z=' + CAM.zoom.toFixed(2);
+  return Promise.resolve();
+}
+
+// ─────────────────────────────── contract ───────────────────────────────
+window.__meta = {dur: DUR, fps: FPS, w: 1920, h: 1080, inFrame: {block: [T.ROLL[1], 5.2], press: [T.SLAM - 0.3, T.SLAM + 0.6], tray: [T.SLIDE[1], T.PULL[0]], mark: [T.NAME + 0.8, DUR, 'whole']}};
+function boxes(t) {
+  const V = OM.view(camAt(t)), P = b => OM.projectBox(V, b), o = {};
+  if (t >= T.DROP[0]) o.puck = P({x: PUCK[0] - 78, y: PUCK[1] - 78, w: 156, h: 156});
+  if (t >= T.ROLL[0] && t <= T.ROLL[1]) { const k = E.cubicIn(seg(t, ...T.ROLL)), x = lerp(PUCK[0] + 90, BLOCK.x - 18, k); o.marble = P({x: x - 20, y: 520, w: 40, h: 40}); }
+  o.block = P(BLOCK);
+  for (let i = 0; i < 3; i++) if (t >= T.PRINT[i]) o['strip' + i] = P({x: stripX(i, t), y: LANES[i] - 24, w: stripW(i), h: 48});
+  o.press = P(PRESS);
+  CARDS.forEach((c, i) => { if (t >= T.EJECT[i]) { let pos = OM.hop(t, T.EJECT[i], T.EJECT[i] + 0.42, {x: PRESS.x + PRESS.w / 2 - CW / 2, y: PRESS.y + PRESS.h - CH}, c, {height: 90}); if (i === 1 && t >= T.HOP[0]) pos = OM.hop(t, ...T.HOP, c, SLOT[1], {height: 160}); o['card' + i] = P({x: pos.x, y: pos.y, w: CW, h: CH}); } });
+  o.tray = P(TRAY);
+  if (t >= T.NAME + 0.8) o.mark = P({x: NAME_AT[0] - NAME_W / 2, y: NAME_AT[1] - NAME_PX * 0.75, w: NAME_W, h: NAME_PX * 0.8});
+  return o;
+}
+window.__track = t => { const b = boxes(t), o = {}; for (const [k, v] of Object.entries(b)) o[k] = {x: v.x, y: v.y, w: v.w, h: v.h, op: 1}; return o; };
+window.__motion = (t0, t1) => {
+  let d = OM.screenTravel(camAt(t0), camAt(t1), camAt((t0 + t1) / 2)); const A = boxes(t0), B = boxes(t1);
+  for (const k of Object.keys(A)) if (B[k]) d = Math.max(d, Math.abs(A[k].x - B[k].x) + Math.abs(A[k].w - B[k].w), Math.abs(A[k].y - B[k].y) + Math.abs(A[k].h - B[k].h));
+  return d;
+};
+window.__curves = () => { const hz = 240, n = Math.ceil(DUR * hz), v = []; for (let i = 0; i < n; i++) v.push(+(vAt(i / hz) / 500).toFixed(4)); return {hz, belt: v}; };
+window.__events = () => {
+  const ev = [], at = (t, kind, wx = 960, v = 1) => { const c = camAt(t), x = OM.project(OM.view(c), wx, 540)[0]; ev.push({t: +t.toFixed(3), kind, pan: clamp((x - 960) / 960, -1, 1), v}); };
+  at(T.DROP[1], 'thud', PUCK[0]); T.RINGS.forEach((r, i) => at(r, 'ring', PUCK[0], 0.6 - i * 0.12)); at(T.ROLL[0], 'roll', PUCK[0]); at(T.ROLL[1], 'hit', BLOCK.x);
+  T.PRINT.forEach((p, i) => TILES[i].tiles.forEach((_, j) => { if (j % 2 === 0) at(p + j * 0.045, 'type', MOUTH + 200, 0.5 + 0.5 * ((j * 7) % 3) / 2); }));
+  at(T.MAC, 'lamp', BLOCK.x + 100); for (let i = 0; i < 3; i++) at(badgeTime(i), 'badge', GATE_X, 1 - i * 0.15);
+  at(T.SLAM, 'slam', PRESS.x); T.EJECT.forEach((e, i) => { at(e, 'eject', PRESS.x); at(e + 0.42, 'land', CARDS[i].x, 0.8); });
+  T.THREAD.forEach((th, i) => { at(th, 'thread', CARDS[i].x); at(th + T.THREAD_DUR, 'arrive', 4300, 0.6 + i * 0.1); });
+  for (let i = 0; i < 8; i++) at(T.TYPE + i / 14, 'key', SEARCH.x + 200 + i * 40, 0.6 + 0.4 * ((i * 5) % 3) / 2);
+  at(T.ENTER, 'enter', SEARCH.x + SEARCH.w - 70); at(T.HOP[0], 'hop', CARDS[1].x); at(T.HOP[1], 'land', SLOT[1].x, 1);
+  at(T.FLIP, 'lever', LEVER[0]); at(T.FLIP + 0.06, 'gate', GATE2.x); at(T.SLIDE[0], 'slide', SCREEN0.x); at(T.SLIDE[1] - 0.35, 'land', SLOT[0].x, 0.9);
+  at(T.PULL[0], 'pull'); for (let i = 0; i < 8; i++) at(T.NAME + i * 0.05 + 0.12, 'letter', 2760, 0.5 + 0.5 * (i % 2)); T.TILES.forEach((tt, i) => at(tt + 0.1, 'tile', 2760, 0.8 + 0.1 * i));
+  return {T, events: ev.sort((a, b) => a.t - b.t)};
+};
+
+// ─────────────────────────────── ready ───────────────────────────────
+function measure() {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.font = F('text', 26);
+  TILES = STRIPS.map(S => { let dx = 0; const tiles = S.text.split(' ').map(s => { const w = g.measureText(s).width + 26; const o = {s, dx, w}; dx += w + 8; return o; }); return {tiles, w: dx - 8}; });
+  g.font = F('display', NAME_PX); g.letterSpacing = LOOK.track('display', NAME_PX); NAME_W = g.measureText('LokalBot').width; g.letterSpacing = '0px';
+}
+window.__ready = Promise.all([LOOK.ready, document.fonts.ready]).then(() => { DPR = window.devicePixelRatio || 1; cv.width = 1920 * DPR; cv.height = 1080 * DPR; measure(); return seek(0); });
+window.__seek = async t => { await seek(t); return true; };
+const q = new URLSearchParams(location.search);
+if (q.has('hud')) document.getElementById('hud').style.display = 'block';
+if (q.has('t')) __ready.then(() => seek(parseFloat(q.get('t'))));
+if (q.has('play')) __ready.then(() => { const t0 = performance.now(); (function loop() { seek(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+{
+  "name": "lokalbot-dusk",
+  "from": "dusk (cases/one-dot-15s), accent set to LokalBot teal, accent2 a warm amber for screen text",
+  "mood": "night ground, two lit streams: teal for what you hear, amber for what you see",
+  "color": {
+    "ground": "#15131c",
+    "deep": "#08070b",
+    "card": "#1f1c29",
+    "line": "#34313f",
+    "mute": "#8a8698",
+    "ink": "#efece6",
+    "accent": "#2dd4bf",
+    "accent2": "#f5b54a"
+  },
+  "type": {
+    "display": {
+      "face": "Geist",
+      "weight": 600,
+      "tracking": -0.03
+    },
+    "text": {
+      "face": "Inter",
+      "weight": 450,
+      "tracking": -0.01
+    },
+    "mono": {
+      "face": "Geist Mono",
+      "weight": 400,
+      "tracking": 0
+    }
+  }
+}
