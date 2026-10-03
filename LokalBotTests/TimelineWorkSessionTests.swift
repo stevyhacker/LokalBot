@@ -109,6 +109,18 @@ final class TimelineWorkSessionTests: XCTestCase {
             TimelineWorkSession.strippingBrowserChrome("Home / X - Google Chrome - Stevan"),
             "Home / X")
         XCTAssertEqual(
+            TimelineWorkSession.strippingBrowserChrome(
+                "Weekly sync - you@example.com - Gmail - Pinned - High memory usage - 1.0 GB - Google Chrome - Alex"),
+            "Weekly sync - you@example.com - Gmail")
+        XCTAssertEqual(
+            TimelineWorkSession.strippingBrowserChrome(
+                "Meet - Weekly sync - Camera and microphone recording - Google Chrome - Alex"),
+            "Meet - Weekly sync")
+        XCTAssertEqual(
+            TimelineWorkSession.strippingBrowserChrome(
+                "IAM & Admin – Google Cloud console - Part of group Work - Google Chrome - Alex"),
+            "IAM & Admin – Google Cloud console")
+        XCTAssertEqual(
             TimelineWorkSession.strippingBrowserChrome("Meeting notes - draft two"),
             "Meeting notes - draft two",
             "titles without marker segments pass through untouched")

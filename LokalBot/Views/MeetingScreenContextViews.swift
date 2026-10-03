@@ -1,18 +1,20 @@
 import SwiftUI
 
 /// Documents, pages, and windows the user had on screen while the meeting
-/// recorded. Titles only; opening one goes to the retained capture in
-/// Timeline, and play jumps the recording to when it first appeared.
+/// recorded. The thumbnail opens the retained capture in Timeline, the time
+/// plays the recording from when it first appeared, and a page whose address
+/// was captured can be reopened in the browser.
 struct MeetingScreenMaterialsSection: View {
     let context: MeetingScreenContext
     let onPlay: (MeetingScreenContext.Material) -> Void
     let onOpen: (MeetingScreenContext.Material) -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         WorkspaceSection(title: "On Screen During the Meeting", icon: "rectangle.on.rectangle") {
             VStack(spacing: 0) {
                 ForEach(context.materials) { material in
-                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    HStack(alignment: .center, spacing: 12) {
                         Button {
                             onPlay(material)
                         } label: {
@@ -22,34 +24,57 @@ struct MeetingScreenMaterialsSection: View {
                         .buttonStyle(.workspaceLink)
                         .help("Play the recording from when this first appeared")
                         .accessibilityLabel("Play from \(Transcript.stamp(material.firstOffset))")
+                        Button {
+                            onOpen(material)
+                        } label: {
+                            ScreenThumbnailView(snapshotID: material.firstSnapshotID, height: 46)
+                                .frame(width: 74)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Open this capture in Timeline")
+                        .accessibilityLabel("Open capture of \(material.title)")
                         VStack(alignment: .leading, spacing: 2) {
                             Text(material.title)
                                 .lineLimit(2)
                                 .textSelection(.enabled)
-                            Text(detail(material))
+                            Text(Self.detail(material))
                                 .font(.scaled(.callout))
                                 .foregroundStyle(.secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        Button("Open Capture") { onOpen(material) }
-                            .buttonStyle(.workspaceLink)
-                            .accessibilityLabel("Open capture of \(material.title)")
+                        if let url = material.pageURL {
+                            Button("Open Page") { openURL(url) }
+                                .buttonStyle(.workspaceLink)
+                                .help(url.absoluteString)
+                                .accessibilityLabel("Open \(material.title) in the browser")
+                        }
                     }
                     .padding(.vertical, 6)
                     if material.id != context.materials.last?.id { Divider() }
                 }
             }
-            Text("From screen memory on this Mac. Captures follow your screen retention setting.")
+            Text("From screen memory on this Mac. Time on screen is estimated from captures, "
+                + "which follow your screen retention setting.")
                 .font(.scaled(.callout))
                 .foregroundStyle(.secondary)
         }
         .accessibilityIdentifier("meeting.onScreen")
     }
 
-    private func detail(_ material: MeetingScreenContext.Material) -> String {
-        var parts = [material.host ?? material.app]
-        if material.captureCount > 1 { parts.append("returned to \(material.captureCount) times") }
-        return parts.joined(separator: " · ")
+    /// "Gmail · 4 min on screen"; the source is left out when the title
+    /// already names it (an app with one window).
+    static func detail(_ material: MeetingScreenContext.Material) -> String {
+        let source = material.site ?? material.app
+        let minutes = Int((material.secondsOnScreen / 60).rounded())
+        let duration = switch minutes {
+        case ..<1: "under a minute on screen"
+        case ..<60: "\(minutes) min on screen"
+        default: "\(minutes / 60) hr \(minutes % 60) min on screen"
+        }
+        guard source.caseInsensitiveCompare(material.title) != .orderedSame else {
+            return duration.prefix(1).uppercased() + duration.dropFirst()
+        }
+        return "\(source) · \(duration)"
     }
 }
 
@@ -71,12 +96,12 @@ struct MeetingOnScreenNowBar: View {
                     Text("On screen at \(Transcript.stamp(moment.offset))")
                         .font(.scaled(.callout))
                         .foregroundStyle(.secondary)
-                    Text(moment.title)
+                    Text(moment.isCall ? "The call" : moment.title)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
                 Spacer(minLength: 8)
-                Text(moment.app)
+                Text(moment.site ?? moment.app)
                     .font(.scaled(.callout))
                     .foregroundStyle(.secondary)
                 Button("Open Capture") { onOpen(moment) }

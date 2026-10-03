@@ -207,18 +207,22 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         "google chrome", "google chrome beta", "google chrome canary", "chromium",
         "microsoft edge", "brave", "vivaldi", "opera", "arc",
         "mozilla firefox", "firefox",
-        "audio playing", "camera recording", "microphone recording",
-        "high memory usage",
+        "audio playing", "audio muted", "camera recording", "microphone recording",
+        "camera and microphone recording", "high memory usage", "pinned",
+        "bluetooth device connected", "usb device connected",
     ]
+
+    private static func isBrowserChromeSegment(_ segment: String) -> Bool {
+        let lowered = segment.lowercased().trimmingCharacters(in: .whitespaces)
+        // Chrome names the tab group a tab belongs to ("Part of group Work").
+        return browserChromeMarkers.contains(lowered) || lowered.hasPrefix("part of group ")
+    }
 
     static func strippingBrowserChrome(_ title: String) -> String {
         for separator in [" - ", " — "] {
             let parts = title.components(separatedBy: separator)
             guard parts.count > 1 else { continue }
-            let cut = parts.firstIndex {
-                browserChromeMarkers.contains(
-                    $0.lowercased().trimmingCharacters(in: .whitespaces))
-            }
+            let cut = parts.firstIndex(where: isBrowserChromeSegment)
             if let cut, cut > 0 {
                 return parts[..<cut].joined(separator: separator)
             }
