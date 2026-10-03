@@ -314,3 +314,7 @@ In-place signed updates ship via [Sparkle](https://github.com/sparkle-project/Sp
 **Done:** robust two-track recording · live notes and transcript · local transcription and neural diarization · four summary backends with templates and languages · reviewable outcomes with cited evidence · Today and session-based Timeline views · FTS5 and semantic meeting/screen search · synchronized playback and Kokoro TTS · encrypted visual context, saved moments, and contextual privacy · Quick Recall · scheduled exports and fixed-scope routines · Memory Health · Ask · model-role readiness and presets · Agent Mode · independently gated meeting/screen MCP tools · Sparkle updates · dev/prod split · Autocomplete via the opt-in Cotyping engine · opt-in system-wide Dictation.
 
 **Not yet built:** VLM screenshot captions (needs a multimodal model + an mmproj slot in `LlamaServer`).
+
+## Linux and Windows desktop port
+
+`Desktop/` is an independent Rust/GPUI application alongside the native macOS implementation. See [build/run instructions and the port coverage matrix](Desktop/README.md) and [the desktop privacy contract](Desktop/PRIVACY.md). The Rust desktop workflow builds native Linux/Windows archives and runs synthetic service tests; native graphical smoke checks run on hosted/remote Ubuntu. The desktop library is separate and does not migrate the macOS database automatically.
