@@ -7,7 +7,7 @@ on:
     inputs:
       versions:
         description: "Space-separated releases"
-        default: "0.6.2 0.7.2 0.8.5 0.9.0 0.9.1 0.9.2 0.9.3 0.9.4 0.9.5"
+        default: "0.9.5"
   pull_request:
     paths:
       - "Scripts/upgrade-fixtures/**"
@@ -19,12 +19,12 @@ permissions:
 jobs:
   generate:
     name: Fixture ${{ matrix.version }}
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        version: ["0.6.2", "0.7.2", "0.8.5", "0.9.0", "0.9.1", "0.9.2", "0.9.3", "0.9.4", "0.9.5"]
+        version: ["0.9.5"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
