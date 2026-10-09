@@ -1,0 +1,355 @@
+{
+  "skipped": {
+    "modular-gemma4-31b": "No usable OpenRouter route (2026-10-05): ModelRun rejects raw completions, and on Friendli, CoreWeave (fp4) and Parasail (fp8) the instruct model continues raw text as gibberish, even with an explicit <bos>."
+  },
+  "suites": {
+    "corpus": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3449827508624569,
+        "2WordAccuracy": 0.12047531992687385,
+        "3WordAccuracy": 0.042593025977065296,
+        "coverage": 0.9982000899955003,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 60.696416,
+        "p90Ms": 72.809708,
+        "p95Ms": 79.312041
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.36058197090145494,
+        "2WordAccuracy": 0.14058500914076782,
+        "3WordAccuracy": 0.05640065527732272,
+        "coverage": 0.9461526923653817,
+        "errors": 0,
+        "retries": 9,
+        "p50Ms": 423.783208,
+        "p90Ms": 502.518708,
+        "p95Ms": 556.9205,
+        "approxUSDPer1000Suggestions": 0.011416034948252588,
+        "deltaVsLocalPoints": 1.5599220038998052,
+        "deltaVsLocal95PercentCI": [
+          0.7901013714967203,
+          2.3367285799880166
+        ]
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.37303134843257835,
+        "2WordAccuracy": 0.14881170018281537,
+        "3WordAccuracy": 0.05429440673999532,
+        "coverage": 0.8756562171891406,
+        "errors": 0,
+        "retries": 3,
+        "p50Ms": 234.585958,
+        "p90Ms": 344.30375,
+        "p95Ms": 486.265042,
+        "approxUSDPer1000Suggestions": 0.011416034948252588,
+        "deltaVsLocalPoints": 2.804859757012146,
+        "deltaVsLocal95PercentCI": [
+          1.7593558968242136,
+          3.8496105452366685
+        ]
+      },
+      "coreweave-nemotron3.5-lightning": {
+        "label": "Nemotron 3.5 Lightning on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3590820458977051,
+        "2WordAccuracy": 0.14095063985374773,
+        "3WordAccuracy": 0.057102738123098525,
+        "coverage": 0.9542522873856307,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 264.331334,
+        "p90Ms": 291.553166,
+        "p95Ms": 303.248,
+        "approxUSDPer1000Suggestions": 0.000807194390280486,
+        "deltaVsLocalPoints": 1.4099295035248205,
+        "deltaVsLocal95PercentCI": [
+          0.5540581012279125,
+          2.2493961352657004
+        ]
+      },
+      "together-deepseek-v4.1-flash": {
+        "label": "DeepSeek V4.1 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3482825858707065,
+        "2WordAccuracy": 0.12449725776965265,
+        "3WordAccuracy": 0.0456353849754271,
+        "coverage": 0.9424028798560072,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 242.859666,
+        "p90Ms": 283.119666,
+        "p95Ms": 326.389041,
+        "approxUSDPer1000Suggestions": 0.003459404529773511,
+        "deltaVsLocalPoints": 0.32998350082495964,
+        "deltaVsLocal95PercentCI": [
+          -0.5275056518462697,
+          1.2198795180722892
+        ]
+      },
+      "together-glm-5.3-flash": {
+        "label": "GLM 5.3 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3560821958902055,
+        "2WordAccuracy": 0.13510054844606947,
+        "3WordAccuracy": 0.05289024104844372,
+        "coverage": 0.9527523623818809,
+        "errors": 1,
+        "retries": 163,
+        "p50Ms": 312.713959,
+        "p90Ms": 866.131208,
+        "p95Ms": 1040.675583,
+        "approxUSDPer1000Suggestions": 0.0017297022648867556,
+        "deltaVsLocalPoints": 1.1099445027748622,
+        "deltaVsLocal95PercentCI": [
+          0.25586995785671285,
+          2.0059880239520957
+        ]
+      }
+    },
+    "challenge": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.46629213483146065,
+        "2WordAccuracy": 0.15753424657534246,
+        "3WordAccuracy": 0.05263157894736842,
+        "coverage": 0.9943820224719101,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 53.514917,
+        "p90Ms": 78.787334,
+        "p95Ms": 91.8605
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.4157303370786517,
+        "2WordAccuracy": 0.1232876712328767,
+        "3WordAccuracy": 0.03508771929824561,
+        "coverage": 0.9101123595505618,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 456.848416,
+        "p90Ms": 539.244042,
+        "p95Ms": 617.70825,
+        "approxUSDPer1000Suggestions": 0.11693123595505617,
+        "deltaVsLocalPoints": -5.056179775280895,
+        "deltaVsLocal95PercentCI": [
+          -11.1731843575419,
+          1.1235955056179776
+        ]
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.5112359550561798,
+        "2WordAccuracy": 0.17123287671232876,
+        "3WordAccuracy": 0.07017543859649122,
+        "coverage": 0.949438202247191,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 236.210292,
+        "p90Ms": 337.901792,
+        "p95Ms": 420.631875,
+        "approxUSDPer1000Suggestions": 0.11693123595505617,
+        "deltaVsLocalPoints": 4.494382022471916,
+        "deltaVsLocal95PercentCI": [
+          -1.1494252873563218,
+          10.326086956521738
+        ]
+      },
+      "coreweave-nemotron3.5-lightning": {
+        "label": "Nemotron 3.5 Lightning on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.46629213483146065,
+        "2WordAccuracy": 0.19863013698630136,
+        "3WordAccuracy": 0.08771929824561403,
+        "coverage": 0.949438202247191,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 258.884875,
+        "p90Ms": 299.611708,
+        "p95Ms": 318.952375,
+        "approxUSDPer1000Suggestions": 0.008267865168539326,
+        "deltaVsLocalPoints": 0.0,
+        "deltaVsLocal95PercentCI": [
+          -5.056179775280899,
+          5.056179775280899
+        ]
+      },
+      "together-deepseek-v4.1-flash": {
+        "label": "DeepSeek V4.1 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.449438202247191,
+        "2WordAccuracy": 0.17123287671232876,
+        "3WordAccuracy": 0.07894736842105263,
+        "coverage": 0.9438202247191011,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 239.855791,
+        "p90Ms": 278.103375,
+        "p95Ms": 299.289458,
+        "approxUSDPer1000Suggestions": 0.035433707865168536,
+        "deltaVsLocalPoints": -1.6853932584269649,
+        "deltaVsLocal95PercentCI": [
+          -6.741573033707865,
+          3.4482758620689653
+        ]
+      },
+      "together-glm-5.3-flash": {
+        "label": "GLM 5.3 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.42134831460674155,
+        "2WordAccuracy": 0.17123287671232876,
+        "3WordAccuracy": 0.07017543859649122,
+        "coverage": 0.9325842696629213,
+        "errors": 0,
+        "retries": 1,
+        "p50Ms": 359.726333,
+        "p90Ms": 736.713084,
+        "p95Ms": 937.66375,
+        "approxUSDPer1000Suggestions": 0.017716853932584268,
+        "deltaVsLocalPoints": -4.49438202247191,
+        "deltaVsLocal95PercentCI": [
+          -9.770114942528735,
+          1.1235955056179776
+        ]
+      }
+    },
+    "midword": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.7209908735332464,
+        "2WordAccuracy": 0.2421602787456446,
+        "3WordAccuracy": 0.10398230088495575,
+        "coverage": 1.0,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 55.253,
+        "p90Ms": 70.330959,
+        "p95Ms": 77.375583
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.258148631029987,
+        "2WordAccuracy": 0.1132404181184669,
+        "3WordAccuracy": 0.05088495575221239,
+        "coverage": 0.29986962190352023,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 467.396459,
+        "p90Ms": 563.821542,
+        "p95Ms": 618.441958,
+        "approxUSDPer1000Suggestions": 0.012806108213820078,
+        "deltaVsLocalPoints": -46.28422425032595,
+        "deltaVsLocal95PercentCI": [
+          -52.03562340966921,
+          -40.130718954248366
+        ]
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.7066492829204694,
+        "2WordAccuracy": 0.22996515679442509,
+        "3WordAccuracy": 0.09513274336283185,
+        "coverage": 0.9713168187744459,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 234.165625,
+        "p90Ms": 340.382583,
+        "p95Ms": 462.21025,
+        "approxUSDPer1000Suggestions": 0.012806108213820078,
+        "deltaVsLocalPoints": -1.4341590612777066,
+        "deltaVsLocal95PercentCI": [
+          -6.597671410090556,
+          3.9348710990502034
+        ]
+      },
+      "coreweave-nemotron3.5-lightning": {
+        "label": "Nemotron 3.5 Lightning on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.2711864406779661,
+        "2WordAccuracy": 0.12020905923344948,
+        "3WordAccuracy": 0.059734513274336286,
+        "coverage": 0.3076923076923077,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 272.271125,
+        "p90Ms": 299.576833,
+        "p95Ms": 314.938083,
+        "approxUSDPer1000Suggestions": 0.0009054823989569753,
+        "deltaVsLocalPoints": -44.98044328552803,
+        "deltaVsLocal95PercentCI": [
+          -51.03092783505155,
+          -38.40877914951989
+        ]
+      },
+      "together-deepseek-v4.1-flash": {
+        "label": "DeepSeek V4.1 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.196870925684485,
+        "2WordAccuracy": 0.07665505226480836,
+        "3WordAccuracy": 0.02654867256637168,
+        "coverage": 0.24902216427640156,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 249.390875,
+        "p90Ms": 296.85575,
+        "p95Ms": 317.714292,
+        "approxUSDPer1000Suggestions": 0.0038806388526727506,
+        "deltaVsLocalPoints": -52.41199478487615,
+        "deltaVsLocal95PercentCI": [
+          -56.827048114434334,
+          -47.88732394366197
+        ]
+      },
+      "together-glm-5.3-flash": {
+        "label": "GLM 5.3 Flash on Together (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.22816166883963493,
+        "2WordAccuracy": 0.08710801393728224,
+        "3WordAccuracy": 0.04424778761061947,
+        "coverage": 0.27640156453715775,
+        "errors": 0,
+        "retries": 10,
+        "p50Ms": 487.138291,
+        "p90Ms": 1028.512083,
+        "p95Ms": 1210.018541,
+        "approxUSDPer1000Suggestions": 0.0019403194263363753,
+        "deltaVsLocalPoints": -49.282920469361144,
+        "deltaVsLocal95PercentCI": [
+          -53.625,
+          -44.62809917355372
+        ]
+      }
+    }
+  }
+}

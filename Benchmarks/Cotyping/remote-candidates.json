@@ -1,0 +1,110 @@
+{
+  "selection": "Fastest hosted endpoints with raw /v1/completions and a large quality step over the local model, from OpenRouter's per-provider stats (30-minute window, 2026-10-05). OpenRouter latency is time to first token at OpenRouter, across all of its traffic.",
+  "local": {
+    "id": "local-gemma4-e2b-base",
+    "label": "Gemma 4 E2B Base, local (production default)"
+  },
+  "remote": [
+    {
+      "id": "cerebras-qwen3.8-27b",
+      "label": "Qwen3.8 27B on Cerebras",
+      "baseURL": "https://api.cerebras.ai/v1",
+      "model": "qwen-3.8-27b",
+      "apiKeyEnv": "CEREBRAS_API_KEY",
+      "extraBody": {},
+      "openRouterModel": "qwen/qwen3.8-27b",
+      "openRouterProvider": "coreweave",
+      "openRouterLabel": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+      "openRouterNote": "Cerebras's raw completions reject the reasoning_effort field OpenRouter adds for this model (2026-10-05), so OpenRouter runs use CoreWeave: the same model in fp8, measuring quality but not Cerebras's speed.",
+      "openRouter": {"p50FirstTokenMs": 127, "p90FirstTokenMs": 331, "tokensPerSecond": 706, "usdPerMillionInput": 0.99, "usdPerMillionOutput": 1.49}
+    },
+    {
+      "id": "cerebras-qwen3.8-27b-chat",
+      "label": "Qwen3.8 27B on Cerebras, chat",
+      "baseURL": "https://api.cerebras.ai/v1",
+      "model": "qwen-3.8-27b",
+      "apiKeyEnv": "CEREBRAS_API_KEY",
+      "extraBody": {"reasoning_effort": "none"},
+      "openRouterExtraBody": {},
+      "chat": true,
+      "openRouterModel": "qwen/qwen3.8-27b",
+      "openRouterProvider": "cerebras",
+      "openRouterLabel": "Qwen3.8 27B on Cerebras, chat (via OpenRouter)",
+      "openRouterNote": "Special route (2026-10-06): Cerebras rejects OpenRouter's raw completions for this model, so this asks through chat instead, with the app's autocomplete instruction and thinking off. A different way of asking from the raw-continuation candidates.",
+      "openRouter": {"p50FirstTokenMs": 127, "p90FirstTokenMs": 331, "tokensPerSecond": 706, "usdPerMillionInput": 0.99, "usdPerMillionOutput": 1.49}
+    },
+    {
+      "id": "cerebras-gemma4-31b-chat",
+      "label": "Gemma 4 31B on Cerebras, chat",
+      "baseURL": "https://api.cerebras.ai/v1",
+      "model": "gemma-4-31b",
+      "apiKeyEnv": "CEREBRAS_API_KEY",
+      "extraBody": {"reasoning_effort": "none"},
+      "chat": true,
+      "openRouterModel": "google/gemma-4-31b-it",
+      "openRouterProvider": null,
+      "openRouterNote": "Direct API only: OpenRouter does not route Gemma 4 31B to Cerebras, and its raw-completion hosts continue raw text as gibberish. On 2026-10-06 Cerebras answered 404 model_archived for it."
+    },
+    {
+      "id": "cerebras-gpt-oss-120b-chat",
+      "label": "gpt-oss-120b on Cerebras, chat (low reasoning)",
+      "baseURL": "https://api.cerebras.ai/v1",
+      "model": "gpt-oss-120b",
+      "apiKeyEnv": "CEREBRAS_API_KEY",
+      "extraBody": {"reasoning_effort": "low", "max_tokens": 256},
+      "chat": true,
+      "openRouterModel": "openai/gpt-oss-120b",
+      "openRouterProvider": null,
+      "openRouterNote": "Direct API only here: not on the OpenRouter key's allowed list. Reasoning cannot be turned off, so the reply budget is raised to fit a low-effort reasoning pass.",
+      "openRouter": {"p50FirstTokenMs": 234, "p90FirstTokenMs": 864, "tokensPerSecond": 667, "usdPerMillionInput": 0.35, "usdPerMillionOutput": 0.75}
+    },
+    {
+      "id": "modular-gemma4-31b",
+      "label": "Gemma 4 31B on Modular (ModelRun)",
+      "baseURL": "https://api.modular.com/v1",
+      "model": "google/gemma-4-31b-it",
+      "apiKeyEnv": "MODULAR_API_KEY",
+      "extraBody": {"top_k": 20, "repetition_penalty": 1.05},
+      "openRouterModel": "google/gemma-4-31b-it",
+      "openRouterProvider": null,
+      "openRouterNote": "No usable OpenRouter route (2026-10-05): ModelRun rejects raw completions, and on Friendli, CoreWeave (fp4) and Parasail (fp8) the instruct model continues raw text as gibberish, even with an explicit <bos>.",
+      "openRouter": {"p50FirstTokenMs": 89, "p90FirstTokenMs": 270, "tokensPerSecond": 61, "usdPerMillionInput": 0.75, "usdPerMillionOutput": 1.0}
+    },
+    {
+      "id": "coreweave-nemotron3.5-lightning",
+      "label": "Nemotron 3.5 Lightning on CoreWeave",
+      "baseURL": "https://api.inference.wandb.ai/v1",
+      "model": "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B",
+      "apiKeyEnv": "COREWEAVE_API_KEY",
+      "extraBody": {"top_k": 20, "repetition_penalty": 1.05},
+      "openRouterModel": "nvidia/nemotron-3.5-lightning",
+      "openRouterProvider": "coreweave",
+      "openRouter": {"p50FirstTokenMs": 260, "p90FirstTokenMs": 360, "tokensPerSecond": 254, "usdPerMillionInput": 0.07, "usdPerMillionOutput": 0.2}
+    },
+    {
+      "id": "together-deepseek-v4.1-flash",
+      "label": "DeepSeek V4.1 Flash on Together",
+      "baseURL": "https://api-inference.together.ai/v1",
+      "model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "apiKeyEnv": "TOGETHER_API_KEY",
+      "extraBody": {"top_k": 20, "min_p": 0.08, "repetition_penalty": 1.05},
+      "openRouterModel": "deepseek/deepseek-v4.1-flash",
+      "openRouterProvider": "together",
+      "openRouterLabel": "DeepSeek V4.1 Flash on Together (via OpenRouter)",
+      "openRouter": {"p50FirstTokenMs": 275, "p90FirstTokenMs": 1191, "tokensPerSecond": 232, "usdPerMillionInput": 0.30, "usdPerMillionOutput": 1.20}
+    },
+    {
+      "id": "together-glm-5.3-flash",
+      "label": "GLM 5.3 Flash on Together",
+      "baseURL": "https://api-inference.together.ai/v1",
+      "model": "zai-org/GLM-5.3-Flash",
+      "apiKeyEnv": "TOGETHER_API_KEY",
+      "extraBody": {"top_k": 20, "min_p": 0.08, "repetition_penalty": 1.05},
+      "openRouterModel": "z-ai/glm-5.3-flash",
+      "openRouterProvider": "together",
+      "openRouterLabel": "GLM 5.3 Flash on Together (via OpenRouter)",
+      "openRouterNote": "Reasoning is mandatory in chat, but raw completions continue the text directly. Fireworks returned empty text, so OpenRouter runs use Together.",
+      "openRouter": {"p50FirstTokenMs": 761, "p90FirstTokenMs": 1448, "tokensPerSecond": 54, "usdPerMillionInput": 0.15, "usdPerMillionOutput": 0.50}
+    }
+  ]
+}

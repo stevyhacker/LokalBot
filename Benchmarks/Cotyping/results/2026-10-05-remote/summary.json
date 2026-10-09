@@ -1,0 +1,119 @@
+{
+  "skipped": {
+    "modular-gemma4-31b": "No usable OpenRouter route (2026-10-05): ModelRun rejects raw completions, and on Friendli and CoreWeave the instruct model continues raw text as gibberish, even with an explicit <bos>"
+  },
+  "suites": {
+    "corpus": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 1168,
+        "accuracy": 0.3202054794520548,
+        "2WordAccuracy": 0.11899791231732777,
+        "3WordAccuracy": 0.04946524064171123,
+        "coverage": 0.9991438356164384,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 60.559375,
+        "p90Ms": 77.678125,
+        "p95Ms": 85.873084
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 1168,
+        "accuracy": 0.351027397260274,
+        "2WordAccuracy": 0.14509394572025053,
+        "3WordAccuracy": 0.06550802139037433,
+        "coverage": 0.9477739726027398,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 396.798583,
+        "p90Ms": 447.107917,
+        "p95Ms": 468.82375,
+        "approxUSDPer1000Suggestions": 0.011573803510273971,
+        "deltaVsLocalPoints": 3.082191780821919,
+        "deltaVsLocal95PercentCI": [
+          1.288659793814433,
+          4.957264957264957
+        ]
+      },
+      "coreweave-nemotron3.5-lightning": {
+        "label": "Nemotron 3.5 Lightning on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 1168,
+        "accuracy": 0.3476027397260274,
+        "2WordAccuracy": 0.14509394572025053,
+        "3WordAccuracy": 0.06417112299465241,
+        "coverage": 0.958904109589041,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 270.315167,
+        "p90Ms": 315.487375,
+        "p95Ms": 396.746292,
+        "approxUSDPer1000Suggestions": 0.000818349743150685,
+        "deltaVsLocalPoints": 2.73972602739726,
+        "deltaVsLocal95PercentCI": [
+          0.7698887938408896,
+          4.786324786324786
+        ]
+      }
+    },
+    "challenge": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.46629213483146065,
+        "2WordAccuracy": 0.15753424657534246,
+        "3WordAccuracy": 0.05263157894736842,
+        "coverage": 0.9943820224719101,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 54.675209,
+        "p90Ms": 82.008042,
+        "p95Ms": 96.27075
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.42696629213483145,
+        "2WordAccuracy": 0.1232876712328767,
+        "3WordAccuracy": 0.043859649122807015,
+        "coverage": 0.9101123595505618,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 422.812291,
+        "p90Ms": 463.944458,
+        "p95Ms": 478.856583,
+        "approxUSDPer1000Suggestions": 0.11693123595505617,
+        "deltaVsLocalPoints": -3.93258426966292,
+        "deltaVsLocal95PercentCI": [
+          -10.227272727272727,
+          1.829268292682927
+        ]
+      },
+      "coreweave-nemotron3.5-lightning": {
+        "label": "Nemotron 3.5 Lightning on CoreWeave (via OpenRouter)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.4606741573033708,
+        "2WordAccuracy": 0.19863013698630136,
+        "3WordAccuracy": 0.08771929824561403,
+        "coverage": 0.9438202247191011,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 278.299,
+        "p90Ms": 308.5855,
+        "p95Ms": 351.626625,
+        "approxUSDPer1000Suggestions": 0.008267865168539326,
+        "deltaVsLocalPoints": -0.5617977528089846,
+        "deltaVsLocal95PercentCI": [
+          -5.945945945945946,
+          4.761904761904762
+        ]
+      }
+    }
+  }
+}

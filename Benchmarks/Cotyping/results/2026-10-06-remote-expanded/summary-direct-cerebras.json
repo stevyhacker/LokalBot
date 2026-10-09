@@ -1,0 +1,233 @@
+{
+  "skipped": {},
+  "suites": {
+    "corpus": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3449827508624569,
+        "2WordAccuracy": 0.12047531992687385,
+        "3WordAccuracy": 0.042593025977065296,
+        "coverage": 0.9982000899955003,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 60.696416,
+        "p90Ms": 72.809708,
+        "p95Ms": 79.312041
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on Cerebras",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.3583320833958302,
+        "2WordAccuracy": 0.13912248628884827,
+        "3WordAccuracy": 0.05663468289258133,
+        "coverage": 0.9463026848657567,
+        "errors": 0,
+        "retries": 2,
+        "p50Ms": 209.584,
+        "p90Ms": 314.31275,
+        "p95Ms": 426.271417,
+        "approxUSDPer1000Suggestions": 0.011416034948252588,
+        "deltaVsLocalPoints": 1.3349332533373337,
+        "deltaVsLocal95PercentCI": [
+          0.5345959981670995,
+          2.1178225205070844
+        ]
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.37213139343032847,
+        "2WordAccuracy": 0.14753199268738573,
+        "3WordAccuracy": 0.052422185817926514,
+        "coverage": 0.8765561721913905,
+        "errors": 0,
+        "retries": 2,
+        "p50Ms": 211.902292,
+        "p90Ms": 320.961541,
+        "p95Ms": 416.522167,
+        "approxUSDPer1000Suggestions": 0.011416034948252588,
+        "deltaVsLocalPoints": 2.714864256787158,
+        "deltaVsLocal95PercentCI": [
+          1.6791604197901049,
+          3.777810960131402
+        ]
+      },
+      "cerebras-gpt-oss-120b-chat": {
+        "label": "gpt-oss-120b on Cerebras, chat (low reasoning)",
+        "returncode": 0,
+        "checkpoints": 6667,
+        "accuracy": 0.288135593220339,
+        "2WordAccuracy": 0.10127970749542961,
+        "3WordAccuracy": 0.038380528902410484,
+        "coverage": 0.9982000899955003,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 238.103625,
+        "p90Ms": 364.03425,
+        "p95Ms": 480.105,
+        "approxUSDPer1000Suggestions": 0.004035971951402429,
+        "deltaVsLocalPoints": -5.68471576421179,
+        "deltaVsLocal95PercentCI": [
+          -6.767935027823733,
+          -4.5718540580789275
+        ]
+      }
+    },
+    "challenge": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.46629213483146065,
+        "2WordAccuracy": 0.15753424657534246,
+        "3WordAccuracy": 0.05263157894736842,
+        "coverage": 0.9943820224719101,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 53.514917,
+        "p90Ms": 78.787334,
+        "p95Ms": 91.8605
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on Cerebras",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.4550561797752809,
+        "2WordAccuracy": 0.15753424657534246,
+        "3WordAccuracy": 0.07017543859649122,
+        "coverage": 0.9325842696629213,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 216.381292,
+        "p90Ms": 378.563209,
+        "p95Ms": 474.320125,
+        "approxUSDPer1000Suggestions": 0.11693123595505617,
+        "deltaVsLocalPoints": -1.1235955056179747,
+        "deltaVsLocal95PercentCI": [
+          -7.514450867052023,
+          5.202312138728324
+        ]
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.5056179775280899,
+        "2WordAccuracy": 0.15753424657534246,
+        "3WordAccuracy": 0.06140350877192982,
+        "coverage": 0.9550561797752809,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 221.745083,
+        "p90Ms": 369.492625,
+        "p95Ms": 519.012625,
+        "approxUSDPer1000Suggestions": 0.11693123595505617,
+        "deltaVsLocalPoints": 3.932584269662925,
+        "deltaVsLocal95PercentCI": [
+          -1.1695906432748537,
+          9.18918918918919
+        ]
+      },
+      "cerebras-gpt-oss-120b-chat": {
+        "label": "gpt-oss-120b on Cerebras, chat (low reasoning)",
+        "returncode": 0,
+        "checkpoints": 178,
+        "accuracy": 0.33146067415730335,
+        "2WordAccuracy": 0.1643835616438356,
+        "3WordAccuracy": 0.07017543859649122,
+        "coverage": 0.9887640449438202,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 237.023417,
+        "p90Ms": 362.354917,
+        "p95Ms": 522.54425,
+        "approxUSDPer1000Suggestions": 0.04133932584269662,
+        "deltaVsLocalPoints": -13.48314606741573,
+        "deltaVsLocal95PercentCI": [
+          -19.35483870967742,
+          -8.092485549132949
+        ]
+      }
+    },
+    "midword": {
+      "local-gemma4-e2b-base": {
+        "label": "Gemma 4 E2B Base, local (production default)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.7209908735332464,
+        "2WordAccuracy": 0.2421602787456446,
+        "3WordAccuracy": 0.10398230088495575,
+        "coverage": 1.0,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 55.253,
+        "p90Ms": 70.330959,
+        "p95Ms": 77.375583
+      },
+      "cerebras-qwen3.8-27b-chat": {
+        "label": "Qwen3.8 27B on Cerebras, chat",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.7066492829204694,
+        "2WordAccuracy": 0.23170731707317074,
+        "3WordAccuracy": 0.09513274336283185,
+        "coverage": 0.9687092568448501,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 212.030708,
+        "p90Ms": 354.124625,
+        "p95Ms": 494.511417,
+        "approxUSDPer1000Suggestions": 0.012806108213820078,
+        "deltaVsLocalPoints": -1.4341590612777066,
+        "deltaVsLocal95PercentCI": [
+          -6.532663316582915,
+          4.016064257028113
+        ]
+      },
+      "cerebras-qwen3.8-27b": {
+        "label": "Qwen3.8 27B on Cerebras",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.258148631029987,
+        "2WordAccuracy": 0.10975609756097561,
+        "3WordAccuracy": 0.05088495575221239,
+        "coverage": 0.29986962190352023,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 217.92,
+        "p90Ms": 372.84475,
+        "p95Ms": 509.527583,
+        "approxUSDPer1000Suggestions": 0.012806108213820078,
+        "deltaVsLocalPoints": -46.28422425032595,
+        "deltaVsLocal95PercentCI": [
+          -52.03145478374836,
+          -40.17094017094017
+        ]
+      },
+      "cerebras-gpt-oss-120b-chat": {
+        "label": "gpt-oss-120b on Cerebras, chat (low reasoning)",
+        "returncode": 0,
+        "checkpoints": 767,
+        "accuracy": 0.47196870925684486,
+        "2WordAccuracy": 0.156794425087108,
+        "3WordAccuracy": 0.07079646017699115,
+        "coverage": 0.9960886571056062,
+        "errors": 0,
+        "retries": 0,
+        "p50Ms": 237.521417,
+        "p90Ms": 354.667875,
+        "p95Ms": 480.829667,
+        "approxUSDPer1000Suggestions": 0.004527411994784875,
+        "deltaVsLocalPoints": -24.902216427640155,
+        "deltaVsLocal95PercentCI": [
+          -29.40414507772021,
+          -20.320197044334975
+        ]
+      }
+    }
+  }
+}

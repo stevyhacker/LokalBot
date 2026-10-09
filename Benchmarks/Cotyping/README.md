@@ -72,6 +72,76 @@ on the original engine, providing a regression control for paragraph and caret
 whitespace preservation. Python tools use only the standard library; `-S`
 avoids loading unrelated site startup hooks.
 
+## Hosted model comparison
+
+`remote_comparison.py` asks whether a hosted model would beat the local one by
+enough to justify its latency. It runs the quality replay above once per
+engine over identical checkpoints: the local model, then each candidate in
+`remote-candidates.json`. Hosted engines get the same production prompt,
+normalizer and scorer through the app's HTTP completion engine and raw
+`/v1/completions`; only the generation backend differs. These runs send the
+corpus's synthetic prompts to the providers. Nothing from a real library is read.
+
+The candidates were picked from OpenRouter's per-provider latency stats but are
+called through each provider's own API: Qwen3.8 27B on Cerebras, Gemma 4 31B on
+Modular and Nemotron 3.5 Lightning on CoreWeave. Copy
+`remote-autocomplete.env.example` outside the repository, fill in the keys and
+`chmod 600` it. Each key reaches only its own provider's replay, as
+`LOKALBOT_REPLAY_API_KEY`, and is never put on a command line.
+
+```sh
+uv run --no-project python -S Benchmarks/Cotyping/remote_comparison.py \
+  --app /absolute/path/to/Release/LokalBot.app/Contents/MacOS/LokalBot \
+  --local-model "$HOME/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf" \
+  --corpus /absolute/path/to/phrase-prediction-1337.json \
+  --env-file ~/.config/lokalbot/remote-autocomplete.env \
+  --output /absolute/path/to/new-results
+```
+
+With only an OpenRouter key, add `--via-openrouter`: each candidate then goes
+through OpenRouter's raw completions with the same model, pinned to the same
+provider with fallbacks off and prompt-retaining providers excluded. This adds
+OpenRouter's own hop to every request, so its latency reads somewhat high
+next to a direct call. Two routes differ (checked 2026-10-05): OpenRouter adds a
+`reasoning_effort` field for Qwen3.8 27B that Cerebras's raw completions reject,
+so that model runs on CoreWeave instead, which measures its quality but not
+Cerebras's speed; and Gemma 4 31B has no usable route, because ModelRun has no
+raw completions and the other hosts continue raw text as gibberish.
+`openRouterProvider`, `openRouterLabel` and `openRouterNote` in
+`remote-candidates.json` record this.
+
+The default sample is 30 held-out phrases per category (about 1,200
+checkpoints) plus the 32-scenario `quality-cases.json`. `--per-category 0`
+runs the whole held-out split (6,667 checkpoints), and `--midword-per-category
+10` adds mid-word completion on a separate sample, where hosted output must
+re-type the healed word fragment. Add `--per-category 1 --skip-challenge` for a
+smoke run, and `--only <id>` to run some candidates.
+The hosted replays run side by side after the local one. A hosted replay
+first sends one untimed request, so a wrong key, model ID or rejected field
+stops it before any case. A rate limit or server error is retried up to five
+times and only the answering attempt is timed; `retries` counts the extra
+attempts. Hosted requests carry only the OpenAI sampling fields (temperature,
+`top_p`, seed, stop); `extraBody` adds a provider's own fields such as `top_k`.
+
+Hosted replays use the local engine's token healing. Every word checkpoint ends
+in a space, and a model forced to continue after a bare space tokenizes badly:
+Gemma 4 E2B served by a loopback llama-server scored 14.3% instead of 37.0% on
+the same weights. The hosted prompt is therefore sent cut back to the word
+boundary, and only output that re-types the cut text counts; anything else is
+suppressed, because a hosted API cannot be constrained to that prefix. With
+healing, the loopback server matched the in-process engine (37.0% vs 37.0% on
+119 corpus checkpoints, 46.1% vs 46.6% on the 32 scenarios).
+
+`REPORT.md` lists next-word, two- and three-word accuracy, the paired change
+against the local model with its bootstrap interval, errors, retries, latency
+percentiles and a rough input cost per 1,000 suggestions. Local latency is warm
+in-process generation; hosted latency is the full HTTPS request from this Mac.
+Neither includes debounce, Accessibility reads or drawing, which add the same
+to both.
+
+The replay can also be run directly with `quality_replay.py --completions-url
+<base> --completions-model <id> --api-key-env <NAME>` in place of `--model`.
+
 ## Saved-memory replay
 
 `memory-cases.json` contains only synthetic saved facts and draft checkpoints.

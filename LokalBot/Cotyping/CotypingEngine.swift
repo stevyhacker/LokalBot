@@ -140,13 +140,20 @@ final class CotypingEngine: CotypingCompleting {
     /// built-in llama-server with the selected model on first use.
     private let makeEngine: () async throws -> TextEngine
     private let stopRuntime: () async -> Void
+    /// Applies the in-process engine's token healing over plain HTTP: the prompt
+    /// is sent cut back to the word boundary, and only output that re-types the
+    /// cut text counts. A server cannot be constrained to that prefix, so other
+    /// output is suppressed. Off for llama-server, whose prompt stays byte-for-byte.
+    private let healsCaretBoundary: Bool
 
     init(
         makeEngine: @escaping () async throws -> TextEngine,
-        stopRuntime: @escaping () async -> Void = {}
+        stopRuntime: @escaping () async -> Void = {},
+        healsCaretBoundary: Bool = false
     ) {
         self.makeEngine = makeEngine
         self.stopRuntime = stopRuntime
+        self.healsCaretBoundary = healsCaretBoundary
     }
 
     /// The resolved `TextEngine` is intentionally short-lived, but its
@@ -158,33 +165,49 @@ final class CotypingEngine: CotypingCompleting {
 
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
         let engine = try await makeEngine()
-        let completion = CompletionRequest(
-            prompt: request.prompt,
-            maxTokens: request.maxTokens,
-            temperature: request.temperature,
-            topP: request.topP,
-            topK: request.topK,
-            minP: request.minP,
-            repeatPenalty: request.repeatPenalty,
-            seed: request.seed,
-            // Single-line mode stops the server at the first newline; the
-            // normalizer still collapses defensively.
-            stop: request.isMultiLine ? [] : ["\n"])
+        let (completion, requiredPrefix) = completionRequest(for: request)
         let raw = try await engine.complete(completion)
-        return CotypingTextNormalizer.normalizeDetailed(raw, for: request)
+        return Self.normalize(raw, requiredPrefix: requiredPrefix, for: request)
     }
 
     func generateStreaming(_ request: CotypingRequest,
                            onPartial: @escaping @Sendable (CotypingNormalizationResult) -> Void) async throws -> CotypingNormalizationResult {
         let engine = try await makeEngine()
+        let (completion, requiredPrefix) = completionRequest(for: request)
+        let raw = try await engine.completeStreaming(completion) { cumulative in
+            // Nothing is shown until the healed boundary has been re-typed.
+            guard cumulative.count > requiredPrefix.count || requiredPrefix.isEmpty else { return }
+            onPartial(Self.normalize(cumulative, requiredPrefix: requiredPrefix, for: request))
+        }
+        return Self.normalize(raw, requiredPrefix: requiredPrefix, for: request)
+    }
+
+    private func completionRequest(for request: CotypingRequest) -> (CompletionRequest, requiredPrefix: String) {
+        var prompt = request.prompt
+        var requiredPrefix = ""
+        if healsCaretBoundary {
+            let healed = LocalLlamaCotypingEngine.healedGeneration(for: request)
+            prompt = healed.prompt
+            requiredPrefix = String(decoding: healed.requiredPrefixUTF8, as: UTF8.self)
+        }
+        // A space joins the first word's token; a cut word fragment needs a few more.
+        let healingTokens = requiredPrefix.allSatisfy(\.isWhitespace) ? 0 : 4
         let completion = CompletionRequest(
-            prompt: request.prompt, maxTokens: request.maxTokens, temperature: request.temperature,
+            prompt: prompt, maxTokens: request.maxTokens + healingTokens, temperature: request.temperature,
             topP: request.topP, topK: request.topK, minP: request.minP,
             repeatPenalty: request.repeatPenalty, seed: request.seed,
+            // Single-line mode stops the server at the first newline; the
+            // normalizer still collapses defensively.
             stop: request.isMultiLine ? [] : ["\n"])
-        let raw = try await engine.completeStreaming(completion) { cumulative in
-            onPartial(CotypingTextNormalizer.normalizeDetailed(cumulative, for: request))
+        return (completion, requiredPrefix)
+    }
+
+    nonisolated static func normalize(_ raw: String, requiredPrefix: String,
+                                      for request: CotypingRequest) -> CotypingNormalizationResult {
+        guard !requiredPrefix.isEmpty else { return CotypingTextNormalizer.normalizeDetailed(raw, for: request) }
+        guard raw.hasPrefix(requiredPrefix) else {
+            return CotypingNormalizationResult(text: "", suppression: raw.isEmpty ? .emptyGeneration : .wordCompletionMismatch)
         }
-        return CotypingTextNormalizer.normalizeDetailed(raw, for: request)
+        return CotypingTextNormalizer.normalizeDetailed(String(raw.dropFirst(requiredPrefix.count)), for: request)
     }
 }
