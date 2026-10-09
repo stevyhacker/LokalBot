@@ -110,6 +110,42 @@ final class CotypingVisualCaretTests: XCTestCase {
             whole.maxX, accuracy: 0.01)
     }
 
+    /// The 2026-10-09 report from Viber: after "Ima i dalje preklapanja te"
+    /// the ghost "lefonskih brojeva, ali" began a letter or two early, over
+    /// "te". Recognition had returned the line without its short last word,
+    /// which still matched well enough, and the caret was put at the end of
+    /// what was recognized.
+    func testALineWithoutItsLastWordPutsTheCaretAfterThatWord() throws {
+        let typed = "Ima i dalje preklapanja te"
+        let recognized = line("Ima i dalje preklapanja", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: typed, fieldFrame: field))
+        let font = NSFont.systemFont(ofSize: found.pointSize)
+        XCTAssertEqual(found.caretX, recognized.maxX + CotypingInlineGhostLayout.width(of: " te", font: font),
+                       accuracy: 0.01)
+
+        // Recognition split the row in two: the longer piece sizes the font.
+        let start = line("Ima i dalje preklapanja", baseline: 375)
+        let end = line("te", minX: start.maxX + CotypingInlineGhostLayout.width(of: " ", font: .systemFont(ofSize: 14)),
+                       baseline: 375)
+        let split = try XCTUnwrap(Locator.locate(lines: [end, start], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(split.caretX, end.maxX, accuracy: 0.5)
+        XCTAssertEqual(split.pointSize, 14, accuracy: 0.05)
+
+        // Unseen words that would pass the end of the line went to the next one.
+        let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
+        XCTAssertNil(Locator.locate(
+            lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay then", fieldFrame: narrow))
+    }
+
+    /// Fast recognition often drops accents, as on Serbian text.
+    func testAccentsDoNotStopAMatch() throws {
+        let recognized = line("Vidimo se sutra, hvala sto", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [recognized], precedingText: "Vidimo se sutra, hvala što", fieldFrame: field))
+        XCTAssertEqual(found.caretX, recognized.maxX, accuracy: 0.01)
+        XCTAssertEqual(Locator.normalized("  Šta  ćeš\u{00A0}raditi “Đoko” — "), "sta ces raditi \"đoko\" -")
+    }
+
     /// The field's right text edge is only estimated, so a word typed close
     /// to it may already be on the next line. Following the caret along the
     /// line put the ghost on the line above, and its wrapped words on the

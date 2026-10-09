@@ -51,9 +51,11 @@ nonisolated enum CotypingVisualCaretLocator {
     /// Recognition found no line shorter than this (one to three typed
     /// characters were never found, measured 2026-10-05).
     static let minimumLineCharacters = 3
-    /// Letters of the last word that a capture may lack: it can be a frame
-    /// behind the typing, and recognition can miss a final full stop.
-    static let maximumMissingCharacters = 3
+    /// Characters at the end of the typed text that a recognized line may
+    /// lack: the capture can be a frame behind the typing, and recognition
+    /// can miss a final full stop or a short last word (in Viber, " te" after
+    /// "Ima i dalje preklapanja", 2026-10-09).
+    static let maximumMissingCharacters = 8
     /// After this many finds in a row came back empty, the field is treated
     /// as one whose caret cannot be found on screen.
     static let maximumFailedFinds = 3
@@ -77,9 +79,10 @@ nonisolated enum CotypingVisualCaretLocator {
     static func locate(lines: [RecognizedLine], precedingText: String, fieldFrame: CGRect) -> Calibration? {
         let (typed, core, trailingSpaces) = caretLine(of: precedingText)
         guard typed.count >= minimumLineCharacters else { return nil }
-        // Only letters of the last word may be missing, and never all of it.
-        let lastWordLength = core.reversed().prefix { !$0.isWhitespace }.count
-        let missingRange = 0...max(0, min(maximumMissingCharacters, lastWordLength - 1))
+        // The end of a recognized line is aligned with the typed text: where
+        // the two match best is where the line ends, and the typed text past
+        // that point is drawn but was not recognized.
+        let missingRange = 0...max(0, min(maximumMissingCharacters, typed.count - minimumLineCharacters))
 
         var best: (line: RecognizedLine, score: Double, missing: Int)?
         for line in lines {
@@ -94,11 +97,7 @@ nonisolated enum CotypingVisualCaretLocator {
                 if score > (lineBest?.score ?? -1) { lineBest = (score, missing) }
             }
             guard let lineBest, lineBest.score >= minimumSimilarity else { continue }
-            // The best match wins; between equals, the lowest line, which is
-            // where a paragraph's last line is drawn.
-            if let current = best,
-               lineBest.score < current.score
-                || (lineBest.score == current.score && line.box.minY >= current.line.box.minY) {
+            if let current = best, !isBetter(line, score: lineBest.score, than: current.line, score: current.score) {
                 continue
             }
             best = (line, lineBest.score, lineBest.missing)
@@ -109,18 +108,40 @@ nonisolated enum CotypingVisualCaretLocator {
         let font = NSFont.systemFont(ofSize: pointSize)
         let inset = max(line.minX - fieldFrame.minX, 0)
         // What the capture lacks is drawn after the line's last letter.
-        let unseen = String(core.suffix(best.missing)) + String(repeating: " ", count: trailingSpaces)
+        let typedCharacters = normalizedCharacters(of: core)
+        let unseenStart = best.missing > 0 ? typedCharacters[typedCharacters.count - best.missing].index : core.endIndex
+        let unseen = String(core[unseenStart...]) + String(repeating: " ", count: trailingSpaces)
+        let caretX = line.maxX + CotypingInlineGhostLayout.width(of: unseen, font: font)
+        let lineMaxX = fieldFrame.maxX - inset
+        // Unseen letters close to where the line wraps may be on the next line.
+        let unseenLetters = unseen.contains { !$0.isWhitespace }
+        guard caretX <= (unseenLetters ? lineMaxX - pointSize : lineMaxX) else { return nil }
         let firstWord = line.text.trimmingCharacters(in: .whitespaces).prefix { !$0.isWhitespace }
         let startsParagraph = normalized(line.text).count + best.missing + 2 >= typed.count
         return Calibration(
             precedingText: precedingText,
-            caretX: line.maxX + CotypingInlineGhostLayout.width(of: unseen, font: font),
+            caretX: caretX,
             baseline: line.baseline ?? line.box.minY - font.descender,
             pointSize: pointSize,
             lineMinX: line.minX,
-            lineMaxX: fieldFrame.maxX - inset,
+            lineMaxX: lineMaxX,
             firstWordEndX: startsParagraph
                 ? nil : line.minX + CotypingInlineGhostLayout.width(of: String(firstWord), font: font))
+    }
+
+    /// The better of two lines that both match the typed text: the closer
+    /// match; between equals, the lowest line, which is where a paragraph's
+    /// last line is drawn, or on one row (recognition can split a line into
+    /// pieces) the longer piece, whose width sizes the font better.
+    private static func isBetter(
+        _ line: RecognizedLine, score: Double, than other: RecognizedLine, score otherScore: Double
+    ) -> Bool {
+        guard score == otherScore else { return score > otherScore }
+        let overlap = min(line.box.maxY, other.box.maxY) - max(line.box.minY, other.box.minY)
+        if overlap > min(line.box.height, other.box.height) / 2 {
+            return line.text.count > other.text.count
+        }
+        return line.box.minY < other.box.minY
     }
 
     /// The caret's x for `precedingText`, moved along the line from where it
@@ -204,19 +225,44 @@ nonisolated enum CotypingVisualCaretLocator {
         return nil
     }
 
-    /// Lowercased, with typographic quotes and dashes plain and whitespace
-    /// runs as one space, so recognition's small liberties do not count.
+    /// Lowercased, without accents, with typographic quotes and dashes plain
+    /// and whitespace runs as one space, so recognition's small liberties do
+    /// not count. Fast recognition often reads "š" as "s".
     static func normalized(_ text: String) -> String {
-        let mapped = text.lowercased().map { character -> Character in
-            switch character {
-            case "\u{2018}", "\u{2019}", "`": "'"
-            case "\u{201C}", "\u{201D}": "\""
-            case "\u{2013}", "\u{2014}": "-"
-            case "\u{00A0}": " "
-            default: character
+        String(normalizedCharacters(of: text).map(\.character))
+    }
+
+    /// `normalized(text)` one character at a time, with where in `text` each
+    /// came from: a run of whitespace from its first character.
+    static func normalizedCharacters(of text: String) -> [(character: Character, index: String.Index)] {
+        var result: [(character: Character, index: String.Index)] = []
+        var pendingSpace: String.Index?
+        var index = text.startIndex
+        while index < text.endIndex {
+            let character = text[index]
+            if character.isWhitespace {
+                if !result.isEmpty, pendingSpace == nil { pendingSpace = index }
+            } else {
+                if let space = pendingSpace {
+                    result.append((" ", space))
+                    pendingSpace = nil
+                }
+                result.append((plain(character), index))
             }
+            index = text.index(after: index)
         }
-        return String(mapped).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        return result
+    }
+
+    private static func plain(_ character: Character) -> Character {
+        switch character {
+        case "\u{2018}", "\u{2019}", "`": return "'"
+        case "\u{201C}", "\u{201D}": return "\""
+        case "\u{2013}", "\u{2014}": return "-"
+        default:
+            let folded = String(character).lowercased().folding(options: .diacriticInsensitive, locale: nil)
+            return folded.count == 1 ? Character(folded) : character
+        }
     }
 
     /// 1 minus the edit distance per character.
