@@ -2,6 +2,7 @@
 import OAuthProvider, { AuthorizationError, CimdFetchError, type OAuthHelpers, type ConsentDescription } from "@cloudflare/workers-oauth-provider";
 import { boundedText, digest, isRecord, isRPC, normalizePairCode, PROTOCOL_VERSIONS, READ_SCOPE, rpcError, secret } from "./protocol.js";
 import type { Pairing } from "./room.js";
+import { publicPage } from "./pages.js";
 export { RelayRoom } from "./room.js";
 
 interface Env {
@@ -11,6 +12,7 @@ interface Env {
   ROOMS: DurableObjectNamespace;
   PAIR_LIMIT: RateLimit;
   AUTH_LIMIT: RateLimit;
+  OPENAI_DOMAIN_CHALLENGE?: string;
 }
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -28,7 +30,8 @@ ${details.redirectIsLoopback ? "<p>Only continue if you just started this connec
 <form method="post" action="/authorize"><input type="hidden" name="handle" value="${escape(handle)}">
 <label>Pairing code from your Mac <input name="code" autocomplete="off" spellcheck="false" maxlength="80" required></label>
 <p><button name="decision" value="approve">Connect this Mac</button> <button name="decision" value="deny" formnovalidate>Cancel</button></p></form>
-<p>Permission: ${READ_SCOPE}. Authorization lasts up to 30 days. You can stop the helper or revoke this pairing at any time. Content already shared remains with the client.</p></main></body></html>`;
+<p>Permission: ${READ_SCOPE}. Authorization lasts up to 30 days. You can stop the helper or revoke this pairing at any time. Content already shared remains with the client.</p>
+<p><a href="/privacy">Connection privacy</a> · <a href="https://www.lokalbot.com/terms">Terms</a> · <a href="https://www.lokalbot.com/support">Support</a></p></main></body></html>`;
 }
 async function issueCode(env: Env, deviceId: string, generation: string) {
   const code = secret(16);
@@ -84,6 +87,13 @@ async function authorize(request: Request, env: Env): Promise<Response> {
 
 const defaultHandler: ExportedHandler<Env> = { async fetch(request, env) {
   const path = new URL(request.url).pathname;
+  if (request.method === "GET") {
+    const page = publicPage(path);
+    if (page) return page;
+    if (path === "/.well-known/openai-apps-challenge" && env.OPENAI_DOMAIN_CHALLENGE) {
+      return new Response(env.OPENAI_DOMAIN_CHALLENGE, { headers: { "Content-Type": "text/plain", "Cache-Control": "no-store" } });
+    }
+  }
   if (path === "/authorize") return authorize(request, env);
   if (path === "/health") return json({ service: "lokalbot-mcp-relay", status: "ok" });
   if (path === "/devices" && request.method === "POST") {

@@ -1,6 +1,6 @@
 # Connect your Mac to LokalBot for ChatGPT
 
-This companion requires Node 22.12+ and a compatible LokalBot app with the interactive MCP pipe-reader fix. Version 0.10.2 was observed timing out during that handshake. Use the release named in the eventual plugin listing, or a helper built from this source for development. The companion is currently a foreground command, not an app login item.
+This companion requires Node 22.12+ and a compatible LokalBot CLI with the interactive MCP pipe-reader fix. Version 0.10.2's embedded helper was observed timing out during that handshake. The separate [signed preview](https://github.com/stevyhacker/LokalBot/releases/tag/chatgpt-plugin-v0.1.0-preview.1) bundles the fixed CLI; follow its README and `lokalbot-connect` commands. The source-build instructions below use the installed helper or an explicit development override. The companion is currently a foreground command, not an app login item.
 
 Your meeting library stays on your Mac. Requested titles, summaries, transcript excerpts, commitments, and people pass through the service operator's Cloudflare relay to ChatGPT. Pair only with the official HTTPS origin shown in the plugin listing. Do not paste pairing codes or credentials into chat, and do not use a code someone sent you.
 

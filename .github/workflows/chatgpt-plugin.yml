@@ -14,6 +14,7 @@ on:
       - '.github/workflows/chatgpt-plugin.yml'
   push:
     branches: [master, dev]
+    tags: ['chatgpt-plugin-v*']
     paths:
       - 'Distribution/chatgpt-plugin/**'
       - 'CLI/**'
@@ -74,3 +75,75 @@ jobs:
       - run: npm run build:test-cli
       - name: Synthetic library integration (no app or UI)
         run: LOKALBOT_TEST_CLI="$PWD/.test-cli/DerivedData/Build/Products/Debug/lokalbot-cli" npm test
+
+  preview:
+    name: Signed companion preview
+    if: startsWith(github.ref, 'refs/tags/chatgpt-plugin-v')
+    needs: [protocol, native-cli]
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.18.0'
+          cache: npm
+          cache-dependency-path: Distribution/chatgpt-plugin/package-lock.json
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: '26.4.1'
+      - run: command -v xcodegen || brew install xcodegen
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Build separate Release helper
+        run: LOKALBOT_CLI_CONFIGURATION=Release npm run build:test-cli
+      - name: Stage preview and verify the packaged native helper
+        run: |
+          version="${GITHUB_REF_NAME#chatgpt-plugin-v}"
+          node scripts/package-preview.mjs --version "$version"
+          test "$(lipo -archs dist/preview/LokalBot-ChatGPT/bin/lokalbot-cli)" = arm64
+          LOKALBOT_TEST_CLI="$PWD/dist/preview/LokalBot-ChatGPT/bin/lokalbot-cli" npm test
+      - name: Sign the built helper with short-lived authority
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+          NOTARY_APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
+        run: bash scripts/sign-preview.sh dist/preview/LokalBot-ChatGPT/bin/lokalbot-cli
+      - name: Create preview disk image
+        run: |
+          hdiutil create -volname 'LokalBot ChatGPT Preview' -srcfolder dist/preview \
+            -format UDZO -ov dist/LokalBot-ChatGPT-preview-arm64.dmg
+      - name: Sign the disk image with short-lived authority
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          KEYCHAIN_PWD: ${{ secrets.KEYCHAIN_PWD }}
+          NOTARY_APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
+        run: bash scripts/sign-preview.sh dist/LokalBot-ChatGPT-preview-arm64.dmg
+      - name: Notarize and staple the preview
+        env:
+          NOTARY_APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          NOTARY_APPLE_TEAM_ID: ${{ secrets.NOTARY_APPLE_TEAM_ID }}
+          NOTARY_APPLE_PWD: ${{ secrets.NOTARY_APPLE_PWD }}
+        run: |
+          xcrun notarytool submit dist/LokalBot-ChatGPT-preview-arm64.dmg \
+            --apple-id "$NOTARY_APPLE_ID" --team-id "$NOTARY_APPLE_TEAM_ID" \
+            --password "$NOTARY_APPLE_PWD" --wait
+          xcrun stapler staple dist/LokalBot-ChatGPT-preview-arm64.dmg
+          xcrun stapler validate dist/LokalBot-ChatGPT-preview-arm64.dmg
+          codesign --verify --strict dist/LokalBot-ChatGPT-preview-arm64.dmg
+          spctl --assess --type open --context context:primary-signature \
+            --verbose=2 dist/LokalBot-ChatGPT-preview-arm64.dmg
+      - name: Publish separate prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          shasum -a 256 LokalBot-ChatGPT-preview-arm64.dmg > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --verify-tag --prerelease --latest=false \
+            --repo "$GITHUB_REPOSITORY" --title 'LokalBot for ChatGPT — preview' \
+            --notes-file ../docs/PREVIEW.md \
+            LokalBot-ChatGPT-preview-arm64.dmg SHA256SUMS preview/LokalBot-ChatGPT/SOURCE.json

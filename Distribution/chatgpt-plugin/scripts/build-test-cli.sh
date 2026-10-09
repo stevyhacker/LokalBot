@@ -5,6 +5,8 @@ set -euo pipefail
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$PLUGIN_ROOT/../.." && pwd)"
 BUILD_ROOT="$PLUGIN_ROOT/.test-cli"
+CLI_CONFIGURATION="${LOKALBOT_CLI_CONFIGURATION:-Debug}"
+case "$CLI_CONFIGURATION" in Debug|Release) ;; *) exit 2 ;; esac
 mkdir -p "$BUILD_ROOT"
 ruby -rjson -ryaml - "$REPO_ROOT" "$BUILD_ROOT" <<'RUBY'
 root, output = ARGV
@@ -28,6 +30,6 @@ File.write(File.join(output, 'project.json'), JSON.pretty_generate(spec))
 RUBY
 xcodegen generate --spec "$BUILD_ROOT/project.json" --project "$BUILD_ROOT"
 xcodebuild -quiet -project "$BUILD_ROOT/LokalBotCLIProbe.xcodeproj" \
-  -scheme CLI -configuration Debug -destination 'platform=macOS' \
+  -scheme CLI -configuration "$CLI_CONFIGURATION" -destination 'platform=macOS' \
   -derivedDataPath "$BUILD_ROOT/DerivedData" CODE_SIGNING_ALLOWED=NO build
-printf '%s\n' "Test helper: $BUILD_ROOT/DerivedData/Build/Products/Debug/lokalbot-cli"
+printf '%s\n' "Test helper: $BUILD_ROOT/DerivedData/Build/Products/$CLI_CONFIGURATION/lokalbot-cli"

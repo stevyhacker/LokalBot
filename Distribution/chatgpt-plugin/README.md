@@ -4,7 +4,7 @@ A public-plugin implementation using [OpenAI MCP Extensions](https://github.com/
 
 Each user pairs their own Mac through OAuth. The library remains on that Mac; requested results travel through a Cloudflare relay to ChatGPT. The companion delegates every library read to `lokalbot-cli mcp`, so LokalBot's meeting-library permission remains authoritative. Screen memory, inference, writes, and Agent Mode are not exposed.
 
-**Development status:** source and build tooling are provided here. No production origin, public listing, or registered ChatGPT ID is configured. The checked-in `.invalid` origin fails closed. Publishing also requires a LokalBot release containing the pipe-reader fix in this change: the installed 0.10.2 helper was observed waiting for a full input buffer during an interactive MCP handshake.
+**Preview status:** the deployment configuration targets `https://mcp.lokalbot.com`. The public listing and registered ChatGPT ID remain pending. The separate [preview companion](docs/PREVIEW.md) bundles the compatible CLI without replacing the installed app: the installed 0.10.2 helper was observed waiting for a full input buffer during an interactive MCP handshake. A configured origin is not proof of a successful deployment; consult the validation record and release artifacts.
 
 ## Build and verify
 
@@ -26,6 +26,7 @@ Build products:
 | `dist/relay.js` | Worker bundle exercised by protocol tests. |
 | `.cloudflare/output/` | `cf build` deployment output. |
 | `dist/public-plugin/` | Created separately after a real deployment passes discovery checks. |
+| `dist/preview/` | Separate Mac companion including the branch-built native CLI, staged by `scripts/package-preview.mjs`. |
 
 On macOS, Xcode and XcodeGen can build only the actual CLI target for an integration check. It uses the repository's source list and ArgumentParser revision, and does not build, launch, sign, or install the app:
 
@@ -37,6 +38,8 @@ LOKALBOT_TEST_CLI="$PWD/.test-cli/DerivedData/Build/Products/Debug/lokalbot-cli"
 This test creates a temporary synthetic library, starts the packaged adapter against it, checks summary/transcript selection, grants access only inside the fixture, then revokes it. Without `LOKALBOT_TEST_CLI`, that one test is explicitly skipped. OAuth tests use the real Workers runtime with synthetic users, and WebSocket tests use loopback listeners. No test reads the installed library or runs a browser.
 
 The [CI workflow](../../.github/workflows/chatgpt-plugin.yml) covers the TypeScript build, Worker build, protocol suite, and native CLI integration. Browser and host rendering checks must run in hosted CI or on a remote runner; they have not been established by these backend checks.
+
+Tags matching `chatgpt-plugin-vX.Y.Z-preview.N` run those checks before building the Release CLI, signing the companion, notarizing and stapling a DMG, and publishing a separate GitHub prerelease. This does not update the stable app or its Sparkle feed. `SOURCE.json` records the exact source commit.
 
 ## Connection and architecture
 

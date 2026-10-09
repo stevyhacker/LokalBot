@@ -19,7 +19,9 @@
         "category": "Productivity",
         "capabilities": ["Interactive", "Read"],
         "websiteURL": "https://www.lokalbot.com",
-        "privacyPolicyURL": "https://github.com/stevyhacker/LokalBot/blob/master/PRIVACY.md",
+        "privacyPolicyURL": "https://mcp.lokalbot.com/privacy",
+        "supportURL": "https://www.lokalbot.com/support",
+        "termsOfServiceURL": "https://www.lokalbot.com/terms",
         "composerIcon": "./assets/icon.svg",
         "logo": "./assets/icon.svg",
         "defaultPrompt": [

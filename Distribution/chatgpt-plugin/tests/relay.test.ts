@@ -102,6 +102,18 @@ test("public MCP discovery requires OAuth and advertises its protected resource"
   const metadata = await (await request(new URL(resource).pathname)).json() as { authorization_servers: string[] };
   assert.deepEqual(metadata.authorization_servers, [ORIGIN]);
 });
+test("public preview pages explain the relay data boundary without granting library access", async () => {
+  for (const route of ["/", "/privacy"]) {
+    const response = await request(route);
+    assert.equal(response.status, 200);
+    assert(response.headers.get("content-security-policy")?.includes("default-src 'none'"));
+    const text = await response.text();
+    assert(text.includes("Cloudflare"));
+    assert(!text.includes("<script"));
+  }
+  assert.equal((await request("/.well-known/openai-apps-challenge")).status, 404);
+  assert.equal((await request("/mcp", { method: "POST" })).status, 401);
+});
 test("OAuth consent is browser-bound and pairing codes cannot be replayed", async () => {
   const device = await pair(); const auth = await begin();
   assert.equal((await approve(auth, device.code, "")).status, 400);

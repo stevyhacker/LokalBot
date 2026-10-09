@@ -5,7 +5,7 @@ Building this project does not deploy the relay, register an OpenAI connection, 
 ## Launch inputs
 
 - Cloudflare account/profile, a stable HTTPS origin owned by the publisher, and authorization to deploy the Worker, KV namespace, Durable Objects, and rate-limit bindings, including their operating costs.
-- A released LokalBot helper containing the interactive stdio fix. The installed 0.10.2 helper failed the live-pipe check; the source-built helper passes. Do not advertise compatibility with the installed version tested here.
+- A released LokalBot helper containing the interactive stdio fix. The standalone preview bundles this helper without requiring a stable-app update. The installed 0.10.2 helper failed the live-pipe check; the source-built helper passes.
 - A stable companion download and update process. The first version needs Node and a foreground process; disclose this in the listing. It is not integrated into LokalBot's settings or login items.
 - Publisher identity, support contact, applicable terms, and a published privacy notice covering Cloudflare transit and OAuth/device metadata. Replace the source manifest's privacy link if the service uses a separate notice. No terms or support endpoint is invented here.
 - A synthetic reviewer Mac/library kept online and a repeatable reviewer pairing procedure. Supply review access through the submission portal, never a real user's library or production device credential.
@@ -13,7 +13,7 @@ Building this project does not deploy the relay, register an OpenAI connection, 
 ## Deploy after approval
 
 1. Select the intended `cf` profile/account using the installed CLI's help. Use `cf` for this project. `cloudflare.config.ts` declares the Worker, Durable Object class, managed KV, and rate-limit bindings.
-2. Replace `PUBLIC_ORIGIN` in that config with the exact origin, without a trailing slash or path. Configure routing/custom domain in the chosen account to serve it. `.invalid` and unexpected hosts fail closed. Keep Cloudflare credentials outside source files and chat.
+2. The preview configuration uses `https://mcp.lokalbot.com` and declares that custom domain in the publisher's existing account. Verify the intended account and DNS before the first deployment. Unexpected hosts fail closed. Keep Cloudflare credentials outside source files and chat.
 3. Run the README's source checks and native CLI fixture test, then:
 
    ```sh
