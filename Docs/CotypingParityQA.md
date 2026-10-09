@@ -93,6 +93,14 @@ LokalBot defaults:
 - Viber (Qt Quick) reports no caret at all, so its suggestions are placed from
   the field's text on screen, as in Chrome's text areas. Until that caret is
   found nothing is shown, rather than a popup above or below the field.
+- Measured live in Viber the same day, by reading the ghost window's bounds
+  and capturing only the row beside it: recognition at 2× misread "je" as
+  "Je" and sized the font 5% small, missed short last words, ended lines at
+  the last letter's ink rather than its advance, and read the caret bar as
+  "|". With the font sized from the typed text, the line's end aligned with
+  it, the side bearing added, a caret bar taken as the caret and a 3× capture
+  on the non-Retina display, five suggestions began 0.6–1.0 pt after the
+  caret (before: 2–5 pt over the last letter).
 
 ## Keystroke latency
 
