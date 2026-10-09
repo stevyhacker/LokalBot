@@ -4,7 +4,7 @@ const pages: Record<string, { title: string; body: string }> = {
     body: `<p>Recall decisions and commitments from your recorded meetings in ChatGPT.</p>
 <p>This is an early preview. It requires an Apple Silicon Mac, macOS 15 or later, LokalBot, Node.js 22.12 or later, and a running connection helper. A public ChatGPT listing is not available yet.</p>
 <h2>Connect your own Mac</h2>
-<ol><li>Follow the <a href="https://github.com/stevyhacker/LokalBot/blob/codex/lokalbot-chatgpt-plugin/Distribution/chatgpt-plugin/docs/PREVIEW.md">preview setup instructions</a>. The signed companion download is being prepared; developers can build the helper from the linked source branch.</li>
+<ol><li>Download the <a href="https://github.com/stevyhacker/LokalBot/releases/tag/chatgpt-plugin-v0.1.0-preview.1">signed preview companion</a> and follow the <a href="https://github.com/stevyhacker/LokalBot/blob/codex/lokalbot-chatgpt-plugin/Distribution/chatgpt-plugin/docs/PREVIEW.md">setup instructions</a>. Copy the complete companion folder from the disk image before running it.</li>
 <li>Start the companion and connect the MCP endpoint <code>https://mcp.lokalbot.com/mcp</code> in a supported client.</li>
 <li>Enter your Mac's one-time pairing code on this site's consent page. Never paste a pairing code into a chat.</li>
 <li>Enable meeting-library access in LokalBot when you are ready to share requested results.</li></ol>

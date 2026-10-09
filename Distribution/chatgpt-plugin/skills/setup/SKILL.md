@@ -11,4 +11,4 @@ If the host is a local stdio development installation, explain that its server r
 
 After the user requests a connection check, call `list_meetings` with `limit: 1`. Distinguish permission denial, an unavailable Mac/helper, an empty authorized library, and a successful result. Read only the minimum metadata for this check. Backend tests do not prove ChatGPT rendering or directory publication.
 
-To disconnect, describe stopping the companion, turning off meeting-library access, and `node dist/device.js revoke` from the companion folder. Keep a custom `--config` path consistent. Revocation cannot recall content already shared with the client. Never send support messages without explicit user authorization.
+To disconnect, describe stopping the companion, turning off meeting-library access, and `./lokalbot-connect revoke` from the signed preview companion folder. For source builds, follow the packaged README's development commands. Keep a custom `--config` path consistent. Revocation cannot recall content already shared with the client. Never send support messages without explicit user authorization.

@@ -4,7 +4,7 @@ A public-plugin implementation using [OpenAI MCP Extensions](https://github.com/
 
 Each user pairs their own Mac through OAuth. The library remains on that Mac; requested results travel through a Cloudflare relay to ChatGPT. The companion delegates every library read to `lokalbot-cli mcp`, so LokalBot's meeting-library permission remains authoritative. Screen memory, inference, writes, and Agent Mode are not exposed.
 
-**Preview status:** the deployment configuration targets `https://mcp.lokalbot.com`. The public listing and registered ChatGPT ID remain pending. The separate [preview companion](docs/PREVIEW.md) bundles the compatible CLI without replacing the installed app: the installed 0.10.2 helper was observed waiting for a full input buffer during an interactive MCP handshake. A configured origin is not proof of a successful deployment; consult the validation record and release artifacts.
+**Preview status:** the relay is live at `https://mcp.lokalbot.com`. The [signed and notarized preview companion](https://github.com/stevyhacker/LokalBot/releases/tag/chatgpt-plugin-v0.1.0-preview.1) is published and its public download has passed signature, notarization, and synthetic live-connection checks. It bundles the compatible CLI without replacing the installed app: the installed 0.10.2 helper was observed waiting for a full input buffer during an interactive MCP handshake. The public ChatGPT listing, registered plugin ID, and ChatGPT host validation remain pending. See the [setup instructions](docs/PREVIEW.md) and [validation record](docs/VALIDATION.md).
 
 ## Build and verify
 

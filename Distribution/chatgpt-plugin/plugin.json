@@ -13,8 +13,8 @@
       "onboardingSkill": "./skills/setup/SKILL.md",
       "interface": {
         "displayName": "LokalBot",
-        "shortDescription": "Recall meetings and follow through",
-        "longDescription": "Search recorded meetings, read summaries and selected transcript excerpts, review commitments, and prepare for conversations. The library stays on your Mac; requested results are shared with your connected ChatGPT or Codex client. Requires LokalBot and its meeting-library permission.",
+        "shortDescription": "Recall meetings and follow up",
+        "longDescription": "Search recorded meetings, read summaries and selected transcript excerpts, review commitments, and prepare for conversations. The library stays on your Mac; requested results pass through Cloudflare to your connected ChatGPT or Codex client. This preview requires an Apple Silicon Mac with macOS 15+, LokalBot, Node.js 22.12+, and the foreground companion running while the Mac is awake and online. Separate meeting-library permission in LokalBot is required.",
         "developerName": "stevyhacker",
         "category": "Productivity",
         "capabilities": ["Interactive", "Read"],
