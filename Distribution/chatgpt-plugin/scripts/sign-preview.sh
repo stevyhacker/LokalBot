@@ -28,7 +28,11 @@ if [[ ! "$identity_hash" =~ ^[0-9A-F]{40}$ ]]; then
   echo 'Expected one Developer ID Application identity for the configured team.' >&2
   exit 1
 fi
-codesign --force --sign "$identity_hash" --keychain "$keychain" --options runtime --timestamp "$artifact"
+if [[ "$artifact" == *.dmg ]]; then
+  codesign --force --sign "$identity_hash" --keychain "$keychain" --timestamp "$artifact"
+else
+  codesign --force --sign "$identity_hash" --keychain "$keychain" --options runtime --timestamp "$artifact"
+fi
 cleanup
 trap - EXIT
 codesign --verify --strict --verbose=2 "$artifact"

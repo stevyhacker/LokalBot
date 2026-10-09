@@ -31,5 +31,5 @@ RUBY
 xcodegen generate --spec "$BUILD_ROOT/project.json" --project "$BUILD_ROOT"
 xcodebuild -quiet -project "$BUILD_ROOT/LokalBotCLIProbe.xcodeproj" \
   -scheme CLI -configuration "$CLI_CONFIGURATION" -destination 'platform=macOS' \
-  -derivedDataPath "$BUILD_ROOT/DerivedData" CODE_SIGNING_ALLOWED=NO build
+  -derivedDataPath "$BUILD_ROOT/DerivedData" ARCHS=arm64 CODE_SIGNING_ALLOWED=NO build
 printf '%s\n' "Test helper: $BUILD_ROOT/DerivedData/Build/Products/$CLI_CONFIGURATION/lokalbot-cli"

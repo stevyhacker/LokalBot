@@ -1,6 +1,21 @@
 # Validation record — 2026-10-09
 
-Local verification for this implementation, including a final protocol check after rebasing onto repository revision `0d9464e`. This is not hosted CI, a deployment report, or public listing evidence.
+Initial local verification for this implementation was followed by the branch-preview deployment recorded below. Public directory publication and ChatGPT host validation remain separate.
+
+## Branch preview deployment
+
+- Master revision `3c437e93d192fb2a90def4c7c5f43b267acf830a` was merged into the draft branch in commit `893582501120873bd4a2652e8d40968caf46c6e4`, without conflicts. The PR remains draft and unmerged.
+- Preview source revision: `3013ac8db48b40f34169f19dad0997f770e1a8d3`.
+- Cloudflare Worker: `lokalbot-chatgpt-relay`, served at `https://mcp.lokalbot.com`; MCP endpoint: `/mcp`.
+- Worker version: `3e5d3478-a8fe-42b8-8e0e-b6941b4a1653`. Deployed with `cf deploy --prebuilt --tag 3013ac8` after a successful dry run. Worker observability is disabled.
+- Live verification with two disposable synthetic libraries passed through OAuth, the real companion, and the actual native CLI. It established user isolation even with colliding meeting/RPC ids and misleading device headers, summary/transcript selection, local permission revocation, unsupported-tool denial, and denial after device revocation with both old and refreshed tokens. Both synthetic device connections were revoked afterward.
+- Public packaging passed live health, protected-resource metadata, and unauthenticated challenge checks. The ZIP contains only manifest, skills, icon, documentation, and license.
+- Local checks now pass **22 tests**, none skipped, including preview launcher path handling and public-page access boundaries. The separately built Release helper also passed the fixture suite in its staged companion folder.
+- [Hosted plugin protocol/relay validation](https://github.com/stevyhacker/LokalBot/actions/runs/37920583025) passed for `3013ac8`; native CLI validation was still queued when this record was written.
+- A separate signed/notarized companion prerelease is prepared in CI, triggered only by `chatgpt-plugin-vX.Y.Z-preview.N` tags. Its publication has not run. No stable app, Sparkle feed, or installed copy was changed.
+- The publisher dashboard requires account login before uploading or registering the plugin. Actual ChatGPT UI/OAuth validation, reviewer availability, and review/publication remain pending. No local UI tests ran.
+
+## Initial implementation checks
 
 | Check | Result |
 | --- | --- |
