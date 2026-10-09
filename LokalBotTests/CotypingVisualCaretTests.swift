@@ -137,6 +137,28 @@ final class CotypingVisualCaretTests: XCTestCase {
             lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay then", fieldFrame: narrow))
     }
 
+    /// Measured in Viber on 2026-10-09: at LokalBot's 2× capture, recognition
+    /// read "bolje ali i dalje nije" as "bolJe all I dalJe nlJe". Sizing the
+    /// font from that text made it 12.8 pt instead of 13.5 pt, so every
+    /// letter typed afterwards put the ghost a little further behind the
+    /// caret; after "uvS" it began over the "S".
+    func testTheFontIsSizedFromTheTypedTextNotTheMisreadOne() throws {
+        let typed = "Sad je sve puno bolje ali i dalje nije skroz kako treba uvS"
+        let viberField = CGRect(x: 2561, y: 180, width: 499, height: 17)
+        let drawnWidth = CotypingInlineGhostLayout.width(of: typed, font: .systemFont(ofSize: 13.5))
+        let misread = Locator.RecognizedLine(
+            text: "Sad Je sve puno bolJe all I dalJe nlJe skroz kako treba uvS",
+            minX: 2561.5, maxX: 2561.5 + drawnWidth, baseline: 184,
+            box: CGRect(x: 2561.5, y: 181, width: drawnWidth, height: 13.2))
+        let found = try XCTUnwrap(Locator.locate(lines: [misread], precedingText: typed, fieldFrame: viberField))
+        XCTAssertEqual(found.pointSize, 13.5, accuracy: 0.05)
+        let next = try XCTUnwrap(Locator.caretX(for: found, precedingText: typed + " te lefonskih"))
+        XCTAssertEqual(
+            next,
+            misread.maxX + CotypingInlineGhostLayout.width(of: " te lefonskih", font: .systemFont(ofSize: 13.5)),
+            accuracy: 0.3)
+    }
+
     /// Fast recognition often drops accents, as on Serbian text.
     func testAccentsDoNotStopAMatch() throws {
         let recognized = line("Vidimo se sutra, hvala sto", baseline: 375)

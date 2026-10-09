@@ -146,7 +146,9 @@ extension CotypingCoordinator {
     /// Reads the field shortly, and once more if the app has not shown the
     /// text yet. The focus change a read publishes moves the ghost to the
     /// app's own caret (`reanchorVisibleSuggestion`), which corrects what the
-    /// ghost's font measured, such as a page zoom it does not know about.
+    /// ghost's font measured, such as a page zoom it does not know about. A
+    /// caret found on screen is measured again once typing has moved it a
+    /// fair way along its line.
     func refreshCaretSoon() {
         caretRefreshTask?.cancel()
         caretRefreshTask = Task { [weak self] in
@@ -154,8 +156,9 @@ extension CotypingCoordinator {
                 try? await Task.sleep(for: .milliseconds(delay))
                 guard let self, !Task.isCancelled, self.overlay.isVisible, let current = self.session else { return }
                 let live = await self.focusTracker.refreshNow().field
-                guard !Task.isCancelled, self.session == current, let live,
-                      CotypingSessionReconciler.sessionReconciledByPublishedTyping(current, liveField: live) != current
+                guard !Task.isCancelled, self.session == current, let live else { return }
+                self.visualCaret.refreshIfDrifted(for: live)
+                guard CotypingSessionReconciler.sessionReconciledByPublishedTyping(current, liveField: live) != current
                 else { return }
             }
         }

@@ -48,6 +48,9 @@ nonisolated enum CotypingVisualCaretLocator {
     static let comparedCharacters = 48
     /// Typing this far from where the caret was found is measured again.
     static let maximumDrift = 40
+    /// Typing this far starts measuring it again in the background, while the
+    /// caret already found stays in use.
+    static let refindAfterCharacters = 12
     /// Recognition found no line shorter than this (one to three typed
     /// characters were never found, measured 2026-10-05).
     static let minimumLineCharacters = 3
@@ -102,22 +105,36 @@ nonisolated enum CotypingVisualCaretLocator {
             }
             best = (line, lineBest.score, lineBest.missing)
         }
-        guard let best, best.line.maxX > best.line.minX,
-              let pointSize = fittedPointSize(of: best.line) else { return nil }
+        guard let best, best.line.maxX > best.line.minX else { return nil }
         let line = best.line
+        // The typed characters drawn on this line: all of a paragraph that
+        // fits on it, else about as many as were recognized, ending where
+        // the line ends.
+        let typedCharacters = normalizedCharacters(of: core)
+        let lineEnd = typedCharacters.count - best.missing
+        let recognizedCount = normalized(line.text).count
+        let lineStart = lineEnd - recognizedCount <= 2 ? 0 : lineEnd - recognizedCount
+        let drawn = String(core[typedCharacters[lineStart].index..<(
+            lineEnd < typedCharacters.count ? typedCharacters[lineEnd].index : core.endIndex)])
+            .trimmingCharacters(in: .whitespaces)
+        // Sized from what was typed, not what was recognized: misreading a
+        // few j as J, as fast recognition did in Viber (2026-10-09), made the
+        // font 5% small, and every letter typed after it put the ghost a
+        // little further behind the caret.
+        guard let pointSize = fittedPointSize(of: drawn, width: line.maxX - line.minX, height: line.box.height)
+            ?? fittedPointSize(of: line) else { return nil }
         let font = NSFont.systemFont(ofSize: pointSize)
         let inset = max(line.minX - fieldFrame.minX, 0)
         // What the capture lacks is drawn after the line's last letter.
-        let typedCharacters = normalizedCharacters(of: core)
-        let unseenStart = best.missing > 0 ? typedCharacters[typedCharacters.count - best.missing].index : core.endIndex
+        let unseenStart = best.missing > 0 ? typedCharacters[lineEnd].index : core.endIndex
         let unseen = String(core[unseenStart...]) + String(repeating: " ", count: trailingSpaces)
         let caretX = line.maxX + CotypingInlineGhostLayout.width(of: unseen, font: font)
         let lineMaxX = fieldFrame.maxX - inset
         // Unseen letters close to where the line wraps may be on the next line.
         let unseenLetters = unseen.contains { !$0.isWhitespace }
         guard caretX <= (unseenLetters ? lineMaxX - pointSize : lineMaxX) else { return nil }
-        let firstWord = line.text.trimmingCharacters(in: .whitespaces).prefix { !$0.isWhitespace }
-        let startsParagraph = normalized(line.text).count + best.missing + 2 >= typed.count
+        let firstWord = drawn.prefix { !$0.isWhitespace }
+        let startsParagraph = lineStart == 0
         return Calibration(
             precedingText: precedingText,
             caretX: caretX,
@@ -190,14 +207,18 @@ nonisolated enum CotypingVisualCaretLocator {
         return !ScreenContextPrivacy.isExcluded(sourceURL: "https://\(host)/", rules: excludedDomains)
     }
 
-    /// The system font size whose width matches the recognized line's. The
-    /// system font changes its spacing with size, so the width is compared
-    /// near the size found, starting from the line's height.
+    /// The system font size whose width matches the recognized line's.
     static func fittedPointSize(of line: RecognizedLine) -> CGFloat? {
-        let text = line.text.trimmingCharacters(in: .whitespaces)
-        let measured = line.maxX - line.minX
-        guard measured > 0, line.box.height > 0 else { return nil }
-        var size = line.box.height
+        fittedPointSize(
+            of: line.text.trimmingCharacters(in: .whitespaces), width: line.maxX - line.minX, height: line.box.height)
+    }
+
+    /// The system font size at which `text` is `width` wide. The system font
+    /// changes its spacing with size, so the width is compared near the size
+    /// found, starting from the line's `height`.
+    static func fittedPointSize(of text: String, width measured: CGFloat, height: CGFloat) -> CGFloat? {
+        guard measured > 0, height > 0, !text.isEmpty else { return nil }
+        var size = height
         for _ in 0..<3 {
             let natural = CotypingInlineGhostLayout.width(of: text, font: .systemFont(ofSize: size))
             guard natural > 0 else { return nil }
@@ -205,7 +226,7 @@ nonisolated enum CotypingVisualCaretLocator {
             guard (6...72).contains(size) else { return nil }
         }
         // Recognized lines are about as tall as the font's size.
-        guard (0.5...1.6).contains(line.box.height / size) else { return nil }
+        guard (0.5...1.6).contains(height / size) else { return nil }
         return size
     }
 
@@ -363,6 +384,24 @@ final class CotypingVisualCaret {
               Self.isFindable(field), let frame = field.inputFrameRect,
               CotypingVisualCaretLocator.hasEnoughText(field.precedingText),
               CGPreflightScreenCaptureAccess() else { return }
+        find(field, in: frame)
+    }
+
+    /// Starts finding the caret again once typing has moved it a fair way
+    /// along its line from where it was found, so small differences between
+    /// the app's font and the measured one never add up. The caret found
+    /// earlier stays in use until the new one is in. Only for a field already
+    /// cleared for capture (`notePermission`).
+    func refreshIfDrifted(for field: CotypingField) {
+        guard canFind(field), let entry, entry.key == Self.key(for: field),
+              let frame = field.inputFrameRect, Self.isSameFrame(entry.frame, frame),
+              let change = CotypingVisualCaretLocator.change(
+                  from: entry.calibration.precedingText, to: field.precedingText),
+              change.text.count >= CotypingVisualCaretLocator.refindAfterCharacters else { return }
+        find(field, in: frame)
+    }
+
+    private func find(_ field: CotypingField, in frame: CGRect) {
         let key = Self.key(for: field)
         if let pending, pending.key == key, pending.precedingText == field.precedingText { return }
         pending?.task.cancel()
