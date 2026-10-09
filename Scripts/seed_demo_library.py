@@ -13,7 +13,11 @@ Also seeds:
   - activity_blocks      several weekdays of day-timeline data
 
 Usage:
-    python3 Scripts/seed_demo_library.py [--reset] <storage-root>
+    python3 Scripts/seed_demo_library.py [--reset] [--profile PROFILE] <storage-root>
+
+``--profile studio`` seeds a small video studio's library instead: Apple-app,
+non-coding examples for the website and README hero images, with a different
+topic for each surface (see Docs/screenshot-kit.md).
 
 By default the destination must be new or empty. ``--reset`` is accepted only
 for a directory previously marked as a LokalBot demo library.
@@ -32,6 +36,11 @@ DESIGN_REVIEW = "11111111-1111-4111-8111-111111111111"
 STANDUP = "22222222-2222-4222-8222-222222222222"
 ROADMAP = "33333333-3333-4333-8333-333333333333"
 NORTHWIND = "44444444-4444-4444-8444-444444444444"
+# The studio profile's featured meetings, the ones with playable audio: the
+# holiday shoot (website and README hero) and the podcast trailer review
+# (README meeting section).
+STUDIO_SHOOT = "55555555-5555-4555-8555-555555555555"
+STUDIO_PODCAST = "66666666-6666-4666-8666-666666666666"
 
 
 def mid(n):
@@ -223,12 +232,14 @@ def write_meeting(root, mm):
         json.dump(demo_outcomes(mm), f, indent=2)
     if mm["id"] == DESIGN_REVIEW:
         write_demo_audio(folder)
+    return folder
 
 
-def write_demo_audio(folder):
-    """Add a short, decodable source track for the detail-player happy path."""
-    wav_path = os.path.join(folder, "demo-audio.wav")
-    m4a_path = os.path.join(folder, "mic.m4a")
+def write_demo_audio(folder, track="mic", tone=196, beat=3.4, level=1_600):
+    """Add a short, decodable source track for the detail-player happy path.
+    A second call with track="system" makes the header read Mic + system."""
+    wav_path = os.path.join(folder, f"demo-{track}.wav")
+    m4a_path = os.path.join(folder, f"{track}.m4a")
     sample_rate = 16_000
     duration = 140
     with wave.open(wav_path, "wb") as audio:
@@ -238,8 +249,8 @@ def write_demo_audio(folder):
         frames = bytearray()
         for index in range(sample_rate * duration):
             seconds = index / sample_rate
-            pulse = 0.25 + 0.75 * abs(math.sin(seconds * math.pi / 3.4))
-            sample = int(1_600 * pulse * math.sin(2 * math.pi * 196 * seconds))
+            pulse = 0.25 + 0.75 * abs(math.sin(seconds * math.pi / beat))
+            sample = int(level * pulse * math.sin(2 * math.pi * tone * seconds))
             frames.extend(struct.pack("<h", sample))
         audio.writeframes(frames)
     try:
@@ -466,6 +477,10 @@ def write_demo_png(path, accent, variant):
             rect(308, 181 + index * 76, 470 - index * 32, 10, (62, 75, 94))
             rect(308, 201 + index * 76, 330 + index * 18, 10, (62, 75, 94))
 
+    write_rgb_png(path, pixels, width, height)
+
+
+def write_rgb_png(path, pixels, width, height):
     raw = b"".join(b"\x00" + bytes(row) for row in pixels)
 
     def chunk(kind, data):
@@ -730,13 +745,517 @@ def seed_large(root):
                               "## TL;DR\nSynthetic meeting.\n"))
 
 
+def build_studio(now):
+    """A small video studio's meetings: FaceTime calls and Apple apps instead of
+    engineering work. Each captured surface gets its own topic: the holiday
+    shoot (website meeting and README hero), the podcast trailer (README
+    meeting section), the Globex demo presentation (the website's "demo
+    presentation" search), the Mac refresh ("MacBook" search) and delivery
+    captions ("captions" search). Keep "MacBook", "captions" and "demo
+    presentation" out of other meetings so those searches return the intended
+    rows."""
+    def ago(days, hour, minute=0):
+        base = now - timedelta(days=days)
+        return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    return [
+        # ---- Today ----
+        m(STUDIO_SHOOT, "Holiday shoot planning", "FaceTime", now - timedelta(minutes=60), 25, True,
+          [
+              seg(0, 12, "me", "Let's lock the holiday shoot. Everything gets shot on iPhone this year."),
+              seg(12, 26, "them", "Agreed on iPhone for stills and video. Open question: gimbal or handheld?"),
+              seg(26, 38, "me", "I'll book the photo studio for Thursday morning."),
+              seg(38, 52, "them", "Please send the Freeform shot list to the crew tonight."),
+              seg(52, 66, "me", "Fair. I'll add the props list while I'm at it."),
+              seg(66, 82, "them", "While we're here: footage handoff. AirDrop on set, or the shared SSD?"),
+              seg(82, 96, "me", "AirDrop for selects, the SSD for the full day."),
+              seg(96, 110, "them", "Okay. The client also wants three vertical cuts for social."),
+              seg(110, 124, "me", "Then we frame wide and crop in Final Cut. I'll note it on the call sheet."),
+              seg(124, 138, "them", "Ship it. Final walkthrough on Wednesday."),
+          ],
+          "## TL;DR\nThe holiday shoot is all iPhone, Thursday at the photo studio.\n\n"
+          "## Decisions\n- Shoot stills and video on iPhone for one consistent look.\n"
+          "- AirDrop for selects, the shared SSD for full shoot days.\n\n"
+          "## Action items\n- [ ] Book the photo studio for Thursday morning — Me\n"
+          "- [ ] Send the Freeform shot list to the crew tonight — Them\n\n"
+          "## Open questions\n- Gimbal or handheld for the walk-and-talk shots?"),
+        m(mid(21), "Mac refresh planning", "FaceTime", now - timedelta(minutes=102), 25, True,
+          [
+              seg(0, 12, "me", "Let's settle the Mac refresh. Exports take forty minutes on the old laptops."),
+              seg(12, 26, "them", "Agreed on MacBook Pro for the editors. Open question: what does sales need?"),
+              seg(26, 38, "me", "I'll request a business quote from Apple by Thursday."),
+              seg(38, 52, "them", "Please check trade-in values for the old machines before we order."),
+              seg(52, 66, "me", "Fair. Trade-ins should cover most of the AppleCare+ cost."),
+              seg(66, 82, "them", "While we're here: the edit suite. Do we add a Studio Display now or next quarter?"),
+              seg(82, 96, "me", "Next quarter. One purchase at a time."),
+              seg(96, 110, "them", "Okay. Sales mostly lives in Keynote and Mail, so the Air is plenty for them."),
+              seg(110, 124, "me", "Then sales stays on the Air. I'll put the final list in the Numbers sheet."),
+              seg(124, 138, "them", "Ship it. Let's place the order once the quote is in."),
+          ],
+          "## TL;DR\nThe editors move to MacBook Pro now; sales stays on MacBook Air until Apple's quote is in.\n\n"
+          "## Decisions\n- MacBook Pro for both video editors (export times won the argument).\n"
+          "- Studio Display waits until next quarter; one purchase at a time.\n\n"
+          "## Action items\n- [ ] Request a business quote from Apple by Thursday — Me\n"
+          "- [ ] Check trade-in values for the old machines — Them\n\n"
+          "## Open questions\n- Does sales need anything more than an Air?"),
+        m(mid(22), "Studio check-in", "FaceTime", now - timedelta(minutes=182), 15, True,
+          [
+              seg(0, 9, "me", "Quick check-in. I'm finishing the Northwind holiday cut today."),
+              seg(9, 20, "me", "Blocker: 4K exports still crawl on the old laptops."),
+              seg(20, 32, "me", "Also pricing two MacBook Pro configs for the edit suite before the call."),
+              seg(32, 44, "me", "And I'm sending Globex the demo presentation slides this morning."),
+          ],
+          "## TL;DR\nThe Northwind holiday cut wraps today; slow exports on the old laptops are the blocker.\n\n"
+          "## Action items\n- [ ] Finish the Northwind holiday cut — Me\n- [ ] Price two laptop configs for the edit suite — Me"),
+
+        # ---- Yesterday ----
+        m(STUDIO_PODCAST, "Podcast trailer review", "Google Meet", ago(1, 9, 57), 30, True,
+          [
+              seg(0, 12, "me", "The podcast trailer is two weeks late. Let's fix the cut today."),
+              seg(12, 26, "them", "Agreed on a sixty-second cut. Open question: lead with the guest or the host?"),
+              seg(26, 38, "me", "I'll re-cut the intro in Logic by Friday."),
+              seg(38, 52, "them", "Please duck the music under the voiceover; it fights the first line."),
+              seg(52, 66, "me", "Fair. I'll check the mix on AirPods and on the studio monitors."),
+              seg(66, 82, "them", "While we're here: artwork. Does the square cover work as the trailer art?"),
+              seg(82, 96, "me", "It works. We reuse the episode art instead of designing a new one."),
+              seg(96, 110, "them", "Okay. Subtitles too? Half of the clips get watched on mute."),
+              seg(110, 124, "me", "Then we burn subtitles into the social clips and ship the trailer Friday."),
+              seg(124, 138, "them", "Ship it. Let's publish the trailer with Monday's episode."),
+          ],
+          "## TL;DR\nThe podcast trailer becomes a sixty-second cut and ships Friday with the music under the voiceover.\n\n"
+          "## Decisions\n- A sixty-second trailer cut that reuses the episode artwork.\n"
+          "- Duck the music under the voiceover and check the mix on AirPods and studio monitors.\n\n"
+          "## Action items\n- [ ] Re-cut the trailer intro in Logic by Friday — Me\n"
+          "- [ ] Publish the trailer with Monday's episode — Them\n\n"
+          "## Open questions\n- Lead with the guest or the host?"),
+
+        # ---- Earlier this week ----
+        m(mid(24), "Client call - Northwind", "Microsoft Teams", ago(2, 9, 47), 40, True,
+          [
+              seg(0, 15, "them", "We love the first cut, but legal needs captions before it goes on our site."),
+              seg(15, 30, "me", "Captions are easy. I'll send a version with subtitles this week."),
+              seg(30, 45, "them", "Great. A quote for three social cut-downs would help us get budget approved."),
+          ],
+          "## TL;DR\nNorthwind likes the first cut; captions are required before it goes live.\n\n"
+          "## Decisions\n- Send a captioned version and a quote for three cut-downs this week.\n\n"
+          "## Action items\n- [ ] Deliver the captioned cut — Me\n- [ ] Quote three social cut-downs — Me\n\n"
+          "## Open questions\n- Which platforms get the vertical cut-downs?"),
+        m(mid(25), "Brand refresh sync", "FaceTime", ago(2, 14, 0), 30, True,
+          [
+              seg(0, 16, "me", "The new logo lockups shipped. The remaining gap is the motion version."),
+              seg(16, 34, "them", "I'll deliver the animated logo in Keynote and as a ProRes file by Friday."),
+              seg(34, 50, "me", "Then we can close the brand refresh next week."),
+              seg(50, 64, "them", "Put the animated logo on the first slide of the Globex demo presentation."),
+          ],
+          "## TL;DR\nThe brand refresh is nearly done; the animated logo lands Friday.\n\n"
+          "## Action items\n- [ ] Animated logo in Keynote and ProRes — Them"),
+        m(mid(26), "Weekly production sync", "Google Meet", ago(3, 10, 0), 45, False,
+          [
+              seg(0, 18, "me", "Three things this week: Northwind captions, the trade-in list, and the shoot schedule."),
+              seg(18, 40, "them", "The iPhone shoot needs the big softbox. The photo studio said Thursday works."),
+              seg(40, 58, "me", "Booked. Stretch goal is cleaning up the shared photo library."),
+          ],
+          "## TL;DR\nThis week: Northwind captions, the trade-in list, and Thursday's iPhone shoot with a borrowed softbox.\n\n"
+          "## Action items\n- [ ] Captioned Northwind cut — Me\n- [ ] Shoot with the photo studio's softbox Thursday — Me"),
+        m(mid(27), "1:1 with Maya", "FaceTime", ago(3, 16, 0), 30, True,
+          [
+              seg(0, 20, "them", "The editing is going well, but I'd like to direct a shoot myself."),
+              seg(20, 38, "me", "Let's have you lead the iPhone shoot on Thursday."),
+          ],
+          "## TL;DR\nMaya leads Thursday's iPhone shoot.\n\n## Action items\n- [ ] Add Maya to the call sheet — Me"),
+        m(mid(28), "Export failure review", "Zoom", ago(4, 11, 30), 35, True,
+          [
+              seg(0, 18, "me", "Timeline: the client export started at 9:12 and the laptop ran out of disk at 9:41."),
+              seg(18, 36, "them", "Root cause: the render cache sits on the internal drive, and it's nearly full."),
+              seg(36, 54, "me", "Fix is moving caches to the external SSD. One more reason for the Mac refresh."),
+          ],
+          "## TL;DR\nA client export failed when an old laptop ran out of disk; render caches move to the external SSD.\n\n"
+          "## Decisions\n- Render caches live on the external SSD from now on.\n\n"
+          "## Action items\n- [ ] Move render caches to the external SSD — Me"),
+        m(mid(29), "Editor hiring debrief", "Google Meet", ago(5, 15, 0), 25, False,
+          [
+              seg(0, 16, "me", "Great storytelling, a little slow in Final Cut. I'm a hire."),
+              seg(16, 32, "them", "Same read. Let's check references this week."),
+          ],
+          "## TL;DR\nBoth interviewers are a hire on the editor candidate; references this week.\n\n"
+          "## Action items\n- [ ] Request references — Them"),
+
+        # ---- Last week ----
+        m(mid(30), "Acme podcast kickoff", "Microsoft Teams", ago(7, 10, 0), 45, True,
+          [
+              seg(0, 20, "them", "We want episode clips on Apple Podcasts and YouTube every week."),
+              seg(20, 40, "me", "We record in Logic, cut in Final Cut, and deliver both formats."),
+          ],
+          "## TL;DR\nThe Acme podcast kicked off: weekly episodes for Apple Podcasts and YouTube.\n\n"
+          "## Action items\n- [ ] Send the episode template — Me"),
+        m(mid(31), "Equipment budget review", "Zoom", ago(8, 13, 30), 30, False,
+          [
+              seg(0, 18, "me", "The old laptops turn five this year, and AppleCare ran out on three of them."),
+              seg(18, 36, "them", "Then let's price a refresh before the end of the quarter."),
+          ],
+          "## TL;DR\nThree laptops are out of AppleCare; price a refresh before quarter end.\n\n"
+          "## Action items\n- [ ] Price a laptop refresh — Them"),
+        m(mid(32), "Weekly all-hands", "Zoom", ago(9, 9, 0), 30, False,
+          [
+              seg(0, 20, "me", "Headline: the Northwind teaser passed a million views in a week."),
+              seg(20, 40, "them", "Reminder that holiday campaign plans are due Friday."),
+          ],
+          "## TL;DR\nThe Northwind teaser passed a million views; holiday plans are due Friday."),
+        m(mid(33), "Footage workflow workshop", "Google Meet", ago(10, 14, 0), 60, False,
+          [
+              seg(0, 22, "me", "Goal: iPhone footage on the edit timeline within ten minutes of the last take."),
+              seg(22, 44, "them", "AirDrop works for a few clips; full shoot days need a shared SSD."),
+              seg(44, 62, "me", "Agreed. AirDrop for selects, the SSD for full days."),
+          ],
+          "## TL;DR\nTarget: iPhone footage on the timeline within ten minutes; AirDrop for selects, a shared SSD for full days.\n\n"
+          "## Decisions\n- AirDrop for selects, a shared SSD for full shoot days."),
+        m(mid(34), "1:1 with Maya", "FaceTime", ago(11, 16, 0), 30, True,
+          [
+              seg(0, 18, "them", "The holiday shot list is ready in Freeform."),
+              seg(18, 34, "me", "Great. I'll review it before Monday's planning call."),
+          ],
+          "## TL;DR\nThe holiday shot list is ready in Freeform; review before Monday.\n\n"
+          "## Action items\n- [ ] Review the shot list — Me"),
+
+        # ---- Two-three weeks back ----
+        m(mid(35), "Accessibility review", "Microsoft Teams", ago(14, 11, 0), 40, True,
+          [
+              seg(0, 20, "me", "Every client video ships with captions and audio descriptions from now on."),
+              seg(20, 40, "them", "Then the delivery checklist needs an accessibility section."),
+          ],
+          "## TL;DR\nCaptions and audio descriptions on every client video; the delivery checklist gets an accessibility section.\n\n"
+          "## Decisions\n- Captions and audio descriptions ship with every client video."),
+        m(mid(36), "Budget review Q4", "Google Meet", ago(15, 10, 30), 30, False,
+          [
+              seg(0, 18, "them", "Spend is flat. The only new line is the laptop refresh."),
+              seg(18, 34, "me", "Approved in principle. We'll size it after the trade-in quote."),
+          ],
+          "## TL;DR\nQ4 budget approved; the laptop refresh is sized after the trade-in quote."),
+        m(mid(37), "Launch retro - spring campaign", "Zoom", ago(16, 15, 0), 45, False,
+          [
+              seg(0, 20, "me", "What went well: every asset delivered on time."),
+              seg(20, 42, "them", "What didn't: the vertical cuts went out at the wrong frame rate."),
+              seg(42, 60, "me", "Next launch we check export presets before anything is sent."),
+          ],
+          "## TL;DR\nThe spring campaign delivered on time; next launch checks export presets first.\n\n"
+          "## Decisions\n- Check export presets before any delivery."),
+        m(mid(38), "Sales call - Globex", "Webex", ago(18, 13, 0), 30, True,
+          [
+              seg(0, 16, "them", "We picked you because you shoot everything on iPhone. It fits our brand."),
+              seg(16, 32, "me", "Then you'll love the behind-the-scenes reel. I'll send it next week."),
+          ],
+          "## TL;DR\nGlobex chose the studio for its iPhone-first shoots; the behind-the-scenes reel goes out next week.\n\n"
+          "## Action items\n- [ ] Send the behind-the-scenes reel — Me"),
+    ]
+
+
+def write_light_window_png(path, kind, accent):
+    """Light-appearance counterpart of write_demo_png for the studio profile:
+    a non-branded sketch of a Numbers sheet, Safari page, Keynote deck, Pages
+    document, Mail inbox, or Photos library."""
+    width, height = 960, 600
+    pixels = [bytearray((255, 255, 255) * width) for _ in range(height)]
+
+    def rect(x, y, w, h, color):
+        x0, x1 = max(0, x), min(width, x + w)
+        y0, y1 = max(0, y), min(height, y + h)
+        row = bytes(color) * max(0, x1 - x0)
+        for py in range(y0, y1):
+            pixels[py][x0 * 3:x1 * 3] = row
+
+    def dot(cx, cy, radius, color):
+        for py in range(max(0, cy - radius), min(height, cy + radius + 1)):
+            for px in range(max(0, cx - radius), min(width, cx + radius + 1)):
+                if (px - cx) ** 2 + (py - cy) ** 2 <= radius * radius:
+                    pixels[py][px * 3:px * 3 + 3] = bytes(color)
+
+    line, text, faint, sidebar = (222, 222, 227), (120, 124, 134), (190, 193, 200), (246, 246, 248)
+    rect(0, 0, width, 54, (236, 236, 239))
+    dot(25, 27, 7, (255, 95, 87))
+    dot(48, 27, 7, (255, 189, 46))
+    dot(71, 27, 7, (40, 201, 64))
+    rect(0, 54, width, 1, line)
+
+    if kind == "sheet":  # Numbers: a table with a tinted header row
+        rect(40, 92, 260, 18, text)
+        rect(40, 140, 880, 44, accent)
+        for index in range(8):
+            y = 184 + index * 46
+            strong = index in (0, 1)
+            rect(40, y + 45, 880, 1, line)
+            rect(64, y + 17, 210 - (index % 3) * 30, 11, text if strong else faint)
+            rect(380, y + 17, 40, 11, faint)
+            rect(520, y + 17, 90, 11, faint)
+            rect(720, y + 17, 120, 11, text if strong else faint)
+        for x in (340, 480, 680):
+            rect(x, 140, 1, 412, line)
+    elif kind == "web":  # Safari: address bar and two comparison cards
+        rect(330, 15, 300, 24, (226, 226, 230))
+        rect(300, 92, 360, 26, text)
+        rect(360, 130, 240, 12, faint)
+        for x in (90, 500):
+            rect(x, 176, 370, 380, (245, 245, 247))
+            rect(x + 95, 214, 180, 112, (205, 208, 214))
+            rect(x + 80, 326, 210, 12, (182, 186, 194))
+            rect(x + 115, 370, 140, 16, text)
+            for index in range(4):
+                rect(x + 70, 410 + index * 30, 230 - index * 20, 10, faint)
+            rect(x + 140, 528, 90, 14, accent)
+    elif kind == "slide":  # Keynote: slide navigator and canvas
+        rect(0, 55, 170, height - 55, sidebar)
+        for index in range(4):
+            rect(28, 80 + index * 112, 114, 72, accent if index == 1 else (225, 227, 232))
+        rect(210, 90, 710, 440, (250, 250, 251))
+        rect(260, 140, 380, 30, (40, 44, 52))
+        rect(260, 188, 260, 14, faint)
+        rect(560, 250, 310, 230, accent)
+        for index in range(3):
+            rect(260, 270 + index * 34, 230, 11, text)
+    elif kind == "doc":  # Pages: one page with a heading and a checklist
+        rect(0, 55, width, height - 55, (240, 240, 243))
+        rect(250, 80, 460, 520, (255, 255, 255))
+        rect(290, 120, 250, 22, (40, 44, 52))
+        rect(290, 160, 340, 11, faint)
+        for index in range(6):
+            y = 210 + index * 50
+            rect(290, y, 18, 18, accent if index < 3 else line)
+            rect(326, y + 4, 300 - (index % 3) * 40, 11, text if index < 3 else faint)
+    elif kind == "mail":  # Mail: mailbox list, messages, body
+        rect(0, 55, 190, height - 55, sidebar)
+        for index in range(6):
+            rect(24, 90 + index * 34, 120 - (index % 3) * 20, 11, faint)
+        rect(190, 55, 1, height - 55, line)
+        for index in range(6):
+            y = 70 + index * 86
+            selected = index == 1
+            if selected:
+                rect(191, y - 10, 320, 82, accent)
+            rect(214, y + 4, 150, 12, (255, 255, 255) if selected else text)
+            rect(214, y + 28, 250, 9, (225, 236, 255) if selected else faint)
+            rect(214, y + 46, 210, 9, (225, 236, 255) if selected else faint)
+        rect(511, 55, 1, height - 55, line)
+        rect(550, 92, 280, 18, text)
+        for index in range(8):
+            rect(550, 140 + index * 30, 340 - (index % 3) * 50, 10, faint)
+    else:  # photos: a library grid
+        rect(0, 55, 170, height - 55, sidebar)
+        palette = [accent, (120, 170, 220), (230, 190, 120), (150, 200, 160), (210, 140, 150), (180, 170, 230)]
+        for row in range(4):
+            for column in range(6):
+                rect(196 + column * 124, 80 + row * 124, 116, 116, palette[(row * 2 + column) % len(palette)])
+
+    write_rgb_png(path, pixels, width, height)
+
+
+def seed_studio_activity(root):
+    con = sqlite3.connect(os.path.join(root, "lokalbotv3.sqlite"))
+    cur = con.cursor()
+    ensure_activity_tables(cur)
+    now = time.time()
+    # Today's blocks and moments are minutes before now, so a capture never
+    # shows the future and the screen moments line up with today's meetings.
+    today = [("Keynote", "Northwind pitch deck", 250, 190),
+             ("FaceTime", "Studio check-in", 182, 167),
+             ("Safari", "Compare Mac models", 167, 128),
+             ("Numbers", "Studio budget 2026", 128, 102),
+             ("FaceTime", "Mac refresh planning", 102, 77),
+             ("Pages", "Delivery checklist", 77, 68),
+             ("Mail", "Trade-in estimate", 68, 60),
+             ("FaceTime", "Holiday shoot planning", 60, 52),
+             ("Photos", "Northwind selects", 52, 12)]
+    for app, title, start, end in today:
+        cur.execute("INSERT INTO activity_blocks (app,title,start,end) VALUES (?,?,?,?)",
+                    (app, title, now - start * 60, now - end * 60))
+    earlier = {
+        1: [("Freeform", "Holiday shot list", 9 * 60, 10 * 60 + 15),
+            ("Google Meet", "Podcast trailer review", 10 * 60 + 15, 10 * 60 + 45),
+            ("Keynote", "Holiday campaign deck", 11 * 60, 12 * 60 + 30),
+            ("Safari", "AppleCare for business", 13 * 60 + 30, 14 * 60 + 45),
+            ("Messages", "Studio team", 14 * 60 + 45, 15 * 60 + 10),
+            ("Keynote", "Globex demo presentation", 15 * 60 + 15, 15 * 60 + 35),
+            ("Mail", "Re: Globex demo presentation", 16 * 60, 16 * 60 + 15)],
+        2: [("Microsoft Teams", "Client call - Northwind", 9 * 60 + 45, 10 * 60 + 25),
+            ("Pages", "Delivery checklist", 10 * 60 + 30, 12 * 60),
+            ("FaceTime", "Brand refresh sync", 14 * 60, 14 * 60 + 30),
+            ("Keynote", "Logo animation", 14 * 60 + 30, 16 * 60)],
+        3: [("Google Meet", "Weekly production sync", 10 * 60, 10 * 60 + 45),
+            ("Photos", "Holiday selects", 11 * 60, 13 * 60),
+            ("FaceTime", "1:1 with Maya", 16 * 60, 16 * 60 + 30)],
+        4: [("Zoom", "Export failure review", 11 * 60 + 30, 12 * 60 + 5),
+            ("Finder", "Render cache cleanup", 13 * 60, 14 * 60 + 30),
+            ("Safari", "External SSD reviews", 14 * 60 + 30, 15 * 60)],
+    }
+    for offset, rows in earlier.items():
+        midnight = time.mktime((datetime.now() - timedelta(days=offset))
+                               .replace(hour=0, minute=0, second=0, microsecond=0).timetuple())
+        for app, title, a, b in rows:
+            cur.execute("INSERT INTO activity_blocks (app,title,start,end) VALUES (?,?,?,?)",
+                        (app, title, midnight + a * 60, midnight + b * 60))
+
+    yesterday = time.mktime((datetime.now() - timedelta(days=1))
+                            .replace(hour=0, minute=0, second=0, microsecond=0).timetuple())
+    # (app, window title, time, screen text, thumbnail, accent, bookmark note).
+    # Yesterday's demo presentation moments stay outside the podcast call, so
+    # its meeting window has no "On Screen During the Meeting" section.
+    shots = [
+        ("Keynote", "Northwind pitch deck", now - 236 * 60,
+         "Northwind holiday campaign: three hero shots, one story, all shot on iPhone.",
+         "slide", (255, 159, 10), None),
+        ("Safari", "Compare Mac models", now - 147 * 60,
+         "MacBook Air vs MacBook Pro: displays, battery life, ports and price, side by side.",
+         "web", (0, 122, 255), None),
+        ("Numbers", "Studio budget 2026", now - 118 * 60,
+         "Two MacBook Pro for editors, three MacBook Air for sales, AppleCare+ on all.",
+         "sheet", (52, 199, 89), "Mac refresh budget"),
+        ("Pages", "Delivery checklist", now - 74 * 60,
+         "Every client video ships with captions, an audio description track, and a vertical cut.",
+         "doc", (255, 149, 0), None),
+        ("Mail", "Trade-in estimate", now - 64 * 60,
+         "Your trade-in estimate for five laptops is ready and valid for 14 days.",
+         "mail", (0, 122, 255), None),
+        ("Photos", "Northwind selects", now - 49 * 60,
+         "Northwind selects: 42 photos, 6 favorites, shared with the studio.",
+         "photos", (255, 149, 0), None),
+        ("Keynote", "Globex demo presentation", yesterday + (15 * 60 + 24) * 60,
+         "Globex demo presentation: case studies and the launch timeline.",
+         "slide", (0, 122, 255), "Final demo presentation"),
+        ("Mail", "Re: Globex demo presentation", yesterday + (16 * 60 + 5) * 60,
+         "Great demo presentation. Could you share the slides with our team?",
+         "mail", (0, 122, 255), None),
+    ]
+    for index, (app, title, timestamp, text, kind, accent, note) in enumerate(shots, start=1):
+        shot_dir = os.path.join(root, "activity", datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d"), "demo")
+        os.makedirs(shot_dir, exist_ok=True)
+        path = os.path.join(shot_dir, f"scene-{index}.png")
+        write_light_window_png(path, kind, accent)
+        cur.execute("""
+            INSERT INTO screenshots (
+                ts, path, app, window_title, capture_trigger, perceptual_hash,
+                similarity_group, source_url, document_name, meeting_id,
+                privacy_redactions)
+            VALUES (?, ?, ?, ?, ?, '', ?, '', ?, '', 0)
+            """, (timestamp, path, app, title, "window_change", index, title))
+        snapshot_id = cur.lastrowid
+        cur.execute("""
+            INSERT INTO ocr_fts (
+                text, window_title, ts, app, text_source, snapshot_id)
+            VALUES (?, ?, ?, ?, 'accessibility', ?)
+            """, (text, title, timestamp, app, snapshot_id))
+        if note:
+            cur.execute("INSERT INTO screen_bookmarks (snapshot_id, note, created_at) VALUES (?, ?, ?)",
+                        (snapshot_id, note, timestamp + 8 * 60))
+    con.commit()
+    con.close()
+    return len(shots)
+
+
+def seed_studio_chats(root, now):
+    """Two answered Ask conversations that cite the studio meetings."""
+    chats = os.path.join(root, "chats")
+    os.makedirs(chats, exist_ok=True)
+
+    def msg(mid_, role, text, activity=None):
+        out = {"id": mid_, "role": role, "text": text}
+        if activity:
+            out["activity"] = activity
+        return out
+
+    def act(aid, tool, icon, text):
+        return {"id": aid, "tool": tool, "icon": icon, "text": text, "done": True}
+
+    northwind = mid(24)
+    shoot = {
+        "id": "bbbbbbb1-0000-4000-8000-000000000001",
+        "title": "Holiday shoot plan",
+        "createdAt": iso(now - timedelta(minutes=9)),
+        "updatedAt": iso(now - timedelta(minutes=2)),
+        "messages": [
+            msg("bbbbbbb1-0000-4000-8000-000000000101", "user",
+                "What did we decide for the holiday shoot?"),
+            msg("bbbbbbb1-0000-4000-8000-000000000102", "assistant",
+                "Everything is shot on iPhone, stills and video, for one consistent look "
+                f"[meeting:{STUDIO_SHOOT}@0:12]. Footage moves by AirDrop for selects and on the shared SSD "
+                f"for full shoot days [meeting:{STUDIO_SHOOT}@1:22].\n\n"
+                f"You're booking the photo studio for Thursday morning [meeting:{STUDIO_SHOOT}@0:26], "
+                f"and Maya is sending the Freeform shot list to the crew tonight [meeting:{STUDIO_SHOOT}@0:38].",
+                activity=[
+                    act("bbbbbbb1-0000-4000-8000-000000000201", "search_meetings",
+                        "magnifyingglass", "searched meetings for “holiday shoot”"),
+                    act("bbbbbbb1-0000-4000-8000-000000000202", "get_meeting",
+                        "doc.text", "read “Holiday shoot planning”"),
+                ]),
+        ],
+    }
+    captions = {
+        "id": "bbbbbbb2-0000-4000-8000-000000000002",
+        "title": "Northwind captions",
+        "createdAt": iso(now - timedelta(days=1, hours=2)),
+        "updatedAt": iso(now - timedelta(days=1, hours=2)),
+        "messages": [
+            msg("bbbbbbb2-0000-4000-8000-000000000101", "user",
+                "What does Northwind need before the cut goes live?"),
+            msg("bbbbbbb2-0000-4000-8000-000000000102", "assistant",
+                "Captions. Their legal team won't put the cut on the site without them "
+                f"[meeting:{northwind}@0:00]. You promised a subtitled version this week "
+                f"[meeting:{northwind}@0:15], and they asked for a quote on three social cut-downs "
+                f"[meeting:{northwind}@0:30].",
+                activity=[
+                    act("bbbbbbb2-0000-4000-8000-000000000201", "search_meetings",
+                        "magnifyingglass", "searched meetings for “Northwind”"),
+                    act("bbbbbbb2-0000-4000-8000-000000000202", "get_meeting",
+                        "doc.text", "read “Client call - Northwind”"),
+                ]),
+        ],
+    }
+    for convo in (shoot, captions):
+        with open(os.path.join(chats, f"{convo['id']}.json"), "w") as f:
+            json.dump(convo, f, indent=2)
+
+
+def seed_studio(root):
+    now = datetime.now(timezone.utc)
+    meetings = build_studio(now)
+    speakers = {STUDIO_SHOOT: "Maya", STUDIO_PODCAST: "Leo"}
+    for mm in meetings:
+        folder = write_meeting(root, mm)
+        if mm["id"] not in speakers:
+            continue
+        write_demo_audio(folder)
+        write_demo_audio(folder, track="system", tone=247, beat=2.7, level=1_400)
+        # A named speaker keeps the "speaker needs a name" prompt out of the
+        # featured meetings' summaries.
+        path = os.path.join(folder, "transcript.json")
+        with open(path) as f:
+            transcript = json.load(f)
+        transcript["speakerAliases"] = {"them": speakers[mm["id"]]}
+        with open(path, "w") as f:
+            json.dump(transcript, f, indent=2)
+    journal = os.path.join(root, "journal")
+    os.makedirs(journal, exist_ok=True)
+    with open(os.path.join(journal, f"{datetime.now().strftime('%Y-%m-%d')}.md"), "w") as f:
+        f.write("""## Today at a glance
+
+The holiday shoot is all iPhone on Thursday, and the editors move to MacBook Pro once Apple's quote is in. The Northwind holiday cut wraps today.
+
+## Next
+
+- Book the photo studio for Thursday morning.
+- Request the business quote from Apple.
+- Deliver the captioned Northwind cut.
+""")
+    seed_studio_chats(root, now)
+    moments = seed_studio_activity(root)
+    return len(meetings), moments
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reset", action="store_true",
                         help="replace an existing directory created by this script")
-    parser.add_argument("--profile", choices=["demo", "full-day", "large"], default="demo",
-                        help="demo (default): the screenshot library; full-day: one untranscribed "
-                             "9-hour day; large: 180 days for scale checks")
+    parser.add_argument("--profile", choices=["demo", "studio", "full-day", "large"], default="demo",
+                        help="demo (default): the screenshot library; studio: the website and README "
+                             "hero library; full-day: one untranscribed 9-hour day; large: 180 days "
+                             "for scale checks")
     parser.add_argument("--day", help="YYYY-MM-DD for full-day (default: yesterday)")
     parser.add_argument("storage_root")
     args = parser.parse_args()
@@ -762,6 +1281,10 @@ def main():
     if args.profile == "large":
         seed_large(root)
         print(f"Seeded large library at {root}")
+        return
+    if args.profile == "studio":
+        meetings, moments = seed_studio(root)
+        print(f"Seeded studio library at {root} ({meetings} meetings, 2 chats, {moments} screen moments)")
         return
     now = datetime.now(timezone.utc)
     for mm in build(now):

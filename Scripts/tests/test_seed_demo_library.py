@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 """Regression tests for the demo library destination ownership boundary."""
 
+from datetime import datetime
 import glob
 import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -123,6 +126,93 @@ class SeedProfileTests(unittest.TestCase):
             span = (offset, offset + source["duration"])
             self.assertTrue(any(s["end"] > span[0] and s["start"] < span[1] for s in segments), span)
             offset += source["duration"]
+
+    def test_studio_profile_keeps_each_example_on_its_own_surface(self):
+        # The website shows the holiday shoot meeting, a "MacBook" search and a
+        # "captions" search. Each search must return only its own rows, and
+        # nothing seeded for today may lie in the future of the capture.
+        self.run_seed("--profile", "studio")
+        now = time.time()
+        folders = {}
+        for path in glob.glob(os.path.join(self.root, "meetings/*/*/*/meta.json")):
+            with open(path) as f:
+                meta = json.load(f)
+            started = datetime.fromisoformat(meta["startedAt"].replace("Z", "+00:00")).timestamp()
+            self.assertLess(started, now, meta["title"])
+            folders.setdefault(meta["title"], []).append(os.path.dirname(path))
+        self.assertEqual(sum(map(len, folders.values())), 19)
+
+        ids = set()
+        for paths in folders.values():
+            for folder in paths:
+                with open(os.path.join(folder, "meta.json")) as f:
+                    ids.add(json.load(f)["id"])
+        chats = glob.glob(os.path.join(self.root, "chats/*.json"))
+        self.assertEqual(len(chats), 2)
+        for path in chats:
+            with open(path) as f:
+                cited = {match for message in json.load(f)["messages"]
+                         for match in re.findall(r"\[meeting:([0-9a-f-]+)@", message["text"])}
+            self.assertTrue(cited and cited <= ids, path)
+
+        featured = folders["Holiday shoot planning"][0]
+        for title, speaker in (("Holiday shoot planning", "Maya"), ("Podcast trailer review", "Leo")):
+            folder = folders[title][0]
+            for track in ("mic.m4a", "system.m4a"):
+                self.assertTrue(os.path.exists(os.path.join(folder, track)), (title, track))
+            with open(os.path.join(folder, "transcript.json")) as f:
+                self.assertEqual(json.load(f)["speakerAliases"], {"them": speaker})
+
+        def meetings_saying(word):
+            titles = set()
+            for title, paths in folders.items():
+                for folder in paths:
+                    with open(os.path.join(folder, "transcript.json")) as f:
+                        if any(word in segment["text"].lower() for segment in json.load(f)["segments"]):
+                            titles.add(title)
+            return titles
+
+        self.assertEqual(meetings_saying("macbook"), {"Mac refresh planning", "Studio check-in"})
+        self.assertEqual(meetings_saying("captions"),
+                         {"Client call - Northwind", "Weekly production sync", "Accessibility review"})
+        self.assertEqual(meetings_saying("demo presentation"), {"Studio check-in", "Brand refresh sync"})
+
+        con = sqlite3.connect(os.path.join(self.root, "lokalbotv3.sqlite"))
+        self.addCleanup(con.close)
+
+        def screens_showing(word):
+            return {title for (title,) in con.execute(
+                "SELECT window_title FROM ocr_fts WHERE text MATCH ?", (word,))}
+
+        self.assertEqual(screens_showing("macbook"), {"Compare Mac models", "Studio budget 2026"})
+        self.assertEqual(screens_showing("captions"), {"Delivery checklist"})
+        self.assertEqual(screens_showing('"demo presentation"'),
+                         {"Globex demo presentation", "Re: Globex demo presentation"})
+        self.assertEqual({note for (note,) in con.execute("SELECT note FROM screen_bookmarks")},
+                         {"Mac refresh budget", "Final demo presentation"})
+        self.assertLess(con.execute("SELECT MAX(ts) FROM screenshots").fetchone()[0], now)
+        self.assertLess(con.execute("SELECT MAX(end) FROM activity_blocks").fetchone()[0], now)
+        for (path,) in con.execute("SELECT path FROM screenshots"):
+            with open(path, "rb") as f:
+                self.assertEqual(f.read(8), b"\x89PNG\r\n\x1a\n")
+
+        # The Photos moment falls inside the featured call, so the meeting
+        # window shows it under "On Screen During the Meeting".
+        with open(os.path.join(featured, "meta.json")) as f:
+            meta = json.load(f)
+        start, end = (datetime.fromisoformat(meta[key].replace("Z", "+00:00")).timestamp()
+                      for key in ("startedAt", "endedAt"))
+        (photos,) = con.execute("SELECT ts FROM screenshots WHERE app = 'Photos'").fetchone()
+        self.assertTrue(start < photos < end)
+
+        # Nothing was on screen during the podcast call, which the README shows
+        # without an "On Screen During the Meeting" section.
+        with open(os.path.join(folders["Podcast trailer review"][0], "meta.json")) as f:
+            meta = json.load(f)
+        start, end = (datetime.fromisoformat(meta[key].replace("Z", "+00:00")).timestamp()
+                      for key in ("startedAt", "endedAt"))
+        self.assertEqual(con.execute("SELECT COUNT(*) FROM screenshots WHERE ts BETWEEN ? AND ?",
+                                     (start, end)).fetchone()[0], 0)
 
 if __name__ == "__main__":
     unittest.main()

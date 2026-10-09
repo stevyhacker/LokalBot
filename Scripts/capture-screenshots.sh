@@ -70,8 +70,8 @@ PRODUCTS=$(xcodebuild -project LokalBot.xcodeproj -scheme "$SCHEME" \
   | awk -F' = ' '/ BUILT_PRODUCTS_DIR /{print $2; exit}')
 APP="$PRODUCTS/LokalBot UI Test Host.app/Contents/MacOS/LokalBot UI Test Host"
 
-echo "==> Seeding demo library"
-python3 Scripts/seed_demo_library.py "$LIB"
+echo "==> Seeding studio demo library"
+python3 Scripts/seed_demo_library.py --profile studio "$LIB"
 
 # capture <dest-dir> <name> [ENV=val ...]
 capture() {
@@ -113,16 +113,17 @@ capture() {
 }
 
 echo "==> Capturing section stills at ${CAPTURE_SIZE}pt (${CAPTURE_SCALE}x, content max ${CAPTURE_CONTENT_MAX}pt, delay ${CAPTURE_DELAY}s)"
-capture "$STILLS" meetings-summary    LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=summary    LOKALBOT_DISMISS_ONBOARDING=1
-capture "$STILLS" meetings-transcript LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=0 LOKALBOT_DETAIL_TAB=transcript LOKALBOT_DISMISS_ONBOARDING=1
+# The README meeting section shows the podcast trailer review (studio index 3).
+capture "$STILLS" meetings-summary    LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=3 LOKALBOT_DETAIL_TAB=summary    LOKALBOT_DISMISS_ONBOARDING=1
+capture "$STILLS" meetings-transcript LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=3 LOKALBOT_DETAIL_TAB=transcript LOKALBOT_DISMISS_ONBOARDING=1
 if cmp -s "$STILLS/meetings-summary.png" "$STILLS/meetings-transcript.png"; then
   echo "    !! meeting summary and transcript captures are identical" >&2
   exit 1
 fi
 capture "$STILLS" timeline            LOKALBOT_INITIAL_SECTION=timeline LOKALBOT_DISMISS_ONBOARDING=1
 capture "$STILLS" today               LOKALBOT_INITIAL_SECTION=today LOKALBOT_DISMISS_ONBOARDING=1
-capture "$STILLS" quick-recall        LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_QUICK_RECALL_QUERY=Redis LOKALBOT_CAPTURE_SIZE=660x480 LOKALBOT_DISMISS_ONBOARDING=1
-capture "$STILLS" search              LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=Redis
+capture "$STILLS" quick-recall        LOKALBOT_UI_TEST_WINDOW=quick-recall LOKALBOT_QUICK_RECALL_QUERY=captions LOKALBOT_CAPTURE_SIZE=660x480 LOKALBOT_DISMISS_ONBOARDING=1
+capture "$STILLS" search              LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=MacBook
 capture "$STILLS" models              LOKALBOT_INITIAL_SECTION=models
 capture "$STILLS" cotyping            LOKALBOT_INITIAL_SECTION=cotyping LOKALBOT_COTYPING_DEMO=1
 capture "$STILLS" dictation           LOKALBOT_INITIAL_SECTION=dictation LOKALBOT_DICTATION_DEMO=1
@@ -142,10 +143,12 @@ if [ "$MODE" = "stills" ]; then
 fi
 
 echo "==> Capturing GIF sequence frames"
-capture "$FRAMES" recap-northwind  LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=3 LOKALBOT_DETAIL_TAB=summary LOKALBOT_DISMISS_ONBOARDING=1
-capture "$FRAMES" recap-q3         LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=2 LOKALBOT_DETAIL_TAB=summary LOKALBOT_DISMISS_ONBOARDING=1
-capture "$FRAMES" search-sso       LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=SSO
-capture "$FRAMES" search-postgres  LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=Postgres
+# Studio list order: 0 Holiday shoot, 1 Mac refresh, 2 Studio check-in, 3 Podcast
+# trailer, 4 Brand refresh sync, 5 Client call - Northwind.
+capture "$FRAMES" recap-mac-refresh LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=1 LOKALBOT_DETAIL_TAB=summary LOKALBOT_DISMISS_ONBOARDING=1
+capture "$FRAMES" recap-northwind   LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=5 LOKALBOT_DETAIL_TAB=summary LOKALBOT_DISMISS_ONBOARDING=1
+capture "$FRAMES" search-airdrop    LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=AirDrop
+capture "$FRAMES" search-northwind  LOKALBOT_INITIAL_SECTION=search LOKALBOT_INITIAL_SEARCH=Northwind
 pkill -f "LokalBot UI Test Host" >/dev/null 2>&1 || true
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -159,9 +162,9 @@ echo "==> Assembling GIFs"
 python3 Scripts/assemble_gif.py "$OUT/hero.gif" 1760 \
   "$OUT/meetings-summary.png" "$OUT/meetings-transcript.png" "$OUT/search.png" "$OUT/chat.png" "$OUT/timeline.png" "$OUT/cotyping.png"
 python3 Scripts/assemble_gif.py "$OUT/recap.gif" 1720 \
-  "$OUT/meetings-summary.png" "$OUT/meetings-transcript.png" "$FRAMES/recap-northwind.png" "$FRAMES/recap-q3.png"
+  "$OUT/meetings-summary.png" "$OUT/meetings-transcript.png" "$FRAMES/recap-mac-refresh.png" "$FRAMES/recap-northwind.png"
 python3 Scripts/assemble_gif.py "$OUT/search.gif" 1720 \
-  "$OUT/search.png" "$FRAMES/search-sso.png" "$FRAMES/search-postgres.png"
+  "$OUT/search.png" "$FRAMES/search-airdrop.png" "$FRAMES/search-northwind.png"
 
 echo "==> Video rendering remains a separate reviewed workflow"
 echo "    See Docs/demo-film-kit.md before running a HyperFrames render script."

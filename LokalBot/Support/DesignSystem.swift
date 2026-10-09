@@ -21,8 +21,6 @@ extension Brand {
         static let panel: CGFloat = 10
         /// Hero surfaces (getting-started card, onboarding cards).
         static let card: CGFloat = 10
-        /// Floating capsules (dictation HUD, banners, the recording pill).
-        static let hud: CGFloat = 20
     }
 }
 

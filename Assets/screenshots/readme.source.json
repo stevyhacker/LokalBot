@@ -1,9 +1,9 @@
 {
-  "captured_on": "2026-09-28",
-  "source_release": null,
+  "captured_on": "2026-10-09",
+  "source_release": "0.10.2",
   "source_branch": "master",
-  "source_commit": "769068eab523eb158d74c4657d29934287a336bf",
-  "capture_method": "Scripts/capture-screenshots.sh --stills-only in an isolated git archive of the master commit, with the script's light default and the scripted-capture sidebar selection from LokalBot/Views/MainWindowView.swift applied",
+  "source_commit": "1ade074a90510866d8909dc17e2e1dde372831b7",
+  "capture_method": "Per-frame environment from Scripts/capture-screenshots.sh --stills-only at this revision, run one frame at a time against one studio-profile library; LokalBot UI Test Host built with CODE_SIGNING_ALLOWED=NO into its own DerivedData",
   "scheme": "LokalBot UI Test Host",
   "appearance": "light",
   "scale": 2,
@@ -18,55 +18,52 @@
     ]
   },
   "synthetic_data_only": true,
-  "library_seed": "Scripts/seed_demo_library.py",
+  "library_seed": "Scripts/seed_demo_library.py --profile studio",
   "capture_only": true,
   "ui_tests_run": false,
   "production_recording_or_model_inference_verified": false,
-  "isolation": "Separate archive, temporary storage root and UserDefaults suite, and path-specific DerivedData. Prebuilt native runtimes were copied into the archive's Vendor directory. The script's pkill matches only 'LokalBot UI Test Host' processes. Installed app and user library were not used.",
-  "capture_script_adjustments": [
-    "Default appearance changed from dark to light.",
-    "Scripted captures draw the selected sidebar row with NSColor.unemphasizedSelectedContentBackgroundColor, because cacheDisplay renders the native highlight solid black."
-  ],
+  "isolation": "Temporary storage root and UserDefaults suite per run, and a separate DerivedData. Only the capture host's own process was stopped. Installed app and user library were not used.",
+  "capture_script_adjustments": [],
   "visually_reviewed": true,
   "captures": [
     {
       "path": "quick-recall.png",
       "width": 1320,
       "height": 1024,
-      "bytes": 191421,
-      "sha256": "c006078d0778723140e968fc149be1f214f8a00a518b9194a5e5733759229c55",
+      "bytes": 145350,
+      "sha256": "21555679ff420213fc92ca9bcae6d6bd5ef85121c8625373f874edd8617e8a71",
       "image_edits": "none"
     },
     {
       "path": "meetings-summary.png",
       "width": 2800,
       "height": 1760,
-      "bytes": 596592,
-      "sha256": "6765df5d91fe29948a4e897c231c8fd6c51c6902bf2c0a523b3fdcc9651373bf",
+      "bytes": 477278,
+      "sha256": "df89cb0bf76b7bce44df28cc6fd82b7daddb68c9993ee3a45304bc5c3c3e4c00",
       "image_edits": "none"
     },
     {
       "path": "today.png",
       "width": 2800,
       "height": 1760,
-      "bytes": 412154,
-      "sha256": "95ac938caaf72b8c830ba6d8993b2b400c3ccd4a796e5a4ed60bb5958f112811",
+      "bytes": 357719,
+      "sha256": "75d485ed8bb079761d8d9cde6fd08229f195851a888409e11de2c6a966ab3999",
       "image_edits": "none"
     },
     {
       "path": "timeline.png",
       "width": 2800,
       "height": 1760,
-      "bytes": 447197,
-      "sha256": "af618bb457cc44a12273e04314d645e4051bb0c61a357ca9c6e53e7be876b020",
+      "bytes": 499347,
+      "sha256": "4159fcdbd263f36ba2742a57c0d6603da79ba3cbfe23e1db4c6195d36a3eff43",
       "image_edits": "none"
     },
     {
       "path": "cotyping.png",
       "width": 2800,
       "height": 1760,
-      "bytes": 398187,
-      "sha256": "578153c3d1ccef69fee263064d291e110ce1403b4693bfddeec1563ed733383b",
+      "bytes": 399882,
+      "sha256": "a4300c04c7111901ac7e20a75cc0dd81fa20a7b70d86176a71320c80734a57a7",
       "image_edits": "none"
     }
   ],
@@ -93,11 +90,9 @@
     }
   },
   "known_render_limits": [
-    "cacheDisplay draws the selected toolbar segment in meetings-summary.png as a blank light pill",
     "cacheDisplay draws selected sidebar rows as solid black"
   ],
   "known_limits": [
-    "The selected toolbar segment in meetings-summary.png renders as a blank white pill under cacheDisplay.",
-    "The host was not the active app, so window chrome and switches use the inactive appearance."
+    "The Autocomplete frame's sample conversation is the app's built-in preview text, not library content."
   ]
 }

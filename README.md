@@ -20,6 +20,13 @@ Free and open source. No account. Nothing joins your calls.
 
 [Features](#features) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Agents & CLI](#for-developers--agents) · [Website](https://www.lokalbot.com/)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-hero-dark.png" />
+  <img src="Assets/hero/lokalbot-hero-light.png" width="920" alt="A LokalBot meeting summary behind Quick Recall, where one search returns screen text you saw and meeting transcripts of what was said" />
+</picture>
+
+<sub>Real app captures with fictional demo data.</sub>
+
 </div>
 
 <a id="see-it-in-action"></a>
@@ -40,7 +47,7 @@ Record microphone and meeting-app audio without a bot joining. Get local transcr
 
 One search across your meeting transcripts and, if you turn it on, what you saw on screen. Search by keyword or by meaning, then open the matching passage or screen moment instead of hunting through apps.
 
-<div align="center"><a href="Assets/screenshots/quick-recall.png"><img src="Assets/screenshots/quick-recall.png" alt="Quick Recall finding a Redis discussion across meeting transcripts and saved Slack and browser context" width="560" /></a></div>
+<div align="center"><a href="Assets/screenshots/quick-recall.png"><img src="Assets/screenshots/quick-recall.png" alt="Quick Recall finding a delivery checklist seen in Pages and three meetings where captions came up" width="560" /></a></div>
 
 ### Pick up where you left off
 

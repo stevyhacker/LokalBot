@@ -60,6 +60,12 @@ final class DictationCoordinator: ObservableObject {
     @Published private(set) var modelPreparationStatus: String?
     @Published private(set) var modelPreparationProgress: Double?
     @Published private(set) var modelPreparationError: String?
+    /// A status-only preparation reaches the HUD once it outlasts a short
+    /// grace period. A warm model's check ends at once and used to flash the
+    /// preparation panel at the start of every transcription.
+    private var modelPreparationOutlastedGrace = false
+    private var modelPreparationGraceTask: Task<Void, Never>?
+    private static let modelPreparationGracePeriod: Duration = .milliseconds(600)
 
     private let storageRoot: URL
     private let settingsProvider: () -> AppSettings
@@ -112,6 +118,8 @@ final class DictationCoordinator: ObservableObject {
     /// be held while an earlier dictation is still transcribing; `start` then
     /// does nothing, and the shortcut must not cancel that earlier dictation.
     private var shortcutStartedGeneration: Int?
+    /// When the latest start was requested, for the press-to-audio log.
+    private var startPressedAt: Date?
 
     init(
         storageRoot: URL,
@@ -193,14 +201,20 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
+    /// While the microphone starts, the settings captured at the press decide,
+    /// so the HUD opens at the size recording keeps instead of growing from a
+    /// pill into the transcript panel once audio flows.
     var shouldShowLiveTranscriptPanel: Bool {
-        isLivePreviewEnabled && state.isWorking
+        if isStarting, !state.isWorking, let activeConfig {
+            return activeConfig.dictationShowOverlay && activeConfig.dictationLivePreview
+        }
+        return isLivePreviewEnabled && state.isWorking
     }
 
     var shouldShowModelPreparation: Bool {
         Self.shouldShowModelPreparation(
             state: state,
-            hasStatus: modelPreparationStatus != nil,
+            hasStatus: modelPreparationStatus != nil && modelPreparationOutlastedGrace,
             hasProgress: modelPreparationProgress != nil,
             hasError: modelPreparationError != nil)
     }
@@ -384,6 +398,7 @@ final class DictationCoordinator: ObservableObject {
         insertionCheckTask = nil
         dismissDeliveryNotice()
         let startedAt = Date()
+        startPressedAt = startedAt
         generation += 1
         let session = generation
         startTaskGeneration = session
@@ -393,10 +408,11 @@ final class DictationCoordinator: ObservableObject {
         activeConfig = initialConfig
         let outputMode = initialConfig.dictationOutputMode
         let screenTarget = DictationScreenTarget.frontmost()
-        // One focus read, started at the shortcut. The microphone waits only
-        // for the short deadline; a slow app's answer to the same read can
-        // still bind the destination later. A fresh read during recording
-        // would bind whichever app had focus by then.
+        // One focus read, started at the shortcut. The microphone opens
+        // alongside it; recording begins once it answers or its short deadline
+        // passes, and a slow app's answer to the same read can still bind the
+        // destination later. A fresh read during recording would bind
+        // whichever app had focus by then.
         let fullFocusCapture = Task { [focusSnapshotExecutor] in
             await focusSnapshotExecutor.capture(
                 deadlineMilliseconds: Self.deliveryCheckDeadlineMilliseconds)
@@ -466,22 +482,11 @@ final class DictationCoordinator: ObservableObject {
                 self.onMicPermissionDenied()
                 return
             }
-            let focusCapture = await focusCaptureTask.value
-            let capturedDeliveryTarget = Self.deliveryTarget(
-                for: outputMode, capture: focusCapture)
-            let capturedDeliveryIssue = outputMode == .pasteIntoFocusedApp
-                ? Self.deliveryTargetIssue(for: focusCapture) : nil
             // An earlier cancel may still be restoring the exact players it
             // paused. Finish that bounded transition before taking a new media
             // snapshot, otherwise its late resume could interrupt this capture.
             if let pendingMediaCleanup { await pendingMediaCleanup.value }
             guard self.generation == session, !Task.isCancelled else { return }
-            self.deliveryTarget = capturedDeliveryTarget
-            self.deliveryTargetIssue = capturedDeliveryIssue
-            if let screenTarget, DictationScreenPrivacy.allowsCapture(focus: focusCapture, target: screenTarget) {
-                self.contextTarget = screenTarget
-                self.contextTarget?.focusIdentityKey = focusCapture.snapshot?.focusIdentityKey
-            }
             var localMediaSession: MediaPlaybackController.PauseSession?
             var candidateAudioURL: URL?
             do {
@@ -500,9 +505,21 @@ final class DictationCoordinator: ObservableObject {
                 self.recorder.onFirstAudio = { [weak self] in
                     self?.microphoneDidDeliverFirstAudio(generation: session)
                 }
+                // The microphone opens while the focus read begun at the press
+                // finishes. Waiting for that read first delayed every start by
+                // up to its deadline, and words spoken meanwhile were lost.
                 try await self.startRecorder(writingTo: audioURL)
+                let focusCapture = await focusCaptureTask.value
                 try Task.checkCancellation()
                 guard self.generation == session else { throw CancellationError() }
+                self.deliveryTarget = Self.deliveryTarget(for: outputMode, capture: focusCapture)
+                self.deliveryTargetIssue = outputMode == .pasteIntoFocusedApp
+                    ? Self.deliveryTargetIssue(for: focusCapture) : nil
+                if let screenTarget,
+                   DictationScreenPrivacy.allowsCapture(focus: focusCapture, target: screenTarget) {
+                    self.contextTarget = screenTarget
+                    self.contextTarget?.focusIdentityKey = focusCapture.snapshot?.focusIdentityKey
+                }
                 self.pausedMediaSession = pausedMedia
                 localMediaSession = nil
                 self.activeAudioURL = audioURL
@@ -1100,7 +1117,8 @@ final class DictationCoordinator: ObservableObject {
     }
 
     func retryModelPreparation() {
-        modelPreparationError = nil
+        // Both paths begin preparation, which clears the error while the
+        // panel is still showing it, so the panel stays up for the retry.
         if let pending = pendingTranscriptionRetry {
             pendingTranscriptionRetry = nil
             beginModelPreparation()
@@ -1472,9 +1490,19 @@ final class DictationCoordinator: ObservableObject {
         "Check your connection and free disk space, then try again."
 
     private func beginModelPreparation() {
+        // A panel already on screen (a Retry, a slow load) stays up.
+        let alreadyShown = shouldShowModelPreparation
         modelPreparationError = nil
         modelPreparationProgress = nil
         modelPreparationStatus = "Checking the selected speech model…"
+        modelPreparationOutlastedGrace = alreadyShown
+        modelPreparationGraceTask?.cancel()
+        modelPreparationGraceTask = alreadyShown ? nil : Task { [weak self] in
+            try? await Task.sleep(for: Self.modelPreparationGracePeriod)
+            guard let self, !Task.isCancelled, self.modelPreparationStatus != nil else { return }
+            self.modelPreparationOutlastedGrace = true
+            self.refreshOverlay()
+        }
         refreshOverlay()
     }
 
@@ -1497,6 +1525,9 @@ final class DictationCoordinator: ObservableObject {
         modelPreparationStatus = nil
         modelPreparationProgress = nil
         modelPreparationError = nil
+        modelPreparationOutlastedGrace = false
+        modelPreparationGraceTask?.cancel()
+        modelPreparationGraceTask = nil
     }
 
     private func discardPendingTranscriptionRetry() {
@@ -1587,7 +1618,8 @@ final class DictationCoordinator: ObservableObject {
         if settingsProvider().dictationPlaysStartSound {
             Self.startSound?.play()
         }
-        lokalbotLog("dictation microphone delivered first audio")
+        let sincePress = startPressedAt.map { Int(Date().timeIntervalSince($0) * 1_000) }
+        lokalbotLog("dictation microphone delivered first audio press_to_audio=\(sincePress.map(String.init) ?? "?")ms")
     }
 
     private static let startSound: NSSound? = {
