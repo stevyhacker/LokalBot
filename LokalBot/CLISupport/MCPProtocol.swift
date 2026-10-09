@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// Minimal JSON model for JSON-RPC params, results, and tool schemas.
 /// Codable so a whole response tree encodes in one pass; the literal
@@ -163,7 +164,18 @@ struct MCPStdioLineReader {
                 }
             }
 
-            let chunk = try input.read(upToCount: chunkBytes) ?? Data()
+            // Foundation's read(upToCount:) can wait to fill its buffer on a
+            // pipe. MCP clients keep stdin open while awaiting each response,
+            // so consume the bytes available from a single POSIX read instead.
+            var chunk = Data(count: chunkBytes)
+            let count = chunk.withUnsafeMutableBytes { buffer in
+                Darwin.read(input.fileDescriptor, buffer.baseAddress, buffer.count)
+            }
+            if count < 0 {
+                if errno == EINTR { continue }
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            chunk.count = count
             if chunk.isEmpty {
                 reachedEOF = true
             } else {

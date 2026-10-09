@@ -110,6 +110,32 @@ final class MCPServerIntegrationTests: XCTestCase {
         XCTAssertTrue(inverse[1].contains("[invalid_arguments]"), inverse[1])
     }
 
+    func testInitializeRespondsWhileClientKeepsStdinOpen() throws {
+        let process = Process()
+        process.executableURL = helperURL
+        process.arguments = ["mcp"]
+        process.environment = ["LOKALBOT_STORAGE_ROOT": root.path]
+        let stdin = Pipe()
+        let stdout = Pipe()
+        process.standardInput = stdin
+        process.standardOutput = stdout
+        process.standardError = FileHandle.nullDevice
+        let responseArrived = expectation(description: "initialize answered before EOF")
+        let output = MCPOutputProbe(expectation: responseArrived)
+        stdout.fileHandleForReading.readabilityHandler = { output.append($0.availableData) }
+        try process.run()
+        defer {
+            stdin.fileHandleForWriting.closeFile()
+            if process.isRunning { process.terminate() }
+            process.waitUntilExit()
+            stdout.fileHandleForReading.readabilityHandler = nil
+        }
+        let request = #"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"xctest","version":"1"}}}"#
+        stdin.fileHandleForWriting.write(Data((request + "\n").utf8))
+        XCTAssertEqual(XCTWaiter.wait(for: [responseArrived], timeout: 2), .completed)
+        XCTAssertTrue(output.text.contains(#""protocolVersion":"2025-06-18""#))
+    }
+
     func testUnterminatedOversizedRecordIsRejectedBeforeEOF() throws {
         let process = Process()
         process.executableURL = helperURL

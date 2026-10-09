@@ -1,0 +1,33 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "lokalbot",
+  "version": "0.1.0",
+  "description": "Recall meetings, decisions, and commitments from your Mac's LokalBot library, with source references.",
+  "author": { "name": "stevyhacker", "url": "https://github.com/stevyhacker" },
+  "homepage": "https://www.lokalbot.com",
+  "repository": "https://github.com/stevyhacker/LokalBot",
+  "license": "GPL-3.0-only",
+  "keywords": ["meetings", "memory", "mcp", "local-first"],
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "interface": {
+        "displayName": "LokalBot",
+        "shortDescription": "Recall meetings and follow through",
+        "longDescription": "Search recorded meetings, read summaries and selected transcript excerpts, review commitments, and prepare for conversations. The library stays on your Mac; requested results are shared with your connected ChatGPT or Codex client. Requires LokalBot and its meeting-library permission.",
+        "developerName": "stevyhacker",
+        "category": "Productivity",
+        "capabilities": ["Interactive", "Read"],
+        "websiteURL": "https://www.lokalbot.com",
+        "privacyPolicyURL": "https://github.com/stevyhacker/LokalBot/blob/master/PRIVACY.md",
+        "composerIcon": "./assets/icon.svg",
+        "logo": "./assets/icon.svg",
+        "defaultPrompt": [
+          "Find the meeting where we decided on the caching approach.",
+          "What commitments are still open from my recent meetings?",
+          "Help me prepare for my next conversation with a colleague."
+        ]
+      }
+    }
+  }
+}

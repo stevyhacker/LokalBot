@@ -1,0 +1,76 @@
+name: ChatGPT plugin
+
+on:
+  pull_request:
+    paths:
+      - 'Distribution/chatgpt-plugin/**'
+      - 'CLI/**'
+      - 'LokalBot/CLISupport/**'
+      - 'LokalBot/Models/**'
+      - 'LokalBot/Services/MeetingOutcomeStore.swift'
+      - 'LokalBot/Support/OutcomeProse.swift'
+      - 'project.yml'
+      - '**/Package.resolved'
+      - '.github/workflows/chatgpt-plugin.yml'
+  push:
+    branches: [master, dev]
+    paths:
+      - 'Distribution/chatgpt-plugin/**'
+      - 'CLI/**'
+      - 'LokalBot/CLISupport/**'
+      - 'LokalBot/Models/**'
+      - 'LokalBot/Services/MeetingOutcomeStore.swift'
+      - 'LokalBot/Support/OutcomeProse.swift'
+      - 'project.yml'
+      - '**/Package.resolved'
+      - '.github/workflows/chatgpt-plugin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatgpt-plugin-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: Distribution/chatgpt-plugin
+
+jobs:
+  protocol:
+    name: Plugin protocol and relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.18.0'
+          cache: npm
+          cache-dependency-path: Distribution/chatgpt-plugin/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run check
+      - run: npm run build:relay
+      - run: npm audit --omit=dev --audit-level=high
+
+  native-cli:
+    name: Plugin against native CLI
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.18.0'
+          cache: npm
+          cache-dependency-path: Distribution/chatgpt-plugin/package-lock.json
+      - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: '26.4.1'
+      - run: command -v xcodegen || brew install xcodegen
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm run build:test-cli
+      - name: Synthetic library integration (no app or UI)
+        run: LOKALBOT_TEST_CLI="$PWD/.test-cli/DerivedData/Build/Products/Debug/lokalbot-cli" npm test
