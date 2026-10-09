@@ -31,6 +31,13 @@ extension CotypingCoordinator {
             if advanceActiveSessionIfTypedCharactersMatch(event.characters) {
                 return
             }
+            // The key leaves the suggestion behind. The app draws its letters
+            // where the ghost starts, so the ghost goes now rather than when
+            // the app publishes them, which in a browser can take a while.
+            if session != nil {
+                clearSuggestion()
+                state = .idle
+            }
             scheduleGenerationAfterHostPublishDelay()
         case .dismissal, .navigation, .shortcut, .other:
             pendingKeystrokeUptime = nil
@@ -63,6 +70,8 @@ extension CotypingCoordinator {
                liveField: focus.field,
                pendingInsertionConsumedCount: pendingInsertionConsumedCount) {
             clearSuggestion()
+        } else if let field = focus.field {
+            reanchorVisibleSuggestion(to: field)
         }
         // Surface a disabled reason in the UI while idle (no live suggestion).
         if session == nil, state == .idle || isDisabledState {
@@ -184,22 +193,49 @@ extension CotypingCoordinator {
         }
 
         pendingInsertionConsumedCount = nil
-        let remainingText = advanced.remainingText
-        let liveField = displayField(liveField)
-        let placement = self.placement(for: liveField)
-        if !overlay.shouldHoldInlineReanchor(
-            text: remainingText,
-            caretRect: liveField.caretRect,
-            style: liveField.fieldStyle,
-            placement: placement,
-            millisecondsSinceLastAcceptance: millisecondsSinceLastAcceptance(),
-            inputFrameRect: liveField.inputFrameRect,
-            isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(liveField.precedingText)) {
-            showOverlay(text: remainingText, field: liveField, placement: placement)
-        }
-        markReady(remainingText)
+        reanchor(advanced, to: liveField)
+        guard session != nil else { return true }
         extendSuggestionIfNeeded()
         return true
+    }
+
+    /// Moves the visible ghost to the caret the app reports, once the app
+    /// shows everything accepted or typed through so far. Until then the
+    /// ghost stays where the keys moved it. Called for every focus change,
+    /// so the ghost also follows a field that scrolls or moves.
+    func reanchorVisibleSuggestion(to liveField: CotypingField) {
+        guard let current = session, case .continuation = current.kind, overlay.isVisible,
+              CotypingSessionReconciler.sessionReconciledByPublishedTyping(current, liveField: liveField) == current
+        else { return }
+        // Every accept so far is in the field.
+        pendingInsertionConsumedCount = nil
+        reanchor(current, to: liveField)
+    }
+
+    /// Lays out the rest of `current` at `liveField`'s caret unless it is
+    /// already there; a ghost that would cover typed text always moves.
+    private func reanchor(_ current: CotypingSession, to liveField: CotypingField) {
+        // A quick read leaves out the field's font; the suggestion keeps the
+        // one it was drawn in.
+        var live = liveField
+        if live.fieldStyle == nil { live.fieldStyle = current.field.fieldStyle }
+        let field = displayField(live)
+        let placement = self.placement(for: field)
+        let remainingText = current.remainingText
+        if overlay.shouldHoldInlineReanchor(
+            text: remainingText,
+            caretRect: field.caretRect,
+            style: field.fieldStyle,
+            placement: placement,
+            millisecondsSinceLastAcceptance: millisecondsSinceLastAcceptance(),
+            inputFrameRect: field.inputFrameRect,
+            isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(field.precedingText),
+            precedingText: field.precedingText,
+            trailingText: field.trailingText) {
+            markReady(remainingText)
+            return
+        }
+        showSuggestion(remainingText, on: field, placement: placement)
     }
 
     private func advanceActiveSessionIfTypedCharactersMatch(_ typedCharacters: String) -> Bool {
@@ -220,14 +256,26 @@ extension CotypingCoordinator {
         }
 
         let remainingText = advanced.remainingText
-        if !overlay.advanceInline(
+        if overlay.advanceInline(
             to: remainingText,
             insertedText: typedCharacters,
             isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(current.field.precedingText),
             emphasisLength: acceptEmphasisLength(for: remainingText)) {
-            showOverlay(text: remainingText, field: current.field)
+            markReady(remainingText)
+            refreshCaretSoon()
+        } else if overlay.isShowingInline {
+            // Where the typed letters end is known only once the app shows
+            // them, and the caret read for this suggestion is behind them.
+            // The rest comes back from the anchor cache at the app's caret.
+            clearSuggestion()
+            state = .idle
+            scheduleGenerationAfterHostPublishDelay()
+            return true
+        } else {
+            // A popup sits under the caret's line, clear of the text.
+            showSuggestion(remainingText, on: current.field)
+            guard session != nil else { return true }
         }
-        markReady(remainingText)
         extendSuggestionIfNeeded()
         return true
     }

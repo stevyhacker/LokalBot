@@ -477,10 +477,13 @@ extension CotypingCoordinator {
     /// Starts finding the caret on screen for a field whose app reports
     /// none, unless the field may not be captured.
     func prepareVisualCaret(for field: CotypingField, host: String?, settings: AppSettings) {
-        guard !field.caretIsExact, CotypingVisualCaretLocator.permitsCapture(
+        guard !field.caretIsExact else { return }
+        let permitted = CotypingVisualCaretLocator.permitsCapture(
             appName: field.appName, bundleID: field.bundleID, host: host, isSecure: field.isSecure,
             excludedApps: settings.excludedAppList + settings.cotypingExcludedAppList,
-            excludedDomains: settings.excludedScreenDomainList + settings.cotypingExcludedDomainList) else { return }
+            excludedDomains: settings.excludedScreenDomainList + settings.cotypingExcludedDomainList)
+        visualCaret.notePermission(permitted, for: field)
+        guard permitted else { return }
         visualCaret.refreshIfNeeded(for: field)
     }
 
@@ -497,7 +500,8 @@ extension CotypingCoordinator {
         return CotypingOverlayPlacement(
             caretIsExact: field.caretIsExact,
             isCaretAtEndOfLine: CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: field.trailingText),
-            preference: settingsProvider().cotypingMirrorPreference)
+            preference: settingsProvider().cotypingMirrorPreference,
+            caretIsFoundOnScreen: visualCaret.canFind(field))
     }
 
     func showOverlay(
@@ -506,16 +510,21 @@ extension CotypingCoordinator {
         placement: CotypingOverlayPlacement? = nil,
         acceptanceText: String? = nil
     ) {
-        let field = displayField(field)
+        var field = field
+        if field.fieldStyle == nil { field.fieldStyle = sessionStyle(for: field) }
+        field = displayField(field)
         overlay.show(
             text: text,
             caretRect: field.caretRect,
             inputFrameRect: field.inputFrameRect,
-            style: field.fieldStyle ?? sessionStyle(for: field),
+            style: field.fieldStyle,
             placement: placement ?? self.placement(for: field),
             acceptanceText: acceptanceText,
+            // A correction, emoji or calculation is shown whole or not at all.
+            mayShowPart: session.map { $0.kind == .continuation } ?? true,
             isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(field.precedingText),
             precedingText: field.precedingText,
+            trailingText: field.trailingText,
             emphasisLength: acceptEmphasisLength(for: text))
     }
 

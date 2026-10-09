@@ -36,6 +36,10 @@ nonisolated enum CotypingVisualCaretLocator {
         /// Where the caret's line starts, and where text on it wraps.
         var lineMinX: CGFloat
         var lineMaxX: CGFloat
+        /// The end of the line's first word, when the line is not the first
+        /// of its paragraph. Deleting back into that word can let the word
+        /// return to the line above.
+        var firstWordEndX: CGFloat?
     }
 
     /// Recognized text compared with the typed text, after normalizing both.
@@ -47,65 +51,94 @@ nonisolated enum CotypingVisualCaretLocator {
     /// Recognition found no line shorter than this (one to three typed
     /// characters were never found, measured 2026-10-05).
     static let minimumLineCharacters = 3
+    /// Letters of the last word that a capture may lack: it can be a frame
+    /// behind the typing, and recognition can miss a final full stop.
+    static let maximumMissingCharacters = 3
+    /// After this many finds in a row came back empty, the field is treated
+    /// as one whose caret cannot be found on screen.
+    static let maximumFailedFinds = 3
 
     /// Whether the caret's line has enough text to be found on screen.
     static func hasEnoughText(_ precedingText: String) -> Bool {
         caretLine(of: precedingText).typed.count >= minimumLineCharacters
     }
 
-    /// The caret's paragraph up to the caret, normalized and without the
-    /// spaces typed at its end, and how many of those there are.
-    private static func caretLine(of precedingText: String) -> (typed: String, trailingSpaces: Int) {
+    /// The caret's paragraph up to the caret without the spaces typed at its
+    /// end, normalized and as typed, and how many of those spaces there are.
+    private static func caretLine(of precedingText: String) -> (typed: String, core: String, trailingSpaces: Int) {
         let paragraph = precedingText.split(separator: "\n", omittingEmptySubsequences: false).last.map(String.init) ?? ""
         let trailingSpaces = paragraph.reversed().prefix { $0 == " " || $0 == "\u{00A0}" }.count
-        return (normalized(String(paragraph.dropLast(trailingSpaces))), trailingSpaces)
+        let core = String(paragraph.dropLast(trailingSpaces))
+        return (normalized(core), core, trailingSpaces)
     }
 
     /// Finds the line that ends at the caret: the end of the caret's
     /// paragraph, as far as it is drawn on its last line.
     static func locate(lines: [RecognizedLine], precedingText: String, fieldFrame: CGRect) -> Calibration? {
-        let (typed, trailingSpaces) = caretLine(of: precedingText)
+        let (typed, core, trailingSpaces) = caretLine(of: precedingText)
         guard typed.count >= minimumLineCharacters else { return nil }
+        // Only letters of the last word may be missing, and never all of it.
+        let lastWordLength = core.reversed().prefix { !$0.isWhitespace }.count
+        let missingRange = 0...max(0, min(maximumMissingCharacters, lastWordLength - 1))
 
-        var best: (line: RecognizedLine, score: Double)?
+        var best: (line: RecognizedLine, score: Double, missing: Int)?
         for line in lines {
             let recognized = normalized(line.text)
             // A line longer than the paragraph holds other text too.
             guard recognized.count >= 2, recognized.count <= typed.count + 2 else { continue }
-            let length = min(recognized.count, typed.count, comparedCharacters)
-            let score = similarity(String(recognized.suffix(length)), String(typed.suffix(length)))
-            guard score >= minimumSimilarity else { continue }
+            var lineBest: (score: Double, missing: Int)?
+            for missing in missingRange {
+                let drawn = typed.dropLast(missing)
+                let length = min(recognized.count, drawn.count, comparedCharacters)
+                let score = similarity(String(recognized.suffix(length)), String(drawn.suffix(length)))
+                if score > (lineBest?.score ?? -1) { lineBest = (score, missing) }
+            }
+            guard let lineBest, lineBest.score >= minimumSimilarity else { continue }
             // The best match wins; between equals, the lowest line, which is
             // where a paragraph's last line is drawn.
             if let current = best,
-               score < current.score || (score == current.score && line.box.minY >= current.line.box.minY) {
+               lineBest.score < current.score
+                || (lineBest.score == current.score && line.box.minY >= current.line.box.minY) {
                 continue
             }
-            best = (line, score)
+            best = (line, lineBest.score, lineBest.missing)
         }
-        guard let line = best?.line, line.maxX > line.minX,
-              let pointSize = fittedPointSize(of: line) else { return nil }
+        guard let best, best.line.maxX > best.line.minX,
+              let pointSize = fittedPointSize(of: best.line) else { return nil }
+        let line = best.line
         let font = NSFont.systemFont(ofSize: pointSize)
         let inset = max(line.minX - fieldFrame.minX, 0)
+        // What the capture lacks is drawn after the line's last letter.
+        let unseen = String(core.suffix(best.missing)) + String(repeating: " ", count: trailingSpaces)
+        let firstWord = line.text.trimmingCharacters(in: .whitespaces).prefix { !$0.isWhitespace }
+        let startsParagraph = normalized(line.text).count + best.missing + 2 >= typed.count
         return Calibration(
             precedingText: precedingText,
-            caretX: line.maxX + CGFloat(trailingSpaces) * CotypingInlineGhostLayout.width(of: " ", font: font),
+            caretX: line.maxX + CotypingInlineGhostLayout.width(of: unseen, font: font),
             baseline: line.baseline ?? line.box.minY - font.descender,
             pointSize: pointSize,
             lineMinX: line.minX,
-            lineMaxX: fieldFrame.maxX - inset)
+            lineMaxX: fieldFrame.maxX - inset,
+            firstWordEndX: startsParagraph
+                ? nil : line.minX + CotypingInlineGhostLayout.width(of: String(firstWord), font: font))
     }
 
     /// The caret's x for `precedingText`, moved along the line from where it
     /// was found by the width of what was typed or deleted since. Nil when
-    /// that leaves the line, crosses a line break, or strays too far.
+    /// that leaves the line, crosses a line break, strays too far, or may
+    /// have moved a word to another line: letters typed close to where the
+    /// line wraps, whose exact place is not known, or letters deleted from
+    /// the first word of a line that is not its paragraph's first.
     static func caretX(for calibration: Calibration, precedingText: String) -> CGFloat? {
         guard let change = change(from: calibration.precedingText, to: precedingText) else { return nil }
         guard change.text.count <= maximumDrift, !change.text.contains(where: \.isNewline) else { return nil }
         let width = CotypingInlineGhostLayout.width(
             of: change.text, font: .systemFont(ofSize: calibration.pointSize))
         let x = calibration.caretX + (change.isAddition ? width : -width)
-        guard x <= calibration.lineMaxX, x >= calibration.lineMinX - 1 else { return nil }
+        let typedLetters = change.isAddition && change.text.contains { !$0.isWhitespace }
+        let lineEnd = typedLetters ? calibration.lineMaxX - calibration.pointSize : calibration.lineMaxX
+        guard x <= lineEnd, x >= calibration.lineMinX - 1 else { return nil }
+        if !change.isAddition, let firstWordEnd = calibration.firstWordEndX, x <= firstWordEnd { return nil }
         return x
     }
 
@@ -216,6 +249,10 @@ final class CotypingVisualCaret {
 
     private var entry: Entry?
     private var pending: (key: String, precedingText: String, task: Task<Void, Never>)?
+    /// Whether the field last prepared may be captured, by app and kind of field.
+    private var permission: (key: String, permitted: Bool)?
+    /// Finds in a row that came back without the caret, for one field.
+    private var failedFinds: (key: String, frame: CGRect, count: Int)?
 
     /// Larger fields are left alone: the caret could be anywhere in them.
     private static let maximumFieldSize = CGSize(width: 2400, height: 900)
@@ -231,19 +268,54 @@ final class CotypingVisualCaret {
         var resolved = field
         resolved.caretRect = CotypingVisualCaretLocator.caretRect(for: entry.calibration, caretX: x)
         resolved.caretIsExact = true
+        // Without a font from the app, the ghost uses the size measured on
+        // screen, which is also what moves the caret along the line.
+        if resolved.fieldStyle == nil {
+            resolved.fieldStyle = CotypingFieldStyle(fontPointSize: entry.calibration.pointSize)
+        }
         return resolved
+    }
+
+    /// Records whether `field` may be captured, which the caller decides from
+    /// the privacy rules before asking for a find.
+    func notePermission(_ permitted: Bool, for field: CotypingField) {
+        permission = (Self.key(for: field), permitted)
+    }
+
+    /// Whether the caret of `field`, which its app does not report, is found
+    /// on screen: it may be captured, its field has a size and direction a
+    /// find handles, and finds there have not kept failing. Its line may
+    /// still be too short to find.
+    func canFind(_ field: CotypingField, screenCaptureAllowed: () -> Bool = { CGPreflightScreenCaptureAccess() }) -> Bool {
+        let key = Self.key(for: field)
+        guard !field.caretIsExact, permission?.key == key, permission?.permitted == true,
+              failedFindCount(key: key, frame: field.inputFrameRect) < CotypingVisualCaretLocator.maximumFailedFinds
+        else { return false }
+        return Self.isFindable(field) && screenCaptureAllowed()
+    }
+
+    /// Counts a find for `field` that came back without its caret.
+    func noteFailedFind(for field: CotypingField) {
+        guard let frame = field.inputFrameRect else { return }
+        noteFailedFind(key: Self.key(for: field), frame: frame)
+    }
+
+    private func noteFailedFind(key: String, frame: CGRect) {
+        failedFinds = (key, frame, failedFindCount(key: key, frame: frame) + 1)
+    }
+
+    private func failedFindCount(key: String, frame: CGRect?) -> Int {
+        guard let failedFinds, failedFinds.key == key,
+              let frame, Self.isSameFrame(failedFinds.frame, frame) else { return 0 }
+        return failedFinds.count
     }
 
     /// Starts finding the caret on screen when `field` reports none and no
     /// earlier find still places it. The caller has checked the privacy rules.
     func refreshIfNeeded(for field: CotypingField) {
         guard !field.caretIsExact, !resolve(field).caretIsExact,
-              let frame = field.inputFrameRect,
-              frame.width >= 40, frame.height >= 12,
-              frame.width <= Self.maximumFieldSize.width, frame.height <= Self.maximumFieldSize.height,
-              CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: field.trailingText),
+              Self.isFindable(field), let frame = field.inputFrameRect,
               CotypingVisualCaretLocator.hasEnoughText(field.precedingText),
-              !CotypingTextDirectionDetector.isRightToLeft(field.precedingText),
               CGPreflightScreenCaptureAccess() else { return }
         let key = Self.key(for: field)
         if let pending, pending.key == key, pending.precedingText == field.precedingText { return }
@@ -255,10 +327,22 @@ final class CotypingVisualCaret {
             if let lines, let calibration = CotypingVisualCaretLocator.locate(
                 lines: lines, precedingText: precedingText, fieldFrame: frame) {
                 self.remember(calibration, key: key, frame: frame)
+            } else if lines != nil {
+                self.noteFailedFind(key: key, frame: frame)
             }
             if self.pending?.key == key, self.pending?.precedingText == precedingText { self.pending = nil }
         }
         pending = (key, precedingText, task)
+    }
+
+    /// A field whose caret a find can place: a size that holds a line but
+    /// not a whole page, the caret at the end of its line, left-to-right.
+    private static func isFindable(_ field: CotypingField) -> Bool {
+        guard let frame = field.inputFrameRect else { return false }
+        return frame.width >= 40 && frame.height >= 12
+            && frame.width <= maximumFieldSize.width && frame.height <= maximumFieldSize.height
+            && CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: field.trailingText)
+            && !CotypingTextDirectionDetector.isRightToLeft(field.precedingText)
     }
 
     /// Keeps where the caret was found for `field`.
@@ -269,6 +353,7 @@ final class CotypingVisualCaret {
 
     private func remember(_ calibration: CotypingVisualCaretLocator.Calibration, key: String, frame: CGRect) {
         entry = Entry(key: key, frame: frame, calibration: calibration)
+        failedFinds = nil
     }
 
     /// Waits for a find in progress, for at most `milliseconds`. A find that
@@ -282,6 +367,8 @@ final class CotypingVisualCaret {
         pending?.task.cancel()
         pending = nil
         entry = nil
+        permission = nil
+        failedFinds = nil
     }
 
     /// The app and kind of field. Not the element's identity: Chrome hands

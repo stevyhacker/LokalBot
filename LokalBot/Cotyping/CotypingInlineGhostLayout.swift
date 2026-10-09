@@ -5,8 +5,9 @@ import CoreText
 /// the caret's line on the field's own baseline, starting exactly at the caret,
 /// so the suggestion reads as the next characters of the text. What does not
 /// fit before the field's trailing edge wraps onto the following lines at the
-/// field's text edge, where the host will put it once accepted. Coordinates are
-/// global Cocoa points (bottom-left origin).
+/// field's text edge, where the host will put it once accepted, but only onto
+/// lines that hold no text and lie inside the field. Coordinates are global
+/// Cocoa points (bottom-left origin).
 nonisolated struct CotypingInlineGhostLayout: Equatable {
     struct Line: Equatable {
         let text: String
@@ -21,12 +22,20 @@ nonisolated struct CotypingInlineGhostLayout: Equatable {
     let lines: [Line]
     let font: NSFont
     let isRightToLeft: Bool
+    /// Every character of the text has a place. When false, the lines hold
+    /// only its start, or nothing: what is left over had nowhere to go that
+    /// covers no text.
+    var isComplete = true
+    /// Where wrapped lines start: the field's text edge.
+    var wrapEdge: CGFloat = 0
 
     /// Kept clear inside the field's edges, where most fields pad their text.
     static let fieldInset: CGFloat = 8
     static let screenMargin: CGFloat = 8
-    /// A suggestion never needs more lines than this; the rest is not drawn.
+    /// A suggestion never needs more lines than this.
     static let maximumLines = 6
+    /// Slack for a wrapped line's glyphs against the field's bottom edge.
+    static let fieldEdgeTolerance: CGFloat = 1
 
     /// The glyph boxes of every line together.
     var bounds: CGRect {
@@ -39,9 +48,14 @@ nonisolated struct CotypingInlineGhostLayout: Equatable {
         }
     }
 
-    /// - Parameter precedingLine: the field's text from the start of the
-    ///   caret's paragraph to the caret. When it fits on one line it shows
-    ///   where the field's text starts, which wrapped lines then line up with.
+    /// - Parameters:
+    ///   - precedingLine: the field's text from the start of the caret's
+    ///     paragraph to the caret. When it fits on one line it shows where the
+    ///     field's text starts, which wrapped lines then line up with.
+    ///   - linesBelowAreFree: no text follows the caret, so the lines under
+    ///     it are empty. Otherwise nothing wraps onto them.
+    ///   - knownWrapEdge: where wrapped lines start, when an earlier layout
+    ///     for the same paragraph already found it.
     static func make(
         text: String,
         font: NSFont,
@@ -49,16 +63,25 @@ nonisolated struct CotypingInlineGhostLayout: Equatable {
         inputFrameRect: CGRect?,
         precedingLine: String = "",
         visible: CGRect?,
-        isRightToLeft: Bool
+        isRightToLeft: Bool,
+        linesBelowAreFree: Bool = true,
+        wrapEdge knownWrapEdge: CGFloat? = nil
     ) -> CotypingInlineGhostLayout {
         let display = displayText(text)
         let span = textSpan(caretRect: caretRect, inputFrameRect: inputFrameRect, visible: visible)
         let anchor = isRightToLeft ? caretRect.minX : caretRect.maxX
-        let wrapEdge = wrapEdge(
+        let wrapEdge = knownWrapEdge ?? wrapEdge(
             precedingLine: precedingLine, anchor: anchor, font: font,
             inputFrameRect: inputFrameRect, span: span, isRightToLeft: isRightToLeft)
         let pitch = linePitch(caretRect: caretRect, font: font)
         var baseline = firstBaseline(caretRect: caretRect, font: font)
+        // A wrapped line's glyphs stay inside the field: below it is other
+        // interface, such as a toolbar under a chat box that grows.
+        let lowestBaseline = inputFrameRect.map { $0.standardized.minY - font.descender - fieldEdgeTolerance }
+        // Text that goes on with the word at the caret moves with that word
+        // when it wraps.
+        let continuesWord = precedingLine.last.map { !$0.isWhitespace } == true
+            && display.first.map { !$0.isWhitespace } == true
 
         var lines: [Line] = []
         var remaining = Substring(display)
@@ -67,7 +90,17 @@ nonisolated struct CotypingInlineGhostLayout: Equatable {
         var budget = isRightToLeft ? anchor - span.lowerBound : span.upperBound - anchor
         var isFirstLine = true
         while !remaining.isEmpty, lines.count < maximumLines {
+            if !isFirstLine {
+                guard linesBelowAreFree, lowestBaseline.map({ baseline >= $0 }) ?? true else { break }
+            }
             let piece = fittingPrefix(of: remaining, width: budget, font: font, mustTakeSomething: !isFirstLine)
+            if isFirstLine, piece.isEmpty, continuesWord {
+                // The rest of the word at the caret does not fit after it, so
+                // the app will move the whole word to the next line, and no
+                // place on screen shows where this text will go.
+                return CotypingInlineGhostLayout(
+                    lines: [], font: font, isRightToLeft: isRightToLeft, isComplete: false, wrapEdge: wrapEdge)
+            }
             if !piece.isEmpty {
                 let pieceText = String(piece)
                 lines.append(Line(
@@ -85,7 +118,81 @@ nonisolated struct CotypingInlineGhostLayout: Equatable {
             budget = isRightToLeft ? wrapEdge - span.lowerBound : span.upperBound - wrapEdge
             isFirstLine = false
         }
-        return CotypingInlineGhostLayout(lines: lines, font: font, isRightToLeft: isRightToLeft)
+        return CotypingInlineGhostLayout(
+            lines: lines, font: font, isRightToLeft: isRightToLeft, isComplete: remaining.isEmpty, wrapEdge: wrapEdge)
+    }
+
+    /// The longest start of `text` that can be drawn whole, ending after a
+    /// word, with its layout. `layout` lays out a candidate at the caret.
+    /// Nil when nothing can be drawn, or when `allowsPartial` is off and the
+    /// whole of `text` cannot.
+    static func longestDrawable(
+        _ text: String,
+        allowsPartial: Bool,
+        layout: (String) -> CotypingInlineGhostLayout
+    ) -> (text: String, layout: CotypingInlineGhostLayout)? {
+        let whole = layout(text)
+        if whole.isComplete, !whole.lines.isEmpty { return (text, whole) }
+        guard allowsPartial else { return nil }
+        for prefix in wordPrefixes(of: text).reversed() where prefix.count < text.count {
+            let candidate = layout(prefix)
+            if candidate.isComplete, !candidate.lines.isEmpty { return (prefix, candidate) }
+        }
+        return nil
+    }
+
+    /// Every start of `text` that ends after a word, shortest first.
+    static func wordPrefixes(of text: String) -> [String] {
+        var prefixes: [String] = []
+        var index = text.startIndex
+        while index < text.endIndex {
+            while index < text.endIndex, text[index].isWhitespace { index = text.index(after: index) }
+            guard index < text.endIndex else { break }
+            while index < text.endIndex, !text[index].isWhitespace { index = text.index(after: index) }
+            prefixes.append(String(text[..<index]))
+        }
+        return prefixes
+    }
+
+    /// Where the caret is once `typed` is in the field: at the end of
+    /// `typed` laid out from the caret, which is where the app puts it, since
+    /// the app wraps it by the same rule. Nil when that is only known once
+    /// the app shows it: text with a line break, or the rest of a word that
+    /// does not fit on the caret's line, which the app moves to the next line
+    /// together with the start of the word.
+    ///
+    /// The arguments are those the ghost on screen was laid out with.
+    static func caretRect(
+        afterTyping typed: String,
+        font: NSFont,
+        caretRect: CGRect,
+        inputFrameRect: CGRect?,
+        precedingLine: String,
+        visible: CGRect?,
+        isRightToLeft: Bool,
+        linesBelowAreFree: Bool,
+        wrapEdge: CGFloat?
+    ) -> CGRect? {
+        guard !typed.isEmpty, !typed.contains(where: \.isNewline) else { return nil }
+        let typedLayout = make(
+            text: typed, font: font, caretRect: caretRect, inputFrameRect: inputFrameRect,
+            precedingLine: precedingLine, visible: visible, isRightToLeft: isRightToLeft,
+            linesBelowAreFree: linesBelowAreFree, wrapEdge: wrapEdge)
+        guard typedLayout.isComplete else { return nil }
+        let anchor = isRightToLeft ? caretRect.minX : caretRect.maxX
+        let firstLineBaseline = firstBaseline(caretRect: caretRect, font: font)
+        // Spaces are never drawn at the end of a line, but the app puts the
+        // caret after every one typed.
+        let spaces = width(of: String(typed.reversed().prefix { $0.isWhitespace }), font: font)
+        let end: CGPoint
+        if let last = typedLayout.lines.last {
+            let lineEnd = isRightToLeft ? last.origin.x - last.width : last.origin.x + last.width
+            end = CGPoint(x: lineEnd, y: last.origin.y)
+        } else {
+            end = CGPoint(x: anchor, y: firstLineBaseline)
+        }
+        let x = isRightToLeft ? end.x - spaces : end.x + spaces
+        return caretRect.offsetBy(dx: x - anchor, dy: end.y - firstLineBaseline)
     }
 
     /// The baseline of the caret's line. AppKit text reports a caret exactly

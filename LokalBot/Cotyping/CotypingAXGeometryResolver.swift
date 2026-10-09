@@ -41,8 +41,7 @@ enum CotypingAXGeometryResolver {
         // Web engines (Chromium / WebKit / Electron) ignore NSRange-based
         // BoundsForRange and expose caret geometry only via opaque AX text
         // markers. This is what fixes ghost placement in Chrome/Slack/VS Code-web.
-        if let rect = textMarkerCaretRect(element),
-           rect.width.isFinite, rect.height.isFinite, rect.height > 0 {
+        if let rect = textMarkerCaretRect(element), CotypingCaretGeometry.isCollapsedCaret(rect) {
             return (cocoaRect(fromAX: rect), true)
         }
         // Chromium/Electron return zero-size rects from both queries above for
@@ -209,6 +208,16 @@ enum CotypingAXGeometryResolver {
 nonisolated enum CotypingCaretGeometry {
     /// Slack for a character inside its field (borders, subpixel rounding).
     private static let containmentTolerance: CGFloat = 4
+
+    /// Whether a rect reported for the collapsed selection is a caret. Chromium
+    /// sometimes answers the text-marker query with the whole line's or the
+    /// field's box instead (measured 2026-10-05: 788×23, the field, for a
+    /// one-character message in the Claude app; 548×26 at the start of a
+    /// Chrome text box), and its trailing edge put the ghost on the line below.
+    static func isCollapsedCaret(_ rect: CGRect) -> Bool {
+        rect.width.isFinite && rect.height.isFinite && rect.height > 0
+            && rect.width <= max(2, rect.height / 4)
+    }
 
     /// All rects in AX coordinates (top-left origin). Nil when neither range
     /// gives a usable caret.

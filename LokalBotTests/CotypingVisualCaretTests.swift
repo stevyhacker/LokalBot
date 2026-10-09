@@ -86,6 +86,89 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertNil(Locator.caretX(for: short, precedingText: "Looks good, just wonderful"))
     }
 
+    /// A capture can be a frame behind the typing, and recognition can miss
+    /// a final full stop. Taking the end of what was recognized for the
+    /// caret put the ghost over the last letters typed.
+    func testACaptureThatLacksTheLastLettersStillPutsTheCaretAfterThem() throws {
+        let behind = line("Looks goo", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(lines: [behind], precedingText: "Looks good", fieldFrame: field))
+        let font = NSFont.systemFont(ofSize: found.pointSize)
+        XCTAssertEqual(found.caretX, behind.maxX + CotypingInlineGhostLayout.width(of: "d", font: font), accuracy: 0.01)
+        XCTAssertEqual(found.precedingText, "Looks good")
+
+        let noStop = line("Thanks, see you tomorrow", baseline: 375)
+        let stopped = try XCTUnwrap(Locator.locate(
+            lines: [noStop], precedingText: "Thanks, see you tomorrow. ", fieldFrame: field))
+        XCTAssertEqual(
+            stopped.caretX,
+            noStop.maxX + CotypingInlineGhostLayout.width(of: ". ", font: .systemFont(ofSize: stopped.pointSize)),
+            accuracy: 0.01)
+        // A line that shows everything is taken as it is.
+        let whole = line("Looks good", baseline: 375)
+        XCTAssertEqual(
+            try XCTUnwrap(Locator.locate(lines: [whole], precedingText: "Looks good", fieldFrame: field)).caretX,
+            whole.maxX, accuracy: 0.01)
+    }
+
+    /// The field's right text edge is only estimated, so a word typed close
+    /// to it may already be on the next line. Following the caret along the
+    /// line put the ghost on the line above, and its wrapped words on the
+    /// word just typed. Spaces never wrap.
+    func testLettersTypedNearTheLineEndAreFoundAgain() throws {
+        let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
+        let short = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good", baseline: 340)], precedingText: "Looks good", fieldFrame: narrow))
+        XCTAssertNotNil(Locator.caretX(for: short, precedingText: "Looks good, okay"))
+        XCTAssertNil(Locator.caretX(for: short, precedingText: "Looks good, ok then"))
+
+        let full = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay", fieldFrame: narrow))
+        XCTAssertNotNil(Locator.caretX(for: full, precedingText: "Looks good, okay  "))
+        XCTAssertNil(Locator.caretX(for: full, precedingText: "Looks good, okay t"))
+    }
+
+    /// Deleting back into the first word of a wrapped line can let that
+    /// word fit on the line above again.
+    func testDeletingIntoTheFirstWordOfAWrappedLineIsFoundAgain() throws {
+        let first = "Thanks for the quick review, I will push the fixes"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [line(first, baseline: 375), line("in a follow-up later", baseline: 354)],
+            precedingText: first + " in a follow-up later", fieldFrame: field))
+        XCTAssertNotNil(Locator.caretX(for: found, precedingText: first + " in a "))
+        XCTAssertNil(Locator.caretX(for: found, precedingText: first + " i"))
+        // A paragraph's first line has no line above to go back to.
+        let single = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good", baseline: 375)], precedingText: "Looks good", fieldFrame: field))
+        XCTAssertNil(single.firstWordEndX)
+        XCTAssertNotNil(Locator.caretX(for: single, precedingText: "Lo"))
+    }
+
+    /// A field whose caret is found on screen waits for it instead of a
+    /// popup outside the field, unless finds there keep failing.
+    @MainActor
+    func testAFieldWhoseCaretIsFoundOnScreenIsKnown() {
+        let visualCaret = CotypingVisualCaret()
+        var viber = CotypingField(
+            appName: "Viber", bundleID: "com.viber.osx", processID: 7, role: "AXTextField",
+            precedingText: "Hey, are we", trailingText: "", selectionLength: 0,
+            caretRect: CGRect(x: 2565, y: 180, width: 1, height: 17), inputFrameRect: CGRect(x: 2561, y: 180, width: 499, height: 17),
+            isSecure: false, caretIsExact: false)
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }), "privacy not checked yet")
+        visualCaret.notePermission(false, for: viber)
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
+        visualCaret.notePermission(true, for: viber)
+        XCTAssertTrue(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { false }), "no Screen Recording")
+        var midLine = viber
+        midLine.trailingText = " later"
+        XCTAssertFalse(visualCaret.canFind(midLine, screenCaptureAllowed: { true }))
+        for _ in 0..<CotypingVisualCaretLocator.maximumFailedFinds { visualCaret.noteFailedFind(for: viber) }
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }), "finds keep failing")
+        // Another field starts afresh, and a find that works clears the count.
+        viber.inputFrameRect = CGRect(x: 2561, y: 180, width: 499, height: 34)
+        XCTAssertTrue(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
+    }
+
     func testTypingIsFollowedWhenOnlyTheNewestTextIsKept() throws {
         let old = String(repeating: "a", count: 10) + " the earlier part of a long draft that keeps going"
         let new = String(old.dropFirst(3)) + " on"
@@ -146,6 +229,8 @@ final class CotypingVisualCaretTests: XCTestCase {
         let next = visualCaret.resolve(chromeField("element-2", text: "Looks good, just"))
         XCTAssertTrue(next.caretIsExact)
         XCTAssertGreaterThan(next.caretRect.minX, found.caretX)
+        XCTAssertEqual(next.fieldStyle?.fontPointSize, found.pointSize,
+                       "the ghost is drawn at the size the caret moves by")
         // Another field of the same kind elsewhere, or other text: not reused.
         var moved = chromeField("element-3", text: "Looks good")
         moved.inputFrameRect = self.field.offsetBy(dx: 0, dy: -200)

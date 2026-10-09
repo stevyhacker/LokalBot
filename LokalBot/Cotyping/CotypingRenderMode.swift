@@ -4,10 +4,15 @@ import Foundation
 /// `CompletionRenderMode`. Inline draws next to the caret; mirror draws the
 /// suggestion as a popup below the caret, used when caret geometry is
 /// unreliable or the caret sits mid-line (inline would paint over the trailing
-/// characters the host still shows).
+/// characters the host still shows). Withheld draws nothing, for a caret that
+/// is still being found on screen.
 nonisolated enum CotypingRenderMode: Equatable, Sendable {
     case inline
     case mirror(reason: MirrorReason)
+    /// The caret is found from the field's text on screen, and has not been
+    /// yet. A popup outside the field until then would jump between there
+    /// and the caret from one suggestion to the next.
+    case withheld
 
     nonisolated enum MirrorReason: String, Equatable, Sendable {
         /// Caret rect was estimated from the field frame, so inline ghost text
@@ -53,17 +58,24 @@ nonisolated struct CotypingRenderModePolicy: Equatable, Sendable {
         return first.isNewline
     }
 
-    func mode(caretIsExact: Bool, isCaretAtEndOfLine: Bool) -> CotypingRenderMode {
+    /// - Parameter caretIsFoundOnScreen: an estimated caret will be found from
+    ///   the field's text on screen (`CotypingVisualCaret`) once there is
+    ///   enough of it.
+    func mode(
+        caretIsExact: Bool,
+        isCaretAtEndOfLine: Bool,
+        caretIsFoundOnScreen: Bool = false
+    ) -> CotypingRenderMode {
         // A mid-line caret has no inline home: ghost text would paint over the
         // trailing characters. This overrides an explicit `.alwaysInline` pin
         // too, because inline cannot render mid-line at all.
         if !isCaretAtEndOfLine {
             return .mirror(reason: .caretMidLine)
         }
-        return preferenceMode(caretIsExact: caretIsExact)
+        return preferenceMode(caretIsExact: caretIsExact, caretIsFoundOnScreen: caretIsFoundOnScreen)
     }
 
-    private func preferenceMode(caretIsExact: Bool) -> CotypingRenderMode {
+    private func preferenceMode(caretIsExact: Bool, caretIsFoundOnScreen: Bool) -> CotypingRenderMode {
         switch userPreference {
         case .alwaysInline:
             return .inline
@@ -72,8 +84,10 @@ nonisolated struct CotypingRenderModePolicy: Equatable, Sendable {
         case .auto:
             // Exact (boundsForRange / text-marker) geometry lands close enough to
             // the real caret to render inline; an estimated caret can drift as
-            // the user types, so route it to the popup.
-            return caretIsExact ? .inline : .mirror(reason: .caretGeometryEstimated)
+            // the user types, so route it to the popup, unless the caret will
+            // be found on screen: then the suggestion waits for it, in the text.
+            if caretIsExact { return .inline }
+            return caretIsFoundOnScreen ? .withheld : .mirror(reason: .caretGeometryEstimated)
         }
     }
 }
@@ -84,10 +98,13 @@ struct CotypingOverlayPlacement: Equatable, Sendable {
     let caretIsExact: Bool
     let isCaretAtEndOfLine: Bool
     let preference: CotypingMirrorPreference
+    /// An estimated caret will be found from the field's text on screen.
+    var caretIsFoundOnScreen = false
 
     var mode: CotypingRenderMode {
         CotypingRenderModePolicy(userPreference: preference)
-            .mode(caretIsExact: caretIsExact, isCaretAtEndOfLine: isCaretAtEndOfLine)
+            .mode(caretIsExact: caretIsExact, isCaretAtEndOfLine: isCaretAtEndOfLine,
+                  caretIsFoundOnScreen: caretIsFoundOnScreen)
     }
 
     /// Inline-safe default so call sites that don't supply a placement render

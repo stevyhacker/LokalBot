@@ -53,7 +53,8 @@ extension CotypingCoordinator {
     }
 
     /// Appends `addition` to the visible suggestion if it is still the one the
-    /// model continued. The session and the ghost change together or not at all.
+    /// model continued. The session and the ghost change together or not at all,
+    /// and only by the words the ghost has room to show.
     func applySuggestionExtension(
         _ addition: String,
         to original: CotypingSession,
@@ -61,6 +62,7 @@ extension CotypingCoordinator {
         work: UInt64
     ) async {
         guard var extended = extendedSession(adding: addition, to: original, settings: settings) else { return }
+        var liveField: CotypingField?
         if !overlay.extendInline(
             to: extended.remainingText, emphasisLength: acceptEmphasisLength(for: extended.remainingText)) {
             // A popup or a wrapped ghost is laid out afresh, at the live caret,
@@ -68,12 +70,12 @@ extension CotypingCoordinator {
             let focus = await focusTracker.refreshNow()
             guard work == extensionGeneration, !Task.isCancelled,
                   let refreshed = extendedSession(adding: addition, to: original, settings: settings),
-                  let liveField = focus.field,
-                  CotypingSessionReconciler.isContinuation(of: refreshed, liveField: liveField),
-                  Self.trimmingTrailingSpace(liveField.precedingText)
+                  let field = focus.field,
+                  CotypingSessionReconciler.isContinuation(of: refreshed, liveField: field),
+                  Self.trimmingTrailingSpace(field.precedingText)
                     .hasSuffix(Self.trimmingTrailingSpace(refreshed.acceptedText)) else { return }
             extended = refreshed
-            showOverlay(text: extended.remainingText, field: liveField)
+            liveField = field
         }
         session = extended
         suggestionAnchorCache.record(
@@ -82,7 +84,12 @@ extension CotypingCoordinator {
             precedingText: extended.field.precedingText,
             fullText: extended.fullText,
             isOpenEnded: extended.isOpenEnded)
-        markReady(extended.remainingText)
+        if let liveField {
+            showSuggestion(extended.remainingText, on: liveField)
+        } else {
+            keepSessionToShownText()
+            markReady(session?.remainingText ?? extended.remainingText)
+        }
     }
 
     /// The session `addition` would produce, or nil when the visible
