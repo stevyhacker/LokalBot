@@ -1,0 +1,12 @@
+{
+  "reason": "The 2026-10-02 study already evaluated all 1197 public heldout phrases. No confirmation inference occurred on the proposed 850-checkpoint split. Replace it before evaluation with an independently authored synthetic fixture from a tool-disabled Opus consultation that receives no model outputs or decoder settings.",
+  "frozenQualitySettings": {
+    "confidenceBoundaryMode": "boundaryMass",
+    "firstWordThreshold": 0.31
+  },
+  "control": {},
+  "performanceSettings": {
+    "stopAtDisplayLimit": true
+  },
+  "thresholdRetuningAfterConfirmation": false
+}

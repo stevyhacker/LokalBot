@@ -1,0 +1,524 @@
+{
+  "cases": [
+    {
+      "id": "confirmation-en-00-5-4",
+      "prefix": "I have attached the updated sche",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-01-8-4",
+      "prefix": "The delivery driver called to say that the entr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-02-8-3",
+      "prefix": "Could we move the discussion online since the mee",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-03-8-5",
+      "prefix": "The payment went through twice, and I would appre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-04-7-2",
+      "prefix": "When the network disappears, the editor should ke",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-05-8-2",
+      "prefix": "The import tool needs to show which rows we",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-06-7-2",
+      "prefix": "We found that the slowdown happens only af",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-07-7-3",
+      "prefix": "Please add a note explaining that this opt",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-08-7-2",
+      "prefix": "I forgot my umbrella at the cafe wh",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-09-7-2",
+      "prefix": "The dog seems happier now that we ta",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-10-8-3",
+      "prefix": "We are planning a small picnic, provided the wea",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-11-8-4",
+      "prefix": "I usually make extra soup so there is some",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-12-9-4",
+      "prefix": "The proposal would be stronger if it included a conc",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-13-8-2",
+      "prefix": "I cannot approve the final version until we ha",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-14-10-4",
+      "prefix": "Please send a reminder to everyone who has not yet sele",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-15-9-3",
+      "prefix": "We can split the work into smaller tasks and rev",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-16-8-2",
+      "prefix": "The old photograph had faded, but you could st",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-17-8-2",
+      "prefix": "I will bring a warm jacket because it te",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-18-8-3",
+      "prefix": "There are a few empty boxes in the gar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-19-9-2",
+      "prefix": "The recipe calls for fresh herbs, although dried ones wi",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-20-7-3",
+      "prefix": "A failed background sync should not prevent som",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-21-10-2",
+      "prefix": "The error message should explain what the user can do ne",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-22-9-3",
+      "prefix": "We should measure memory usage after several hours of nor",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-23-9-4",
+      "prefix": "Please keep the feature disabled by default until the migr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-24-8-5",
+      "prefix": "The course was easier to follow once the instr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-25-8-3",
+      "prefix": "I need to replace the battery in the kit",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-26-7-2",
+      "prefix": "We took a different route home to av",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-27-8-3",
+      "prefix": "The shop agreed to exchange the shoes even tho",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-28-8-4",
+      "prefix": "I have summarized the open questions in a sepa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-29-7-2",
+      "prefix": "The customer asked whether they could export th",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-30-8-3",
+      "prefix": "We should leave enough time for feedback before sen",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-en-31-9-3",
+      "prefix": "Thank you for checking the details and catching the mis",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-00-7-2",
+      "prefix": "U prilogu šaljem izmenjeni raspored kako biste mo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-01-7-2",
+      "prefix": "Dostavljač je zvao da kaže da ne mo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-02-8-3",
+      "prefix": "Da li možemo da održimo razgovor preko video poz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-03-8-2",
+      "prefix": "Isti iznos mi je naplaćen dva puta i že",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-04-8-3",
+      "prefix": "Kada nestane veza sa mrežom, program treba da zad",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-05-7-3",
+      "prefix": "Alat za uvoz treba da prikaže preskočene red",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-06-7-3",
+      "prefix": "Primetićete usporavanje tek nakon što nekoliko puta pre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-07-7-2",
+      "prefix": "Dodaj napomenu da se ovo podešavanje odnosi sa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-08-7-4",
+      "prefix": "Zaboravio sam kišobran u kafiću gde smo svra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-09-7-2",
+      "prefix": "Pas deluje mnogo mirnije otkad ga svako ju",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-10-7-3",
+      "prefix": "Planiramo mali izlet za vikend ako vreme ost",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-11-7-3",
+      "prefix": "Obično spremim više supe da imam nešto got",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-12-8-4",
+      "prefix": "Predlog bi bio ubedljiviji kada bi sadržao jasno pore",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-13-8-4",
+      "prefix": "Ne mogu da odobrim konačnu verziju dok ne prov",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-14-7-4",
+      "prefix": "Molim te podseti kolege koji još nisu izab",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-15-8-3",
+      "prefix": "Možemo da podelimo posao na manje celine i zaj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-16-8-3",
+      "prefix": "Stara fotografija je izbledela, ali se kuća iza vis",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-17-7-2",
+      "prefix": "Poneću topliju jaknu jer uveče pored reke če",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-18-8-2",
+      "prefix": "U garaži ima nekoliko praznih kutija ako ti bu",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-19-7-4",
+      "prefix": "U receptu piše da treba koristiti sveže zači",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-20-7-4",
+      "prefix": "Neuspela sinhronizacija ne bi smela da spreči kori",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-21-7-3",
+      "prefix": "Umesto interne oznake greške, poruka treba da pon",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-22-7-2",
+      "prefix": "Potrošnju memorije treba izmeriti posle nekoliko sati ra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-23-7-2",
+      "prefix": "Ostavi novu mogućnost isključenu dok ne proverimo ka",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-24-8-2",
+      "prefix": "Predavanja su postala mnogo razumljivija kada je profesor po",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-25-6-2",
+      "prefix": "Moram da zamenim bateriju u kuhinjskom sa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-26-7-3",
+      "prefix": "Vratili smo se drugim putem da izbegnemo rad",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-27-7-2",
+      "prefix": "Prodavnica je pristala da zameni cipele iako ni",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-28-8-3",
+      "prefix": "Otvorena pitanja sam izdvojio u poseban dokument koji mož",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-29-7-3",
+      "prefix": "Korisnik je pitao da li može da pre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-30-8-2",
+      "prefix": "Treba da ostavimo dovoljno vremena za komentare pre ne",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    },
+    {
+      "id": "confirmation-sr_latn-31-7-4",
+      "prefix": "Hvala što si pažljivo proverio detalje i prim",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true,
+      "resetCache": true
+    }
+  ],
+  "selectiveOneWordHybrid": true,
+  "maxWords": 4,
+  "maxTokens": 6,
+  "temperature": 0.1,
+  "repeatPenalty": 1.05,
+  "appContext": true,
+  "healingTrace": true,
+  "healingMode": "lastToken"
+}

@@ -1,0 +1,1346 @@
+{
+  "confirmation-en-00-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-00",
+    "sentence": "I have attached the updated schedule so you can see which sessions overlap.",
+    "typed": ""
+  },
+  "confirmation-en-00-5-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-00",
+    "sentence": "I have attached the updated schedule so you can see which sessions overlap.",
+    "typed": "sche"
+  },
+  "confirmation-en-00-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-00",
+    "sentence": "I have attached the updated schedule so you can see which sessions overlap.",
+    "typed": ""
+  },
+  "confirmation-en-01-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-01",
+    "sentence": "The delivery driver called to say that the entrance to our building was locked.",
+    "typed": ""
+  },
+  "confirmation-en-01-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-01",
+    "sentence": "The delivery driver called to say that the entrance to our building was locked.",
+    "typed": "entr"
+  },
+  "confirmation-en-01-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-01",
+    "sentence": "The delivery driver called to say that the entrance to our building was locked.",
+    "typed": ""
+  },
+  "confirmation-en-02-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-02",
+    "sentence": "Could we move the discussion online since the meeting room is already booked?",
+    "typed": ""
+  },
+  "confirmation-en-02-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-02",
+    "sentence": "Could we move the discussion online since the meeting room is already booked?",
+    "typed": "mee"
+  },
+  "confirmation-en-02-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-02",
+    "sentence": "Could we move the discussion online since the meeting room is already booked?",
+    "typed": ""
+  },
+  "confirmation-en-03-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-03",
+    "sentence": "The payment went through twice, and I would appreciate help correcting the extra charge.",
+    "typed": ""
+  },
+  "confirmation-en-03-8-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-03",
+    "sentence": "The payment went through twice, and I would appreciate help correcting the extra charge.",
+    "typed": "appre"
+  },
+  "confirmation-en-03-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-03",
+    "sentence": "The payment went through twice, and I would appreciate help correcting the extra charge.",
+    "typed": ""
+  },
+  "confirmation-en-04-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-04",
+    "sentence": "When the network disappears, the editor should keep a local copy of unsaved changes.",
+    "typed": ""
+  },
+  "confirmation-en-04-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-04",
+    "sentence": "When the network disappears, the editor should keep a local copy of unsaved changes.",
+    "typed": "ke"
+  },
+  "confirmation-en-04-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-04",
+    "sentence": "When the network disappears, the editor should keep a local copy of unsaved changes.",
+    "typed": ""
+  },
+  "confirmation-en-05-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-05",
+    "sentence": "The import tool needs to show which rows were skipped and explain the reason.",
+    "typed": ""
+  },
+  "confirmation-en-05-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-05",
+    "sentence": "The import tool needs to show which rows were skipped and explain the reason.",
+    "typed": "we"
+  },
+  "confirmation-en-05-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-05",
+    "sentence": "The import tool needs to show which rows were skipped and explain the reason.",
+    "typed": ""
+  },
+  "confirmation-en-06-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-06",
+    "sentence": "We found that the slowdown happens only after switching between several large documents.",
+    "typed": ""
+  },
+  "confirmation-en-06-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-06",
+    "sentence": "We found that the slowdown happens only after switching between several large documents.",
+    "typed": "af"
+  },
+  "confirmation-en-06-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-06",
+    "sentence": "We found that the slowdown happens only after switching between several large documents.",
+    "typed": ""
+  },
+  "confirmation-en-07-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-07",
+    "sentence": "Please add a note explaining that this option applies only to future recordings.",
+    "typed": ""
+  },
+  "confirmation-en-07-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-07",
+    "sentence": "Please add a note explaining that this option applies only to future recordings.",
+    "typed": "opt"
+  },
+  "confirmation-en-07-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-07",
+    "sentence": "Please add a note explaining that this option applies only to future recordings.",
+    "typed": ""
+  },
+  "confirmation-en-08-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-08",
+    "sentence": "I forgot my umbrella at the cafe where we stopped after the museum visit.",
+    "typed": ""
+  },
+  "confirmation-en-08-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-08",
+    "sentence": "I forgot my umbrella at the cafe where we stopped after the museum visit.",
+    "typed": "wh"
+  },
+  "confirmation-en-08-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-08",
+    "sentence": "I forgot my umbrella at the cafe where we stopped after the museum visit.",
+    "typed": ""
+  },
+  "confirmation-en-09-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-09",
+    "sentence": "The dog seems happier now that we take a longer walk each morning.",
+    "typed": ""
+  },
+  "confirmation-en-09-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-09",
+    "sentence": "The dog seems happier now that we take a longer walk each morning.",
+    "typed": "ta"
+  },
+  "confirmation-en-09-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-09",
+    "sentence": "The dog seems happier now that we take a longer walk each morning.",
+    "typed": ""
+  },
+  "confirmation-en-10-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-10",
+    "sentence": "We are planning a small picnic, provided the weather stays dry through the weekend.",
+    "typed": ""
+  },
+  "confirmation-en-10-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-10",
+    "sentence": "We are planning a small picnic, provided the weather stays dry through the weekend.",
+    "typed": "wea"
+  },
+  "confirmation-en-10-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-10",
+    "sentence": "We are planning a small picnic, provided the weather stays dry through the weekend.",
+    "typed": ""
+  },
+  "confirmation-en-11-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-11",
+    "sentence": "I usually make extra soup so there is something ready when I return late.",
+    "typed": ""
+  },
+  "confirmation-en-11-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-11",
+    "sentence": "I usually make extra soup so there is something ready when I return late.",
+    "typed": "some"
+  },
+  "confirmation-en-11-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-11",
+    "sentence": "I usually make extra soup so there is something ready when I return late.",
+    "typed": ""
+  },
+  "confirmation-en-12-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-12",
+    "sentence": "The proposal would be stronger if it included a concrete example of the expected savings.",
+    "typed": ""
+  },
+  "confirmation-en-12-9-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-12",
+    "sentence": "The proposal would be stronger if it included a concrete example of the expected savings.",
+    "typed": "conc"
+  },
+  "confirmation-en-12-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-12",
+    "sentence": "The proposal would be stronger if it included a concrete example of the expected savings.",
+    "typed": ""
+  },
+  "confirmation-en-13-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-13",
+    "sentence": "I cannot approve the final version until we have checked the numbers in the appendix.",
+    "typed": ""
+  },
+  "confirmation-en-13-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-13",
+    "sentence": "I cannot approve the final version until we have checked the numbers in the appendix.",
+    "typed": "ha"
+  },
+  "confirmation-en-13-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-13",
+    "sentence": "I cannot approve the final version until we have checked the numbers in the appendix.",
+    "typed": ""
+  },
+  "confirmation-en-14-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-14",
+    "sentence": "Please send a reminder to everyone who has not yet selected a workshop session.",
+    "typed": ""
+  },
+  "confirmation-en-14-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-14",
+    "sentence": "Please send a reminder to everyone who has not yet selected a workshop session.",
+    "typed": ""
+  },
+  "confirmation-en-14-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-14",
+    "sentence": "Please send a reminder to everyone who has not yet selected a workshop session.",
+    "typed": "sele"
+  },
+  "confirmation-en-15-7-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-15",
+    "sentence": "We can split the work into smaller tasks and review progress at the end of each week.",
+    "typed": ""
+  },
+  "confirmation-en-15-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-15",
+    "sentence": "We can split the work into smaller tasks and review progress at the end of each week.",
+    "typed": "rev"
+  },
+  "confirmation-en-15-12-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-15",
+    "sentence": "We can split the work into smaller tasks and review progress at the end of each week.",
+    "typed": ""
+  },
+  "confirmation-en-16-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-16",
+    "sentence": "The old photograph had faded, but you could still recognize the house behind the trees.",
+    "typed": ""
+  },
+  "confirmation-en-16-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-16",
+    "sentence": "The old photograph had faded, but you could still recognize the house behind the trees.",
+    "typed": "st"
+  },
+  "confirmation-en-16-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-16",
+    "sentence": "The old photograph had faded, but you could still recognize the house behind the trees.",
+    "typed": ""
+  },
+  "confirmation-en-17-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-17",
+    "sentence": "I will bring a warm jacket because it tends to get cold near the lake.",
+    "typed": ""
+  },
+  "confirmation-en-17-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-17",
+    "sentence": "I will bring a warm jacket because it tends to get cold near the lake.",
+    "typed": "te"
+  },
+  "confirmation-en-17-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-17",
+    "sentence": "I will bring a warm jacket because it tends to get cold near the lake.",
+    "typed": ""
+  },
+  "confirmation-en-18-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-18",
+    "sentence": "There are a few empty boxes in the garage if you need them for moving.",
+    "typed": ""
+  },
+  "confirmation-en-18-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-18",
+    "sentence": "There are a few empty boxes in the garage if you need them for moving.",
+    "typed": "gar"
+  },
+  "confirmation-en-18-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-18",
+    "sentence": "There are a few empty boxes in the garage if you need them for moving.",
+    "typed": ""
+  },
+  "confirmation-en-19-7-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-19",
+    "sentence": "The recipe calls for fresh herbs, although dried ones will work if that is all you have.",
+    "typed": ""
+  },
+  "confirmation-en-19-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-19",
+    "sentence": "The recipe calls for fresh herbs, although dried ones will work if that is all you have.",
+    "typed": "wi"
+  },
+  "confirmation-en-19-12-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-19",
+    "sentence": "The recipe calls for fresh herbs, although dried ones will work if that is all you have.",
+    "typed": ""
+  },
+  "confirmation-en-20-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-20",
+    "sentence": "A failed background sync should not prevent someone from opening their existing notes.",
+    "typed": ""
+  },
+  "confirmation-en-20-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-20",
+    "sentence": "A failed background sync should not prevent someone from opening their existing notes.",
+    "typed": "som"
+  },
+  "confirmation-en-20-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-20",
+    "sentence": "A failed background sync should not prevent someone from opening their existing notes.",
+    "typed": ""
+  },
+  "confirmation-en-21-7-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-21",
+    "sentence": "The error message should explain what the user can do next instead of exposing an internal code.",
+    "typed": ""
+  },
+  "confirmation-en-21-10-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-21",
+    "sentence": "The error message should explain what the user can do next instead of exposing an internal code.",
+    "typed": "ne"
+  },
+  "confirmation-en-21-12-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-21",
+    "sentence": "The error message should explain what the user can do next instead of exposing an internal code.",
+    "typed": ""
+  },
+  "confirmation-en-22-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-22",
+    "sentence": "We should measure memory usage after several hours of normal work, not just at startup.",
+    "typed": ""
+  },
+  "confirmation-en-22-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-22",
+    "sentence": "We should measure memory usage after several hours of normal work, not just at startup.",
+    "typed": "nor"
+  },
+  "confirmation-en-22-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-22",
+    "sentence": "We should measure memory usage after several hours of normal work, not just at startup.",
+    "typed": ""
+  },
+  "confirmation-en-23-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-23",
+    "sentence": "Please keep the feature disabled by default until the migration has been tested on older data.",
+    "typed": ""
+  },
+  "confirmation-en-23-9-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-23",
+    "sentence": "Please keep the feature disabled by default until the migration has been tested on older data.",
+    "typed": "migr"
+  },
+  "confirmation-en-23-11-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-23",
+    "sentence": "Please keep the feature disabled by default until the migration has been tested on older data.",
+    "typed": ""
+  },
+  "confirmation-en-24-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-24",
+    "sentence": "The course was easier to follow once the instructor started using examples from everyday life.",
+    "typed": ""
+  },
+  "confirmation-en-24-8-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-24",
+    "sentence": "The course was easier to follow once the instructor started using examples from everyday life.",
+    "typed": "instr"
+  },
+  "confirmation-en-24-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-24",
+    "sentence": "The course was easier to follow once the instructor started using examples from everyday life.",
+    "typed": ""
+  },
+  "confirmation-en-25-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-25",
+    "sentence": "I need to replace the battery in the kitchen clock because it keeps losing time.",
+    "typed": ""
+  },
+  "confirmation-en-25-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-25",
+    "sentence": "I need to replace the battery in the kitchen clock because it keeps losing time.",
+    "typed": "kit"
+  },
+  "confirmation-en-25-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-25",
+    "sentence": "I need to replace the battery in the kitchen clock because it keeps losing time.",
+    "typed": ""
+  },
+  "confirmation-en-26-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-26",
+    "sentence": "We took a different route home to avoid the construction work near the bridge.",
+    "typed": ""
+  },
+  "confirmation-en-26-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-26",
+    "sentence": "We took a different route home to avoid the construction work near the bridge.",
+    "typed": "av"
+  },
+  "confirmation-en-26-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-26",
+    "sentence": "We took a different route home to avoid the construction work near the bridge.",
+    "typed": ""
+  },
+  "confirmation-en-27-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-27",
+    "sentence": "The shop agreed to exchange the shoes even though I had misplaced the receipt.",
+    "typed": ""
+  },
+  "confirmation-en-27-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-27",
+    "sentence": "The shop agreed to exchange the shoes even though I had misplaced the receipt.",
+    "typed": "tho"
+  },
+  "confirmation-en-27-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-27",
+    "sentence": "The shop agreed to exchange the shoes even though I had misplaced the receipt.",
+    "typed": ""
+  },
+  "confirmation-en-28-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-28",
+    "sentence": "I have summarized the open questions in a separate document for our next discussion.",
+    "typed": ""
+  },
+  "confirmation-en-28-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-28",
+    "sentence": "I have summarized the open questions in a separate document for our next discussion.",
+    "typed": "sepa"
+  },
+  "confirmation-en-28-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-28",
+    "sentence": "I have summarized the open questions in a separate document for our next discussion.",
+    "typed": ""
+  },
+  "confirmation-en-29-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-29",
+    "sentence": "The customer asked whether they could export their records before closing the account.",
+    "typed": ""
+  },
+  "confirmation-en-29-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-29",
+    "sentence": "The customer asked whether they could export their records before closing the account.",
+    "typed": "th"
+  },
+  "confirmation-en-29-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-29",
+    "sentence": "The customer asked whether they could export their records before closing the account.",
+    "typed": ""
+  },
+  "confirmation-en-30-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-30",
+    "sentence": "We should leave enough time for feedback before sending the design to the printer.",
+    "typed": ""
+  },
+  "confirmation-en-30-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-30",
+    "sentence": "We should leave enough time for feedback before sending the design to the printer.",
+    "typed": "sen"
+  },
+  "confirmation-en-30-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-30",
+    "sentence": "We should leave enough time for feedback before sending the design to the printer.",
+    "typed": ""
+  },
+  "confirmation-en-31-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-31",
+    "sentence": "Thank you for checking the details and catching the mistake before it reached the final report.",
+    "typed": ""
+  },
+  "confirmation-en-31-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "confirmation-31",
+    "sentence": "Thank you for checking the details and catching the mistake before it reached the final report.",
+    "typed": "mis"
+  },
+  "confirmation-en-31-11-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "confirmation-31",
+    "sentence": "Thank you for checking the details and catching the mistake before it reached the final report.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-00-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-00",
+    "sentence": "U prilogu šaljem izmenjeni raspored kako biste mogli da proverite preklapanja između termina.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-00-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-00",
+    "sentence": "U prilogu šaljem izmenjeni raspored kako biste mogli da proverite preklapanja između termina.",
+    "typed": "mo"
+  },
+  "confirmation-sr_latn-00-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-00",
+    "sentence": "U prilogu šaljem izmenjeni raspored kako biste mogli da proverite preklapanja između termina.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-01-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-01",
+    "sentence": "Dostavljač je zvao da kaže da ne može da pronađe ulaz u našu zgradu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-01-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-01",
+    "sentence": "Dostavljač je zvao da kaže da ne može da pronađe ulaz u našu zgradu.",
+    "typed": "mo"
+  },
+  "confirmation-sr_latn-01-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-01",
+    "sentence": "Dostavljač je zvao da kaže da ne može da pronađe ulaz u našu zgradu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-02-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-02",
+    "sentence": "Da li možemo da održimo razgovor preko video poziva pošto je sala već zauzeta?",
+    "typed": ""
+  },
+  "confirmation-sr_latn-02-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-02",
+    "sentence": "Da li možemo da održimo razgovor preko video poziva pošto je sala već zauzeta?",
+    "typed": "poz"
+  },
+  "confirmation-sr_latn-02-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-02",
+    "sentence": "Da li možemo da održimo razgovor preko video poziva pošto je sala već zauzeta?",
+    "typed": ""
+  },
+  "confirmation-sr_latn-03-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-03",
+    "sentence": "Isti iznos mi je naplaćen dva puta i želeo bih da proverite drugu transakciju.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-03-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-03",
+    "sentence": "Isti iznos mi je naplaćen dva puta i želeo bih da proverite drugu transakciju.",
+    "typed": "že"
+  },
+  "confirmation-sr_latn-03-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-03",
+    "sentence": "Isti iznos mi je naplaćen dva puta i želeo bih da proverite drugu transakciju.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-04-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-04",
+    "sentence": "Kada nestane veza sa mrežom, program treba da zadrži lokalnu kopiju svih izmena.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-04-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-04",
+    "sentence": "Kada nestane veza sa mrežom, program treba da zadrži lokalnu kopiju svih izmena.",
+    "typed": "zad"
+  },
+  "confirmation-sr_latn-04-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-04",
+    "sentence": "Kada nestane veza sa mrežom, program treba da zadrži lokalnu kopiju svih izmena.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-05-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-05",
+    "sentence": "Alat za uvoz treba da prikaže preskočene redove i objasni zbog čega nisu prihvaćeni.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-05-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-05",
+    "sentence": "Alat za uvoz treba da prikaže preskočene redove i objasni zbog čega nisu prihvaćeni.",
+    "typed": "red"
+  },
+  "confirmation-sr_latn-05-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-05",
+    "sentence": "Alat za uvoz treba da prikaže preskočene redove i objasni zbog čega nisu prihvaćeni.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-06-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-06",
+    "sentence": "Primetićete usporavanje tek nakon što nekoliko puta pređete sa jednog velikog dokumenta na drugi.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-06-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-06",
+    "sentence": "Primetićete usporavanje tek nakon što nekoliko puta pređete sa jednog velikog dokumenta na drugi.",
+    "typed": "pre"
+  },
+  "confirmation-sr_latn-06-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-06",
+    "sentence": "Primetićete usporavanje tek nakon što nekoliko puta pređete sa jednog velikog dokumenta na drugi.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-07-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-07",
+    "sentence": "Dodaj napomenu da se ovo podešavanje odnosi samo na snimke koji nastanu ubuduće.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-07-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-07",
+    "sentence": "Dodaj napomenu da se ovo podešavanje odnosi samo na snimke koji nastanu ubuduće.",
+    "typed": "sa"
+  },
+  "confirmation-sr_latn-07-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-07",
+    "sentence": "Dodaj napomenu da se ovo podešavanje odnosi samo na snimke koji nastanu ubuduće.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-08-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-08",
+    "sentence": "Zaboravio sam kišobran u kafiću gde smo svratili posle obilaska stare tvrđave.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-08-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-08",
+    "sentence": "Zaboravio sam kišobran u kafiću gde smo svratili posle obilaska stare tvrđave.",
+    "typed": "svra"
+  },
+  "confirmation-sr_latn-08-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-08",
+    "sentence": "Zaboravio sam kišobran u kafiću gde smo svratili posle obilaska stare tvrđave.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-09-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-09",
+    "sentence": "Pas deluje mnogo mirnije otkad ga svako jutro vodimo u dužu šetnju.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-09-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-09",
+    "sentence": "Pas deluje mnogo mirnije otkad ga svako jutro vodimo u dužu šetnju.",
+    "typed": "ju"
+  },
+  "confirmation-sr_latn-09-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-09",
+    "sentence": "Pas deluje mnogo mirnije otkad ga svako jutro vodimo u dužu šetnju.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-10-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-10",
+    "sentence": "Planiramo mali izlet za vikend ako vreme ostane lepo i bez jakog vetra.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-10-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-10",
+    "sentence": "Planiramo mali izlet za vikend ako vreme ostane lepo i bez jakog vetra.",
+    "typed": "ost"
+  },
+  "confirmation-sr_latn-10-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-10",
+    "sentence": "Planiramo mali izlet za vikend ako vreme ostane lepo i bez jakog vetra.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-11-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-11",
+    "sentence": "Obično spremim više supe da imam nešto gotovo kada se kasno vratim kući.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-11-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-11",
+    "sentence": "Obično spremim više supe da imam nešto gotovo kada se kasno vratim kući.",
+    "typed": "got"
+  },
+  "confirmation-sr_latn-11-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-11",
+    "sentence": "Obično spremim više supe da imam nešto gotovo kada se kasno vratim kući.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-12-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-12",
+    "sentence": "Predlog bi bio ubedljiviji kada bi sadržao jasno poređenje troškova pre i posle promene.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-12-8-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-12",
+    "sentence": "Predlog bi bio ubedljiviji kada bi sadržao jasno poređenje troškova pre i posle promene.",
+    "typed": "pore"
+  },
+  "confirmation-sr_latn-12-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-12",
+    "sentence": "Predlog bi bio ubedljiviji kada bi sadržao jasno poređenje troškova pre i posle promene.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-13-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-13",
+    "sentence": "Ne mogu da odobrim konačnu verziju dok ne proverimo podatke u poslednjoj tabeli.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-13-8-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-13",
+    "sentence": "Ne mogu da odobrim konačnu verziju dok ne proverimo podatke u poslednjoj tabeli.",
+    "typed": "prov"
+  },
+  "confirmation-sr_latn-13-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-13",
+    "sentence": "Ne mogu da odobrim konačnu verziju dok ne proverimo podatke u poslednjoj tabeli.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-14-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-14",
+    "sentence": "Molim te podseti kolege koji još nisu izabrali termin za razgovor sa mentorom.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-14-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-14",
+    "sentence": "Molim te podseti kolege koji još nisu izabrali termin za razgovor sa mentorom.",
+    "typed": "izab"
+  },
+  "confirmation-sr_latn-14-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-14",
+    "sentence": "Molim te podseti kolege koji još nisu izabrali termin za razgovor sa mentorom.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-15-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-15",
+    "sentence": "Možemo da podelimo posao na manje celine i zajedno proverimo rezultate krajem nedelje.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-15-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-15",
+    "sentence": "Možemo da podelimo posao na manje celine i zajedno proverimo rezultate krajem nedelje.",
+    "typed": "zaj"
+  },
+  "confirmation-sr_latn-15-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-15",
+    "sentence": "Možemo da podelimo posao na manje celine i zajedno proverimo rezultate krajem nedelje.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-16-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-16",
+    "sentence": "Stara fotografija je izbledela, ali se kuća iza visokog drveta još mogla prepoznati.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-16-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-16",
+    "sentence": "Stara fotografija je izbledela, ali se kuća iza visokog drveta još mogla prepoznati.",
+    "typed": "vis"
+  },
+  "confirmation-sr_latn-16-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-16",
+    "sentence": "Stara fotografija je izbledela, ali se kuća iza visokog drveta još mogla prepoznati.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-17-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-17",
+    "sentence": "Poneću topliju jaknu jer uveče pored reke često bude hladnije nego u gradu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-17-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-17",
+    "sentence": "Poneću topliju jaknu jer uveče pored reke često bude hladnije nego u gradu.",
+    "typed": "če"
+  },
+  "confirmation-sr_latn-17-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-17",
+    "sentence": "Poneću topliju jaknu jer uveče pored reke često bude hladnije nego u gradu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-18-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-18",
+    "sentence": "U garaži ima nekoliko praznih kutija ako ti budu potrebne za selidbu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-18-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-18",
+    "sentence": "U garaži ima nekoliko praznih kutija ako ti budu potrebne za selidbu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-18-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-18",
+    "sentence": "U garaži ima nekoliko praznih kutija ako ti budu potrebne za selidbu.",
+    "typed": "bu"
+  },
+  "confirmation-sr_latn-19-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-19",
+    "sentence": "U receptu piše da treba koristiti sveže začinsko bilje, ali poslužiće i sušeno.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-19-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-19",
+    "sentence": "U receptu piše da treba koristiti sveže začinsko bilje, ali poslužiće i sušeno.",
+    "typed": "zači"
+  },
+  "confirmation-sr_latn-19-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-19",
+    "sentence": "U receptu piše da treba koristiti sveže začinsko bilje, ali poslužiće i sušeno.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-20-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-20",
+    "sentence": "Neuspela sinhronizacija ne bi smela da spreči korisnika da otvori već sačuvane beleške.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-20-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-20",
+    "sentence": "Neuspela sinhronizacija ne bi smela da spreči korisnika da otvori već sačuvane beleške.",
+    "typed": "kori"
+  },
+  "confirmation-sr_latn-20-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-20",
+    "sentence": "Neuspela sinhronizacija ne bi smela da spreči korisnika da otvori već sačuvane beleške.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-21-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-21",
+    "sentence": "Umesto interne oznake greške, poruka treba da ponudi razumljiv opis narednog koraka.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-21-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-21",
+    "sentence": "Umesto interne oznake greške, poruka treba da ponudi razumljiv opis narednog koraka.",
+    "typed": "pon"
+  },
+  "confirmation-sr_latn-21-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-21",
+    "sentence": "Umesto interne oznake greške, poruka treba da ponudi razumljiv opis narednog koraka.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-22-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-22",
+    "sentence": "Potrošnju memorije treba izmeriti posle nekoliko sati rada, a ne samo prilikom pokretanja.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-22-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-22",
+    "sentence": "Potrošnju memorije treba izmeriti posle nekoliko sati rada, a ne samo prilikom pokretanja.",
+    "typed": "ra"
+  },
+  "confirmation-sr_latn-22-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-22",
+    "sentence": "Potrošnju memorije treba izmeriti posle nekoliko sati rada, a ne samo prilikom pokretanja.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-23-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-23",
+    "sentence": "Ostavi novu mogućnost isključenu dok ne proverimo kako se ponaša sa starijim podacima.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-23-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-23",
+    "sentence": "Ostavi novu mogućnost isključenu dok ne proverimo kako se ponaša sa starijim podacima.",
+    "typed": "ka"
+  },
+  "confirmation-sr_latn-23-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-23",
+    "sentence": "Ostavi novu mogućnost isključenu dok ne proverimo kako se ponaša sa starijim podacima.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-24-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-24",
+    "sentence": "Predavanja su postala mnogo razumljivija kada je profesor počeo da koristi primere iz svakodnevnog života.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-24-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-24",
+    "sentence": "Predavanja su postala mnogo razumljivija kada je profesor počeo da koristi primere iz svakodnevnog života.",
+    "typed": "po"
+  },
+  "confirmation-sr_latn-24-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-24",
+    "sentence": "Predavanja su postala mnogo razumljivija kada je profesor počeo da koristi primere iz svakodnevnog života.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-25-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-25",
+    "sentence": "Moram da zamenim bateriju u kuhinjskom satu jer već nekoliko dana stalno kasni.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-25-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-25",
+    "sentence": "Moram da zamenim bateriju u kuhinjskom satu jer već nekoliko dana stalno kasni.",
+    "typed": "sa"
+  },
+  "confirmation-sr_latn-25-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-25",
+    "sentence": "Moram da zamenim bateriju u kuhinjskom satu jer već nekoliko dana stalno kasni.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-26-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-26",
+    "sentence": "Vratili smo se drugim putem da izbegnemo radove na raskrsnici blizu glavnog mosta.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-26-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-26",
+    "sentence": "Vratili smo se drugim putem da izbegnemo radove na raskrsnici blizu glavnog mosta.",
+    "typed": "rad"
+  },
+  "confirmation-sr_latn-26-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-26",
+    "sentence": "Vratili smo se drugim putem da izbegnemo radove na raskrsnici blizu glavnog mosta.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-27-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-27",
+    "sentence": "Prodavnica je pristala da zameni cipele iako nisam mogao da pronađem originalno pakovanje.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-27-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-27",
+    "sentence": "Prodavnica je pristala da zameni cipele iako nisam mogao da pronađem originalno pakovanje.",
+    "typed": "ni"
+  },
+  "confirmation-sr_latn-27-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-27",
+    "sentence": "Prodavnica je pristala da zameni cipele iako nisam mogao da pronađem originalno pakovanje.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-28-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-28",
+    "sentence": "Otvorena pitanja sam izdvojio u poseban dokument koji možemo da pregledamo na narednom sastanku.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-28-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-28",
+    "sentence": "Otvorena pitanja sam izdvojio u poseban dokument koji možemo da pregledamo na narednom sastanku.",
+    "typed": "mož"
+  },
+  "confirmation-sr_latn-28-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-28",
+    "sentence": "Otvorena pitanja sam izdvojio u poseban dokument koji možemo da pregledamo na narednom sastanku.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-29-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-29",
+    "sentence": "Korisnik je pitao da li može da preuzme svoje podatke pre zatvaranja naloga.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-29-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-29",
+    "sentence": "Korisnik je pitao da li može da preuzme svoje podatke pre zatvaranja naloga.",
+    "typed": "pre"
+  },
+  "confirmation-sr_latn-29-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-29",
+    "sentence": "Korisnik je pitao da li može da preuzme svoje podatke pre zatvaranja naloga.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-30-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-30",
+    "sentence": "Treba da ostavimo dovoljno vremena za komentare pre nego što materijal pošaljemo u štampu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-30-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-30",
+    "sentence": "Treba da ostavimo dovoljno vremena za komentare pre nego što materijal pošaljemo u štampu.",
+    "typed": "ne"
+  },
+  "confirmation-sr_latn-30-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-30",
+    "sentence": "Treba da ostavimo dovoljno vremena za komentare pre nego što materijal pošaljemo u štampu.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-31-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-31",
+    "sentence": "Hvala što si pažljivo proverio detalje i primetio propust pre objavljivanja izveštaja.",
+    "typed": ""
+  },
+  "confirmation-sr_latn-31-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "confirmation-31",
+    "sentence": "Hvala što si pažljivo proverio detalje i primetio propust pre objavljivanja izveštaja.",
+    "typed": "prim"
+  },
+  "confirmation-sr_latn-31-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "confirmation-31",
+    "sentence": "Hvala što si pažljivo proverio detalje i primetio propust pre objavljivanja izveštaja.",
+    "typed": ""
+  }
+}

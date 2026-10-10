@@ -1,0 +1,4711 @@
+{
+  "diagnostic": "Post-hoc matched full-versus-one-word control; original policy rankings unchanged. Not a population-weighted quality estimate.",
+  "overall": {
+    "cases": 205,
+    "better": 46,
+    "worse": 82,
+    "same": 77,
+    "meanUtilityDelta": -0.08292682926829269,
+    "ci95": [
+      -0.22842639593908629,
+      0.06698564593301436
+    ],
+    "phraseGroups": 96
+  },
+  "currentOnly": {
+    "cases": 109,
+    "better": 19,
+    "worse": 44,
+    "same": 46,
+    "meanUtilityDelta": -0.1559633027522936,
+    "ci95": [
+      -0.33653846153846156,
+      0.02830188679245283
+    ],
+    "phraseGroups": 70
+  },
+  "shared": {
+    "cases": 96,
+    "better": 27,
+    "worse": 38,
+    "same": 31,
+    "meanUtilityDelta": 0.0,
+    "ci95": [
+      -0.25773195876288657,
+      0.25510204081632654
+    ],
+    "phraseGroups": 63
+  },
+  "inconsistentPreferenceCases": [],
+  "examples": [
+    {
+      "id": "fresh-work-013:2:0",
+      "phraseID": "fresh-work-013",
+      "kind": "unchanged",
+      "prefix": "Thank you ",
+      "full": "for your interest in",
+      "short": "for",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common formal phrase, though somewhat specific to business context."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word, small benefit."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-001:7:0",
+      "phraseID": "fresh-work-001",
+      "kind": "newly_suppressed",
+      "prefix": "Please review the attached draft and send ",
+      "full": "me your comments.",
+      "short": "me",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural complete request, meaningful typing savings."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct next word, small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-006:10:0",
+      "phraseID": "fresh-travel-006",
+      "kind": "newly_suppressed",
+      "prefix": "Could you recommend a quiet beach that isn't packed with ",
+      "full": "tourists?",
+      "short": "tourists",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word with fitting question mark."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word but omits question mark."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-008:2:3",
+      "phraseID": "fresh-serbian-latin-008",
+      "kind": "unchanged",
+      "prefix": "Zaboravio sam loz",
+      "full": "inku.",
+      "short": "inku",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'lozinku' naturally with sentence end."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word correctly."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-006:2:0",
+      "phraseID": "fresh-technology-006",
+      "kind": "unchanged",
+      "prefix": "Try clearing ",
+      "full": "the cache and cookies",
+      "short": "the",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very common troubleshooting phrase."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible article, small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-010:2:0",
+      "phraseID": "fresh-travel-010",
+      "kind": "newly_suppressed",
+      "prefix": "How early ",
+      "full": "can I start?",
+      "short": "can",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible question, somewhat speculative tail."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-005:4:0",
+      "phraseID": "fresh-travel-005",
+      "kind": "newly_suppressed",
+      "prefix": "The hostel was cheap, ",
+      "full": "clean and comfortable.",
+      "short": "clean",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete review sentence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural adjective in list."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-011:7:0",
+      "phraseID": "fresh-conversation-011",
+      "kind": "newly_suppressed",
+      "prefix": "Thanks for listening yesterday; talking it through ",
+      "full": "with you was a",
+      "short": "with",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible phrase, ends on article but acceptable."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-013:1:0",
+      "phraseID": "fresh-conversation-013",
+      "kind": "newly_suppressed",
+      "prefix": "My ",
+      "full": "name is Kelsey",
+      "short": "name",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invents a specific name unsupported by context."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Plausible but highly speculative after 'My'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-travel-010:5:0",
+      "phraseID": "fresh-travel-010",
+      "kind": "newly_suppressed",
+      "prefix": "How early should we arrive ",
+      "full": "at the airport?",
+      "short": "at",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common, natural question completion."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural preposition."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-014:3:0",
+      "phraseID": "fresh-serbian-latin-014",
+      "kind": "newly_suppressed",
+      "prefix": "Moramo da odlučimo ",
+      "full": "da li je ovo",
+      "short": "da",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible Serbian phrase, open-ended."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-007:9:0",
+      "phraseID": "fresh-everyday-007",
+      "kind": "newly_suppressed",
+      "prefix": "I made too much soup, so take some home ",
+      "full": "with you.",
+      "short": "with",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural complete sentence ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-008:5:6",
+      "phraseID": "fresh-travel-008",
+      "kind": "unchanged",
+      "prefix": "The ferry doesn't run on holida",
+      "full": "ys.",
+      "short": "ys",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes word and sentence naturally."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes word correctly."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-latin-008:1:0",
+      "phraseID": "fresh-serbian-latin-008",
+      "kind": "unchanged",
+      "prefix": "Zaboravio ",
+      "full": "sam da je ovo",
+      "short": "sam",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Tail speculative and vague."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural auxiliary after 'Zaboravio'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-travel-009:12:0",
+      "phraseID": "fresh-travel-009",
+      "kind": "unchanged",
+      "prefix": "We got lost twice in the old town, but it was worth ",
+      "full": "it.",
+      "short": "it",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Idiom completion with natural period."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Obvious idiom completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-013:5:0",
+      "phraseID": "fresh-technology-013",
+      "kind": "unchanged",
+      "prefix": "I enabled two-factor authentication on ",
+      "full": "my account, but I",
+      "short": "my",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible, though 'but I' tail is speculative."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-004:8:9",
+      "phraseID": "fresh-conversation-004",
+      "kind": "unchanged",
+      "prefix": "Honestly, the movie was better than I expected, especiall",
+      "full": "y the ending.",
+      "short": "y",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, plausible sentence completion."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes word, minimal savings."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-003:9:0",
+      "phraseID": "fresh-travel-003",
+      "kind": "unchanged",
+      "prefix": "Make sure your passport is valid for at least ",
+      "full": "six months after your",
+      "short": "six",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Standard passport rule phrasing."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-003:4:1",
+      "phraseID": "fresh-travel-003",
+      "kind": "unchanged",
+      "prefix": "Make sure your passport i",
+      "full": "s valid for at",
+      "short": "s",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural phrase, cuts at 'at' but fine."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Completes word, minimal savings."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-014:4:0",
+      "phraseID": "fresh-travel-014",
+      "kind": "unchanged",
+      "prefix": "We booked a cabin ",
+      "full": "for 2 nights and",
+      "short": "for",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invents specific night count."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-serbian-latin-011:6:0",
+      "phraseID": "fresh-serbian-latin-011",
+      "kind": "unchanged",
+      "prefix": "Kafić preko puta je opet promenio ",
+      "full": "vlasnika.",
+      "short": "vlasnika",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural completion with period."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly natural completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-008:5:4",
+      "phraseID": "fresh-serbian-cyrillic-008",
+      "kind": "unchanged",
+      "prefix": "Шеф је тражио да до сред",
+      "full": "е, 27. ју",
+      "short": "е",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 2,
+        "flags": [
+          "malformed",
+          "arbitrary_specificity"
+        ],
+        "reason": "Invented date and cut-off token."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'среде' correctly, same script."
+      },
+      "delta": 3
+    },
+    {
+      "id": "fresh-travel-012:8:0",
+      "phraseID": "fresh-travel-012",
+      "kind": "newly_suppressed",
+      "prefix": "My suitcase arrived on the next flight, completely ",
+      "full": "intact.",
+      "short": "intact",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural completion with period."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-014:5:1",
+      "phraseID": "fresh-technology-014",
+      "kind": "unchanged",
+      "prefix": "The printer shows as offline e",
+      "full": "ven though it is",
+      "short": "ven",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural troubleshooting phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes word correctly."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-011:11:0",
+      "phraseID": "fresh-science-011",
+      "kind": "unchanged",
+      "prefix": "Bees are disappearing in some regions, and scientists still aren't sure ",
+      "full": "why.",
+      "short": "why",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural ending, but rules out a longer clause."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word; works whether or not the sentence continues."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-005:6:1",
+      "phraseID": "fresh-science-005",
+      "kind": "unchanged",
+      "prefix": "Our results suggest a correlation, but t",
+      "full": "he relationship is not",
+      "short": "he",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'the' and gives a natural hedging phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes the word; saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-001:6:0",
+      "phraseID": "fresh-travel-001",
+      "kind": "newly_suppressed",
+      "prefix": "Our flight was delayed three hours, ",
+      "full": "so we arrived at",
+      "short": "so",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible consequence phrase; the tail is somewhat speculative."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural connector; saves little typing."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-011:6:1",
+      "phraseID": "fresh-travel-011",
+      "kind": "unchanged",
+      "prefix": "The museum tickets sold out online, s",
+      "full": "o we had to",
+      "short": "o",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'so' with a very natural consequence phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'so'; saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-013:9:3",
+      "phraseID": "fresh-science-013",
+      "kind": "unchanged",
+      "prefix": "The glacier has retreated several hundred meters over the pas",
+      "full": "t 10 years, and",
+      "short": "t",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Word completion is right, but '10 years' is an arbitrary specific."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'past'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-everyday-013:7:0",
+      "phraseID": "fresh-everyday-013",
+      "kind": "newly_suppressed",
+      "prefix": "My alarm didn't go off, so I ",
+      "full": "slept in.",
+      "short": "slept",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Idiomatic, complete, and natural consequence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-005:7:0",
+      "phraseID": "fresh-science-005",
+      "kind": "unchanged",
+      "prefix": "Our results suggest a correlation, but they ",
+      "full": "do not prove causation.",
+      "short": "do",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Standard phrase that fits the context perfectly."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word; saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-001:3:0",
+      "phraseID": "fresh-conversation-001",
+      "kind": "newly_suppressed",
+      "prefix": "Are you still ",
+      "full": "looking for a good",
+      "short": "looking",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible question, but speculative and ends hanging."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible common next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-008:8:0",
+      "phraseID": "fresh-everyday-008",
+      "kind": "unchanged",
+      "prefix": "The dog refuses to go outside whenever it ",
+      "full": "rains.",
+      "short": "rains",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete sentence ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word choice."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-004:3:0",
+      "phraseID": "fresh-everyday-004",
+      "kind": "newly_suppressed",
+      "prefix": "I finally cleaned ",
+      "full": "up my garage and",
+      "short": "up",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible everyday phrase; garage is a reasonable guess."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible particle; saves little typing."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-005:2:5",
+      "phraseID": "fresh-work-005",
+      "kind": "unchanged",
+      "prefix": "Our team excee",
+      "full": "ds the expectations of",
+      "short": "ds",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'exceeds the expectations of' sounds stiff and speculative."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Valid word completion, though 'exceeded' is likelier."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-everyday-013:1:0",
+      "phraseID": "fresh-everyday-013",
+      "kind": "newly_suppressed",
+      "prefix": "My ",
+      "full": "name is Kelsey",
+      "short": "name",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invents a personal name with no basis."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Generic guess after a single word."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-technology-003:8:0",
+      "phraseID": "fresh-technology-003",
+      "kind": "newly_suppressed",
+      "prefix": "We should add unit tests before refactoring the ",
+      "full": "code.",
+      "short": "code",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural ending to the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural noun; leaves room to continue."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-013:5:0",
+      "phraseID": "fresh-everyday-013",
+      "kind": "newly_suppressed",
+      "prefix": "My alarm didn't go off, ",
+      "full": "so I slept in.",
+      "short": "so",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete consequence clause."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural connector; saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-013:7:0",
+      "phraseID": "fresh-science-013",
+      "kind": "newly_suppressed",
+      "prefix": "The glacier has retreated several hundred meters ",
+      "full": "in the last 10",
+      "short": "in",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Arbitrary number, and it ends without a unit."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural preposition."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-everyday-013:8:1",
+      "phraseID": "fresh-everyday-013",
+      "kind": "unchanged",
+      "prefix": "My alarm didn't go off, so I missed t",
+      "full": "he 6:30am",
+      "short": "he",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invents a specific time."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'the'."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-travel-009:11:0",
+      "phraseID": "fresh-travel-009",
+      "kind": "newly_suppressed",
+      "prefix": "We got lost twice in the old town, but it was ",
+      "full": "worth it.",
+      "short": "worth",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Idiomatic and complete ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-014:10:0",
+      "phraseID": "fresh-travel-014",
+      "kind": "newly_suppressed",
+      "prefix": "We booked a cabin in the mountains with no phone ",
+      "full": "or internet.",
+      "short": "or",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly natural pairing and ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural connector; saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-010:6:0",
+      "phraseID": "fresh-conversation-010",
+      "kind": "newly_suppressed",
+      "prefix": "I'm running about ten minutes late, ",
+      "full": "but I'm here.",
+      "short": "but",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Saying 'I'm here' contradicts running late."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible connector."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-work-006:7:3",
+      "phraseID": "fresh-work-006",
+      "kind": "unchanged",
+      "prefix": "Let's keep the follow-up short and focus onl",
+      "full": " the main issue.",
+      "short": " the",
+      "fullRating": {
+        "id": "o2",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed"
+        ],
+        "reason": "Leaves the broken token 'onl'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed"
+        ],
+        "reason": "Doesn't finish 'only', which leaves 'onl the'."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-003:2:0",
+      "phraseID": "fresh-conversation-003",
+      "kind": "newly_suppressed",
+      "prefix": "Let me ",
+      "full": "start by saying that",
+      "short": "start",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Common phrase, though 'Let me know' is likelier."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-003:1:1",
+      "phraseID": "fresh-work-003",
+      "kind": "unchanged",
+      "prefix": "I w",
+      "full": "as born in 198",
+      "short": "as",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity",
+          "malformed"
+        ],
+        "reason": "Invents a birth decade and leaves the number unfinished."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'was'."
+      },
+      "delta": 3
+    },
+    {
+      "id": "fresh-technology-004:11:0",
+      "phraseID": "fresh-technology-004",
+      "kind": "unchanged",
+      "prefix": "The Wi-Fi drops every evening, so I'm going to replace the ",
+      "full": "router.",
+      "short": "router",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Obvious, natural ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word; leaves room to continue."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-010:10:0",
+      "phraseID": "fresh-conversation-010",
+      "kind": "unchanged",
+      "prefix": "I'm running about ten minutes late, so please order without ",
+      "full": "me.",
+      "short": "me",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word without the period."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-013:7:5",
+      "phraseID": "fresh-everyday-013",
+      "kind": "unchanged",
+      "prefix": "My alarm didn't go off, so I misse",
+      "full": "d my 6:30",
+      "short": "d",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Completes 'missed', but the '6:30' tail is arbitrary and lacks a noun."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'missed'."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-everyday-009:7:0",
+      "phraseID": "fresh-everyday-009",
+      "kind": "newly_suppressed",
+      "prefix": "Our neighbor's kids left a soccer ball ",
+      "full": "in our yard.",
+      "short": "in",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete, and plausible ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural preposition, but saves little typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-010:9:3",
+      "phraseID": "fresh-science-010",
+      "kind": "unchanged",
+      "prefix": "A larger sample size would make the conclusions much mor",
+      "full": "e robust.",
+      "short": "e",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'more' with a fitting academic word."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct word completion; small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-002:6:0",
+      "phraseID": "fresh-work-002",
+      "kind": "newly_suppressed",
+      "prefix": "The quarterly budget meeting has been ",
+      "full": "scheduled for Wednesday, November",
+      "short": "scheduled",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invented date that is left incomplete."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible, natural next word."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-serbian-cyrillic-010:9:0",
+      "phraseID": "fresh-serbian-cyrillic-010",
+      "kind": "newly_suppressed",
+      "prefix": "Мој брат учи да свира гитару, али суседи нису ",
+      "full": "за то.",
+      "short": "за",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible colloquial ending: neighbors aren't in favor."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "A short preposition with little benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-010:7:0",
+      "phraseID": "fresh-science-010",
+      "kind": "newly_suppressed",
+      "prefix": "A larger sample size would make the ",
+      "full": "results more reliable.",
+      "short": "results",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural and complete phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural noun; small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-002:6:0",
+      "phraseID": "fresh-science-002",
+      "kind": "newly_suppressed",
+      "prefix": "The experiment didn't work, so we're ",
+      "full": "going to try again.",
+      "short": "going",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete continuation."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-008:10:0",
+      "phraseID": "fresh-technology-008",
+      "kind": "newly_suppressed",
+      "prefix": "My phone's battery barely lasts half a day since the ",
+      "full": "last update.",
+      "short": "last",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-011:6:0",
+      "phraseID": "fresh-technology-011",
+      "kind": "newly_suppressed",
+      "prefix": "The build failed again because someone ",
+      "full": "forgot to add the --",
+      "short": "forgot",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "malformed"
+        ],
+        "reason": "Ends on a dangling '--' token."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-conversation-006:7:0",
+      "phraseID": "fresh-conversation-006",
+      "kind": "newly_suppressed",
+      "prefix": "We haven't talked in ages, so I ",
+      "full": "thought I'd drop you",
+      "short": "thought",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural idiomatic phrase start; good typing savings."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-005:9:0",
+      "phraseID": "fresh-science-005",
+      "kind": "newly_suppressed",
+      "prefix": "Our results suggest a correlation, but they don't prove ",
+      "full": "causation.",
+      "short": "causation",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly natural ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly natural word; the user can punctuate."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-004:4:2",
+      "phraseID": "fresh-serbian-cyrillic-004",
+      "kind": "unchanged",
+      "prefix": "Мачка је поново прескочила ог",
+      "full": "радју и ушла у",
+      "short": "радју",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed"
+        ],
+        "reason": "'оградју' is misspelled; it should be 'ограду'."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed"
+        ],
+        "reason": "Misspelled word completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-008:6:7",
+      "phraseID": "fresh-everyday-008",
+      "kind": "unchanged",
+      "prefix": "The dog refuses to go outside wheneve",
+      "full": "r it is raining.",
+      "short": "r",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural complete ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'whenever'."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-002:11:0",
+      "phraseID": "fresh-conversation-002",
+      "kind": "newly_suppressed",
+      "prefix": "I didn't mean to sound annoyed earlier; it's just been a ",
+      "full": "long day and I'm",
+      "short": "long",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural phrase; fine to leave unfinished."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very likely next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-013:6:0",
+      "phraseID": "fresh-science-013",
+      "kind": "unchanged",
+      "prefix": "The glacier has retreated several hundred ",
+      "full": "meters in the last",
+      "short": "meters",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural phrase that saves useful typing."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible unit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-008:10:0",
+      "phraseID": "fresh-work-008",
+      "kind": "newly_suppressed",
+      "prefix": "I've updated the spreadsheet with last month's invoices and expense ",
+      "full": "reports.",
+      "short": "reports",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural sentence ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly natural collocation."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-011:2:0",
+      "phraseID": "fresh-technology-011",
+      "kind": "newly_suppressed",
+      "prefix": "The build ",
+      "full": "up to the 201",
+      "short": "up",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed",
+          "arbitrary_specificity"
+        ],
+        "reason": "Ungrammatical, with a truncated number."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'The build up' is an odd, unlikely continuation."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-003:2:0",
+      "phraseID": "fresh-science-003",
+      "kind": "newly_suppressed",
+      "prefix": "Plants convert ",
+      "full": "light energy into chemical",
+      "short": "light",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Standard scientific phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-004:6:0",
+      "phraseID": "fresh-conversation-004",
+      "kind": "unchanged",
+      "prefix": "Honestly, the movie was better than ",
+      "full": "the book.",
+      "short": "the",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Classic, natural completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "A lone article saves little."
+      },
+      "delta": -2
+    },
+    {
+      "id": "fresh-science-005:4:1",
+      "phraseID": "fresh-science-005",
+      "kind": "unchanged",
+      "prefix": "Our results suggest a c",
+      "full": "omplex relationship between the",
+      "short": "omplex",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible academic phrase; 'correlation' is also likely."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible word completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-005:2:0",
+      "phraseID": "fresh-science-005",
+      "kind": "newly_suppressed",
+      "prefix": "Our results ",
+      "full": "show that the 10-",
+      "short": "show",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 2,
+        "flags": [
+          "malformed",
+          "arbitrary_specificity"
+        ],
+        "reason": "Ends on a truncated, arbitrary '10-'."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural verb."
+      },
+      "delta": 3
+    },
+    {
+      "id": "fresh-work-005:7:0",
+      "phraseID": "fresh-work-005",
+      "kind": "unchanged",
+      "prefix": "Our team exceeded its sales target for ",
+      "full": "the year 2019",
+      "short": "the",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invented specific year."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Article only; negligible benefit."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-011:3:0",
+      "phraseID": "fresh-science-011",
+      "kind": "newly_suppressed",
+      "prefix": "Bees are disappearing ",
+      "full": "at an alarming rate.",
+      "short": "at",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural, common phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Short preposition; little benefit."
+      },
+      "delta": -2
+    },
+    {
+      "id": "fresh-travel-012:1:0",
+      "phraseID": "fresh-travel-012",
+      "kind": "newly_suppressed",
+      "prefix": "My ",
+      "full": "name is Kelsey",
+      "short": "name",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invented personal name."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Speculative given a one-word prefix."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-serbian-latin-005:9:2",
+      "phraseID": "fresh-serbian-latin-005",
+      "kind": "unchanged",
+      "prefix": "Da li znaš neki dobar servis za popravku starih sa",
+      "full": "tova?",
+      "short": "tova",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'satova?' naturally and closes the question."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct word completion but leaves out the question mark."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-006:8:1",
+      "phraseID": "fresh-travel-006",
+      "kind": "unchanged",
+      "prefix": "Could you recommend a quiet beach that isn't p",
+      "full": "acked with tourists?",
+      "short": "acked",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, common phrase that finishes the question."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'packed'."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-012:6:5",
+      "phraseID": "fresh-technology-012",
+      "kind": "unchanged",
+      "prefix": "Is there a keyboard shortcut for switc",
+      "full": "hing between the two?",
+      "short": "hing",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "'The two' points to items the text never mentions."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'switching'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-technology-013:3:0",
+      "phraseID": "fresh-technology-013",
+      "kind": "unchanged",
+      "prefix": "I enabled two-factor ",
+      "full": "authentication on my account,",
+      "short": "authentication",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible, but the extra tail is more speculative."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Highly predictable word with a real typing benefit."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-009:5:0",
+      "phraseID": "fresh-science-009",
+      "kind": "unchanged",
+      "prefix": "Earthquakes happen when stress builds ",
+      "full": "up in the Earth's",
+      "short": "up",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, though it stops at 'Earth's' before the noun."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Up' is the obvious next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-003:5:0",
+      "phraseID": "fresh-technology-003",
+      "kind": "unchanged",
+      "prefix": "We should add unit tests ",
+      "full": "for the get_all",
+      "short": "for",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity",
+          "malformed"
+        ],
+        "reason": "Made-up function name, apparently cut off."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural preposition, small benefit."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-everyday-001:7:0",
+      "phraseID": "fresh-everyday-001",
+      "kind": "newly_suppressed",
+      "prefix": "We're out of milk, so I'll stop ",
+      "full": "by the store on",
+      "short": "by",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Reasonable phrase, but it ends on a dangling 'on'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Stop by' is natural."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-travel-002:2:0",
+      "phraseID": "fresh-travel-002",
+      "kind": "newly_suppressed",
+      "prefix": "Is breakfast ",
+      "full": "the most important meal",
+      "short": "the",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common phrasing that fits a question about breakfast."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Plausible, but saves almost no typing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-012:10:0",
+      "phraseID": "fresh-work-012",
+      "kind": "newly_suppressed",
+      "prefix": "Nobody owns the onboarding documentation, which is why it's so ",
+      "full": "hard to get it",
+      "short": "hard",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'Hard to get it' reads awkwardly and doesn't fit well."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible adjective, although 'outdated' might be more likely."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-serbian-latin-006:5:0",
+      "phraseID": "fresh-serbian-latin-006",
+      "kind": "newly_suppressed",
+      "prefix": "Autobus za selo kreće tek ",
+      "full": "oko 17 sati, a",
+      "short": "oko",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "The exact time is made up."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Oko' fits naturally before a time."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-travel-007:6:0",
+      "phraseID": "fresh-travel-007",
+      "kind": "newly_suppressed",
+      "prefix": "I always pack a spare charger ",
+      "full": "for my phone, but",
+      "short": "for",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible everyday phrase with a reasonable tail."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible preposition."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-005:8:0",
+      "phraseID": "fresh-everyday-005",
+      "kind": "newly_suppressed",
+      "prefix": "The plumber canceled again, so the kitchen sink ",
+      "full": "is still not working.",
+      "short": "is",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, generic sentence ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Is' is a natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-010:8:0",
+      "phraseID": "fresh-serbian-latin-010",
+      "kind": "unchanged",
+      "prefix": "Hvala ti što si mi pozajmio bušilicu, vratiću ",
+      "full": "ti je kad budem",
+      "short": "ti",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Grammatical, with correct feminine 'je'; ends mid-clause."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural pronoun after 'vratiću'."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-005:8:1",
+      "phraseID": "fresh-technology-005",
+      "kind": "unchanged",
+      "prefix": "This query is slow because the table doesn't h",
+      "full": "ave an index on",
+      "short": "ave",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very likely technical phrase."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'have'."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-013:4:0",
+      "phraseID": "fresh-technology-013",
+      "kind": "newly_suppressed",
+      "prefix": "I enabled two-factor authentication ",
+      "full": "on my account, but",
+      "short": "on",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible phrase; 'but' fits the likely complaint."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Natural, but saves very little."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-004:8:8",
+      "phraseID": "fresh-conversation-004",
+      "kind": "unchanged",
+      "prefix": "Honestly, the movie was better than I expected, especial",
+      "full": "ly the ending.",
+      "short": "ly",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, common completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes the word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-007:8:0",
+      "phraseID": "fresh-everyday-007",
+      "kind": "unchanged",
+      "prefix": "I made too much soup, so take some ",
+      "full": "home!",
+      "short": "home",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, friendly ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-004:7:0",
+      "phraseID": "fresh-work-004",
+      "kind": "newly_suppressed",
+      "prefix": "Could we push the deadline back a ",
+      "full": "bit?",
+      "short": "bit",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word that finishes the question."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct word, but no question mark."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-008:2:0",
+      "phraseID": "fresh-conversation-008",
+      "kind": "unchanged",
+      "prefix": "That sounds ",
+      "full": "like a great idea.",
+      "short": "like",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common, natural reply."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-008:1:0",
+      "phraseID": "fresh-technology-008",
+      "kind": "newly_suppressed",
+      "prefix": "My ",
+      "full": "name is Kelsey",
+      "short": "name",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invents a name."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Too generic to be worth showing."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-conversation-001:2:0",
+      "phraseID": "fresh-conversation-001",
+      "kind": "newly_suppressed",
+      "prefix": "Are you ",
+      "full": "looking for a way",
+      "short": "looking",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Speculative and oddly specific."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Possible, but just a guess."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-technology-014:5:0",
+      "phraseID": "fresh-technology-014",
+      "kind": "newly_suppressed",
+      "prefix": "The printer shows as offline ",
+      "full": "in the printer list.",
+      "short": "in",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible, though somewhat redundant."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible preposition."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-009:5:0",
+      "phraseID": "fresh-serbian-cyrillic-009",
+      "kind": "unchanged",
+      "prefix": "Јесења киша је трајала целу ",
+      "full": "ноћ, а ујутру",
+      "short": "ноћ",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural narrative continuation in the same script."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Ноћ' is the obvious completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-008:2:0",
+      "phraseID": "fresh-everyday-008",
+      "kind": "newly_suppressed",
+      "prefix": "The dog ",
+      "full": "days of summer are",
+      "short": "days",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Steers into an unlikely idiom."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Unlikely next word after 'The dog'."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-007:2:0",
+      "phraseID": "fresh-work-007",
+      "kind": "newly_suppressed",
+      "prefix": "The new ",
+      "full": "2017 Ford",
+      "short": "2017",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "The arbitrary year and car brand are guesses the prefix doesn't support."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "An unsupported specific year is an unlikely next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-013:5:0",
+      "phraseID": "fresh-science-013",
+      "kind": "newly_suppressed",
+      "prefix": "The glacier has retreated several ",
+      "full": "hundred meters in the",
+      "short": "hundred",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A plausible measurement phrase, though 'meters in the' guesses somewhat."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Hundred' is a natural quantity word after 'several.'"
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-008:8:0",
+      "phraseID": "fresh-travel-008",
+      "kind": "newly_suppressed",
+      "prefix": "The ferry doesn't run on holidays, so we'll ",
+      "full": "have to wait until",
+      "short": "have",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A natural, useful phrase that fits the holiday context."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Have' is a natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-001:1:0",
+      "phraseID": "fresh-conversation-001",
+      "kind": "unchanged",
+      "prefix": "Are ",
+      "full": "you looking for a",
+      "short": "you",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [],
+        "reason": "The tail is speculative given such a short prefix."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'You' is the most likely word after 'Are.'"
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-travel-008:10:0",
+      "phraseID": "fresh-travel-008",
+      "kind": "newly_suppressed",
+      "prefix": "The ferry doesn't run on holidays, so we'll need another ",
+      "full": "way to get there.",
+      "short": "way",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A natural, complete sentence ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "The right word, with a small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-006:9:2",
+      "phraseID": "fresh-everyday-006",
+      "kind": "unchanged",
+      "prefix": "Remind me to pay the electricity bill before it's ov",
+      "full": "erdue.",
+      "short": "erdue",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word and ends the sentence naturally."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'overdue.'"
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-010:9:8",
+      "phraseID": "fresh-serbian-cyrillic-010",
+      "kind": "unchanged",
+      "prefix": "Мој брат учи да свира гитару, али суседи нису одушевље",
+      "full": "ни.",
+      "short": "ни",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'oduševljeni' and ends the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes the word in Cyrillic."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-010:2:0",
+      "phraseID": "fresh-science-010",
+      "kind": "newly_suppressed",
+      "prefix": "A larger ",
+      "full": "than average two bedroom",
+      "short": "than",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward",
+          "arbitrary_specificity"
+        ],
+        "reason": "An awkward construction with a specific apartment-size guess."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'A larger than' is awkward; a noun usually follows."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-014:5:1",
+      "phraseID": "fresh-travel-014",
+      "kind": "unchanged",
+      "prefix": "We booked a cabin in t",
+      "full": "he woods for a",
+      "short": "he",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'In the woods' is plausible for a cabin, and the tail is fine."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'the.'"
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-004:10:0",
+      "phraseID": "fresh-conversation-004",
+      "kind": "newly_suppressed",
+      "prefix": "Honestly, the movie was better than I expected, especially the ",
+      "full": "ending.",
+      "short": "ending",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A plausible word that closes the sentence naturally."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Ending' is a very plausible movie aspect."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-008:2:3",
+      "phraseID": "fresh-conversation-008",
+      "kind": "unchanged",
+      "prefix": "That sounds lik",
+      "full": "e a great idea.",
+      "short": "e",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A very common, natural phrase completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'like,' though only one letter."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-011:9:0",
+      "phraseID": "fresh-science-011",
+      "kind": "unchanged",
+      "prefix": "Bees are disappearing in some regions, and scientists still ",
+      "full": "don’t know why.",
+      "short": "don’t",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A natural, complete ending to the sentence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'Don't' is a natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-010:4:0",
+      "phraseID": "fresh-everyday-010",
+      "kind": "newly_suppressed",
+      "prefix": "I'm trying to drink ",
+      "full": "more water, but I'm",
+      "short": "more",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'More water' is very likely, and the tail is natural."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'More' is a natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-013:9:0",
+      "phraseID": "fresh-everyday-013",
+      "kind": "newly_suppressed",
+      "prefix": "My alarm didn't go off, so I missed the ",
+      "full": "6:30am bus",
+      "short": "6",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "The exact time is an unsupported specific."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "A bare number is an arbitrary guess."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-008:1:1",
+      "phraseID": "fresh-serbian-cyrillic-008",
+      "kind": "unchanged",
+      "prefix": "Шеф ј",
+      "full": "оргованскиот држа",
+      "short": "оргованскиот",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed",
+          "language_switch"
+        ],
+        "reason": "A nonsense, non-Serbian word plus a cut-off fragment."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "malformed",
+          "language_switch"
+        ],
+        "reason": "A nonsense, Macedonian-like word that doesn't fit."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-latin-009:8:3",
+      "phraseID": "fresh-serbian-latin-009",
+      "kind": "unchanged",
+      "prefix": "Ne volim da vozim po kiši, naročito kad pad",
+      "full": "a i kad je",
+      "short": "a",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes 'pada,' and the tail is plausible."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'pada.'"
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-006:3:0",
+      "phraseID": "fresh-technology-006",
+      "kind": "newly_suppressed",
+      "prefix": "Try clearing your ",
+      "full": "browser cache and cookies.",
+      "short": "browser",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A very natural, useful troubleshooting phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A likely next word with a small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-006:10:1",
+      "phraseID": "fresh-serbian-latin-006",
+      "kind": "unchanged",
+      "prefix": "Autobus za selo kreće tek u pola sedam, pa ćemo k",
+      "full": "renuti malo kasnije.",
+      "short": "renuti",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A natural Serbian completion that fits the context."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'krenuti.'"
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-013:6:0",
+      "phraseID": "fresh-everyday-013",
+      "kind": "unchanged",
+      "prefix": "My alarm didn't go off, so ",
+      "full": "I slept in.",
+      "short": "I",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A plausible consequence, though somewhat speculative."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'I' is a very natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-014:11:0",
+      "phraseID": "fresh-conversation-014",
+      "kind": "newly_suppressed",
+      "prefix": "Happy to help with the move, as long as there's pizza ",
+      "full": "involved.",
+      "short": "involved",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "An idiomatic, natural ending to the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "The right word, without punctuation."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-012:5:0",
+      "phraseID": "fresh-science-012",
+      "kind": "newly_suppressed",
+      "prefix": "Light from the sun takes ",
+      "full": "about 8 minutes to",
+      "short": "about",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Factually correct and a natural continuation."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'About' is a natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-003:4:6",
+      "phraseID": "fresh-serbian-cyrillic-003",
+      "kind": "unchanged",
+      "prefix": "Улица испред зграде је затвор",
+      "full": "ена.",
+      "short": "ена",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'zatvorena' and ends the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'zatvorena' in Cyrillic."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-014:1:0",
+      "phraseID": "fresh-conversation-014",
+      "kind": "newly_suppressed",
+      "prefix": "Happy ",
+      "full": "New Year!",
+      "short": "New",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "A common greeting, but somewhat speculative."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "A common greeting word, though 'birthday' is equally likely."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-009:3:0",
+      "phraseID": "fresh-travel-009",
+      "kind": "newly_suppressed",
+      "prefix": "We got lost ",
+      "full": "in the woods.",
+      "short": "in",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "A plausible ending, though the location is a guess."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "'In' is a natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-012:4:0",
+      "phraseID": "fresh-conversation-012",
+      "kind": "newly_suppressed",
+      "prefix": "Which one do you ",
+      "full": "prefer?",
+      "short": "prefer",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Naturally completes the question with a question mark."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural verb; leaves room for options to follow."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-003:11:0",
+      "phraseID": "fresh-conversation-003",
+      "kind": "newly_suppressed",
+      "prefix": "Let me know when you get home so I can stop ",
+      "full": "by and pick it",
+      "short": "by",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity",
+          "awkward"
+        ],
+        "reason": "'by' is strong, but 'pick it' is a guess and stops mid-phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Strongly natural completion of 'stop by'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-technology-003:4:0",
+      "phraseID": "fresh-technology-003",
+      "kind": "unchanged",
+      "prefix": "We should add unit ",
+      "full": "tests for the get_",
+      "short": "tests",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "malformed",
+          "arbitrary_specificity"
+        ],
+        "reason": "Ends on an unfinished identifier 'get_'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Obvious, natural next word."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-technology-013:7:0",
+      "phraseID": "fresh-technology-013",
+      "kind": "unchanged",
+      "prefix": "I enabled two-factor authentication on every account ",
+      "full": "I have.",
+      "short": "I",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending to the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "A lone 'I' gives little benefit."
+      },
+      "delta": -2
+    },
+    {
+      "id": "fresh-conversation-001:9:8",
+      "phraseID": "fresh-conversation-001",
+      "kind": "unchanged",
+      "prefix": "Are you still coming over tonight, or should we reschedu",
+      "full": "le?",
+      "short": "le",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Finishes the word and closes the question."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly finishes the word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-014:8:1",
+      "phraseID": "fresh-serbian-latin-014",
+      "kind": "unchanged",
+      "prefix": "Moramo da odlučimo da li ćemo na odmor n",
+      "full": "a more, u planine",
+      "short": "a",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "The comma list is awkward; 'ili' would read more naturally."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausibly completes 'na'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-everyday-005:5:2",
+      "phraseID": "fresh-everyday-005",
+      "kind": "unchanged",
+      "prefix": "The plumber canceled again, so th",
+      "full": "e water heater is",
+      "short": "e",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "The water heater is an unsupported, specific guess."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausibly completes 'the'."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-science-014:6:0",
+      "phraseID": "fresh-science-014",
+      "kind": "newly_suppressed",
+      "prefix": "We measured the pH of each ",
+      "full": "of the 10 samples",
+      "short": "of",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "The sample count of 10 is arbitrary."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible connector word."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-technology-010:4:0",
+      "phraseID": "fresh-technology-010",
+      "kind": "newly_suppressed",
+      "prefix": "Never store passwords in ",
+      "full": "plain text.",
+      "short": "plain",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Standard phrase that ends the sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Strong first word, though short."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-010:7:0",
+      "phraseID": "fresh-work-010",
+      "kind": "newly_suppressed",
+      "prefix": "The client approved the proposal, but they ",
+      "full": "wanted to make sure",
+      "short": "wanted",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible phrase, somewhat speculative."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-001:9:0",
+      "phraseID": "fresh-serbian-cyrillic-001",
+      "kind": "newly_suppressed",
+      "prefix": "Посадили смо парадајз на тераси, али га птице стално ",
+      "full": "једу.",
+      "short": "једу",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending in the same script."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct verb, but no ending punctuation."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-008:9:0",
+      "phraseID": "fresh-everyday-008",
+      "kind": "unchanged",
+      "prefix": "The dog refuses to go outside whenever it starts ",
+      "full": "to rain.",
+      "short": "to",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural but short."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-007:1:0",
+      "phraseID": "fresh-serbian-cyrillic-007",
+      "kind": "unchanged",
+      "prefix": "Хоћеш ",
+      "full": "ли да се упутиш",
+      "short": "ли",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'да се упутиш' is an odd, speculative phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural question particle."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-travel-006:10:3",
+      "phraseID": "fresh-travel-006",
+      "kind": "unchanged",
+      "prefix": "Could you recommend a quiet beach that isn't packed with tou",
+      "full": "rists?",
+      "short": "rists",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Finishes the word and the question."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly finishes the word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-007:6:0",
+      "phraseID": "fresh-conversation-007",
+      "kind": "unchanged",
+      "prefix": "No worries at all, I completely ",
+      "full": "understand.",
+      "short": "understand",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-009:7:0",
+      "phraseID": "fresh-technology-009",
+      "kind": "unchanged",
+      "prefix": "We're migrating the old server to the ",
+      "full": "new one.",
+      "short": "new",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible but generic ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-007:5:0",
+      "phraseID": "fresh-travel-007",
+      "kind": "newly_suppressed",
+      "prefix": "I always pack a spare ",
+      "full": "set of clothes in",
+      "short": "set",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Tail hangs on a dangling 'in'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-010:10:0",
+      "phraseID": "fresh-science-010",
+      "kind": "newly_suppressed",
+      "prefix": "A larger sample size would make the conclusions much more ",
+      "full": "robust.",
+      "short": "robust",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Good word without punctuation."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-006:3:5",
+      "phraseID": "fresh-science-006",
+      "kind": "unchanged",
+      "prefix": "Vaccines train the immun",
+      "full": "e system to recognize",
+      "short": "e",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Accurate, natural phrase with real typing benefit."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'immune'."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-012:10:0",
+      "phraseID": "fresh-travel-012",
+      "kind": "unchanged",
+      "prefix": "My suitcase arrived on the next flight, completely soaked from ",
+      "full": "the rain.",
+      "short": "the",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible, complete ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural but minimal."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-004:12:0",
+      "phraseID": "fresh-serbian-latin-004",
+      "kind": "newly_suppressed",
+      "prefix": "Komšija je ceo dan slušao glasnu muziku, a ja sam pokušavala da ",
+      "full": "spavam.",
+      "short": "spavam",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Fitting verb that ends the sentence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Fitting verb."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-007:9:3",
+      "phraseID": "fresh-serbian-latin-007",
+      "kind": "unchanged",
+      "prefix": "Baka je napravila pitu od jabuka i pozvala celu por",
+      "full": "odicu na ručak.",
+      "short": "odicu",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete Serbian ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correctly completes 'porodicu'."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-003:6:0",
+      "phraseID": "fresh-science-003",
+      "kind": "newly_suppressed",
+      "prefix": "Plants convert sunlight into chemical energy ",
+      "full": "through a process called",
+      "short": "through",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Standard phrase that sets up 'photosynthesis'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-013:8:0",
+      "phraseID": "fresh-conversation-013",
+      "kind": "unchanged",
+      "prefix": "My sister's kids are visiting, so the house ",
+      "full": "is a bit of",
+      "short": "is",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Tail hangs on 'of'; meaning unfinished."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-008:10:0",
+      "phraseID": "fresh-science-008",
+      "kind": "newly_suppressed",
+      "prefix": "Please record the temperature every thirty minutes until the reaction ",
+      "full": "is complete.",
+      "short": "is",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete ending for the instruction."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct next word, small typing benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-technology-008:5:0",
+      "phraseID": "fresh-technology-008",
+      "kind": "newly_suppressed",
+      "prefix": "My phone's battery barely lasts ",
+      "full": "a day.",
+      "short": "a",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, common completion."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Plausible article, very little benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-005:8:0",
+      "phraseID": "fresh-serbian-cyrillic-005",
+      "kind": "newly_suppressed",
+      "prefix": "Не могу да нађем пуњач, а телефон ће ",
+      "full": "да се искључи.",
+      "short": "да",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural Serbian completion that fits the context."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct particle, small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-003:5:0",
+      "phraseID": "fresh-science-003",
+      "kind": "unchanged",
+      "prefix": "Plants convert sunlight into chemical ",
+      "full": "energy through a process",
+      "short": "energy",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Accurate phrase but stops at a slightly incomplete point."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Obvious, correct completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-010:11:0",
+      "phraseID": "fresh-work-010",
+      "kind": "unchanged",
+      "prefix": "The client approved the proposal, but they want a lower monthly ",
+      "full": "payment.",
+      "short": "payment",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word with a clean sentence ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible word, useful."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-005:12:0",
+      "phraseID": "fresh-work-005",
+      "kind": "unchanged",
+      "prefix": "Our team exceeded its sales target for the third month in a ",
+      "full": "row.",
+      "short": "row",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the idiom and the sentence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct idiom completion."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-001:8:1",
+      "phraseID": "fresh-conversation-001",
+      "kind": "unchanged",
+      "prefix": "Are you still coming over tonight, or should w",
+      "full": "e just go to",
+      "short": "e",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Speculative tail that ends on a dangling 'to'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Completes 'we', tiny benefit."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-conversation-001:11:0",
+      "phraseID": "fresh-conversation-001",
+      "kind": "newly_suppressed",
+      "prefix": "Are you still coming over tonight, or should we reschedule for ",
+      "full": "tomorrow?",
+      "short": "tomorrow",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural question ending."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural time choice."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-travel-003:4:0",
+      "phraseID": "fresh-travel-003",
+      "kind": "unchanged",
+      "prefix": "Make sure your passport ",
+      "full": "is valid for at",
+      "short": "is",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common phrase but cut off at 'at'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct verb, small benefit."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-001:9:6",
+      "phraseID": "fresh-work-001",
+      "kind": "unchanged",
+      "prefix": "Please review the attached draft and send me your commen",
+      "full": "ts.",
+      "short": "ts",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word; the period is plausible but limiting."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word correctly."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-002:3:0",
+      "phraseID": "fresh-travel-002",
+      "kind": "unchanged",
+      "prefix": "Is breakfast included ",
+      "full": "in the price of",
+      "short": "in",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Plausible phrase but ends on a dangling 'of'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct preposition, small benefit."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-013:8:7",
+      "phraseID": "fresh-serbian-cyrillic-013",
+      "kind": "unchanged",
+      "prefix": "Библиотека ради дуже током испитног рока, чак и викендо",
+      "full": "м. Имате ли ви",
+      "short": "м",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Starts a speculative new sentence that is left unfinished."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Completes the word correctly."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-travel-010:9:0",
+      "phraseID": "fresh-travel-010",
+      "kind": "newly_suppressed",
+      "prefix": "How early should we arrive at the airport for ",
+      "full": "our flight?",
+      "short": "our",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete question."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct but small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-conversation-010:8:0",
+      "phraseID": "fresh-conversation-010",
+      "kind": "newly_suppressed",
+      "prefix": "I'm running about ten minutes late, so please ",
+      "full": "bear with me.",
+      "short": "bear",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Common, natural phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible first word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-006:11:5",
+      "phraseID": "fresh-work-006",
+      "kind": "unchanged",
+      "prefix": "Let's keep the follow-up short and focus only on the open issue",
+      "full": "s.",
+      "short": "s",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the plural and ends the sentence plausibly."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Completes the plural."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-001:10:0",
+      "phraseID": "fresh-everyday-001",
+      "kind": "newly_suppressed",
+      "prefix": "We're out of milk, so I'll stop by the store ",
+      "full": "on my way home.",
+      "short": "on",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, common completion."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Plausible preposition."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-011:3:0",
+      "phraseID": "fresh-everyday-011",
+      "kind": "newly_suppressed",
+      "prefix": "Somebody left the ",
+      "full": "door open.",
+      "short": "door",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, common sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Plausible noun."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-science-001:5:5",
+      "phraseID": "fresh-science-001",
+      "kind": "unchanged",
+      "prefix": "Water boils at a lower tempe",
+      "full": "rature at higher altitudes",
+      "short": "rature",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Accurate, natural completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word correctly."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-002:9:0",
+      "phraseID": "fresh-everyday-002",
+      "kind": "unchanged",
+      "prefix": "The washing machine is making a strange noise during ",
+      "full": "the spin cycle.",
+      "short": "the",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, fitting completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correct article, tiny benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-002:9:4",
+      "phraseID": "fresh-work-002",
+      "kind": "unchanged",
+      "prefix": "The quarterly budget meeting has been moved to next Wedn",
+      "full": "esday, April 17th",
+      "short": "esday",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Invented date not supported by the context."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the word correctly."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-everyday-008:5:0",
+      "phraseID": "fresh-everyday-008",
+      "kind": "newly_suppressed",
+      "prefix": "The dog refuses to go ",
+      "full": "to the vet.",
+      "short": "to",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, plausible sentence."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Plausible, small benefit."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-everyday-010:5:0",
+      "phraseID": "fresh-everyday-010",
+      "kind": "unchanged",
+      "prefix": "I'm trying to drink more ",
+      "full": "water, but I'm not",
+      "short": "water",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Speculative tail that ends abruptly."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural word."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-travel-002:5:0",
+      "phraseID": "fresh-travel-002",
+      "kind": "newly_suppressed",
+      "prefix": "Is breakfast included in the ",
+      "full": "price of the room?",
+      "short": "price",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete question."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-014:3:0",
+      "phraseID": "fresh-serbian-cyrillic-014",
+      "kind": "unchanged",
+      "prefix": "Нико није очекивао ",
+      "full": "да ће се у",
+      "short": "да",
+      "fullRating": {
+        "id": "o2",
+        "utility": 0,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Fragment ends on a dangling preposition."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Natural conjunction."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-science-004:9:0",
+      "phraseID": "fresh-science-004",
+      "kind": "newly_suppressed",
+      "prefix": "Can you explain why the sky looks red at ",
+      "full": "sunset?",
+      "short": "sunset",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural completion of the question, with the question mark it needs."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural word, and it leaves the sentence open to continue."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-013:2:1",
+      "phraseID": "fresh-serbian-cyrillic-013",
+      "kind": "unchanged",
+      "prefix": "Библиотека ради д",
+      "full": "етей и юношества",
+      "short": "етей",
+      "fullRating": {
+        "id": "o1",
+        "utility": -2,
+        "first_word": 0,
+        "flags": [
+          "language_switch"
+        ],
+        "reason": "Russian phrasing ('детей и юношества') in Serbian text."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "language_switch"
+        ],
+        "reason": "'детей' is a Russian form; Serbian would use 'деце'."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-serbian-latin-014:12:0",
+      "phraseID": "fresh-serbian-latin-014",
+      "kind": "unchanged",
+      "prefix": "Moramo da odlučimo da li ćemo na odmor na more ili na ",
+      "full": "planinu.",
+      "short": "planinu",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural completion that ends the sentence cleanly."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "The obvious contrast to 'more'; natural completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-014:2:0",
+      "phraseID": "fresh-conversation-014",
+      "kind": "newly_suppressed",
+      "prefix": "Happy to ",
+      "full": "announce that I've been",
+      "short": "announce",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Commits to a specific announcement; 'help' is equally likely."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible word without committing too much."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-work-007:8:0",
+      "phraseID": "fresh-work-007",
+      "kind": "newly_suppressed",
+      "prefix": "The new hire starts on Monday, so her ",
+      "full": "first day will be",
+      "short": "first",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible phrase, though a bit redundant after 'starts on Monday'."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-005:3:2",
+      "phraseID": "fresh-technology-005",
+      "kind": "unchanged",
+      "prefix": "This query is sl",
+      "full": "ightly different from the",
+      "short": "ightly",
+      "fullRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Coherent, but 'slow' is the more likely completion."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Valid word completion; 'slow' seems likelier."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-002:10:0",
+      "phraseID": "fresh-everyday-002",
+      "kind": "unchanged",
+      "prefix": "The washing machine is making a strange noise during the ",
+      "full": "spin cycle.",
+      "short": "spin",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very natural, complete ending."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Good start, but the phrase is left incomplete."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-003:12:7",
+      "phraseID": "fresh-work-003",
+      "kind": "unchanged",
+      "prefix": "I won't be able to join the call because of a scheduling conflic",
+      "full": "t. I'll be back",
+      "short": "t",
+      "fullRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'I'll be back' doesn't follow naturally from the conflict."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Correctly finishes 'conflict'; saves one letter."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-serbian-latin-014:2:2",
+      "phraseID": "fresh-serbian-latin-014",
+      "kind": "unchanged",
+      "prefix": "Moramo da od",
+      "full": "emo na more, a",
+      "short": "emo",
+      "fullRating": {
+        "id": "o1",
+        "utility": 0,
+        "first_word": 1,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Speculative, and the tail ends on a dangling 'a'."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible word 'odemo'; 'odlučimo' is just as likely."
+      },
+      "delta": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-002:9:0",
+      "phraseID": "fresh-serbian-cyrillic-002",
+      "kind": "unchanged",
+      "prefix": "Да ли си стигла да погледаш понуду коју сам ",
+      "full": "ти послала?",
+      "short": "ти",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete end to the question."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural pronoun but small gain."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-006:3:0",
+      "phraseID": "fresh-work-006",
+      "kind": "newly_suppressed",
+      "prefix": "Let's keep the ",
+      "full": "conversation going!",
+      "short": "conversation",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Common phrase, though a bit speculative."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible next word."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-conversation-012:11:0",
+      "phraseID": "fresh-conversation-012",
+      "kind": "unchanged",
+      "prefix": "Which one do you prefer, the blue jacket or the gray ",
+      "full": "one?",
+      "short": "one",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Completes the question naturally."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct word, but the question mark is missing."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-serbian-latin-006:4:0",
+      "phraseID": "fresh-serbian-latin-006",
+      "kind": "newly_suppressed",
+      "prefix": "Autobus za selo kreće ",
+      "full": "u 10:30",
+      "short": "u",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 2,
+        "flags": [
+          "arbitrary_specificity"
+        ],
+        "reason": "Made-up departure time."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Natural preposition; small gain."
+      },
+      "delta": 2
+    },
+    {
+      "id": "fresh-work-005:6:0",
+      "phraseID": "fresh-work-005",
+      "kind": "newly_suppressed",
+      "prefix": "Our team exceeded its sales target ",
+      "full": "for the year, and",
+      "short": "for",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible phrase; the trailing 'and' is fine."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 1,
+        "flags": [],
+        "reason": "Plausible preposition."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-latin-002:5:0",
+      "phraseID": "fresh-serbian-latin-002",
+      "kind": "newly_suppressed",
+      "prefix": "Sutra ujutru idem na pijacu ",
+      "full": "da kupim povrce i",
+      "short": "da",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Plausible, but 'povrce' is missing its diacritic (should be 'povrće')."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural purpose clause start."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-cyrillic-004:9:0",
+      "phraseID": "fresh-serbian-cyrillic-004",
+      "kind": "unchanged",
+      "prefix": "Мачка је поново прескочила ограду и нестала у комшијском ",
+      "full": "дворишту.",
+      "short": "дворишту",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural completion that ends the sentence."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Obvious, natural completion."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-003:3:0",
+      "phraseID": "fresh-work-003",
+      "kind": "newly_suppressed",
+      "prefix": "I won't be ",
+      "full": "able to make it",
+      "short": "able",
+      "fullRating": {
+        "id": "o2",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Very common phrase; saves real typing."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural next word."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-013:7:0",
+      "phraseID": "fresh-work-013",
+      "kind": "unchanged",
+      "prefix": "Thank you for covering my shift while ",
+      "full": "I was out of",
+      "short": "I",
+      "fullRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural phrase, though it stops on 'of'."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [
+          "minimal_value"
+        ],
+        "reason": "Natural, but saves little."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-009:11:0",
+      "phraseID": "fresh-work-009",
+      "kind": "newly_suppressed",
+      "prefix": "We should probably hire a contractor instead of stretching the current ",
+      "full": "one.",
+      "short": "one",
+      "fullRating": {
+        "id": "o2",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "Unnatural ending; 'team' would fit."
+      },
+      "shortRating": {
+        "id": "o1",
+        "utility": -1,
+        "first_word": 0,
+        "flags": [
+          "awkward"
+        ],
+        "reason": "'stretching the current one' is unnatural; 'team' fits."
+      },
+      "delta": 0
+    },
+    {
+      "id": "fresh-serbian-latin-012:5:6",
+      "phraseID": "fresh-serbian-latin-012",
+      "kind": "unchanged",
+      "prefix": "Ako sutra bude sunčano, idemo bicikl",
+      "full": "ima na izlet.",
+      "short": "ima",
+      "fullRating": {
+        "id": "o1",
+        "utility": 2,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Natural, complete phrase."
+      },
+      "shortRating": {
+        "id": "o2",
+        "utility": 1,
+        "first_word": 2,
+        "flags": [],
+        "reason": "Correct word completion; small gain."
+      },
+      "delta": -1
+    },
+    {
+      "id": "fresh-work-002:1:0",
+      "phraseID": "fresh-work-002",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-002:1:0",
+      "phraseID": "fresh-everyday-002",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-011:1:0",
+      "phraseID": "fresh-technology-011",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-001:1:0",
+      "phraseID": "fresh-technology-001",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-007:1:0",
+      "phraseID": "fresh-work-007",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-work-010:1:0",
+      "phraseID": "fresh-work-010",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-002:1:0",
+      "phraseID": "fresh-science-002",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-004:1:0",
+      "phraseID": "fresh-technology-004",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-008:1:0",
+      "phraseID": "fresh-travel-008",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-007:1:0",
+      "phraseID": "fresh-technology-007",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-technology-014:1:0",
+      "phraseID": "fresh-technology-014",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-005:1:0",
+      "phraseID": "fresh-travel-005",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-008:1:0",
+      "phraseID": "fresh-everyday-008",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-everyday-005:1:0",
+      "phraseID": "fresh-everyday-005",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-007:1:0",
+      "phraseID": "fresh-science-007",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-travel-011:1:0",
+      "phraseID": "fresh-travel-011",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    },
+    {
+      "id": "fresh-science-013:1:0",
+      "phraseID": "fresh-science-013",
+      "kind": "newly_suppressed",
+      "prefix": "The ",
+      "full": "2019",
+      "short": "2019",
+      "delta": 0
+    }
+  ]
+}

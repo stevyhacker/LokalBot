@@ -1,0 +1,384 @@
+[
+  {
+    "id": "confirmation-en-00-5-0",
+    "prefix": "I have attached the updated ",
+    "language": "en",
+    "kind": "boundary",
+    "options": {
+      "baseline": {
+        "text": "",
+        "combined": "I have attached the updated ",
+        "rating": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "Silence"
+        }
+      },
+      "luchador": {
+        "text": "document.",
+        "combined": "I have attached the updated document.",
+        "rating": {
+          "id": "o3",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural short completion."
+        }
+      },
+      "gemma4_it": {
+        "text": "document.",
+        "combined": "I have attached the updated document.",
+        "rating": {
+          "id": "o3",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural short completion."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-en-01-6-0",
+    "prefix": "The delivery driver called to say ",
+    "language": "en",
+    "kind": "boundary",
+    "options": {
+      "baseline": {
+        "text": "he was at the",
+        "combined": "The delivery driver called to say he was at the",
+        "rating": {
+          "id": "o3",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "Plausible but location unfinished, assumes gender."
+        }
+      },
+      "luchador": {
+        "text": "they were running late.",
+        "combined": "The delivery driver called to say they were running late.",
+        "rating": {
+          "id": "o5",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Very common, complete natural reason for the call."
+        }
+      },
+      "gemma4_it": {
+        "text": "they were running late.",
+        "combined": "The delivery driver called to say they were running late.",
+        "rating": {
+          "id": "o5",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Very common, complete natural reason for the call."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-en-02-9-0",
+    "prefix": "Could we move the discussion online since the meeting ",
+    "language": "en",
+    "kind": "boundary",
+    "options": {
+      "baseline": {
+        "text": "is",
+        "combined": "Could we move the discussion online since the meeting is",
+        "rating": {
+          "id": "o4",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural next word."
+        }
+      },
+      "luchador": {
+        "text": "",
+        "combined": "Could we move the discussion online since the meeting ",
+        "rating": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "Silence"
+        }
+      },
+      "gemma4_it": {
+        "text": "is",
+        "combined": "Could we move the discussion online since the meeting is",
+        "rating": {
+          "id": "o4",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural next word."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-01-10-0",
+    "prefix": "Dostavljač je zvao da kaže da ne može da pronađe ",
+    "language": "sr_latn",
+    "kind": "boundary",
+    "options": {
+      "baseline": {
+        "text": "",
+        "combined": "Dostavljač je zvao da kaže da ne može da pronađe ",
+        "rating": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "Silence"
+        }
+      },
+      "luchador": {
+        "text": "adresu.",
+        "combined": "Dostavljač je zvao da kaže da ne može da pronađe adresu.",
+        "rating": {
+          "id": "o5",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "The most natural completion and a clean sentence end."
+        }
+      },
+      "gemma4_it": {
+        "text": "adresu.",
+        "combined": "Dostavljač je zvao da kaže da ne može da pronađe adresu.",
+        "rating": {
+          "id": "o5",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "The most natural completion and a clean sentence end."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-01-6-0",
+    "prefix": "Dostavljač je zvao da kaže da ",
+    "language": "sr_latn",
+    "kind": "boundary",
+    "options": {
+      "baseline": {
+        "text": "je",
+        "combined": "Dostavljač je zvao da kaže da je",
+        "rating": {
+          "id": "o4",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural next word."
+        }
+      },
+      "luchador": {
+        "text": "",
+        "combined": "Dostavljač je zvao da kaže da ",
+        "rating": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "Silence"
+        }
+      },
+      "gemma4_it": {
+        "text": "",
+        "combined": "Dostavljač je zvao da kaže da ",
+        "rating": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "Silence"
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-00-7-2",
+    "prefix": "U prilogu šaljem izmenjeni raspored kako biste mo",
+    "language": "sr_latn",
+    "kind": "midword",
+    "options": {
+      "baseline": {
+        "text": "gli da se upoznate",
+        "combined": "U prilogu šaljem izmenjeni raspored kako biste mogli da se upoznate",
+        "rating": {
+          "id": "o6",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Plausible: get acquainted with the changes."
+        }
+      },
+      "luchador": {
+        "text": "gli ga pregledati.",
+        "combined": "U prilogu šaljem izmenjeni raspored kako biste mogli ga pregledati.",
+        "rating": {
+          "id": "o3",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural, complete, and fits the attachment context."
+        }
+      },
+      "gemma4_it": {
+        "text": "gli ga pregledati.",
+        "combined": "U prilogu šaljem izmenjeni raspored kako biste mogli ga pregledati.",
+        "rating": {
+          "id": "o3",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural, complete, and fits the attachment context."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-01-7-2",
+    "prefix": "Dostavljač je zvao da kaže da ne mo",
+    "language": "sr_latn",
+    "kind": "midword",
+    "options": {
+      "baseline": {
+        "text": "že da dođe jer",
+        "combined": "Dostavljač je zvao da kaže da ne može da dođe jer",
+        "rating": {
+          "id": "o5",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural continuation leading to a reason."
+        }
+      },
+      "luchador": {
+        "text": "že isporučiti.",
+        "combined": "Dostavljač je zvao da kaže da ne može isporučiti.",
+        "rating": {
+          "id": "o2",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Grammatical and plausible."
+        }
+      },
+      "gemma4_it": {
+        "text": "že isporučiti.",
+        "combined": "Dostavljač je zvao da kaže da ne može isporučiti.",
+        "rating": {
+          "id": "o2",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Grammatical and plausible."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-04-8-3",
+    "prefix": "Kada nestane veza sa mrežom, program treba da zad",
+    "language": "sr_latn",
+    "kind": "midword",
+    "options": {
+      "baseline": {
+        "text": "rži sve podatke koji",
+        "combined": "Kada nestane veza sa mrežom, program treba da zadrži sve podatke koji",
+        "rating": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Completes 'zadrži' correctly; plausible open tail."
+        }
+      },
+      "luchador": {
+        "text": "rma sve operacije dok",
+        "combined": "Kada nestane veza sa mrežom, program treba da zadrma sve operacije dok",
+        "rating": {
+          "id": "o8",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "The non-word 'zadrma' makes this broken."
+        }
+      },
+      "gemma4_it": {
+        "text": "rma (pause) izvrš",
+        "combined": "Kada nestane veza sa mrežom, program treba da zadrma (pause) izvrš",
+        "rating": {
+          "id": "o3",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed",
+            "language_switch"
+          ],
+          "reason": "Non-word with English insertion and a broken token."
+        }
+      }
+    }
+  },
+  {
+    "id": "confirmation-sr_latn-07-7-2",
+    "prefix": "Dodaj napomenu da se ovo podešavanje odnosi sa",
+    "language": "sr_latn",
+    "kind": "midword",
+    "options": {
+      "baseline": {
+        "text": "mo na Windows 1",
+        "combined": "Dodaj napomenu da se ovo podešavanje odnosi samo na Windows 1",
+        "rating": {
+          "id": "o3",
+          "utility": -1,
+          "first_word": 2,
+          "flags": [
+            "malformed",
+            "arbitrary_specificity"
+          ],
+          "reason": "Truncated version number; Windows is an unsupported specific."
+        }
+      },
+      "luchador": {
+        "text": "mo do tego urządzenia.",
+        "combined": "Dodaj napomenu da se ovo podešavanje odnosi samo do tego urządzenia.",
+        "rating": {
+          "id": "o6",
+          "utility": -2,
+          "first_word": 2,
+          "flags": [
+            "language_switch"
+          ],
+          "reason": "Switches to Polish."
+        }
+      },
+      "gemma4_it": {
+        "text": "mo do tego urządzenia.",
+        "combined": "Dodaj napomenu da se ovo podešavanje odnosi samo do tego urządzenia.",
+        "rating": {
+          "id": "o6",
+          "utility": -2,
+          "first_word": 2,
+          "flags": [
+            "language_switch"
+          ],
+          "reason": "Switches to Polish."
+        }
+      }
+    }
+  }
+]

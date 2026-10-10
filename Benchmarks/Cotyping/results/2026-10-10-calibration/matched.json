@@ -1,0 +1,97 @@
+{
+  "createdAtUTC": "2026-10-10T16:14:47.519025+00:00",
+  "method": "Unlabeled holdout score quantiles; ratios frozen on development",
+  "models": {
+    "baseline": {
+      "ratio": 3.1,
+      "cutoffs": {
+        "en": {
+          "primary": 0.09192030131816864,
+          "fallback": 0.28495293855667114
+        },
+        "sr_latn": {
+          "primary": 0.04998554661870003,
+          "fallback": 0.154955193400383
+        }
+      }
+    },
+    "luchador": {
+      "ratio": 3.1,
+      "cutoffs": {
+        "en": {
+          "primary": 0.2387499213218689,
+          "fallback": 0.7401247620582581
+        },
+        "sr_latn": {
+          "primary": 0.1551102101802826,
+          "fallback": 0.48084166646003723
+        }
+      }
+    },
+    "gemma4_it": {
+      "ratio": 2.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.31343287229537964,
+          "fallback": 0.6268657445907593
+        },
+        "sr_latn": {
+          "primary": 0.27802351117134094,
+          "fallback": 0.5560470223426819
+        }
+      }
+    },
+    "qwen3_base4": {
+      "ratio": 2.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.14558786153793335,
+          "fallback": 0.2911757230758667
+        },
+        "sr_latn": {
+          "primary": 0.05530785769224167,
+          "fallback": 0.11061571538448334
+        }
+      }
+    },
+    "salamandra2": {
+      "ratio": 0.5,
+      "cutoffs": {
+        "en": {
+          "primary": 0.4317452013492584,
+          "fallback": 0.2158726006746292
+        },
+        "sr_latn": {
+          "primary": 0.1951904296875,
+          "fallback": 0.09759521484375
+        }
+      }
+    },
+    "yugogpt7": {
+      "ratio": 0.5,
+      "cutoffs": {
+        "en": {
+          "primary": 0.4930439591407776,
+          "fallback": 0.2465219795703888
+        },
+        "sr_latn": {
+          "primary": 0.349666953086853,
+          "fallback": 0.1748334765434265
+        }
+      }
+    },
+    "original": {
+      "ratio": 1000000.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.05576365441083908,
+          "fallback": 1.0
+        },
+        "sr_latn": {
+          "primary": 0.020838553085923195,
+          "fallback": 1.0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,524 @@
+{
+  "arms": {
+    "baseline-control": {
+      "all": {
+        "n": 288,
+        "shown": 250,
+        "useful": 170,
+        "poor": 61,
+        "utility": 0.5590277777777778,
+        "firstWord": 1.2986111111111112,
+        "meanMs": 55.330674001157405,
+        "p50Ms": 60.310833,
+        "p95Ms": 88.448125,
+        "latencyCalls": 864
+      },
+      "en-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 93,
+        "poor": 21,
+        "utility": 0.7430555555555556,
+        "firstWord": 1.4236111111111112,
+        "meanMs": 50.10864517824074,
+        "p50Ms": 53.088792,
+        "p95Ms": 82.18375,
+        "latencyCalls": 432
+      },
+      "en-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 71,
+        "poor": 17,
+        "utility": 0.8854166666666666,
+        "firstWord": 1.6875,
+        "meanMs": 52.08122789930555,
+        "p50Ms": 54.132625,
+        "p95Ms": 82.444333,
+        "latencyCalls": 288
+      },
+      "en-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 22,
+        "poor": 4,
+        "utility": 0.4583333333333333,
+        "firstWord": 0.8958333333333334,
+        "meanMs": 46.163479736111114,
+        "p50Ms": 50.117375,
+        "p95Ms": 79.357542,
+        "latencyCalls": 144
+      },
+      "sr_latn-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 77,
+        "poor": 40,
+        "utility": 0.375,
+        "firstWord": 1.1736111111111112,
+        "meanMs": 60.552702824074075,
+        "p50Ms": 64.493208,
+        "p95Ms": 94.517167,
+        "latencyCalls": 432
+      },
+      "sr_latn-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 61,
+        "poor": 33,
+        "utility": 0.4375,
+        "firstWord": 1.3541666666666667,
+        "meanMs": 65.16968140625,
+        "p50Ms": 65.364583,
+        "p95Ms": 97.991209,
+        "latencyCalls": 288
+      },
+      "sr_latn-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 16,
+        "poor": 7,
+        "utility": 0.25,
+        "firstWord": 0.8125,
+        "meanMs": 51.318745659722225,
+        "p50Ms": 62.395625,
+        "p95Ms": 78.068084,
+        "latencyCalls": 144
+      }
+    },
+    "baseline-fixed": {
+      "all": {
+        "n": 288,
+        "shown": 250,
+        "useful": 193,
+        "poor": 35,
+        "utility": 0.8576388888888888,
+        "firstWord": 1.4895833333333333,
+        "meanMs": 71.03233484027778,
+        "p50Ms": 65.834541,
+        "p95Ms": 145.413167,
+        "latencyCalls": 864
+      },
+      "en-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 103,
+        "poor": 11,
+        "utility": 0.9791666666666666,
+        "firstWord": 1.5555555555555556,
+        "meanMs": 57.524479085648146,
+        "p50Ms": 59.628584,
+        "p95Ms": 115.019916,
+        "latencyCalls": 432
+      },
+      "en-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 81,
+        "poor": 7,
+        "utility": 1.2395833333333333,
+        "firstWord": 1.8854166666666667,
+        "meanMs": 63.298896694444444,
+        "p50Ms": 62.280959,
+        "p95Ms": 122.874958,
+        "latencyCalls": 288
+      },
+      "en-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 22,
+        "poor": 4,
+        "utility": 0.4583333333333333,
+        "firstWord": 0.8958333333333334,
+        "meanMs": 45.975643868055556,
+        "p50Ms": 50.554,
+        "p95Ms": 77.380667,
+        "latencyCalls": 144
+      },
+      "sr_latn-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 90,
+        "poor": 24,
+        "utility": 0.7361111111111112,
+        "firstWord": 1.4236111111111112,
+        "meanMs": 84.5401905949074,
+        "p50Ms": 74.692,
+        "p95Ms": 162.377791,
+        "latencyCalls": 432
+      },
+      "sr_latn-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 74,
+        "poor": 17,
+        "utility": 0.9791666666666666,
+        "firstWord": 1.7291666666666667,
+        "meanMs": 100.58162021527778,
+        "p50Ms": 104.123291,
+        "p95Ms": 167.67325,
+        "latencyCalls": 288
+      },
+      "sr_latn-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 16,
+        "poor": 7,
+        "utility": 0.25,
+        "firstWord": 0.8125,
+        "meanMs": 52.45733135416667,
+        "p50Ms": 64.478042,
+        "p95Ms": 86.55,
+        "latencyCalls": 144
+      }
+    },
+    "luchador-control": {
+      "all": {
+        "n": 288,
+        "shown": 250,
+        "useful": 188,
+        "poor": 51,
+        "utility": 0.7673611111111112,
+        "firstWord": 1.3888888888888888,
+        "meanMs": 85.54519435532407,
+        "p50Ms": 85.4355,
+        "p95Ms": 140.021125,
+        "latencyCalls": 864
+      },
+      "en-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 116,
+        "poor": 4,
+        "utility": 1.25,
+        "firstWord": 1.625,
+        "meanMs": 76.37575569907408,
+        "p50Ms": 73.041334,
+        "p95Ms": 123.26475,
+        "latencyCalls": 432
+      },
+      "en-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 90,
+        "poor": 3,
+        "utility": 1.5104166666666667,
+        "firstWord": 1.9375,
+        "meanMs": 78.07178834375,
+        "p50Ms": 75.4645,
+        "p95Ms": 120.5265,
+        "latencyCalls": 288
+      },
+      "en-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 26,
+        "poor": 1,
+        "utility": 0.7291666666666666,
+        "firstWord": 1,
+        "meanMs": 72.98369040972223,
+        "p50Ms": 65.480125,
+        "p95Ms": 126.382292,
+        "latencyCalls": 144
+      },
+      "sr_latn-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 72,
+        "poor": 47,
+        "utility": 0.2847222222222222,
+        "firstWord": 1.1527777777777777,
+        "meanMs": 94.71463301157408,
+        "p50Ms": 100.802333,
+        "p95Ms": 147.043208,
+        "latencyCalls": 432
+      },
+      "sr_latn-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 55,
+        "poor": 39,
+        "utility": 0.2916666666666667,
+        "firstWord": 1.28125,
+        "meanMs": 101.78255831944445,
+        "p50Ms": 108.065375,
+        "p95Ms": 150.694292,
+        "latencyCalls": 288
+      },
+      "sr_latn-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 17,
+        "poor": 8,
+        "utility": 0.2708333333333333,
+        "firstWord": 0.8958333333333334,
+        "meanMs": 80.57878239583333,
+        "p50Ms": 90.110041,
+        "p95Ms": 127.921916,
+        "latencyCalls": 144
+      }
+    },
+    "luchador-fixed": {
+      "all": {
+        "n": 288,
+        "shown": 250,
+        "useful": 201,
+        "poor": 37,
+        "utility": 0.9131944444444444,
+        "firstWord": 1.4965277777777777,
+        "meanMs": 100.43295143634259,
+        "p50Ms": 93.638625,
+        "p95Ms": 224.180916,
+        "latencyCalls": 864
+      },
+      "en-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 116,
+        "poor": 4,
+        "utility": 1.2430555555555556,
+        "firstWord": 1.625,
+        "meanMs": 76.04781230787037,
+        "p50Ms": 72.011791,
+        "p95Ms": 124.16425,
+        "latencyCalls": 432
+      },
+      "en-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 90,
+        "poor": 3,
+        "utility": 1.5,
+        "firstWord": 1.9375,
+        "meanMs": 78.67442692708333,
+        "p50Ms": 73.268125,
+        "p95Ms": 126.88525,
+        "latencyCalls": 288
+      },
+      "en-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 26,
+        "poor": 1,
+        "utility": 0.7291666666666666,
+        "firstWord": 1,
+        "meanMs": 70.79458306944444,
+        "p50Ms": 64.302042,
+        "p95Ms": 122.174834,
+        "latencyCalls": 144
+      },
+      "sr_latn-all": {
+        "n": 144,
+        "shown": 125,
+        "useful": 85,
+        "poor": 33,
+        "utility": 0.5833333333333334,
+        "firstWord": 1.3680555555555556,
+        "meanMs": 124.81809056481481,
+        "p50Ms": 112.78975,
+        "p95Ms": 240.851167,
+        "latencyCalls": 432
+      },
+      "sr_latn-midword": {
+        "n": 96,
+        "shown": 96,
+        "useful": 68,
+        "poor": 25,
+        "utility": 0.7395833333333334,
+        "firstWord": 1.6041666666666667,
+        "meanMs": 147.27775000347222,
+        "p50Ms": 138.541917,
+        "p95Ms": 251.661125,
+        "latencyCalls": 288
+      },
+      "sr_latn-boundary": {
+        "n": 48,
+        "shown": 29,
+        "useful": 17,
+        "poor": 8,
+        "utility": 0.2708333333333333,
+        "firstWord": 0.8958333333333334,
+        "meanMs": 79.8987716875,
+        "p50Ms": 85.891333,
+        "p95Ms": 126.0125,
+        "latencyCalls": 144
+      }
+    }
+  },
+  "comparisons": {
+    "baseline-fixed_vs_baseline-control": {
+      "all": {
+        "delta": 0.2986111111111111,
+        "ci95": [
+          0.1701388888888889,
+          0.4375
+        ],
+        "clusters": 48
+      },
+      "en-all": {
+        "delta": 0.2361111111111111,
+        "ci95": [
+          0.10416666666666667,
+          0.3888888888888889
+        ],
+        "clusters": 48
+      },
+      "en-midword": {
+        "delta": 0.3541666666666667,
+        "ci95": [
+          0.15625,
+          0.5833333333333334
+        ],
+        "clusters": 48
+      },
+      "en-boundary": {
+        "delta": 0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "clusters": 48
+      },
+      "sr_latn-all": {
+        "delta": 0.3611111111111111,
+        "ci95": [
+          0.1527777777777778,
+          0.5694444444444444
+        ],
+        "clusters": 48
+      },
+      "sr_latn-midword": {
+        "delta": 0.5416666666666666,
+        "ci95": [
+          0.22916666666666666,
+          0.8541666666666666
+        ],
+        "clusters": 48
+      },
+      "sr_latn-boundary": {
+        "delta": 0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "clusters": 48
+      }
+    },
+    "luchador-fixed_vs_luchador-control": {
+      "all": {
+        "delta": 0.14583333333333334,
+        "ci95": [
+          0.06597222222222222,
+          0.22916666666666666
+        ],
+        "clusters": 48
+      },
+      "en-all": {
+        "delta": -0.006944444444444444,
+        "ci95": [
+          -0.08333333333333333,
+          0.0625
+        ],
+        "clusters": 48
+      },
+      "en-midword": {
+        "delta": -0.010416666666666666,
+        "ci95": [
+          -0.125,
+          0.09375
+        ],
+        "clusters": 48
+      },
+      "en-boundary": {
+        "delta": 0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "clusters": 48
+      },
+      "sr_latn-all": {
+        "delta": 0.2986111111111111,
+        "ci95": [
+          0.1527777777777778,
+          0.4513888888888889
+        ],
+        "clusters": 48
+      },
+      "sr_latn-midword": {
+        "delta": 0.4479166666666667,
+        "ci95": [
+          0.22916666666666666,
+          0.6770833333333334
+        ],
+        "clusters": 48
+      },
+      "sr_latn-boundary": {
+        "delta": 0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "clusters": 48
+      }
+    },
+    "luchador-fixed_vs_baseline-fixed": {
+      "all": {
+        "delta": 0.05555555555555555,
+        "ci95": [
+          -0.10416666666666667,
+          0.2222222222222222
+        ],
+        "clusters": 48
+      },
+      "en-all": {
+        "delta": 0.2638888888888889,
+        "ci95": [
+          0.13194444444444445,
+          0.3958333333333333
+        ],
+        "clusters": 48
+      },
+      "en-midword": {
+        "delta": 0.2604166666666667,
+        "ci95": [
+          0.0625,
+          0.4479166666666667
+        ],
+        "clusters": 48
+      },
+      "en-boundary": {
+        "delta": 0.2708333333333333,
+        "ci95": [
+          0.0,
+          0.5625
+        ],
+        "clusters": 48
+      },
+      "sr_latn-all": {
+        "delta": -0.1527777777777778,
+        "ci95": [
+          -0.4305555555555556,
+          0.1388888888888889
+        ],
+        "clusters": 48
+      },
+      "sr_latn-midword": {
+        "delta": -0.23958333333333334,
+        "ci95": [
+          -0.6145833333333334,
+          0.13541666666666666
+        ],
+        "clusters": 48
+      },
+      "sr_latn-boundary": {
+        "delta": 0.020833333333333332,
+        "ci95": [
+          -0.3333333333333333,
+          0.375
+        ],
+        "clusters": 48
+      }
+    }
+  }
+}

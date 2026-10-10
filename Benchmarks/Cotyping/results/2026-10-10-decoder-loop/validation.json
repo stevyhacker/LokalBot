@@ -1,0 +1,35 @@
+{
+  "releaseBuild": "passed; build-guarded.log",
+  "swiftTests": {
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0,
+    "classes": [
+      "CotypingCandidateSearchTests",
+      "CotypingFirstWordConfidenceTests",
+      "CotypingLogitCacheTests",
+      "CotypingTextNormalizerTests"
+    ]
+  },
+  "pythonTests": 45,
+  "strictSwiftLint": "passed",
+  "diffCheck": "passed",
+  "nativeSourceIntegrity": {
+    "nativeSourcesMatchMeasuredRelease": true,
+    "appSHA256": "836929d181908cd322c21b4f239447552cee0ad16de774684f006f06e2d56dad",
+    "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629"
+  },
+  "defaultDecoderChanged": false,
+  "installed": false,
+  "released": false,
+  "localUITestsRun": false,
+  "originMaster": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "intentionalCancellations": 128,
+  "cancelledRequestsReturningText": 0,
+  "requestCounts": {
+    "development": 12600,
+    "confirmation": 21776,
+    "dynamic": 2584,
+    "total": 36960
+  }
+}

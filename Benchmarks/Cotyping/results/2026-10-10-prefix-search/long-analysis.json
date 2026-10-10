@@ -1,0 +1,66 @@
+{
+  "baseline-control": {
+    "fresh": {
+      "n": 16,
+      "meanMs": 251.3853829375,
+      "p95Ms": 317.742792,
+      "shown": 16,
+      "meanDecodedTokens": 469.625
+    },
+    "shared": {
+      "n": 16,
+      "meanMs": 45.0280520625,
+      "p95Ms": 76.468167,
+      "shown": 16,
+      "meanDecodedTokens": 8.4375
+    }
+  },
+  "baseline-fixed": {
+    "fresh": {
+      "n": 16,
+      "meanMs": 262.0461380625,
+      "p95Ms": 356.933958,
+      "shown": 16,
+      "meanDecodedTokens": 472.125
+    },
+    "shared": {
+      "n": 16,
+      "meanMs": 56.763263,
+      "p95Ms": 125.890667,
+      "shown": 16,
+      "meanDecodedTokens": 9.875
+    }
+  },
+  "luchador-control": {
+    "fresh": {
+      "n": 16,
+      "meanMs": 464.123223875,
+      "p95Ms": 608.060292,
+      "shown": 16,
+      "meanDecodedTokens": 469.75
+    },
+    "shared": {
+      "n": 16,
+      "meanMs": 70.345708375,
+      "p95Ms": 150.270125,
+      "shown": 16,
+      "meanDecodedTokens": 8.1875
+    }
+  },
+  "luchador-fixed": {
+    "fresh": {
+      "n": 16,
+      "meanMs": 483.340716125,
+      "p95Ms": 724.347875,
+      "shown": 16,
+      "meanDecodedTokens": 471.5625
+    },
+    "shared": {
+      "n": 16,
+      "meanMs": 89.0035415625,
+      "p95Ms": 214.108875,
+      "shown": 16,
+      "meanDecodedTokens": 9.75
+    }
+  }
+}

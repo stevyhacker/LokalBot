@@ -1,0 +1,1348 @@
+{
+  "cases": [
+    {
+      "id": "confirmation-en-00-5-0",
+      "prefix": "I have attached the updated ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-00-5-4",
+      "prefix": "I have attached the updated sche",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-00-9-0",
+      "prefix": "I have attached the updated schedule so you can ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-01-6-0",
+      "prefix": "The delivery driver called to say ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-01-8-4",
+      "prefix": "The delivery driver called to say that the entr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-01-10-0",
+      "prefix": "The delivery driver called to say that the entrance to ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-02-5-0",
+      "prefix": "Could we move the discussion ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-02-8-3",
+      "prefix": "Could we move the discussion online since the mee",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-02-9-0",
+      "prefix": "Could we move the discussion online since the meeting ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-03-6-0",
+      "prefix": "The payment went through twice, and ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-03-8-5",
+      "prefix": "The payment went through twice, and I would appre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-03-10-0",
+      "prefix": "The payment went through twice, and I would appreciate help ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-04-6-0",
+      "prefix": "When the network disappears, the editor ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-04-7-2",
+      "prefix": "When the network disappears, the editor should ke",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-04-10-0",
+      "prefix": "When the network disappears, the editor should keep a local ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-05-6-0",
+      "prefix": "The import tool needs to show ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-05-8-2",
+      "prefix": "The import tool needs to show which rows we",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-05-10-0",
+      "prefix": "The import tool needs to show which rows were skipped ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-06-5-0",
+      "prefix": "We found that the slowdown ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-06-7-2",
+      "prefix": "We found that the slowdown happens only af",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-06-9-0",
+      "prefix": "We found that the slowdown happens only after switching ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-07-5-0",
+      "prefix": "Please add a note explaining ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-07-7-3",
+      "prefix": "Please add a note explaining that this opt",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-07-9-0",
+      "prefix": "Please add a note explaining that this option applies ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-08-6-0",
+      "prefix": "I forgot my umbrella at the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-08-7-2",
+      "prefix": "I forgot my umbrella at the cafe wh",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-08-10-0",
+      "prefix": "I forgot my umbrella at the cafe where we stopped ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-09-5-0",
+      "prefix": "The dog seems happier now ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-09-7-2",
+      "prefix": "The dog seems happier now that we ta",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-09-9-0",
+      "prefix": "The dog seems happier now that we take a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-10-6-0",
+      "prefix": "We are planning a small picnic, ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-10-8-3",
+      "prefix": "We are planning a small picnic, provided the wea",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-10-10-0",
+      "prefix": "We are planning a small picnic, provided the weather stays ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-11-6-0",
+      "prefix": "I usually make extra soup so ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-11-8-4",
+      "prefix": "I usually make extra soup so there is some",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-11-10-0",
+      "prefix": "I usually make extra soup so there is something ready ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-12-6-0",
+      "prefix": "The proposal would be stronger if ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-12-9-4",
+      "prefix": "The proposal would be stronger if it included a conc",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-12-10-0",
+      "prefix": "The proposal would be stronger if it included a concrete ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-13-6-0",
+      "prefix": "I cannot approve the final version ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-13-8-2",
+      "prefix": "I cannot approve the final version until we ha",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-13-10-0",
+      "prefix": "I cannot approve the final version until we have checked ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-14-6-0",
+      "prefix": "Please send a reminder to everyone ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-14-10-0",
+      "prefix": "Please send a reminder to everyone who has not yet ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-14-10-4",
+      "prefix": "Please send a reminder to everyone who has not yet sele",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-15-7-0",
+      "prefix": "We can split the work into smaller ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-15-9-3",
+      "prefix": "We can split the work into smaller tasks and rev",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-15-12-0",
+      "prefix": "We can split the work into smaller tasks and review progress at ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-16-6-0",
+      "prefix": "The old photograph had faded, but ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-16-8-2",
+      "prefix": "The old photograph had faded, but you could st",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-16-10-0",
+      "prefix": "The old photograph had faded, but you could still recognize ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-17-6-0",
+      "prefix": "I will bring a warm jacket ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-17-8-2",
+      "prefix": "I will bring a warm jacket because it te",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-17-10-0",
+      "prefix": "I will bring a warm jacket because it tends to ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-18-6-0",
+      "prefix": "There are a few empty boxes ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-18-8-3",
+      "prefix": "There are a few empty boxes in the gar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-18-10-0",
+      "prefix": "There are a few empty boxes in the garage if ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-19-7-0",
+      "prefix": "The recipe calls for fresh herbs, although ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-19-9-2",
+      "prefix": "The recipe calls for fresh herbs, although dried ones wi",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-19-12-0",
+      "prefix": "The recipe calls for fresh herbs, although dried ones will work if ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-20-5-0",
+      "prefix": "A failed background sync should ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-20-7-3",
+      "prefix": "A failed background sync should not prevent som",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-20-9-0",
+      "prefix": "A failed background sync should not prevent someone from ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-21-7-0",
+      "prefix": "The error message should explain what the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-21-10-2",
+      "prefix": "The error message should explain what the user can do ne",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-21-12-0",
+      "prefix": "The error message should explain what the user can do next instead ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-22-6-0",
+      "prefix": "We should measure memory usage after ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-22-9-3",
+      "prefix": "We should measure memory usage after several hours of nor",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-22-10-0",
+      "prefix": "We should measure memory usage after several hours of normal ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-23-6-0",
+      "prefix": "Please keep the feature disabled by ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-23-9-4",
+      "prefix": "Please keep the feature disabled by default until the migr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-23-11-0",
+      "prefix": "Please keep the feature disabled by default until the migration has ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-24-6-0",
+      "prefix": "The course was easier to follow ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-24-8-5",
+      "prefix": "The course was easier to follow once the instr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-24-10-0",
+      "prefix": "The course was easier to follow once the instructor started ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-25-6-0",
+      "prefix": "I need to replace the battery ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-25-8-3",
+      "prefix": "I need to replace the battery in the kit",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-25-10-0",
+      "prefix": "I need to replace the battery in the kitchen clock ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-26-6-0",
+      "prefix": "We took a different route home ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-26-7-2",
+      "prefix": "We took a different route home to av",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-26-10-0",
+      "prefix": "We took a different route home to avoid the construction ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-27-6-0",
+      "prefix": "The shop agreed to exchange the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-27-8-3",
+      "prefix": "The shop agreed to exchange the shoes even tho",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-27-10-0",
+      "prefix": "The shop agreed to exchange the shoes even though I ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-28-6-0",
+      "prefix": "I have summarized the open questions ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-28-8-4",
+      "prefix": "I have summarized the open questions in a sepa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-28-10-0",
+      "prefix": "I have summarized the open questions in a separate document ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-29-5-0",
+      "prefix": "The customer asked whether they ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-29-7-2",
+      "prefix": "The customer asked whether they could export th",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-29-9-0",
+      "prefix": "The customer asked whether they could export their records ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-30-6-0",
+      "prefix": "We should leave enough time for ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-30-8-3",
+      "prefix": "We should leave enough time for feedback before sen",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-30-10-0",
+      "prefix": "We should leave enough time for feedback before sending the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-31-6-0",
+      "prefix": "Thank you for checking the details ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-31-9-3",
+      "prefix": "Thank you for checking the details and catching the mis",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-en-31-11-0",
+      "prefix": "Thank you for checking the details and catching the mistake before ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-00-5-0",
+      "prefix": "U prilogu šaljem izmenjeni raspored ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-00-7-2",
+      "prefix": "U prilogu šaljem izmenjeni raspored kako biste mo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-00-9-0",
+      "prefix": "U prilogu šaljem izmenjeni raspored kako biste mogli da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-01-6-0",
+      "prefix": "Dostavljač je zvao da kaže da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-01-7-2",
+      "prefix": "Dostavljač je zvao da kaže da ne mo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-01-10-0",
+      "prefix": "Dostavljač je zvao da kaže da ne može da pronađe ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-02-6-0",
+      "prefix": "Da li možemo da održimo razgovor ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-02-8-3",
+      "prefix": "Da li možemo da održimo razgovor preko video poz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-02-10-0",
+      "prefix": "Da li možemo da održimo razgovor preko video poziva pošto ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-03-6-0",
+      "prefix": "Isti iznos mi je naplaćen dva ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-03-8-2",
+      "prefix": "Isti iznos mi je naplaćen dva puta i že",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-03-10-0",
+      "prefix": "Isti iznos mi je naplaćen dva puta i želeo bih ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-04-5-0",
+      "prefix": "Kada nestane veza sa mrežom, ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-04-8-3",
+      "prefix": "Kada nestane veza sa mrežom, program treba da zad",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-04-9-0",
+      "prefix": "Kada nestane veza sa mrežom, program treba da zadrži ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-05-6-0",
+      "prefix": "Alat za uvoz treba da prikaže ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-05-7-3",
+      "prefix": "Alat za uvoz treba da prikaže preskočene red",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-05-10-0",
+      "prefix": "Alat za uvoz treba da prikaže preskočene redove i objasni ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-06-6-0",
+      "prefix": "Primetićete usporavanje tek nakon što nekoliko ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-06-7-3",
+      "prefix": "Primetićete usporavanje tek nakon što nekoliko puta pre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-06-10-0",
+      "prefix": "Primetićete usporavanje tek nakon što nekoliko puta pređete sa jednog ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-07-5-0",
+      "prefix": "Dodaj napomenu da se ovo ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-07-7-2",
+      "prefix": "Dodaj napomenu da se ovo podešavanje odnosi sa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-07-9-0",
+      "prefix": "Dodaj napomenu da se ovo podešavanje odnosi samo na ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-08-5-0",
+      "prefix": "Zaboravio sam kišobran u kafiću ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-08-7-4",
+      "prefix": "Zaboravio sam kišobran u kafiću gde smo svra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-08-8-0",
+      "prefix": "Zaboravio sam kišobran u kafiću gde smo svratili ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-09-5-0",
+      "prefix": "Pas deluje mnogo mirnije otkad ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-09-7-2",
+      "prefix": "Pas deluje mnogo mirnije otkad ga svako ju",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-09-8-0",
+      "prefix": "Pas deluje mnogo mirnije otkad ga svako jutro ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-10-5-0",
+      "prefix": "Planiramo mali izlet za vikend ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-10-7-3",
+      "prefix": "Planiramo mali izlet za vikend ako vreme ost",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-10-9-0",
+      "prefix": "Planiramo mali izlet za vikend ako vreme ostane lepo ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-11-5-0",
+      "prefix": "Obično spremim više supe da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-11-7-3",
+      "prefix": "Obično spremim više supe da imam nešto got",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-11-9-0",
+      "prefix": "Obično spremim više supe da imam nešto gotovo kada ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-12-6-0",
+      "prefix": "Predlog bi bio ubedljiviji kada bi ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-12-8-4",
+      "prefix": "Predlog bi bio ubedljiviji kada bi sadržao jasno pore",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-12-10-0",
+      "prefix": "Predlog bi bio ubedljiviji kada bi sadržao jasno poređenje troškova ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-13-5-0",
+      "prefix": "Ne mogu da odobrim konačnu ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-13-8-4",
+      "prefix": "Ne mogu da odobrim konačnu verziju dok ne prov",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-13-9-0",
+      "prefix": "Ne mogu da odobrim konačnu verziju dok ne proverimo ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-14-5-0",
+      "prefix": "Molim te podseti kolege koji ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-14-7-4",
+      "prefix": "Molim te podseti kolege koji još nisu izab",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-14-9-0",
+      "prefix": "Molim te podseti kolege koji još nisu izabrali termin ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-15-5-0",
+      "prefix": "Možemo da podelimo posao na ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-15-8-3",
+      "prefix": "Možemo da podelimo posao na manje celine i zaj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-15-9-0",
+      "prefix": "Možemo da podelimo posao na manje celine i zajedno ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-16-5-0",
+      "prefix": "Stara fotografija je izbledela, ali ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-16-8-3",
+      "prefix": "Stara fotografija je izbledela, ali se kuća iza vis",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-16-9-0",
+      "prefix": "Stara fotografija je izbledela, ali se kuća iza visokog ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-17-5-0",
+      "prefix": "Poneću topliju jaknu jer uveče ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-17-7-2",
+      "prefix": "Poneću topliju jaknu jer uveče pored reke če",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-17-9-0",
+      "prefix": "Poneću topliju jaknu jer uveče pored reke često bude ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-18-5-0",
+      "prefix": "U garaži ima nekoliko praznih ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-18-8-0",
+      "prefix": "U garaži ima nekoliko praznih kutija ako ti ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-18-8-2",
+      "prefix": "U garaži ima nekoliko praznih kutija ako ti bu",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-19-5-0",
+      "prefix": "U receptu piše da treba ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-19-7-4",
+      "prefix": "U receptu piše da treba koristiti sveže zači",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-19-9-0",
+      "prefix": "U receptu piše da treba koristiti sveže začinsko bilje, ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-20-5-0",
+      "prefix": "Neuspela sinhronizacija ne bi smela ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-20-7-4",
+      "prefix": "Neuspela sinhronizacija ne bi smela da spreči kori",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-20-9-0",
+      "prefix": "Neuspela sinhronizacija ne bi smela da spreči korisnika da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-21-5-0",
+      "prefix": "Umesto interne oznake greške, poruka ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-21-7-3",
+      "prefix": "Umesto interne oznake greške, poruka treba da pon",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-21-8-0",
+      "prefix": "Umesto interne oznake greške, poruka treba da ponudi ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-22-5-0",
+      "prefix": "Potrošnju memorije treba izmeriti posle ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-22-7-2",
+      "prefix": "Potrošnju memorije treba izmeriti posle nekoliko sati ra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-22-9-0",
+      "prefix": "Potrošnju memorije treba izmeriti posle nekoliko sati rada, a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-23-5-0",
+      "prefix": "Ostavi novu mogućnost isključenu dok ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-23-7-2",
+      "prefix": "Ostavi novu mogućnost isključenu dok ne proverimo ka",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-23-9-0",
+      "prefix": "Ostavi novu mogućnost isključenu dok ne proverimo kako se ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-24-6-0",
+      "prefix": "Predavanja su postala mnogo razumljivija kada ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-24-8-2",
+      "prefix": "Predavanja su postala mnogo razumljivija kada je profesor po",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-24-10-0",
+      "prefix": "Predavanja su postala mnogo razumljivija kada je profesor počeo da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-25-5-0",
+      "prefix": "Moram da zamenim bateriju u ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-25-6-2",
+      "prefix": "Moram da zamenim bateriju u kuhinjskom sa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-25-9-0",
+      "prefix": "Moram da zamenim bateriju u kuhinjskom satu jer već ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-26-5-0",
+      "prefix": "Vratili smo se drugim putem ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-26-7-3",
+      "prefix": "Vratili smo se drugim putem da izbegnemo rad",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-26-9-0",
+      "prefix": "Vratili smo se drugim putem da izbegnemo radove na ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-27-5-0",
+      "prefix": "Prodavnica je pristala da zameni ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-27-7-2",
+      "prefix": "Prodavnica je pristala da zameni cipele iako ni",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-27-9-0",
+      "prefix": "Prodavnica je pristala da zameni cipele iako nisam mogao ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-28-6-0",
+      "prefix": "Otvorena pitanja sam izdvojio u poseban ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-28-8-3",
+      "prefix": "Otvorena pitanja sam izdvojio u poseban dokument koji mož",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-28-10-0",
+      "prefix": "Otvorena pitanja sam izdvojio u poseban dokument koji možemo da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-29-5-0",
+      "prefix": "Korisnik je pitao da li ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-29-7-3",
+      "prefix": "Korisnik je pitao da li može da pre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-29-9-0",
+      "prefix": "Korisnik je pitao da li može da preuzme svoje ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-30-6-0",
+      "prefix": "Treba da ostavimo dovoljno vremena za ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-30-8-2",
+      "prefix": "Treba da ostavimo dovoljno vremena za komentare pre ne",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-30-10-0",
+      "prefix": "Treba da ostavimo dovoljno vremena za komentare pre nego što ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-31-5-0",
+      "prefix": "Hvala što si pažljivo proverio ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-31-7-4",
+      "prefix": "Hvala što si pažljivo proverio detalje i prim",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    },
+    {
+      "id": "confirmation-sr_latn-31-8-0",
+      "prefix": "Hvala što si pažljivo proverio detalje i primetio ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes",
+      "wordPrefixIsValidWord": true
+    }
+  ]
+}

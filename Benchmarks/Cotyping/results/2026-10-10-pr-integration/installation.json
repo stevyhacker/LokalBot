@@ -1,0 +1,31 @@
+{
+  "verifiedAtUTC": "2026-10-10T18:20:19.797979+00:00",
+  "sourceCommit": "5bba13184c51039204660d1e38b0de8ec52885eb",
+  "configuration": "Release",
+  "installedPath": "/Applications/LokalBot.app",
+  "bundleIdentifier": "me.dotenv.LokalBot",
+  "version": "0.10.3",
+  "build": "47",
+  "teamIdentifier": "3N8B4562P4",
+  "designatedRequirement": "designated => identifier \"me.dotenv.LokalBot\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = \"3N8B4562P4\"",
+  "designatedRequirementUnchanged": true,
+  "entitlementsUnchanged": true,
+  "strictDeepSignatureVerified": true,
+  "installedExecutableSHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+  "exportedExecutableSHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+  "previousInstalledExecutableSHA256": "29a8cec1971d86b877dfa910f01b82fddd587a42e2532712b5841551e7612eeb",
+  "autocompleteSettings": {
+    "cotypingBuiltInModelID": "gemma4-e2b-base-q6",
+    "cotypingEnabled": true,
+    "cotypingInProcessRuntime": true,
+    "cotypingSelectiveOneWordHybrid": true
+  },
+  "installedProcess": [
+    "17236 /Applications/LokalBot.app/Contents/MacOS/LokalBot"
+  ],
+  "settingsUI": "Model ready; Accessibility granted; Input Monitoring granted; experimental switch on",
+  "storageOverrideRepair": "Removed one stale lokalbot-selector test-root override; normal library restored",
+  "installation": "Scripts/reinstall-preserve-permissions.sh --no-relaunch, then open installed app",
+  "permissions": "Identity and entitlements retained; no TCC reset or delete-first install. Individual permissions were not re-exercised.",
+  "distribution": "Local trial only; no release, notarization submission, or CI dispatch."
+}

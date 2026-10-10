@@ -1,0 +1,13 @@
+{
+  "head": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "originMaster": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "includedPRs": [
+    228,
+    229
+  ],
+  "defaultDecoder": "original sampled continuation; logit cache disabled",
+  "sourceAndModelFrozenDuringFinalRun": true,
+  "initialRunRetainedSeparately": true,
+  "implementationPatchBase": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "patchIncludesPriorCandidateExperiment": true
+}

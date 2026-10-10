@@ -1,0 +1,41 @@
+{
+  "createdAtUTC": "2026-10-10T18:14:56.316602+00:00",
+  "installedBinarySHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+  "previousInstalledBinarySHA256": "29a8cec1971d86b877dfa910f01b82fddd587a42e2532712b5841551e7612eeb",
+  "sourceStudyBinarySHA256": "d2fdf09c0ab4d139ca4993ef06139f171f334c3d4a464552ede8a6c839e3f480",
+  "purpose": "Integration parity, not a new quality sample or latency benchmark.",
+  "arms": {
+    "baseline-control": {
+      "requests": 288,
+      "warmups": 8,
+      "differences": 0,
+      "shown": 250
+    },
+    "baseline-fixed": {
+      "requests": 288,
+      "warmups": 8,
+      "differences": 0,
+      "shown": 250
+    },
+    "luchador-control": {
+      "requests": 288,
+      "warmups": 8,
+      "differences": 0,
+      "shown": 250
+    },
+    "luchador-fixed": {
+      "requests": 288,
+      "warmups": 8,
+      "differences": 0,
+      "shown": 250
+    }
+  },
+  "rollback": {
+    "requests": 288,
+    "warmups": 8,
+    "differences": 0,
+    "shown": 212,
+    "setting": "selectiveOneWordHybrid=false; no explicit healing override; ordinary confidence defaults"
+  },
+  "completedAtUTC": "2026-10-10T18:17:10.323294+00:00"
+}

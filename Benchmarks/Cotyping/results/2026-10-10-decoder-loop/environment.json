@@ -1,0 +1,10 @@
+{
+  "cpu": "Apple M4 Max",
+  "memoryBytes": "51539607552",
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; finishing charge; 0:12 remaining present: true",
+  "gitHEAD": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "runtimeReceipt": "b11474-macos15.0-arm64-generic-loader-rpath\na9682a06546edacb2d4e323247c57ec207ce67dffc5312913f250dfdf2293e12\n",
+  "hardwareConcurrencyNote": "No build or other benchmark is run concurrently. The installed app and ordinary background processes remain running.",
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O"
+}

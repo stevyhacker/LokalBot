@@ -1,0 +1,16 @@
+{
+  "baseCommit": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "files": {
+    "LokalBotTests/CotypingTokenPrefixIndexTests.swift": "a14819c280307ea2f7d4fe343feec984a4100aebb84df6d069e693cf903b60c9",
+    "LokalBotTests/CotypingTextNormalizerTests.swift": "1830f5561de4262fb43d92bc3433f96e4b66ccd6d3a749912f8232d02dbff011",
+    "LokalBotTests/CotypingTokenHealingTests.swift": "eac8902995e5ea74ee49d93ea53b6a0c27f3cde0f83443c343333fa673c8e318",
+    "LokalBot/Cotyping/CotypingTextNormalizer.swift": "5a0536990b74a2446096cc6917f5e6213b992c8756f3f3f51ebb7d4ded8404db",
+    "LokalBot/Cotyping/CotypingSpellChecker.swift": "622568fcc22330513588507a282dfa5b03d63abf9e5bf7832d7e83de575d743a",
+    "LokalBot/Cotyping/CotypingCoordinator+Prediction.swift": "2f2db3f482100cc5c9a7d4dff81c6c160518abe0bcc88b05a60e3bf704c474a4",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": "333c666e4e553a8d102677189c06012bf5d74a700d7b740893f4fc5a17f3cfb6",
+    "LokalBot/Cotyping/Llama/CotypingTokenHealing.swift": "9facf02017d3c7006f89361adbb45700d17425938dc30f319f5d19656a3c960a",
+    "LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift": "1f7d8609338ceff335ed67cd482a4c9690f53d3b1badc0ace62d2c725e75701e",
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "247929cab6ecf1f1b96f945aeedeed422d8a8add5f0d5d2a7cf7969348a582f1",
+    "LokalBot/Cotyping/Llama/CotypingTokenPrefixIndex.swift": "d2ff23e3e1d21765ac729c32f466628e3c70e1fb7580740e34cf2294e188a967"
+  }
+}

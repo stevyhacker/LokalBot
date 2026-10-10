@@ -1,0 +1,13 @@
+{
+  "createdAtUTC": "2026-10-10T17:37:46.645978+00:00",
+  "cases": 32,
+  "rounds": 1,
+  "arms": [
+    "baseline-control",
+    "baseline-fixed",
+    "luchador-control",
+    "luchador-fixed"
+  ],
+  "inputSHA256": "b2c07046a1977b28c6382e1f430a0e798bc81c5136a28235764ef982db1ced3d",
+  "purpose": "Latency diagnostic only. Production context limits. All midword; no equal-frequency or quality ranking claim. Eight excluded warmups. First request of each pair resets cache; second shares the document."
+}

@@ -1,0 +1,50 @@
+{
+  "releaseBuild": {
+    "result": "passed",
+    "configuration": "Release",
+    "architecture": "arm64",
+    "codeSigningAllowed": false
+  },
+  "swiftTests": {
+    "selectedUnique": 200,
+    "passed": 192,
+    "skipped": 8,
+    "failed": 0,
+    "initialSelection": {
+      "selected": 199,
+      "passed": 189,
+      "skipped": 10,
+      "failed": 0
+    },
+    "nativeRerun": {
+      "selected": 13,
+      "passed": 13,
+      "skipped": 0,
+      "failed": 0
+    },
+    "afterCancellationFix": {
+      "selected": 14,
+      "passed": 14,
+      "skipped": 0,
+      "failed": 0,
+      "coldCancellationRecoveryCycles": 96
+    },
+    "skips": "Eight pre-existing tests require an absent compact Qwen fallback GGUF. Actual Gemma cache and candidate tests passed with the model path forwarded through TEST_RUNNER_.",
+    "coverage": "Exact token/LRU/TTL/byte bounds, unknown and changed scope, remote and beam mode rejection, real-model output parity, long contexts, changed sampler settings, memory-pressure cleanup and cancellation recovery. Broader selection covers prompt/healing/confidence, coordinator and overlay geometry helpers, replay parsing and text engine."
+  },
+  "pythonTests": {
+    "passed": 41,
+    "failed": 0,
+    "scope": "all Benchmarks/Cotyping/test_*.py"
+  },
+  "swiftLint": {
+    "result": "passed",
+    "strict": true,
+    "scope": "whole repository",
+    "cache": false
+  },
+  "localUITestsRun": false,
+  "installed": false,
+  "released": false,
+  "committedOrPushed": false
+}

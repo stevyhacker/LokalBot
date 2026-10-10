@@ -1,0 +1,45 @@
+{
+  "releaseBuild": {
+    "result": "passed",
+    "configuration": "Release",
+    "architecture": "arm64",
+    "codeSigningAllowed": false
+  },
+  "swiftTests": {
+    "selected": 183,
+    "passed": 181,
+    "skipped": 2,
+    "failed": 0,
+    "suites": [
+      "CotypingCandidateSearchTests",
+      "CotypingFirstWordConfidenceTests",
+      "CotypingTokenHealingTests",
+      "LocalLlamaCotypingEngineTests",
+      "CotypingDecodeStopPolicyTests",
+      "CotypingHTTPHealingTests",
+      "HeadlessCommandParseTests",
+      "CotypingCoordinatorTests",
+      "CotypingOverlayGeometryTests",
+      "CotypingRenderModeTests",
+      "CotypingVisualCaretTests",
+      "TextEngineTests"
+    ],
+    "skips": "Two pre-existing LocalLlamaCotypingEngineTests require a separate compact fallback model that is absent.",
+    "nativeIntegration": "Real Gemma model at widths 2 and 4; batched/warm prompt state compared against cold token-path log probabilities; English, Serbian and >512-token prompts; cancellation before generation and next-request recovery.",
+    "integrationGuard": "Remote replay rejects native candidate modes 2 and 4 before engine construction; default remote replay is retained.",
+    "resultBundle": "/private/tmp/lokalbot-candidate-decoder-master-20261010/focused.xcresult"
+  },
+  "pythonTests": {
+    "passed": 35,
+    "failed": 0,
+    "scope": "all Benchmarks/Cotyping/test_*.py"
+  },
+  "swiftLint": {
+    "result": "passed",
+    "strict": true,
+    "scope": "whole repository"
+  },
+  "localUITestsRun": false,
+  "installed": false,
+  "released": false
+}

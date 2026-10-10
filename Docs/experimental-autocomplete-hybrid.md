@@ -1,23 +1,26 @@
-# Experimental hybrid autocomplete trial
+**Experimental autocomplete trial — E2B remains the default**
 
-This is an opt-in experiment, not a recommendation to change the default decoder.
+Keep **Gemma 4 E2B Q6_K** (`gemma4-e2b-base-q6`) as the autocomplete model. This PR does not change the model catalog pin, prompt, sampler, token budget, normalizer or capture/network permissions. The experimental setting stays off for new and upgraded installations unless previously enabled.
 
-In **Settings → Writing → Autocomplete**, turn on **Experimental hybrid suggestions**. Turn it off to restore the current decoder immediately; no restart or model download is needed. The setting is saved across launches and defaults to off, including upgrades. Autocomplete itself must be enabled and the fast in-process runtime must be on. Model-server fallback continues using its existing decoder.
+In **Settings → Writing → Autocomplete**, **Experimental hybrid suggestions** enables two changes: a selective one-word fallback when the usual confidence gate stays silent, and bounded token-prefix search for words already being typed. Turn it off to restore the previous decoder immediately, including the old midword path. No restart or model download is needed. Switching cancels pending work, hides current suggestions, clears suggestion remainders and rebuilds the local engine. Autocomplete and the fast in-process runtime must be enabled; HTTP fallback retains its previous behavior.
 
-The hybrid preserves passing current suggestions. When the current confidence gate would stay silent, a second gate can offer a single word. It uses the same model, prompt, sampler and decode budget. It normalizes the complete generation before applying the one-word cap; stopping the decode early can miss a later reason to suppress the suggestion. Hybrid mode publishes the final normalized result instead of intermediate text.
+The partial-word search compares up to four compatible token paths by raw summed log probability, retains the previous path as a candidate, and falls back to it at the 32-expansion budget. It preserves typed UTF-8 bytes and uses ordinary sampling afterward. A token already covering the whole typed fragment takes the original fast path. Prewarm and generation retain the same prompt preparation. Recurrent/hybrid model state is not rewound by the experiment.
 
-Switching modes cancels pending autocomplete work, hides the current suggestion, clears suggestion remainders, and rebuilds the local engine for the selected mode. Cache and model-check identities include the experiment flag. Capture, memory, and network permissions are unchanged.
+The hybrid normalizes the complete generation before capping a fallback to one word. At word boundaries it preserves passing current suggestions. **Midword suggestions can change, including occasional regressions.** Experimental streaming publishes the final normalized result, and some suggestions take longer.
 
-## Evidence and limitations
+The latest fresh evaluation used 288 checkpoints, with exactly 250 suggestions shown by each arm and equal frequency in each language. Model weights and prompt bytes stayed fixed. Claude Opus 5.5 judged anonymous outputs.
 
-The [frozen prototype report](../Benchmarks/Cotyping/results/2026-10-10-native-hybrid/REPORT.md) contains the raw observations, source snapshot, hashes, blinded Claude ratings and protocol. Its validation counts and binary hashes describe that prototype, not this integration build.
+| Model | English midword useful /96, before → after | Serbian Latin midword useful /96 | Serbian Latin midword poor /96 | Mean / p95 native ms, before → after |
+|---|---:|---:|---:|---:|
+| E2B | 71 → 81 | 61 → 74 | 33 → 17 | 55.3 / 88.4 → 71.0 / 145.4 |
+| Luchador | 90 → 90 | 55 → 68 | 39 → 25 | 85.5 / 140.0 → 100.4 / 224.2 |
 
-With Gemma 4 E2B Q6_K fixed, 738 fresh synthetic checkpoints produced 306 current suggestions and 383 hybrid suggestions. All 306 current suggestions were preserved. Claude Opus rated the 77 additions as 71 helpful and 6 neutral; 68 additions were at most three characters. Warm headless mean latency increased from 36.6 to 40.2 ms. Dynamic latency was inconclusive. This is a modest coverage gain, not a demonstrated speed improvement or a human acceptance study.
+E2B is about 29% faster than fixed Luchador overall. Luchador remains stronger in English; its overall utility advantage is uncertain after matching suggestion frequency. The user chose E2B as the default. Luchador remains an evaluated alternative, not an automatic download or model migration.
 
-The older regression corpus retained two bad added suggestions: a redundant Serbian clitic and a Latin-script word after a Cyrillic prefix. Existing bad suggestions remain. Real typing, acceptance, and first-visible end-to-end latency still need user evaluation.
+These are synthetic model-judge results, not human acceptance or first-visible UI timings. Luchador’s Serbian midword p95 is 251.7 ms. Some word-form and invented-tail errors remain. The reports show failures alongside improvements. Frequency matching used per-language/model quantiles only for evaluation; **app thresholds remain 0.1 and 0.31**.
 
-## Reproduce a comparison
+[Latest report](../Benchmarks/Cotyping/results/2026-10-10-prefix-search/REPORT.md) · [Before/after examples](../Benchmarks/Cotyping/results/2026-10-10-prefix-search/EXAMPLES.md) · [Complete experiment index](../Benchmarks/Cotyping/results/2026-10-10-experiments.md)
 
-Use the normal `--cotyping-replay <input.json> --model-path <model.gguf>` headless entry point. Run the same input twice, changing only the optional top-level `selectiveOneWordHybrid` field from `false` to `true`. Keep the confidence gate on. Replay output records the flag and per-request latency. Remote replay rejects the hybrid flag rather than silently testing another decoder.
+The headless `--cotyping-replay <input.json> --model-path <model.gguf>` entry point accepts `selectiveOneWordHybrid`, `healingMode` (`wordBoundary` or `prefixSearch`), primary/fallback thresholds, confidence tracing, healing tracing and production spelling verdicts. Explicit `healingMode` isolates the midword change independently of the hybrid gate. With it omitted, the hybrid flag selects the same combined mode as the app. Keep tracing off for timing. Rejected beam, logit-cache, early-stop and atomic-healing implementations are archived as research source, excluded from the app integration; requesting those modes is rejected.
 
-The non-UI `CotypingFirstWordConfidenceTests` include actual-model composition and streaming checks when `TEST_RUNNER_LOKALBOT_CANDIDATE_TEST_MODEL` points to the fixed GGUF during `xcodebuild test`. Settings, route switching, cancellation, cache invalidation and rollback have focused regression coverage. Run the settings UI test on a hosted runner with `Scripts/ui-tests.sh --remote CotypingSettingsUITests`; never run it on the developer's Mac.
+[Integration validation](../Benchmarks/Cotyping/results/2026-10-10-pr-integration/VALIDATION.md) records the exact build, regression tests, installed-binary parity and signing verification separately from historical prototype benchmarks. UI tests run only on hosted/remote runners; this update leaves the draft PR and CI configuration unchanged.

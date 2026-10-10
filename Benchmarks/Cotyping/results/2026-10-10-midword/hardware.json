@@ -1,0 +1,6 @@
+{
+  "chip": "Apple M4 Max",
+  "memoryBytes": 51539607552,
+  "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434\n",
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true\n"
+}

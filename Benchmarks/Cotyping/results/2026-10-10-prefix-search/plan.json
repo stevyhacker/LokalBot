@@ -1,0 +1,41 @@
+{
+  "createdAtUTC": "2026-10-10T17:18:54.108969+00:00",
+  "status": "frozen before fresh inference",
+  "corpusSHA256": "b1dfd5b3d3061f96a80802a037c51a26c78dae5009ac4200de7a587b7e86db74",
+  "inputSHA256": "66129109f24ad39bd0a75a42550781d1afe30ac7b8c5176ffb146de374bf946a",
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true
+  },
+  "topP": 0.7,
+  "topK": 20,
+  "minP": 0.08,
+  "seed": 12648430,
+  "models": [
+    "baseline",
+    "luchador"
+  ],
+  "arms": [
+    "baseline-control",
+    "baseline-fixed",
+    "luchador-control",
+    "luchador-fixed"
+  ],
+  "development": "The old calibration cases and rejected atomic experiment corpus are development only. Neither is heldout evidence for prefix-path search.",
+  "corpus": "48 new paired EN/Serbian Latin scenarios; 1 word boundary and 2 partial words each. Paired languages and adjacent checkpoints share a scenario bootstrap cluster.",
+  "spelling": "Use the existing production spelling/language policy, resolve it once, then freeze its per-case verdict for all arms. No Serbian dictionary assumed.",
+  "frequency": "125/144 shown per language/arm. Preserve all native midword outputs. Allocate the remaining quota to word boundaries using unlabeled confidence, ratio3.1. No quality labels set cutoffs.",
+  "primary": "Serbian Latin midword utility for fixed versus control, per model. Also report English, all-checkpoint quality, useful/poor counts, first-word scores, and fixed E2B versus fixed Luchador.",
+  "uncertainty": "5000 paired bootstrap draws over 48 scenario clusters, with both languages and nearby checkpoints grouped. One synthetic corpus and one judge, not measured human acceptance.",
+  "judge": "Fresh anonymous Claude Opus 5.5, exact typed prefix and outputs only. No model labels, latency, source, future references. Include 24 reversed-option repeat cases.",
+  "latency": "Three serial counterbalanced rounds, native generation/healing/normalization, trace disabled, actual calibrated early rejection. Eight warmups per process excluded. Excludes model load, spelling classification, debounce, accessibility and overlay UI.",
+  "prompt": "Production raw prompt bytes fixed and checked exactly across every arm; canonical token segmentation may change as part of the decoder treatment.",
+  "deployment": "No PR CI, installation or saved default changes in this task.",
+  "selection": "Before fresh inference, freeze the candidate chosen on development. Accept only if Serbian Latin usefulness increases with no more poor suggestions, and English useful count falls by no more than 2/96 midword cases. Report clustered intervals; these point guards are not a formal noninferiority trial.",
+  "latencyGuard": "Report both the cost and the quality. An all-case mean above 1.5 times control or p95 above250ms fails the interactive-latency guard. No UI latency claim.",
+  "rejectedPredecessor": "../2026-10-10-midword/REPORT.md"
+}

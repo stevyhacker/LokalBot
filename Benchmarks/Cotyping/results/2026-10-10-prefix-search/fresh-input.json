@@ -1,0 +1,1732 @@
+{
+  "cases": [
+    {
+      "id": "fresh-en-00-5-0",
+      "prefix": "The bicycle pump is hanging ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-00-7-2",
+      "prefix": "The bicycle pump is hanging beside the to",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-00-11-3",
+      "prefix": "The bicycle pump is hanging beside the tools in the small gar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-00-4-0",
+      "prefix": "Pumpa za bicikl visi ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-00-5-2",
+      "prefix": "Pumpa za bicikl visi pored al",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-00-10-3",
+      "prefix": "Pumpa za bicikl visi pored alata u maloj šupi iza baš",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-01-5-0",
+      "prefix": "I forgot to charge my ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-01-7-3",
+      "prefix": "I forgot to charge my headphones before lea",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-01-12-4",
+      "prefix": "I forgot to charge my headphones before leaving for the long bus jour",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-01-4-0",
+      "prefix": "Zaboravio sam da napunim ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-01-6-3",
+      "prefix": "Zaboravio sam da napunim slušalice pre pol",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-01-9-4",
+      "prefix": "Zaboravio sam da napunim slušalice pre polaska na dugo puto",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-02-5-0",
+      "prefix": "We covered the outdoor table ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-02-7-4",
+      "prefix": "We covered the outdoor table because the fore",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-02-10-5",
+      "prefix": "We covered the outdoor table because the forecast mentioned rain durin",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-02-4-0",
+      "prefix": "Pokrili smo sto u ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-02-7-4",
+      "prefix": "Pokrili smo sto u dvorištu jer je prog",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-02-10-4",
+      "prefix": "Pokrili smo sto u dvorištu jer je prognoza najavila kišu toko",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-03-5-0",
+      "prefix": "The bakery on the corner ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-03-6-6",
+      "prefix": "The bakery on the corner opens earlie",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-03-9-2",
+      "prefix": "The bakery on the corner opens earlier than the su",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-03-5-0",
+      "prefix": "Pekara na uglu otvara se ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-03-7-6",
+      "prefix": "Pekara na uglu otvara se ranije od superm",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-03-11-2",
+      "prefix": "Pekara na uglu otvara se ranije od supermarketa koji se nalazi po",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-04-5-0",
+      "prefix": "My uncle keeps a small ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-04-8-2",
+      "prefix": "My uncle keeps a small notebook with the na",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-04-10-3",
+      "prefix": "My uncle keeps a small notebook with the names of bir",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-04-4-0",
+      "prefix": "Moj ujak čuva malu ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-04-6-2",
+      "prefix": "Moj ujak čuva malu svesku sa im",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-04-10-3",
+      "prefix": "Moj ujak čuva malu svesku sa imenima ptica koje je vid",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-05-5-0",
+      "prefix": "The kettle turns itself off ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-05-9-3",
+      "prefix": "The kettle turns itself off as soon as the wat",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-05-10-4",
+      "prefix": "The kettle turns itself off as soon as the water star",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-05-4-0",
+      "prefix": "Čajnik se sam isključuje ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-05-6-3",
+      "prefix": "Čajnik se sam isključuje čim voda poč",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-05-10-4",
+      "prefix": "Čajnik se sam isključuje čim voda počne da ključa u njem",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-06-5-0",
+      "prefix": "We took the dog for ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-06-8-4",
+      "prefix": "We took the dog for a short walk befo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-06-11-6",
+      "prefix": "We took the dog for a short walk before the guests arrive",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-06-5-0",
+      "prefix": "Izveli smo psa u kratku ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-06-5-4",
+      "prefix": "Izveli smo psa u kratku šetn",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-06-11-5",
+      "prefix": "Izveli smo psa u kratku šetnju pre nego što su gosti stigl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-07-4-0",
+      "prefix": "Please put the clean ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-07-7-4",
+      "prefix": "Please put the clean towels on the shel",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-07-10-2",
+      "prefix": "Please put the clean towels on the shelf above the wa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-07-4-0",
+      "prefix": "Molim te stavi čiste ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-07-6-5",
+      "prefix": "Molim te stavi čiste peškire na polic",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-07-10-2",
+      "prefix": "Molim te stavi čiste peškire na policu iznad mašine za pr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-08-5-0",
+      "prefix": "The path through the forest ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-08-7-2",
+      "prefix": "The path through the forest becomes muddy af",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-08-11-3",
+      "prefix": "The path through the forest becomes muddy after several days of hea",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-08-4-0",
+      "prefix": "Staza kroz šumu postaje ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-08-6-2",
+      "prefix": "Staza kroz šumu postaje blatnjava posle ne",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-08-10-3",
+      "prefix": "Staza kroz šumu postaje blatnjava posle nekoliko dana jake i nep",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-09-5-0",
+      "prefix": "I promised to help my ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-09-6-3",
+      "prefix": "I promised to help my cousin car",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-09-12-4",
+      "prefix": "I promised to help my cousin carry the boxes into her new apar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-09-4-0",
+      "prefix": "Obećao sam da ću ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-09-7-3",
+      "prefix": "Obećao sam da ću pomoći rođaki da une",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-09-8-4",
+      "prefix": "Obećao sam da ću pomoći rođaki da unese kuti",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-10-5-0",
+      "prefix": "We need to buy a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-10-5-5",
+      "prefix": "We need to buy a longe",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-10-6-4",
+      "prefix": "We need to buy a longer cabl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-10-5-0",
+      "prefix": "Moramo da kupimo duži kabl ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-10-6-4",
+      "prefix": "Moramo da kupimo duži kabl ako želi",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-10-11-4",
+      "prefix": "Moramo da kupimo duži kabl ako želimo da pomerimo lampu na drug",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-11-5-0",
+      "prefix": "The small museum has a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-11-8-6",
+      "prefix": "The small museum has a collection of maps showin",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-11-12-2",
+      "prefix": "The small museum has a collection of maps showing how the town de",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-11-4-0",
+      "prefix": "Mali muzej ima zbirku ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-11-6-6",
+      "prefix": "Mali muzej ima zbirku mapa koje pokazu",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-11-10-2",
+      "prefix": "Mali muzej ima zbirku mapa koje pokazuju kako se grad ra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-12-5-0",
+      "prefix": "I left a bowl of ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-12-6-2",
+      "prefix": "I left a bowl of fresh wa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-12-12-3",
+      "prefix": "I left a bowl of fresh water in the shade for the str",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-12-4-0",
+      "prefix": "Ostavio sam činiju sveže ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-12-6-2",
+      "prefix": "Ostavio sam činiju sveže vode u hl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-12-11-3",
+      "prefix": "Ostavio sam činiju sveže vode u hladu za mačku koja luta uli",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-13-5-0",
+      "prefix": "We should measure the doorway ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-13-8-3",
+      "prefix": "We should measure the doorway before ordering a lar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-13-12-4",
+      "prefix": "We should measure the doorway before ordering a larger sofa for the livi",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-13-4-0",
+      "prefix": "Trebalo bi da izmerimo ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-13-6-3",
+      "prefix": "Trebalo bi da izmerimo vrata pre nar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-13-10-4",
+      "prefix": "Trebalo bi da izmerimo vrata pre naručivanja većeg kauča za dnev",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-14-3-5",
+      "prefix": "The tomatoes taste bette",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-14-5-0",
+      "prefix": "The tomatoes taste better when ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-14-10-4",
+      "prefix": "The tomatoes taste better when they have been left to ripe",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-14-4-0",
+      "prefix": "Paradajz ima bolji ukus ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-14-6-4",
+      "prefix": "Paradajz ima bolji ukus kada ga osta",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-14-10-4",
+      "prefix": "Paradajz ima bolji ukus kada ga ostavimo da sazri na sunc",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-15-5-0",
+      "prefix": "Our neighbor offered us a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-15-7-4",
+      "prefix": "Our neighbor offered us a basket of pear",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-15-11-2",
+      "prefix": "Our neighbor offered us a basket of pears from the tree be",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-15-5-0",
+      "prefix": "Komšinica nam je ponudila korpu ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-15-7-5",
+      "prefix": "Komšinica nam je ponudila korpu krušaka sa drvet",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-15-11-2",
+      "prefix": "Komšinica nam je ponudila korpu krušaka sa drveta koje raste iza nj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-16-5-0",
+      "prefix": "The wooden floor makes a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-16-7-2",
+      "prefix": "The wooden floor makes a soft creaking so",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-16-10-3",
+      "prefix": "The wooden floor makes a soft creaking sound whenever someone wal",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-16-4-0",
+      "prefix": "Drveni pod tiho škripi ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-16-8-2",
+      "prefix": "Drveni pod tiho škripi svaki put kada neko pr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-16-10-3",
+      "prefix": "Drveni pod tiho škripi svaki put kada neko prođe pored vel",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-17-4-3",
+      "prefix": "I would like to lea",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-17-5-0",
+      "prefix": "I would like to learn ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-17-11-4",
+      "prefix": "I would like to learn how to make the soup we trie",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-17-4-0",
+      "prefix": "Voleo bih da naučim ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-17-5-3",
+      "prefix": "Voleo bih da naučim da spr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-17-10-4",
+      "prefix": "Voleo bih da naučim da spremam supu koju smo probali proš",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-18-4-0",
+      "prefix": "The hotel receptionist suggested ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-18-6-4",
+      "prefix": "The hotel receptionist suggested visiting the mark",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-18-10-5",
+      "prefix": "The hotel receptionist suggested visiting the market before the afternoon crowd",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-18-4-0",
+      "prefix": "Recepcioner je predložio da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-18-5-4",
+      "prefix": "Recepcioner je predložio da obiđemo pija",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-18-10-6",
+      "prefix": "Recepcioner je predložio da obiđemo pijacu pre nego što počnu popodn",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-19-5-0",
+      "prefix": "We hung the wet coats ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-19-7-5",
+      "prefix": "We hung the wet coats near the heate",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-19-10-2",
+      "prefix": "We hung the wet coats near the heater and made ev",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-19-4-0",
+      "prefix": "Okačili smo mokre kapute ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-19-5-6",
+      "prefix": "Okačili smo mokre kapute blizu grejal",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-19-9-2",
+      "prefix": "Okačili smo mokre kapute blizu grejalice i svima pripremili to",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-20-5-0",
+      "prefix": "The bus stopped near the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-20-6-2",
+      "prefix": "The bus stopped near the library be",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-20-11-3",
+      "prefix": "The bus stopped near the library because the main square was clo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-20-5-0",
+      "prefix": "Autobus je stao pored biblioteke ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-20-7-2",
+      "prefix": "Autobus je stao pored biblioteke jer je gl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-20-10-3",
+      "prefix": "Autobus je stao pored biblioteke jer je glavni trg bio zat",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-21-5-0",
+      "prefix": "I found an old postcard ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-21-8-3",
+      "prefix": "I found an old postcard tucked inside the cov",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-21-11-4",
+      "prefix": "I found an old postcard tucked inside the cover of the fami",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-21-4-0",
+      "prefix": "Pronašao sam staru razglednicu ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-21-6-3",
+      "prefix": "Pronašao sam staru razglednicu zavučenu u kor",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-21-10-4",
+      "prefix": "Pronašao sam staru razglednicu zavučenu u korice porodičnog albuma sa foto",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-22-5-0",
+      "prefix": "We planted the new flowers ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-22-7-4",
+      "prefix": "We planted the new flowers along the fenc",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-22-11-5",
+      "prefix": "We planted the new flowers along the fence where they get plent",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-22-5-0",
+      "prefix": "Posadili smo novo cveće uz ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-22-7-4",
+      "prefix": "Posadili smo novo cveće uz ogradu gde toko",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-22-11-6",
+      "prefix": "Posadili smo novo cveće uz ogradu gde tokom dana ima dosta sunčev",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-23-5-0",
+      "prefix": "Please remind me to switch ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-23-7-6",
+      "prefix": "Please remind me to switch off the hallwa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-23-11-2",
+      "prefix": "Please remind me to switch off the hallway light before we le",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-23-5-0",
+      "prefix": "Molim te podseti me da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-23-8-6",
+      "prefix": "Molim te podseti me da ugasim svetlo u hodnik",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-23-12-2",
+      "prefix": "Molim te podseti me da ugasim svetlo u hodniku pre nego što iz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-24-5-0",
+      "prefix": "The settings page should explain ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-24-7-2",
+      "prefix": "The settings page should explain how long de",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-24-12-3",
+      "prefix": "The settings page should explain how long deleted items remain in the tra",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-24-5-0",
+      "prefix": "Stranica sa podešavanjima treba da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-24-6-2",
+      "prefix": "Stranica sa podešavanjima treba da objasni ko",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-24-10-3",
+      "prefix": "Stranica sa podešavanjima treba da objasni koliko dugo obrisane stavke ost",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-25-5-0",
+      "prefix": "We need to identify which ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-25-6-3",
+      "prefix": "We need to identify which change cau",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-25-11-4",
+      "prefix": "We need to identify which change caused the sudden increase in load",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-25-4-0",
+      "prefix": "Moramo da utvrdimo koja ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-25-6-3",
+      "prefix": "Moramo da utvrdimo koja izmena je iza",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-25-9-4",
+      "prefix": "Moramo da utvrdimo koja izmena je izazvala naglo povećanje vrem",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-26-5-0",
+      "prefix": "The summary should mention the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-26-7-4",
+      "prefix": "The summary should mention the main decision befo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-26-10-6",
+      "prefix": "The summary should mention the main decision before listing the remain",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-26-5-0",
+      "prefix": "Sažetak treba da navede glavnu ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-26-5-4",
+      "prefix": "Sažetak treba da navede glavnu odlu",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-26-11-6",
+      "prefix": "Sažetak treba da navede glavnu odluku pre nego što nabroji preostala otvore",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-27-5-0",
+      "prefix": "Please confirm that the keyboard ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-27-7-4",
+      "prefix": "Please confirm that the keyboard shortcut still work",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-27-11-2",
+      "prefix": "Please confirm that the keyboard shortcut still works after closing the se",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-27-5-0",
+      "prefix": "Molim te potvrdi da prečica ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-27-8-4",
+      "prefix": "Molim te potvrdi da prečica na tastaturi i dalj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-27-12-2",
+      "prefix": "Molim te potvrdi da prečica na tastaturi i dalje radi nakon zatvaranja pa",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-28-5-0",
+      "prefix": "The list should keep its ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-28-6-2",
+      "prefix": "The list should keep its current po",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-28-11-3",
+      "prefix": "The list should keep its current position when a new item app",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-28-5-0",
+      "prefix": "Lista treba da zadrži trenutni ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-28-5-2",
+      "prefix": "Lista treba da zadrži trenutni po",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-28-10-3",
+      "prefix": "Lista treba da zadrži trenutni položaj kada se nova stavka poj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-29-5-0",
+      "prefix": "We should document the limitation ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-29-6-3",
+      "prefix": "We should document the limitation before inv",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-29-12-4",
+      "prefix": "We should document the limitation before inviting more people to try the feat",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-29-5-0",
+      "prefix": "Trebalo bi da opišemo ograničenje ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-29-8-3",
+      "prefix": "Trebalo bi da opišemo ograničenje pre nego što poz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-29-12-4",
+      "prefix": "Trebalo bi da opišemo ograničenje pre nego što pozovemo još ljudi da ispr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-30-4-0",
+      "prefix": "The export button should ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-30-6-4",
+      "prefix": "The export button should remain unavailable unti",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-30-9-6",
+      "prefix": "The export button should remain unavailable until the background prepar",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-30-5-0",
+      "prefix": "Dugme za izvoz treba da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-30-6-4",
+      "prefix": "Dugme za izvoz treba da ostane nedo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-30-11-6",
+      "prefix": "Dugme za izvoz treba da ostane nedostupno dok se ne završi pripre",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-31-5-0",
+      "prefix": "Please include a clear description ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-31-7-6",
+      "prefix": "Please include a clear description of the expect",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-31-12-2",
+      "prefix": "Please include a clear description of the expected behavior in the bug re",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-31-4-0",
+      "prefix": "Molim te uključi jasan ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-31-6-6",
+      "prefix": "Molim te uključi jasan opis očekivanog ponaša",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-31-9-2",
+      "prefix": "Molim te uključi jasan opis očekivanog ponašanja u prijavu gr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-32-5-0",
+      "prefix": "The invitation should display the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-32-7-2",
+      "prefix": "The invitation should display the organizer's name al",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-32-11-3",
+      "prefix": "The invitation should display the organizer's name alongside the time and mee",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-32-5-0",
+      "prefix": "Pozivnica treba da prikaže ime ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-32-7-2",
+      "prefix": "Pozivnica treba da prikaže ime organizatora pored vr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-32-12-3",
+      "prefix": "Pozivnica treba da prikaže ime organizatora pored vremena sastanka i veze za pri",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-33-5-0",
+      "prefix": "We noticed that the first ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-33-7-3",
+      "prefix": "We noticed that the first request is slo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-33-12-4",
+      "prefix": "We noticed that the first request is slower than the requests that foll",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-33-5-0",
+      "prefix": "Primetili smo da je prvi ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-33-6-3",
+      "prefix": "Primetili smo da je prvi zahtev spo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-33-11-4",
+      "prefix": "Primetili smo da je prvi zahtev sporiji od zahteva koji dolaze posl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-34-5-0",
+      "prefix": "The chart would be easier ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-34-6-4",
+      "prefix": "The chart would be easier to unde",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-34-10-6",
+      "prefix": "The chart would be easier to understand if the labels explai",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-34-4-0",
+      "prefix": "Grafikon bi bio razumljiviji ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-34-6-4",
+      "prefix": "Grafikon bi bio razumljiviji kada bi ozna",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-34-10-6",
+      "prefix": "Grafikon bi bio razumljiviji kada bi oznake jasno objašnjavale svaku prikaz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-35-5-0",
+      "prefix": "Please keep the original order ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-35-7-6",
+      "prefix": "Please keep the original order of the column",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-35-11-2",
+      "prefix": "Please keep the original order of the columns when saving the ed",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-35-4-0",
+      "prefix": "Molim te zadrži prvobitni ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-35-5-5",
+      "prefix": "Molim te zadrži prvobitni redosled kolon",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-35-9-2",
+      "prefix": "Molim te zadrži prvobitni redosled kolona kada budeš čuvao iz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-36-5-0",
+      "prefix": "The application should restore the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-36-6-2",
+      "prefix": "The application should restore the previous se",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-36-11-3",
+      "prefix": "The application should restore the previous selection when the dialog is ope",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-36-4-0",
+      "prefix": "Aplikacija treba da vrati ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-36-5-2",
+      "prefix": "Aplikacija treba da vrati prethodni iz",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-36-9-3",
+      "prefix": "Aplikacija treba da vrati prethodni izbor kada se prozor pon",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-37-5-0",
+      "prefix": "We agreed to remove the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-37-7-3",
+      "prefix": "We agreed to remove the confusing option unt",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-37-12-4",
+      "prefix": "We agreed to remove the confusing option until we can explain its purp",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-37-6-0",
+      "prefix": "Dogovorili smo se da uklonimo zbunjujuću ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-37-9-3",
+      "prefix": "Dogovorili smo se da uklonimo zbunjujuću opciju dok ne bud",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-37-13-4",
+      "prefix": "Dogovorili smo se da uklonimo zbunjujuću opciju dok ne budemo mogli jasno da obja",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-38-5-0",
+      "prefix": "The document contains several repeated ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-38-9-4",
+      "prefix": "The document contains several repeated paragraphs that can be comb",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-38-12-6",
+      "prefix": "The document contains several repeated paragraphs that can be combined into a shorte",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-38-5-0",
+      "prefix": "Dokument sadrži nekoliko ponovljenih pasusa ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-38-9-4",
+      "prefix": "Dokument sadrži nekoliko ponovljenih pasusa koji mogu da se spoj",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-38-11-4",
+      "prefix": "Dokument sadrži nekoliko ponovljenih pasusa koji mogu da se spoje u krać",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-39-5-0",
+      "prefix": "Please check whether the new ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-39-7-5",
+      "prefix": "Please check whether the new layout leaves enoug",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-39-11-2",
+      "prefix": "Please check whether the new layout leaves enough room for longer tr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-39-5-0",
+      "prefix": "Molim te proveri da li ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-39-7-6",
+      "prefix": "Molim te proveri da li novi raspored ostavl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-39-12-2",
+      "prefix": "Molim te proveri da li novi raspored ostavlja dovoljno mesta za duže pr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-40-5-0",
+      "prefix": "The confirmation message should appear ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-40-6-2",
+      "prefix": "The confirmation message should appear only af",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-40-11-3",
+      "prefix": "The confirmation message should appear only after the file has been sav",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-40-5-0",
+      "prefix": "Poruka o potvrdi treba da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-40-8-2",
+      "prefix": "Poruka o potvrdi treba da se pojavi tek na",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-40-11-3",
+      "prefix": "Poruka o potvrdi treba da se pojavi tek nakon što je dat",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-41-5-0",
+      "prefix": "We should test the connection ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-41-6-3",
+      "prefix": "We should test the connection again aft",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-41-10-4",
+      "prefix": "We should test the connection again after the network administrator upda",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-41-4-0",
+      "prefix": "Trebalo bi ponovo da ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-41-6-3",
+      "prefix": "Trebalo bi ponovo da proverimo vezu nak",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-41-10-4",
+      "prefix": "Trebalo bi ponovo da proverimo vezu nakon što administrator mreže ažur",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-42-5-0",
+      "prefix": "The final report needs a ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-42-6-4",
+      "prefix": "The final report needs a short expl",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-42-10-6",
+      "prefix": "The final report needs a short explanation of how the measur",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-42-5-0",
+      "prefix": "Konačni izveštaj treba da sadrži ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-42-7-4",
+      "prefix": "Konačni izveštaj treba da sadrži kratko objašnjenje nači",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-42-11-6",
+      "prefix": "Konačni izveštaj treba da sadrži kratko objašnjenje načina na koji su prikup",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-43-5-0",
+      "prefix": "Please let the support team ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-43-8-6",
+      "prefix": "Please let the support team know when the correc",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-43-11-2",
+      "prefix": "Please let the support team know when the corrected version becomes av",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-43-5-0",
+      "prefix": "Molim te obavesti tim za ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-43-7-6",
+      "prefix": "Molim te obavesti tim za podršku kada isprav",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-43-10-2",
+      "prefix": "Molim te obavesti tim za podršku kada ispravljena verzija postane do",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-44-5-0",
+      "prefix": "The preview looked correct but ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-44-6-2",
+      "prefix": "The preview looked correct but the pr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-44-9-3",
+      "prefix": "The preview looked correct but the printed copy was mis",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-44-4-0",
+      "prefix": "Pregled je izgledao ispravno ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-44-7-2",
+      "prefix": "Pregled je izgledao ispravno ali je u od",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-44-10-3",
+      "prefix": "Pregled je izgledao ispravno ali je u odštampanom primerku nedostajala pos",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-45-4-0",
+      "prefix": "We can reduce the ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-45-6-3",
+      "prefix": "We can reduce the number of int",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-45-10-4",
+      "prefix": "We can reduce the number of interruptions by grouping related noti",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-45-6-0",
+      "prefix": "Možemo da smanjimo broj prekida tako ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-45-8-3",
+      "prefix": "Možemo da smanjimo broj prekida tako što ćemo pov",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-45-12-4",
+      "prefix": "Možemo da smanjimo broj prekida tako što ćemo povezati obaveštenja koja se odno",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-46-4-0",
+      "prefix": "The new colleague asked ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-46-7-4",
+      "prefix": "The new colleague asked where we keep exam",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-46-10-6",
+      "prefix": "The new colleague asked where we keep examples of previously comple",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-46-4-0",
+      "prefix": "Novi kolega je pitao ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-46-6-4",
+      "prefix": "Novi kolega je pitao gde čuvamo prim",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-46-10-5",
+      "prefix": "Novi kolega je pitao gde čuvamo primere projekata koje smo ranij",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-47-5-0",
+      "prefix": "Please separate the observed facts ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-47-6-6",
+      "prefix": "Please separate the observed facts from assump",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-en-47-12-2",
+      "prefix": "Please separate the observed facts from assumptions that still need to be ch",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-47-5-0",
+      "prefix": "Molim te odvoji utvrđene činjenice ",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-47-6-6",
+      "prefix": "Molim te odvoji utvrđene činjenice od pretpo",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    },
+    {
+      "id": "fresh-sr_latn-47-12-2",
+      "prefix": "Molim te odvoji utvrđene činjenice od pretpostavki koje još treba da se pr",
+      "appName": "Notes",
+      "bundleID": "com.apple.Notes"
+    }
+  ]
+}

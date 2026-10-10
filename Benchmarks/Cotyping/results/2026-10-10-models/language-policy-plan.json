@@ -1,0 +1,8 @@
+{
+  "createdAtUTC": "2026-10-10T09:24:24.701298+00:00",
+  "basis": "Screen results: Luchador had substantially better English utility and fewer poor English suggestions, but doubled poor Serbian suggestions.",
+  "frozenBeforeConfirmationJudging": true,
+  "rule": "Use Luchador for English checkpoints and the existing Gemma E2B hybrid for Serbian checkpoints.",
+  "purpose": "Evaluate the quality of a manual language-specific model choice using the independent confirmation scores.",
+  "limitation": "Uses known synthetic language labels. No language detector, live routing, model switching cost or dual-resident memory is implemented or measured. Do not present this as a tested production router."
+}

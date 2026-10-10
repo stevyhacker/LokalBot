@@ -1,0 +1,19 @@
+{
+  "nativeCalls": 10520,
+  "warmups": 536,
+  "measuredOrDiagnosticCalls": 9984,
+  "nativeRuns": 67,
+  "primaryTimedCalls": 4032,
+  "longTimedCalls": 576,
+  "nativeErrors": 0,
+  "counterfactualParityRuns": 36,
+  "immutableBuildParityRequests": 200,
+  "immutableBuildParityDifferences": 0,
+  "swiftTests": 67,
+  "pythonTests": 61,
+  "strictSwiftLint": "passed",
+  "releaseBuild": "passed",
+  "localUITestsRun": false,
+  "repeatedPrimaryOutputDifferences": 0,
+  "modelChecksumsVerified": 6
+}

@@ -1,0 +1,66 @@
+[
+  {
+    "id": "baseline",
+    "path": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "sha256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "bytes": 3845328608,
+    "file": "gemma-4-E2B.i1-Q6_K.gguf",
+    "upstream": "google/gemma-4-E2B",
+    "description": "Installed model, hybrid enabled"
+  },
+  {
+    "id": "lfm12",
+    "repo": "LiquidAI/LFM2.5-1.2B-Base-GGUF",
+    "revision": "ff14effbc3d8eb8823f53a5c9b0ebf7419b57c68",
+    "file": "LFM2.5-1.2B-Base-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/LFM2.5-1.2B-Base-Q6_K.gguf",
+    "sha256": "49f10c78742870150a012b5409015a811050bf250f69704c987239bd9a998a69",
+    "bytes": 962842816,
+    "license": "other",
+    "url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Base-GGUF/resolve/ff14effbc3d8eb8823f53a5c9b0ebf7419b57c68/LFM2.5-1.2B-Base-Q6_K.gguf"
+  },
+  {
+    "id": "qwen2",
+    "repo": "mradermacher/Qwen3.5-2B-Base-i1-GGUF",
+    "revision": "209c5e51cc8ceee9b70facbcf36c57d7968ba543",
+    "file": "Qwen3.5-2B-Base.i1-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/Qwen3.5-2B-Base.i1-Q6_K.gguf",
+    "sha256": "46b9a7e3d14f179ad79f1b052e7561f44b7cc009f462920396df015b7087f223",
+    "bytes": 1556391296,
+    "license": "apache-2.0",
+    "url": "https://huggingface.co/mradermacher/Qwen3.5-2B-Base-i1-GGUF/resolve/209c5e51cc8ceee9b70facbcf36c57d7968ba543/Qwen3.5-2B-Base.i1-Q6_K.gguf"
+  },
+  {
+    "id": "lfm26",
+    "repo": "mradermacher/LFM2.5-2.6B-Base-i1-GGUF",
+    "revision": "915b5d543699b002c617cba03ccdf19bfa1aae20",
+    "file": "LFM2.5-2.6B-Base.i1-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/LFM2.5-2.6B-Base.i1-Q6_K.gguf",
+    "sha256": "c480985b679c7813f15263f324eb2f0bf3de8d98a84751df69d81776f4fea46a",
+    "bytes": 2221614400,
+    "license": "other",
+    "url": "https://huggingface.co/mradermacher/LFM2.5-2.6B-Base-i1-GGUF/resolve/915b5d543699b002c617cba03ccdf19bfa1aae20/LFM2.5-2.6B-Base.i1-Q6_K.gguf"
+  },
+  {
+    "id": "gemma4",
+    "repo": "mradermacher/gemma-4-E4B-i1-GGUF",
+    "revision": "8d1efb45cd65f46a70ac918584e2f0244117465f",
+    "file": "gemma-4-E4B.i1-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/gemma-4-E4B.i1-Q6_K.gguf",
+    "sha256": "772bc09bed599585ef8e71661ec824874dac8ad40e18b48c85b7a61da3203625",
+    "bytes": 6217245440,
+    "license": "apache-2.0",
+    "url": "https://huggingface.co/mradermacher/gemma-4-E4B-i1-GGUF/resolve/8d1efb45cd65f46a70ac918584e2f0244117465f/gemma-4-E4B.i1-Q6_K.gguf"
+  },
+  {
+    "id": "luchador",
+    "repo": "bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF",
+    "revision": "b9b69babc09989221470e016e66f6cd817836459",
+    "file": "rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "sha256": "40e7b137e3867acb2b2991e6bedc5f140f3a4f8a89083087fd0ef24d1a698358",
+    "bytes": 6329952928,
+    "license": "gemma",
+    "url": "https://huggingface.co/bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF/resolve/b9b69babc09989221470e016e66f6cd817836459/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf"
+  }
+]

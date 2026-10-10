@@ -1,0 +1,60 @@
+{
+  "arms": {
+    "control": {},
+    "display-stop": {
+      "stopAtDisplayLimit": true
+    },
+    "boundary-mass-calibrated": {
+      "confidenceBoundaryMode": "boundaryMass",
+      "firstWordThreshold": 0.31
+    },
+    "boundary-mass-calibrated-stop": {
+      "confidenceBoundaryMode": "boundaryMass",
+      "firstWordThreshold": 0.31,
+      "stopAtDisplayLimit": true
+    }
+  },
+  "orders": [
+    [
+      "control",
+      "display-stop",
+      "boundary-mass-calibrated",
+      "boundary-mass-calibrated-stop"
+    ],
+    [
+      "display-stop",
+      "boundary-mass-calibrated-stop",
+      "control",
+      "boundary-mass-calibrated"
+    ],
+    [
+      "boundary-mass-calibrated",
+      "control",
+      "boundary-mass-calibrated-stop",
+      "display-stop"
+    ],
+    [
+      "boundary-mass-calibrated-stop",
+      "boundary-mass-calibrated",
+      "display-stop",
+      "control"
+    ]
+  ],
+  "checkpoints": 1361,
+  "phrases": 112,
+  "categories": {
+    "conversation": 14,
+    "work": 14,
+    "technology": 14,
+    "everyday": 14,
+    "travel": 14,
+    "science": 14,
+    "serbian-latin": 14,
+    "serbian-cyrillic": 14
+  },
+  "inputSHA256": "bdb32b204586aa06e7d94101ebbbb474161accd09879ffe55f13f986f43c5109",
+  "referencesSHA256": "cf2d1d0f9008f510a5b9df212ce29c5cd13608a689449e8991fd3df7959d5e88",
+  "retuneAfterConfirmation": false,
+  "earlyStopAdmission": "Must first pass the complete 600-checkpoint development parity checks, including the discovered question-continuation case.",
+  "timingDesign": "Four Williams-square orders balance each arm across all four run positions; chosen before confirmation inference."
+}

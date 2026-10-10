@@ -1,0 +1,92 @@
+{
+  "createdAtUTC": "2026-10-10T09:00:34.548234+00:00",
+  "status": "frozen before any model inference",
+  "app": "/private/tmp/lokalbot-model-study-20261010/benchmark-LokalBot.app/Contents/MacOS/LokalBot",
+  "appSHA256": "29a8cec1971d86b877dfa910f01b82fddd587a42e2532712b5841551e7612eeb",
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true
+  },
+  "implicitFixedSettings": {
+    "topP": 0.7,
+    "topK": 20,
+    "minP": 0.08,
+    "seed": 12648430,
+    "selectedTokenGate": 0.1,
+    "fallbackBoundaryMass": 0.31
+  },
+  "models": [
+    "baseline",
+    "lfm12",
+    "qwen2",
+    "lfm26",
+    "gemma4",
+    "luchador"
+  ],
+  "screenOrders": [
+    [
+      "baseline",
+      "lfm12",
+      "qwen2",
+      "lfm26",
+      "gemma4",
+      "luchador"
+    ],
+    [
+      "luchador",
+      "gemma4",
+      "lfm26",
+      "qwen2",
+      "lfm12",
+      "baseline"
+    ],
+    [
+      "gemma4",
+      "lfm26",
+      "baseline",
+      "luchador",
+      "lfm12",
+      "qwen2"
+    ]
+  ],
+  "screenPhrases": 64,
+  "confirmationPhrases": 32,
+  "screenCheckpoints": 320,
+  "confirmationCheckpoints": 160,
+  "quality": "Judge every nonempty unique suggestion across all models, silence=0. Exact reference agreement is secondary. Phrase-cluster paired bootstrap (5000 samples).",
+  "judge": "Claude Opus, same prior inline-writing rubric, no futures, identities, latency or source. 32 blind reversed-option repeats on screen and 16 on confirmation.",
+  "selection": "Choose the non-baseline model with highest mean Claude utility on screen. Tie: fewer negative outputs, then lower warm mean latency. Confirm without tuning on sealed second split against installed hybrid and original current decoder.",
+  "timing": "Three serial rounds, reordered across models; 10 excluded warmup calls per process. All per-request latencies include native generation, healing, gating and normalization. Exclude cold load, debounce, AX and overlay. Process launch to first observation is reported separately, including load and warmup; not a pure load timer.",
+  "failurePolicy": "A runtime load failure is an integration failure, never a low-quality score. Keep evidence and use a separately documented compatible runtime only if necessary.",
+  "fixedGateLimitation": "Current .1/.31 gates were calibrated for Gemma, not each vocabulary. Primary tests are drop-in compatibility, not the intrinsic model ceiling. Report coverage and language separately.",
+  "scope": "Synthetic model research; no app default changes, no local UI tests, no CI changes.",
+  "inputsSHA256": {
+    "screen-input.json": "415f7a3d8546ce6f98f4bb404d53ba1f2c61c7e2af859eea536f5b995d813c77",
+    "models.json": "bf63207a1522359e66b57c504835598b99a1003ef1b8cd3ad84d58d26e3182e3",
+    "model-study-corpus.json": "7e5eca518bcc4b94227d53995a111d857ab0e9b23682c586bc828c03a44424d7",
+    "confirmation-input.json": "9b9ec02117372f3e5135c1a7597d3c2d93be7821ff6bae0de81d5a69fd5f0cf0",
+    "confirmation-references.json": "9c58886c9f1a4f3b0e43ba579bef2335df81b8ee19e8ec30c3fa9580bc513cbe",
+    "screen-references.json": "c3b5efc313145547e6909039d5c2b748c893507b2f534f62af429472789a951a"
+  },
+  "scriptSHA256": "ede77840dd5a2519e44251efb08bf46416bf00a0fd6b765d316fd99b1b99453d",
+  "hardware": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": 51539607552,
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434"
+  },
+  "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+  "runtimeAmendment": {
+    "atUTC": "2026-10-10T09:12:55.439338+00:00",
+    "reason": "Use immutable copy of exact installed Release binary rather than broader prototype. This decision preceded inspection of pilot outputs; the download finishing raced the switch. All prototype runs are preserved but excluded. Also decode diagnostic stderr with replacement for raw vocabulary bytes; observations remain strict JSON. Cases, model pins, decoder settings and selection rule unchanged.",
+    "excludedPrototypeRuns": [
+      "screen-1-lfm12",
+      "screen-1-baseline"
+    ],
+    "installedSourceCommit": "cf7a6b26b90b23357d22ecf39892786a6e597208",
+    "currentPRHeadAppSourcesIdentical": "5c8a9b49ab97d8674ec71eebe75de958db845c4d"
+  }
+}

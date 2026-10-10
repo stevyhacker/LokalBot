@@ -1,0 +1,38 @@
+{
+  "selectedAtUTC": "2026-10-10T17:22:53.793406+00:00",
+  "status": "frozen before fresh confirmation inference",
+  "healingMode": "prefixSearch",
+  "development": "64 changed cases on the already-seen corpus, freshly blinded Claude comparisons. 512 seeded/unseeded native outputs identical.",
+  "developmentDeltas": {
+    "baseline-en": [
+      23,
+      8,
+      -7,
+      18
+    ],
+    "luchador-en": [
+      7,
+      2,
+      -3,
+      3
+    ],
+    "baseline-sr_latn": [
+      27,
+      8,
+      -8,
+      25
+    ],
+    "luchador-sr_latn": [
+      39,
+      11,
+      -10,
+      18
+    ]
+  },
+  "algorithm": "Width4 best-first compatible prefix paths, raw summed log probabilities, original path retained, max32 expansions with original-path fallback on exhaustion. No free-token search. Skip when the original first token already covers the prefix. Typed UTF8 bytes preserved.",
+  "ratio": 3.1,
+  "rawPromptChanged": false,
+  "modelChanged": false,
+  "resolvedInputSHA256": "d2f362fb7cfe83960e511e9bc5c5d1d0a8d80ce8a83a0d836078e5705e3a214e",
+  "acceptance": "Point guards and latency limits recorded in plan.json before confirmation. No further tuning on confirmation outcomes."
+}

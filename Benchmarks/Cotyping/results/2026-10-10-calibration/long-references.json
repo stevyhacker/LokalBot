@@ -1,0 +1,130 @@
+{
+  "long-confirmation-en-00-5-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-00-9-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-01-6-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-01-10-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-02-5-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-02-9-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-03-6-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-03-10-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-04-6-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-04-10-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-05-6-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-05-10-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-06-5-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-06-9-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-en-07-5-0": {
+    "language": "en",
+    "transition": "fresh"
+  },
+  "long-confirmation-en-07-9-0": {
+    "language": "en",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-00-5-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-00-9-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-01-6-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-01-10-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-02-6-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-02-10-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-03-6-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-03-10-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-04-5-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-04-9-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-05-6-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-05-10-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-06-6-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-06-10-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  },
+  "long-confirmation-sr_latn-07-5-0": {
+    "language": "sr_latn",
+    "transition": "fresh"
+  },
+  "long-confirmation-sr_latn-07-9-0": {
+    "language": "sr_latn",
+    "transition": "shared"
+  }
+}

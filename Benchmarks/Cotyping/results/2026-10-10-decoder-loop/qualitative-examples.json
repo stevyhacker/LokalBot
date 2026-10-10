@@ -1,0 +1,113 @@
+{
+  "selection": "First five by fixed SHA256 order within first-word gains/losses; descriptive, not a human acceptance rating.",
+  "gain": [
+    {
+      "id": "fresh-everyday-002:3:0",
+      "prefix": "The washing machine ",
+      "reference": [
+        "is",
+        "making",
+        "a"
+      ],
+      "control": "",
+      "treatment": "is a very important"
+    },
+    {
+      "id": "fresh-travel-011:4:0",
+      "prefix": "The museum tickets sold ",
+      "reference": [
+        "out",
+        "online",
+        "so"
+      ],
+      "control": "",
+      "treatment": "out in less than"
+    },
+    {
+      "id": "fresh-work-010:3:0",
+      "prefix": "The client approved ",
+      "reference": [
+        "the",
+        "proposal",
+        "but"
+      ],
+      "control": "",
+      "treatment": "the design and we"
+    },
+    {
+      "id": "fresh-work-014:3:0",
+      "prefix": "Performance reviews will ",
+      "reference": [
+        "be",
+        "finalized",
+        "once"
+      ],
+      "control": "",
+      "treatment": "be conducted in the"
+    },
+    {
+      "id": "fresh-conversation-010:5:0",
+      "prefix": "I'm running about ten minutes ",
+      "reference": [
+        "late",
+        "so",
+        "please"
+      ],
+      "control": "",
+      "treatment": "late, but I'm here"
+    }
+  ],
+  "loss": [
+    {
+      "id": "fresh-conversation-002:11:0",
+      "prefix": "I didn't mean to sound annoyed earlier; it's just been a ",
+      "reference": [
+        "long",
+        "day"
+      ],
+      "control": "long day and I'm",
+      "treatment": ""
+    },
+    {
+      "id": "fresh-serbian-latin-014:3:0",
+      "prefix": "Moramo da odlučimo ",
+      "reference": [
+        "da",
+        "li",
+        "ćemo"
+      ],
+      "control": "da li je ovo",
+      "treatment": ""
+    },
+    {
+      "id": "fresh-travel-009:11:0",
+      "prefix": "We got lost twice in the old town, but it was ",
+      "reference": [
+        "worth",
+        "it"
+      ],
+      "control": "worth it.",
+      "treatment": ""
+    },
+    {
+      "id": "fresh-work-008:10:0",
+      "prefix": "I've updated the spreadsheet with last month's invoices and expense ",
+      "reference": [
+        "reports"
+      ],
+      "control": "reports.",
+      "treatment": ""
+    },
+    {
+      "id": "fresh-science-012:5:0",
+      "prefix": "Light from the sun takes ",
+      "reference": [
+        "about",
+        "eight",
+        "minutes"
+      ],
+      "control": "about 8 minutes to",
+      "treatment": ""
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "baseline": {
+    "freshLanguageContextMeanMs": 216.15856944444445,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 47.7253798045977,
+    "sharedRequests": 87
+  },
+  "lfm12": {
+    "freshLanguageContextMeanMs": 124.69824544444444,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 104.14695164367816,
+    "sharedRequests": 87
+  },
+  "qwen2": {
+    "freshLanguageContextMeanMs": 181.83509722222223,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 155.70568196551724,
+    "sharedRequests": 87
+  },
+  "lfm26": {
+    "freshLanguageContextMeanMs": 270.67803688888887,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 229.58242724137932,
+    "sharedRequests": 87
+  },
+  "gemma4": {
+    "freshLanguageContextMeanMs": 403.8690232222222,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 75.89243193103448,
+    "sharedRequests": 87
+  },
+  "luchador": {
+    "freshLanguageContextMeanMs": 473.6855184444444,
+    "freshRequests": 9,
+    "sharedLanguageContextMeanMs": 83.79717620689655,
+    "sharedRequests": 87
+  }
+}

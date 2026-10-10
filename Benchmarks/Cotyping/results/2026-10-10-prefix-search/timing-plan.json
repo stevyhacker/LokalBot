@@ -1,0 +1,25 @@
+{
+  "orders": [
+    [
+      "baseline-control",
+      "baseline-fixed",
+      "luchador-control",
+      "luchador-fixed"
+    ],
+    [
+      "luchador-fixed",
+      "luchador-control",
+      "baseline-fixed",
+      "baseline-control"
+    ],
+    [
+      "baseline-fixed",
+      "luchador-control",
+      "baseline-control",
+      "luchador-fixed"
+    ]
+  ],
+  "traceEnabled": false,
+  "warmupsPerProcess": 8,
+  "heavyLocalWorkDuringTiming": false
+}

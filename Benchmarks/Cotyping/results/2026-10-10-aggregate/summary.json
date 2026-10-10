@@ -1,0 +1,729 @@
+{
+  "createdAtUTC": "2026-10-10T09:43:51.640350+00:00",
+  "kind": "synthesis_of_existing_evidence",
+  "newBenchmarkRequests": 0,
+  "newQualityJudgments": 0,
+  "aggregationMethod": "Within-study comparisons only. No pooled cross-study scores, latency averages, or independent sample counts.",
+  "recommendation": "Retain E2B selective hybrid for trial; evaluate Luchador for English; instrument candidate confidence before matched-coverage calibration.",
+  "modelConfirmation": {
+    "uniqueCheckpoints": 160,
+    "rows": [
+      {
+        "id": "baseline-current",
+        "name": "Gemma E2B, original decoder",
+        "n": 160,
+        "meanUtility": 0.55,
+        "useful": 69,
+        "bad": 18,
+        "neutralShown": 5,
+        "silence": 68,
+        "latency": {
+          "rounds": 3,
+          "requests": 480,
+          "meanMs": 43.4463882125,
+          "p50Ms": 40.021208,
+          "p95Ms": 84.018916
+        },
+        "exactNextWordMatches": 64,
+        "shown": 92
+      },
+      {
+        "id": "baseline",
+        "name": "Gemma E2B, selective hybrid",
+        "n": 160,
+        "meanUtility": 0.63125,
+        "useful": 84,
+        "bad": 19,
+        "neutralShown": 7,
+        "silence": 50,
+        "latency": {
+          "rounds": 3,
+          "requests": 480,
+          "meanMs": 48.12401927291667,
+          "p50Ms": 44.476292,
+          "p95Ms": 84.782709
+        },
+        "exactNextWordMatches": 72,
+        "shown": 110
+      },
+      {
+        "id": "luchador",
+        "name": "Gemma E4B Luchador, selective hybrid",
+        "n": 160,
+        "meanUtility": 1.00625,
+        "useful": 109,
+        "bad": 15,
+        "neutralShown": 7,
+        "silence": 29,
+        "latency": {
+          "rounds": 3,
+          "requests": 480,
+          "meanMs": 75.63567900833333,
+          "p50Ms": 75.39725,
+          "p95Ms": 121.263459
+        },
+        "exactNextWordMatches": 72,
+        "shown": 131
+      }
+    ],
+    "pairedComparisons": {
+      "luchador": {
+        "utilityDelta": {
+          "mean": 0.375,
+          "low95": 0.15,
+          "high95": 0.6,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 67,
+        "ties": 64,
+        "losses": 29,
+        "latencyDeltaMs": {
+          "mean": 27.511659735416668,
+          "low95": 22.913561185416665,
+          "high95": 32.32695303125,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "baseline-current": {
+        "utilityDelta": {
+          "mean": -0.08125,
+          "low95": -0.13125,
+          "high95": -0.03125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 1,
+        "ties": 144,
+        "losses": 15,
+        "latencyDeltaMs": {
+          "mean": -4.677631060416666,
+          "low95": -7.060746916666668,
+          "high95": -2.5070116375,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    }
+  },
+  "modelScreening": {
+    "uniqueCheckpoints": 320,
+    "rows": [
+      {
+        "id": "baseline",
+        "name": "Gemma E2B, selective hybrid",
+        "n": 320,
+        "meanUtility": 0.603125,
+        "useful": 159,
+        "bad": 31,
+        "neutralShown": 12,
+        "silence": 118,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 46.132766640625,
+          "p50Ms": 45.294958,
+          "p95Ms": 81.185333
+        },
+        "exactNextWordMatches": 132,
+        "shown": 202,
+        "longContext": {
+          "meanMs": 63.51599133333333,
+          "p95Ms": 221.57475,
+          "roundMeansMs": [
+            64.25686990625,
+            64.53541534375,
+            61.75568875
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 216.15856944444445,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 47.7253798045977,
+          "sharedRequests": 87
+        }
+      },
+      {
+        "id": "lfm12",
+        "name": "LFM2.5 1.2B Base",
+        "n": 320,
+        "meanUtility": 0.171875,
+        "useful": 111,
+        "bad": 64,
+        "neutralShown": 15,
+        "silence": 130,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 18.188715685416668,
+          "p50Ms": 16.860959,
+          "p95Ms": 34.9045
+        },
+        "exactNextWordMatches": 96,
+        "shown": 190,
+        "longContext": {
+          "meanMs": 106.0736354375,
+          "p95Ms": 170.620958,
+          "roundMeansMs": [
+            103.82790096875,
+            105.21601434375,
+            109.176991
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 124.69824544444444,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 104.14695164367816,
+          "sharedRequests": 87
+        }
+      },
+      {
+        "id": "qwen2",
+        "name": "Qwen3.5 2B Base",
+        "n": 320,
+        "meanUtility": 0.471875,
+        "useful": 142,
+        "bad": 34,
+        "neutralShown": 24,
+        "silence": 120,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 32.06010433541667,
+          "p50Ms": 31.460709,
+          "p95Ms": 53.845292
+        },
+        "exactNextWordMatches": 124,
+        "shown": 200,
+        "longContext": {
+          "meanMs": 158.15531464583333,
+          "p95Ms": 236.937541,
+          "roundMeansMs": [
+            155.960503875,
+            155.18969921875,
+            163.31574084375
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 181.83509722222223,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 155.70568196551724,
+          "sharedRequests": 87
+        }
+      },
+      {
+        "id": "lfm26",
+        "name": "LFM2.5 2.6B Base",
+        "n": 320,
+        "meanUtility": 0.353125,
+        "useful": 131,
+        "bad": 44,
+        "neutralShown": 19,
+        "silence": 126,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 38.619756773958336,
+          "p50Ms": 40.845084,
+          "p95Ms": 64.066584
+        },
+        "exactNextWordMatches": 109,
+        "shown": 194,
+        "longContext": {
+          "meanMs": 233.43514064583334,
+          "p95Ms": 354.894459,
+          "roundMeansMs": [
+            233.02448312500002,
+            230.01096746875,
+            237.26997134375
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 270.67803688888887,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 229.58242724137932,
+          "sharedRequests": 87
+        }
+      },
+      {
+        "id": "gemma4",
+        "name": "Gemma E4B Base",
+        "n": 320,
+        "meanUtility": 0.634375,
+        "useful": 161,
+        "bad": 30,
+        "neutralShown": 5,
+        "silence": 124,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 69.075645965625,
+          "p50Ms": 64.378333,
+          "p95Ms": 123.612459
+        },
+        "exactNextWordMatches": 127,
+        "shown": 196,
+        "longContext": {
+          "meanMs": 106.64023736458333,
+          "p95Ms": 414.654833,
+          "roundMeansMs": [
+            104.49761453125,
+            107.61955725,
+            107.8035403125
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 403.8690232222222,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 75.89243193103448,
+          "sharedRequests": 87
+        }
+      },
+      {
+        "id": "luchador",
+        "name": "Gemma E4B Luchador, selective hybrid",
+        "n": 320,
+        "meanUtility": 0.946875,
+        "useful": 218,
+        "bad": 27,
+        "neutralShown": 24,
+        "silence": 51,
+        "latency": {
+          "rounds": 3,
+          "requests": 960,
+          "meanMs": 76.10679835208333,
+          "p50Ms": 76.046291,
+          "p95Ms": 121.208416
+        },
+        "exactNextWordMatches": 147,
+        "shown": 269,
+        "longContext": {
+          "meanMs": 120.34920829166667,
+          "p95Ms": 509.996458,
+          "roundMeansMs": [
+            120.403194,
+            120.372117125,
+            120.27231375
+          ],
+          "n": 96,
+          "uniqueCases": 32
+        },
+        "contextTransitions": {
+          "freshLanguageContextMeanMs": 473.6855184444444,
+          "freshRequests": 9,
+          "sharedLanguageContextMeanMs": 83.79717620689655,
+          "sharedRequests": 87
+        }
+      }
+    ]
+  },
+  "nativeHybridFresh": {
+    "parity": {
+      "pairedRequests": 738,
+      "textMismatches": 0,
+      "newlyShown": 77
+    },
+    "arms": {
+      "control": {
+        "quality": {
+          "checkpoints": 738,
+          "correct": 157,
+          "shown": 306,
+          "errors": 0,
+          "retries": 0,
+          "accuracy": 0.2127371273712737,
+          "coverage": 0.4146341463414634,
+          "2WordAccuracy": 0.0832072617246596,
+          "3WordAccuracy": 0.022298456260720412,
+          "p50Ms": 23.108458,
+          "p90Ms": 76.608125,
+          "p95Ms": 81.466541,
+          "incorrectShown": 149,
+          "precisionWhenShown": 0.5130718954248366,
+          "meanMs": 36.379749796747966,
+          "oracleFirstWordMatches": 157,
+          "matchingCharacters": 788,
+          "matchingCharactersPerCheckpoint": 1.067750677506775
+        },
+        "timing": {
+          "count": 2952,
+          "meanMs": 36.608105976626014,
+          "p50Ms": 23.139625,
+          "p95Ms": 81.699958,
+          "p99Ms": 100.670625
+        }
+      },
+      "hybrid": {
+        "quality": {
+          "checkpoints": 738,
+          "correct": 189,
+          "shown": 383,
+          "errors": 0,
+          "retries": 0,
+          "accuracy": 0.25609756097560976,
+          "coverage": 0.518970189701897,
+          "2WordAccuracy": 0.0832072617246596,
+          "3WordAccuracy": 0.022298456260720412,
+          "p50Ms": 28.147166,
+          "p90Ms": 78.152625,
+          "p95Ms": 80.83925,
+          "incorrectShown": 194,
+          "precisionWhenShown": 0.4934725848563969,
+          "meanMs": 40.47959818428184,
+          "oracleFirstWordMatches": 189,
+          "matchingCharacters": 880,
+          "matchingCharactersPerCheckpoint": 1.1924119241192412
+        },
+        "timing": {
+          "count": 2952,
+          "meanMs": 40.217060305555556,
+          "p50Ms": 27.223916,
+          "p95Ms": 81.591291,
+          "p99Ms": 99.363667
+        }
+      }
+    },
+    "latencyDelta": {
+      "meanDifferenceMs": 3.6089543289295394,
+      "ci95": [
+        2.7097418297002727,
+        4.596434598951507
+      ],
+      "groups": 64,
+      "resamples": 3000,
+      "unit": "whole phrase or typing trace, retaining all paired rounds; not independent repetitions"
+    }
+  },
+  "confirmationByWritingGroup": {
+    "baseline": {
+      "English": {
+        "n": 120,
+        "meanUtility": 0.7333333333333333,
+        "useful": 67,
+        "bad": 10,
+        "neutralShown": 6,
+        "silence": 37
+      },
+      "Serbian Latin": {
+        "n": 20,
+        "meanUtility": 0.6,
+        "useful": 10,
+        "bad": 2,
+        "neutralShown": 0,
+        "silence": 8
+      },
+      "Serbian Cyrillic": {
+        "n": 20,
+        "meanUtility": 0.05,
+        "useful": 7,
+        "bad": 7,
+        "neutralShown": 1,
+        "silence": 5
+      }
+    },
+    "luchador": {
+      "English": {
+        "n": 120,
+        "meanUtility": 1.175,
+        "useful": 90,
+        "bad": 5,
+        "neutralShown": 5,
+        "silence": 20
+      },
+      "Serbian Latin": {
+        "n": 20,
+        "meanUtility": 1.2,
+        "useful": 14,
+        "bad": 1,
+        "neutralShown": 1,
+        "silence": 4
+      },
+      "Serbian Cyrillic": {
+        "n": 20,
+        "meanUtility": -0.2,
+        "useful": 5,
+        "bad": 9,
+        "neutralShown": 1,
+        "silence": 5
+      }
+    }
+  },
+  "offlineLanguagePolicy": {
+    "n": 160,
+    "policy": "Known-language model choice: English Luchador, Serbian installed Gemma hybrid. Not an implemented router.",
+    "arms": {
+      "baseline": {
+        "meanUtility": 0.63125,
+        "useful": 84,
+        "poor": 19,
+        "deltaVsInstalled": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "ties": 160,
+        "losses": 0,
+        "flags": {
+          "repetition": 8,
+          "awkward": 11,
+          "malformed": 6,
+          "arbitrary_specificity": 5,
+          "minimal_value": 10,
+          "language_switch": 2
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 67,
+            "poor": 10,
+            "meanUtility": 0.7333333333333333,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 17,
+            "poor": 9,
+            "meanUtility": 0.325,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "luchador": {
+        "meanUtility": 1.00625,
+        "useful": 109,
+        "poor": 15,
+        "deltaVsInstalled": {
+          "mean": 0.375,
+          "low95": 0.15,
+          "high95": 0.6,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 67,
+        "ties": 64,
+        "losses": 29,
+        "flags": {
+          "minimal_value": 8,
+          "awkward": 8,
+          "repetition": 3,
+          "malformed": 9,
+          "language_switch": 1
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 90,
+            "poor": 5,
+            "meanUtility": 1.175,
+            "deltaVsInstalled": {
+              "mean": 0.44166666666666665,
+              "low95": 0.18333333333333332,
+              "high95": 0.6833333333333333,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 19,
+            "poor": 10,
+            "meanUtility": 0.5,
+            "deltaVsInstalled": {
+              "mean": 0.175,
+              "low95": -0.325,
+              "high95": 0.65,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "language_choice": {
+        "meanUtility": 0.9625,
+        "useful": 107,
+        "poor": 14,
+        "deltaVsInstalled": {
+          "mean": 0.33125,
+          "low95": 0.1375,
+          "high95": 0.53125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 53,
+        "ties": 90,
+        "losses": 17,
+        "flags": {
+          "minimal_value": 8,
+          "awkward": 9,
+          "repetition": 4,
+          "malformed": 5,
+          "language_switch": 2
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 90,
+            "poor": 5,
+            "meanUtility": 1.175,
+            "deltaVsInstalled": {
+              "mean": 0.44166666666666665,
+              "low95": 0.18333333333333332,
+              "high95": 0.6833333333333333,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 17,
+            "poor": 9,
+            "meanUtility": 0.325,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      }
+    },
+    "finalistVsOriginal": {
+      "mean": 0.45625,
+      "low95": 0.225,
+      "high95": 0.69375,
+      "phrases": 32,
+      "resamples": 5000
+    }
+  },
+  "queuedUntestedModels": [
+    {
+      "rank": 1,
+      "repo": "google/gemma-4-E4B-it",
+      "status": "queued_unbenchmarked"
+    },
+    {
+      "rank": 2,
+      "repo": "Qwen/Qwen3-4B-Base",
+      "status": "queued_unbenchmarked"
+    },
+    {
+      "rank": 3,
+      "repo": "BSC-LT/salamandra-2b",
+      "status": "queued_unbenchmarked"
+    },
+    {
+      "rank": 4,
+      "repo": "gordicaleksa/YugoGPT",
+      "status": "queued_unbenchmarked"
+    }
+  ],
+  "nextSteps": [
+    "Candidate confidence tracing and matched-coverage calibration",
+    "Stock Gemma E4B IT control",
+    "Blinded human preference and first-visible latency trial",
+    "Focus prewarm/context trimming, then bounded stopping",
+    "Qwen3 4B Base, Salamandra 2B and YugoGPT targeted model trials"
+  ],
+  "sourceFiles": [
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/REPORT.md",
+      "sha256": "bd6768f71fc2facc5fa7e2c35ee09bed65440ca8a6987bb48c6c5ca0c14ae599"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/analysis.json",
+      "sha256": "4c0248f020eb53491257546aed173f5fb9d26b9155183a07dbd364318bb6a9b3"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-cache/REPORT.md",
+      "sha256": "07478bafd174e1aabcfed07219529e1d8fca65c6c152db29c285eb910a72465a"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-cache/analysis.json",
+      "sha256": "49cc56896e56edb51d5e261bb72b678489361f011975890f1e511abfe373217f"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/REPORT.md",
+      "sha256": "8cf94c12536e05c7765381fadaf97c7125fe44a83555bf9e79d6ed27274c3c26"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/analysis.json",
+      "sha256": "fbdd7f25aa0cc0432558f38a262b1b5a5e1ceec40845bea9d5ac11034d204e41"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-claude-judge/REPORT.md",
+      "sha256": "a9cfd1d8203ba259cd31e52dbbdf591fa3e97bee980b3ec54786adba43073135"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-native-hybrid/REPORT.md",
+      "sha256": "9d728a4de0790e5f8e71e4cc6b8604c36998af9011d536c97ba4d62ffd0894b2"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-native-hybrid/analysis.json",
+      "sha256": "d1d3188a9eb770a7726dafd71b5a57d3fe845765d568f6f6436e77ee19c8cf8e"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/REPORT.md",
+      "sha256": "6ddbb65e3ccd1157d9c7da77b7f13d21590edeeb506078660bc939616e00b674"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/screen-analysis.json",
+      "sha256": "9933ae58955da08fc3bbd445570aea8641264c23e0c2253206874d4b754e0b3e"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/confirmation-analysis.json",
+      "sha256": "99f903a8e3a275fc9c3c32d8e6c903e0c406b3fe7b1a8b2349855a22d463f288"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/long-context-analysis.json",
+      "sha256": "ee990b3d64028cc47f6cf78f6d68b5c0d8f3aab6263d74862a7666f3f2169a3d"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/long-context-transitions.json",
+      "sha256": "30bf83a875113b5d0be37dae992421f8053e6067395c4e8c3ba2a6181bf4b81c"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/language-policy-analysis.json",
+      "sha256": "c40128a5dd858384aab3070dcb1dc051d83d5b6f43c4cee747695c0e7083feff"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/claude-test-list.json",
+      "sha256": "cf91d0a32e7fdd861ccd32e1e1c26c97cea37d51ce577e798f1ca2b79a3ac420"
+    },
+    {
+      "path": "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/receipt.json",
+      "sha256": "d3a0d3f6fa290e709fc33177d7bf12a3c920e80ca738e1b007c6dc731f8ab690"
+    },
+    {
+      "path": "Docs/cotypist-autocomplete-comparison-2026-10-10.md",
+      "sha256": "b5d95edd42e7f43ccccac1e9e6a7e54eab1c4475eead1f10f9d643a8b8f78498"
+    }
+  ]
+}

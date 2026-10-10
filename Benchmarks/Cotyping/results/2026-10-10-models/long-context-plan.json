@@ -1,0 +1,39 @@
+{
+  "createdAtUTC": "2026-10-10T09:09:14.958921+00:00",
+  "frozenBeforePrimaryInference": true,
+  "cases": 32,
+  "rounds": 1,
+  "models": [
+    "baseline",
+    "lfm12",
+    "qwen2",
+    "lfm26",
+    "gemma4",
+    "luchador"
+  ],
+  "purpose": "Latency stress at roughly 1800-2200 characters, two boundary and two midword requests per category. Identical synthetic background context per language, not a quality selection dataset.",
+  "inputSHA256": "6cfc4597da5c5878f9ea2e72a8afa0f07e44e3a923c32a05302eb5d0e0716a93",
+  "primaryPlanSHA256": "2da84018c0cf783d30f6935cfc0df919de6115d2e4c97b84df486a0f46149ec3",
+  "followup": {
+    "atUTC": "2026-10-10T09:20:01.748615+00:00",
+    "reason": "The first long-context pass reversed the short-prefix latency ranking. Repeat twice with reversed and rotated model order to check this large effect. Keep all inputs and settings unchanged; no effect on quality selection.",
+    "additionalOrders": [
+      [
+        "luchador",
+        "gemma4",
+        "lfm26",
+        "qwen2",
+        "lfm12",
+        "baseline"
+      ],
+      [
+        "gemma4",
+        "lfm26",
+        "baseline",
+        "luchador",
+        "lfm12",
+        "qwen2"
+      ]
+    ]
+  }
+}

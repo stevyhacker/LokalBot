@@ -1,0 +1,22 @@
+[
+  {
+    "id": "baseline",
+    "path": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "sha256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "bytes": 3845328608,
+    "file": "gemma-4-E2B.i1-Q6_K.gguf",
+    "upstream": "google/gemma-4-E2B",
+    "description": "Installed model, hybrid enabled"
+  },
+  {
+    "id": "luchador",
+    "repo": "bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF",
+    "revision": "b9b69babc09989221470e016e66f6cd817836459",
+    "file": "rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "sha256": "40e7b137e3867acb2b2991e6bedc5f140f3a4f8a89083087fd0ef24d1a698358",
+    "bytes": 6329952928,
+    "license": "gemma",
+    "url": "https://huggingface.co/bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF/resolve/b9b69babc09989221470e016e66f6cd817836459/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf"
+  }
+]

@@ -1,0 +1,492 @@
+{
+  "parity": {
+    "control-vs-stop": {
+      "outputChanges": [],
+      "promptChanges": []
+    },
+    "mass-vs-mass-stop": {
+      "outputChanges": [],
+      "promptChanges": []
+    }
+  },
+  "latencyBootstrap": {
+    "control": {
+      "heldoutTraces": 12,
+      "meanDifferenceMs": 0.0,
+      "meanDifference95CI": [
+        0.0,
+        0.0
+      ],
+      "resamples": 3000,
+      "unit": "whole trace; repetitions are not independent quality examples"
+    },
+    "display-stop": {
+      "heldoutTraces": 12,
+      "meanDifferenceMs": -11.131229447826087,
+      "meanDifference95CI": [
+        -14.524819822649572,
+        -7.5328628165938865
+      ],
+      "resamples": 3000,
+      "unit": "whole trace; repetitions are not independent quality examples"
+    },
+    "boundary-mass": {
+      "heldoutTraces": 12,
+      "meanDifferenceMs": -3.6746725630434782,
+      "meanDifference95CI": [
+        -4.9031584805194806,
+        -2.252936303964758
+      ],
+      "resamples": 3000,
+      "unit": "whole trace; repetitions are not independent quality examples"
+    },
+    "boundary-mass-stop": {
+      "heldoutTraces": 12,
+      "meanDifferenceMs": -10.602155295652175,
+      "meanDifference95CI": [
+        -13.289623616883118,
+        -7.794695640350877
+      ],
+      "resamples": 3000,
+      "unit": "whole trace; repetitions are not independent quality examples"
+    }
+  },
+  "arms": {
+    "control": {
+      "noncancelled": {
+        "count": 614,
+        "meanMs": 85.37242501954397,
+        "p50Ms": 81.566208,
+        "p95Ms": 116.763542,
+        "p99Ms": 267.752292
+      },
+      "heldoutTraceSubset": {
+        "count": 460,
+        "meanMs": 86.31139357608696,
+        "p50Ms": 82.45775,
+        "p95Ms": 115.789334,
+        "p99Ms": 266.862208
+      },
+      "cancellationReturn": {
+        "count": 32,
+        "meanMs": 0.5388555,
+        "p50Ms": 0.296708,
+        "p95Ms": 1.444375,
+        "p99Ms": 1.615292
+      },
+      "actions": {
+        "backspace": {
+          "count": 64,
+          "meanMs": 72.052566359375,
+          "p50Ms": 73.797125,
+          "p95Ms": 99.494375,
+          "p99Ms": 107.906167
+        },
+        "branch": {
+          "count": 32,
+          "meanMs": 76.74753903125,
+          "p50Ms": 77.361209,
+          "p95Ms": 97.572291,
+          "p99Ms": 99.62225
+        },
+        "cancel": {
+          "count": 32,
+          "meanMs": 4.243740875,
+          "p50Ms": 4.027,
+          "p95Ms": 5.087625,
+          "p99Ms": 9.408167
+        },
+        "clear": {
+          "count": 32,
+          "meanMs": 126.37603259375,
+          "p50Ms": 106.08675,
+          "p95Ms": 267.752292,
+          "p99Ms": 267.77225
+        },
+        "forward": {
+          "count": 262,
+          "meanMs": 77.3117263167939,
+          "p50Ms": 79.566458,
+          "p95Ms": 102.623417,
+          "p99Ms": 110.711916
+        },
+        "recover": {
+          "count": 32,
+          "meanMs": 84.34832815625,
+          "p50Ms": 86.099416,
+          "p95Ms": 107.12925,
+          "p99Ms": 107.351125
+        },
+        "recover-after-cancel": {
+          "count": 32,
+          "meanMs": 154.22897665624998,
+          "p50Ms": 115.307875,
+          "p95Ms": 397.412042,
+          "p99Ms": 399.455042
+        },
+        "repeat": {
+          "count": 32,
+          "meanMs": 86.06261971875,
+          "p50Ms": 89.903834,
+          "p95Ms": 108.345083,
+          "p99Ms": 110.961333
+        },
+        "retype": {
+          "count": 32,
+          "meanMs": 84.7972188125,
+          "p50Ms": 83.620042,
+          "p95Ms": 109.641167,
+          "p99Ms": 113.175375
+        },
+        "scope-change": {
+          "count": 32,
+          "meanMs": 84.946248625,
+          "p50Ms": 84.309166,
+          "p95Ms": 106.689125,
+          "p99Ms": 108.545958
+        },
+        "start": {
+          "count": 32,
+          "meanMs": 77.218022125,
+          "p50Ms": 33.4565,
+          "p95Ms": 233.83725,
+          "p99Ms": 266.862208
+        },
+        "unscoped": {
+          "count": 32,
+          "meanMs": 86.26352740625,
+          "p50Ms": 83.576542,
+          "p95Ms": 111.940125,
+          "p99Ms": 113.620625
+        }
+      }
+    },
+    "display-stop": {
+      "noncancelled": {
+        "count": 614,
+        "meanMs": 74.52426960260587,
+        "p50Ms": 68.540334,
+        "p95Ms": 123.495459,
+        "p99Ms": 256.042458
+      },
+      "heldoutTraceSubset": {
+        "count": 460,
+        "meanMs": 75.18016412826087,
+        "p50Ms": 70.695917,
+        "p95Ms": 116.280375,
+        "p99Ms": 269.692166
+      },
+      "cancellationReturn": {
+        "count": 32,
+        "meanMs": 0.69933603125,
+        "p50Ms": 0.292375,
+        "p95Ms": 1.607792,
+        "p99Ms": 8.516292
+      },
+      "actions": {
+        "backspace": {
+          "count": 64,
+          "meanMs": 59.387274796875,
+          "p50Ms": 56.914375,
+          "p95Ms": 86.408125,
+          "p99Ms": 92.668958
+        },
+        "branch": {
+          "count": 32,
+          "meanMs": 63.72702996875,
+          "p50Ms": 62.291333,
+          "p95Ms": 83.848,
+          "p99Ms": 85.135708
+        },
+        "cancel": {
+          "count": 32,
+          "meanMs": 4.154806,
+          "p50Ms": 4.048583,
+          "p95Ms": 5.114791,
+          "p99Ms": 11.589167
+        },
+        "clear": {
+          "count": 32,
+          "meanMs": 114.83994925,
+          "p50Ms": 92.338042,
+          "p95Ms": 251.285917,
+          "p99Ms": 281.628542
+        },
+        "forward": {
+          "count": 262,
+          "meanMs": 64.65363770992366,
+          "p50Ms": 63.564459,
+          "p95Ms": 91.951,
+          "p99Ms": 101.734583
+        },
+        "recover": {
+          "count": 32,
+          "meanMs": 74.48632675,
+          "p50Ms": 71.653958,
+          "p95Ms": 99.200459,
+          "p99Ms": 103.740416
+        },
+        "recover-after-cancel": {
+          "count": 32,
+          "meanMs": 155.7540078125,
+          "p50Ms": 132.679709,
+          "p95Ms": 322.345125,
+          "p99Ms": 418.398792
+        },
+        "repeat": {
+          "count": 32,
+          "meanMs": 74.88789840625,
+          "p50Ms": 73.261709,
+          "p95Ms": 103.873959,
+          "p99Ms": 104.469666
+        },
+        "retype": {
+          "count": 32,
+          "meanMs": 76.065875,
+          "p50Ms": 76.684625,
+          "p95Ms": 106.98325,
+          "p99Ms": 113.484458
+        },
+        "scope-change": {
+          "count": 32,
+          "meanMs": 75.43270446875,
+          "p50Ms": 73.647792,
+          "p95Ms": 106.890458,
+          "p99Ms": 108.834834
+        },
+        "start": {
+          "count": 32,
+          "meanMs": 70.74612753125,
+          "p50Ms": 30.853959,
+          "p95Ms": 254.390125,
+          "p99Ms": 269.692166
+        },
+        "unscoped": {
+          "count": 32,
+          "meanMs": 75.86829546875,
+          "p50Ms": 79.170834,
+          "p95Ms": 103.044708,
+          "p99Ms": 113.661542
+        }
+      }
+    },
+    "boundary-mass": {
+      "noncancelled": {
+        "count": 614,
+        "meanMs": 81.88835545602606,
+        "p50Ms": 77.667375,
+        "p95Ms": 121.886708,
+        "p99Ms": 239.846416
+      },
+      "heldoutTraceSubset": {
+        "count": 460,
+        "meanMs": 82.63672101304348,
+        "p50Ms": 79.832917,
+        "p95Ms": 114.226416,
+        "p99Ms": 248.478875
+      },
+      "cancellationReturn": {
+        "count": 32,
+        "meanMs": 0.70860278125,
+        "p50Ms": 0.257292,
+        "p95Ms": 2.096625,
+        "p99Ms": 8.033583
+      },
+      "actions": {
+        "backspace": {
+          "count": 64,
+          "meanMs": 70.370208984375,
+          "p50Ms": 70.220166,
+          "p95Ms": 90.641667,
+          "p99Ms": 104.571625
+        },
+        "branch": {
+          "count": 32,
+          "meanMs": 76.68057165625,
+          "p50Ms": 76.669875,
+          "p95Ms": 99.461333,
+          "p99Ms": 101.598709
+        },
+        "cancel": {
+          "count": 32,
+          "meanMs": 4.203882875,
+          "p50Ms": 4.032375,
+          "p95Ms": 5.164666,
+          "p99Ms": 11.108208
+        },
+        "clear": {
+          "count": 32,
+          "meanMs": 119.869516875,
+          "p50Ms": 98.882583,
+          "p95Ms": 248.478875,
+          "p99Ms": 262.190375
+        },
+        "forward": {
+          "count": 262,
+          "meanMs": 73.31994800763358,
+          "p50Ms": 74.306292,
+          "p95Ms": 96.833042,
+          "p99Ms": 105.899625
+        },
+        "recover": {
+          "count": 32,
+          "meanMs": 86.632556,
+          "p50Ms": 88.460542,
+          "p95Ms": 105.83,
+          "p99Ms": 109.578584
+        },
+        "recover-after-cancel": {
+          "count": 32,
+          "meanMs": 159.90581896875,
+          "p50Ms": 145.896417,
+          "p95Ms": 344.8225,
+          "p99Ms": 359.635125
+        },
+        "repeat": {
+          "count": 32,
+          "meanMs": 82.56530071875,
+          "p50Ms": 80.516208,
+          "p95Ms": 106.960375,
+          "p99Ms": 108.521
+        },
+        "retype": {
+          "count": 32,
+          "meanMs": 82.70343484375,
+          "p50Ms": 84.225958,
+          "p95Ms": 109.485292,
+          "p99Ms": 110.764375
+        },
+        "scope-change": {
+          "count": 32,
+          "meanMs": 82.1696510625,
+          "p50Ms": 81.031917,
+          "p95Ms": 105.375958,
+          "p99Ms": 108.978917
+        },
+        "start": {
+          "count": 32,
+          "meanMs": 57.05970959375,
+          "p50Ms": 17.686166,
+          "p95Ms": 177.763458,
+          "p99Ms": 210.627709
+        },
+        "unscoped": {
+          "count": 32,
+          "meanMs": 82.5987683125,
+          "p50Ms": 79.947417,
+          "p95Ms": 107.536083,
+          "p99Ms": 110.400584
+        }
+      }
+    },
+    "boundary-mass-stop": {
+      "noncancelled": {
+        "count": 614,
+        "meanMs": 75.36199141693811,
+        "p50Ms": 71.991459,
+        "p95Ms": 113.86975,
+        "p99Ms": 231.787166
+      },
+      "heldoutTraceSubset": {
+        "count": 460,
+        "meanMs": 75.70923828043479,
+        "p50Ms": 73.814583,
+        "p95Ms": 111.434583,
+        "p99Ms": 233.802542
+      },
+      "cancellationReturn": {
+        "count": 32,
+        "meanMs": 0.5265378125,
+        "p50Ms": 0.298459,
+        "p95Ms": 1.926166,
+        "p99Ms": 1.953291
+      },
+      "actions": {
+        "backspace": {
+          "count": 64,
+          "meanMs": 62.14208071875,
+          "p50Ms": 61.761041,
+          "p95Ms": 82.905542,
+          "p99Ms": 92.43425
+        },
+        "branch": {
+          "count": 32,
+          "meanMs": 64.90007928125,
+          "p50Ms": 62.247917,
+          "p95Ms": 82.452583,
+          "p99Ms": 82.638958
+        },
+        "cancel": {
+          "count": 32,
+          "meanMs": 4.16216015625,
+          "p50Ms": 4.061375,
+          "p95Ms": 5.453,
+          "p99Ms": 5.824875
+        },
+        "clear": {
+          "count": 32,
+          "meanMs": 117.91465503125,
+          "p50Ms": 94.73925,
+          "p95Ms": 245.846709,
+          "p99Ms": 299.272167
+        },
+        "forward": {
+          "count": 262,
+          "meanMs": 67.36649089694656,
+          "p50Ms": 66.091167,
+          "p95Ms": 91.790583,
+          "p99Ms": 99.350916
+        },
+        "recover": {
+          "count": 32,
+          "meanMs": 78.494125,
+          "p50Ms": 79.137375,
+          "p95Ms": 102.220709,
+          "p99Ms": 104.412583
+        },
+        "recover-after-cancel": {
+          "count": 32,
+          "meanMs": 139.8036744375,
+          "p50Ms": 113.86975,
+          "p95Ms": 294.86025,
+          "p99Ms": 325.193375
+        },
+        "repeat": {
+          "count": 32,
+          "meanMs": 76.1212773125,
+          "p50Ms": 76.658542,
+          "p95Ms": 102.14325,
+          "p99Ms": 104.173375
+        },
+        "retype": {
+          "count": 32,
+          "meanMs": 78.10372525,
+          "p50Ms": 75.308166,
+          "p95Ms": 103.602125,
+          "p99Ms": 111.09475
+        },
+        "scope-change": {
+          "count": 32,
+          "meanMs": 81.9822420625,
+          "p50Ms": 81.494125,
+          "p95Ms": 111.434583,
+          "p99Ms": 131.726292
+        },
+        "start": {
+          "count": 32,
+          "meanMs": 53.80705715625,
+          "p50Ms": 17.641791,
+          "p95Ms": 170.745417,
+          "p99Ms": 171.957208
+        },
+        "unscoped": {
+          "count": 32,
+          "meanMs": 79.034069125,
+          "p50Ms": 78.712542,
+          "p95Ms": 102.905125,
+          "p99Ms": 103.362542
+        }
+      }
+    }
+  }
+}

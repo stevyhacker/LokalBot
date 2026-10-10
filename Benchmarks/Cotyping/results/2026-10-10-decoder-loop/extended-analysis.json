@@ -1,0 +1,271 @@
+{
+  "staticLatency": {
+    "control": {
+      "allRequests": {
+        "count": 5444,
+        "meanMs": 37.04780684331374,
+        "p50Ms": 24.58875,
+        "p95Ms": 79.49325,
+        "p99Ms": 95.969167
+      },
+      "shownOnly": {
+        "count": 2552,
+        "meanMs": 56.20442470532915,
+        "p50Ms": 60.948083,
+        "p95Ms": 85.253333,
+        "p99Ms": 101.98
+      },
+      "meanDifferenceBootstrap": {
+        "groups": 112,
+        "meanDifferenceMs": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "resamples": 5000
+      }
+    },
+    "display-stop": {
+      "allRequests": {
+        "count": 5444,
+        "meanMs": 33.776620321087435,
+        "p50Ms": 24.014458,
+        "p95Ms": 75.367125,
+        "p99Ms": 88.993666
+      },
+      "shownOnly": {
+        "count": 2552,
+        "meanMs": 49.829405130877745,
+        "p50Ms": 50.754833,
+        "p95Ms": 82.0455,
+        "p99Ms": 97.816708
+      },
+      "meanDifferenceBootstrap": {
+        "groups": 112,
+        "meanDifferenceMs": -3.271186522226304,
+        "ci95": [
+          -3.9668503462381297,
+          -2.6232905789377288
+        ],
+        "resamples": 5000
+      }
+    },
+    "boundary-mass-calibrated": {
+      "allRequests": {
+        "count": 5444,
+        "meanMs": 33.40206704353417,
+        "p50Ms": 17.180709,
+        "p95Ms": 81.244083,
+        "p99Ms": 94.491917
+      },
+      "shownOnly": {
+        "count": 2532,
+        "meanMs": 57.65446440323855,
+        "p50Ms": 62.176708,
+        "p95Ms": 85.828584,
+        "p99Ms": 101.504375
+      },
+      "meanDifferenceBootstrap": {
+        "groups": 112,
+        "meanDifferenceMs": -3.6457397997795735,
+        "ci95": [
+          -4.663809320466132,
+          -2.635763836011687
+        ],
+        "resamples": 5000
+      }
+    },
+    "boundary-mass-calibrated-stop": {
+      "allRequests": {
+        "count": 5444,
+        "meanMs": 29.086626549595884,
+        "p50Ms": 16.478667,
+        "p95Ms": 73.8415,
+        "p99Ms": 85.064584
+      },
+      "shownOnly": {
+        "count": 2532,
+        "meanMs": 49.03295373341232,
+        "p50Ms": 50.622458,
+        "p95Ms": 79.021209,
+        "p99Ms": 93.829208
+      },
+      "meanDifferenceBootstrap": {
+        "groups": 112,
+        "meanDifferenceMs": -7.961180293717855,
+        "ci95": [
+          -8.922606940875912,
+          -6.990950047940076
+        ],
+        "resamples": 5000
+      }
+    }
+  },
+  "dynamicLatency": {
+    "control": {
+      "groups": 16,
+      "meanDifferenceMs": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "resamples": 5000
+    },
+    "display-stop": {
+      "groups": 16,
+      "meanDifferenceMs": -10.84815541693811,
+      "ci95": [
+        -14.013930847540983,
+        -7.517219198387096
+      ],
+      "resamples": 5000
+    },
+    "boundary-mass": {
+      "groups": 16,
+      "meanDifferenceMs": -3.4840695635179153,
+      "ci95": [
+        -5.056902095469256,
+        -1.9769534510135134
+      ],
+      "resamples": 5000
+    },
+    "boundary-mass-stop": {
+      "groups": 16,
+      "meanDifferenceMs": -10.010433602605863,
+      "ci95": [
+        -12.940471792880258,
+        -7.077595105863191
+      ],
+      "resamples": 5000
+    }
+  },
+  "cancelPlusRecovery": {
+    "control": {
+      "count": 32,
+      "meanMs": 154.76783215625,
+      "p50Ms": 116.347375,
+      "p95Ms": 397.84554199999997,
+      "p99Ms": 399.794542,
+      "boundary": "Sum of host cancellation return and next recovery request; excludes inter-step delay, not measured GPU quiescence."
+    },
+    "display-stop": {
+      "count": 32,
+      "meanMs": 156.45334384375,
+      "p50Ms": 133.097959,
+      "p95Ms": 323.454458,
+      "p99Ms": 419.41400100000004,
+      "boundary": "Sum of host cancellation return and next recovery request; excludes inter-step delay, not measured GPU quiescence."
+    },
+    "boundary-mass": {
+      "count": 32,
+      "meanMs": 160.61442175,
+      "p50Ms": 147.88500000000002,
+      "p95Ms": 345.23325,
+      "p99Ms": 360.520416,
+      "boundary": "Sum of host cancellation return and next recovery request; excludes inter-step delay, not measured GPU quiescence."
+    },
+    "boundary-mass-stop": {
+      "count": 32,
+      "meanMs": 140.33021225,
+      "p50Ms": 115.82304099999999,
+      "p95Ms": 295.715125,
+      "p99Ms": 326.097959,
+      "boundary": "Sum of host cancellation return and next recovery request; excludes inter-step delay, not measured GPU quiescence."
+    }
+  },
+  "memoryGiB": {
+    "control": [
+      3.8598480224609375,
+      3.8639678955078125
+    ],
+    "display-stop": [
+      3.8602142333984375,
+      3.8607635498046875
+    ],
+    "boundary-mass-calibrated": [
+      3.8607025146484375,
+      3.8643951416015625
+    ],
+    "boundary-mass-calibrated-stop": [
+      3.8606109619140625,
+      3.8627471923828125
+    ]
+  },
+  "languages": {
+    "control": {
+      "English": {
+        "checkpoints": 1044,
+        "correct": 323,
+        "shown": 549,
+        "nonmatching": 226,
+        "precision": 0.5883424408014571
+      },
+      "Serbian": {
+        "checkpoints": 317,
+        "correct": 46,
+        "shown": 89,
+        "nonmatching": 43,
+        "precision": 0.5168539325842697
+      }
+    },
+    "display-stop": {
+      "English": {
+        "checkpoints": 1044,
+        "correct": 323,
+        "shown": 549,
+        "nonmatching": 226,
+        "precision": 0.5883424408014571
+      },
+      "Serbian": {
+        "checkpoints": 317,
+        "correct": 46,
+        "shown": 89,
+        "nonmatching": 43,
+        "precision": 0.5168539325842697
+      }
+    },
+    "boundary-mass-calibrated": {
+      "English": {
+        "checkpoints": 1044,
+        "correct": 340,
+        "shown": 532,
+        "nonmatching": 192,
+        "precision": 0.6390977443609023
+      },
+      "Serbian": {
+        "checkpoints": 317,
+        "correct": 54,
+        "shown": 101,
+        "nonmatching": 47,
+        "precision": 0.5346534653465347
+      }
+    },
+    "boundary-mass-calibrated-stop": {
+      "English": {
+        "checkpoints": 1044,
+        "correct": 340,
+        "shown": 532,
+        "nonmatching": 192,
+        "precision": 0.6390977443609023
+      },
+      "Serbian": {
+        "checkpoints": 317,
+        "correct": 54,
+        "shown": 101,
+        "nonmatching": 47,
+        "precision": 0.5346534653465347
+      }
+    }
+  },
+  "requestCounts": {
+    "development": 12600,
+    "confirmation": 21776,
+    "dynamic": 2584,
+    "total": 36960
+  },
+  "sourceIntegrity": {
+    "nativeSourcesMatchMeasuredRelease": true,
+    "appSHA256": "836929d181908cd322c21b4f239447552cee0ad16de774684f006f06e2d56dad",
+    "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629"
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "action" : "Removed stale temporary selector-test override",
+  "key" : "lokalbot.uiTest.storageRoot",
+  "otherDefaultsModified" : false,
+  "previousValue" : "\/var\/folders\/5n\/3tn5mrts7hxb8jjk7v4b4nwm0000gn\/T\/lokalbot-selector-20CF9B00-D8AC-411B-8D10-BD294517372D"
+}

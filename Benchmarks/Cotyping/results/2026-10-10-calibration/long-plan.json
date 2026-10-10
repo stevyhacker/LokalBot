@@ -1,0 +1,24 @@
+{
+  "createdAtUTC": "2026-10-10T16:11:56.699464+00:00",
+  "cases": 32,
+  "rounds": 3,
+  "models": [
+    "baseline",
+    "luchador",
+    "gemma4_it",
+    "qwen3_base4",
+    "salamandra2",
+    "yugogpt7"
+  ],
+  "inputSHA256": "6574c685ac81aed4f2e8e07d8068f589092157242e4616f1a7cf5c426c7f6260",
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true
+  },
+  "purpose": "Latency stress only, with development cutoffs fixed; frequency is not matched on long contexts. Production context limits remain unchanged. First request in each document pair resets the native cache; the next shares its prefix.",
+  "timing": "Three serial counterbalanced rounds after primary timing, eight excluded warmups, load excluded. No simultaneous GPU, build or download work."
+}

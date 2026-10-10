@@ -1,0 +1,108 @@
+{
+  "commonShownCheckpoints": 324,
+  "widths": {
+    "1": {
+      "pooledTiming": {
+        "requests": 1800,
+        "meanMs": 41.53303704,
+        "p50Ms": 28.35875,
+        "p95Ms": 85.862125
+      },
+      "commonShownTiming": {
+        "requests": 972,
+        "meanMs": 58.84817795781893,
+        "p50Ms": 62.0125,
+        "p95Ms": 91.098958
+      },
+      "peakRSSGiB": [
+        3.88311767578125,
+        3.8831939697265625,
+        3.883636474609375
+      ],
+      "suppressionCounts": {
+        "lowConfidence": 276,
+        "shown": 324
+      },
+      "changedFromControl": 0,
+      "meanVisibleCharactersWhenShown": 14.805555555555555
+    },
+    "2": {
+      "pooledTiming": {
+        "requests": 1800,
+        "meanMs": 58.107610972222226,
+        "p50Ms": 73.755,
+        "p95Ms": 99.485875
+      },
+      "commonShownTiming": {
+        "requests": 972,
+        "meanMs": 85.08663514814815,
+        "p50Ms": 89.511958,
+        "p95Ms": 105.841375
+      },
+      "peakRSSGiB": [
+        3.92205810546875,
+        3.9225921630859375,
+        3.9220733642578125
+      ],
+      "suppressionCounts": {
+        "lowConfidence": 262,
+        "shown": 338
+      },
+      "changedFromControl": 161,
+      "meanVisibleCharactersWhenShown": 15.627218934911243,
+      "additionalShown": {
+        "count": 14,
+        "referenceMatches": 2
+      },
+      "search": {
+        "peakActiveHistogram": {
+          "1": 160,
+          "2": 440
+        },
+        "meanExpandedCandidates": 13.176666666666666,
+        "meanDecodedTokensIncludingPrefill": 12.578333333333333,
+        "checkpointsWithDuplicateNonemptyFinalists": 122
+      }
+    },
+    "4": {
+      "pooledTiming": {
+        "requests": 1800,
+        "meanMs": 66.9119693461111,
+        "p50Ms": 89.819042,
+        "p95Ms": 114.475084
+      },
+      "commonShownTiming": {
+        "requests": 972,
+        "meanMs": 98.49425269855968,
+        "p50Ms": 102.736541,
+        "p95Ms": 119.701458
+      },
+      "peakRSSGiB": [
+        3.9946746826171875,
+        3.99761962890625,
+        3.9978179931640625
+      ],
+      "suppressionCounts": {
+        "lowConfidence": 255,
+        "shown": 345
+      },
+      "changedFromControl": 190,
+      "meanVisibleCharactersWhenShown": 15.553623188405798,
+      "additionalShown": {
+        "count": 21,
+        "referenceMatches": 3
+      },
+      "search": {
+        "peakActiveHistogram": {
+          "1": 155,
+          "4": 322,
+          "2": 86,
+          "3": 37
+        },
+        "meanExpandedCandidates": 36.20166666666667,
+        "meanDecodedTokensIncludingPrefill": 17.43166666666667,
+        "checkpointsWithDuplicateNonemptyFinalists": 212
+      }
+    }
+  }
+}

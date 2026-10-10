@@ -1,0 +1,46 @@
+{
+  "createdAtUTC": "2026-10-10T17:44:37.530520+00:00",
+  "releaseBuild": "passed",
+  "focusedSwiftTests": {
+    "tests": 117,
+    "failed": 0
+  },
+  "finalChangedNativeClass": {
+    "tests": 6,
+    "failed": 0
+  },
+  "legacyAblation": {
+    "tests": 1,
+    "failedAsExpected": 1,
+    "assertion": "Complete usisivač instead of the malformed usig"
+  },
+  "pythonTests": {
+    "tests": 61,
+    "failed": 0
+  },
+  "swiftLint": "Full repository strict lint passed with --no-cache; initial cached attempt could not write sandboxed cache.",
+  "promptAndTraceParityRequests": 3456,
+  "timingRounds": 3,
+  "outputDrift": 0,
+  "allArmsEqualShown": 250,
+  "wordBoundaryOutputsChanged": 0,
+  "claudeBatchesComplete": 25,
+  "claudeModel": "claude-opus-5-5",
+  "finalSourceManifest": "provenance/final-source-manifest.json",
+  "logs": {
+    "python-tests.log": "5de5f09ec99a40c6766658195c7ee853e748d0e6e2dbb53add848888a18a82ab",
+    "ablation.log": "ed48742aee5ad25b5729c92b8f297856d54c67462303d3ad5a9df19b05cdbde4",
+    "tests-final.log": "ba9fcc9063fd1b86c7cd5340c5b9f2577208cf7aae2311b3eec3aa246372d477",
+    "tests.log": "4e893ca13264f3a71f1a269308d549f84e8036378bb441b1d727d8e626ce2748",
+    "lint-final-no-cache.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build.log": "e44497ff4d150f075d1514e4beaa7b0d5ad6c09f253130341f3ccea4e1a27030"
+  },
+  "installation": false,
+  "persistedDefaultsChanged": false,
+  "PRUpdated": false,
+  "CITouched": false,
+  "localUITestsRun": false,
+  "localDocumentLinksChecked": 25,
+  "diffWhitespaceCheck": "passed",
+  "experimentPythonCompilation": "passed"
+}

@@ -1,0 +1,539 @@
+{
+  "totals": {
+    "checkpoints": 600,
+    "shown": 345,
+    "selectedMatches": 189,
+    "oracleMatches": 206,
+    "missedOracleSelections": 17,
+    "duplicateNonemptyFinalists": 212,
+    "dedupTopOneChanges": 0,
+    "randomFinalistExpectedMatches": 189.08333333333331,
+    "referenceAvailableButControlSuppressed": 0
+  },
+  "scoreMarginBins": {
+    "0-0.05": {
+      "count": 152,
+      "referenceAgreement": 0.5526315789473685
+    },
+    "0.05-0.2": {
+      "count": 127,
+      "referenceAgreement": 0.47244094488188976
+    },
+    "0.2+": {
+      "count": 45,
+      "referenceAgreement": 0.7555555555555555
+    }
+  },
+  "visibleWordCountBins": {
+    "0": {
+      "count": 1,
+      "referenceAgreement": 0
+    },
+    "1": {
+      "count": 50,
+      "referenceAgreement": 0.68
+    },
+    "2": {
+      "count": 28,
+      "referenceAgreement": 0.6428571428571429
+    },
+    "3": {
+      "count": 43,
+      "referenceAgreement": 0.5581395348837209
+    },
+    "4": {
+      "count": 223,
+      "referenceAgreement": 0.5067264573991032
+    }
+  },
+  "firstWordProbabilityBins": {},
+  "missedSelections": [
+    {
+      "id": "public-word:science-073:5:0",
+      "selected": "pores called stomata.",
+      "candidates": [
+        "pores called stomata.",
+        "openings called stomata.",
+        "pores called stomata, which",
+        "openings called stomata, which"
+      ],
+      "scores": [
+        -0.48380475029981296,
+        -0.5711835413950958,
+        -0.719957472897155,
+        -0.7745293694367571
+      ],
+      "referenceFirstWord": "openings",
+      "tokenCounts": [
+        5,
+        5,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-word:science-135:3:0",
+      "selected": "number of neutrons but",
+      "candidates": [
+        "number of neutrons but",
+        "number of neutrons but",
+        "numbers of neutrons.",
+        "numbers of neutrons in"
+      ],
+      "scores": [
+        -0.655438450923849,
+        -0.6717189942933933,
+        -0.7549181203999256,
+        -0.8068776298925145
+      ],
+      "referenceFirstWord": "numbers",
+      "tokenCounts": [
+        7,
+        7,
+        4,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-word:entertainment-103:5:0",
+      "selected": "1 answer in our",
+      "candidates": [
+        "1 answer in our",
+        "one possible answer.",
+        "one answer in our",
+        "one answer."
+      ],
+      "scores": [
+        -0.4712205988501781,
+        -0.6226544502544196,
+        -0.6968867303567983,
+        -0.756471352230378
+      ],
+      "referenceFirstWord": "one",
+      "tokenCounts": [
+        7,
+        4,
+        6,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-word:work-073:6:0",
+      "selected": "be done, but I'm",
+      "candidates": [
+        "be done, but I'm",
+        "do on this, but",
+        "be done, but I've",
+        "be done on this,"
+      ],
+      "scores": [
+        -1.027540424805537,
+        -1.0593191784960325,
+        -1.0947957174255147,
+        -1.1211182065446468
+      ],
+      "referenceFirstWord": "do",
+      "tokenCounts": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-word:travel-037:4:0",
+      "selected": "for take-off.",
+      "candidates": [
+        "for take-off.",
+        "to take off.",
+        "for takeoff.",
+        "for take-off, but"
+      ],
+      "scores": [
+        -0.7056228499609205,
+        -0.8420852230645774,
+        -0.928408430927495,
+        -0.9756238431786309
+      ],
+      "referenceFirstWord": "to",
+      "tokenCounts": [
+        5,
+        4,
+        3,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-03:7:0",
+      "selected": "best for you.",
+      "candidates": [
+        "best for you.",
+        "for you."
+      ],
+      "scores": [
+        -0.33996818119099625,
+        -0.3504758715961387
+      ],
+      "referenceFirstWord": "for",
+      "tokenCounts": [
+        4,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-04:2:0",
+      "selected": "very much for your",
+      "candidates": [
+        "very much for your",
+        "very much for your",
+        "for your help.",
+        "very much for your"
+      ],
+      "scores": [
+        -1.0239499061145185,
+        -1.1233303317821364,
+        -1.1319181460230592,
+        -1.1809263311657574
+      ],
+      "referenceFirstWord": "for",
+      "tokenCounts": [
+        6,
+        6,
+        4,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-05:4:0",
+      "selected": "your feedback.",
+      "candidates": [
+        "your feedback.",
+        "your comments.",
+        "hearing your feedback.",
+        "your comments and suggestions."
+      ],
+      "scores": [
+        -0.6938199060035709,
+        -0.7487376268698872,
+        -0.8864207104517909,
+        -1.028806071315124
+      ],
+      "referenceFirstWord": "hearing",
+      "tokenCounts": [
+        3,
+        3,
+        4,
+        5
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-05:5:0",
+      "selected": "from you.",
+      "candidates": [
+        "from you.",
+        "your feedback.",
+        "from you soon.",
+        "your thoughts."
+      ],
+      "scores": [
+        -0.6089318111760988,
+        -0.713834054679713,
+        -0.7216745358245618,
+        -0.9636384408873463
+      ],
+      "referenceFirstWord": "your",
+      "tokenCounts": [
+        3,
+        3,
+        4,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-08:3:0",
+      "selected": "an eye on the",
+      "candidates": [
+        "an eye on the",
+        "an eye on it",
+        "an eye on it.",
+        "you posted on the"
+      ],
+      "scores": [
+        -0.8605319391618771,
+        -0.8646841162030812,
+        -0.883264145500928,
+        -1.0190825687242697
+      ],
+      "referenceFirstWord": "you",
+      "tokenCounts": [
+        7,
+        7,
+        5,
+        6
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-formatting-03:4:0",
+      "selected": "up from sleep",
+      "candidates": [
+        "up from sleep",
+        "up from sleep",
+        "from sleep",
+        "up from sleep"
+      ],
+      "scores": [
+        -0.8253993631524962,
+        -0.9517341369637425,
+        -0.9919410159086363,
+        -1.0470198250915328
+      ],
+      "referenceFirstWord": "from",
+      "tokenCounts": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-formatting-06:5:0",
+      "selected": "values",
+      "candidates": [
+        "values",
+        "prices",
+        "values",
+        "prices"
+      ],
+      "scores": [
+        -0.6338705449049742,
+        -0.7305501312881303,
+        -0.8420573152520439,
+        -0.893420648187375
+      ],
+      "referenceFirstWord": "prices",
+      "tokenCounts": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-midword:conversation-092:1:1",
+      "selected": "o to the following",
+      "candidates": [
+        "o to the following",
+        "o to the following",
+        "ive me your opinion",
+        "o to the following"
+      ],
+      "scores": [
+        -1.76655862353202,
+        -1.7842381121724233,
+        -1.8004804865355257,
+        -1.8196712002025575
+      ],
+      "referenceFirstWord": "give",
+      "tokenCounts": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-midword:conversation-138:2:1",
+      "selected": "t short and sweet.",
+      "candidates": [
+        "t short and sweet.",
+        "n mind that Nora",
+        "t short and sweet:",
+        "t short and sweet:"
+      ],
+      "scores": [
+        -1.380979702754228,
+        -1.5671269813424717,
+        -1.6133573499563825,
+        -1.6346327340419013
+      ],
+      "referenceFirstWord": "in",
+      "tokenCounts": [
+        5,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-midword:work-178:1:1",
+      "selected": "nswer your questions in",
+      "candidates": [
+        "nswer your questions in",
+        "nswer your questions in",
+        "dd this to the",
+        "ssume that you're using"
+      ],
+      "scores": [
+        -1.4360737036296958,
+        -1.4410907911686621,
+        -1.5298598431660382,
+        -1.5337677110674275
+      ],
+      "referenceFirstWord": "add",
+      "tokenCounts": [
+        7,
+        7,
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-midword:technology-124:2:2",
+      "selected": "kes sense to me,",
+      "candidates": [
+        "kes sense to me,",
+        "y not be what",
+        "kes sense to me.",
+        "kes sense, but I'm"
+      ],
+      "scores": [
+        -1.6655796077543674,
+        -1.7571298217762343,
+        -1.7577682370366283,
+        -1.7649430660956205
+      ],
+      "referenceFirstWord": "may",
+      "tokenCounts": [
+        7,
+        7,
+        5,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-midword:technology-150:5:1",
+      "selected": "ayout, so that it",
+      "candidates": [
+        "ayout, so that it",
+        "abel for the search",
+        "abel for the search",
+        "abel for the search"
+      ],
+      "scores": [
+        -1.9462991307254767,
+        -2.2456513550469435,
+        -2.2537877452646167,
+        -2.2547871288295256
+      ],
+      "referenceFirstWord": "label",
+      "tokenCounts": [
+        7,
+        6,
+        6,
+        6
+      ],
+      "healingTokenCounts": [
+        1,
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "interpretation": "Descriptive only. Oracle is unattainable without future reference access. Random expectation samples nonempty finalists uniformly, including duplicates. Bins are fixed, not tuned. First-word gate is disabled midword. Suppressed candidates were pruned, so their alternatives cannot be reconstructed.",
+  "missingDiagnostics": []
+}

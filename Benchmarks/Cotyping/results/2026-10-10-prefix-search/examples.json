@@ -1,0 +1,276 @@
+[
+  {
+    "id": "fresh-sr_latn-04-10-3",
+    "label": "Correct verb form",
+    "prefix": "Moj ujak čuva malu svesku sa imenima ptica koje je vid",
+    "results": {
+      "baseline-control": {
+        "insertion": "o u prirodi.",
+        "joined": "Moj ujak čuva malu svesku sa imenima ptica koje je vido u prirodi.",
+        "judge": {
+          "id": "o3",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "Creates the non-word \"vido\"."
+        }
+      },
+      "baseline-fixed": {
+        "insertion": "eo u prirodi.",
+        "joined": "Moj ujak čuva malu svesku sa imenima ptica koje je video u prirodi.",
+        "judge": {
+          "id": "o2",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Correct ekavian \"video u prirodi\"; natural and complete."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-sr_latn-09-8-4",
+    "label": "Both models repair a broken noun",
+    "prefix": "Obećao sam da ću pomoći rođaki da unese kuti",
+    "results": {
+      "baseline-control": {
+        "insertion": "čnu kućicu u",
+        "joined": "Obećao sam da ću pomoći rođaki da unese kutičnu kućicu u",
+        "judge": {
+          "id": "o3",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'Kutičnu' is not a word; the tail is broken."
+        }
+      },
+      "baseline-fixed": {
+        "insertion": "ju u kuću.",
+        "joined": "Obećao sam da ću pomoći rođaki da unese kutiju u kuću.",
+        "judge": {
+          "id": "o2",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Unese kutiju u kuću' is natural and grammatical."
+        }
+      },
+      "luchador-control": {
+        "insertion": "lj.",
+        "joined": "Obećao sam da ću pomoći rođaki da unese kutilj.",
+        "judge": {
+          "id": "o4",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'Kutilj' is not a valid word."
+        }
+      },
+      "luchador-fixed": {
+        "insertion": "je u kamion.",
+        "joined": "Obećao sam da ću pomoći rođaki da unese kutije u kamion.",
+        "judge": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Kutije' is good; 'unese u kamion' is plausible but slightly unusual."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-sr_latn-12-11-3",
+    "label": "Correct grammatical case",
+    "prefix": "Ostavio sam činiju sveže vode u hladu za mačku koja luta uli",
+    "results": {
+      "luchador-control": {
+        "insertion": "ca.",
+        "joined": "Ostavio sam činiju sveže vode u hladu za mačku koja luta ulica.",
+        "judge": {
+          "id": "o1",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'luta ulica' is the wrong case; ungrammatical."
+        }
+      },
+      "luchador-fixed": {
+        "insertion": "com.",
+        "joined": "Ostavio sam činiju sveže vode u hladu za mačku koja luta ulicom.",
+        "judge": {
+          "id": "o2",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'luta ulicom' is grammatical and natural."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-sr_latn-11-6-6",
+    "label": "Finish the typed word before continuing",
+    "prefix": "Mali muzej ima zbirku mapa koje pokazu",
+    "results": {
+      "baseline-control": {
+        "insertion": " kako je izgledao grad",
+        "joined": "Mali muzej ima zbirku mapa koje pokazu kako je izgledao grad",
+        "judge": {
+          "id": "o1",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "Leading space leaves 'pokazu' unfinished; it should be 'pokazuju'."
+        }
+      },
+      "baseline-fixed": {
+        "insertion": "ju kako je izgledao",
+        "joined": "Mali muzej ima zbirku mapa koje pokazuju kako je izgledao",
+        "judge": {
+          "id": "o2",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Correctly completes 'pokazuju' and adds a natural phrase."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-en-04-10-3",
+    "label": "English also improves",
+    "prefix": "My uncle keeps a small notebook with the names of bir",
+    "results": {
+      "baseline-control": {
+        "insertion": "thed in the family.",
+        "joined": "My uncle keeps a small notebook with the names of birthed in the family.",
+        "judge": {
+          "id": "o1",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'names of birthed' is ungrammatical."
+        }
+      },
+      "baseline-fixed": {
+        "insertion": "ds he has seen",
+        "joined": "My uncle keeps a small notebook with the names of birds he has seen",
+        "judge": {
+          "id": "o3",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'birds he has seen' is natural and fits the context."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-sr_latn-26-11-6",
+    "label": "Serbian regression",
+    "prefix": "Sažetak treba da navede glavnu odluku pre nego što nabroji preostala otvore",
+    "results": {
+      "baseline-control": {
+        "insertion": "na pitanja.",
+        "joined": "Sažetak treba da navede glavnu odluku pre nego što nabroji preostala otvorena pitanja.",
+        "judge": {
+          "id": "o1",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'otvorena pitanja' is the correct, natural completion."
+        }
+      },
+      "baseline-fixed": {
+        "insertion": "nija pitanja.",
+        "joined": "Sažetak treba da navede glavnu odluku pre nego što nabroji preostala otvorenija pitanja.",
+        "judge": {
+          "id": "o2",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'otvorenija' is the wrong form and makes no sense here."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-en-10-5-5",
+    "label": "English regression",
+    "prefix": "We need to buy a longe",
+    "results": {
+      "luchador-control": {
+        "insertion": "r rope.",
+        "joined": "We need to buy a longer rope.",
+        "judge": {
+          "id": "o2",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'longer rope.' is a natural, complete continuation."
+        }
+      },
+      "luchador-fixed": {
+        "insertion": "t for a chicken.",
+        "joined": "We need to buy a longet for a chicken.",
+        "judge": {
+          "id": "o3",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'longet' is a non-word, and the chicken phrase makes no sense."
+        }
+      }
+    }
+  },
+  {
+    "id": "fresh-sr_latn-00-5-2",
+    "label": "Remaining failure",
+    "prefix": "Pumpa za bicikl visi pored al",
+    "results": {
+      "luchador-control": {
+        "insertion": "be.",
+        "joined": "Pumpa za bicikl visi pored albe.",
+        "judge": {
+          "id": "o2",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'albe' is not a sensible word here."
+        }
+      },
+      "luchador-fixed": {
+        "insertion": "be.",
+        "joined": "Pumpa za bicikl visi pored albe.",
+        "judge": {
+          "id": "o2",
+          "utility": -2,
+          "first_word": 0,
+          "flags": [
+            "malformed"
+          ],
+          "reason": "'albe' is not a sensible word here."
+        }
+      }
+    }
+  }
+]

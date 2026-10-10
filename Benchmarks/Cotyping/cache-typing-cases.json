@@ -1,0 +1,21 @@
+{
+  "description": "Original synthetic dynamic traces frozen before cache evaluation; no personal writing. First four are development, remaining twelve held out.",
+  "phrases": [
+    {"id":"dev-english", "split":"development", "text":"We should schedule another meeting for next Thursday."},
+    {"id":"dev-serbian", "split":"development", "text":"Molim te pripremi kratak pregled rezultata za sutra."},
+    {"id":"dev-punctuation", "split":"development", "text":"Please review Nora’s proposal before the deadline."},
+    {"id":"dev-long", "split":"development", "text":"The team expects another update after the review.", "longContext":true},
+    {"id":"test-planning", "split":"heldout", "text":"We can arrange a shorter call on Tuesday morning."},
+    {"id":"test-science", "split":"heldout", "text":"The sample contains several different mineral compounds."},
+    {"id":"test-travel", "split":"heldout", "text":"Our train arrives at the central station before noon."},
+    {"id":"test-email", "split":"heldout", "text":"Please send updated estimates before our next meeting."},
+    {"id":"test-serbian", "split":"heldout", "text":"Možemo li proveriti poslednju verziju dokumenta danas?"},
+    {"id":"test-cyrillic", "split":"heldout", "text":"Молим те провери белешке пре следећег састанка."},
+    {"id":"test-accent", "split":"heldout", "text":"Nous pouvons préparer une réponse pour demain matin."},
+    {"id":"test-unicode", "split":"heldout", "text":"The café welcomes visitors from across the city ☕."},
+    {"id":"test-format", "split":"heldout", "text":"The release includes three fixes: caching, timing, and layout."},
+    {"id":"test-thanks", "split":"heldout", "text":"Thank you again for taking the time to review this."},
+    {"id":"test-long-a", "split":"heldout", "text":"The summary covers several decisions from the workshop.", "longContext":true},
+    {"id":"test-long-b", "split":"heldout", "text":"Next week brings another opportunity to test the changes.", "longContext":true}
+  ]
+}

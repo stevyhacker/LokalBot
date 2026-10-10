@@ -1,0 +1,2354 @@
+{
+  "availableSpellingLanguages" : [
+    "ar",
+    "ars",
+    "bg",
+    "cs",
+    "da",
+    "de",
+    "el",
+    "en",
+    "en_AU",
+    "en_CA",
+    "en_GB",
+    "en_IN",
+    "en_JP",
+    "en_NZ",
+    "en_PH",
+    "en_SG",
+    "en_ZA",
+    "es",
+    "fi",
+    "fr",
+    "ga",
+    "he",
+    "hi",
+    "hu",
+    "id",
+    "is",
+    "it",
+    "ko",
+    "lt",
+    "nb",
+    "nl",
+    "nn",
+    "pa",
+    "pl",
+    "pt_BR",
+    "pt_PT",
+    "ro",
+    "ru",
+    "sl",
+    "sv",
+    "te",
+    "tr",
+    "uk",
+    "vi"
+  ],
+  "cases" : [
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-00-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bicycle pump is hanging ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-00-7-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bicycle pump is hanging beside the to",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-00-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bicycle pump is hanging beside the tools in the small gar",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-00-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pumpa za bicikl visi ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-00-5-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pumpa za bicikl visi pored al",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-00-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pumpa za bicikl visi pored alata u maloj šupi iza baš",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-01-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I forgot to charge my ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-01-7-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I forgot to charge my headphones before lea",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-01-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I forgot to charge my headphones before leaving for the long bus jour",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-01-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Zaboravio sam da napunim ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-01-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Zaboravio sam da napunim slušalice pre pol",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-01-9-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Zaboravio sam da napunim slušalice pre polaska na dugo puto",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-02-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We covered the outdoor table ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-02-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We covered the outdoor table because the fore",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-02-10-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We covered the outdoor table because the forecast mentioned rain durin",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-02-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pokrili smo sto u ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-02-7-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pokrili smo sto u dvorištu jer je prog",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-02-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pokrili smo sto u dvorištu jer je prognoza najavila kišu toko",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-03-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bakery on the corner ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-03-6-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bakery on the corner opens earlie",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-03-9-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bakery on the corner opens earlier than the su",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-03-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pekara na uglu otvara se ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-03-7-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pekara na uglu otvara se ranije od superm",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-03-11-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pekara na uglu otvara se ranije od supermarketa koji se nalazi po",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-04-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "My uncle keeps a small ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-04-8-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "My uncle keeps a small notebook with the na",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-04-10-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "My uncle keeps a small notebook with the names of bir",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-04-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moj ujak čuva malu ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-04-6-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moj ujak čuva malu svesku sa im",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-04-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moj ujak čuva malu svesku sa imenima ptica koje je vid",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-05-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The kettle turns itself off ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-05-9-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The kettle turns itself off as soon as the wat",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-05-10-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The kettle turns itself off as soon as the water star",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-05-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Čajnik se sam isključuje ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-05-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Čajnik se sam isključuje čim voda poč",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-05-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Čajnik se sam isključuje čim voda počne da ključa u njem",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-06-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We took the dog for ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-06-8-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We took the dog for a short walk befo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-06-11-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We took the dog for a short walk before the guests arrive",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-06-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Izveli smo psa u kratku ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-06-5-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Izveli smo psa u kratku šetn",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-06-11-5",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Izveli smo psa u kratku šetnju pre nego što su gosti stigl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-07-4-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please put the clean ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-07-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please put the clean towels on the shel",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-07-10-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please put the clean towels on the shelf above the wa",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-07-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te stavi čiste ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-07-6-5",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te stavi čiste peškire na polic",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-07-10-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te stavi čiste peškire na policu iznad mašine za pr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-08-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The path through the forest ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-08-7-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The path through the forest becomes muddy af",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-08-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The path through the forest becomes muddy after several days of hea",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-08-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Staza kroz šumu postaje ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-08-6-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Staza kroz šumu postaje blatnjava posle ne",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-08-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Staza kroz šumu postaje blatnjava posle nekoliko dana jake i nep",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-09-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I promised to help my ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-09-6-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I promised to help my cousin car",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-09-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I promised to help my cousin carry the boxes into her new apar",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-09-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Obećao sam da ću ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-09-7-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Obećao sam da ću pomoći rođaki da une",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-09-8-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Obećao sam da ću pomoći rođaki da unese kuti",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-10-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to buy a ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-10-5-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to buy a longe",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-10-6-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to buy a longer cabl",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-10-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da kupimo duži kabl ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-10-6-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da kupimo duži kabl ako želi",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-10-11-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da kupimo duži kabl ako želimo da pomerimo lampu na drug",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-11-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The small museum has a ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-11-8-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The small museum has a collection of maps showin",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-11-12-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The small museum has a collection of maps showing how the town de",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-11-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Mali muzej ima zbirku ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-11-6-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Mali muzej ima zbirku mapa koje pokazu",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-11-10-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Mali muzej ima zbirku mapa koje pokazuju kako se grad ra",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-12-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I left a bowl of ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-12-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I left a bowl of fresh wa",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-12-12-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I left a bowl of fresh water in the shade for the str",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-12-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Ostavio sam činiju sveže ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-12-6-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Ostavio sam činiju sveže vode u hl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-12-11-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Ostavio sam činiju sveže vode u hladu za mačku koja luta uli",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-13-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should measure the doorway ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-13-8-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should measure the doorway before ordering a lar",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-13-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should measure the doorway before ordering a larger sofa for the livi",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-13-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da izmerimo ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-13-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da izmerimo vrata pre nar",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-13-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da izmerimo vrata pre naručivanja većeg kauča za dnev",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-14-3-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The tomatoes taste bette",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-14-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The tomatoes taste better when ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-14-10-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The tomatoes taste better when they have been left to ripe",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-14-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Paradajz ima bolji ukus ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-14-6-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Paradajz ima bolji ukus kada ga osta",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-14-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Paradajz ima bolji ukus kada ga ostavimo da sazri na sunc",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-15-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Our neighbor offered us a ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-15-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Our neighbor offered us a basket of pear",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-15-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Our neighbor offered us a basket of pears from the tree be",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-15-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Komšinica nam je ponudila korpu ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-15-7-5",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Komšinica nam je ponudila korpu krušaka sa drvet",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-15-11-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Komšinica nam je ponudila korpu krušaka sa drveta koje raste iza nj",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-16-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The wooden floor makes a ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-16-7-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The wooden floor makes a soft creaking so",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-16-10-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The wooden floor makes a soft creaking sound whenever someone wal",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-16-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Drveni pod tiho škripi ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-16-8-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Drveni pod tiho škripi svaki put kada neko pr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-16-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Drveni pod tiho škripi svaki put kada neko prođe pored vel",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-17-4-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I would like to lea",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-17-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I would like to learn ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-17-11-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I would like to learn how to make the soup we trie",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-17-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Voleo bih da naučim ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-17-5-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Voleo bih da naučim da spr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-17-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Voleo bih da naučim da spremam supu koju smo probali proš",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-18-4-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The hotel receptionist suggested ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-18-6-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The hotel receptionist suggested visiting the mark",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-18-10-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The hotel receptionist suggested visiting the market before the afternoon crowd",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-18-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Recepcioner je predložio da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-18-5-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Recepcioner je predložio da obiđemo pija",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-18-10-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Recepcioner je predložio da obiđemo pijacu pre nego što počnu popodn",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-19-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We hung the wet coats ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-19-7-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We hung the wet coats near the heate",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-19-10-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We hung the wet coats near the heater and made ev",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-19-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Okačili smo mokre kapute ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-19-5-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Okačili smo mokre kapute blizu grejal",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-19-9-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Okačili smo mokre kapute blizu grejalice i svima pripremili to",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-20-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bus stopped near the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-20-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bus stopped near the library be",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-20-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The bus stopped near the library because the main square was clo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-20-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Autobus je stao pored biblioteke ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-20-7-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Autobus je stao pored biblioteke jer je gl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-20-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Autobus je stao pored biblioteke jer je glavni trg bio zat",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-21-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I found an old postcard ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-21-8-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I found an old postcard tucked inside the cov",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-21-11-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "I found an old postcard tucked inside the cover of the fami",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-21-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pronašao sam staru razglednicu ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-21-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pronašao sam staru razglednicu zavučenu u kor",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-21-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pronašao sam staru razglednicu zavučenu u korice porodičnog albuma sa foto",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-22-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We planted the new flowers ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-22-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We planted the new flowers along the fenc",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-22-11-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We planted the new flowers along the fence where they get plent",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-22-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Posadili smo novo cveće uz ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-22-7-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Posadili smo novo cveće uz ogradu gde toko",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-22-11-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Posadili smo novo cveće uz ogradu gde tokom dana ima dosta sunčev",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-23-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please remind me to switch ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-23-7-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please remind me to switch off the hallwa",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-23-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please remind me to switch off the hallway light before we le",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-23-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te podseti me da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-23-8-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te podseti me da ugasim svetlo u hodnik",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-23-12-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te podseti me da ugasim svetlo u hodniku pre nego što iz",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-24-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The settings page should explain ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-24-7-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The settings page should explain how long de",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-24-12-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The settings page should explain how long deleted items remain in the tra",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-24-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Stranica sa podešavanjima treba da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-24-6-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Stranica sa podešavanjima treba da objasni ko",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-24-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Stranica sa podešavanjima treba da objasni koliko dugo obrisane stavke ost",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-25-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to identify which ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-25-6-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to identify which change cau",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-25-11-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We need to identify which change caused the sudden increase in load",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-25-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da utvrdimo koja ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-25-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da utvrdimo koja izmena je iza",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-25-9-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Moramo da utvrdimo koja izmena je izazvala naglo povećanje vrem",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-26-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The summary should mention the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-26-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The summary should mention the main decision befo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-26-10-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The summary should mention the main decision before listing the remain",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-26-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Sažetak treba da navede glavnu ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-26-5-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Sažetak treba da navede glavnu odlu",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-26-11-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Sažetak treba da navede glavnu odluku pre nego što nabroji preostala otvore",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-27-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please confirm that the keyboard ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-27-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please confirm that the keyboard shortcut still work",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-27-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please confirm that the keyboard shortcut still works after closing the se",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-27-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te potvrdi da prečica ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-27-8-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te potvrdi da prečica na tastaturi i dalj",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-27-12-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te potvrdi da prečica na tastaturi i dalje radi nakon zatvaranja pa",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-28-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The list should keep its ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-28-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The list should keep its current po",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-28-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The list should keep its current position when a new item app",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-28-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Lista treba da zadrži trenutni ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-28-5-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Lista treba da zadrži trenutni po",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-28-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Lista treba da zadrži trenutni položaj kada se nova stavka poj",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-29-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should document the limitation ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-29-6-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should document the limitation before inv",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-29-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should document the limitation before inviting more people to try the feat",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-29-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da opišemo ograničenje ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-29-8-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da opišemo ograničenje pre nego što poz",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-29-12-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi da opišemo ograničenje pre nego što pozovemo još ljudi da ispr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-30-4-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The export button should ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-30-6-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The export button should remain unavailable unti",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-30-9-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The export button should remain unavailable until the background prepar",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-30-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dugme za izvoz treba da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-30-6-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dugme za izvoz treba da ostane nedo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-30-11-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dugme za izvoz treba da ostane nedostupno dok se ne završi pripre",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-31-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please include a clear description ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-31-7-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please include a clear description of the expect",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-31-12-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please include a clear description of the expected behavior in the bug re",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-31-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te uključi jasan ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-31-6-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te uključi jasan opis očekivanog ponaša",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-31-9-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te uključi jasan opis očekivanog ponašanja u prijavu gr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-32-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The invitation should display the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-32-7-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The invitation should display the organizer's name al",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-32-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The invitation should display the organizer's name alongside the time and mee",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-32-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pozivnica treba da prikaže ime ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-32-7-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pozivnica treba da prikaže ime organizatora pored vr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-32-12-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pozivnica treba da prikaže ime organizatora pored vremena sastanka i veze za pri",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-33-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We noticed that the first ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-33-7-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We noticed that the first request is slo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-33-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We noticed that the first request is slower than the requests that foll",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-33-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Primetili smo da je prvi ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-33-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Primetili smo da je prvi zahtev spo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-33-11-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Primetili smo da je prvi zahtev sporiji od zahteva koji dolaze posl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-34-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The chart would be easier ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-34-6-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The chart would be easier to unde",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-34-10-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The chart would be easier to understand if the labels explai",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-34-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Grafikon bi bio razumljiviji ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-34-6-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Grafikon bi bio razumljiviji kada bi ozna",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-34-10-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Grafikon bi bio razumljiviji kada bi oznake jasno objašnjavale svaku prikaz",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-35-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please keep the original order ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-35-7-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please keep the original order of the column",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-35-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please keep the original order of the columns when saving the ed",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-35-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te zadrži prvobitni ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-35-5-5",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te zadrži prvobitni redosled kolon",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-35-9-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te zadrži prvobitni redosled kolona kada budeš čuvao iz",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-36-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The application should restore the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-36-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The application should restore the previous se",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-36-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The application should restore the previous selection when the dialog is ope",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-36-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Aplikacija treba da vrati ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-36-5-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Aplikacija treba da vrati prethodni iz",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-36-9-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Aplikacija treba da vrati prethodni izbor kada se prozor pon",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-37-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We agreed to remove the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-37-7-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We agreed to remove the confusing option unt",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-37-12-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We agreed to remove the confusing option until we can explain its purp",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-37-6-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dogovorili smo se da uklonimo zbunjujuću ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-37-9-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dogovorili smo se da uklonimo zbunjujuću opciju dok ne bud",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-37-13-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dogovorili smo se da uklonimo zbunjujuću opciju dok ne budemo mogli jasno da obja",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-38-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The document contains several repeated ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-38-9-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The document contains several repeated paragraphs that can be comb",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-38-12-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The document contains several repeated paragraphs that can be combined into a shorte",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-38-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dokument sadrži nekoliko ponovljenih pasusa ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-38-9-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dokument sadrži nekoliko ponovljenih pasusa koji mogu da se spoj",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-38-11-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Dokument sadrži nekoliko ponovljenih pasusa koji mogu da se spoje u krać",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-39-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please check whether the new ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-39-7-5",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please check whether the new layout leaves enoug",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-39-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please check whether the new layout leaves enough room for longer tr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-39-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te proveri da li ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-39-7-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te proveri da li novi raspored ostavl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-39-12-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te proveri da li novi raspored ostavlja dovoljno mesta za duže pr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-40-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The confirmation message should appear ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-40-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The confirmation message should appear only af",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-40-11-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The confirmation message should appear only after the file has been sav",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-40-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Poruka o potvrdi treba da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-40-8-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Poruka o potvrdi treba da se pojavi tek na",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-40-11-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Poruka o potvrdi treba da se pojavi tek nakon što je dat",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-41-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should test the connection ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-41-6-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should test the connection again aft",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-41-10-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We should test the connection again after the network administrator upda",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-41-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi ponovo da ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-41-6-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi ponovo da proverimo vezu nak",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-41-10-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Trebalo bi ponovo da proverimo vezu nakon što administrator mreže ažur",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-42-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The final report needs a ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-42-6-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The final report needs a short expl",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-42-10-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The final report needs a short explanation of how the measur",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-42-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Konačni izveštaj treba da sadrži ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-42-7-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Konačni izveštaj treba da sadrži kratko objašnjenje nači",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-42-11-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Konačni izveštaj treba da sadrži kratko objašnjenje načina na koji su prikup",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-43-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please let the support team ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-43-8-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please let the support team know when the correc",
+      "wordPrefixIsValidWord" : false
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-43-11-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please let the support team know when the corrected version becomes av",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-43-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te obavesti tim za ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-43-7-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te obavesti tim za podršku kada isprav",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-43-10-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te obavesti tim za podršku kada ispravljena verzija postane do",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-44-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The preview looked correct but ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-44-6-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The preview looked correct but the pr",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-44-9-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The preview looked correct but the printed copy was mis",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-44-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pregled je izgledao ispravno ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-44-7-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pregled je izgledao ispravno ali je u od",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-44-10-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Pregled je izgledao ispravno ali je u odštampanom primerku nedostajala pos",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-45-4-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We can reduce the ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-45-6-3",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We can reduce the number of int",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-45-10-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "We can reduce the number of interruptions by grouping related noti",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-45-6-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Možemo da smanjimo broj prekida tako ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-45-8-3",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Možemo da smanjimo broj prekida tako što ćemo pov",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-45-12-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Možemo da smanjimo broj prekida tako što ćemo povezati obaveštenja koja se odno",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-46-4-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The new colleague asked ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-46-7-4",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The new colleague asked where we keep exam",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-46-10-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "The new colleague asked where we keep examples of previously comple",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-46-4-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Novi kolega je pitao ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-46-6-4",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Novi kolega je pitao gde čuvamo prim",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-46-10-5",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Novi kolega je pitao gde čuvamo primere projekata koje smo ranij",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-47-5-0",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please separate the observed facts ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-47-6-6",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please separate the observed facts from assump",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-en-47-12-2",
+      "nativeSpellVerdictsApply" : true,
+      "prefix" : "Please separate the observed facts from assumptions that still need to be ch",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-47-5-0",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te odvoji utvrđene činjenice ",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-47-6-6",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te odvoji utvrđene činjenice od pretpo",
+      "wordPrefixIsValidWord" : true
+    },
+    {
+      "appName" : "Notes",
+      "bundleID" : "com.apple.Notes",
+      "id" : "fresh-sr_latn-47-12-2",
+      "nativeSpellVerdictsApply" : false,
+      "prefix" : "Molim te odvoji utvrđene činjenice od pretpostavki koje još treba da se pr",
+      "wordPrefixIsValidWord" : true
+    }
+  ]
+}

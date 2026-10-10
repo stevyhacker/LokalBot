@@ -1,0 +1,332 @@
+{
+  "screen": {
+    "n": 320,
+    "policy": "Known-language model choice: English Luchador, Serbian installed Gemma hybrid. Not an implemented router.",
+    "arms": {
+      "baseline": {
+        "meanUtility": 0.603125,
+        "useful": 159,
+        "poor": 31,
+        "deltaVsInstalled": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 64,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "ties": 320,
+        "losses": 0,
+        "flags": {
+          "awkward": 19,
+          "arbitrary_specificity": 9,
+          "minimal_value": 19,
+          "malformed": 15,
+          "repetition": 2
+        },
+        "languages": {
+          "en": {
+            "n": 240,
+            "useful": 128,
+            "poor": 21,
+            "meanUtility": 0.675,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 48,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 80,
+            "useful": 31,
+            "poor": 10,
+            "meanUtility": 0.3875,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 16,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "luchador": {
+        "meanUtility": 0.946875,
+        "useful": 218,
+        "poor": 27,
+        "deltaVsInstalled": {
+          "mean": 0.34375,
+          "low95": 0.165625,
+          "high95": 0.503125,
+          "phrases": 64,
+          "resamples": 5000
+        },
+        "wins": 129,
+        "ties": 132,
+        "losses": 59,
+        "flags": {
+          "minimal_value": 15,
+          "awkward": 17,
+          "arbitrary_specificity": 5,
+          "repetition": 1,
+          "malformed": 17,
+          "language_switch": 4,
+          "script_switch": 1
+        },
+        "languages": {
+          "en": {
+            "n": 240,
+            "useful": 184,
+            "poor": 7,
+            "meanUtility": 1.1458333333333333,
+            "deltaVsInstalled": {
+              "mean": 0.4708333333333333,
+              "low95": 0.31666666666666665,
+              "high95": 0.6125,
+              "phrases": 48,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 80,
+            "useful": 34,
+            "poor": 20,
+            "meanUtility": 0.35,
+            "deltaVsInstalled": {
+              "mean": -0.0375,
+              "low95": -0.5125,
+              "high95": 0.4375,
+              "phrases": 16,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "language_choice": {
+        "meanUtility": 0.95625,
+        "useful": 215,
+        "poor": 17,
+        "deltaVsInstalled": {
+          "mean": 0.353125,
+          "low95": 0.234375,
+          "high95": 0.46875,
+          "phrases": 64,
+          "resamples": 5000
+        },
+        "wins": 105,
+        "ties": 180,
+        "losses": 35,
+        "flags": {
+          "minimal_value": 18,
+          "awkward": 16,
+          "arbitrary_specificity": 6,
+          "repetition": 1,
+          "malformed": 8,
+          "language_switch": 1
+        },
+        "languages": {
+          "en": {
+            "n": 240,
+            "useful": 184,
+            "poor": 7,
+            "meanUtility": 1.1458333333333333,
+            "deltaVsInstalled": {
+              "mean": 0.4708333333333333,
+              "low95": 0.31666666666666665,
+              "high95": 0.6125,
+              "phrases": 48,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 80,
+            "useful": 31,
+            "poor": 10,
+            "meanUtility": 0.3875,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 16,
+              "resamples": 5000
+            }
+          }
+        }
+      }
+    },
+    "finalistVsOriginal": {
+      "mean": 0.40625,
+      "low95": 0.23125,
+      "high95": 0.5625,
+      "phrases": 64,
+      "resamples": 5000
+    }
+  },
+  "confirmation": {
+    "n": 160,
+    "policy": "Known-language model choice: English Luchador, Serbian installed Gemma hybrid. Not an implemented router.",
+    "arms": {
+      "baseline": {
+        "meanUtility": 0.63125,
+        "useful": 84,
+        "poor": 19,
+        "deltaVsInstalled": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "ties": 160,
+        "losses": 0,
+        "flags": {
+          "repetition": 8,
+          "awkward": 11,
+          "malformed": 6,
+          "arbitrary_specificity": 5,
+          "minimal_value": 10,
+          "language_switch": 2
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 67,
+            "poor": 10,
+            "meanUtility": 0.7333333333333333,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 17,
+            "poor": 9,
+            "meanUtility": 0.325,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "luchador": {
+        "meanUtility": 1.00625,
+        "useful": 109,
+        "poor": 15,
+        "deltaVsInstalled": {
+          "mean": 0.375,
+          "low95": 0.15,
+          "high95": 0.6,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 67,
+        "ties": 64,
+        "losses": 29,
+        "flags": {
+          "minimal_value": 8,
+          "awkward": 8,
+          "repetition": 3,
+          "malformed": 9,
+          "language_switch": 1
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 90,
+            "poor": 5,
+            "meanUtility": 1.175,
+            "deltaVsInstalled": {
+              "mean": 0.44166666666666665,
+              "low95": 0.18333333333333332,
+              "high95": 0.6833333333333333,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 19,
+            "poor": 10,
+            "meanUtility": 0.5,
+            "deltaVsInstalled": {
+              "mean": 0.175,
+              "low95": -0.325,
+              "high95": 0.65,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      },
+      "language_choice": {
+        "meanUtility": 0.9625,
+        "useful": 107,
+        "poor": 14,
+        "deltaVsInstalled": {
+          "mean": 0.33125,
+          "low95": 0.1375,
+          "high95": 0.53125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 53,
+        "ties": 90,
+        "losses": 17,
+        "flags": {
+          "minimal_value": 8,
+          "awkward": 9,
+          "repetition": 4,
+          "malformed": 5,
+          "language_switch": 2
+        },
+        "languages": {
+          "en": {
+            "n": 120,
+            "useful": 90,
+            "poor": 5,
+            "meanUtility": 1.175,
+            "deltaVsInstalled": {
+              "mean": 0.44166666666666665,
+              "low95": 0.18333333333333332,
+              "high95": 0.6833333333333333,
+              "phrases": 24,
+              "resamples": 5000
+            }
+          },
+          "sr": {
+            "n": 40,
+            "useful": 17,
+            "poor": 9,
+            "meanUtility": 0.325,
+            "deltaVsInstalled": {
+              "mean": 0,
+              "low95": 0.0,
+              "high95": 0.0,
+              "phrases": 8,
+              "resamples": 5000
+            }
+          }
+        }
+      }
+    },
+    "finalistVsOriginal": {
+      "mean": 0.45625,
+      "low95": 0.225,
+      "high95": 0.69375,
+      "phrases": 32,
+      "resamples": 5000
+    }
+  }
+}

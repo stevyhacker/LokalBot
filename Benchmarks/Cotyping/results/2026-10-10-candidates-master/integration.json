@@ -1,0 +1,17 @@
+{
+  "gitHEAD": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "previousBase": "32381e9f8e8137c95d1b94984549a62cdb004aab",
+  "includedPRs": [
+    228,
+    229
+  ],
+  "integration": "Fast-forwarded detached worktree to origin/master, then restored the experiment with both replay paths combined. Native candidate modes are rejected for remote engines before inference.",
+  "priorResults": "../2026-10-10-candidates/REPORT.md",
+  "modelAndCorpus": "Unchanged from the prior run; all three decoders rerun at this revision in three rounds.",
+  "nativeDecoderMatchesPriorSource": true,
+  "currentScorerPreservesPriorQualityMetrics": true,
+  "originMasterAtFinalVerification": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "verifiedAtUTC": "2026-10-10T05:19:38.643679+00:00",
+  "requests": 5400,
+  "allOutputsAndPromptsIdenticalToPrior": true
+}

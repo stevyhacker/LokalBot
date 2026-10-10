@@ -1,0 +1,110 @@
+{
+  "screen": {
+    "baseline": {
+      "sr_latin-boundary": {
+        "n": 24,
+        "shown": 5,
+        "useful": 5,
+        "poor": 0
+      },
+      "sr_latin-midword": {
+        "n": 16,
+        "shown": 16,
+        "useful": 10,
+        "poor": 3
+      },
+      "sr_cyrillic-boundary": {
+        "n": 24,
+        "shown": 9,
+        "useful": 6,
+        "poor": 1
+      },
+      "sr_cyrillic-midword": {
+        "n": 16,
+        "shown": 16,
+        "useful": 10,
+        "poor": 6
+      }
+    },
+    "luchador": {
+      "sr_latin-boundary": {
+        "n": 24,
+        "shown": 12,
+        "useful": 11,
+        "poor": 0
+      },
+      "sr_latin-midword": {
+        "n": 16,
+        "shown": 16,
+        "useful": 14,
+        "poor": 2
+      },
+      "sr_cyrillic-boundary": {
+        "n": 24,
+        "shown": 14,
+        "useful": 4,
+        "poor": 8
+      },
+      "sr_cyrillic-midword": {
+        "n": 16,
+        "shown": 16,
+        "useful": 5,
+        "poor": 10
+      }
+    }
+  },
+  "confirmation": {
+    "baseline": {
+      "sr_latin-boundary": {
+        "n": 12,
+        "shown": 4,
+        "useful": 4,
+        "poor": 0
+      },
+      "sr_latin-midword": {
+        "n": 8,
+        "shown": 8,
+        "useful": 6,
+        "poor": 2
+      },
+      "sr_cyrillic-boundary": {
+        "n": 12,
+        "shown": 7,
+        "useful": 4,
+        "poor": 3
+      },
+      "sr_cyrillic-midword": {
+        "n": 8,
+        "shown": 8,
+        "useful": 3,
+        "poor": 4
+      }
+    },
+    "luchador": {
+      "sr_latin-boundary": {
+        "n": 12,
+        "shown": 8,
+        "useful": 7,
+        "poor": 1
+      },
+      "sr_latin-midword": {
+        "n": 8,
+        "shown": 8,
+        "useful": 7,
+        "poor": 0
+      },
+      "sr_cyrillic-boundary": {
+        "n": 12,
+        "shown": 7,
+        "useful": 3,
+        "poor": 4
+      },
+      "sr_cyrillic-midword": {
+        "n": 8,
+        "shown": 8,
+        "useful": 2,
+        "poor": 5
+      }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "createdAtUTC": "2026-10-10T16:10:05.251088+00:00",
+  "rounds": [
+    [
+      "baseline",
+      "luchador",
+      "gemma4_it",
+      "qwen3_base4",
+      "salamandra2",
+      "yugogpt7",
+      "original"
+    ],
+    [
+      "original",
+      "yugogpt7",
+      "salamandra2",
+      "qwen3_base4",
+      "gemma4_it",
+      "luchador",
+      "baseline"
+    ],
+    [
+      "qwen3_base4",
+      "salamandra2",
+      "yugogpt7",
+      "original",
+      "baseline",
+      "luchador",
+      "gemma4_it"
+    ]
+  ],
+  "traceTimingsExcluded": true,
+  "noConcurrentBuildDownloadOrGPUBenchmark": true
+}

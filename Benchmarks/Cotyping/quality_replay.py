@@ -143,9 +143,12 @@ def main():
     parser.add_argument("--max-prefix-words", type=int)
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--repeat-penalty", type=float)
+    parser.add_argument("--decoder-candidates", type=int, choices=[1, 2, 4], default=1)
     parser.add_argument("--no-app-context", action="store_true")
     parser.add_argument("--timeout", type=int, default=7200, help="seconds before the app replay is stopped")
     args = parser.parse_args()
+    if args.completions_url and args.decoder_candidates != 1:
+        parser.error("--decoder-candidates 2/4 requires a local --model")
     app = args.app.resolve(strict=True)
     if args.completions_url:
         if not args.completions_model or not args.api_key_env:
@@ -169,7 +172,7 @@ def main():
     corpus = json.loads(args.corpus.read_text())
     phrases = selected_phrases(corpus, args.split, args.per_category)
     cases, references = checkpoints(phrases, args.mode)
-    fixture = {"cases": cases, "appContext": not args.no_app_context}
+    fixture = {"cases": cases, "appContext": not args.no_app_context, "decoderCandidates": args.decoder_candidates}
     for key, value in [("maxTokens", args.max_tokens), ("maxPrefixCharacters", args.max_prefix_characters),
                        ("maxPrefixWords", args.max_prefix_words), ("temperature", args.temperature),
                        ("repeatPenalty", args.repeat_penalty)]:

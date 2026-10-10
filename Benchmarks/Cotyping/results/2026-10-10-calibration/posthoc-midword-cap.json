@@ -1,0 +1,83 @@
+{
+  "status": "post-hoc diagnostic on already observed confirmation judgments; not fresh validation or measured native latency",
+  "models": {
+    "baseline": {
+      "originalMean": 0.6510416666666666,
+      "cappedMean": 0.5677083333333334,
+      "originalPoor": 21,
+      "cappedPoor": 18,
+      "delta": {
+        "mean": -0.08333333333333333,
+        "low95": -0.15104166666666666,
+        "high95": -0.015625,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "luchador": {
+      "originalMean": 0.671875,
+      "cappedMean": 0.5885416666666666,
+      "originalPoor": 24,
+      "cappedPoor": 22,
+      "delta": {
+        "mean": -0.08333333333333333,
+        "low95": -0.14583333333333334,
+        "high95": -0.020833333333333332,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "gemma4_it": {
+      "originalMean": 0.6458333333333334,
+      "cappedMean": 0.5833333333333334,
+      "originalPoor": 26,
+      "cappedPoor": 20,
+      "delta": {
+        "mean": -0.0625,
+        "low95": -0.13020833333333334,
+        "high95": 0.010416666666666666,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "qwen3_base4": {
+      "originalMean": 0.453125,
+      "cappedMean": 0.5416666666666666,
+      "originalPoor": 35,
+      "cappedPoor": 21,
+      "delta": {
+        "mean": 0.08854166666666667,
+        "low95": 0.0,
+        "high95": 0.171875,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "salamandra2": {
+      "originalMean": 0.2760416666666667,
+      "cappedMean": 0.3489583333333333,
+      "originalPoor": 34,
+      "cappedPoor": 23,
+      "delta": {
+        "mean": 0.07291666666666667,
+        "low95": 0.010416666666666666,
+        "high95": 0.13541666666666666,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "yugogpt7": {
+      "originalMean": 0.5416666666666666,
+      "cappedMean": 0.59375,
+      "originalPoor": 22,
+      "cappedPoor": 9,
+      "delta": {
+        "mean": 0.052083333333333336,
+        "low95": -0.03125,
+        "high95": 0.13541666666666666,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    }
+  }
+}

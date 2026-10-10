@@ -1,0 +1,772 @@
+{
+  "createdAtUTC": "2026-10-10T16:12:36.147114+00:00",
+  "models": {
+    "baseline": {
+      "ratio": 3.1,
+      "cutoffs": {
+        "en": {
+          "primary": 0.07087306678295135,
+          "fallback": 0.21970650553703308
+        },
+        "sr_latn": {
+          "primary": 0.044935375452041626,
+          "fallback": 0.1392996609210968
+        }
+      },
+      "meanUtility": 0.5,
+      "poor": 8
+    },
+    "luchador": {
+      "ratio": 3.1,
+      "cutoffs": {
+        "en": {
+          "primary": 0.26466262340545654,
+          "fallback": 0.8204541206359863
+        },
+        "sr_latn": {
+          "primary": 0.13720190525054932,
+          "fallback": 0.4253259003162384
+        }
+      },
+      "meanUtility": 0.6875,
+      "poor": 9
+    },
+    "gemma4_it": {
+      "ratio": 2.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.3486013114452362,
+          "fallback": 0.6972026228904724
+        },
+        "sr_latn": {
+          "primary": 0.2318107932806015,
+          "fallback": 0.463621586561203
+        }
+      },
+      "meanUtility": 0.703125,
+      "poor": 6
+    },
+    "qwen3_base4": {
+      "ratio": 2.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.10928498208522797,
+          "fallback": 0.21856996417045593
+        },
+        "sr_latn": {
+          "primary": 0.054485440254211426,
+          "fallback": 0.10897088050842285
+        }
+      },
+      "meanUtility": 0.4921875,
+      "poor": 7
+    },
+    "salamandra2": {
+      "ratio": 0.5,
+      "cutoffs": {
+        "en": {
+          "primary": 0.39127326011657715,
+          "fallback": 0.19563663005828857
+        },
+        "sr_latn": {
+          "primary": 0.1708330512046814,
+          "fallback": 0.0854165256023407
+        }
+      },
+      "meanUtility": 0.421875,
+      "poor": 3
+    },
+    "yugogpt7": {
+      "ratio": 0.5,
+      "cutoffs": {
+        "en": {
+          "primary": 0.4686054289340973,
+          "fallback": 0.23430271446704865
+        },
+        "sr_latn": {
+          "primary": 0.2533847391605377,
+          "fallback": 0.12669236958026886
+        }
+      },
+      "meanUtility": 0.5703125,
+      "poor": 0
+    },
+    "original": {
+      "ratio": 1000000.0,
+      "cutoffs": {
+        "en": {
+          "primary": 0.051488760858774185,
+          "fallback": 1.0
+        },
+        "sr_latn": {
+          "primary": 0.018816592171788216,
+          "fallback": 1.0
+        }
+      },
+      "meanUtility": 0.484375,
+      "poor": 12
+    }
+  },
+  "candidates": {
+    "baseline": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 0.41155335307121277,
+            "fallback": 0.20577667653560638
+          },
+          "sr_latn": {
+            "primary": 0.2362646460533142,
+            "fallback": 0.1181323230266571
+          }
+        },
+        "meanUtility": 0.4921875,
+        "poor": 2
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.20577667653560638,
+            "fallback": 0.20577667653560638
+          },
+          "sr_latn": {
+            "primary": 0.1181323230266571,
+            "fallback": 0.1181323230266571
+          }
+        },
+        "meanUtility": 0.4921875,
+        "poor": 4
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.10288833826780319,
+            "fallback": 0.20577667653560638
+          },
+          "sr_latn": {
+            "primary": 0.05906616151332855,
+            "fallback": 0.1181323230266571
+          }
+        },
+        "meanUtility": 0.4921875,
+        "poor": 6
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.07087306678295135,
+            "fallback": 0.21970650553703308
+          },
+          "sr_latn": {
+            "primary": 0.044935375452041626,
+            "fallback": 0.1392996609210968
+          }
+        },
+        "meanUtility": 0.5,
+        "poor": 8
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.05606811121106148,
+            "fallback": 0.2803405523300171
+          },
+          "sr_latn": {
+            "primary": 0.03402585908770561,
+            "fallback": 0.17012928426265717
+          }
+        },
+        "meanUtility": 0.4921875,
+        "poor": 9
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.051488760858774185,
+            "fallback": 0.5148876309394836
+          },
+          "sr_latn": {
+            "primary": 0.02413284033536911,
+            "fallback": 0.2413284033536911
+          }
+        },
+        "meanUtility": 0.5,
+        "poor": 11
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.051488760858774185,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.018816592171788216,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.484375,
+        "poor": 12
+      }
+    ],
+    "luchador": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 0.9103792309761047,
+            "fallback": 0.45518961548805237
+          },
+          "sr_latn": {
+            "primary": 0.6077886819839478,
+            "fallback": 0.3038943409919739
+          }
+        },
+        "meanUtility": 0.5625,
+        "poor": 0
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.45518961548805237,
+            "fallback": 0.45518961548805237
+          },
+          "sr_latn": {
+            "primary": 0.3038943409919739,
+            "fallback": 0.3038943409919739
+          }
+        },
+        "meanUtility": 0.640625,
+        "poor": 2
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.2986868619918823,
+            "fallback": 0.5973737239837646
+          },
+          "sr_latn": {
+            "primary": 0.16541342437267303,
+            "fallback": 0.33082684874534607
+          }
+        },
+        "meanUtility": 0.6640625,
+        "poor": 7
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.26466262340545654,
+            "fallback": 0.8204541206359863
+          },
+          "sr_latn": {
+            "primary": 0.13720190525054932,
+            "fallback": 0.4253259003162384
+          }
+        },
+        "meanUtility": 0.6875,
+        "poor": 9
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.2623206377029419,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.12478984147310257,
+            "fallback": 0.6239492297172546
+          }
+        },
+        "meanUtility": 0.6796875,
+        "poor": 10
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.2623206377029419,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.12478984147310257,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.6796875,
+        "poor": 10
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.2623206377029419,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.12478984147310257,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.6796875,
+        "poor": 10
+      }
+    ],
+    "gemma4_it": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 1.0,
+            "fallback": 0.5152061581611633
+          },
+          "sr_latn": {
+            "primary": 0.7095544934272766,
+            "fallback": 0.3547772467136383
+          }
+        },
+        "meanUtility": 0.546875,
+        "poor": 0
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.5152061581611633,
+            "fallback": 0.5152061581611633
+          },
+          "sr_latn": {
+            "primary": 0.3547772467136383,
+            "fallback": 0.3547772467136383
+          }
+        },
+        "meanUtility": 0.640625,
+        "poor": 3
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.3486013114452362,
+            "fallback": 0.6972026228904724
+          },
+          "sr_latn": {
+            "primary": 0.2318107932806015,
+            "fallback": 0.463621586561203
+          }
+        },
+        "meanUtility": 0.703125,
+        "poor": 6
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.29285046458244324,
+            "fallback": 0.9078364372253418
+          },
+          "sr_latn": {
+            "primary": 0.1929185539484024,
+            "fallback": 0.5980474948883057
+          }
+        },
+        "meanUtility": 0.6640625,
+        "poor": 10
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.28455591201782227,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.1827079951763153,
+            "fallback": 0.9135400056838989
+          }
+        },
+        "meanUtility": 0.6640625,
+        "poor": 11
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.28455591201782227,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.1827079951763153,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.6640625,
+        "poor": 11
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.28455591201782227,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.1827079951763153,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.6640625,
+        "poor": 11
+      }
+    ],
+    "qwen3_base4": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 0.3904663324356079,
+            "fallback": 0.19523316621780396
+          },
+          "sr_latn": {
+            "primary": 0.2179417610168457,
+            "fallback": 0.10897088050842285
+          }
+        },
+        "meanUtility": 0.4609375,
+        "poor": 3
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.19523316621780396,
+            "fallback": 0.19523316621780396
+          },
+          "sr_latn": {
+            "primary": 0.10897088050842285,
+            "fallback": 0.10897088050842285
+          }
+        },
+        "meanUtility": 0.4765625,
+        "poor": 4
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.10928498208522797,
+            "fallback": 0.21856996417045593
+          },
+          "sr_latn": {
+            "primary": 0.054485440254211426,
+            "fallback": 0.10897088050842285
+          }
+        },
+        "meanUtility": 0.4921875,
+        "poor": 7
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.07891324907541275,
+            "fallback": 0.2446310818195343
+          },
+          "sr_latn": {
+            "primary": 0.037495166063308716,
+            "fallback": 0.11623501032590866
+          }
+        },
+        "meanUtility": 0.46875,
+        "poor": 10
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.06033463031053543,
+            "fallback": 0.30167317390441895
+          },
+          "sr_latn": {
+            "primary": 0.024296605959534645,
+            "fallback": 0.12148302793502808
+          }
+        },
+        "meanUtility": 0.4140625,
+        "poor": 14
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.049761999398469925,
+            "fallback": 0.49761998653411865
+          },
+          "sr_latn": {
+            "primary": 0.014987591654062271,
+            "fallback": 0.1498759239912033
+          }
+        },
+        "meanUtility": 0.328125,
+        "poor": 19
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.04912537708878517,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.014716606587171555,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.3359375,
+        "poor": 19
+      }
+    ],
+    "salamandra2": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 0.39127326011657715,
+            "fallback": 0.19563663005828857
+          },
+          "sr_latn": {
+            "primary": 0.1708330512046814,
+            "fallback": 0.0854165256023407
+          }
+        },
+        "meanUtility": 0.421875,
+        "poor": 3
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.19563663005828857,
+            "fallback": 0.19563663005828857
+          },
+          "sr_latn": {
+            "primary": 0.0854165256023407,
+            "fallback": 0.0854165256023407
+          }
+        },
+        "meanUtility": 0.3828125,
+        "poor": 5
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.10124363005161285,
+            "fallback": 0.2024872601032257
+          },
+          "sr_latn": {
+            "primary": 0.0437498465180397,
+            "fallback": 0.0874996930360794
+          }
+        },
+        "meanUtility": 0.3984375,
+        "poor": 7
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.07476252317428589,
+            "fallback": 0.2317638248205185
+          },
+          "sr_latn": {
+            "primary": 0.0288743507117033,
+            "fallback": 0.0895104855298996
+          }
+        },
+        "meanUtility": 0.359375,
+        "poor": 11
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.059183958917856216,
+            "fallback": 0.295919805765152
+          },
+          "sr_latn": {
+            "primary": 0.02233012765645981,
+            "fallback": 0.11165063828229904
+          }
+        },
+        "meanUtility": 0.34375,
+        "poor": 13
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.0517118014395237,
+            "fallback": 0.517117977142334
+          },
+          "sr_latn": {
+            "primary": 0.014824112877249718,
+            "fallback": 0.14824113249778748
+          }
+        },
+        "meanUtility": 0.328125,
+        "poor": 16
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.05032011866569519,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.011339271441102028,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.265625,
+        "poor": 19
+      }
+    ],
+    "yugogpt7": [
+      {
+        "ratio": 0.5,
+        "cutoffs": {
+          "en": {
+            "primary": 0.4686054289340973,
+            "fallback": 0.23430271446704865
+          },
+          "sr_latn": {
+            "primary": 0.2533847391605377,
+            "fallback": 0.12669236958026886
+          }
+        },
+        "meanUtility": 0.5703125,
+        "poor": 0
+      },
+      {
+        "ratio": 1.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.23430271446704865,
+            "fallback": 0.23430271446704865
+          },
+          "sr_latn": {
+            "primary": 0.12669236958026886,
+            "fallback": 0.12669236958026886
+          }
+        },
+        "meanUtility": 0.5390625,
+        "poor": 4
+      },
+      {
+        "ratio": 2.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.12029319256544113,
+            "fallback": 0.24058638513088226
+          },
+          "sr_latn": {
+            "primary": 0.06448929756879807,
+            "fallback": 0.12897859513759613
+          }
+        },
+        "meanUtility": 0.5625,
+        "poor": 7
+      },
+      {
+        "ratio": 3.1,
+        "cutoffs": {
+          "en": {
+            "primary": 0.08117521554231644,
+            "fallback": 0.25164318084716797
+          },
+          "sr_latn": {
+            "primary": 0.04437849298119545,
+            "fallback": 0.13757333159446716
+          }
+        },
+        "meanUtility": 0.5546875,
+        "poor": 10
+      },
+      {
+        "ratio": 5.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.06173412501811981,
+            "fallback": 0.30867061018943787
+          },
+          "sr_latn": {
+            "primary": 0.03503154218196869,
+            "fallback": 0.17515769600868225
+          }
+        },
+        "meanUtility": 0.515625,
+        "poor": 13
+      },
+      {
+        "ratio": 10.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.04835494980216026,
+            "fallback": 0.48354947566986084
+          },
+          "sr_latn": {
+            "primary": 0.030312905088067055,
+            "fallback": 0.30312904715538025
+          }
+        },
+        "meanUtility": 0.4375,
+        "poor": 17
+      },
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.04746851697564125,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.030312905088067055,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.4375,
+        "poor": 17
+      }
+    ],
+    "original": [
+      {
+        "ratio": 1000000.0,
+        "cutoffs": {
+          "en": {
+            "primary": 0.051488760858774185,
+            "fallback": 1.0
+          },
+          "sr_latn": {
+            "primary": 0.018816592171788216,
+            "fallback": 1.0
+          }
+        },
+        "meanUtility": 0.484375,
+        "poor": 12
+      }
+    ]
+  },
+  "developmentJudgmentsSHA256": "da0bac44b835afc925a5328643b697b022c5e8862daba8d523f53e34b615aae2"
+}

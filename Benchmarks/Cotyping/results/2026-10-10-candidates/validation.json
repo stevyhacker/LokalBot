@@ -1,0 +1,37 @@
+{
+  "releaseBuild": {
+    "result": "passed",
+    "configuration": "Release",
+    "architecture": "arm64",
+    "codeSigningAllowed": false
+  },
+  "swiftTests": {
+    "selected": 28,
+    "passed": 26,
+    "skipped": 2,
+    "failed": 0,
+    "suites": [
+      "CotypingCandidateSearchTests",
+      "CotypingFirstWordConfidenceTests",
+      "CotypingTokenHealingTests",
+      "LocalLlamaCotypingEngineTests",
+      "CotypingDecodeStopPolicyTests"
+    ],
+    "skips": "Two pre-existing LocalLlamaCotypingEngineTests require a separate compact fallback model that is absent.",
+    "nativeIntegration": "Real Gemma model, widths 2 and 4: batched candidates after warm prompt reuse match independent cold token-path log probabilities within 0.015; English, Serbian and >512-token prompts; cancellation before generation and successful next request.",
+    "resultBundle": "/private/tmp/lokalbot-candidate-decoder-20261010/focused-final.xcresult"
+  },
+  "pythonTests": {
+    "replayTests": 23,
+    "candidateBenchmarkTests": 4,
+    "failed": 0
+  },
+  "swiftLint": {
+    "result": "passed",
+    "strict": true,
+    "scope": "whole repository"
+  },
+  "localUITestsRun": false,
+  "installed": false,
+  "released": false
+}

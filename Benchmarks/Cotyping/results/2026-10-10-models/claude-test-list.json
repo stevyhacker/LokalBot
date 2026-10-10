@@ -1,0 +1,212 @@
+{
+  "createdAtUTC": "2026-10-10T09:40:00.071408+00:00",
+  "status": "queued_not_executed",
+  "selectorReceipt": "claude-model-selection/receipt.json",
+  "primarySourcesIndependentlyChecked": true,
+  "benchmarkDefaultsChanged": false,
+  "benchmarkProtocol": "proposed; freeze a new development/confirmation split before inference",
+  "originalStudyPlanSHA256": "c01ea366a9eb44c791efd27521e9796bc6ed36c2956ad7267d0c08cfd2ba81ae",
+  "models": [
+    {
+      "id": "gemma4_it",
+      "rank": 1,
+      "selectedBy": "claude-opus-5-5",
+      "status": "queued_unbenchmarked",
+      "sourceRepo": "google/gemma-4-E4B-it",
+      "sourceURL": "https://huggingface.co/google/gemma-4-E4B-it",
+      "inspectedSourceCardRevision": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+      "quantizerUpstreamWeightRevisionVerified": false,
+      "sourceGated": false,
+      "sourceCardLicense": "apache-2.0",
+      "hypothesis": "Determine whether official instruction tuning explains gains previously attributed to the Luchador writing adaptations.",
+      "trialType": "unchanged_prompt_and_hybrid_decoder",
+      "quantization": {
+        "repo": "bartowski/google_gemma-4-E4B-it-GGUF",
+        "revision": "029e94146666900b08caf49a3b47b413dfa8ec66",
+        "filename": "google_gemma-4-E4B-it-Q6_K.gguf",
+        "bytes": 6329954784,
+        "publishedSHA256": "bea1c94443c91fff61a722d9da5cd3f1cf0196d1e914798ee89d3c00ea365df9",
+        "downloadURL": "https://huggingface.co/bartowski/google_gemma-4-E4B-it-GGUF/resolve/029e94146666900b08caf49a3b47b413dfa8ec66/google_gemma-4-E4B-it-Q6_K.gguf",
+        "weightsDownloadedForThisAddition": false,
+        "localFileHashVerified": false
+      },
+      "runtimeLoadVerified": false,
+      "latencyMs": null,
+      "qualityScore": null,
+      "preflight": [
+        "Verify downloaded SHA-256",
+        "Inspect GGUF architecture, tokenizer and original model identity",
+        "Verify native load and raw-completion output"
+      ],
+      "sourceMetadata": "claude-model-selection/sources/google--gemma-4-E4B-it.json",
+      "quantMetadata": "claude-model-selection/sources/bartowski--google_gemma-4-E4B-it-GGUF.json"
+    },
+    {
+      "id": "qwen3_base4",
+      "rank": 2,
+      "selectedBy": "claude-opus-5-5",
+      "status": "queued_unbenchmarked",
+      "sourceRepo": "Qwen/Qwen3-4B-Base",
+      "sourceURL": "https://huggingface.co/Qwen/Qwen3-4B-Base",
+      "inspectedSourceCardRevision": "906bfd4b4dc7f14ee4320094d8b41684abff8539",
+      "quantizerUpstreamWeightRevisionVerified": false,
+      "sourceGated": false,
+      "sourceCardLicense": "apache-2.0",
+      "hypothesis": "Test multilingual continuation with an attention-only alternative that can reuse shared KV prefixes.",
+      "trialType": "unchanged_prompt_and_hybrid_decoder",
+      "quantization": {
+        "repo": "mradermacher/Qwen3-4B-Base-i1-GGUF",
+        "revision": "68c4ff29fc4932776e1e28109ef8522dd3dceb4f",
+        "filename": "Qwen3-4B-Base.i1-Q6_K.gguf",
+        "bytes": 3306261440,
+        "publishedSHA256": "3754f81ca780b9ef064874cd16afaefdbe1b6b47130ca2a1b913812e9c88d448",
+        "downloadURL": "https://huggingface.co/mradermacher/Qwen3-4B-Base-i1-GGUF/resolve/68c4ff29fc4932776e1e28109ef8522dd3dceb4f/Qwen3-4B-Base.i1-Q6_K.gguf",
+        "weightsDownloadedForThisAddition": false,
+        "localFileHashVerified": false
+      },
+      "runtimeLoadVerified": false,
+      "latencyMs": null,
+      "qualityScore": null,
+      "preflight": [
+        "Verify downloaded SHA-256",
+        "Inspect GGUF architecture, tokenizer and original model identity",
+        "Verify native load and raw-completion output"
+      ],
+      "sourceMetadata": "claude-model-selection/sources/Qwen--Qwen3-4B-Base.json",
+      "quantMetadata": "claude-model-selection/sources/mradermacher--Qwen3-4B-Base-i1-GGUF.json"
+    },
+    {
+      "id": "salamandra2",
+      "rank": 3,
+      "selectedBy": "claude-opus-5-5",
+      "status": "queued_unbenchmarked",
+      "sourceRepo": "BSC-LT/salamandra-2b",
+      "sourceURL": "https://huggingface.co/BSC-LT/salamandra-2b",
+      "inspectedSourceCardRevision": "f3a6092c93948fea08ab618388d7b78c40ad63df",
+      "quantizerUpstreamWeightRevisionVerified": false,
+      "sourceGated": false,
+      "sourceCardLicense": "apache-2.0",
+      "hypothesis": "Test a small European-language base model with explicit Serbian training coverage.",
+      "trialType": "unchanged_prompt_and_hybrid_decoder",
+      "quantization": {
+        "repo": "RichardErkhov/BSC-LT_-_salamandra-2b-gguf",
+        "revision": "7d4fdff14281bd2c91308f4e8715b05c67c9ffee",
+        "filename": "salamandra-2b.Q6_K.gguf",
+        "bytes": 1920090400,
+        "publishedSHA256": "34d4835370cc209518ad152743abdd0a96ca418009dcc1fa0ccc918f9ab68e5b",
+        "downloadURL": "https://huggingface.co/RichardErkhov/BSC-LT_-_salamandra-2b-gguf/resolve/7d4fdff14281bd2c91308f4e8715b05c67c9ffee/salamandra-2b.Q6_K.gguf",
+        "weightsDownloadedForThisAddition": false,
+        "localFileHashVerified": false
+      },
+      "runtimeLoadVerified": false,
+      "latencyMs": null,
+      "qualityScore": null,
+      "preflight": [
+        "Verify downloaded SHA-256",
+        "Inspect GGUF architecture, tokenizer and original model identity",
+        "Verify native load and raw-completion output",
+        "Resolve copied 7B/instruct prose in quantizer card against GGUF tensor dimensions and base identity"
+      ],
+      "sourceMetadata": "claude-model-selection/sources/BSC-LT--salamandra-2b.json",
+      "quantMetadata": "claude-model-selection/sources/RichardErkhov--BSC-LT_-_salamandra-2b-gguf.json"
+    },
+    {
+      "id": "yugogpt7",
+      "rank": 4,
+      "selectedBy": "claude-opus-5-5",
+      "status": "queued_unbenchmarked",
+      "sourceRepo": "gordicaleksa/YugoGPT",
+      "sourceURL": "https://huggingface.co/gordicaleksa/YugoGPT",
+      "inspectedSourceCardRevision": "254ee66aebc46b483b1a3b4c2bfafb1d523dc18e",
+      "quantizerUpstreamWeightRevisionVerified": false,
+      "sourceGated": false,
+      "sourceCardLicense": "apache-2.0",
+      "hypothesis": "Test whether Bosnian/Croatian/Serbian continued pretraining improves both Serbian scripts.",
+      "trialType": "unchanged_prompt_and_hybrid_decoder",
+      "quantization": {
+        "repo": "mradermacher/YugoGPT-i1-GGUF",
+        "revision": "9364a068cc57ed32d32c43277860316b130dc508",
+        "filename": "YugoGPT.i1-Q6_K.gguf",
+        "bytes": 5942065792,
+        "publishedSHA256": "d603a9d8cc0661069e48a0598ae77f595501bbe43854318b179e36eae911de1b",
+        "downloadURL": "https://huggingface.co/mradermacher/YugoGPT-i1-GGUF/resolve/9364a068cc57ed32d32c43277860316b130dc508/YugoGPT.i1-Q6_K.gguf",
+        "weightsDownloadedForThisAddition": false,
+        "localFileHashVerified": false
+      },
+      "runtimeLoadVerified": false,
+      "latencyMs": null,
+      "qualityScore": null,
+      "preflight": [
+        "Verify downloaded SHA-256",
+        "Inspect GGUF architecture, tokenizer and original model identity",
+        "Verify native load and raw-completion output"
+      ],
+      "sourceMetadata": "claude-model-selection/sources/gordicaleksa--YugoGPT.json",
+      "quantMetadata": "claude-model-selection/sources/mradermacher--YugoGPT-i1-GGUF.json",
+      "cyrillicTrainingShare": "unknown from inspected model card"
+    }
+  ],
+  "papers": [
+    {
+      "id": "tokenizer_language_disparity",
+      "title": "Language Model Tokenizers Introduce Unfairness Between Languages",
+      "authors": [
+        "Aleksandar Petrov",
+        "Emanuele La Malfa",
+        "Philip H.S. Torr",
+        "Adel Bibi"
+      ],
+      "year": 2023,
+      "url": "https://arxiv.org/abs/2305.15425",
+      "experiment": "Measure tokens per character/word and truncation by language and script; any changed word budget is a separate experiment."
+    },
+    {
+      "id": "selective_classification",
+      "title": "Selective Classification for Deep Neural Networks",
+      "authors": [
+        "Yonatan Geifman",
+        "Ran El-Yaniv"
+      ],
+      "year": 2017,
+      "url": "https://arxiv.org/abs/1705.08500",
+      "experiment": "Capture candidate confidence traces, calibrate on new development data, compare risk/utility at matched coverage on a fresh holdout."
+    },
+    {
+      "id": "tokenization_bias",
+      "title": "Understanding and Mitigating Tokenization Bias in Language Models",
+      "authors": [
+        "Buu Phan",
+        "Marton Havasi",
+        "Matthew Muckley",
+        "Karen Ullrich"
+      ],
+      "year": 2024,
+      "url": "https://arxiv.org/abs/2406.16829",
+      "experiment": "Audit partial-word conditioning and existing healing; evaluate bounded correction separately from model replacement."
+    },
+    {
+      "id": "calibration_companion",
+      "role": "companion",
+      "title": "On Calibration of Modern Neural Networks",
+      "authors": [
+        "Chuan Guo",
+        "Geoff Pleiss",
+        "Yu Sun",
+        "Kilian Q. Weinberger"
+      ],
+      "year": 2017,
+      "url": "https://arxiv.org/abs/1706.04599",
+      "experiment": "Test calibrated suggestion confidence; classification findings are not proof of calibrated completion usefulness."
+    }
+  ],
+  "deferred": [
+    "EuroLLM-1.7B as alternate to Salamandra",
+    "Optional larger Gemma/Qwen MoE quality ceiling"
+  ],
+  "methodologyCorrections": [
+    "Existing JSONL is insufficient for a complete two-gate sweep; instrumented replay is needed.",
+    "Token healing already exists.",
+    "No measured 200 ms UI speed cliff or user time-box approval rule is established.",
+    "Published model/card/quant metadata does not establish same-machine performance."
+  ]
+}

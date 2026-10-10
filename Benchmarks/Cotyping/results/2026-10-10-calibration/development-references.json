@@ -1,0 +1,1346 @@
+{
+  "development-en-00-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-00",
+    "sentence": "Please check whether the revised invoice includes the discount we discussed last week.",
+    "typed": ""
+  },
+  "development-en-00-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-00",
+    "sentence": "Please check whether the revised invoice includes the discount we discussed last week.",
+    "typed": "disc"
+  },
+  "development-en-00-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-00",
+    "sentence": "Please check whether the revised invoice includes the discount we discussed last week.",
+    "typed": ""
+  },
+  "development-en-01-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-01",
+    "sentence": "I moved our planning session to Thursday because several people are away tomorrow.",
+    "typed": ""
+  },
+  "development-en-01-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-01",
+    "sentence": "I moved our planning session to Thursday because several people are away tomorrow.",
+    "typed": "bec"
+  },
+  "development-en-01-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-01",
+    "sentence": "I moved our planning session to Thursday because several people are away tomorrow.",
+    "typed": ""
+  },
+  "development-en-02-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-02",
+    "sentence": "The new search field should remember the last query when you reopen the window.",
+    "typed": ""
+  },
+  "development-en-02-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-02",
+    "sentence": "The new search field should remember the last query when you reopen the window.",
+    "typed": "qu"
+  },
+  "development-en-02-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-02",
+    "sentence": "The new search field should remember the last query when you reopen the window.",
+    "typed": ""
+  },
+  "development-en-03-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-03",
+    "sentence": "We need a clearer explanation of why the upload failed before asking users to retry.",
+    "typed": ""
+  },
+  "development-en-03-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-03",
+    "sentence": "We need a clearer explanation of why the upload failed before asking users to retry.",
+    "typed": "upl"
+  },
+  "development-en-03-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-03",
+    "sentence": "We need a clearer explanation of why the upload failed before asking users to retry.",
+    "typed": ""
+  },
+  "development-en-04-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-04",
+    "sentence": "Thanks for sending the photos from your trip; the little village looks beautiful.",
+    "typed": ""
+  },
+  "development-en-04-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-04",
+    "sentence": "Thanks for sending the photos from your trip; the little village looks beautiful.",
+    "typed": "tr"
+  },
+  "development-en-04-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-04",
+    "sentence": "Thanks for sending the photos from your trip; the little village looks beautiful.",
+    "typed": ""
+  },
+  "development-en-05-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-05",
+    "sentence": "Could you pick up some fresh vegetables on your way home from the station?",
+    "typed": ""
+  },
+  "development-en-05-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-05",
+    "sentence": "Could you pick up some fresh vegetables on your way home from the station?",
+    "typed": "yo"
+  },
+  "development-en-05-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-05",
+    "sentence": "Could you pick up some fresh vegetables on your way home from the station?",
+    "typed": ""
+  },
+  "development-en-06-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-06",
+    "sentence": "The package arrived this morning but one of the glass jars was broken.",
+    "typed": ""
+  },
+  "development-en-06-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-06",
+    "sentence": "The package arrived this morning but one of the glass jars was broken.",
+    "typed": ""
+  },
+  "development-en-06-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-06",
+    "sentence": "The package arrived this morning but one of the glass jars was broken.",
+    "typed": "gl"
+  },
+  "development-en-07-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-07",
+    "sentence": "I am looking for a quiet place to read while the children finish their lesson.",
+    "typed": ""
+  },
+  "development-en-07-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-07",
+    "sentence": "I am looking for a quiet place to read while the children finish their lesson.",
+    "typed": "re"
+  },
+  "development-en-07-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-07",
+    "sentence": "I am looking for a quiet place to read while the children finish their lesson.",
+    "typed": ""
+  },
+  "development-en-08-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-08",
+    "sentence": "Before we publish the announcement, please confirm the date with the support team.",
+    "typed": ""
+  },
+  "development-en-08-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-08",
+    "sentence": "Before we publish the announcement, please confirm the date with the support team.",
+    "typed": "da"
+  },
+  "development-en-08-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-08",
+    "sentence": "Before we publish the announcement, please confirm the date with the support team.",
+    "typed": ""
+  },
+  "development-en-09-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-09",
+    "sentence": "There is no need to restart the whole service when only the configuration changes.",
+    "typed": ""
+  },
+  "development-en-09-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-09",
+    "sentence": "There is no need to restart the whole service when only the configuration changes.",
+    "typed": "ser"
+  },
+  "development-en-09-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-09",
+    "sentence": "There is no need to restart the whole service when only the configuration changes.",
+    "typed": ""
+  },
+  "development-en-10-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-10",
+    "sentence": "The test passes on my laptop but fails when the cache starts completely empty.",
+    "typed": ""
+  },
+  "development-en-10-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-10",
+    "sentence": "The test passes on my laptop but fails when the cache starts completely empty.",
+    "typed": "wh"
+  },
+  "development-en-10-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-10",
+    "sentence": "The test passes on my laptop but fails when the cache starts completely empty.",
+    "typed": ""
+  },
+  "development-en-11-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-11",
+    "sentence": "Our next release should focus on making the existing workflow easier to understand.",
+    "typed": ""
+  },
+  "development-en-11-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-11",
+    "sentence": "Our next release should focus on making the existing workflow easier to understand.",
+    "typed": "exis"
+  },
+  "development-en-11-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-11",
+    "sentence": "Our next release should focus on making the existing workflow easier to understand.",
+    "typed": ""
+  },
+  "development-en-12-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-12",
+    "sentence": "I left the spare keys in the small drawer next to the kitchen window.",
+    "typed": ""
+  },
+  "development-en-12-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-12",
+    "sentence": "I left the spare keys in the small drawer next to the kitchen window.",
+    "typed": "dra"
+  },
+  "development-en-12-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-12",
+    "sentence": "I left the spare keys in the small drawer next to the kitchen window.",
+    "typed": ""
+  },
+  "development-en-13-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-13",
+    "sentence": "We can walk along the river if the rain stops before the afternoon.",
+    "typed": ""
+  },
+  "development-en-13-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-13",
+    "sentence": "We can walk along the river if the rain stops before the afternoon.",
+    "typed": "ra"
+  },
+  "development-en-13-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-13",
+    "sentence": "We can walk along the river if the rain stops before the afternoon.",
+    "typed": ""
+  },
+  "development-en-14-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-14",
+    "sentence": "The restaurant was busy so we decided to cook something simple at home.",
+    "typed": ""
+  },
+  "development-en-14-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-14",
+    "sentence": "The restaurant was busy so we decided to cook something simple at home.",
+    "typed": "co"
+  },
+  "development-en-14-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-14",
+    "sentence": "The restaurant was busy so we decided to cook something simple at home.",
+    "typed": ""
+  },
+  "development-en-15-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-15",
+    "sentence": "Please let me know whether you would prefer a printed copy or a digital version.",
+    "typed": ""
+  },
+  "development-en-15-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-15",
+    "sentence": "Please let me know whether you would prefer a printed copy or a digital version.",
+    "typed": "pri"
+  },
+  "development-en-15-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-15",
+    "sentence": "Please let me know whether you would prefer a printed copy or a digital version.",
+    "typed": ""
+  },
+  "development-en-16-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-16",
+    "sentence": "The report separates recurring costs from the money we spent setting up the office.",
+    "typed": ""
+  },
+  "development-en-16-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-16",
+    "sentence": "The report separates recurring costs from the money we spent setting up the office.",
+    "typed": "mo"
+  },
+  "development-en-16-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-16",
+    "sentence": "The report separates recurring costs from the money we spent setting up the office.",
+    "typed": ""
+  },
+  "development-en-17-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-17",
+    "sentence": "I have added a short example to explain how the filter handles missing values.",
+    "typed": ""
+  },
+  "development-en-17-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-17",
+    "sentence": "I have added a short example to explain how the filter handles missing values.",
+    "typed": "exp"
+  },
+  "development-en-17-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-17",
+    "sentence": "I have added a short example to explain how the filter handles missing values.",
+    "typed": ""
+  },
+  "development-en-18-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-18",
+    "sentence": "When a customer changes their email address, the confirmation should go to the new account.",
+    "typed": ""
+  },
+  "development-en-18-8-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-18",
+    "sentence": "When a customer changes their email address, the confirmation should go to the new account.",
+    "typed": "confir"
+  },
+  "development-en-18-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-18",
+    "sentence": "When a customer changes their email address, the confirmation should go to the new account.",
+    "typed": ""
+  },
+  "development-en-19-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-19",
+    "sentence": "We should keep the original document until everyone has reviewed the corrected version.",
+    "typed": ""
+  },
+  "development-en-19-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-19",
+    "sentence": "We should keep the original document until everyone has reviewed the corrected version.",
+    "typed": "ever"
+  },
+  "development-en-19-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-19",
+    "sentence": "We should keep the original document until everyone has reviewed the corrected version.",
+    "typed": ""
+  },
+  "development-en-20-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-20",
+    "sentence": "The train was delayed because a fallen branch had blocked part of the track.",
+    "typed": ""
+  },
+  "development-en-20-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-20",
+    "sentence": "The train was delayed because a fallen branch had blocked part of the track.",
+    "typed": "bra"
+  },
+  "development-en-20-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-20",
+    "sentence": "The train was delayed because a fallen branch had blocked part of the track.",
+    "typed": ""
+  },
+  "development-en-21-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-21",
+    "sentence": "My headphones stopped working after I accidentally spilled water on the cable.",
+    "typed": ""
+  },
+  "development-en-21-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-21",
+    "sentence": "My headphones stopped working after I accidentally spilled water on the cable.",
+    "typed": "spi"
+  },
+  "development-en-21-8-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-21",
+    "sentence": "My headphones stopped working after I accidentally spilled water on the cable.",
+    "typed": ""
+  },
+  "development-en-22-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-22",
+    "sentence": "The library has extended its opening hours during the examination period this month.",
+    "typed": ""
+  },
+  "development-en-22-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-22",
+    "sentence": "The library has extended its opening hours during the examination period this month.",
+    "typed": "dur"
+  },
+  "development-en-22-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-22",
+    "sentence": "The library has extended its opening hours during the examination period this month.",
+    "typed": ""
+  },
+  "development-en-23-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-23",
+    "sentence": "I would like to reserve a table near the window for Saturday evening.",
+    "typed": ""
+  },
+  "development-en-23-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-23",
+    "sentence": "I would like to reserve a table near the window for Saturday evening.",
+    "typed": "ne"
+  },
+  "development-en-23-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-23",
+    "sentence": "I would like to reserve a table near the window for Saturday evening.",
+    "typed": ""
+  },
+  "development-en-24-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-24",
+    "sentence": "The draft is nearly finished, although the section about maintenance still needs more detail.",
+    "typed": ""
+  },
+  "development-en-24-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-24",
+    "sentence": "The draft is nearly finished, although the section about maintenance still needs more detail.",
+    "typed": "ab"
+  },
+  "development-en-24-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-24",
+    "sentence": "The draft is nearly finished, although the section about maintenance still needs more detail.",
+    "typed": ""
+  },
+  "development-en-25-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-25",
+    "sentence": "Please avoid changing the public interface while we investigate the underlying performance problem.",
+    "typed": ""
+  },
+  "development-en-25-8-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-25",
+    "sentence": "Please avoid changing the public interface while we investigate the underlying performance problem.",
+    "typed": "inves"
+  },
+  "development-en-25-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-25",
+    "sentence": "Please avoid changing the public interface while we investigate the underlying performance problem.",
+    "typed": ""
+  },
+  "development-en-26-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-26",
+    "sentence": "The dashboard currently counts cancelled orders as if they had been completed successfully.",
+    "typed": ""
+  },
+  "development-en-26-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-26",
+    "sentence": "The dashboard currently counts cancelled orders as if they had been completed successfully.",
+    "typed": "th"
+  },
+  "development-en-26-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-26",
+    "sentence": "The dashboard currently counts cancelled orders as if they had been completed successfully.",
+    "typed": ""
+  },
+  "development-en-27-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-27",
+    "sentence": "We agreed to start with a small pilot before inviting the entire company.",
+    "typed": ""
+  },
+  "development-en-27-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-27",
+    "sentence": "We agreed to start with a small pilot before inviting the entire company.",
+    "typed": "pi"
+  },
+  "development-en-27-9-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-27",
+    "sentence": "We agreed to start with a small pilot before inviting the entire company.",
+    "typed": ""
+  },
+  "development-en-28-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-28",
+    "sentence": "I enjoyed the workshop, especially the practical exercise at the end of the day.",
+    "typed": ""
+  },
+  "development-en-28-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-28",
+    "sentence": "I enjoyed the workshop, especially the practical exercise at the end of the day.",
+    "typed": "exer"
+  },
+  "development-en-28-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-28",
+    "sentence": "I enjoyed the workshop, especially the practical exercise at the end of the day.",
+    "typed": ""
+  },
+  "development-en-29-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-29",
+    "sentence": "You can borrow my bicycle as long as you bring it back before dinner.",
+    "typed": ""
+  },
+  "development-en-29-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-29",
+    "sentence": "You can borrow my bicycle as long as you bring it back before dinner.",
+    "typed": "br"
+  },
+  "development-en-29-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-29",
+    "sentence": "You can borrow my bicycle as long as you bring it back before dinner.",
+    "typed": ""
+  },
+  "development-en-30-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-30",
+    "sentence": "The room gets warm in the afternoon, so I usually leave the curtains closed.",
+    "typed": ""
+  },
+  "development-en-30-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-30",
+    "sentence": "The room gets warm in the afternoon, so I usually leave the curtains closed.",
+    "typed": "usu"
+  },
+  "development-en-30-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-30",
+    "sentence": "The room gets warm in the afternoon, so I usually leave the curtains closed.",
+    "typed": ""
+  },
+  "development-en-31-6-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-31",
+    "sentence": "Thank you for being patient while we worked through the problem with your booking.",
+    "typed": ""
+  },
+  "development-en-31-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "development-31",
+    "sentence": "Thank you for being patient while we worked through the problem with your booking.",
+    "typed": "thr"
+  },
+  "development-en-31-10-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "development-31",
+    "sentence": "Thank you for being patient while we worked through the problem with your booking.",
+    "typed": ""
+  },
+  "development-sr_latn-00-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-00",
+    "sentence": "Molim te proveri da li nova ponuda uključuje troškove dostave do naše kancelarije.",
+    "typed": ""
+  },
+  "development-sr_latn-00-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-00",
+    "sentence": "Molim te proveri da li nova ponuda uključuje troškove dostave do naše kancelarije.",
+    "typed": "uklj"
+  },
+  "development-sr_latn-00-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-00",
+    "sentence": "Molim te proveri da li nova ponuda uključuje troškove dostave do naše kancelarije.",
+    "typed": ""
+  },
+  "development-sr_latn-01-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-01",
+    "sentence": "Pomerili smo sastanak za petak jer nekoliko kolega sutra neće biti dostupno.",
+    "typed": ""
+  },
+  "development-sr_latn-01-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-01",
+    "sentence": "Pomerili smo sastanak za petak jer nekoliko kolega sutra neće biti dostupno.",
+    "typed": "kol"
+  },
+  "development-sr_latn-01-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-01",
+    "sentence": "Pomerili smo sastanak za petak jer nekoliko kolega sutra neće biti dostupno.",
+    "typed": ""
+  },
+  "development-sr_latn-02-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-02",
+    "sentence": "Pre nego što pošaljemo ugovor, treba da potvrdimo rokove sa drugom stranom.",
+    "typed": ""
+  },
+  "development-sr_latn-02-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-02",
+    "sentence": "Pre nego što pošaljemo ugovor, treba da potvrdimo rokove sa drugom stranom.",
+    "typed": "potv"
+  },
+  "development-sr_latn-02-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-02",
+    "sentence": "Pre nego što pošaljemo ugovor, treba da potvrdimo rokove sa drugom stranom.",
+    "typed": ""
+  },
+  "development-sr_latn-03-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-03",
+    "sentence": "Hvala na brzom odgovoru, sada mi je mnogo jasnije kako funkcioniše prijava.",
+    "typed": ""
+  },
+  "development-sr_latn-03-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-03",
+    "sentence": "Hvala na brzom odgovoru, sada mi je mnogo jasnije kako funkcioniše prijava.",
+    "typed": "mn"
+  },
+  "development-sr_latn-03-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-03",
+    "sentence": "Hvala na brzom odgovoru, sada mi je mnogo jasnije kako funkcioniše prijava.",
+    "typed": ""
+  },
+  "development-sr_latn-04-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-04",
+    "sentence": "Aplikacija treba da sačuva poslednju pretragu kada korisnik ponovo otvori isti prozor.",
+    "typed": ""
+  },
+  "development-sr_latn-04-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-04",
+    "sentence": "Aplikacija treba da sačuva poslednju pretragu kada korisnik ponovo otvori isti prozor.",
+    "typed": "kori"
+  },
+  "development-sr_latn-04-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-04",
+    "sentence": "Aplikacija treba da sačuva poslednju pretragu kada korisnik ponovo otvori isti prozor.",
+    "typed": ""
+  },
+  "development-sr_latn-05-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-05",
+    "sentence": "Greška se pojavljuje samo kada pokušam da otvorim dokument bez internet veze.",
+    "typed": ""
+  },
+  "development-sr_latn-05-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-05",
+    "sentence": "Greška se pojavljuje samo kada pokušam da otvorim dokument bez internet veze.",
+    "typed": "otv"
+  },
+  "development-sr_latn-05-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-05",
+    "sentence": "Greška se pojavljuje samo kada pokušam da otvorim dokument bez internet veze.",
+    "typed": ""
+  },
+  "development-sr_latn-06-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-06",
+    "sentence": "Dodao sam kratak primer koji pokazuje šta se dešava kada neko polje ostane prazno.",
+    "typed": ""
+  },
+  "development-sr_latn-06-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-06",
+    "sentence": "Dodao sam kratak primer koji pokazuje šta se dešava kada neko polje ostane prazno.",
+    "typed": "deš"
+  },
+  "development-sr_latn-06-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-06",
+    "sentence": "Dodao sam kratak primer koji pokazuje šta se dešava kada neko polje ostane prazno.",
+    "typed": ""
+  },
+  "development-sr_latn-07-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-07",
+    "sentence": "Za sledeću verziju planiramo jednostavniji način za izvoz beležaka i pratećih datoteka.",
+    "typed": ""
+  },
+  "development-sr_latn-07-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-07",
+    "sentence": "Za sledeću verziju planiramo jednostavniji način za izvoz beležaka i pratećih datoteka.",
+    "typed": "iz"
+  },
+  "development-sr_latn-07-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-07",
+    "sentence": "Za sledeću verziju planiramo jednostavniji način za izvoz beležaka i pratećih datoteka.",
+    "typed": ""
+  },
+  "development-sr_latn-08-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-08",
+    "sentence": "Možeš li da kupiš malo hleba i mleka kada budeš prolazio pored prodavnice?",
+    "typed": ""
+  },
+  "development-sr_latn-08-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-08",
+    "sentence": "Možeš li da kupiš malo hleba i mleka kada budeš prolazio pored prodavnice?",
+    "typed": "ml"
+  },
+  "development-sr_latn-08-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-08",
+    "sentence": "Možeš li da kupiš malo hleba i mleka kada budeš prolazio pored prodavnice?",
+    "typed": ""
+  },
+  "development-sr_latn-09-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-09",
+    "sentence": "Ostavio sam rezervni ključ u fioci pored telefona, zajedno sa starim računima.",
+    "typed": ""
+  },
+  "development-sr_latn-09-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-09",
+    "sentence": "Ostavio sam rezervni ključ u fioci pored telefona, zajedno sa starim računima.",
+    "typed": "tele"
+  },
+  "development-sr_latn-09-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-09",
+    "sentence": "Ostavio sam rezervni ključ u fioci pored telefona, zajedno sa starim računima.",
+    "typed": ""
+  },
+  "development-sr_latn-10-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-10",
+    "sentence": "Ako kiša prestane do podneva, mogli bismo da prošetamo do obližnjeg parka.",
+    "typed": ""
+  },
+  "development-sr_latn-10-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-10",
+    "sentence": "Ako kiša prestane do podneva, mogli bismo da prošetamo do obližnjeg parka.",
+    "typed": "bi"
+  },
+  "development-sr_latn-10-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-10",
+    "sentence": "Ako kiša prestane do podneva, mogli bismo da prošetamo do obližnjeg parka.",
+    "typed": ""
+  },
+  "development-sr_latn-11-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-11",
+    "sentence": "Voz je kasnio skoro pola sata, pa smo odlučili da sledeći put krenemo ranije.",
+    "typed": ""
+  },
+  "development-sr_latn-11-8-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-11",
+    "sentence": "Voz je kasnio skoro pola sata, pa smo odlučili da sledeći put krenemo ranije.",
+    "typed": "odlu"
+  },
+  "development-sr_latn-11-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-11",
+    "sentence": "Voz je kasnio skoro pola sata, pa smo odlučili da sledeći put krenemo ranije.",
+    "typed": ""
+  },
+  "development-sr_latn-12-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-12",
+    "sentence": "Izveštaj treba da odvoji redovne troškove od jednokratnih ulaganja u novu opremu.",
+    "typed": ""
+  },
+  "development-sr_latn-12-7-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-12",
+    "sentence": "Izveštaj treba da odvoji redovne troškove od jednokratnih ulaganja u novu opremu.",
+    "typed": "jednok"
+  },
+  "development-sr_latn-12-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-12",
+    "sentence": "Izveštaj treba da odvoji redovne troškove od jednokratnih ulaganja u novu opremu.",
+    "typed": ""
+  },
+  "development-sr_latn-13-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-13",
+    "sentence": "Molim vas da nam javite koji termin vam odgovara za kratku obuku.",
+    "typed": ""
+  },
+  "development-sr_latn-13-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-13",
+    "sentence": "Molim vas da nam javite koji termin vam odgovara za kratku obuku.",
+    "typed": "ter"
+  },
+  "development-sr_latn-13-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-13",
+    "sentence": "Molim vas da nam javite koji termin vam odgovara za kratku obuku.",
+    "typed": ""
+  },
+  "development-sr_latn-14-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-14",
+    "sentence": "Još čekamo potvrdu od dobavljača pre nego što možemo da završimo narudžbinu.",
+    "typed": ""
+  },
+  "development-sr_latn-14-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-14",
+    "sentence": "Još čekamo potvrdu od dobavljača pre nego što možemo da završimo narudžbinu.",
+    "typed": "ne"
+  },
+  "development-sr_latn-14-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-14",
+    "sentence": "Još čekamo potvrdu od dobavljača pre nego što možemo da završimo narudžbinu.",
+    "typed": ""
+  },
+  "development-sr_latn-15-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-15",
+    "sentence": "Mislim da bi predlog bio jasniji kada bismo dodali jedan konkretan primer.",
+    "typed": ""
+  },
+  "development-sr_latn-15-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-15",
+    "sentence": "Mislim da bi predlog bio jasniji kada bismo dodali jedan konkretan primer.",
+    "typed": "bi"
+  },
+  "development-sr_latn-15-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-15",
+    "sentence": "Mislim da bi predlog bio jasniji kada bismo dodali jedan konkretan primer.",
+    "typed": ""
+  },
+  "development-sr_latn-16-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-16",
+    "sentence": "Nova poruka treba da objasni korisniku šta može da uradi ako prenos ne uspe.",
+    "typed": ""
+  },
+  "development-sr_latn-16-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-16",
+    "sentence": "Nova poruka treba da objasni korisniku šta može da uradi ako prenos ne uspe.",
+    "typed": "mo"
+  },
+  "development-sr_latn-16-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-16",
+    "sentence": "Nova poruka treba da objasni korisniku šta može da uradi ako prenos ne uspe.",
+    "typed": ""
+  },
+  "development-sr_latn-17-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-17",
+    "sentence": "Nema potrebe da ponovo pokrećemo ceo sistem zbog male izmene u podešavanjima.",
+    "typed": ""
+  },
+  "development-sr_latn-17-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-17",
+    "sentence": "Nema potrebe da ponovo pokrećemo ceo sistem zbog male izmene u podešavanjima.",
+    "typed": "zb"
+  },
+  "development-sr_latn-17-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-17",
+    "sentence": "Nema potrebe da ponovo pokrećemo ceo sistem zbog male izmene u podešavanjima.",
+    "typed": ""
+  },
+  "development-sr_latn-18-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-18",
+    "sentence": "Test prolazi na mom računaru, ali pada kada pokrenem program sa praznom bazom.",
+    "typed": ""
+  },
+  "development-sr_latn-18-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-18",
+    "sentence": "Test prolazi na mom računaru, ali pada kada pokrenem program sa praznom bazom.",
+    "typed": "ka"
+  },
+  "development-sr_latn-18-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-18",
+    "sentence": "Test prolazi na mom računaru, ali pada kada pokrenem program sa praznom bazom.",
+    "typed": ""
+  },
+  "development-sr_latn-19-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-19",
+    "sentence": "Prvo ćemo isprobati ovu mogućnost na manjoj grupi pre nego što je uključimo svima.",
+    "typed": ""
+  },
+  "development-sr_latn-19-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-19",
+    "sentence": "Prvo ćemo isprobati ovu mogućnost na manjoj grupi pre nego što je uključimo svima.",
+    "typed": "gr"
+  },
+  "development-sr_latn-19-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-19",
+    "sentence": "Prvo ćemo isprobati ovu mogućnost na manjoj grupi pre nego što je uključimo svima.",
+    "typed": ""
+  },
+  "development-sr_latn-20-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-20",
+    "sentence": "Biblioteka radi duže tokom ove nedelje zbog velikog broja studenata koji spremaju ispite.",
+    "typed": ""
+  },
+  "development-sr_latn-20-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-20",
+    "sentence": "Biblioteka radi duže tokom ove nedelje zbog velikog broja studenata koji spremaju ispite.",
+    "typed": "vel"
+  },
+  "development-sr_latn-20-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-20",
+    "sentence": "Biblioteka radi duže tokom ove nedelje zbog velikog broja studenata koji spremaju ispite.",
+    "typed": ""
+  },
+  "development-sr_latn-21-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-21",
+    "sentence": "Voleo bih da rezervišem mirniju sobu jer ću tokom boravka morati da radim.",
+    "typed": ""
+  },
+  "development-sr_latn-21-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-21",
+    "sentence": "Voleo bih da rezervišem mirniju sobu jer ću tokom boravka morati da radim.",
+    "typed": "to"
+  },
+  "development-sr_latn-21-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-21",
+    "sentence": "Voleo bih da rezervišem mirniju sobu jer ću tokom boravka morati da radim.",
+    "typed": ""
+  },
+  "development-sr_latn-22-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-22",
+    "sentence": "Paket je stigao jutros, ali je kutija bila oštećena i jedan deo nedostaje.",
+    "typed": ""
+  },
+  "development-sr_latn-22-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-22",
+    "sentence": "Paket je stigao jutros, ali je kutija bila oštećena i jedan deo nedostaje.",
+    "typed": "bi"
+  },
+  "development-sr_latn-22-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-22",
+    "sentence": "Paket je stigao jutros, ali je kutija bila oštećena i jedan deo nedostaje.",
+    "typed": ""
+  },
+  "development-sr_latn-23-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-23",
+    "sentence": "Večeras možemo da spremimo nešto jednostavno umesto da ponovo naručujemo hranu.",
+    "typed": ""
+  },
+  "development-sr_latn-23-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-23",
+    "sentence": "Večeras možemo da spremimo nešto jednostavno umesto da ponovo naručujemo hranu.",
+    "typed": "ume"
+  },
+  "development-sr_latn-23-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-23",
+    "sentence": "Večeras možemo da spremimo nešto jednostavno umesto da ponovo naručujemo hranu.",
+    "typed": ""
+  },
+  "development-sr_latn-24-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-24",
+    "sentence": "Sačuvaj originalnu datoteku dok svi ne pregledaju izmene u novoj verziji dokumenta.",
+    "typed": ""
+  },
+  "development-sr_latn-24-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-24",
+    "sentence": "Sačuvaj originalnu datoteku dok svi ne pregledaju izmene u novoj verziji dokumenta.",
+    "typed": "izm"
+  },
+  "development-sr_latn-24-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-24",
+    "sentence": "Sačuvaj originalnu datoteku dok svi ne pregledaju izmene u novoj verziji dokumenta.",
+    "typed": ""
+  },
+  "development-sr_latn-25-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-25",
+    "sentence": "Dogovorili smo se da svake nedelje pregledamo napredak i prilagodimo naredne korake.",
+    "typed": ""
+  },
+  "development-sr_latn-25-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-25",
+    "sentence": "Dogovorili smo se da svake nedelje pregledamo napredak i prilagodimo naredne korake.",
+    "typed": "napr"
+  },
+  "development-sr_latn-25-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-25",
+    "sentence": "Dogovorili smo se da svake nedelje pregledamo napredak i prilagodimo naredne korake.",
+    "typed": ""
+  },
+  "development-sr_latn-26-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-26",
+    "sentence": "Završio sam glavni deo teksta, ali uvod još treba malo skratiti i pojednostaviti.",
+    "typed": ""
+  },
+  "development-sr_latn-26-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-26",
+    "sentence": "Završio sam glavni deo teksta, ali uvod još treba malo skratiti i pojednostaviti.",
+    "typed": "tr"
+  },
+  "development-sr_latn-26-9-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-26",
+    "sentence": "Završio sam glavni deo teksta, ali uvod još treba malo skratiti i pojednostaviti.",
+    "typed": ""
+  },
+  "development-sr_latn-27-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-27",
+    "sentence": "Hvala na strpljenju dok smo proveravali zbog čega uplata nije odmah evidentirana.",
+    "typed": ""
+  },
+  "development-sr_latn-27-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-27",
+    "sentence": "Hvala na strpljenju dok smo proveravali zbog čega uplata nije odmah evidentirana.",
+    "typed": "če"
+  },
+  "development-sr_latn-27-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-27",
+    "sentence": "Hvala na strpljenju dok smo proveravali zbog čega uplata nije odmah evidentirana.",
+    "typed": ""
+  },
+  "development-sr_latn-28-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-28",
+    "sentence": "U sobi je popodne prilično toplo, pa obično spustim roletne pre izlaska.",
+    "typed": ""
+  },
+  "development-sr_latn-28-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-28",
+    "sentence": "U sobi je popodne prilično toplo, pa obično spustim roletne pre izlaska.",
+    "typed": "obi"
+  },
+  "development-sr_latn-28-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-28",
+    "sentence": "U sobi je popodne prilično toplo, pa obično spustim roletne pre izlaska.",
+    "typed": ""
+  },
+  "development-sr_latn-29-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-29",
+    "sentence": "Mogu da ti pozajmim bicikl ako ga vratiš do sutra ujutru.",
+    "typed": ""
+  },
+  "development-sr_latn-29-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-29",
+    "sentence": "Mogu da ti pozajmim bicikl ako ga vratiš do sutra ujutru.",
+    "typed": "vra"
+  },
+  "development-sr_latn-29-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-29",
+    "sentence": "Mogu da ti pozajmim bicikl ako ga vratiš do sutra ujutru.",
+    "typed": ""
+  },
+  "development-sr_latn-30-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-30",
+    "sentence": "Nisam uspeo da pronađem račun, ali prodavac je ipak prihvatio zamenu proizvoda.",
+    "typed": ""
+  },
+  "development-sr_latn-30-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-30",
+    "sentence": "Nisam uspeo da pronađem račun, ali prodavac je ipak prihvatio zamenu proizvoda.",
+    "typed": "prod"
+  },
+  "development-sr_latn-30-8-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-30",
+    "sentence": "Nisam uspeo da pronađem račun, ali prodavac je ipak prihvatio zamenu proizvoda.",
+    "typed": ""
+  },
+  "development-sr_latn-31-6-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-31",
+    "sentence": "Radionica mi je bila korisna, naročito vežba u kojoj smo zajedno rešavali praktičan problem.",
+    "typed": ""
+  },
+  "development-sr_latn-31-8-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "development-31",
+    "sentence": "Radionica mi je bila korisna, naročito vežba u kojoj smo zajedno rešavali praktičan problem.",
+    "typed": "ko"
+  },
+  "development-sr_latn-31-10-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "development-31",
+    "sentence": "Radionica mi je bila korisna, naročito vežba u kojoj smo zajedno rešavali praktičan problem.",
+    "typed": ""
+  }
+}

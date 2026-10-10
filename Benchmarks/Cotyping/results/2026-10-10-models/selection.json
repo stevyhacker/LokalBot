@@ -1,0 +1,6 @@
+{
+  "selectedAtUTC": "2026-10-10T09:22:52.032360+00:00",
+  "model": "luchador",
+  "rule": "Choose the non-baseline model with highest mean Claude utility on screen. Tie: fewer negative outputs, then lower warm mean latency. Confirm without tuning on sealed second split against installed hybrid and original current decoder.",
+  "screenAnalysisSHA256": "9933ae58955da08fc3bbd445570aea8641264c23e0c2253206874d4b754e0b3e"
+}

@@ -1,0 +1,1391 @@
+{
+  "manifest": {
+    "startedAtUTC": "2026-10-10T04:57:23.047709+00:00",
+    "appSHA256": "90c72d243852b7f448f26325b29134dd35471d4d46d10d5aafe9910f986839e8",
+    "modelFile": "gemma-4-E2B.i1-Q6_K.gguf",
+    "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "corpusSHA256": "b41c8089a58ae1e0ee84b95ac9283cf71db4e713e25bd8fed47220be69d8b0f6",
+    "challengeSHA256": "8a3f3f7ad624dee5fcb8623fe0331947a3e13fe94beee28c00ef369e41f0cc41",
+    "scriptSHA256": "ac276f66201728f033c9b730dc9cb235e03b536acc459279e34bc8dacd8ce5e0",
+    "scorerSHA256": "3021ff068acb6fe823e955241ed83648c3f0f9bb4161fd37e88af0d11756d2c7",
+    "phraseIDs": [
+      "conversation-068",
+      "conversation-070",
+      "conversation-085",
+      "conversation-092",
+      "conversation-112",
+      "conversation-133",
+      "conversation-137",
+      "conversation-138",
+      "science-066",
+      "science-073",
+      "science-101",
+      "science-119",
+      "science-135",
+      "science-153",
+      "science-157",
+      "science-163",
+      "entertainment-003",
+      "entertainment-004",
+      "entertainment-015",
+      "entertainment-020",
+      "entertainment-061",
+      "entertainment-103",
+      "entertainment-138",
+      "entertainment-167",
+      "work-034",
+      "work-073",
+      "work-088",
+      "work-106",
+      "work-111",
+      "work-172",
+      "work-178",
+      "work-188",
+      "technology-015",
+      "technology-028",
+      "technology-037",
+      "technology-124",
+      "technology-134",
+      "technology-150",
+      "technology-180",
+      "technology-187",
+      "everyday-032",
+      "everyday-062",
+      "everyday-068",
+      "everyday-076",
+      "everyday-091",
+      "everyday-096",
+      "everyday-118",
+      "everyday-189",
+      "travel-002",
+      "travel-025",
+      "travel-026",
+      "travel-037",
+      "travel-118",
+      "travel-136",
+      "travel-171",
+      "travel-174"
+    ],
+    "split": "heldout-public-plus-frozen-original-challenge",
+    "splitSeed": 1337,
+    "mode": "word-and-two-midword-per-public-phrase",
+    "checkpoints": 600,
+    "rounds": 3,
+    "orders": [
+      [
+        1,
+        2,
+        4
+      ],
+      [
+        2,
+        4,
+        1
+      ],
+      [
+        4,
+        1,
+        2
+      ]
+    ],
+    "context": "synthetic typed prefix and app/title/field metadata only",
+    "settings": "production defaults; only decoderCandidates changes; no prompt override",
+    "boundary": "warm complete engine request, including tokenization, prefill, decode and normalization; excludes load, debounce, AX and overlay",
+    "machine": {
+      "platform": "macOS-27.0.1-arm64-arm-64bit",
+      "cpu": "Apple M4 Max",
+      "memoryBytes": 51539607552
+    },
+    "sourceSHA256": {
+      "LokalBot/Cotyping/CotypingAXGeometryResolver.swift": "a7dec0ee0c0a5cd78461bf02de9899140c05b30429b9cbdc62318d576e32dce9",
+      "LokalBot/Cotyping/CotypingAXHelper.swift": "77ed6dc6d36bc879fd28fea9ab0d691388ebdaecf788f595d6ccb1489dfe0b22",
+      "LokalBot/Cotyping/CotypingAXPolicies.swift": "778219e6d3619d504e3c603e18d5ccbea645aaa268a1f3c5bbd1f3b4c5eb5f7f",
+      "LokalBot/Cotyping/CotypingAXSnapshotExecutor.swift": "27921d4a66c06676c172ee2fca4849348061adc51d1be7f963cdafef51dfdfd7",
+      "LokalBot/Cotyping/CotypingAcceptOptions.swift": "831b2405db19e47ede6271f119fea099dfaec4f7f30310d9c2e59158da6cc170",
+      "LokalBot/Cotyping/CotypingAcceptanceChunker.swift": "9122e3889f07438f6b1cce8ba23676719441647bb2aa8c5bb4cf35a23c082e17",
+      "LokalBot/Cotyping/CotypingAvailability.swift": "5ecf1a16ff4bc7de2af9994d9b582e2085fc70f3275cba89d8abbbd4d32656fe",
+      "LokalBot/Cotyping/CotypingBackgroundSampler.swift": "bbdc1068804eddec0a61ec45e8dd352d5db0b14c86a9d1d2354450c49d774a8d",
+      "LokalBot/Cotyping/CotypingBenchmark.swift": "3dd7b37d63ede5a128e1feeba0c38ad2641914fd0692e0040da9b3e7ddbd8d37",
+      "LokalBot/Cotyping/CotypingBrowserDomain.swift": "3e8fa0e15a4ac098fcdfb3fe35fd48025d73f24ae4ceb6b6d9e46031451e4753",
+      "LokalBot/Cotyping/CotypingClipboardContext.swift": "9ff93775ebef18bd8837d12dcdfd9e7727ecba3a4afdfefc03cc4e1606efcc20",
+      "LokalBot/Cotyping/CotypingCompositionInputMode.swift": "d664ee4697b7e152e9f37a8dd7c5f1a90638af499a53db517df31bb5b839543f",
+      "LokalBot/Cotyping/CotypingContextReport.swift": "6e3a1a3dcedfc34dc24fd7e66d27f9fc31863878cf3a83addcf77a40208884be",
+      "LokalBot/Cotyping/CotypingContinuationAcceptance.swift": "1a757b23c2f0def14c818d4b6992556e2fe9b81e45c4b937c277849a6a71af97",
+      "LokalBot/Cotyping/CotypingCoordinator+Acceptance.swift": "138441e7833782c4066c789280e03f117f4f364d07255fb8d806b15252ff37fc",
+      "LokalBot/Cotyping/CotypingCoordinator+Extension.swift": "067db13f981b739e0cbf783384d2ee9dd36df7803c7da97b848b3adb992c8a9b",
+      "LokalBot/Cotyping/CotypingCoordinator+Input.swift": "eb2a6536d1ad356f865e9f5bc6a4b0e7b3c2049fb463f081b1701c15850243a0",
+      "LokalBot/Cotyping/CotypingCoordinator+Lifecycle.swift": "1d23306d7b0240e9b2a64a5f26fe6823e7a7f7c8835a88a0b9a4c0aa213bcad9",
+      "LokalBot/Cotyping/CotypingCoordinator+Measurement.swift": "57682915246273a0110b31adf8e312fa569672ca2247ac8aebc9d7dd9ff7e617",
+      "LokalBot/Cotyping/CotypingCoordinator+Prediction.swift": "862bb2d82b15a1bb748de86efde7b57f6d5914de0c20787b911f3fec92e425a5",
+      "LokalBot/Cotyping/CotypingCoordinator.swift": "0464bd185af5a20e4df3bbfb41ff40fe984973e7a9922ff0659551233b2c6963",
+      "LokalBot/Cotyping/CotypingDebouncePolicy.swift": "74d4b0125a9005de766dca16fcc0d35ae43cf757666d22a1f9c486a5690679f9",
+      "LokalBot/Cotyping/CotypingDecodeStopPolicy.swift": "27f8f4ce41357ce3dac995f0e479c492d6f5943cc760b27e953017fd7115b396",
+      "LokalBot/Cotyping/CotypingEmoji.swift": "56c5573aa77e05ba2b3002a84848c0ce8f0f9269f9fd824ade201e585dc9182a",
+      "LokalBot/Cotyping/CotypingEngine.swift": "2d6fa1edcb02df03d665b3fb1dc966add8c79d55364d32d655112bd319432ab5",
+      "LokalBot/Cotyping/CotypingFieldContextCache.swift": "0010fd74c4066038be0af913784ddb9b20beecfdce2db425fe0d709d7558fe52",
+      "LokalBot/Cotyping/CotypingFieldIdentity.swift": "63c52a411ae8ffe938376b1e79f47d31ada296cb0a0a328ff28ca40eb39a54c1",
+      "LokalBot/Cotyping/CotypingFieldStyle.swift": "ee51daf89754b61379d3f92b66abe1ecc5f5c6e09080a81b7e28ea4a4360cc20",
+      "LokalBot/Cotyping/CotypingFocusCapabilityFlickerGate.swift": "d2a651e0f6c0fee6dc0816ccb5f789610e77ad2edb255ce621af1747c6753275",
+      "LokalBot/Cotyping/CotypingFocusPollBackoff.swift": "819a858a77997d87c9fa8f6bf039080cfee6c839ebe0987d91bc019f33c29997",
+      "LokalBot/Cotyping/CotypingFocusTracker.swift": "338be8db48f4d44cffe881e28126f7582cb8f69319aa803f60bb5c960a33e0ea",
+      "LokalBot/Cotyping/CotypingGhostSizing.swift": "681c49a3abd9c3480381b9cb7653b78f9018bdeab9d02639cb1628c8983ab052",
+      "LokalBot/Cotyping/CotypingGhostTextLayout.swift": "2bb39b6905d46981b993582d8803b759f964be121923f144caafdbbd1976f2a4",
+      "LokalBot/Cotyping/CotypingGhostView.swift": "78b9e1533a7a0a6042e6322e624196994e3e2820bb8510ba5f01a3b5687247c4",
+      "LokalBot/Cotyping/CotypingInlineGhostLayout.swift": "545d11ab67c4abe89eace747c518e477ad280942053180af6dc8ac7a9084b42a",
+      "LokalBot/Cotyping/CotypingInputMonitor.swift": "3c5b9e55b46e7f62ea7e701d8f2dfdd435fdfc7a9caadac946c26008448c068e",
+      "LokalBot/Cotyping/CotypingInserter.swift": "e3da50c34c1f91ade2c2b9ef57e2719dc32cda1bd317a9b6f7a7b806f1904ee4",
+      "LokalBot/Cotyping/CotypingLearningStore.swift": "a6300218739582c92403ee1823af9078e6c303c803bed293b56b366ac26cd54d",
+      "LokalBot/Cotyping/CotypingLiveMeasure.swift": "ae9cd2862617d87b51bde597c179744c0685725c3f7446e1a1c4cdd7905bab02",
+      "LokalBot/Cotyping/CotypingMacro.swift": "6b1cf3f437502a3cd90bf07879b19d39a1f0aeb6778ffa934f1c23e55f43a0b9",
+      "LokalBot/Cotyping/CotypingMarkerSelection.swift": "e6e1bb23c3fccac0fdd0f6a6bc0332aa9e31bc0e6d82822693e1bed26be64f0f",
+      "LokalBot/Cotyping/CotypingMeetingPause.swift": "a4c75fff443f10d67b66917bbb987d03edc99991dee0a3176a15d1eb14388413",
+      "LokalBot/Cotyping/CotypingMemoryContext.swift": "abb8e73bde69ee7c9af8fab698a370d7721f8e3c5c5d0db84352296ee0823d32",
+      "LokalBot/Cotyping/CotypingMemoryContextProvider.swift": "103259dd3897d73556dee5bf1b655049a4cc7ee11a00506d4579572c2e17ca5d",
+      "LokalBot/Cotyping/CotypingMemoryLookup.swift": "42c36497b51e7dd9acf6e694a00a4128de19b643bc76705093766ec3524fa5a5",
+      "LokalBot/Cotyping/CotypingMemoryVocabulary.swift": "b3f1caea022660bf42ede65931062214468ecf85588b89ed3fc464fd35cf8ccd",
+      "LokalBot/Cotyping/CotypingMidWord.swift": "6dcb9d43705fc0dfc86960b1ff35cd958a697c6e72517b8c9b5a0ee2ddc261c7",
+      "LokalBot/Cotyping/CotypingModelPreparation.swift": "79f010bf1fef0f23b2899785349062efb49702a88e23fb13b3b80d117bc16d15",
+      "LokalBot/Cotyping/CotypingModels.swift": "4310d6deb6a24f811bc2db3023a826824f6e3c075480fac22c4e3817c1df5a7e",
+      "LokalBot/Cotyping/CotypingOverlayController.swift": "76526232814cef06b7c49d8b4a4dfb0b542a09c7d780dcb5150c6bd8e5bd4729",
+      "LokalBot/Cotyping/CotypingOverlayGeometry.swift": "ec64c7456f5aeafdf7255e4b4ea3489b23119b26b3774832ed364fca843b7511",
+      "LokalBot/Cotyping/CotypingPrefixWindow.swift": "568f3ae834439759fb1af113e9c93c208e4a8bd0c7dc925a01374c7659e72149",
+      "LokalBot/Cotyping/CotypingPromptRenderer.swift": "fcdcb12b39248de4f0d2ab5d05038543625a434612f6f46f75e0fa59676efc4c",
+      "LokalBot/Cotyping/CotypingQualityReplay.swift": "2e5dbca39025c513bc9705ab0fb8aa4c8fa96ae145bc485022ff64deb3aaca26",
+      "LokalBot/Cotyping/CotypingRenderMode.swift": "f6e3aea1afcd3c691379ad41eb14fc151f918278d224826c859b06fe9a816b02",
+      "LokalBot/Cotyping/CotypingSeamGuard.swift": "41be7dbb5a60537561b1e84f0a19c9e6b6461e9284de3b803ecccbf6aaf817fe",
+      "LokalBot/Cotyping/CotypingSessionReconciler.swift": "ff6cee53f791307deafa394174028f812f5ec270bcb3e1d44049259e14533b2e",
+      "LokalBot/Cotyping/CotypingSpellChecker.swift": "6b73836fa9a3eca858da0173f089f047b48dd5cc4422bcc273702830d85f6f19",
+      "LokalBot/Cotyping/CotypingSpellLanguageGate.swift": "2d74994e89bae1ef442bb9ae191171f2ab1a2e1af7c12915eea8e1d67b58e4eb",
+      "LokalBot/Cotyping/CotypingStats.swift": "066f1467335c03b8547ec9d1d9d5d0d9f7dcc3a3f61b65af397982bc2407323a",
+      "LokalBot/Cotyping/CotypingSuggestionAnchorCache.swift": "9099bc52a4a0d3d3a5a3721b1b4cc0b67c7c9ef4567d8f82b3c318672c2eba0c",
+      "LokalBot/Cotyping/CotypingSuggestionExtension.swift": "75f8ba593a7c60ebf2fd03c6bffde49b7c387ccbecd98ce6824339085c5f00b1",
+      "LokalBot/Cotyping/CotypingSurfaceCaptureSingleFlight.swift": "7cdec54f5dc3f133f0baada5c0787eb81120dad8e6b00d9c9cf1892a63ae11ed",
+      "LokalBot/Cotyping/CotypingSurfaceContext.swift": "d73c31e8a5e3a781e43dd80bc1ad62090339529545ddf2d90d5bcf4db02e4d3f",
+      "LokalBot/Cotyping/CotypingSystemInlinePredictions.swift": "695c1898a6bb58dbc6051fda7e6f8d687327496e01e96d0778d6d2edc5d77eea",
+      "LokalBot/Cotyping/CotypingTextDirectionDetector.swift": "f893af606841af5c8e76dd17539ef1fde5a943174a654dfdbac4c5a8627417b4",
+      "LokalBot/Cotyping/CotypingTextLeafCaret.swift": "f8cd8c7611df03c0c65f0791fcfa3918c69088767c51881138cf4521173841ea",
+      "LokalBot/Cotyping/CotypingTextNormalizer.swift": "17e0920178df51d078e322840081b8ebd5831ddc9f925377cc3091ad1016fc67",
+      "LokalBot/Cotyping/CotypingTypo.swift": "be483fc7903d422400002819fbf4cada2111c9bb26f9a1d9495a55d6ec33ce92",
+      "LokalBot/Cotyping/CotypingVisibleContext.swift": "70ddbe528f637e82a81c2c7b0c01546f2fd2bf312493f7e162b67f6471cae853",
+      "LokalBot/Cotyping/CotypingVisibleContextAXSource.swift": "b7f4baf28554ac5b2932d848caad0f49fff11ce84ca6899c94bee43fc73d6f05",
+      "LokalBot/Cotyping/CotypingVisibleContextReplay.swift": "7bebbdeff9b1f269a37460cc75ce68b9c13e0e2d562b2c3e5c099434eb418b5e",
+      "LokalBot/Cotyping/CotypingVisualCaret.swift": "26e23e138579bf42788430768c5a42270c84a3aeaf1c913792e985bdb5d155cf",
+      "LokalBot/Cotyping/Llama/CotypingCandidateSearch.swift": "d183119695bab737649b3b1129dc961ec575a3b2e8c2ba84c8adf7d54eeaddcd",
+      "LokalBot/Cotyping/Llama/CotypingEngineSelector.swift": "e8f010e4b647427af8b3796765982c5f78b8b7b87aafed495b2d80cb07e7af73",
+      "LokalBot/Cotyping/Llama/CotypingFirstWordConfidence.swift": "5b319162c2418fecfb0cb4f6a5335d4efe7672303c853d1d617a7aa0cf8d1497",
+      "LokalBot/Cotyping/Llama/CotypingTokenCandidates.swift": "9a1538d761251010c34fded5b3eb7ddae0d4c2eabf7fd409f57f20c613b9a517",
+      "LokalBot/Cotyping/Llama/CotypingTokenHealing.swift": "919f5cfc154edbe9454bec7c5c021ec85563730ffb13bd455eed2f5c7310782f",
+      "LokalBot/Cotyping/Llama/CotypingTokenPrefixIndex.swift": "0f6a38998f68eb01e69411e7d61be5672db2f2b665b62ab17285626ec2d4ce20",
+      "LokalBot/Cotyping/Llama/IncrementalPrefill.swift": "dfcb0b8c092880eba5b0fe0282f14756ace58f9fcb646680ea115538c2f1a2fa",
+      "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "1acc3c7defae1bd441d54c0e7fe7b96aace9d9ff51c9ad1f49753f067197ab56",
+      "LokalBot/Cotyping/Llama/LlamaSamplerSpec.swift": "082b722c4dd6ec05bdfcadadba94980a72c4b0b5fa66fb8066a001791d377ed6",
+      "LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift": "358ccfc5ec5344005c237f2cd15157aedd0378079024394c1cd6259e89edfdb2"
+    },
+    "runtimeReceipt": "b11474-macos15.0-arm64-generic-loader-rpath\na9682a06546edacb2d4e323247c57ec207ce67dffc5312913f250dfdf2293e12\n",
+    "runtimeManifestSHA256": "a9682a06546edacb2d4e323247c57ec207ce67dffc5312913f250dfdf2293e12",
+    "powerAtStart": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true",
+    "thermalAtStart": "Note: No thermal warning level has been recorded\nNote: No performance warning level has been recorded\nNote: No CPU power status has been recorded",
+    "gitHEAD": "32381e9f8e8137c95d1b94984549a62cdb004aab",
+    "renderedPromptsSHA256": "622016e6c9404352f7936c50a769ee3ae05ec74382d97a6d4427960d5b364c84"
+  },
+  "comparisons": {
+    "2": {
+      "before": {
+        "checkpoints": 600,
+        "correct": 187,
+        "shown": 324,
+        "errors": 0,
+        "accuracy": 0.31166666666666665,
+        "coverage": 0.54,
+        "2WordAccuracy": 0.11991869918699187,
+        "3WordAccuracy": 0.04922279792746114,
+        "p50Ms": 27.0665,
+        "p95Ms": 85.26375,
+        "incorrectShown": 137,
+        "precisionWhenShown": 0.5771604938271605,
+        "meanMs": 40.16921894,
+        "oracleFirstWordMatches": 187
+      },
+      "after": {
+        "checkpoints": 600,
+        "correct": 189,
+        "shown": 338,
+        "errors": 0,
+        "accuracy": 0.315,
+        "coverage": 0.5633333333333334,
+        "2WordAccuracy": 0.11382113821138211,
+        "3WordAccuracy": 0.04145077720207254,
+        "p50Ms": 73.094708,
+        "p95Ms": 99.264791,
+        "incorrectShown": 149,
+        "precisionWhenShown": 0.5591715976331361,
+        "meanMs": 58.354068596666664,
+        "oracleFirstWordMatches": 194
+      },
+      "deltaPercentagePoints": 0.3333333333333355,
+      "pairedGains": 17,
+      "pairedLosses": 15,
+      "phraseBootstrap95PercentCI": [
+        -1.4754098360655739,
+        2.1922428330522767
+      ],
+      "bootstrap": {
+        "unit": "whole phrase, paired, stratified by category",
+        "repetitions": 3000,
+        "seed": 20261002
+      },
+      "categories": {
+        "conversation": {
+          "before": {
+            "checkpoints": 54,
+            "correct": 15,
+            "shown": 25,
+            "errors": 0,
+            "accuracy": 0.2777777777777778,
+            "coverage": 0.46296296296296297,
+            "2WordAccuracy": 0.045454545454545456,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 27.400791,
+            "p95Ms": 91.5945
+          },
+          "after": {
+            "checkpoints": 54,
+            "correct": 16,
+            "shown": 26,
+            "errors": 0,
+            "accuracy": 0.2962962962962963,
+            "coverage": 0.48148148148148145,
+            "2WordAccuracy": 0.06818181818181818,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 25.983375,
+            "p95Ms": 99.241667
+          }
+        },
+        "email": {
+          "before": {
+            "checkpoints": 52,
+            "correct": 21,
+            "shown": 27,
+            "errors": 0,
+            "accuracy": 0.40384615384615385,
+            "coverage": 0.5192307692307693,
+            "2WordAccuracy": 0.22727272727272727,
+            "3WordAccuracy": 0.1111111111111111,
+            "p50Ms": 26.004792,
+            "p95Ms": 74.914084
+          },
+          "after": {
+            "checkpoints": 52,
+            "correct": 18,
+            "shown": 29,
+            "errors": 0,
+            "accuracy": 0.34615384615384615,
+            "coverage": 0.5576923076923077,
+            "2WordAccuracy": 0.13636363636363635,
+            "3WordAccuracy": 0.05555555555555555,
+            "p50Ms": 32.40375,
+            "p95Ms": 93.646708
+          }
+        },
+        "entertainment": {
+          "before": {
+            "checkpoints": 57,
+            "correct": 18,
+            "shown": 33,
+            "errors": 0,
+            "accuracy": 0.3157894736842105,
+            "coverage": 0.5789473684210527,
+            "2WordAccuracy": 0.06382978723404255,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.9405,
+            "p95Ms": 88.085708
+          },
+          "after": {
+            "checkpoints": 57,
+            "correct": 18,
+            "shown": 36,
+            "errors": 0,
+            "accuracy": 0.3157894736842105,
+            "coverage": 0.631578947368421,
+            "2WordAccuracy": 0.0851063829787234,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 84.556083,
+            "p95Ms": 96.5415
+          }
+        },
+        "everyday": {
+          "before": {
+            "checkpoints": 59,
+            "correct": 17,
+            "shown": 31,
+            "errors": 0,
+            "accuracy": 0.288135593220339,
+            "coverage": 0.5254237288135594,
+            "2WordAccuracy": 0.08163265306122448,
+            "3WordAccuracy": 0.02564102564102564,
+            "p50Ms": 24.481375,
+            "p95Ms": 95.883792
+          },
+          "after": {
+            "checkpoints": 59,
+            "correct": 18,
+            "shown": 33,
+            "errors": 0,
+            "accuracy": 0.3050847457627119,
+            "coverage": 0.559322033898305,
+            "2WordAccuracy": 0.12244897959183673,
+            "3WordAccuracy": 0.07692307692307693,
+            "p50Ms": 75.903042,
+            "p95Ms": 105.46325
+          }
+        },
+        "formatting": {
+          "before": {
+            "checkpoints": 39,
+            "correct": 16,
+            "shown": 26,
+            "errors": 0,
+            "accuracy": 0.41025641025641024,
+            "coverage": 0.6666666666666666,
+            "2WordAccuracy": 0.0967741935483871,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 55.411584,
+            "p95Ms": 84.538583
+          },
+          "after": {
+            "checkpoints": 39,
+            "correct": 15,
+            "shown": 27,
+            "errors": 0,
+            "accuracy": 0.38461538461538464,
+            "coverage": 0.6923076923076923,
+            "2WordAccuracy": 0.0967741935483871,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 87.058042,
+            "p95Ms": 114.320584
+          }
+        },
+        "long-context": {
+          "before": {
+            "checkpoints": 47,
+            "correct": 5,
+            "shown": 18,
+            "errors": 0,
+            "accuracy": 0.10638297872340426,
+            "coverage": 0.3829787234042553,
+            "2WordAccuracy": 0.0,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.491917,
+            "p95Ms": 172.86175
+          },
+          "after": {
+            "checkpoints": 47,
+            "correct": 6,
+            "shown": 19,
+            "errors": 0,
+            "accuracy": 0.1276595744680851,
+            "coverage": 0.40425531914893614,
+            "2WordAccuracy": 0.0,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 26.848541,
+            "p95Ms": 190.1725
+          }
+        },
+        "multilingual": {
+          "before": {
+            "checkpoints": 40,
+            "correct": 12,
+            "shown": 17,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.425,
+            "2WordAccuracy": 0.21875,
+            "3WordAccuracy": 0.08333333333333333,
+            "p50Ms": 19.820167,
+            "p95Ms": 46.810541
+          },
+          "after": {
+            "checkpoints": 40,
+            "correct": 12,
+            "shown": 17,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.425,
+            "2WordAccuracy": 0.1875,
+            "3WordAccuracy": 0.08333333333333333,
+            "p50Ms": 25.023416,
+            "p95Ms": 87.513417
+          }
+        },
+        "science": {
+          "before": {
+            "checkpoints": 61,
+            "correct": 30,
+            "shown": 45,
+            "errors": 0,
+            "accuracy": 0.4918032786885246,
+            "coverage": 0.7377049180327869,
+            "2WordAccuracy": 0.3137254901960784,
+            "3WordAccuracy": 0.16666666666666666,
+            "p50Ms": 45.322416,
+            "p95Ms": 85.26375
+          },
+          "after": {
+            "checkpoints": 61,
+            "correct": 28,
+            "shown": 45,
+            "errors": 0,
+            "accuracy": 0.45901639344262296,
+            "coverage": 0.7377049180327869,
+            "2WordAccuracy": 0.23529411764705882,
+            "3WordAccuracy": 0.09523809523809523,
+            "p50Ms": 88.678792,
+            "p95Ms": 96.737
+          }
+        },
+        "technology": {
+          "before": {
+            "checkpoints": 63,
+            "correct": 12,
+            "shown": 30,
+            "errors": 0,
+            "accuracy": 0.19047619047619047,
+            "coverage": 0.47619047619047616,
+            "2WordAccuracy": 0.04,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 25.006667,
+            "p95Ms": 78.183791
+          },
+          "after": {
+            "checkpoints": 63,
+            "correct": 15,
+            "shown": 32,
+            "errors": 0,
+            "accuracy": 0.23809523809523808,
+            "coverage": 0.5079365079365079,
+            "2WordAccuracy": 0.06,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 31.3375,
+            "p95Ms": 95.942833
+          }
+        },
+        "travel": {
+          "before": {
+            "checkpoints": 60,
+            "correct": 18,
+            "shown": 33,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.55,
+            "2WordAccuracy": 0.08163265306122448,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.616291,
+            "p95Ms": 74.88325
+          },
+          "after": {
+            "checkpoints": 60,
+            "correct": 19,
+            "shown": 34,
+            "errors": 0,
+            "accuracy": 0.31666666666666665,
+            "coverage": 0.5666666666666667,
+            "2WordAccuracy": 0.10204081632653061,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 76.733917,
+            "p95Ms": 95.777792
+          }
+        },
+        "work": {
+          "before": {
+            "checkpoints": 68,
+            "correct": 23,
+            "shown": 39,
+            "errors": 0,
+            "accuracy": 0.3382352941176471,
+            "coverage": 0.5735294117647058,
+            "2WordAccuracy": 0.14285714285714285,
+            "3WordAccuracy": 0.10869565217391304,
+            "p50Ms": 31.882541,
+            "p95Ms": 85.877291
+          },
+          "after": {
+            "checkpoints": 68,
+            "correct": 24,
+            "shown": 40,
+            "errors": 0,
+            "accuracy": 0.35294117647058826,
+            "coverage": 0.5882352941176471,
+            "2WordAccuracy": 0.14285714285714285,
+            "3WordAccuracy": 0.10869565217391304,
+            "p50Ms": 82.475416,
+            "p95Ms": 99.71525
+          }
+        }
+      }
+    },
+    "4": {
+      "before": {
+        "checkpoints": 600,
+        "correct": 187,
+        "shown": 324,
+        "errors": 0,
+        "accuracy": 0.31166666666666665,
+        "coverage": 0.54,
+        "2WordAccuracy": 0.11991869918699187,
+        "3WordAccuracy": 0.04922279792746114,
+        "p50Ms": 27.0665,
+        "p95Ms": 85.26375,
+        "incorrectShown": 137,
+        "precisionWhenShown": 0.5771604938271605,
+        "meanMs": 40.16921894,
+        "oracleFirstWordMatches": 187
+      },
+      "after": {
+        "checkpoints": 600,
+        "correct": 189,
+        "shown": 345,
+        "errors": 0,
+        "accuracy": 0.315,
+        "coverage": 0.575,
+        "2WordAccuracy": 0.11991869918699187,
+        "3WordAccuracy": 0.038860103626943004,
+        "p50Ms": 89.957375,
+        "p95Ms": 113.921291,
+        "incorrectShown": 156,
+        "precisionWhenShown": 0.5478260869565217,
+        "meanMs": 66.50705790166667,
+        "oracleFirstWordMatches": 206
+      },
+      "deltaPercentagePoints": 0.3333333333333355,
+      "pairedGains": 16,
+      "pairedLosses": 14,
+      "phraseBootstrap95PercentCI": [
+        -1.3468013468013469,
+        2.155887230514096
+      ],
+      "bootstrap": {
+        "unit": "whole phrase, paired, stratified by category",
+        "repetitions": 3000,
+        "seed": 20261002
+      },
+      "categories": {
+        "conversation": {
+          "before": {
+            "checkpoints": 54,
+            "correct": 15,
+            "shown": 25,
+            "errors": 0,
+            "accuracy": 0.2777777777777778,
+            "coverage": 0.46296296296296297,
+            "2WordAccuracy": 0.045454545454545456,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 27.400791,
+            "p95Ms": 91.5945
+          },
+          "after": {
+            "checkpoints": 54,
+            "correct": 17,
+            "shown": 26,
+            "errors": 0,
+            "accuracy": 0.3148148148148148,
+            "coverage": 0.48148148148148145,
+            "2WordAccuracy": 0.09090909090909091,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 31.742042,
+            "p95Ms": 112.125458
+          }
+        },
+        "email": {
+          "before": {
+            "checkpoints": 52,
+            "correct": 21,
+            "shown": 27,
+            "errors": 0,
+            "accuracy": 0.40384615384615385,
+            "coverage": 0.5192307692307693,
+            "2WordAccuracy": 0.22727272727272727,
+            "3WordAccuracy": 0.1111111111111111,
+            "p50Ms": 26.004792,
+            "p95Ms": 74.914084
+          },
+          "after": {
+            "checkpoints": 52,
+            "correct": 18,
+            "shown": 30,
+            "errors": 0,
+            "accuracy": 0.34615384615384615,
+            "coverage": 0.5769230769230769,
+            "2WordAccuracy": 0.13636363636363635,
+            "3WordAccuracy": 0.05555555555555555,
+            "p50Ms": 38.127417,
+            "p95Ms": 105.176458
+          }
+        },
+        "entertainment": {
+          "before": {
+            "checkpoints": 57,
+            "correct": 18,
+            "shown": 33,
+            "errors": 0,
+            "accuracy": 0.3157894736842105,
+            "coverage": 0.5789473684210527,
+            "2WordAccuracy": 0.06382978723404255,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.9405,
+            "p95Ms": 88.085708
+          },
+          "after": {
+            "checkpoints": 57,
+            "correct": 18,
+            "shown": 37,
+            "errors": 0,
+            "accuracy": 0.3157894736842105,
+            "coverage": 0.6491228070175439,
+            "2WordAccuracy": 0.1276595744680851,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 92.677042,
+            "p95Ms": 111.249
+          }
+        },
+        "everyday": {
+          "before": {
+            "checkpoints": 59,
+            "correct": 17,
+            "shown": 31,
+            "errors": 0,
+            "accuracy": 0.288135593220339,
+            "coverage": 0.5254237288135594,
+            "2WordAccuracy": 0.08163265306122448,
+            "3WordAccuracy": 0.02564102564102564,
+            "p50Ms": 24.481375,
+            "p95Ms": 95.883792
+          },
+          "after": {
+            "checkpoints": 59,
+            "correct": 20,
+            "shown": 34,
+            "errors": 0,
+            "accuracy": 0.3389830508474576,
+            "coverage": 0.576271186440678,
+            "2WordAccuracy": 0.14285714285714285,
+            "3WordAccuracy": 0.05128205128205128,
+            "p50Ms": 89.37275,
+            "p95Ms": 126.293875
+          }
+        },
+        "formatting": {
+          "before": {
+            "checkpoints": 39,
+            "correct": 16,
+            "shown": 26,
+            "errors": 0,
+            "accuracy": 0.41025641025641024,
+            "coverage": 0.6666666666666666,
+            "2WordAccuracy": 0.0967741935483871,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 55.411584,
+            "p95Ms": 84.538583
+          },
+          "after": {
+            "checkpoints": 39,
+            "correct": 15,
+            "shown": 27,
+            "errors": 0,
+            "accuracy": 0.38461538461538464,
+            "coverage": 0.6923076923076923,
+            "2WordAccuracy": 0.0967741935483871,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 95.266459,
+            "p95Ms": 124.156875
+          }
+        },
+        "long-context": {
+          "before": {
+            "checkpoints": 47,
+            "correct": 5,
+            "shown": 18,
+            "errors": 0,
+            "accuracy": 0.10638297872340426,
+            "coverage": 0.3829787234042553,
+            "2WordAccuracy": 0.0,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.491917,
+            "p95Ms": 172.86175
+          },
+          "after": {
+            "checkpoints": 47,
+            "correct": 6,
+            "shown": 19,
+            "errors": 0,
+            "accuracy": 0.1276595744680851,
+            "coverage": 0.40425531914893614,
+            "2WordAccuracy": 0.0,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 39.122458,
+            "p95Ms": 200.2435
+          }
+        },
+        "multilingual": {
+          "before": {
+            "checkpoints": 40,
+            "correct": 12,
+            "shown": 17,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.425,
+            "2WordAccuracy": 0.21875,
+            "3WordAccuracy": 0.08333333333333333,
+            "p50Ms": 19.820167,
+            "p95Ms": 46.810541
+          },
+          "after": {
+            "checkpoints": 40,
+            "correct": 12,
+            "shown": 17,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.425,
+            "2WordAccuracy": 0.1875,
+            "3WordAccuracy": 0.08333333333333333,
+            "p50Ms": 26.279583,
+            "p95Ms": 106.684125
+          }
+        },
+        "science": {
+          "before": {
+            "checkpoints": 61,
+            "correct": 30,
+            "shown": 45,
+            "errors": 0,
+            "accuracy": 0.4918032786885246,
+            "coverage": 0.7377049180327869,
+            "2WordAccuracy": 0.3137254901960784,
+            "3WordAccuracy": 0.16666666666666666,
+            "p50Ms": 45.322416,
+            "p95Ms": 85.26375
+          },
+          "after": {
+            "checkpoints": 61,
+            "correct": 28,
+            "shown": 46,
+            "errors": 0,
+            "accuracy": 0.45901639344262296,
+            "coverage": 0.7540983606557377,
+            "2WordAccuracy": 0.19607843137254902,
+            "3WordAccuracy": 0.09523809523809523,
+            "p50Ms": 96.478,
+            "p95Ms": 112.137792
+          }
+        },
+        "technology": {
+          "before": {
+            "checkpoints": 63,
+            "correct": 12,
+            "shown": 30,
+            "errors": 0,
+            "accuracy": 0.19047619047619047,
+            "coverage": 0.47619047619047616,
+            "2WordAccuracy": 0.04,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 25.006667,
+            "p95Ms": 78.183791
+          },
+          "after": {
+            "checkpoints": 63,
+            "correct": 14,
+            "shown": 34,
+            "errors": 0,
+            "accuracy": 0.2222222222222222,
+            "coverage": 0.5396825396825397,
+            "2WordAccuracy": 0.06,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 90.413584,
+            "p95Ms": 113.366333
+          }
+        },
+        "travel": {
+          "before": {
+            "checkpoints": 60,
+            "correct": 18,
+            "shown": 33,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.55,
+            "2WordAccuracy": 0.08163265306122448,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 24.616291,
+            "p95Ms": 74.88325
+          },
+          "after": {
+            "checkpoints": 60,
+            "correct": 18,
+            "shown": 34,
+            "errors": 0,
+            "accuracy": 0.3,
+            "coverage": 0.5666666666666667,
+            "2WordAccuracy": 0.10204081632653061,
+            "3WordAccuracy": 0.0,
+            "p50Ms": 89.957375,
+            "p95Ms": 113.482375
+          }
+        },
+        "work": {
+          "before": {
+            "checkpoints": 68,
+            "correct": 23,
+            "shown": 39,
+            "errors": 0,
+            "accuracy": 0.3382352941176471,
+            "coverage": 0.5735294117647058,
+            "2WordAccuracy": 0.14285714285714285,
+            "3WordAccuracy": 0.10869565217391304,
+            "p50Ms": 31.882541,
+            "p95Ms": 85.877291
+          },
+          "after": {
+            "checkpoints": 68,
+            "correct": 23,
+            "shown": 41,
+            "errors": 0,
+            "accuracy": 0.3382352941176471,
+            "coverage": 0.6029411764705882,
+            "2WordAccuracy": 0.16071428571428573,
+            "3WordAccuracy": 0.10869565217391304,
+            "p50Ms": 96.6455,
+            "p95Ms": 114.3365
+          }
+        }
+      }
+    }
+  },
+  "widths": {
+    "1": {
+      "runs": [
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 187,
+            "shown": 324,
+            "errors": 0,
+            "accuracy": 0.31166666666666665,
+            "coverage": 0.54,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.04922279792746114,
+            "p50Ms": 27.0665,
+            "p95Ms": 85.26375,
+            "incorrectShown": 137,
+            "precisionWhenShown": 0.5771604938271605,
+            "meanMs": 40.16921894,
+            "oracleFirstWordMatches": 187
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 54,
+              "shown": 88,
+              "errors": 0,
+              "accuracy": 0.30337078651685395,
+              "coverage": 0.4943820224719101,
+              "2WordAccuracy": 0.136986301369863,
+              "3WordAccuracy": 0.05263157894736842,
+              "p50Ms": 24.610167,
+              "p95Ms": 96.059625
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 72,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6428571428571429,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.1956521739130435,
+              "3WordAccuracy": 0.06756756756756757,
+              "p50Ms": 70.795875,
+              "p95Ms": 96.391917
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 61,
+              "shown": 124,
+              "errors": 0,
+              "accuracy": 0.1967741935483871,
+              "coverage": 0.4,
+              "2WordAccuracy": 0.08267716535433071,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 20.937417,
+              "p95Ms": 73.007959
+            }
+          },
+          "peakRSSBytes": 4169465856
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 187,
+            "shown": 324,
+            "errors": 0,
+            "accuracy": 0.31166666666666665,
+            "coverage": 0.54,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.04922279792746114,
+            "p50Ms": 30.390541,
+            "p95Ms": 88.266917,
+            "incorrectShown": 137,
+            "precisionWhenShown": 0.5771604938271605,
+            "meanMs": 44.11429133,
+            "oracleFirstWordMatches": 187
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 54,
+              "shown": 88,
+              "errors": 0,
+              "accuracy": 0.30337078651685395,
+              "coverage": 0.4943820224719101,
+              "2WordAccuracy": 0.136986301369863,
+              "3WordAccuracy": 0.05263157894736842,
+              "p50Ms": 27.41225,
+              "p95Ms": 109.037583
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 72,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6428571428571429,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.1956521739130435,
+              "3WordAccuracy": 0.06756756756756757,
+              "p50Ms": 75.103875,
+              "p95Ms": 101.261
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 61,
+              "shown": 124,
+              "errors": 0,
+              "accuracy": 0.1967741935483871,
+              "coverage": 0.4,
+              "2WordAccuracy": 0.08267716535433071,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 22.169417,
+              "p95Ms": 78.161292
+            }
+          },
+          "peakRSSBytes": 4169547776
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 187,
+            "shown": 324,
+            "errors": 0,
+            "accuracy": 0.31166666666666665,
+            "coverage": 0.54,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.04922279792746114,
+            "p50Ms": 27.791667,
+            "p95Ms": 82.219458,
+            "incorrectShown": 137,
+            "precisionWhenShown": 0.5771604938271605,
+            "meanMs": 40.31560085,
+            "oracleFirstWordMatches": 187
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 54,
+              "shown": 88,
+              "errors": 0,
+              "accuracy": 0.30337078651685395,
+              "coverage": 0.4943820224719101,
+              "2WordAccuracy": 0.136986301369863,
+              "3WordAccuracy": 0.05263157894736842,
+              "p50Ms": 25.343125,
+              "p95Ms": 95.316667
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 72,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6428571428571429,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.1956521739130435,
+              "3WordAccuracy": 0.06756756756756757,
+              "p50Ms": 69.183542,
+              "p95Ms": 94.009708
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 61,
+              "shown": 124,
+              "errors": 0,
+              "accuracy": 0.1967741935483871,
+              "coverage": 0.4,
+              "2WordAccuracy": 0.08267716535433071,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 20.955166,
+              "p95Ms": 75.649084
+            }
+          },
+          "peakRSSBytes": 4170022912
+        }
+      ],
+      "checkpointsWithRepeatVariation": 0
+    },
+    "2": {
+      "runs": [
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 338,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.5633333333333334,
+            "2WordAccuracy": 0.11382113821138211,
+            "3WordAccuracy": 0.04145077720207254,
+            "p50Ms": 73.094708,
+            "p95Ms": 99.264791,
+            "incorrectShown": 149,
+            "precisionWhenShown": 0.5591715976331361,
+            "meanMs": 58.354068596666664,
+            "oracleFirstWordMatches": 194
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 92,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5168539325842697,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 30.612708,
+              "p95Ms": 114.320584
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.18478260869565216,
+              "3WordAccuracy": 0.05405405405405406,
+              "p50Ms": 94.436666,
+              "p95Ms": 113.032208
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 134,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.432258064516129,
+              "2WordAccuracy": 0.09448818897637795,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 25.508542,
+              "p95Ms": 93.608583
+            }
+          },
+          "peakRSSBytes": 4211277824
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 338,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.5633333333333334,
+            "2WordAccuracy": 0.11382113821138211,
+            "3WordAccuracy": 0.04145077720207254,
+            "p50Ms": 74.998292,
+            "p95Ms": 100.695459,
+            "incorrectShown": 149,
+            "precisionWhenShown": 0.5591715976331361,
+            "meanMs": 58.57217307,
+            "oracleFirstWordMatches": 194
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 92,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5168539325842697,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 32.183208,
+              "p95Ms": 113.960625
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.18478260869565216,
+              "3WordAccuracy": 0.05405405405405406,
+              "p50Ms": 95.172958,
+              "p95Ms": 112.813875
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 134,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.432258064516129,
+              "2WordAccuracy": 0.09448818897637795,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 25.627125,
+              "p95Ms": 93.522125
+            }
+          },
+          "peakRSSBytes": 4211851264
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 338,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.5633333333333334,
+            "2WordAccuracy": 0.11382113821138211,
+            "3WordAccuracy": 0.04145077720207254,
+            "p50Ms": 73.09475,
+            "p95Ms": 97.577208,
+            "incorrectShown": 149,
+            "precisionWhenShown": 0.5591715976331361,
+            "meanMs": 57.39659125,
+            "oracleFirstWordMatches": 194
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 92,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5168539325842697,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 32.673291,
+              "p95Ms": 110.250041
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.18478260869565216,
+              "3WordAccuracy": 0.05405405405405406,
+              "p50Ms": 89.94325,
+              "p95Ms": 108.910125
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 134,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.432258064516129,
+              "2WordAccuracy": 0.09448818897637795,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 25.668125,
+              "p95Ms": 92.758083
+            }
+          },
+          "peakRSSBytes": 4211294208
+        }
+      ],
+      "checkpointsWithRepeatVariation": 0
+    },
+    "4": {
+      "runs": [
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 345,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.575,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.038860103626943004,
+            "p50Ms": 89.957375,
+            "p95Ms": 113.921291,
+            "incorrectShown": 156,
+            "precisionWhenShown": 0.5478260869565217,
+            "meanMs": 66.50705790166667,
+            "oracleFirstWordMatches": 206
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 93,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5224719101123596,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 33.068666,
+              "p95Ms": 124.156875
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.20652173913043478,
+              "3WordAccuracy": 0.04054054054054054,
+              "p50Ms": 108.765042,
+              "p95Ms": 126.293875
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 140,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.45161290322580644,
+              "2WordAccuracy": 0.0984251968503937,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 26.035333,
+              "p95Ms": 104.586125
+            }
+          },
+          "peakRSSBytes": 4289249280
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 345,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.575,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.038860103626943004,
+            "p50Ms": 89,
+            "p95Ms": 116.675167,
+            "incorrectShown": 156,
+            "precisionWhenShown": 0.5478260869565217,
+            "meanMs": 66.69475936833334,
+            "oracleFirstWordMatches": 206
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 93,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5224719101123596,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 34.411459,
+              "p95Ms": 121.884875
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.20652173913043478,
+              "3WordAccuracy": 0.04054054054054054,
+              "p50Ms": 110.158834,
+              "p95Ms": 123.630209
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 140,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.45161290322580644,
+              "2WordAccuracy": 0.0984251968503937,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 26.228792,
+              "p95Ms": 104.307166
+            }
+          },
+          "peakRSSBytes": 4292411392
+        },
+        {
+          "overall": {
+            "checkpoints": 600,
+            "correct": 189,
+            "shown": 345,
+            "errors": 0,
+            "accuracy": 0.315,
+            "coverage": 0.575,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.038860103626943004,
+            "p50Ms": 91.580042,
+            "p95Ms": 113.62275,
+            "incorrectShown": 156,
+            "precisionWhenShown": 0.5478260869565217,
+            "meanMs": 67.53409076833333,
+            "oracleFirstWordMatches": 206
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 51,
+              "shown": 93,
+              "errors": 0,
+              "accuracy": 0.28651685393258425,
+              "coverage": 0.5224719101123596,
+              "2WordAccuracy": 0.10273972602739725,
+              "3WordAccuracy": 0.03508771929824561,
+              "p50Ms": 33.739583,
+              "p95Ms": 118.472667
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 74,
+              "shown": 112,
+              "errors": 0,
+              "accuracy": 0.6607142857142857,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.20652173913043478,
+              "3WordAccuracy": 0.04054054054054054,
+              "p50Ms": 108.821334,
+              "p95Ms": 126.285625
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 64,
+              "shown": 140,
+              "errors": 0,
+              "accuracy": 0.2064516129032258,
+              "coverage": 0.45161290322580644,
+              "2WordAccuracy": 0.0984251968503937,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 27.137417,
+              "p95Ms": 108.340708
+            }
+          },
+          "peakRSSBytes": 4292624384
+        }
+      ],
+      "checkpointsWithRepeatVariation": 0
+    }
+  }
+}

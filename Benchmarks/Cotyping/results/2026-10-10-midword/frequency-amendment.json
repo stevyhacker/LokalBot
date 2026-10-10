@@ -1,0 +1,10 @@
+{
+  "recordedAtUTC": "2026-10-10T17:02:58.134742+00:00",
+  "stage": "after unlabeled trace, before fresh judging",
+  "reason": "Fixed Luchador has one EN midword output suppressed by the unchanged normalizer; a shared 29/48 boundary quota would show 249 versus 250 total.",
+  "rule": "Match each arm to exactly 125/144 per language by setting boundary quota to 125 minus its native nonempty midword count. Preserve every midword output and use only unlabeled boundary confidence ranks.",
+  "effect": "Luchador-fixed EN: 30/48 boundary plus 95/96 midword. Every other arm/language: 29/48 boundary plus 96/96 midword. Primary Serbian comparison unchanged.",
+  "qualityLabelsUsed": false,
+  "decoderChanged": false,
+  "limitation": "Equal total frequency; EN kind mix differs by one suggestion. Report native midword quality separately."
+}

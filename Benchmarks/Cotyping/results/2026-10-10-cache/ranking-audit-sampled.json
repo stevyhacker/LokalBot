@@ -1,0 +1,53 @@
+{
+  "totals": {
+    "checkpoints": 600,
+    "shown": 324,
+    "selectedMatches": 187,
+    "oracleMatches": 187,
+    "missedOracleSelections": 0,
+    "duplicateNonemptyFinalists": 0,
+    "dedupTopOneChanges": 0,
+    "randomFinalistExpectedMatches": 187.0,
+    "referenceAvailableButControlSuppressed": 0
+  },
+  "scoreMarginBins": {},
+  "visibleWordCountBins": {
+    "1": {
+      "count": 60,
+      "referenceAgreement": 0.65
+    },
+    "2": {
+      "count": 43,
+      "referenceAgreement": 0.6046511627906976
+    },
+    "3": {
+      "count": 44,
+      "referenceAgreement": 0.5681818181818182
+    },
+    "4": {
+      "count": 177,
+      "referenceAgreement": 0.5480225988700564
+    }
+  },
+  "firstWordProbabilityBins": {
+    "0.1-0.25": {
+      "count": 126,
+      "referenceAgreement": 0.4126984126984127
+    },
+    "0.25-0.5": {
+      "count": 64,
+      "referenceAgreement": 0.6875
+    },
+    "0.5+": {
+      "count": 22,
+      "referenceAgreement": 0.8636363636363636
+    },
+    "below-0.1": {
+      "count": 276,
+      "referenceAgreement": 0
+    }
+  },
+  "missedSelections": [],
+  "interpretation": "Descriptive only. Oracle is unattainable without future reference access. Random expectation samples nonempty finalists uniformly, including duplicates. Bins are fixed, not tuned. First-word gate is disabled midword. Suppressed candidates were pruned, so their alternatives cannot be reconstructed.",
+  "missingDiagnostics": []
+}

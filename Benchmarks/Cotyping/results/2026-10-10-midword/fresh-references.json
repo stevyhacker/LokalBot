@@ -1,0 +1,2018 @@
+{
+  "fresh-en-00-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-00",
+    "sentence": "The parcel arrived while I was watering the plants on the balcony.",
+    "typed": ""
+  },
+  "fresh-en-00-6-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-00",
+    "sentence": "The parcel arrived while I was watering the plants on the balcony.",
+    "typed": "wa"
+  },
+  "fresh-en-00-11-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-00",
+    "sentence": "The parcel arrived while I was watering the plants on the balcony.",
+    "typed": "bal"
+  },
+  "fresh-sr_latn-00-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-00",
+    "sentence": "Paket je stigao dok sam zalivao biljke na balkonu iza kuće.",
+    "typed": ""
+  },
+  "fresh-sr_latn-00-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-00",
+    "sentence": "Paket je stigao dok sam zalivao biljke na balkonu iza kuće.",
+    "typed": "bi"
+  },
+  "fresh-sr_latn-00-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-00",
+    "sentence": "Paket je stigao dok sam zalivao biljke na balkonu iza kuće.",
+    "typed": "bal"
+  },
+  "fresh-en-01-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-01",
+    "sentence": "We put a small label on each jar so nobody confuses the spices.",
+    "typed": ""
+  },
+  "fresh-en-01-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-01",
+    "sentence": "We put a small label on each jar so nobody confuses the spices.",
+    "typed": "nob"
+  },
+  "fresh-en-01-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-01",
+    "sentence": "We put a small label on each jar so nobody confuses the spices.",
+    "typed": "conf"
+  },
+  "fresh-sr_latn-01-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-01",
+    "sentence": "Stavili smo malu nalepnicu na svaku teglu da niko ne pomeša začine.",
+    "typed": ""
+  },
+  "fresh-sr_latn-01-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-01",
+    "sentence": "Stavili smo malu nalepnicu na svaku teglu da niko ne pomeša začine.",
+    "typed": "teg"
+  },
+  "fresh-sr_latn-01-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-01",
+    "sentence": "Stavili smo malu nalepnicu na svaku teglu da niko ne pomeša začine.",
+    "typed": "pome"
+  },
+  "fresh-en-02-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-02",
+    "sentence": "Before you wash the curtains, check whether the fabric needs special treatment.",
+    "typed": ""
+  },
+  "fresh-en-02-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-02",
+    "sentence": "Before you wash the curtains, check whether the fabric needs special treatment.",
+    "typed": "whet"
+  },
+  "fresh-en-02-10-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-02",
+    "sentence": "Before you wash the curtains, check whether the fabric needs special treatment.",
+    "typed": "specia"
+  },
+  "fresh-sr_latn-02-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-02",
+    "sentence": "Pre nego što opereš zavese, proveri da li tkanina zahteva posebno pranje.",
+    "typed": ""
+  },
+  "fresh-sr_latn-02-5-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-02",
+    "sentence": "Pre nego što opereš zavese, proveri da li tkanina zahteva posebno pranje.",
+    "typed": "prov"
+  },
+  "fresh-sr_latn-02-10-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-02",
+    "sentence": "Pre nego što opereš zavese, proveri da li tkanina zahteva posebno pranje.",
+    "typed": "posebn"
+  },
+  "fresh-en-03-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-03",
+    "sentence": "My sister offered to collect the children because our train was delayed.",
+    "typed": ""
+  },
+  "fresh-en-03-6-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-03",
+    "sentence": "My sister offered to collect the children because our train was delayed.",
+    "typed": "childr"
+  },
+  "fresh-en-03-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-03",
+    "sentence": "My sister offered to collect the children because our train was delayed.",
+    "typed": "tr"
+  },
+  "fresh-sr_latn-03-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-03",
+    "sentence": "Sestra je ponudila da pokupi decu jer je naš voz kasnio.",
+    "typed": ""
+  },
+  "fresh-sr_latn-03-4-5": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-03",
+    "sentence": "Sestra je ponudila da pokupi decu jer je naš voz kasnio.",
+    "typed": "pokup"
+  },
+  "fresh-sr_latn-03-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-03",
+    "sentence": "Sestra je ponudila da pokupi decu jer je naš voz kasnio.",
+    "typed": "ka"
+  },
+  "fresh-en-04-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-04",
+    "sentence": "There is enough bread for breakfast if we save these last two slices.",
+    "typed": ""
+  },
+  "fresh-en-04-5-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-04",
+    "sentence": "There is enough bread for breakfast if we save these last two slices.",
+    "typed": "br"
+  },
+  "fresh-en-04-12-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-04",
+    "sentence": "There is enough bread for breakfast if we save these last two slices.",
+    "typed": "sli"
+  },
+  "fresh-sr_latn-04-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-04",
+    "sentence": "Ima dovoljno hleba za doručak ako sačuvamo ove poslednje dve kriške.",
+    "typed": ""
+  },
+  "fresh-sr_latn-04-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-04",
+    "sentence": "Ima dovoljno hleba za doručak ako sačuvamo ove poslednje dve kriške.",
+    "typed": "sa"
+  },
+  "fresh-sr_latn-04-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-04",
+    "sentence": "Ima dovoljno hleba za doručak ako sačuvamo ove poslednje dve kriške.",
+    "typed": "kri"
+  },
+  "fresh-en-05-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-05",
+    "sentence": "The new shoes felt comfortable until we started climbing the steep hill.",
+    "typed": ""
+  },
+  "fresh-en-05-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-05",
+    "sentence": "The new shoes felt comfortable until we started climbing the steep hill.",
+    "typed": "sta"
+  },
+  "fresh-en-05-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-05",
+    "sentence": "The new shoes felt comfortable until we started climbing the steep hill.",
+    "typed": "stee"
+  },
+  "fresh-sr_latn-05-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-05",
+    "sentence": "Nove cipele su bile udobne dok nismo počeli da se penjemo uzbrdo.",
+    "typed": ""
+  },
+  "fresh-sr_latn-05-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-05",
+    "sentence": "Nove cipele su bile udobne dok nismo počeli da se penjemo uzbrdo.",
+    "typed": "nis"
+  },
+  "fresh-sr_latn-05-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-05",
+    "sentence": "Nove cipele su bile udobne dok nismo počeli da se penjemo uzbrdo.",
+    "typed": "penj"
+  },
+  "fresh-en-06-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-06",
+    "sentence": "Someone left a shopping bag beside the entrance to the swimming pool.",
+    "typed": ""
+  },
+  "fresh-en-06-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-06",
+    "sentence": "Someone left a shopping bag beside the entrance to the swimming pool.",
+    "typed": "entr"
+  },
+  "fresh-en-06-10-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-06",
+    "sentence": "Someone left a shopping bag beside the entrance to the swimming pool.",
+    "typed": "swimmi"
+  },
+  "fresh-sr_latn-06-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-06",
+    "sentence": "Neko je ostavio kesu iz prodavnice pored ulaza u gradski bazen.",
+    "typed": ""
+  },
+  "fresh-sr_latn-06-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-06",
+    "sentence": "Neko je ostavio kesu iz prodavnice pored ulaza u gradski bazen.",
+    "typed": "pore"
+  },
+  "fresh-sr_latn-06-9-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-06",
+    "sentence": "Neko je ostavio kesu iz prodavnice pored ulaza u gradski bazen.",
+    "typed": "gradsk"
+  },
+  "fresh-en-07-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-07",
+    "sentence": "I would rather repair the old chair than buy another one this month.",
+    "typed": ""
+  },
+  "fresh-en-07-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-07",
+    "sentence": "I would rather repair the old chair than buy another one this month.",
+    "typed": "chai"
+  },
+  "fresh-en-07-12-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-07",
+    "sentence": "I would rather repair the old chair than buy another one this month.",
+    "typed": "mo"
+  },
+  "fresh-sr_latn-07-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-07",
+    "sentence": "Radije bih popravio staru stolicu nego kupio novu tokom ovog meseca.",
+    "typed": ""
+  },
+  "fresh-sr_latn-07-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-07",
+    "sentence": "Radije bih popravio staru stolicu nego kupio novu tokom ovog meseca.",
+    "typed": "kupi"
+  },
+  "fresh-sr_latn-07-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-07",
+    "sentence": "Radije bih popravio staru stolicu nego kupio novu tokom ovog meseca.",
+    "typed": "me"
+  },
+  "fresh-en-08-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-08",
+    "sentence": "The cat keeps hiding behind the sofa whenever the vacuum cleaner starts.",
+    "typed": ""
+  },
+  "fresh-en-08-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-08",
+    "sentence": "The cat keeps hiding behind the sofa whenever the vacuum cleaner starts.",
+    "typed": "wh"
+  },
+  "fresh-en-08-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-08",
+    "sentence": "The cat keeps hiding behind the sofa whenever the vacuum cleaner starts.",
+    "typed": "cle"
+  },
+  "fresh-sr_latn-08-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-08",
+    "sentence": "Mačka se stalno skriva iza kauča čim uključimo usisivač u sobi.",
+    "typed": ""
+  },
+  "fresh-sr_latn-08-5-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-08",
+    "sentence": "Mačka se stalno skriva iza kauča čim uključimo usisivač u sobi.",
+    "typed": "ka"
+  },
+  "fresh-sr_latn-08-8-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-08",
+    "sentence": "Mačka se stalno skriva iza kauča čim uključimo usisivač u sobi.",
+    "typed": "usi"
+  },
+  "fresh-en-09-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-09",
+    "sentence": "We should call the restaurant early because the terrace fills up quickly.",
+    "typed": ""
+  },
+  "fresh-en-09-6-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-09",
+    "sentence": "We should call the restaurant early because the terrace fills up quickly.",
+    "typed": "bec"
+  },
+  "fresh-en-09-9-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-09",
+    "sentence": "We should call the restaurant early because the terrace fills up quickly.",
+    "typed": "fill"
+  },
+  "fresh-sr_latn-09-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-09",
+    "sentence": "Trebalo bi ranije da pozovemo restoran jer se terasa brzo popuni.",
+    "typed": ""
+  },
+  "fresh-sr_latn-09-5-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-09",
+    "sentence": "Trebalo bi ranije da pozovemo restoran jer se terasa brzo popuni.",
+    "typed": "res"
+  },
+  "fresh-sr_latn-09-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-09",
+    "sentence": "Trebalo bi ranije da pozovemo restoran jer se terasa brzo popuni.",
+    "typed": "popu"
+  },
+  "fresh-en-10-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-10",
+    "sentence": "Please leave the spare key with our neighbor before you go away.",
+    "typed": ""
+  },
+  "fresh-en-10-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-10",
+    "sentence": "Please leave the spare key with our neighbor before you go away.",
+    "typed": "neig"
+  },
+  "fresh-en-10-8-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-10",
+    "sentence": "Please leave the spare key with our neighbor before you go away.",
+    "typed": "befor"
+  },
+  "fresh-sr_latn-10-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-10",
+    "sentence": "Molim te ostavi rezervni ključ kod komšije pre nego što otputuješ.",
+    "typed": ""
+  },
+  "fresh-sr_latn-10-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-10",
+    "sentence": "Molim te ostavi rezervni ključ kod komšije pre nego što otputuješ.",
+    "typed": "komš"
+  },
+  "fresh-sr_latn-10-10-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-10",
+    "sentence": "Molim te ostavi rezervni ključ kod komšije pre nego što otputuješ.",
+    "typed": "otputu"
+  },
+  "fresh-en-11-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-11",
+    "sentence": "The apples near the bottom of the basket are already getting soft.",
+    "typed": ""
+  },
+  "fresh-en-11-7-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-11",
+    "sentence": "The apples near the bottom of the basket are already getting soft.",
+    "typed": "baske"
+  },
+  "fresh-en-11-10-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-11",
+    "sentence": "The apples near the bottom of the basket are already getting soft.",
+    "typed": "ge"
+  },
+  "fresh-sr_latn-11-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-11",
+    "sentence": "Jabuke koje su pri dnu korpe već su počele da omekšavaju.",
+    "typed": ""
+  },
+  "fresh-sr_latn-11-5-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-11",
+    "sentence": "Jabuke koje su pri dnu korpe već su počele da omekšavaju.",
+    "typed": "korp"
+  },
+  "fresh-sr_latn-11-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-11",
+    "sentence": "Jabuke koje su pri dnu korpe već su počele da omekšavaju.",
+    "typed": "om"
+  },
+  "fresh-en-12-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-12",
+    "sentence": "I noticed a strange noise when I opened the window this morning.",
+    "typed": ""
+  },
+  "fresh-en-12-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-12",
+    "sentence": "I noticed a strange noise when I opened the window this morning.",
+    "typed": "op"
+  },
+  "fresh-en-12-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-12",
+    "sentence": "I noticed a strange noise when I opened the window this morning.",
+    "typed": "win"
+  },
+  "fresh-sr_latn-12-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-12",
+    "sentence": "Primetio sam neobičan zvuk kada sam jutros otvorio prozor u kuhinji.",
+    "typed": ""
+  },
+  "fresh-sr_latn-12-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-12",
+    "sentence": "Primetio sam neobičan zvuk kada sam jutros otvorio prozor u kuhinji.",
+    "typed": "ju"
+  },
+  "fresh-sr_latn-12-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-12",
+    "sentence": "Primetio sam neobičan zvuk kada sam jutros otvorio prozor u kuhinji.",
+    "typed": "kuh"
+  },
+  "fresh-en-13-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-13",
+    "sentence": "Our friends suggested taking a quieter road through the village after lunch.",
+    "typed": ""
+  },
+  "fresh-en-13-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-13",
+    "sentence": "Our friends suggested taking a quieter road through the village after lunch.",
+    "typed": "thr"
+  },
+  "fresh-en-13-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-13",
+    "sentence": "Our friends suggested taking a quieter road through the village after lunch.",
+    "typed": "afte"
+  },
+  "fresh-sr_latn-13-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-13",
+    "sentence": "Prijatelji su predložili da posle ručka krenemo mirnijim putem kroz selo.",
+    "typed": ""
+  },
+  "fresh-sr_latn-13-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-13",
+    "sentence": "Prijatelji su predložili da posle ručka krenemo mirnijim putem kroz selo.",
+    "typed": "kre"
+  },
+  "fresh-sr_latn-13-8-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-13",
+    "sentence": "Prijatelji su predložili da posle ručka krenemo mirnijim putem kroz selo.",
+    "typed": "pute"
+  },
+  "fresh-en-14-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-14",
+    "sentence": "We can move the shelves once the paint on the wall has dried.",
+    "typed": ""
+  },
+  "fresh-en-14-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-14",
+    "sentence": "We can move the shelves once the paint on the wall has dried.",
+    "typed": "pain"
+  },
+  "fresh-en-14-12-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-14",
+    "sentence": "We can move the shelves once the paint on the wall has dried.",
+    "typed": "drie"
+  },
+  "fresh-sr_latn-14-3-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-14",
+    "sentence": "Možemo da pomerimo police kada se boja na zidu potpuno osuši.",
+    "typed": "poli"
+  },
+  "fresh-sr_latn-14-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-14",
+    "sentence": "Možemo da pomerimo police kada se boja na zidu potpuno osuši.",
+    "typed": ""
+  },
+  "fresh-sr_latn-14-9-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-14",
+    "sentence": "Možemo da pomerimo police kada se boja na zidu potpuno osuši.",
+    "typed": "potpun"
+  },
+  "fresh-en-15-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-15",
+    "sentence": "The little cafe across the street makes excellent sandwiches with grilled vegetables.",
+    "typed": ""
+  },
+  "fresh-en-15-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-15",
+    "sentence": "The little cafe across the street makes excellent sandwiches with grilled vegetables.",
+    "typed": "make"
+  },
+  "fresh-en-15-10-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-15",
+    "sentence": "The little cafe across the street makes excellent sandwiches with grilled vegetables.",
+    "typed": "gr"
+  },
+  "fresh-sr_latn-15-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-15",
+    "sentence": "Mali kafić preko puta pravi odlične sendviče sa povrćem sa roštilja.",
+    "typed": ""
+  },
+  "fresh-sr_latn-15-6-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-15",
+    "sentence": "Mali kafić preko puta pravi odlične sendviče sa povrćem sa roštilja.",
+    "typed": "sendvi"
+  },
+  "fresh-sr_latn-15-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-15",
+    "sentence": "Mali kafić preko puta pravi odlične sendviče sa povrćem sa roštilja.",
+    "typed": "ro"
+  },
+  "fresh-en-16-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-16",
+    "sentence": "You might want to bring a sweater because the room gets cold later.",
+    "typed": ""
+  },
+  "fresh-en-16-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-16",
+    "sentence": "You might want to bring a sweater because the room gets cold later.",
+    "typed": "be"
+  },
+  "fresh-en-16-12-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-16",
+    "sentence": "You might want to bring a sweater because the room gets cold later.",
+    "typed": "lat"
+  },
+  "fresh-sr_latn-16-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-16",
+    "sentence": "Možda bi trebalo da poneseš džemper jer se soba kasnije rashladi.",
+    "typed": ""
+  },
+  "fresh-sr_latn-16-5-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-16",
+    "sentence": "Možda bi trebalo da poneseš džemper jer se soba kasnije rashladi.",
+    "typed": "dž"
+  },
+  "fresh-sr_latn-16-9-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-16",
+    "sentence": "Možda bi trebalo da poneseš džemper jer se soba kasnije rashladi.",
+    "typed": "kas"
+  },
+  "fresh-en-17-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-17",
+    "sentence": "We nearly missed the turning because the road sign was hidden by branches.",
+    "typed": ""
+  },
+  "fresh-en-17-5-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-17",
+    "sentence": "We nearly missed the turning because the road sign was hidden by branches.",
+    "typed": "bec"
+  },
+  "fresh-en-17-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-17",
+    "sentence": "We nearly missed the turning because the road sign was hidden by branches.",
+    "typed": "hidd"
+  },
+  "fresh-sr_latn-17-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-17",
+    "sentence": "Zamalo smo propustili skretanje jer su grane zaklonile znak pored puta.",
+    "typed": ""
+  },
+  "fresh-sr_latn-17-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-17",
+    "sentence": "Zamalo smo propustili skretanje jer su grane zaklonile znak pored puta.",
+    "typed": "gra"
+  },
+  "fresh-sr_latn-17-9-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-17",
+    "sentence": "Zamalo smo propustili skretanje jer su grane zaklonile znak pored puta.",
+    "typed": "pore"
+  },
+  "fresh-en-18-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-18",
+    "sentence": "The children built a little bridge across the stream using fallen branches.",
+    "typed": ""
+  },
+  "fresh-en-18-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-18",
+    "sentence": "The children built a little bridge across the stream using fallen branches.",
+    "typed": "acro"
+  },
+  "fresh-en-18-10-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-18",
+    "sentence": "The children built a little bridge across the stream using fallen branches.",
+    "typed": "falle"
+  },
+  "fresh-sr_latn-18-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-18",
+    "sentence": "Deca su napravila mali most preko potoka koristeći grane sa zemlje.",
+    "typed": ""
+  },
+  "fresh-sr_latn-18-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-18",
+    "sentence": "Deca su napravila mali most preko potoka koristeći grane sa zemlje.",
+    "typed": "poto"
+  },
+  "fresh-sr_latn-18-10-5": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-18",
+    "sentence": "Deca su napravila mali most preko potoka koristeći grane sa zemlje.",
+    "typed": "zemlj"
+  },
+  "fresh-en-19-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-19",
+    "sentence": "I found the missing receipt between the pages of an old notebook.",
+    "typed": ""
+  },
+  "fresh-en-19-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-19",
+    "sentence": "I found the missing receipt between the pages of an old notebook.",
+    "typed": "page"
+  },
+  "fresh-en-19-11-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-19",
+    "sentence": "I found the missing receipt between the pages of an old notebook.",
+    "typed": "no"
+  },
+  "fresh-sr_latn-19-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-19",
+    "sentence": "Pronašao sam izgubljeni račun između stranica jedne stare sveske u fioci.",
+    "typed": ""
+  },
+  "fresh-sr_latn-19-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-19",
+    "sentence": "Pronašao sam izgubljeni račun između stranica jedne stare sveske u fioci.",
+    "typed": "jedn"
+  },
+  "fresh-sr_latn-19-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-19",
+    "sentence": "Pronašao sam izgubljeni račun između stranica jedne stare sveske u fioci.",
+    "typed": "fi"
+  },
+  "fresh-en-20-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-20",
+    "sentence": "The kitchen smells wonderful whenever somebody bakes bread with fresh rosemary.",
+    "typed": ""
+  },
+  "fresh-en-20-6-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-20",
+    "sentence": "The kitchen smells wonderful whenever somebody bakes bread with fresh rosemary.",
+    "typed": "ba"
+  },
+  "fresh-en-20-9-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-20",
+    "sentence": "The kitchen smells wonderful whenever somebody bakes bread with fresh rosemary.",
+    "typed": "fre"
+  },
+  "fresh-sr_latn-20-3-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-20",
+    "sentence": "Kuhinja divno miriše svaki put kada neko peče hleb sa svežim ruzmarinom.",
+    "typed": "sv"
+  },
+  "fresh-sr_latn-20-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-20",
+    "sentence": "Kuhinja divno miriše svaki put kada neko peče hleb sa svežim ruzmarinom.",
+    "typed": ""
+  },
+  "fresh-sr_latn-20-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-20",
+    "sentence": "Kuhinja divno miriše svaki put kada neko peče hleb sa svežim ruzmarinom.",
+    "typed": "sve"
+  },
+  "fresh-en-21-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-21",
+    "sentence": "We agreed to meet near the fountain instead of waiting inside the station.",
+    "typed": ""
+  },
+  "fresh-en-21-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-21",
+    "sentence": "We agreed to meet near the fountain instead of waiting inside the station.",
+    "typed": "ins"
+  },
+  "fresh-en-21-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-21",
+    "sentence": "We agreed to meet near the fountain instead of waiting inside the station.",
+    "typed": "insi"
+  },
+  "fresh-sr_latn-21-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-21",
+    "sentence": "Dogovorili smo se da se nađemo kod fontane umesto da čekamo u stanici.",
+    "typed": ""
+  },
+  "fresh-sr_latn-21-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-21",
+    "sentence": "Dogovorili smo se da se nađemo kod fontane umesto da čekamo u stanici.",
+    "typed": "fon"
+  },
+  "fresh-sr_latn-21-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-21",
+    "sentence": "Dogovorili smo se da se nađemo kod fontane umesto da čekamo u stanici.",
+    "typed": "čeka"
+  },
+  "fresh-en-22-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-22",
+    "sentence": "The delivery driver called because the number on our building was missing.",
+    "typed": ""
+  },
+  "fresh-en-22-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-22",
+    "sentence": "The delivery driver called because the number on our building was missing.",
+    "typed": "numb"
+  },
+  "fresh-en-22-9-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-22",
+    "sentence": "The delivery driver called because the number on our building was missing.",
+    "typed": "buildi"
+  },
+  "fresh-sr_latn-22-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-22",
+    "sentence": "Dostavljač je pozvao jer na našoj zgradi nije mogao da pronađe broj.",
+    "typed": ""
+  },
+  "fresh-sr_latn-22-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-22",
+    "sentence": "Dostavljač je pozvao jer na našoj zgradi nije mogao da pronađe broj.",
+    "typed": "zgra"
+  },
+  "fresh-sr_latn-22-10-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-22",
+    "sentence": "Dostavljač je pozvao jer na našoj zgradi nije mogao da pronađe broj.",
+    "typed": "pronađ"
+  },
+  "fresh-en-23-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-23",
+    "sentence": "I still need to return the books that I borrowed before the holidays.",
+    "typed": ""
+  },
+  "fresh-en-23-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-23",
+    "sentence": "I still need to return the books that I borrowed before the holidays.",
+    "typed": "book"
+  },
+  "fresh-en-23-10-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-23",
+    "sentence": "I still need to return the books that I borrowed before the holidays.",
+    "typed": "be"
+  },
+  "fresh-sr_latn-23-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-23",
+    "sentence": "Još treba da vratim knjige koje sam pozajmio pre početka odmora.",
+    "typed": ""
+  },
+  "fresh-sr_latn-23-7-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-23",
+    "sentence": "Još treba da vratim knjige koje sam pozajmio pre početka odmora.",
+    "typed": "pozajm"
+  },
+  "fresh-sr_latn-23-9-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-23",
+    "sentence": "Još treba da vratim knjige koje sam pozajmio pre početka odmora.",
+    "typed": "po"
+  },
+  "fresh-en-24-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-24",
+    "sentence": "Please attach a short explanation whenever you change the original delivery date.",
+    "typed": ""
+  },
+  "fresh-en-24-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-24",
+    "sentence": "Please attach a short explanation whenever you change the original delivery date.",
+    "typed": "ch"
+  },
+  "fresh-en-24-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-24",
+    "sentence": "Please attach a short explanation whenever you change the original delivery date.",
+    "typed": "del"
+  },
+  "fresh-sr_latn-24-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-24",
+    "sentence": "Molim te priloži kratko objašnjenje svaki put kada promeniš prvobitni datum isporuke.",
+    "typed": ""
+  },
+  "fresh-sr_latn-24-5-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-24",
+    "sentence": "Molim te priloži kratko objašnjenje svaki put kada promeniš prvobitni datum isporuke.",
+    "typed": "sv"
+  },
+  "fresh-sr_latn-24-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-24",
+    "sentence": "Molim te priloži kratko objašnjenje svaki put kada promeniš prvobitni datum isporuke.",
+    "typed": "dat"
+  },
+  "fresh-en-25-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-25",
+    "sentence": "The preview should update immediately after someone chooses a different font size.",
+    "typed": ""
+  },
+  "fresh-en-25-6-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-25",
+    "sentence": "The preview should update immediately after someone chooses a different font size.",
+    "typed": "som"
+  },
+  "fresh-en-25-9-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-25",
+    "sentence": "The preview should update immediately after someone chooses a different font size.",
+    "typed": "diff"
+  },
+  "fresh-sr_latn-25-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-25",
+    "sentence": "Pregled treba da se osveži odmah kada neko izabere drugu veličinu slova.",
+    "typed": ""
+  },
+  "fresh-sr_latn-25-5-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-25",
+    "sentence": "Pregled treba da se osveži odmah kada neko izabere drugu veličinu slova.",
+    "typed": "odm"
+  },
+  "fresh-sr_latn-25-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-25",
+    "sentence": "Pregled treba da se osveži odmah kada neko izabere drugu veličinu slova.",
+    "typed": "veli"
+  },
+  "fresh-en-26-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-26",
+    "sentence": "We need a clear owner for each task before the next planning meeting.",
+    "typed": ""
+  },
+  "fresh-en-26-8-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-26",
+    "sentence": "We need a clear owner for each task before the next planning meeting.",
+    "typed": "befo"
+  },
+  "fresh-en-26-11-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-26",
+    "sentence": "We need a clear owner for each task before the next planning meeting.",
+    "typed": "planni"
+  },
+  "fresh-sr_latn-26-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-26",
+    "sentence": "Za svaki zadatak mora da postoji odgovorna osoba pre sledećeg sastanka o planiranju.",
+    "typed": ""
+  },
+  "fresh-sr_latn-26-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-26",
+    "sentence": "Za svaki zadatak mora da postoji odgovorna osoba pre sledećeg sastanka o planiranju.",
+    "typed": "osob"
+  },
+  "fresh-sr_latn-26-10-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-26",
+    "sentence": "Za svaki zadatak mora da postoji odgovorna osoba pre sledećeg sastanka o planiranju.",
+    "typed": "sastan"
+  },
+  "fresh-en-27-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-27",
+    "sentence": "The search results should include archived documents when that option is enabled.",
+    "typed": ""
+  },
+  "fresh-en-27-6-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-27",
+    "sentence": "The search results should include archived documents when that option is enabled.",
+    "typed": "docume"
+  },
+  "fresh-en-27-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-27",
+    "sentence": "The search results should include archived documents when that option is enabled.",
+    "typed": "op"
+  },
+  "fresh-sr_latn-27-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-27",
+    "sentence": "Rezultati pretrage treba da obuhvate arhivirane dokumente kada je ta opcija uključena.",
+    "typed": ""
+  },
+  "fresh-sr_latn-27-6-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-27",
+    "sentence": "Rezultati pretrage treba da obuhvate arhivirane dokumente kada je ta opcija uključena.",
+    "typed": "dokume"
+  },
+  "fresh-sr_latn-27-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-27",
+    "sentence": "Rezultati pretrage treba da obuhvate arhivirane dokumente kada je ta opcija uključena.",
+    "typed": "op"
+  },
+  "fresh-en-28-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-28",
+    "sentence": "A failed upload should leave the original file available for another attempt.",
+    "typed": ""
+  },
+  "fresh-en-28-6-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-28",
+    "sentence": "A failed upload should leave the original file available for another attempt.",
+    "typed": "or"
+  },
+  "fresh-en-28-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-28",
+    "sentence": "A failed upload should leave the original file available for another attempt.",
+    "typed": "ano"
+  },
+  "fresh-sr_latn-28-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-28",
+    "sentence": "Neuspelo otpremanje treba da ostavi izvornu datoteku dostupnom za novi pokušaj.",
+    "typed": ""
+  },
+  "fresh-sr_latn-28-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-28",
+    "sentence": "Neuspelo otpremanje treba da ostavi izvornu datoteku dostupnom za novi pokušaj.",
+    "typed": "da"
+  },
+  "fresh-sr_latn-28-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-28",
+    "sentence": "Neuspelo otpremanje treba da ostavi izvornu datoteku dostupnom za novi pokušaj.",
+    "typed": "pok"
+  },
+  "fresh-en-29-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-29",
+    "sentence": "Could you explain why the totals differ between these two monthly reports?",
+    "typed": ""
+  },
+  "fresh-en-29-6-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-29",
+    "sentence": "Could you explain why the totals differ between these two monthly reports?",
+    "typed": "dif"
+  },
+  "fresh-en-29-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-29",
+    "sentence": "Could you explain why the totals differ between these two monthly reports?",
+    "typed": "mont"
+  },
+  "fresh-sr_latn-29-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-29",
+    "sentence": "Možeš li da objasniš zašto se ukupni iznosi razlikuju u ova dva mesečna izveštaja?",
+    "typed": ""
+  },
+  "fresh-sr_latn-29-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-29",
+    "sentence": "Možeš li da objasniš zašto se ukupni iznosi razlikuju u ova dva mesečna izveštaja?",
+    "typed": "izn"
+  },
+  "fresh-sr_latn-29-12-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-29",
+    "sentence": "Možeš li da objasniš zašto se ukupni iznosi razlikuju u ova dva mesečna izveštaja?",
+    "typed": "mese"
+  },
+  "fresh-en-30-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-30",
+    "sentence": "The form should remember completed fields if the connection drops during submission.",
+    "typed": ""
+  },
+  "fresh-en-30-5-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-30",
+    "sentence": "The form should remember completed fields if the connection drops during submission.",
+    "typed": "fiel"
+  },
+  "fresh-en-30-10-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-30",
+    "sentence": "The form should remember completed fields if the connection drops during submission.",
+    "typed": "durin"
+  },
+  "fresh-sr_latn-30-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-30",
+    "sentence": "Obrazac treba da zapamti popunjena polja ako veza nestane tokom slanja podataka.",
+    "typed": ""
+  },
+  "fresh-sr_latn-30-5-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-30",
+    "sentence": "Obrazac treba da zapamti popunjena polja ako veza nestane tokom slanja podataka.",
+    "typed": "polj"
+  },
+  "fresh-sr_latn-30-10-5": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-30",
+    "sentence": "Obrazac treba da zapamti popunjena polja ako veza nestane tokom slanja podataka.",
+    "typed": "slanj"
+  },
+  "fresh-en-31-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-31",
+    "sentence": "We should separate urgent corrections from improvements that can wait until Friday.",
+    "typed": ""
+  },
+  "fresh-en-31-6-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-31",
+    "sentence": "We should separate urgent corrections from improvements that can wait until Friday.",
+    "typed": "improv"
+  },
+  "fresh-en-31-10-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-31",
+    "sentence": "We should separate urgent corrections from improvements that can wait until Friday.",
+    "typed": "un"
+  },
+  "fresh-sr_latn-31-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-31",
+    "sentence": "Trebalo bi da odvojimo hitne ispravke od poboljšanja koja mogu da sačekaju petak.",
+    "typed": ""
+  },
+  "fresh-sr_latn-31-7-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-31",
+    "sentence": "Trebalo bi da odvojimo hitne ispravke od poboljšanja koja mogu da sačekaju petak.",
+    "typed": "pobolj"
+  },
+  "fresh-sr_latn-31-11-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-31",
+    "sentence": "Trebalo bi da odvojimo hitne ispravke od poboljšanja koja mogu da sačekaju petak.",
+    "typed": "sa"
+  },
+  "fresh-en-32-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-32",
+    "sentence": "The message should explain what happened without blaming the person using the app.",
+    "typed": ""
+  },
+  "fresh-en-32-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-32",
+    "sentence": "The message should explain what happened without blaming the person using the app.",
+    "typed": "bl"
+  },
+  "fresh-en-32-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-32",
+    "sentence": "The message should explain what happened without blaming the person using the app.",
+    "typed": "usi"
+  },
+  "fresh-sr_latn-32-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-32",
+    "sentence": "Poruka treba da objasni šta se dogodilo bez okrivljavanja osobe koja koristi aplikaciju.",
+    "typed": ""
+  },
+  "fresh-sr_latn-32-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-32",
+    "sentence": "Poruka treba da objasni šta se dogodilo bez okrivljavanja osobe koja koristi aplikaciju.",
+    "typed": "do"
+  },
+  "fresh-sr_latn-32-11-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-32",
+    "sentence": "Poruka treba da objasni šta se dogodilo bez okrivljavanja osobe koja koristi aplikaciju.",
+    "typed": "kor"
+  },
+  "fresh-en-33-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-33",
+    "sentence": "I added a short example to show how the new filter handles empty values.",
+    "typed": ""
+  },
+  "fresh-en-33-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-33",
+    "sentence": "I added a short example to show how the new filter handles empty values.",
+    "typed": "fil"
+  },
+  "fresh-en-33-11-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-33",
+    "sentence": "I added a short example to show how the new filter handles empty values.",
+    "typed": "hand"
+  },
+  "fresh-sr_latn-33-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-33",
+    "sentence": "Dodao sam kratak primer da pokažem kako novi filter obrađuje prazne vrednosti.",
+    "typed": ""
+  },
+  "fresh-sr_latn-33-5-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-33",
+    "sentence": "Dodao sam kratak primer da pokažem kako novi filter obrađuje prazne vrednosti.",
+    "typed": "pok"
+  },
+  "fresh-sr_latn-33-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-33",
+    "sentence": "Dodao sam kratak primer da pokažem kako novi filter obrađuje prazne vrednosti.",
+    "typed": "praz"
+  },
+  "fresh-en-34-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-34",
+    "sentence": "Please check whether the exported document preserves accents in every column heading.",
+    "typed": ""
+  },
+  "fresh-en-34-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-34",
+    "sentence": "Please check whether the exported document preserves accents in every column heading.",
+    "typed": "pres"
+  },
+  "fresh-en-34-10-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-34",
+    "sentence": "Please check whether the exported document preserves accents in every column heading.",
+    "typed": "colum"
+  },
+  "fresh-sr_latn-34-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-34",
+    "sentence": "Molim te proveri da li izvezeni dokument čuva dijakritičke znake u svim naslovima kolona.",
+    "typed": ""
+  },
+  "fresh-sr_latn-34-8-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-34",
+    "sentence": "Molim te proveri da li izvezeni dokument čuva dijakritičke znake u svim naslovima kolona.",
+    "typed": "dija"
+  },
+  "fresh-sr_latn-34-12-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-34",
+    "sentence": "Molim te proveri da li izvezeni dokument čuva dijakritičke znake u svim naslovima kolona.",
+    "typed": "naslov"
+  },
+  "fresh-en-35-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-35",
+    "sentence": "The backup finished successfully but we still need to verify the restored files.",
+    "typed": ""
+  },
+  "fresh-en-35-6-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-35",
+    "sentence": "The backup finished successfully but we still need to verify the restored files.",
+    "typed": "stil"
+  },
+  "fresh-en-35-11-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-35",
+    "sentence": "The backup finished successfully but we still need to verify the restored files.",
+    "typed": "re"
+  },
+  "fresh-sr_latn-35-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-35",
+    "sentence": "Rezervna kopija je uspešno napravljena ali još treba da proverimo vraćene datoteke.",
+    "typed": ""
+  },
+  "fresh-sr_latn-35-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-35",
+    "sentence": "Rezervna kopija je uspešno napravljena ali još treba da proverimo vraćene datoteke.",
+    "typed": "treb"
+  },
+  "fresh-sr_latn-35-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-35",
+    "sentence": "Rezervna kopija je uspešno napravljena ali još treba da proverimo vraćene datoteke.",
+    "typed": "vr"
+  },
+  "fresh-en-36-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-36",
+    "sentence": "Users should be able to cancel a long operation without losing their earlier changes.",
+    "typed": ""
+  },
+  "fresh-en-36-8-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-36",
+    "sentence": "Users should be able to cancel a long operation without losing their earlier changes.",
+    "typed": "op"
+  },
+  "fresh-en-36-11-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-36",
+    "sentence": "Users should be able to cancel a long operation without losing their earlier changes.",
+    "typed": "the"
+  },
+  "fresh-sr_latn-36-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-36",
+    "sentence": "Korisnici treba da mogu da otkažu dugu operaciju bez gubitka prethodnih izmena.",
+    "typed": ""
+  },
+  "fresh-sr_latn-36-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-36",
+    "sentence": "Korisnici treba da mogu da otkažu dugu operaciju bez gubitka prethodnih izmena.",
+    "typed": "op"
+  },
+  "fresh-sr_latn-36-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-36",
+    "sentence": "Korisnici treba da mogu da otkažu dugu operaciju bez gubitka prethodnih izmena.",
+    "typed": "pre"
+  },
+  "fresh-en-37-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-37",
+    "sentence": "The notification arrived too late to help us prepare for the scheduled maintenance.",
+    "typed": ""
+  },
+  "fresh-en-37-8-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-37",
+    "sentence": "The notification arrived too late to help us prepare for the scheduled maintenance.",
+    "typed": "pre"
+  },
+  "fresh-en-37-11-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-37",
+    "sentence": "The notification arrived too late to help us prepare for the scheduled maintenance.",
+    "typed": "sche"
+  },
+  "fresh-sr_latn-37-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-37",
+    "sentence": "Obaveštenje je stiglo prekasno da bi nam pomoglo da se pripremimo za zakazano održavanje.",
+    "typed": ""
+  },
+  "fresh-sr_latn-37-7-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-37",
+    "sentence": "Obaveštenje je stiglo prekasno da bi nam pomoglo da se pripremimo za zakazano održavanje.",
+    "typed": "pom"
+  },
+  "fresh-sr_latn-37-12-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-37",
+    "sentence": "Obaveštenje je stiglo prekasno da bi nam pomoglo da se pripremimo za zakazano održavanje.",
+    "typed": "zaka"
+  },
+  "fresh-en-38-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-38",
+    "sentence": "It would help if the calendar showed which rooms already have a reservation.",
+    "typed": ""
+  },
+  "fresh-en-38-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-38",
+    "sentence": "It would help if the calendar showed which rooms already have a reservation.",
+    "typed": "whic"
+  },
+  "fresh-en-38-12-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-38",
+    "sentence": "It would help if the calendar showed which rooms already have a reservation.",
+    "typed": "reserv"
+  },
+  "fresh-sr_latn-38-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-38",
+    "sentence": "Bilo bi korisno kada bi kalendar pokazivao koje prostorije već imaju rezervaciju.",
+    "typed": ""
+  },
+  "fresh-sr_latn-38-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-38",
+    "sentence": "Bilo bi korisno kada bi kalendar pokazivao koje prostorije već imaju rezervaciju.",
+    "typed": "poka"
+  },
+  "fresh-sr_latn-38-10-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-38",
+    "sentence": "Bilo bi korisno kada bi kalendar pokazivao koje prostorije već imaju rezervaciju.",
+    "typed": "imaj"
+  },
+  "fresh-en-39-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-39",
+    "sentence": "The new instructions are easier to follow now that each step includes an example.",
+    "typed": ""
+  },
+  "fresh-en-39-6-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-39",
+    "sentence": "The new instructions are easier to follow now that each step includes an example.",
+    "typed": "follo"
+  },
+  "fresh-en-39-11-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-39",
+    "sentence": "The new instructions are easier to follow now that each step includes an example.",
+    "typed": "in"
+  },
+  "fresh-sr_latn-39-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-39",
+    "sentence": "Nova uputstva je lakše pratiti sada kada svaki korak sadrži odgovarajući primer.",
+    "typed": ""
+  },
+  "fresh-sr_latn-39-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-39",
+    "sentence": "Nova uputstva je lakše pratiti sada kada svaki korak sadrži odgovarajući primer.",
+    "typed": "svak"
+  },
+  "fresh-sr_latn-39-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-39",
+    "sentence": "Nova uputstva je lakše pratiti sada kada svaki korak sadrži odgovarajući primer.",
+    "typed": "od"
+  },
+  "fresh-en-40-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-40",
+    "sentence": "We cannot close the request until the customer confirms that the issue is resolved.",
+    "typed": ""
+  },
+  "fresh-en-40-7-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-40",
+    "sentence": "We cannot close the request until the customer confirms that the issue is resolved.",
+    "typed": "cu"
+  },
+  "fresh-en-40-11-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-40",
+    "sentence": "We cannot close the request until the customer confirms that the issue is resolved.",
+    "typed": "iss"
+  },
+  "fresh-sr_latn-40-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-40",
+    "sentence": "Ne možemo da zatvorimo zahtev dok korisnik ne potvrdi da je problem rešen.",
+    "typed": ""
+  },
+  "fresh-sr_latn-40-6-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-40",
+    "sentence": "Ne možemo da zatvorimo zahtev dok korisnik ne potvrdi da je problem rešen.",
+    "typed": "ko"
+  },
+  "fresh-sr_latn-40-11-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-40",
+    "sentence": "Ne možemo da zatvorimo zahtev dok korisnik ne potvrdi da je problem rešen.",
+    "typed": "pro"
+  },
+  "fresh-en-41-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-41",
+    "sentence": "Please make sure the warning remains visible while the background check is running.",
+    "typed": ""
+  },
+  "fresh-en-41-7-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-41",
+    "sentence": "Please make sure the warning remains visible while the background check is running.",
+    "typed": "whi"
+  },
+  "fresh-en-41-10-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-41",
+    "sentence": "Please make sure the warning remains visible while the background check is running.",
+    "typed": "chec"
+  },
+  "fresh-sr_latn-41-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-41",
+    "sentence": "Molim te proveri da upozorenje ostane vidljivo dok traje provera u pozadini.",
+    "typed": ""
+  },
+  "fresh-sr_latn-41-6-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-41",
+    "sentence": "Molim te proveri da upozorenje ostane vidljivo dok traje provera u pozadini.",
+    "typed": "vid"
+  },
+  "fresh-sr_latn-41-9-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-41",
+    "sentence": "Molim te proveri da upozorenje ostane vidljivo dok traje provera u pozadini.",
+    "typed": "prov"
+  },
+  "fresh-en-42-4-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-42",
+    "sentence": "The table becomes difficult to read when several long names appear together.",
+    "typed": ""
+  },
+  "fresh-en-42-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-42",
+    "sentence": "The table becomes difficult to read when several long names appear together.",
+    "typed": "seve"
+  },
+  "fresh-en-42-10-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-42",
+    "sentence": "The table becomes difficult to read when several long names appear together.",
+    "typed": "appea"
+  },
+  "fresh-sr_latn-42-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-42",
+    "sentence": "Tabela postaje teška za čitanje kada se nekoliko dugačkih imena pojavi zajedno.",
+    "typed": ""
+  },
+  "fresh-sr_latn-42-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-42",
+    "sentence": "Tabela postaje teška za čitanje kada se nekoliko dugačkih imena pojavi zajedno.",
+    "typed": "neko"
+  },
+  "fresh-sr_latn-42-10-5": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-42",
+    "sentence": "Tabela postaje teška za čitanje kada se nekoliko dugačkih imena pojavi zajedno.",
+    "typed": "pojav"
+  },
+  "fresh-en-43-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-43",
+    "sentence": "We moved the detailed notes into a separate document to keep the overview short.",
+    "typed": ""
+  },
+  "fresh-en-43-7-6": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-43",
+    "sentence": "We moved the detailed notes into a separate document to keep the overview short.",
+    "typed": "separa"
+  },
+  "fresh-en-43-12-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-43",
+    "sentence": "We moved the detailed notes into a separate document to keep the overview short.",
+    "typed": "ov"
+  },
+  "fresh-sr_latn-43-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-43",
+    "sentence": "Premestili smo detaljne beleške u poseban dokument da bi pregled ostao kratak.",
+    "typed": ""
+  },
+  "fresh-sr_latn-43-6-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-43",
+    "sentence": "Premestili smo detaljne beleške u poseban dokument da bi pregled ostao kratak.",
+    "typed": "dokume"
+  },
+  "fresh-sr_latn-43-10-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-43",
+    "sentence": "Premestili smo detaljne beleške u poseban dokument da bi pregled ostao kratak.",
+    "typed": "os"
+  },
+  "fresh-en-44-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-44",
+    "sentence": "The application should ask before replacing a file that already exists in this folder.",
+    "typed": ""
+  },
+  "fresh-en-44-9-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-44",
+    "sentence": "The application should ask before replacing a file that already exists in this folder.",
+    "typed": "al"
+  },
+  "fresh-en-44-10-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-44",
+    "sentence": "The application should ask before replacing a file that already exists in this folder.",
+    "typed": "exi"
+  },
+  "fresh-sr_latn-44-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-44",
+    "sentence": "Aplikacija treba da zatraži potvrdu pre zamene datoteke koja već postoji u ovoj fascikli.",
+    "typed": ""
+  },
+  "fresh-sr_latn-44-7-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-44",
+    "sentence": "Aplikacija treba da zatraži potvrdu pre zamene datoteke koja već postoji u ovoj fascikli.",
+    "typed": "da"
+  },
+  "fresh-sr_latn-44-10-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-44",
+    "sentence": "Aplikacija treba da zatraži potvrdu pre zamene datoteke koja već postoji u ovoj fascikli.",
+    "typed": "pos"
+  },
+  "fresh-en-45-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-45",
+    "sentence": "I checked the latest revision and noticed that the introduction still needs work.",
+    "typed": ""
+  },
+  "fresh-en-45-6-3": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-45",
+    "sentence": "I checked the latest revision and noticed that the introduction still needs work.",
+    "typed": "not"
+  },
+  "fresh-en-45-11-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-45",
+    "sentence": "I checked the latest revision and noticed that the introduction still needs work.",
+    "typed": "need"
+  },
+  "fresh-sr_latn-45-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-45",
+    "sentence": "Proverio sam najnoviju verziju i primetio da uvod još treba da se doradi.",
+    "typed": ""
+  },
+  "fresh-sr_latn-45-5-3": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-45",
+    "sentence": "Proverio sam najnoviju verziju i primetio da uvod još treba da se doradi.",
+    "typed": "pri"
+  },
+  "fresh-sr_latn-45-12-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-45",
+    "sentence": "Proverio sam najnoviju verziju i primetio da uvod još treba da se doradi.",
+    "typed": "dora"
+  },
+  "fresh-en-46-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-46",
+    "sentence": "The team agreed to publish the results after everyone has checked the final numbers.",
+    "typed": ""
+  },
+  "fresh-en-46-7-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-46",
+    "sentence": "The team agreed to publish the results after everyone has checked the final numbers.",
+    "typed": "afte"
+  },
+  "fresh-en-46-12-4": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-46",
+    "sentence": "The team agreed to publish the results after everyone has checked the final numbers.",
+    "typed": "fina"
+  },
+  "fresh-sr_latn-46-4-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-46",
+    "sentence": "Tim se složio da objavi rezultate nakon što svi provere konačne brojeve.",
+    "typed": ""
+  },
+  "fresh-sr_latn-46-6-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-46",
+    "sentence": "Tim se složio da objavi rezultate nakon što svi provere konačne brojeve.",
+    "typed": "nako"
+  },
+  "fresh-sr_latn-46-10-6": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-46",
+    "sentence": "Tim se složio da objavi rezultate nakon što svi provere konačne brojeve.",
+    "typed": "konačn"
+  },
+  "fresh-en-47-5-0": {
+    "language": "en",
+    "kind": "boundary",
+    "phraseID": "fresh-47",
+    "sentence": "Please include the exact steps so another person can reproduce the unexpected behavior.",
+    "typed": ""
+  },
+  "fresh-en-47-7-5": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-47",
+    "sentence": "Please include the exact steps so another person can reproduce the unexpected behavior.",
+    "typed": "perso"
+  },
+  "fresh-en-47-11-2": {
+    "language": "en",
+    "kind": "midword",
+    "phraseID": "fresh-47",
+    "sentence": "Please include the exact steps so another person can reproduce the unexpected behavior.",
+    "typed": "un"
+  },
+  "fresh-sr_latn-47-5-0": {
+    "language": "sr_latn",
+    "kind": "boundary",
+    "phraseID": "fresh-47",
+    "sentence": "Molim te navedi tačne korake kako bi druga osoba mogla da ponovi neočekivano ponašanje.",
+    "typed": ""
+  },
+  "fresh-sr_latn-47-7-4": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-47",
+    "sentence": "Molim te navedi tačne korake kako bi druga osoba mogla da ponovi neočekivano ponašanje.",
+    "typed": "drug"
+  },
+  "fresh-sr_latn-47-11-2": {
+    "language": "sr_latn",
+    "kind": "midword",
+    "phraseID": "fresh-47",
+    "sentence": "Molim te navedi tačne korake kako bi druga osoba mogla da ponovi neočekivano ponašanje.",
+    "typed": "po"
+  }
+}

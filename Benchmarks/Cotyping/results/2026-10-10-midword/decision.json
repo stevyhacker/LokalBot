@@ -1,0 +1,18 @@
+{
+  "selectedAtUTC": "2026-10-10T16:57:37.090150+00:00",
+  "healingMode": "atomicLastToken",
+  "status": "frozen before fresh inference",
+  "reason": "Old diagnostic cases expose greedy resegmentation of the partial word. Full-token coverage preserves canonical earlier tokens and repairs many Serbian endings while preserving short-prefix overshoots. Fresh judgments have not been collected.",
+  "selectionData": "previous calibration midword examples only; not independent evidence",
+  "priorAttempts": [
+    "Treat every prefix as invalid: rejected, sparse changes and regressions.",
+    "Canonical prompt without healing: rejected, regresses short fragments.",
+    "Last-token rewind allowing partial pieces: mostly identical to old healing.",
+    "Atomic last-token coverage: selected for fresh validation."
+  ],
+  "promptChange": false,
+  "modelChanges": false,
+  "ratio": 3.1,
+  "decisionRule": "Report paired Serbian-midword utility deltas with 95% cluster intervals and English regressions. Do not tune further on this fresh set or claim a quality gain without evidence.",
+  "resolvedInputSHA256": "8e6f268b2abc5d0b1a9b88abbaeabd1961e8a87dfcf7b5cafd70508dd0a84ce0"
+}

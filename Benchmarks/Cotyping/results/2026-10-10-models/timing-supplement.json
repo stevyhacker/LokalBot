@@ -1,0 +1,92 @@
+{
+  "baseline": {
+    "modelGB": 3.845328608,
+    "maxRSSGiB": 3.85400390625,
+    "roundMeansMs": [
+      45.0374029875,
+      46.27692884375,
+      47.083968090625
+    ],
+    "shownMeanMs": 60.46370342409241,
+    "shownP95Ms": 83.784875,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  },
+  "lfm12": {
+    "modelGB": 0.962842816,
+    "maxRSSGiB": 1.04595947265625,
+    "roundMeansMs": [
+      18.336546596875,
+      18.25565085625,
+      17.973949603125
+    ],
+    "shownMeanMs": 24.276265849122808,
+    "shownP95Ms": 36.195625,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  },
+  "qwen2": {
+    "modelGB": 1.556391296,
+    "maxRSSGiB": 1.704437255859375,
+    "roundMeansMs": [
+      32.3955239625,
+      31.917567709375,
+      31.867221334375
+    ],
+    "shownMeanMs": 41.54563408166667,
+    "shownP95Ms": 54.933,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  },
+  "lfm26": {
+    "modelGB": 2.2216144,
+    "maxRSSGiB": 2.2709197998046875,
+    "roundMeansMs": [
+      38.54520874375,
+      38.71971093125,
+      38.594350646875
+    ],
+    "shownMeanMs": 50.66203043298969,
+    "shownP95Ms": 73.094875,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  },
+  "gemma4": {
+    "modelGB": 6.21724544,
+    "maxRSSGiB": 6.1326446533203125,
+    "roundMeansMs": [
+      69.6410145875,
+      68.63281615,
+      68.953107159375
+    ],
+    "shownMeanMs": 92.174043457483,
+    "shownP95Ms": 129.115667,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  },
+  "luchador": {
+    "modelGB": 6.329952928,
+    "maxRSSGiB": 6.2400360107421875,
+    "roundMeansMs": [
+      76.185684384375,
+      76.0172317625,
+      76.117478909375
+    ],
+    "shownMeanMs": 84.9335575291202,
+    "shownP95Ms": 121.982417,
+    "meanPromptCharacters": 41.61875,
+    "promptPairsVerified": 320,
+    "uniqueQualityCheckpoints": 320,
+    "timedRequests": 960
+  }
+}

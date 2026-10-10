@@ -1,0 +1,50 @@
+{
+  "createdAtUTC": "2026-10-10T17:29:43.886852+00:00",
+  "ratio": 3.1,
+  "targetPerLanguage": 125,
+  "denominator": 144,
+  "usesQualityLabels": false,
+  "transductive": true,
+  "arms": {
+    "baseline-control": {
+      "en": {
+        "primary": 0.06965751945972443,
+        "fallback": 0.21593831479549408
+      },
+      "sr_latn": {
+        "primary": 0.0527392141520977,
+        "fallback": 0.16349156200885773
+      }
+    },
+    "baseline-fixed": {
+      "en": {
+        "primary": 0.06965751945972443,
+        "fallback": 0.21593831479549408
+      },
+      "sr_latn": {
+        "primary": 0.0527392141520977,
+        "fallback": 0.16349156200885773
+      }
+    },
+    "luchador-control": {
+      "en": {
+        "primary": 0.1904415488243103,
+        "fallback": 0.5903688073158264
+      },
+      "sr_latn": {
+        "primary": 0.0710483267903328,
+        "fallback": 0.22024981677532196
+      }
+    },
+    "luchador-fixed": {
+      "en": {
+        "primary": 0.1904415488243103,
+        "fallback": 0.5903688073158264
+      },
+      "sr_latn": {
+        "primary": 0.0710483267903328,
+        "fallback": 0.22024981677532196
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "pythonTestsPassed": 50,
+  "diffCheck": "passed",
+  "nativeChanges": false,
+  "installed": false,
+  "released": false,
+  "primaryCases": 309,
+  "repeatCases": 32,
+  "lengthControlJudgments": 188,
+  "models": [
+    "claude-opus-5-5"
+  ]
+}

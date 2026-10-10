@@ -1,0 +1,2660 @@
+{
+  "createdAtUTC": "2026-10-10T16:20:33.877003+00:00",
+  "arms": {
+    "matched-baseline": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 109,
+        "poor": 21,
+        "meanUtility": 0.6510416666666666,
+        "usefulFractionOfShown": 0.7785714285714286,
+        "helpfulFirstWords": 128,
+        "meanShownCharacters": 11.95,
+        "oneWordShown": 48,
+        "utilityIgnoringPositiveTinySuggestions": 0.53125
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 63,
+        "poor": 7,
+        "meanUtility": 0.5859375,
+        "usefulFractionOfShown": 0.8289473684210527,
+        "helpfulFirstWords": 75,
+        "meanShownCharacters": 9.644736842105264,
+        "oneWordShown": 38,
+        "utilityIgnoringPositiveTinySuggestions": 0.4296875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 57,
+          "poor": 9,
+          "meanUtility": 0.7604166666666666,
+          "usefulFractionOfShown": 0.8142857142857143,
+          "helpfulFirstWords": 66,
+          "meanShownCharacters": 12.228571428571428,
+          "oneWordShown": 22,
+          "utilityIgnoringPositiveTinySuggestions": 0.65625
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 52,
+          "poor": 12,
+          "meanUtility": 0.5416666666666666,
+          "usefulFractionOfShown": 0.7428571428571429,
+          "helpfulFirstWords": 62,
+          "meanShownCharacters": 11.67142857142857,
+          "oneWordShown": 26,
+          "utilityIgnoringPositiveTinySuggestions": 0.40625
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 30,
+          "poor": 5,
+          "meanUtility": 0.59375,
+          "usefulFractionOfShown": 0.7894736842105263,
+          "helpfulFirstWords": 37,
+          "meanShownCharacters": 10.289473684210526,
+          "oneWordShown": 16,
+          "utilityIgnoringPositiveTinySuggestions": 0.453125
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 33,
+          "poor": 2,
+          "meanUtility": 0.578125,
+          "usefulFractionOfShown": 0.868421052631579,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 9,
+          "oneWordShown": 22,
+          "utilityIgnoringPositiveTinySuggestions": 0.40625
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 52.96572517881945,
+          "p50Ms": 57.079416,
+          "p95Ms": 82.662583
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 47.5407022421875,
+          "p50Ms": 43.007084,
+          "p95Ms": 80.676625
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 63.815771052083335,
+          "p50Ms": 68.379666,
+          "p95Ms": 89.064833
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 43.307628703125,
+            "p50Ms": 34.3815,
+            "p95Ms": 78.496
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 51.77377578125,
+            "p50Ms": 53.750792,
+            "p95Ms": 81.835709
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 48.59193317013889,
+            "p50Ms": 45.057459,
+            "p95Ms": 79.986959
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 57.3395171875,
+            "p50Ms": 64.933959,
+            "p95Ms": 85.227166
+          }
+        }
+      }
+    },
+    "matched-luchador": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 107,
+        "poor": 24,
+        "meanUtility": 0.671875,
+        "usefulFractionOfShown": 0.7642857142857142,
+        "helpfulFirstWords": 123,
+        "meanShownCharacters": 14.807142857142857,
+        "oneWordShown": 32,
+        "utilityIgnoringPositiveTinySuggestions": 0.625
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 64,
+        "poor": 7,
+        "meanUtility": 0.703125,
+        "usefulFractionOfShown": 0.8421052631578947,
+        "helpfulFirstWords": 74,
+        "meanShownCharacters": 14.236842105263158,
+        "oneWordShown": 22,
+        "utilityIgnoringPositiveTinySuggestions": 0.6640625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 17,
+        "meanUtility": 0.609375,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 49,
+        "meanShownCharacters": 15.484375,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.546875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 60,
+          "poor": 4,
+          "meanUtility": 0.9270833333333334,
+          "usefulFractionOfShown": 0.8571428571428571,
+          "helpfulFirstWords": 68,
+          "meanShownCharacters": 16.37142857142857,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.90625
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 47,
+          "poor": 20,
+          "meanUtility": 0.4166666666666667,
+          "usefulFractionOfShown": 0.6714285714285714,
+          "helpfulFirstWords": 55,
+          "meanShownCharacters": 13.242857142857142,
+          "oneWordShown": 23,
+          "utilityIgnoringPositiveTinySuggestions": 0.34375
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 33,
+          "poor": 2,
+          "meanUtility": 0.75,
+          "usefulFractionOfShown": 0.868421052631579,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 16.63157894736842,
+          "oneWordShown": 5,
+          "utilityIgnoringPositiveTinySuggestions": 0.75
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 31,
+          "poor": 5,
+          "meanUtility": 0.65625,
+          "usefulFractionOfShown": 0.8157894736842105,
+          "helpfulFirstWords": 36,
+          "meanShownCharacters": 11.842105263157896,
+          "oneWordShown": 17,
+          "utilityIgnoringPositiveTinySuggestions": 0.578125
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 74.51990198784722,
+          "p50Ms": 73.89875,
+          "p95Ms": 124.254875
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 65.0746743828125,
+          "p50Ms": 52.36125,
+          "p95Ms": 118.874292
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 93.41035719791667,
+          "p50Ms": 95.575666,
+          "p95Ms": 130.094125
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 62.005339859375,
+            "p50Ms": 48.528333,
+            "p95Ms": 115.294375
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 68.14400890625,
+            "p50Ms": 58.193459,
+            "p95Ms": 123.269083
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 71.01781770486112,
+            "p50Ms": 74.608542,
+            "p95Ms": 118.553584
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 78.02198627083334,
+            "p50Ms": 73.538583,
+            "p95Ms": 127.796375
+          }
+        }
+      }
+    },
+    "matched-gemma4_it": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 108,
+        "poor": 26,
+        "meanUtility": 0.6458333333333334,
+        "usefulFractionOfShown": 0.7714285714285715,
+        "helpfulFirstWords": 125,
+        "meanShownCharacters": 13.742857142857142,
+        "oneWordShown": 44,
+        "utilityIgnoringPositiveTinySuggestions": 0.5572916666666666
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 65,
+        "poor": 7,
+        "meanUtility": 0.65625,
+        "usefulFractionOfShown": 0.8552631578947368,
+        "helpfulFirstWords": 74,
+        "meanShownCharacters": 12.486842105263158,
+        "oneWordShown": 32,
+        "utilityIgnoringPositiveTinySuggestions": 0.5546875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 19,
+        "meanUtility": 0.625,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 51,
+        "meanShownCharacters": 15.234375,
+        "oneWordShown": 12,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 61,
+          "poor": 5,
+          "meanUtility": 0.8958333333333334,
+          "usefulFractionOfShown": 0.8714285714285714,
+          "helpfulFirstWords": 68,
+          "meanShownCharacters": 15.228571428571428,
+          "oneWordShown": 17,
+          "utilityIgnoringPositiveTinySuggestions": 0.8125
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 47,
+          "poor": 21,
+          "meanUtility": 0.3958333333333333,
+          "usefulFractionOfShown": 0.6714285714285714,
+          "helpfulFirstWords": 57,
+          "meanShownCharacters": 12.257142857142858,
+          "oneWordShown": 27,
+          "utilityIgnoringPositiveTinySuggestions": 0.3020833333333333
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 33,
+          "poor": 2,
+          "meanUtility": 0.703125,
+          "usefulFractionOfShown": 0.868421052631579,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 14.105263157894736,
+          "oneWordShown": 12,
+          "utilityIgnoringPositiveTinySuggestions": 0.609375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 32,
+          "poor": 5,
+          "meanUtility": 0.609375,
+          "usefulFractionOfShown": 0.8421052631578947,
+          "helpfulFirstWords": 36,
+          "meanShownCharacters": 10.868421052631579,
+          "oneWordShown": 20,
+          "utilityIgnoringPositiveTinySuggestions": 0.5
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 72.69909141319444,
+          "p50Ms": 71.936708,
+          "p95Ms": 124.158084
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 63.9420593203125,
+          "p50Ms": 51.410042,
+          "p95Ms": 122.151
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 90.21315559895834,
+          "p50Ms": 95.58525,
+          "p95Ms": 135.904584
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 60.585785744791664,
+            "p50Ms": 48.601959,
+            "p95Ms": 115.824042
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 67.29833289583334,
+            "p50Ms": 52.376333,
+            "p95Ms": 123.443791
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 69.49841344097223,
+            "p50Ms": 70.335208,
+            "p95Ms": 120.209458
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 75.89976938541666,
+            "p50Ms": 72.524208,
+            "p95Ms": 127.757459
+          }
+        }
+      }
+    },
+    "matched-qwen3_base4": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 96,
+        "poor": 35,
+        "meanUtility": 0.453125,
+        "usefulFractionOfShown": 0.6857142857142857,
+        "helpfulFirstWords": 127,
+        "meanShownCharacters": 11.92142857142857,
+        "oneWordShown": 48,
+        "utilityIgnoringPositiveTinySuggestions": 0.296875
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 64,
+        "poor": 8,
+        "meanUtility": 0.5625,
+        "usefulFractionOfShown": 0.8421052631578947,
+        "helpfulFirstWords": 75,
+        "meanShownCharacters": 8.842105263157896,
+        "oneWordShown": 42,
+        "utilityIgnoringPositiveTinySuggestions": 0.3515625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 32,
+        "poor": 27,
+        "meanUtility": 0.234375,
+        "usefulFractionOfShown": 0.5,
+        "helpfulFirstWords": 52,
+        "meanShownCharacters": 15.578125,
+        "oneWordShown": 6,
+        "utilityIgnoringPositiveTinySuggestions": 0.1875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 55,
+          "poor": 10,
+          "meanUtility": 0.71875,
+          "usefulFractionOfShown": 0.7857142857142857,
+          "helpfulFirstWords": 65,
+          "meanShownCharacters": 13.242857142857142,
+          "oneWordShown": 21,
+          "utilityIgnoringPositiveTinySuggestions": 0.6145833333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 41,
+          "poor": 25,
+          "meanUtility": 0.1875,
+          "usefulFractionOfShown": 0.5857142857142857,
+          "helpfulFirstWords": 62,
+          "meanShownCharacters": 10.6,
+          "oneWordShown": 27,
+          "utilityIgnoringPositiveTinySuggestions": -0.020833333333333332
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 33,
+          "poor": 3,
+          "meanUtility": 0.65625,
+          "usefulFractionOfShown": 0.868421052631579,
+          "helpfulFirstWords": 37,
+          "meanShownCharacters": 9.973684210526315,
+          "oneWordShown": 19,
+          "utilityIgnoringPositiveTinySuggestions": 0.515625
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 31,
+          "poor": 5,
+          "meanUtility": 0.46875,
+          "usefulFractionOfShown": 0.8157894736842105,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 7.7105263157894735,
+          "oneWordShown": 23,
+          "utilityIgnoringPositiveTinySuggestions": 0.1875
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 57.37600274305556,
+          "p50Ms": 68.546583,
+          "p95Ms": 87.321791
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 50.91249545052084,
+          "p50Ms": 51.899708,
+          "p95Ms": 80.332333
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 70.303017328125,
+          "p50Ms": 71.136708,
+          "p95Ms": 89.452292
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 45.357437526041664,
+            "p50Ms": 48.483584,
+            "p95Ms": 78.258875
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 56.467553375,
+            "p50Ms": 69.360208,
+            "p95Ms": 83.441125
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 51.65966088888889,
+            "p50Ms": 57.88175,
+            "p95Ms": 85.195542
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 63.09234459722222,
+            "p50Ms": 71.896459,
+            "p95Ms": 88.462708
+          }
+        }
+      }
+    },
+    "matched-salamandra2": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 89,
+        "poor": 34,
+        "meanUtility": 0.2760416666666667,
+        "usefulFractionOfShown": 0.6357142857142857,
+        "helpfulFirstWords": 118,
+        "meanShownCharacters": 8.664285714285715,
+        "oneWordShown": 82,
+        "utilityIgnoringPositiveTinySuggestions": 0.041666666666666664
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 59,
+        "poor": 3,
+        "meanUtility": 0.4296875,
+        "usefulFractionOfShown": 0.7763157894736842,
+        "helpfulFirstWords": 72,
+        "meanShownCharacters": 3.5526315789473686,
+        "oneWordShown": 74,
+        "utilityIgnoringPositiveTinySuggestions": 0.109375
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 30,
+        "poor": 31,
+        "meanUtility": -0.03125,
+        "usefulFractionOfShown": 0.46875,
+        "helpfulFirstWords": 46,
+        "meanShownCharacters": 14.734375,
+        "oneWordShown": 8,
+        "utilityIgnoringPositiveTinySuggestions": -0.09375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 56,
+          "poor": 7,
+          "meanUtility": 0.6041666666666666,
+          "usefulFractionOfShown": 0.8,
+          "helpfulFirstWords": 66,
+          "meanShownCharacters": 8.371428571428572,
+          "oneWordShown": 42,
+          "utilityIgnoringPositiveTinySuggestions": 0.3541666666666667
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 33,
+          "poor": 27,
+          "meanUtility": -0.052083333333333336,
+          "usefulFractionOfShown": 0.4714285714285714,
+          "helpfulFirstWords": 52,
+          "meanShownCharacters": 8.957142857142857,
+          "oneWordShown": 40,
+          "utilityIgnoringPositiveTinySuggestions": -0.2708333333333333
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 33,
+          "poor": 0,
+          "meanUtility": 0.515625,
+          "usefulFractionOfShown": 0.868421052631579,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 3.5789473684210527,
+          "oneWordShown": 37,
+          "utilityIgnoringPositiveTinySuggestions": 0.171875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 26,
+          "poor": 3,
+          "meanUtility": 0.34375,
+          "usefulFractionOfShown": 0.6842105263157895,
+          "helpfulFirstWords": 34,
+          "meanShownCharacters": 3.526315789473684,
+          "oneWordShown": 37,
+          "utilityIgnoringPositiveTinySuggestions": 0.046875
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 26.383963534722223,
+          "p50Ms": 27.209625,
+          "p95Ms": 45.771958
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 22.440950518229165,
+          "p50Ms": 21.711459,
+          "p95Ms": 40.9765
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 34.269989567708336,
+          "p50Ms": 36.031875,
+          "p95Ms": 51.36175
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 21.217696817708333,
+            "p50Ms": 21.531416,
+            "p95Ms": 40.744083
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 23.66420421875,
+            "p50Ms": 21.75725,
+            "p95Ms": 41.081375
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 25.038409711805556,
+            "p50Ms": 25.772375,
+            "p95Ms": 46.074375
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 27.72951735763889,
+            "p50Ms": 30.161167,
+            "p95Ms": 45.113959
+          }
+        }
+      }
+    },
+    "matched-yugogpt7": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 107,
+        "poor": 22,
+        "meanUtility": 0.5416666666666666,
+        "usefulFractionOfShown": 0.7642857142857142,
+        "helpfulFirstWords": 130,
+        "meanShownCharacters": 8.707142857142857,
+        "oneWordShown": 79,
+        "utilityIgnoringPositiveTinySuggestions": 0.3072916666666667
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 70,
+        "poor": 0,
+        "meanUtility": 0.578125,
+        "usefulFractionOfShown": 0.9210526315789473,
+        "helpfulFirstWords": 76,
+        "meanShownCharacters": 3.6842105263157894,
+        "oneWordShown": 74,
+        "utilityIgnoringPositiveTinySuggestions": 0.25
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 37,
+        "poor": 22,
+        "meanUtility": 0.46875,
+        "usefulFractionOfShown": 0.578125,
+        "helpfulFirstWords": 54,
+        "meanShownCharacters": 14.671875,
+        "oneWordShown": 5,
+        "utilityIgnoringPositiveTinySuggestions": 0.421875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 58,
+          "poor": 6,
+          "meanUtility": 0.6666666666666666,
+          "usefulFractionOfShown": 0.8285714285714286,
+          "helpfulFirstWords": 67,
+          "meanShownCharacters": 9.2,
+          "oneWordShown": 40,
+          "utilityIgnoringPositiveTinySuggestions": 0.4270833333333333
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 49,
+          "poor": 16,
+          "meanUtility": 0.4166666666666667,
+          "usefulFractionOfShown": 0.7,
+          "helpfulFirstWords": 63,
+          "meanShownCharacters": 8.214285714285714,
+          "oneWordShown": 39,
+          "utilityIgnoringPositiveTinySuggestions": 0.1875
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 34,
+          "poor": 0,
+          "meanUtility": 0.53125,
+          "usefulFractionOfShown": 0.8947368421052632,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 3.789473684210526,
+          "oneWordShown": 36,
+          "utilityIgnoringPositiveTinySuggestions": 0.1875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 36,
+          "poor": 0,
+          "meanUtility": 0.625,
+          "usefulFractionOfShown": 0.9473684210526315,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 3.5789473684210527,
+          "oneWordShown": 38,
+          "utilityIgnoringPositiveTinySuggestions": 0.3125
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 87.17650351736111,
+          "p50Ms": 104.757792,
+          "p95Ms": 138.497209
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 75.30382907552084,
+          "p50Ms": 75.979125,
+          "p95Ms": 132.665791
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 110.92185240104166,
+          "p50Ms": 117.411041,
+          "p95Ms": 144.921667
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 65.444467875,
+            "p50Ms": 66.050625,
+            "p95Ms": 112.9525
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 85.16319027604166,
+            "p50Ms": 81.852625,
+            "p95Ms": 137.531083
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 76.04975286458334,
+            "p50Ms": 87.095833,
+            "p95Ms": 120.501458
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 98.30325417013889,
+            "p50Ms": 119.4775,
+            "p95Ms": 144.592958
+          }
+        }
+      }
+    },
+    "matched-original": {
+      "overall": {
+        "n": 192,
+        "shown": 140,
+        "coverage": 0.7291666666666666,
+        "useful": 96,
+        "poor": 32,
+        "meanUtility": 0.546875,
+        "usefulFractionOfShown": 0.6857142857142857,
+        "helpfulFirstWords": 127,
+        "meanShownCharacters": 15.392857142857142,
+        "oneWordShown": 15,
+        "utilityIgnoringPositiveTinySuggestions": 0.53125
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 76,
+        "coverage": 0.59375,
+        "useful": 50,
+        "poor": 18,
+        "meanUtility": 0.4296875,
+        "usefulFractionOfShown": 0.6578947368421053,
+        "helpfulFirstWords": 74,
+        "meanShownCharacters": 15.986842105263158,
+        "oneWordShown": 5,
+        "utilityIgnoringPositiveTinySuggestions": 0.4296875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 55,
+          "poor": 11,
+          "meanUtility": 0.71875,
+          "usefulFractionOfShown": 0.7857142857142857,
+          "helpfulFirstWords": 66,
+          "meanShownCharacters": 14.885714285714286,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.7083333333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 70,
+          "coverage": 0.7291666666666666,
+          "useful": 41,
+          "poor": 21,
+          "meanUtility": 0.375,
+          "usefulFractionOfShown": 0.5857142857142857,
+          "helpfulFirstWords": 61,
+          "meanShownCharacters": 15.9,
+          "oneWordShown": 6,
+          "utilityIgnoringPositiveTinySuggestions": 0.3541666666666667
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 28,
+          "poor": 7,
+          "meanUtility": 0.53125,
+          "usefulFractionOfShown": 0.7368421052631579,
+          "helpfulFirstWords": 37,
+          "meanShownCharacters": 15.18421052631579,
+          "oneWordShown": 3,
+          "utilityIgnoringPositiveTinySuggestions": 0.53125
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 38,
+          "coverage": 0.59375,
+          "useful": 22,
+          "poor": 11,
+          "meanUtility": 0.328125,
+          "usefulFractionOfShown": 0.5789473684210527,
+          "helpfulFirstWords": 37,
+          "meanShownCharacters": 16.789473684210527,
+          "oneWordShown": 2,
+          "utilityIgnoringPositiveTinySuggestions": 0.328125
+        }
+      },
+      "latency": {
+        "overall": {
+          "requests": 576,
+          "meanMs": 53.46146577430556,
+          "p50Ms": 58.417792,
+          "p95Ms": 82.754083
+        },
+        "boundary": {
+          "requests": 384,
+          "meanMs": 48.2485198359375,
+          "p50Ms": 43.937375,
+          "p95Ms": 81.563041
+        },
+        "midword": {
+          "requests": 192,
+          "meanMs": 63.88735765104167,
+          "p50Ms": 66.801083,
+          "p95Ms": 90.603583
+        },
+        "languages": {
+          "en": {
+            "requests": 192,
+            "meanMs": 43.89023501041667,
+            "p50Ms": 34.863458,
+            "p95Ms": 78.813291
+          },
+          "sr_latn": {
+            "requests": 192,
+            "meanMs": 52.606804661458334,
+            "p50Ms": 53.762333,
+            "p95Ms": 82.192042
+          }
+        },
+        "allLanguages": {
+          "en": {
+            "requests": 288,
+            "meanMs": 49.11547743402778,
+            "p50Ms": 46.295584,
+            "p95Ms": 80.185959
+          },
+          "sr_latn": {
+            "requests": 288,
+            "meanMs": 57.80745411458334,
+            "p50Ms": 64.762958,
+            "p95Ms": 85.51925
+          }
+        }
+      }
+    },
+    "frozen-baseline": {
+      "overall": {
+        "n": 192,
+        "shown": 153,
+        "coverage": 0.796875,
+        "useful": 118,
+        "poor": 23,
+        "meanUtility": 0.6875,
+        "usefulFractionOfShown": 0.7712418300653595,
+        "helpfulFirstWords": 141,
+        "meanShownCharacters": 12.18954248366013,
+        "oneWordShown": 50,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 89,
+        "coverage": 0.6953125,
+        "useful": 72,
+        "poor": 9,
+        "meanUtility": 0.640625,
+        "usefulFractionOfShown": 0.8089887640449438,
+        "helpfulFirstWords": 88,
+        "meanShownCharacters": 10.393258426966293,
+        "oneWordShown": 40,
+        "utilityIgnoringPositiveTinySuggestions": 0.4765625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 79,
+          "coverage": 0.8229166666666666,
+          "useful": 63,
+          "poor": 10,
+          "meanUtility": 0.8125,
+          "usefulFractionOfShown": 0.7974683544303798,
+          "helpfulFirstWords": 75,
+          "meanShownCharacters": 12.69620253164557,
+          "oneWordShown": 22,
+          "utilityIgnoringPositiveTinySuggestions": 0.71875
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 74,
+          "coverage": 0.7708333333333334,
+          "useful": 55,
+          "poor": 13,
+          "meanUtility": 0.5625,
+          "usefulFractionOfShown": 0.7432432432432432,
+          "helpfulFirstWords": 66,
+          "meanShownCharacters": 11.64864864864865,
+          "oneWordShown": 28,
+          "utilityIgnoringPositiveTinySuggestions": 0.40625
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 47,
+          "coverage": 0.734375,
+          "useful": 36,
+          "poor": 6,
+          "meanUtility": 0.671875,
+          "usefulFractionOfShown": 0.7659574468085106,
+          "helpfulFirstWords": 46,
+          "meanShownCharacters": 11.446808510638299,
+          "oneWordShown": 16,
+          "utilityIgnoringPositiveTinySuggestions": 0.546875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 42,
+          "coverage": 0.65625,
+          "useful": 36,
+          "poor": 3,
+          "meanUtility": 0.609375,
+          "usefulFractionOfShown": 0.8571428571428571,
+          "helpfulFirstWords": 42,
+          "meanShownCharacters": 9.214285714285714,
+          "oneWordShown": 24,
+          "utilityIgnoringPositiveTinySuggestions": 0.40625
+        }
+      }
+    },
+    "frozen-luchador": {
+      "overall": {
+        "n": 192,
+        "shown": 138,
+        "coverage": 0.71875,
+        "useful": 105,
+        "poor": 24,
+        "meanUtility": 0.6614583333333334,
+        "usefulFractionOfShown": 0.7608695652173914,
+        "helpfulFirstWords": 121,
+        "meanShownCharacters": 14.746376811594203,
+        "oneWordShown": 32,
+        "utilityIgnoringPositiveTinySuggestions": 0.6197916666666666
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 74,
+        "coverage": 0.578125,
+        "useful": 62,
+        "poor": 7,
+        "meanUtility": 0.6875,
+        "usefulFractionOfShown": 0.8378378378378378,
+        "helpfulFirstWords": 72,
+        "meanShownCharacters": 14.108108108108109,
+        "oneWordShown": 22,
+        "utilityIgnoringPositiveTinySuggestions": 0.65625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 17,
+        "meanUtility": 0.609375,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 49,
+        "meanShownCharacters": 15.484375,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.546875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 64,
+          "coverage": 0.6666666666666666,
+          "useful": 55,
+          "poor": 4,
+          "meanUtility": 0.875,
+          "usefulFractionOfShown": 0.859375,
+          "helpfulFirstWords": 62,
+          "meanShownCharacters": 16.484375,
+          "oneWordShown": 7,
+          "utilityIgnoringPositiveTinySuggestions": 0.8541666666666666
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 74,
+          "coverage": 0.7708333333333334,
+          "useful": 50,
+          "poor": 20,
+          "meanUtility": 0.4479166666666667,
+          "usefulFractionOfShown": 0.6756756756756757,
+          "helpfulFirstWords": 59,
+          "meanShownCharacters": 13.243243243243244,
+          "oneWordShown": 25,
+          "utilityIgnoringPositiveTinySuggestions": 0.3854166666666667
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 32,
+          "coverage": 0.5,
+          "useful": 28,
+          "poor": 2,
+          "meanUtility": 0.671875,
+          "usefulFractionOfShown": 0.875,
+          "helpfulFirstWords": 32,
+          "meanShownCharacters": 16.90625,
+          "oneWordShown": 3,
+          "utilityIgnoringPositiveTinySuggestions": 0.671875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 42,
+          "coverage": 0.65625,
+          "useful": 34,
+          "poor": 5,
+          "meanUtility": 0.703125,
+          "usefulFractionOfShown": 0.8095238095238095,
+          "helpfulFirstWords": 40,
+          "meanShownCharacters": 11.976190476190476,
+          "oneWordShown": 19,
+          "utilityIgnoringPositiveTinySuggestions": 0.640625
+        }
+      }
+    },
+    "frozen-gemma4_it": {
+      "overall": {
+        "n": 192,
+        "shown": 142,
+        "coverage": 0.7395833333333334,
+        "useful": 107,
+        "poor": 28,
+        "meanUtility": 0.6302083333333334,
+        "usefulFractionOfShown": 0.7535211267605634,
+        "helpfulFirstWords": 127,
+        "meanShownCharacters": 14.183098591549296,
+        "oneWordShown": 42,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 78,
+        "coverage": 0.609375,
+        "useful": 64,
+        "poor": 9,
+        "meanUtility": 0.6328125,
+        "usefulFractionOfShown": 0.8205128205128205,
+        "helpfulFirstWords": 76,
+        "meanShownCharacters": 13.320512820512821,
+        "oneWordShown": 30,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 19,
+        "meanUtility": 0.625,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 51,
+        "meanShownCharacters": 15.234375,
+        "oneWordShown": 12,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 66,
+          "coverage": 0.6875,
+          "useful": 57,
+          "poor": 5,
+          "meanUtility": 0.8541666666666666,
+          "usefulFractionOfShown": 0.8636363636363636,
+          "helpfulFirstWords": 64,
+          "meanShownCharacters": 15.954545454545455,
+          "oneWordShown": 13,
+          "utilityIgnoringPositiveTinySuggestions": 0.8020833333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 76,
+          "coverage": 0.7916666666666666,
+          "useful": 50,
+          "poor": 23,
+          "meanUtility": 0.40625,
+          "usefulFractionOfShown": 0.6578947368421053,
+          "helpfulFirstWords": 63,
+          "meanShownCharacters": 12.644736842105264,
+          "oneWordShown": 29,
+          "utilityIgnoringPositiveTinySuggestions": 0.3229166666666667
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 34,
+          "coverage": 0.53125,
+          "useful": 29,
+          "poor": 2,
+          "meanUtility": 0.640625,
+          "usefulFractionOfShown": 0.8529411764705882,
+          "helpfulFirstWords": 34,
+          "meanShownCharacters": 15.382352941176471,
+          "oneWordShown": 8,
+          "utilityIgnoringPositiveTinySuggestions": 0.59375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 44,
+          "coverage": 0.6875,
+          "useful": 35,
+          "poor": 7,
+          "meanUtility": 0.625,
+          "usefulFractionOfShown": 0.7954545454545454,
+          "helpfulFirstWords": 42,
+          "meanShownCharacters": 11.727272727272727,
+          "oneWordShown": 22,
+          "utilityIgnoringPositiveTinySuggestions": 0.53125
+        }
+      }
+    },
+    "frozen-qwen3_base4": {
+      "overall": {
+        "n": 192,
+        "shown": 152,
+        "coverage": 0.7916666666666666,
+        "useful": 105,
+        "poor": 35,
+        "meanUtility": 0.5052083333333334,
+        "usefulFractionOfShown": 0.6907894736842105,
+        "helpfulFirstWords": 139,
+        "meanShownCharacters": 11.447368421052632,
+        "oneWordShown": 57,
+        "utilityIgnoringPositiveTinySuggestions": 0.3125
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 88,
+        "coverage": 0.6875,
+        "useful": 73,
+        "poor": 8,
+        "meanUtility": 0.640625,
+        "usefulFractionOfShown": 0.8295454545454546,
+        "helpfulFirstWords": 87,
+        "meanShownCharacters": 8.443181818181818,
+        "oneWordShown": 51,
+        "utilityIgnoringPositiveTinySuggestions": 0.375
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 32,
+        "poor": 27,
+        "meanUtility": 0.234375,
+        "usefulFractionOfShown": 0.5,
+        "helpfulFirstWords": 52,
+        "meanShownCharacters": 15.578125,
+        "oneWordShown": 6,
+        "utilityIgnoringPositiveTinySuggestions": 0.1875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 80,
+          "coverage": 0.8333333333333334,
+          "useful": 62,
+          "poor": 10,
+          "meanUtility": 0.8020833333333334,
+          "usefulFractionOfShown": 0.775,
+          "helpfulFirstWords": 75,
+          "meanShownCharacters": 12.4125,
+          "oneWordShown": 28,
+          "utilityIgnoringPositiveTinySuggestions": 0.6354166666666666
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 72,
+          "coverage": 0.75,
+          "useful": 43,
+          "poor": 25,
+          "meanUtility": 0.20833333333333334,
+          "usefulFractionOfShown": 0.5972222222222222,
+          "helpfulFirstWords": 64,
+          "meanShownCharacters": 10.375,
+          "oneWordShown": 29,
+          "utilityIgnoringPositiveTinySuggestions": -0.010416666666666666
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 48,
+          "coverage": 0.75,
+          "useful": 40,
+          "poor": 3,
+          "meanUtility": 0.78125,
+          "usefulFractionOfShown": 0.8333333333333334,
+          "helpfulFirstWords": 47,
+          "meanShownCharacters": 9.270833333333334,
+          "oneWordShown": 26,
+          "utilityIgnoringPositiveTinySuggestions": 0.546875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 40,
+          "coverage": 0.625,
+          "useful": 33,
+          "poor": 5,
+          "meanUtility": 0.5,
+          "usefulFractionOfShown": 0.825,
+          "helpfulFirstWords": 40,
+          "meanShownCharacters": 7.45,
+          "oneWordShown": 25,
+          "utilityIgnoringPositiveTinySuggestions": 0.203125
+        }
+      }
+    },
+    "frozen-salamandra2": {
+      "overall": {
+        "n": 192,
+        "shown": 149,
+        "coverage": 0.7760416666666666,
+        "useful": 96,
+        "poor": 34,
+        "meanUtility": 0.3125,
+        "usefulFractionOfShown": 0.6442953020134228,
+        "helpfulFirstWords": 127,
+        "meanShownCharacters": 8.288590604026846,
+        "oneWordShown": 91,
+        "utilityIgnoringPositiveTinySuggestions": 0.046875
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 85,
+        "coverage": 0.6640625,
+        "useful": 66,
+        "poor": 3,
+        "meanUtility": 0.484375,
+        "usefulFractionOfShown": 0.7764705882352941,
+        "helpfulFirstWords": 81,
+        "meanShownCharacters": 3.4352941176470586,
+        "oneWordShown": 83,
+        "utilityIgnoringPositiveTinySuggestions": 0.1171875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 30,
+        "poor": 31,
+        "meanUtility": -0.03125,
+        "usefulFractionOfShown": 0.46875,
+        "helpfulFirstWords": 46,
+        "meanShownCharacters": 14.734375,
+        "oneWordShown": 8,
+        "utilityIgnoringPositiveTinySuggestions": -0.09375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 76,
+          "coverage": 0.7916666666666666,
+          "useful": 61,
+          "poor": 7,
+          "meanUtility": 0.65625,
+          "usefulFractionOfShown": 0.8026315789473685,
+          "helpfulFirstWords": 72,
+          "meanShownCharacters": 7.934210526315789,
+          "oneWordShown": 48,
+          "utilityIgnoringPositiveTinySuggestions": 0.3645833333333333
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 73,
+          "coverage": 0.7604166666666666,
+          "useful": 35,
+          "poor": 27,
+          "meanUtility": -0.03125,
+          "usefulFractionOfShown": 0.4794520547945205,
+          "helpfulFirstWords": 55,
+          "meanShownCharacters": 8.657534246575343,
+          "oneWordShown": 43,
+          "utilityIgnoringPositiveTinySuggestions": -0.2708333333333333
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 44,
+          "coverage": 0.6875,
+          "useful": 38,
+          "poor": 0,
+          "meanUtility": 0.59375,
+          "usefulFractionOfShown": 0.8636363636363636,
+          "helpfulFirstWords": 44,
+          "meanShownCharacters": 3.477272727272727,
+          "oneWordShown": 43,
+          "utilityIgnoringPositiveTinySuggestions": 0.1875
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 41,
+          "coverage": 0.640625,
+          "useful": 28,
+          "poor": 3,
+          "meanUtility": 0.375,
+          "usefulFractionOfShown": 0.6829268292682927,
+          "helpfulFirstWords": 37,
+          "meanShownCharacters": 3.3902439024390243,
+          "oneWordShown": 40,
+          "utilityIgnoringPositiveTinySuggestions": 0.046875
+        }
+      }
+    },
+    "frozen-yugogpt7": {
+      "overall": {
+        "n": 192,
+        "shown": 154,
+        "coverage": 0.8020833333333334,
+        "useful": 119,
+        "poor": 23,
+        "meanUtility": 0.609375,
+        "usefulFractionOfShown": 0.7727272727272727,
+        "helpfulFirstWords": 144,
+        "meanShownCharacters": 8.53896103896104,
+        "oneWordShown": 90,
+        "utilityIgnoringPositiveTinySuggestions": 0.359375
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 90,
+        "coverage": 0.703125,
+        "useful": 82,
+        "poor": 1,
+        "meanUtility": 0.6796875,
+        "usefulFractionOfShown": 0.9111111111111111,
+        "helpfulFirstWords": 90,
+        "meanShownCharacters": 4.177777777777778,
+        "oneWordShown": 85,
+        "utilityIgnoringPositiveTinySuggestions": 0.328125
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 37,
+        "poor": 22,
+        "meanUtility": 0.46875,
+        "usefulFractionOfShown": 0.578125,
+        "helpfulFirstWords": 54,
+        "meanShownCharacters": 14.671875,
+        "oneWordShown": 5,
+        "utilityIgnoringPositiveTinySuggestions": 0.421875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 72,
+          "coverage": 0.75,
+          "useful": 60,
+          "poor": 6,
+          "meanUtility": 0.6875,
+          "usefulFractionOfShown": 0.8333333333333334,
+          "helpfulFirstWords": 69,
+          "meanShownCharacters": 9.01388888888889,
+          "oneWordShown": 42,
+          "utilityIgnoringPositiveTinySuggestions": 0.4375
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 82,
+          "coverage": 0.8541666666666666,
+          "useful": 59,
+          "poor": 17,
+          "meanUtility": 0.53125,
+          "usefulFractionOfShown": 0.7195121951219512,
+          "helpfulFirstWords": 75,
+          "meanShownCharacters": 8.121951219512194,
+          "oneWordShown": 48,
+          "utilityIgnoringPositiveTinySuggestions": 0.28125
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 40,
+          "coverage": 0.625,
+          "useful": 36,
+          "poor": 0,
+          "meanUtility": 0.5625,
+          "usefulFractionOfShown": 0.9,
+          "helpfulFirstWords": 40,
+          "meanShownCharacters": 3.725,
+          "oneWordShown": 38,
+          "utilityIgnoringPositiveTinySuggestions": 0.203125
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 50,
+          "coverage": 0.78125,
+          "useful": 46,
+          "poor": 1,
+          "meanUtility": 0.796875,
+          "usefulFractionOfShown": 0.92,
+          "helpfulFirstWords": 50,
+          "meanShownCharacters": 4.54,
+          "oneWordShown": 47,
+          "utilityIgnoringPositiveTinySuggestions": 0.453125
+        }
+      }
+    },
+    "frozen-original": {
+      "overall": {
+        "n": 192,
+        "shown": 143,
+        "coverage": 0.7447916666666666,
+        "useful": 99,
+        "poor": 32,
+        "meanUtility": 0.5625,
+        "usefulFractionOfShown": 0.6923076923076923,
+        "helpfulFirstWords": 130,
+        "meanShownCharacters": 15.433566433566433,
+        "oneWordShown": 15,
+        "utilityIgnoringPositiveTinySuggestions": 0.546875
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 79,
+        "coverage": 0.6171875,
+        "useful": 53,
+        "poor": 18,
+        "meanUtility": 0.453125,
+        "usefulFractionOfShown": 0.6708860759493671,
+        "helpfulFirstWords": 77,
+        "meanShownCharacters": 16.037974683544302,
+        "oneWordShown": 5,
+        "utilityIgnoringPositiveTinySuggestions": 0.453125
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 72,
+          "coverage": 0.75,
+          "useful": 57,
+          "poor": 11,
+          "meanUtility": 0.7395833333333334,
+          "usefulFractionOfShown": 0.7916666666666666,
+          "helpfulFirstWords": 68,
+          "meanShownCharacters": 14.930555555555555,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.7291666666666666
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 71,
+          "coverage": 0.7395833333333334,
+          "useful": 42,
+          "poor": 21,
+          "meanUtility": 0.3854166666666667,
+          "usefulFractionOfShown": 0.5915492957746479,
+          "helpfulFirstWords": 62,
+          "meanShownCharacters": 15.943661971830986,
+          "oneWordShown": 6,
+          "utilityIgnoringPositiveTinySuggestions": 0.3645833333333333
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 40,
+          "coverage": 0.625,
+          "useful": 30,
+          "poor": 7,
+          "meanUtility": 0.5625,
+          "usefulFractionOfShown": 0.75,
+          "helpfulFirstWords": 39,
+          "meanShownCharacters": 15.25,
+          "oneWordShown": 3,
+          "utilityIgnoringPositiveTinySuggestions": 0.5625
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 39,
+          "coverage": 0.609375,
+          "useful": 23,
+          "poor": 11,
+          "meanUtility": 0.34375,
+          "usefulFractionOfShown": 0.5897435897435898,
+          "helpfulFirstWords": 38,
+          "meanShownCharacters": 16.846153846153847,
+          "oneWordShown": 2,
+          "utilityIgnoringPositiveTinySuggestions": 0.34375
+        }
+      }
+    },
+    "asis-baseline": {
+      "overall": {
+        "n": 192,
+        "shown": 117,
+        "coverage": 0.609375,
+        "useful": 91,
+        "poor": 20,
+        "meanUtility": 0.5416666666666666,
+        "usefulFractionOfShown": 0.7777777777777778,
+        "helpfulFirstWords": 106,
+        "meanShownCharacters": 11.914529914529915,
+        "oneWordShown": 39,
+        "utilityIgnoringPositiveTinySuggestions": 0.4427083333333333
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 53,
+        "coverage": 0.4140625,
+        "useful": 45,
+        "poor": 6,
+        "meanUtility": 0.421875,
+        "usefulFractionOfShown": 0.8490566037735849,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 8.566037735849056,
+        "oneWordShown": 29,
+        "utilityIgnoringPositiveTinySuggestions": 0.296875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 64,
+          "coverage": 0.6666666666666666,
+          "useful": 54,
+          "poor": 8,
+          "meanUtility": 0.71875,
+          "usefulFractionOfShown": 0.84375,
+          "helpfulFirstWords": 61,
+          "meanShownCharacters": 11.9375,
+          "oneWordShown": 21,
+          "utilityIgnoringPositiveTinySuggestions": 0.6041666666666666
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 53,
+          "coverage": 0.5520833333333334,
+          "useful": 37,
+          "poor": 12,
+          "meanUtility": 0.3645833333333333,
+          "usefulFractionOfShown": 0.6981132075471698,
+          "helpfulFirstWords": 45,
+          "meanShownCharacters": 11.88679245283019,
+          "oneWordShown": 18,
+          "utilityIgnoringPositiveTinySuggestions": 0.28125
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 32,
+          "coverage": 0.5,
+          "useful": 27,
+          "poor": 4,
+          "meanUtility": 0.53125,
+          "usefulFractionOfShown": 0.84375,
+          "helpfulFirstWords": 32,
+          "meanShownCharacters": 9.34375,
+          "oneWordShown": 15,
+          "utilityIgnoringPositiveTinySuggestions": 0.375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 21,
+          "coverage": 0.328125,
+          "useful": 18,
+          "poor": 2,
+          "meanUtility": 0.3125,
+          "usefulFractionOfShown": 0.8571428571428571,
+          "helpfulFirstWords": 21,
+          "meanShownCharacters": 7.380952380952381,
+          "oneWordShown": 14,
+          "utilityIgnoringPositiveTinySuggestions": 0.21875
+        }
+      }
+    },
+    "asis-luchador": {
+      "overall": {
+        "n": 192,
+        "shown": 165,
+        "coverage": 0.859375,
+        "useful": 126,
+        "poor": 26,
+        "meanUtility": 0.796875,
+        "usefulFractionOfShown": 0.7636363636363637,
+        "helpfulFirstWords": 148,
+        "meanShownCharacters": 14.981818181818182,
+        "oneWordShown": 35,
+        "utilityIgnoringPositiveTinySuggestions": 0.7447916666666666
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 101,
+        "coverage": 0.7890625,
+        "useful": 83,
+        "poor": 9,
+        "meanUtility": 0.890625,
+        "usefulFractionOfShown": 0.8217821782178217,
+        "helpfulFirstWords": 99,
+        "meanShownCharacters": 14.663366336633663,
+        "oneWordShown": 25,
+        "utilityIgnoringPositiveTinySuggestions": 0.84375
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 17,
+        "meanUtility": 0.609375,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 49,
+        "meanShownCharacters": 15.484375,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.546875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 84,
+          "coverage": 0.875,
+          "useful": 72,
+          "poor": 5,
+          "meanUtility": 1.09375,
+          "usefulFractionOfShown": 0.8571428571428571,
+          "helpfulFirstWords": 82,
+          "meanShownCharacters": 16.214285714285715,
+          "oneWordShown": 11,
+          "utilityIgnoringPositiveTinySuggestions": 1.0416666666666667
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 81,
+          "coverage": 0.84375,
+          "useful": 54,
+          "poor": 21,
+          "meanUtility": 0.5,
+          "usefulFractionOfShown": 0.6666666666666666,
+          "helpfulFirstWords": 66,
+          "meanShownCharacters": 13.703703703703704,
+          "oneWordShown": 24,
+          "utilityIgnoringPositiveTinySuggestions": 0.4479166666666667
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 52,
+          "coverage": 0.8125,
+          "useful": 45,
+          "poor": 3,
+          "meanUtility": 1,
+          "usefulFractionOfShown": 0.8653846153846154,
+          "helpfulFirstWords": 52,
+          "meanShownCharacters": 16.307692307692307,
+          "oneWordShown": 7,
+          "utilityIgnoringPositiveTinySuggestions": 0.953125
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 49,
+          "coverage": 0.765625,
+          "useful": 38,
+          "poor": 6,
+          "meanUtility": 0.78125,
+          "usefulFractionOfShown": 0.7755102040816326,
+          "helpfulFirstWords": 47,
+          "meanShownCharacters": 12.918367346938776,
+          "oneWordShown": 18,
+          "utilityIgnoringPositiveTinySuggestions": 0.734375
+        }
+      }
+    },
+    "asis-gemma4_it": {
+      "overall": {
+        "n": 192,
+        "shown": 174,
+        "coverage": 0.90625,
+        "useful": 120,
+        "poor": 37,
+        "meanUtility": 0.6770833333333334,
+        "usefulFractionOfShown": 0.6896551724137931,
+        "helpfulFirstWords": 157,
+        "meanShownCharacters": 15.517241379310345,
+        "oneWordShown": 36,
+        "utilityIgnoringPositiveTinySuggestions": 0.6302083333333334
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 110,
+        "coverage": 0.859375,
+        "useful": 77,
+        "poor": 18,
+        "meanUtility": 0.703125,
+        "usefulFractionOfShown": 0.7,
+        "helpfulFirstWords": 106,
+        "meanShownCharacters": 15.681818181818182,
+        "oneWordShown": 24,
+        "utilityIgnoringPositiveTinySuggestions": 0.6640625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 43,
+        "poor": 19,
+        "meanUtility": 0.625,
+        "usefulFractionOfShown": 0.671875,
+        "helpfulFirstWords": 51,
+        "meanShownCharacters": 15.234375,
+        "oneWordShown": 12,
+        "utilityIgnoringPositiveTinySuggestions": 0.5625
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 87,
+          "coverage": 0.90625,
+          "useful": 71,
+          "poor": 7,
+          "meanUtility": 1.0729166666666667,
+          "usefulFractionOfShown": 0.8160919540229885,
+          "helpfulFirstWords": 85,
+          "meanShownCharacters": 16.770114942528735,
+          "oneWordShown": 11,
+          "utilityIgnoringPositiveTinySuggestions": 1.03125
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 87,
+          "coverage": 0.90625,
+          "useful": 49,
+          "poor": 30,
+          "meanUtility": 0.28125,
+          "usefulFractionOfShown": 0.5632183908045977,
+          "helpfulFirstWords": 72,
+          "meanShownCharacters": 14.264367816091953,
+          "oneWordShown": 25,
+          "utilityIgnoringPositiveTinySuggestions": 0.22916666666666666
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 55,
+          "coverage": 0.859375,
+          "useful": 43,
+          "poor": 4,
+          "meanUtility": 0.96875,
+          "usefulFractionOfShown": 0.7818181818181819,
+          "helpfulFirstWords": 55,
+          "meanShownCharacters": 16.89090909090909,
+          "oneWordShown": 6,
+          "utilityIgnoringPositiveTinySuggestions": 0.9375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 55,
+          "coverage": 0.859375,
+          "useful": 34,
+          "poor": 14,
+          "meanUtility": 0.4375,
+          "usefulFractionOfShown": 0.6181818181818182,
+          "helpfulFirstWords": 51,
+          "meanShownCharacters": 14.472727272727273,
+          "oneWordShown": 18,
+          "utilityIgnoringPositiveTinySuggestions": 0.390625
+        }
+      }
+    },
+    "asis-qwen3_base4": {
+      "overall": {
+        "n": 192,
+        "shown": 113,
+        "coverage": 0.5885416666666666,
+        "useful": 70,
+        "poor": 33,
+        "meanUtility": 0.328125,
+        "usefulFractionOfShown": 0.6194690265486725,
+        "helpfulFirstWords": 100,
+        "meanShownCharacters": 13.672566371681416,
+        "oneWordShown": 25,
+        "utilityIgnoringPositiveTinySuggestions": 0.2552083333333333
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 49,
+        "coverage": 0.3828125,
+        "useful": 38,
+        "poor": 6,
+        "meanUtility": 0.375,
+        "usefulFractionOfShown": 0.7755102040816326,
+        "helpfulFirstWords": 48,
+        "meanShownCharacters": 11.183673469387756,
+        "oneWordShown": 19,
+        "utilityIgnoringPositiveTinySuggestions": 0.2890625
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 32,
+        "poor": 27,
+        "meanUtility": 0.234375,
+        "usefulFractionOfShown": 0.5,
+        "helpfulFirstWords": 52,
+        "meanShownCharacters": 15.578125,
+        "oneWordShown": 6,
+        "utilityIgnoringPositiveTinySuggestions": 0.1875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 65,
+          "coverage": 0.6770833333333334,
+          "useful": 49,
+          "poor": 10,
+          "meanUtility": 0.6770833333333334,
+          "usefulFractionOfShown": 0.7538461538461538,
+          "helpfulFirstWords": 60,
+          "meanShownCharacters": 14.846153846153847,
+          "oneWordShown": 12,
+          "utilityIgnoringPositiveTinySuggestions": 0.6145833333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 48,
+          "coverage": 0.5,
+          "useful": 21,
+          "poor": 23,
+          "meanUtility": -0.020833333333333332,
+          "usefulFractionOfShown": 0.4375,
+          "helpfulFirstWords": 40,
+          "meanShownCharacters": 12.083333333333334,
+          "oneWordShown": 13,
+          "utilityIgnoringPositiveTinySuggestions": -0.10416666666666667
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 33,
+          "coverage": 0.515625,
+          "useful": 27,
+          "poor": 3,
+          "meanUtility": 0.59375,
+          "usefulFractionOfShown": 0.8181818181818182,
+          "helpfulFirstWords": 32,
+          "meanShownCharacters": 12.636363636363637,
+          "oneWordShown": 10,
+          "utilityIgnoringPositiveTinySuggestions": 0.515625
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 16,
+          "coverage": 0.25,
+          "useful": 11,
+          "poor": 3,
+          "meanUtility": 0.15625,
+          "usefulFractionOfShown": 0.6875,
+          "helpfulFirstWords": 16,
+          "meanShownCharacters": 8.1875,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.0625
+        }
+      }
+    },
+    "asis-salamandra2": {
+      "overall": {
+        "n": 192,
+        "shown": 102,
+        "coverage": 0.53125,
+        "useful": 62,
+        "poor": 33,
+        "meanUtility": 0.19270833333333334,
+        "usefulFractionOfShown": 0.6078431372549019,
+        "helpfulFirstWords": 82,
+        "meanShownCharacters": 13.088235294117647,
+        "oneWordShown": 25,
+        "utilityIgnoringPositiveTinySuggestions": 0.11458333333333333
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 38,
+        "coverage": 0.296875,
+        "useful": 32,
+        "poor": 2,
+        "meanUtility": 0.3046875,
+        "usefulFractionOfShown": 0.8421052631578947,
+        "helpfulFirstWords": 36,
+        "meanShownCharacters": 10.31578947368421,
+        "oneWordShown": 17,
+        "utilityIgnoringPositiveTinySuggestions": 0.21875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 30,
+        "poor": 31,
+        "meanUtility": -0.03125,
+        "usefulFractionOfShown": 0.46875,
+        "helpfulFirstWords": 46,
+        "meanShownCharacters": 14.734375,
+        "oneWordShown": 8,
+        "utilityIgnoringPositiveTinySuggestions": -0.09375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 59,
+          "coverage": 0.6145833333333334,
+          "useful": 46,
+          "poor": 8,
+          "meanUtility": 0.5729166666666666,
+          "usefulFractionOfShown": 0.7796610169491526,
+          "helpfulFirstWords": 54,
+          "meanShownCharacters": 13.135593220338983,
+          "oneWordShown": 13,
+          "utilityIgnoringPositiveTinySuggestions": 0.5104166666666666
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 43,
+          "coverage": 0.4479166666666667,
+          "useful": 16,
+          "poor": 25,
+          "meanUtility": -0.1875,
+          "usefulFractionOfShown": 0.37209302325581395,
+          "helpfulFirstWords": 28,
+          "meanShownCharacters": 13.023255813953488,
+          "oneWordShown": 12,
+          "utilityIgnoringPositiveTinySuggestions": -0.28125
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 27,
+          "coverage": 0.421875,
+          "useful": 23,
+          "poor": 1,
+          "meanUtility": 0.46875,
+          "usefulFractionOfShown": 0.8518518518518519,
+          "helpfulFirstWords": 26,
+          "meanShownCharacters": 12.037037037037036,
+          "oneWordShown": 8,
+          "utilityIgnoringPositiveTinySuggestions": 0.40625
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 11,
+          "coverage": 0.171875,
+          "useful": 9,
+          "poor": 1,
+          "meanUtility": 0.140625,
+          "usefulFractionOfShown": 0.8181818181818182,
+          "helpfulFirstWords": 10,
+          "meanShownCharacters": 6.090909090909091,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.03125
+        }
+      }
+    },
+    "asis-yugogpt7": {
+      "overall": {
+        "n": 192,
+        "shown": 119,
+        "coverage": 0.6197916666666666,
+        "useful": 78,
+        "poor": 29,
+        "meanUtility": 0.4322916666666667,
+        "usefulFractionOfShown": 0.6554621848739496,
+        "helpfulFirstWords": 109,
+        "meanShownCharacters": 13.411764705882353,
+        "oneWordShown": 21,
+        "utilityIgnoringPositiveTinySuggestions": 0.359375
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 55,
+        "coverage": 0.4296875,
+        "useful": 41,
+        "poor": 7,
+        "meanUtility": 0.4140625,
+        "usefulFractionOfShown": 0.7454545454545455,
+        "helpfulFirstWords": 55,
+        "meanShownCharacters": 11.945454545454545,
+        "oneWordShown": 16,
+        "utilityIgnoringPositiveTinySuggestions": 0.328125
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 37,
+        "poor": 22,
+        "meanUtility": 0.46875,
+        "usefulFractionOfShown": 0.578125,
+        "helpfulFirstWords": 54,
+        "meanShownCharacters": 14.671875,
+        "oneWordShown": 5,
+        "utilityIgnoringPositiveTinySuggestions": 0.421875
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 61,
+          "coverage": 0.6354166666666666,
+          "useful": 46,
+          "poor": 7,
+          "meanUtility": 0.625,
+          "usefulFractionOfShown": 0.7540983606557377,
+          "helpfulFirstWords": 58,
+          "meanShownCharacters": 14.180327868852459,
+          "oneWordShown": 12,
+          "utilityIgnoringPositiveTinySuggestions": 0.5520833333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 58,
+          "coverage": 0.6041666666666666,
+          "useful": 32,
+          "poor": 22,
+          "meanUtility": 0.23958333333333334,
+          "usefulFractionOfShown": 0.5517241379310345,
+          "helpfulFirstWords": 51,
+          "meanShownCharacters": 12.60344827586207,
+          "oneWordShown": 9,
+          "utilityIgnoringPositiveTinySuggestions": 0.16666666666666666
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 29,
+          "coverage": 0.453125,
+          "useful": 22,
+          "poor": 1,
+          "meanUtility": 0.46875,
+          "usefulFractionOfShown": 0.7586206896551724,
+          "helpfulFirstWords": 29,
+          "meanShownCharacters": 12.586206896551724,
+          "oneWordShown": 8,
+          "utilityIgnoringPositiveTinySuggestions": 0.375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 26,
+          "coverage": 0.40625,
+          "useful": 19,
+          "poor": 6,
+          "meanUtility": 0.359375,
+          "usefulFractionOfShown": 0.7307692307692307,
+          "helpfulFirstWords": 26,
+          "meanShownCharacters": 11.23076923076923,
+          "oneWordShown": 8,
+          "utilityIgnoringPositiveTinySuggestions": 0.28125
+        }
+      }
+    },
+    "asis-original": {
+      "overall": {
+        "n": 192,
+        "shown": 91,
+        "coverage": 0.4739583333333333,
+        "useful": 66,
+        "poor": 20,
+        "meanUtility": 0.40625,
+        "usefulFractionOfShown": 0.7252747252747253,
+        "helpfulFirstWords": 80,
+        "meanShownCharacters": 14.296703296703297,
+        "oneWordShown": 13,
+        "utilityIgnoringPositiveTinySuggestions": 0.390625
+      },
+      "boundary": {
+        "n": 128,
+        "shown": 27,
+        "coverage": 0.2109375,
+        "useful": 20,
+        "poor": 6,
+        "meanUtility": 0.21875,
+        "usefulFractionOfShown": 0.7407407407407407,
+        "helpfulFirstWords": 27,
+        "meanShownCharacters": 13.37037037037037,
+        "oneWordShown": 3,
+        "utilityIgnoringPositiveTinySuggestions": 0.21875
+      },
+      "midword": {
+        "n": 64,
+        "shown": 64,
+        "coverage": 1.0,
+        "useful": 46,
+        "poor": 14,
+        "meanUtility": 0.78125,
+        "usefulFractionOfShown": 0.71875,
+        "helpfulFirstWords": 53,
+        "meanShownCharacters": 14.6875,
+        "oneWordShown": 10,
+        "utilityIgnoringPositiveTinySuggestions": 0.734375
+      },
+      "allLanguages": {
+        "en": {
+          "n": 96,
+          "shown": 51,
+          "coverage": 0.53125,
+          "useful": 42,
+          "poor": 8,
+          "meanUtility": 0.59375,
+          "usefulFractionOfShown": 0.8235294117647058,
+          "helpfulFirstWords": 48,
+          "meanShownCharacters": 14.254901960784315,
+          "oneWordShown": 8,
+          "utilityIgnoringPositiveTinySuggestions": 0.5833333333333334
+        },
+        "sr_latn": {
+          "n": 96,
+          "shown": 40,
+          "coverage": 0.4166666666666667,
+          "useful": 24,
+          "poor": 12,
+          "meanUtility": 0.21875,
+          "usefulFractionOfShown": 0.6,
+          "helpfulFirstWords": 32,
+          "meanShownCharacters": 14.35,
+          "oneWordShown": 5,
+          "utilityIgnoringPositiveTinySuggestions": 0.19791666666666666
+        }
+      },
+      "languages": {
+        "en": {
+          "n": 64,
+          "shown": 19,
+          "coverage": 0.296875,
+          "useful": 15,
+          "poor": 4,
+          "meanUtility": 0.34375,
+          "usefulFractionOfShown": 0.7894736842105263,
+          "helpfulFirstWords": 19,
+          "meanShownCharacters": 13.789473684210526,
+          "oneWordShown": 2,
+          "utilityIgnoringPositiveTinySuggestions": 0.34375
+        },
+        "sr_latn": {
+          "n": 64,
+          "shown": 8,
+          "coverage": 0.125,
+          "useful": 5,
+          "poor": 2,
+          "meanUtility": 0.09375,
+          "usefulFractionOfShown": 0.625,
+          "helpfulFirstWords": 8,
+          "meanShownCharacters": 12.375,
+          "oneWordShown": 1,
+          "utilityIgnoringPositiveTinySuggestions": 0.09375
+        }
+      }
+    }
+  },
+  "comparisons": {
+    "baseline": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "ties": 128,
+        "losses": 0,
+        "overallUtilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.1171875,
+          "low95": -0.2890625,
+          "high95": 0.0546875,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 29,
+        "ties": 64,
+        "losses": 35,
+        "overallUtilityDelta": {
+          "mean": -0.020833333333333332,
+          "low95": -0.21354166666666666,
+          "high95": 0.17708333333333334,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "luchador": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": 0.1171875,
+          "low95": -0.0546875,
+          "high95": 0.2890625,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 35,
+        "ties": 64,
+        "losses": 29,
+        "overallUtilityDelta": {
+          "mean": 0.020833333333333332,
+          "low95": -0.17708333333333334,
+          "high95": 0.21354166666666666,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "ties": 128,
+        "losses": 0,
+        "overallUtilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "gemma4_it": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": 0.0703125,
+          "low95": -0.09375,
+          "high95": 0.2265625,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 35,
+        "ties": 63,
+        "losses": 30,
+        "overallUtilityDelta": {
+          "mean": -0.005208333333333333,
+          "low95": -0.1875,
+          "high95": 0.17708333333333334,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.046875,
+          "low95": -0.125,
+          "high95": 0.03125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 6,
+        "ties": 112,
+        "losses": 10,
+        "overallUtilityDelta": {
+          "mean": -0.026041666666666668,
+          "low95": -0.10416666666666667,
+          "high95": 0.057291666666666664,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "qwen3_base4": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": -0.0234375,
+          "low95": -0.15625,
+          "high95": 0.1171875,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 17,
+        "ties": 85,
+        "losses": 26,
+        "overallUtilityDelta": {
+          "mean": -0.19791666666666666,
+          "low95": -0.3802083333333333,
+          "high95": -0.020833333333333332,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.140625,
+          "low95": -0.28125,
+          "high95": 0.0078125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 30,
+        "ties": 59,
+        "losses": 39,
+        "overallUtilityDelta": {
+          "mean": -0.21875,
+          "low95": -0.4114583333333333,
+          "high95": -0.03125,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "salamandra2": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": -0.15625,
+          "low95": -0.3125,
+          "high95": -0.0078125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 17,
+        "ties": 76,
+        "losses": 35,
+        "overallUtilityDelta": {
+          "mean": -0.375,
+          "low95": -0.546875,
+          "high95": -0.21354166666666666,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.2734375,
+          "low95": -0.4453125,
+          "high95": -0.109375,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 28,
+        "ties": 51,
+        "losses": 49,
+        "overallUtilityDelta": {
+          "mean": -0.3958333333333333,
+          "low95": -0.5885416666666666,
+          "high95": -0.20833333333333334,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "yugogpt7": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": -0.0078125,
+          "low95": -0.1640625,
+          "high95": 0.1484375,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 20,
+        "ties": 84,
+        "losses": 24,
+        "overallUtilityDelta": {
+          "mean": -0.109375,
+          "low95": -0.2760416666666667,
+          "high95": 0.06770833333333333,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.125,
+          "low95": -0.28125,
+          "high95": 0.03125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 34,
+        "ties": 56,
+        "losses": 38,
+        "overallUtilityDelta": {
+          "mean": -0.13020833333333334,
+          "low95": -0.3333333333333333,
+          "high95": 0.06770833333333333,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    },
+    "original": {
+      "baseline": {
+        "utilityDelta": {
+          "mean": -0.15625,
+          "low95": -0.2890625,
+          "high95": -0.03125,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 12,
+        "ties": 91,
+        "losses": 25,
+        "overallUtilityDelta": {
+          "mean": -0.10416666666666667,
+          "low95": -0.19270833333333334,
+          "high95": -0.020833333333333332,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      },
+      "luchador": {
+        "utilityDelta": {
+          "mean": -0.2734375,
+          "low95": -0.4296875,
+          "high95": -0.1171875,
+          "phrases": 32,
+          "resamples": 5000
+        },
+        "wins": 27,
+        "ties": 55,
+        "losses": 46,
+        "overallUtilityDelta": {
+          "mean": -0.125,
+          "low95": -0.3125,
+          "high95": 0.0625,
+          "phrases": 32,
+          "resamples": 5000
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "baseline",
+    "path": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "sha256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "bytes": 3845328608,
+    "file": "gemma-4-E2B.i1-Q6_K.gguf",
+    "upstream": "google/gemma-4-E2B",
+    "description": "Installed model, hybrid enabled"
+  },
+  {
+    "id": "luchador",
+    "repo": "bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF",
+    "revision": "b9b69babc09989221470e016e66f6cd817836459",
+    "file": "rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "path": "/private/tmp/lokalbot-model-study-20261010/models/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf",
+    "sha256": "40e7b137e3867acb2b2991e6bedc5f140f3a4f8a89083087fd0ef24d1a698358",
+    "bytes": 6329952928,
+    "license": "gemma",
+    "url": "https://huggingface.co/bartowski/rpDungeon_Gemma-4-E4B-Luchador-GGUF/resolve/b9b69babc09989221470e016e66f6cd817836459/rpDungeon_Gemma-4-E4B-Luchador-Q6_K.gguf"
+  },
+  {
+    "id": "gemma4_it",
+    "path": "/private/tmp/lokalbot-calibration-20261010/models/google_gemma-4-E4B-it-Q6_K.gguf",
+    "sha256": "bea1c94443c91fff61a722d9da5cd3f1cf0196d1e914798ee89d3c00ea365df9",
+    "bytes": 6329954784,
+    "url": "https://huggingface.co/bartowski/google_gemma-4-E4B-it-GGUF/resolve/029e94146666900b08caf49a3b47b413dfa8ec66/google_gemma-4-E4B-it-Q6_K.gguf",
+    "source": "google/gemma-4-E4B-it"
+  },
+  {
+    "id": "qwen3_base4",
+    "path": "/private/tmp/lokalbot-calibration-20261010/models/Qwen3-4B-Base.i1-Q6_K.gguf",
+    "sha256": "3754f81ca780b9ef064874cd16afaefdbe1b6b47130ca2a1b913812e9c88d448",
+    "bytes": 3306261440,
+    "url": "https://huggingface.co/mradermacher/Qwen3-4B-Base-i1-GGUF/resolve/68c4ff29fc4932776e1e28109ef8522dd3dceb4f/Qwen3-4B-Base.i1-Q6_K.gguf",
+    "source": "Qwen/Qwen3-4B-Base"
+  },
+  {
+    "id": "salamandra2",
+    "path": "/private/tmp/lokalbot-calibration-20261010/models/salamandra-2b.Q6_K.gguf",
+    "sha256": "34d4835370cc209518ad152743abdd0a96ca418009dcc1fa0ccc918f9ab68e5b",
+    "bytes": 1920090400,
+    "url": "https://huggingface.co/RichardErkhov/BSC-LT_-_salamandra-2b-gguf/resolve/7d4fdff14281bd2c91308f4e8715b05c67c9ffee/salamandra-2b.Q6_K.gguf",
+    "source": "BSC-LT/salamandra-2b"
+  },
+  {
+    "id": "yugogpt7",
+    "path": "/private/tmp/lokalbot-calibration-20261010/models/YugoGPT.i1-Q6_K.gguf",
+    "sha256": "d603a9d8cc0661069e48a0598ae77f595501bbe43854318b179e36eae911de1b",
+    "bytes": 5942065792,
+    "url": "https://huggingface.co/mradermacher/YugoGPT-i1-GGUF/resolve/9364a068cc57ed32d32c43277860316b130dc508/YugoGPT.i1-Q6_K.gguf",
+    "source": "gordicaleksa/YugoGPT"
+  }
+]

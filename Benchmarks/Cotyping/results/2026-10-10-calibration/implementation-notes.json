@@ -1,0 +1,6 @@
+{
+  "createdAtUTC": "2026-10-10T16:10:05.251220+00:00",
+  "planScriptSHA256": "f3b4bb27fb8bc5a75dea3f240ca3f8971a57bd1835eda79c93655cb7422fd45e",
+  "currentScriptSHA256": "84ecfe5e6fa3e35d7085e8ac3ff6895112670c067a17bb34038f91183bc79c7c",
+  "changeAfterPlan": "Clamp probability cutoffs to 1 when disabling a branch, retaining the exact native count assertion. Added a focused test. No model quality results or holdout outputs inspected to make this adjustment."
+}

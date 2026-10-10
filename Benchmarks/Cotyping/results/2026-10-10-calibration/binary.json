@@ -1,0 +1,7 @@
+{
+  "path": "/private/tmp/lokalbot-calibration-20261010/replay-LokalBot.app/Contents/MacOS/LokalBot",
+  "sha256": "0cb89655ed981f0830f4a35e6487d58af585d3b700a34782b91973eefea13d24",
+  "head": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "libllama": "b11474",
+  "instrumented": true
+}

@@ -1,0 +1,834 @@
+{
+  "split": "confirmation",
+  "judgeModels": [
+    "claude-opus-5-5"
+  ],
+  "n": 160,
+  "arms": {
+    "baseline": {
+      "overall": {
+        "n": 160,
+        "meanUtility": 0.63125,
+        "useful": 84,
+        "bad": 19,
+        "neutralShown": 7,
+        "silence": 50
+      },
+      "language": {
+        "en": {
+          "n": 120,
+          "meanUtility": 0.7333333333333333,
+          "useful": 67,
+          "bad": 10,
+          "neutralShown": 6,
+          "silence": 37
+        },
+        "sr": {
+          "n": 40,
+          "meanUtility": 0.325,
+          "useful": 17,
+          "bad": 9,
+          "neutralShown": 1,
+          "silence": 13
+        }
+      },
+      "category": {
+        "chat": {
+          "n": 20,
+          "meanUtility": 0.65,
+          "useful": 12,
+          "bad": 3,
+          "neutralShown": 1,
+          "silence": 4
+        },
+        "email": {
+          "n": 20,
+          "meanUtility": 0.65,
+          "useful": 10,
+          "bad": 2,
+          "neutralShown": 1,
+          "silence": 7
+        },
+        "everyday": {
+          "n": 20,
+          "meanUtility": 0.95,
+          "useful": 12,
+          "bad": 1,
+          "neutralShown": 1,
+          "silence": 6
+        },
+        "planning": {
+          "n": 20,
+          "meanUtility": 0.65,
+          "useful": 12,
+          "bad": 3,
+          "neutralShown": 0,
+          "silence": 5
+        },
+        "sr_cyrillic": {
+          "n": 20,
+          "meanUtility": 0.05,
+          "useful": 7,
+          "bad": 7,
+          "neutralShown": 1,
+          "silence": 5
+        },
+        "sr_latin": {
+          "n": 20,
+          "meanUtility": 0.6,
+          "useful": 10,
+          "bad": 2,
+          "neutralShown": 0,
+          "silence": 8
+        },
+        "support": {
+          "n": 20,
+          "meanUtility": 0.85,
+          "useful": 12,
+          "bad": 1,
+          "neutralShown": 0,
+          "silence": 7
+        },
+        "technical": {
+          "n": 20,
+          "meanUtility": 0.65,
+          "useful": 9,
+          "bad": 0,
+          "neutralShown": 3,
+          "silence": 8
+        }
+      },
+      "kind": {
+        "boundary": {
+          "n": 96,
+          "meanUtility": 0.3958333333333333,
+          "useful": 36,
+          "bad": 7,
+          "neutralShown": 3,
+          "silence": 50
+        },
+        "midword": {
+          "n": 64,
+          "meanUtility": 0.984375,
+          "useful": 48,
+          "bad": 12,
+          "neutralShown": 4,
+          "silence": 0
+        }
+      },
+      "latency": {
+        "rounds": 3,
+        "requests": 480,
+        "meanMs": 48.12401927291667,
+        "p50Ms": 44.476292,
+        "p95Ms": 84.782709
+      },
+      "reference": {
+        "overall": {
+          "n": 160,
+          "shown": 110,
+          "correctFirstWord": 72,
+          "matchingCharacters": 465,
+          "errors": 0,
+          "meanMs": 47.812083625,
+          "p50Ms": 44.476292,
+          "p95Ms": 84.124458
+        },
+        "language": {
+          "en": {
+            "n": 120,
+            "shown": 83,
+            "correctFirstWord": 56,
+            "matchingCharacters": 354,
+            "errors": 0,
+            "meanMs": 46.180511808333335,
+            "p50Ms": 42.424958,
+            "p95Ms": 84.124458
+          },
+          "sr": {
+            "n": 40,
+            "shown": 27,
+            "correctFirstWord": 16,
+            "matchingCharacters": 111,
+            "errors": 0,
+            "meanMs": 52.706799075,
+            "p50Ms": 57.901375,
+            "p95Ms": 81.243833
+          }
+        },
+        "category": {
+          "chat": {
+            "n": 20,
+            "shown": 16,
+            "correctFirstWord": 8,
+            "matchingCharacters": 43,
+            "errors": 0,
+            "meanMs": 57.24944585,
+            "p50Ms": 55.568,
+            "p95Ms": 86.36375
+          },
+          "email": {
+            "n": 20,
+            "shown": 13,
+            "correctFirstWord": 11,
+            "matchingCharacters": 55,
+            "errors": 0,
+            "meanMs": 49.04349165,
+            "p50Ms": 53.455875,
+            "p95Ms": 81.1625
+          },
+          "everyday": {
+            "n": 20,
+            "shown": 14,
+            "correctFirstWord": 11,
+            "matchingCharacters": 97,
+            "errors": 0,
+            "meanMs": 41.9264626,
+            "p50Ms": 43.81825,
+            "p95Ms": 70.849584
+          },
+          "planning": {
+            "n": 20,
+            "shown": 15,
+            "correctFirstWord": 7,
+            "matchingCharacters": 44,
+            "errors": 0,
+            "meanMs": 51.88108955,
+            "p50Ms": 44.749917,
+            "p95Ms": 84.683542
+          },
+          "sr_cyrillic": {
+            "n": 20,
+            "shown": 15,
+            "correctFirstWord": 7,
+            "matchingCharacters": 39,
+            "errors": 0,
+            "meanMs": 60.1410335,
+            "p50Ms": 73.357417,
+            "p95Ms": 90.316625
+          },
+          "sr_latin": {
+            "n": 20,
+            "shown": 12,
+            "correctFirstWord": 9,
+            "matchingCharacters": 72,
+            "errors": 0,
+            "meanMs": 45.27256465,
+            "p50Ms": 43.799917,
+            "p95Ms": 77.74025
+          },
+          "support": {
+            "n": 20,
+            "shown": 13,
+            "correctFirstWord": 10,
+            "matchingCharacters": 46,
+            "errors": 0,
+            "meanMs": 41.56154575,
+            "p50Ms": 25.91125,
+            "p95Ms": 84.124458
+          },
+          "technical": {
+            "n": 20,
+            "shown": 12,
+            "correctFirstWord": 9,
+            "matchingCharacters": 69,
+            "errors": 0,
+            "meanMs": 35.42103545,
+            "p50Ms": 32.238,
+            "p95Ms": 72.395917
+          }
+        },
+        "kind": {
+          "boundary": {
+            "n": 96,
+            "shown": 46,
+            "correctFirstWord": 21,
+            "matchingCharacters": 148,
+            "errors": 0,
+            "meanMs": 39.866401520833335,
+            "p50Ms": 27.373625,
+            "p95Ms": 79.057459
+          },
+          "midword": {
+            "n": 64,
+            "shown": 64,
+            "correctFirstWord": 51,
+            "matchingCharacters": 317,
+            "errors": 0,
+            "meanMs": 59.73060678125,
+            "p50Ms": 58.106542,
+            "p95Ms": 92.324709
+          }
+        }
+      },
+      "repeatedOutputDifferences": 0
+    },
+    "luchador": {
+      "overall": {
+        "n": 160,
+        "meanUtility": 1.00625,
+        "useful": 109,
+        "bad": 15,
+        "neutralShown": 7,
+        "silence": 29
+      },
+      "language": {
+        "en": {
+          "n": 120,
+          "meanUtility": 1.175,
+          "useful": 90,
+          "bad": 5,
+          "neutralShown": 5,
+          "silence": 20
+        },
+        "sr": {
+          "n": 40,
+          "meanUtility": 0.5,
+          "useful": 19,
+          "bad": 10,
+          "neutralShown": 2,
+          "silence": 9
+        }
+      },
+      "category": {
+        "chat": {
+          "n": 20,
+          "meanUtility": 0.95,
+          "useful": 15,
+          "bad": 2,
+          "neutralShown": 2,
+          "silence": 1
+        },
+        "email": {
+          "n": 20,
+          "meanUtility": 1.6,
+          "useful": 16,
+          "bad": 0,
+          "neutralShown": 1,
+          "silence": 3
+        },
+        "everyday": {
+          "n": 20,
+          "meanUtility": 1.1,
+          "useful": 14,
+          "bad": 2,
+          "neutralShown": 0,
+          "silence": 4
+        },
+        "planning": {
+          "n": 20,
+          "meanUtility": 1.3,
+          "useful": 15,
+          "bad": 0,
+          "neutralShown": 2,
+          "silence": 3
+        },
+        "sr_cyrillic": {
+          "n": 20,
+          "meanUtility": -0.2,
+          "useful": 5,
+          "bad": 9,
+          "neutralShown": 1,
+          "silence": 5
+        },
+        "sr_latin": {
+          "n": 20,
+          "meanUtility": 1.2,
+          "useful": 14,
+          "bad": 1,
+          "neutralShown": 1,
+          "silence": 4
+        },
+        "support": {
+          "n": 20,
+          "meanUtility": 1.1,
+          "useful": 16,
+          "bad": 1,
+          "neutralShown": 0,
+          "silence": 3
+        },
+        "technical": {
+          "n": 20,
+          "meanUtility": 1,
+          "useful": 14,
+          "bad": 0,
+          "neutralShown": 0,
+          "silence": 6
+        }
+      },
+      "kind": {
+        "boundary": {
+          "n": 96,
+          "meanUtility": 0.8645833333333334,
+          "useful": 57,
+          "bad": 7,
+          "neutralShown": 4,
+          "silence": 28
+        },
+        "midword": {
+          "n": 64,
+          "meanUtility": 1.21875,
+          "useful": 52,
+          "bad": 8,
+          "neutralShown": 3,
+          "silence": 1
+        }
+      },
+      "latency": {
+        "rounds": 3,
+        "requests": 480,
+        "meanMs": 75.63567900833333,
+        "p50Ms": 75.39725,
+        "p95Ms": 121.263459
+      },
+      "reference": {
+        "overall": {
+          "n": 160,
+          "shown": 131,
+          "correctFirstWord": 72,
+          "matchingCharacters": 504,
+          "errors": 0,
+          "meanMs": 75.73198721875,
+          "p50Ms": 75.274583,
+          "p95Ms": 122.046333
+        },
+        "language": {
+          "en": {
+            "n": 120,
+            "shown": 100,
+            "correctFirstWord": 54,
+            "matchingCharacters": 364,
+            "errors": 0,
+            "meanMs": 72.8116246,
+            "p50Ms": 71.644292,
+            "p95Ms": 121.547542
+          },
+          "sr": {
+            "n": 40,
+            "shown": 31,
+            "correctFirstWord": 18,
+            "matchingCharacters": 140,
+            "errors": 0,
+            "meanMs": 84.49307507500001,
+            "p50Ms": 90.960416,
+            "p95Ms": 130.709167
+          }
+        },
+        "category": {
+          "chat": {
+            "n": 20,
+            "shown": 19,
+            "correctFirstWord": 10,
+            "matchingCharacters": 56,
+            "errors": 0,
+            "meanMs": 85.58527925,
+            "p50Ms": 81.354833,
+            "p95Ms": 122.046333
+          },
+          "email": {
+            "n": 20,
+            "shown": 17,
+            "correctFirstWord": 9,
+            "matchingCharacters": 44,
+            "errors": 0,
+            "meanMs": 82.1603292,
+            "p50Ms": 80.889541,
+            "p95Ms": 122.485584
+          },
+          "everyday": {
+            "n": 20,
+            "shown": 16,
+            "correctFirstWord": 8,
+            "matchingCharacters": 84,
+            "errors": 0,
+            "meanMs": 60.6205395,
+            "p50Ms": 61.511083,
+            "p95Ms": 113.096958
+          },
+          "planning": {
+            "n": 20,
+            "shown": 17,
+            "correctFirstWord": 8,
+            "matchingCharacters": 62,
+            "errors": 0,
+            "meanMs": 74.5970978,
+            "p50Ms": 65.164875,
+            "p95Ms": 114.244792
+          },
+          "sr_cyrillic": {
+            "n": 20,
+            "shown": 15,
+            "correctFirstWord": 7,
+            "matchingCharacters": 35,
+            "errors": 0,
+            "meanMs": 84.45954185,
+            "p50Ms": 86.082334,
+            "p95Ms": 130.709167
+          },
+          "sr_latin": {
+            "n": 20,
+            "shown": 16,
+            "correctFirstWord": 11,
+            "matchingCharacters": 105,
+            "errors": 0,
+            "meanMs": 84.5266083,
+            "p50Ms": 90.960416,
+            "p95Ms": 115.618917
+          },
+          "support": {
+            "n": 20,
+            "shown": 17,
+            "correctFirstWord": 10,
+            "matchingCharacters": 57,
+            "errors": 0,
+            "meanMs": 70.44494775,
+            "p50Ms": 59.869833,
+            "p95Ms": 119.1285
+          },
+          "technical": {
+            "n": 20,
+            "shown": 14,
+            "correctFirstWord": 9,
+            "matchingCharacters": 61,
+            "errors": 0,
+            "meanMs": 63.4615541,
+            "p50Ms": 58.876375,
+            "p95Ms": 114.321708
+          }
+        },
+        "kind": {
+          "boundary": {
+            "n": 96,
+            "shown": 68,
+            "correctFirstWord": 20,
+            "matchingCharacters": 168,
+            "errors": 0,
+            "meanMs": 72.062167125,
+            "p50Ms": 66.533417,
+            "p95Ms": 116.370334
+          },
+          "midword": {
+            "n": 64,
+            "shown": 63,
+            "correctFirstWord": 52,
+            "matchingCharacters": 336,
+            "errors": 0,
+            "meanMs": 81.236717359375,
+            "p50Ms": 75.921333,
+            "p95Ms": 130.801042
+          }
+        }
+      },
+      "repeatedOutputDifferences": 0
+    },
+    "baseline-current": {
+      "overall": {
+        "n": 160,
+        "meanUtility": 0.55,
+        "useful": 69,
+        "bad": 18,
+        "neutralShown": 5,
+        "silence": 68
+      },
+      "language": {
+        "en": {
+          "n": 120,
+          "meanUtility": 0.6416666666666667,
+          "useful": 56,
+          "bad": 10,
+          "neutralShown": 4,
+          "silence": 50
+        },
+        "sr": {
+          "n": 40,
+          "meanUtility": 0.275,
+          "useful": 13,
+          "bad": 8,
+          "neutralShown": 1,
+          "silence": 18
+        }
+      },
+      "category": {
+        "chat": {
+          "n": 20,
+          "meanUtility": 0.55,
+          "useful": 10,
+          "bad": 3,
+          "neutralShown": 0,
+          "silence": 7
+        },
+        "email": {
+          "n": 20,
+          "meanUtility": 0.6,
+          "useful": 9,
+          "bad": 2,
+          "neutralShown": 1,
+          "silence": 8
+        },
+        "everyday": {
+          "n": 20,
+          "meanUtility": 0.8,
+          "useful": 9,
+          "bad": 1,
+          "neutralShown": 0,
+          "silence": 10
+        },
+        "planning": {
+          "n": 20,
+          "meanUtility": 0.55,
+          "useful": 10,
+          "bad": 3,
+          "neutralShown": 0,
+          "silence": 7
+        },
+        "sr_cyrillic": {
+          "n": 20,
+          "meanUtility": 0.05,
+          "useful": 5,
+          "bad": 6,
+          "neutralShown": 1,
+          "silence": 8
+        },
+        "sr_latin": {
+          "n": 20,
+          "meanUtility": 0.5,
+          "useful": 8,
+          "bad": 2,
+          "neutralShown": 0,
+          "silence": 10
+        },
+        "support": {
+          "n": 20,
+          "meanUtility": 0.7,
+          "useful": 9,
+          "bad": 1,
+          "neutralShown": 0,
+          "silence": 10
+        },
+        "technical": {
+          "n": 20,
+          "meanUtility": 0.65,
+          "useful": 9,
+          "bad": 0,
+          "neutralShown": 3,
+          "silence": 8
+        }
+      },
+      "kind": {
+        "boundary": {
+          "n": 96,
+          "meanUtility": 0.2604166666666667,
+          "useful": 21,
+          "bad": 6,
+          "neutralShown": 1,
+          "silence": 68
+        },
+        "midword": {
+          "n": 64,
+          "meanUtility": 0.984375,
+          "useful": 48,
+          "bad": 12,
+          "neutralShown": 4,
+          "silence": 0
+        }
+      },
+      "latency": {
+        "rounds": 3,
+        "requests": 480,
+        "meanMs": 43.4463882125,
+        "p50Ms": 40.021208,
+        "p95Ms": 84.018916
+      },
+      "reference": {
+        "overall": {
+          "n": 160,
+          "shown": 92,
+          "correctFirstWord": 64,
+          "matchingCharacters": 437,
+          "errors": 0,
+          "meanMs": 44.3307365375,
+          "p50Ms": 40.021208,
+          "p95Ms": 86.23475
+        },
+        "language": {
+          "en": {
+            "n": 120,
+            "shown": 70,
+            "correctFirstWord": 50,
+            "matchingCharacters": 339,
+            "errors": 0,
+            "meanMs": 42.48217025833333,
+            "p50Ms": 35.323334,
+            "p95Ms": 81.516292
+          },
+          "sr": {
+            "n": 40,
+            "shown": 22,
+            "correctFirstWord": 14,
+            "matchingCharacters": 98,
+            "errors": 0,
+            "meanMs": 49.876435375,
+            "p50Ms": 46.086625,
+            "p95Ms": 92.541125
+          }
+        },
+        "category": {
+          "chat": {
+            "n": 20,
+            "shown": 13,
+            "correctFirstWord": 7,
+            "matchingCharacters": 41,
+            "errors": 0,
+            "meanMs": 45.72948555,
+            "p50Ms": 40.248625,
+            "p95Ms": 81.516292
+          },
+          "email": {
+            "n": 20,
+            "shown": 12,
+            "correctFirstWord": 10,
+            "matchingCharacters": 51,
+            "errors": 0,
+            "meanMs": 43.593093950000004,
+            "p50Ms": 39.809792,
+            "p95Ms": 79.087833
+          },
+          "everyday": {
+            "n": 20,
+            "shown": 10,
+            "correctFirstWord": 9,
+            "matchingCharacters": 93,
+            "errors": 0,
+            "meanMs": 37.10976265,
+            "p50Ms": 24.267459,
+            "p95Ms": 80.81025
+          },
+          "planning": {
+            "n": 20,
+            "shown": 13,
+            "correctFirstWord": 7,
+            "matchingCharacters": 44,
+            "errors": 0,
+            "meanMs": 48.705798200000004,
+            "p50Ms": 44.325459,
+            "p95Ms": 79.942
+          },
+          "sr_cyrillic": {
+            "n": 20,
+            "shown": 12,
+            "correctFirstWord": 6,
+            "matchingCharacters": 36,
+            "errors": 0,
+            "meanMs": 53.99787695,
+            "p50Ms": 53.055166,
+            "p95Ms": 92.541125
+          },
+          "sr_latin": {
+            "n": 20,
+            "shown": 10,
+            "correctFirstWord": 8,
+            "matchingCharacters": 62,
+            "errors": 0,
+            "meanMs": 45.7549938,
+            "p50Ms": 41.237417,
+            "p95Ms": 82.965625
+          },
+          "support": {
+            "n": 20,
+            "shown": 10,
+            "correctFirstWord": 8,
+            "matchingCharacters": 41,
+            "errors": 0,
+            "meanMs": 41.7904395,
+            "p50Ms": 24.518166,
+            "p95Ms": 86.23475
+          },
+          "technical": {
+            "n": 20,
+            "shown": 12,
+            "correctFirstWord": 9,
+            "matchingCharacters": 69,
+            "errors": 0,
+            "meanMs": 37.9644417,
+            "p50Ms": 40.659584,
+            "p95Ms": 65.097209
+          }
+        },
+        "kind": {
+          "boundary": {
+            "n": 96,
+            "shown": 28,
+            "correctFirstWord": 13,
+            "matchingCharacters": 120,
+            "errors": 0,
+            "meanMs": 34.39002265625,
+            "p50Ms": 24.373083,
+            "p95Ms": 80.81025
+          },
+          "midword": {
+            "n": 64,
+            "shown": 64,
+            "correctFirstWord": 51,
+            "matchingCharacters": 317,
+            "errors": 0,
+            "meanMs": 59.241807359375,
+            "p50Ms": 57.548292,
+            "p95Ms": 94.027959
+          }
+        }
+      },
+      "repeatedOutputDifferences": 0
+    }
+  },
+  "preferenceDisagreements": 0,
+  "comparison": {
+    "luchador": {
+      "utilityDelta": {
+        "mean": 0.375,
+        "low95": 0.15,
+        "high95": 0.6,
+        "phrases": 32,
+        "resamples": 5000
+      },
+      "wins": 67,
+      "ties": 64,
+      "losses": 29,
+      "latencyDeltaMs": {
+        "mean": 27.511659735416668,
+        "low95": 22.913561185416665,
+        "high95": 32.32695303125,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    },
+    "baseline-current": {
+      "utilityDelta": {
+        "mean": -0.08125,
+        "low95": -0.13125,
+        "high95": -0.03125,
+        "phrases": 32,
+        "resamples": 5000
+      },
+      "wins": 1,
+      "ties": 144,
+      "losses": 15,
+      "latencyDeltaMs": {
+        "mean": -4.677631060416666,
+        "low95": -7.060746916666668,
+        "high95": -2.5070116375,
+        "phrases": 32,
+        "resamples": 5000
+      }
+    }
+  },
+  "reliability": {
+    "options": 27,
+    "exactAgreement": 24,
+    "signAgreement": 25
+  },
+  "shortSuggestionSensitivity": {
+    "baseline": 0.5625,
+    "luchador": 0.95625,
+    "baseline-current": 0.5375
+  }
+}

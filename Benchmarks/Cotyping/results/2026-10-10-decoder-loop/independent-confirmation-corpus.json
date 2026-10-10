@@ -1,0 +1,566 @@
+{
+  "version": 1,
+  "provenance": "These are original synthetic phrases authored for evaluation. They are not captured user writing.",
+  "phrases": [
+    {
+      "id": "conversation-001",
+      "category": "conversation",
+      "text": "Are you still coming over tonight, or should we reschedule for another night?"
+    },
+    {
+      "id": "conversation-002",
+      "category": "conversation",
+      "text": "I didn't mean to sound annoyed earlier; it's just been a long day."
+    },
+    {
+      "id": "conversation-003",
+      "category": "conversation",
+      "text": "Let me know when you get home so I can stop worrying."
+    },
+    {
+      "id": "conversation-004",
+      "category": "conversation",
+      "text": "Honestly, the movie was better than I expected, especially the ending."
+    },
+    {
+      "id": "conversation-005",
+      "category": "conversation",
+      "text": "Could you send me that recipe you made last weekend?"
+    },
+    {
+      "id": "conversation-006",
+      "category": "conversation",
+      "text": "We haven't talked in ages, so I figured I'd check in."
+    },
+    {
+      "id": "conversation-007",
+      "category": "conversation",
+      "text": "No worries at all, I completely forgot about it too."
+    },
+    {
+      "id": "conversation-008",
+      "category": "conversation",
+      "text": "That sounds like a great plan, but count me out this time."
+    },
+    {
+      "id": "conversation-009",
+      "category": "conversation",
+      "text": "Did you ever find out why the concert got canceled?"
+    },
+    {
+      "id": "conversation-010",
+      "category": "conversation",
+      "text": "I'm running about ten minutes late, so please order without me."
+    },
+    {
+      "id": "conversation-011",
+      "category": "conversation",
+      "text": "Thanks for listening yesterday; talking it through really helped me decide."
+    },
+    {
+      "id": "conversation-012",
+      "category": "conversation",
+      "text": "Which one do you prefer, the blue jacket or the gray one?"
+    },
+    {
+      "id": "conversation-013",
+      "category": "conversation",
+      "text": "My sister's kids are visiting, so the house is pure chaos."
+    },
+    {
+      "id": "conversation-014",
+      "category": "conversation",
+      "text": "Happy to help with the move, as long as there's pizza afterward."
+    },
+    {
+      "id": "work-001",
+      "category": "work",
+      "text": "Please review the attached draft and send me your comments by Thursday."
+    },
+    {
+      "id": "work-002",
+      "category": "work",
+      "text": "The quarterly budget meeting has been moved to next Wednesday afternoon."
+    },
+    {
+      "id": "work-003",
+      "category": "work",
+      "text": "I won't be able to join the call because of a scheduling conflict."
+    },
+    {
+      "id": "work-004",
+      "category": "work",
+      "text": "Could we push the deadline back a week to finish proper testing?"
+    },
+    {
+      "id": "work-005",
+      "category": "work",
+      "text": "Our team exceeded its sales target for the third month in a row."
+    },
+    {
+      "id": "work-006",
+      "category": "work",
+      "text": "Let's keep the follow-up short and focus only on the open issues."
+    },
+    {
+      "id": "work-007",
+      "category": "work",
+      "text": "The new hire starts on Monday, so her laptop needs to be ready."
+    },
+    {
+      "id": "work-008",
+      "category": "work",
+      "text": "I've updated the spreadsheet with last month's invoices and expense reports."
+    },
+    {
+      "id": "work-009",
+      "category": "work",
+      "text": "We should probably hire a contractor instead of stretching the current staff."
+    },
+    {
+      "id": "work-010",
+      "category": "work",
+      "text": "The client approved the proposal, but they want a lower monthly fee."
+    },
+    {
+      "id": "work-011",
+      "category": "work",
+      "text": "Remember to submit your timesheet before the end of the day."
+    },
+    {
+      "id": "work-012",
+      "category": "work",
+      "text": "Nobody owns the onboarding documentation, which is why it's so outdated."
+    },
+    {
+      "id": "work-013",
+      "category": "work",
+      "text": "Thank you for covering my shift while I was at the conference."
+    },
+    {
+      "id": "work-014",
+      "category": "work",
+      "text": "Performance reviews will be finalized once every manager has submitted feedback."
+    },
+    {
+      "id": "technology-001",
+      "category": "technology",
+      "text": "The app keeps crashing whenever I try to upload a large photo."
+    },
+    {
+      "id": "technology-002",
+      "category": "technology",
+      "text": "Did you remember to back up your files before installing the update?"
+    },
+    {
+      "id": "technology-003",
+      "category": "technology",
+      "text": "We should add unit tests before refactoring the payment module."
+    },
+    {
+      "id": "technology-004",
+      "category": "technology",
+      "text": "The Wi-Fi drops every evening, so I'm going to replace the router."
+    },
+    {
+      "id": "technology-005",
+      "category": "technology",
+      "text": "This query is slow because the table doesn't have an index."
+    },
+    {
+      "id": "technology-006",
+      "category": "technology",
+      "text": "Try clearing your browser cache and logging in again."
+    },
+    {
+      "id": "technology-007",
+      "category": "technology",
+      "text": "The pull request looks good, but please rename that confusing variable."
+    },
+    {
+      "id": "technology-008",
+      "category": "technology",
+      "text": "My phone's battery barely lasts half a day since the last update."
+    },
+    {
+      "id": "technology-009",
+      "category": "technology",
+      "text": "We're migrating the old server to the cloud over the next month."
+    },
+    {
+      "id": "technology-010",
+      "category": "technology",
+      "text": "Never store passwords in plain text, even in a test environment."
+    },
+    {
+      "id": "technology-011",
+      "category": "technology",
+      "text": "The build failed again because someone forgot to update the dependencies."
+    },
+    {
+      "id": "technology-012",
+      "category": "technology",
+      "text": "Is there a keyboard shortcut for switching between open windows quickly?"
+    },
+    {
+      "id": "technology-013",
+      "category": "technology",
+      "text": "I enabled two-factor authentication on every account after the phishing attempt."
+    },
+    {
+      "id": "technology-014",
+      "category": "technology",
+      "text": "The printer shows as offline even though it's plugged in and connected."
+    },
+    {
+      "id": "everyday-001",
+      "category": "everyday",
+      "text": "We're out of milk, so I'll stop by the store after work."
+    },
+    {
+      "id": "everyday-002",
+      "category": "everyday",
+      "text": "The washing machine is making a strange noise during the spin cycle."
+    },
+    {
+      "id": "everyday-003",
+      "category": "everyday",
+      "text": "Don't forget to water the plants while I'm away this week."
+    },
+    {
+      "id": "everyday-004",
+      "category": "everyday",
+      "text": "I finally cleaned out the garage and found my old bicycle."
+    },
+    {
+      "id": "everyday-005",
+      "category": "everyday",
+      "text": "The plumber canceled again, so the kitchen sink is still leaking."
+    },
+    {
+      "id": "everyday-006",
+      "category": "everyday",
+      "text": "Remind me to pay the electricity bill before it's overdue."
+    },
+    {
+      "id": "everyday-007",
+      "category": "everyday",
+      "text": "I made too much soup, so take some home with you."
+    },
+    {
+      "id": "everyday-008",
+      "category": "everyday",
+      "text": "The dog refuses to go outside whenever it starts raining."
+    },
+    {
+      "id": "everyday-009",
+      "category": "everyday",
+      "text": "Our neighbor's kids left a soccer ball in our front yard."
+    },
+    {
+      "id": "everyday-010",
+      "category": "everyday",
+      "text": "I'm trying to drink more water and less coffee every morning."
+    },
+    {
+      "id": "everyday-011",
+      "category": "everyday",
+      "text": "Somebody left the fridge door open overnight, and the butter melted."
+    },
+    {
+      "id": "everyday-012",
+      "category": "everyday",
+      "text": "Should we repaint the living room or just buy new curtains?"
+    },
+    {
+      "id": "everyday-013",
+      "category": "everyday",
+      "text": "My alarm didn't go off, so I missed the early bus."
+    },
+    {
+      "id": "everyday-014",
+      "category": "everyday",
+      "text": "There's a half-price sale on winter boots at the shop downtown."
+    },
+    {
+      "id": "travel-001",
+      "category": "travel",
+      "text": "Our flight was delayed three hours, so we missed the connecting train."
+    },
+    {
+      "id": "travel-002",
+      "category": "travel",
+      "text": "Is breakfast included in the room rate, or do we pay separately?"
+    },
+    {
+      "id": "travel-003",
+      "category": "travel",
+      "text": "Make sure your passport is valid for at least six more months."
+    },
+    {
+      "id": "travel-004",
+      "category": "travel",
+      "text": "We rented a small car and drove along the coast for a week."
+    },
+    {
+      "id": "travel-005",
+      "category": "travel",
+      "text": "The hostel was cheap, but the beds were surprisingly comfortable."
+    },
+    {
+      "id": "travel-006",
+      "category": "travel",
+      "text": "Could you recommend a quiet beach that isn't packed with tourists?"
+    },
+    {
+      "id": "travel-007",
+      "category": "travel",
+      "text": "I always pack a spare charger in my carry-on bag."
+    },
+    {
+      "id": "travel-008",
+      "category": "travel",
+      "text": "The ferry doesn't run on holidays, so we'll need another plan."
+    },
+    {
+      "id": "travel-009",
+      "category": "travel",
+      "text": "We got lost twice in the old town, but it was worth it."
+    },
+    {
+      "id": "travel-010",
+      "category": "travel",
+      "text": "How early should we arrive at the airport for an international flight?"
+    },
+    {
+      "id": "travel-011",
+      "category": "travel",
+      "text": "The museum tickets sold out online, so we'll try at the door."
+    },
+    {
+      "id": "travel-012",
+      "category": "travel",
+      "text": "My suitcase arrived on the next flight, completely soaked from the rain."
+    },
+    {
+      "id": "travel-013",
+      "category": "travel",
+      "text": "Exchange a little cash before leaving, because some villages don't accept cards."
+    },
+    {
+      "id": "travel-014",
+      "category": "travel",
+      "text": "We booked a cabin in the mountains with no phone signal at all."
+    },
+    {
+      "id": "science-001",
+      "category": "science",
+      "text": "Water boils at a lower temperature at high altitude because pressure drops."
+    },
+    {
+      "id": "science-002",
+      "category": "science",
+      "text": "The experiment didn't work, so we're repeating it with fresh samples."
+    },
+    {
+      "id": "science-003",
+      "category": "science",
+      "text": "Plants convert sunlight into chemical energy through a process called photosynthesis."
+    },
+    {
+      "id": "science-004",
+      "category": "science",
+      "text": "Can you explain why the sky looks red at sunset?"
+    },
+    {
+      "id": "science-005",
+      "category": "science",
+      "text": "Our results suggest a correlation, but they don't prove that one causes the other."
+    },
+    {
+      "id": "science-006",
+      "category": "science",
+      "text": "Vaccines train the immune system to recognize a virus before infection."
+    },
+    {
+      "id": "science-007",
+      "category": "science",
+      "text": "The telescope picked up a faint signal from a distant galaxy."
+    },
+    {
+      "id": "science-008",
+      "category": "science",
+      "text": "Please record the temperature every thirty minutes until the reaction stops."
+    },
+    {
+      "id": "science-009",
+      "category": "science",
+      "text": "Earthquakes happen when stress builds up along cracks in the earth's crust."
+    },
+    {
+      "id": "science-010",
+      "category": "science",
+      "text": "A larger sample size would make the conclusions much more reliable."
+    },
+    {
+      "id": "science-011",
+      "category": "science",
+      "text": "Bees are disappearing in some regions, and scientists still aren't sure why."
+    },
+    {
+      "id": "science-012",
+      "category": "science",
+      "text": "Light from the sun takes about eight minutes to reach us."
+    },
+    {
+      "id": "science-013",
+      "category": "science",
+      "text": "The glacier has retreated several hundred meters over the past decade."
+    },
+    {
+      "id": "science-014",
+      "category": "science",
+      "text": "We measured the pH of each solution before adding the indicator."
+    },
+    {
+      "id": "serbian-latin-001",
+      "category": "serbian-latin",
+      "text": "Možeš li da mi pošalješ fotografije sa sinoćne proslave?"
+    },
+    {
+      "id": "serbian-latin-002",
+      "category": "serbian-latin",
+      "text": "Sutra ujutru idem na pijacu po sveže povrće i sir."
+    },
+    {
+      "id": "serbian-latin-003",
+      "category": "serbian-latin",
+      "text": "Nisam stigao da završim izveštaj, pa ću ga poslati večeras."
+    },
+    {
+      "id": "serbian-latin-004",
+      "category": "serbian-latin",
+      "text": "Komšija je ceo dan slušao glasnu muziku, a ja sam pokušavala da spavam."
+    },
+    {
+      "id": "serbian-latin-005",
+      "category": "serbian-latin",
+      "text": "Da li znaš neki dobar servis za popravku starih satova?"
+    },
+    {
+      "id": "serbian-latin-006",
+      "category": "serbian-latin",
+      "text": "Autobus za selo kreće tek u pola sedam, pa ćemo kasniti."
+    },
+    {
+      "id": "serbian-latin-007",
+      "category": "serbian-latin",
+      "text": "Baka je napravila pitu od jabuka i pozvala celu porodicu."
+    },
+    {
+      "id": "serbian-latin-008",
+      "category": "serbian-latin",
+      "text": "Zaboravio sam lozinku za ruter, a papirić sa šifrom je nestao."
+    },
+    {
+      "id": "serbian-latin-009",
+      "category": "serbian-latin",
+      "text": "Ne volim da vozim po kiši, naročito kad padne mrak."
+    },
+    {
+      "id": "serbian-latin-010",
+      "category": "serbian-latin",
+      "text": "Hvala ti što si mi pozajmio bušilicu, vratiću je do petka."
+    },
+    {
+      "id": "serbian-latin-011",
+      "category": "serbian-latin",
+      "text": "Kafić preko puta je opet promenio vlasnika i jelovnik."
+    },
+    {
+      "id": "serbian-latin-012",
+      "category": "serbian-latin",
+      "text": "Ako sutra bude sunčano, idemo biciklom do jezera."
+    },
+    {
+      "id": "serbian-latin-013",
+      "category": "serbian-latin",
+      "text": "Deca su konačno zaspala, pa mogu na miru da popijem čaj."
+    },
+    {
+      "id": "serbian-latin-014",
+      "category": "serbian-latin",
+      "text": "Moramo da odlučimo da li ćemo na odmor na more ili na planinu."
+    },
+    {
+      "id": "serbian-cyrillic-001",
+      "category": "serbian-cyrillic",
+      "text": "Посадили смо парадајз на тераси, али га птице стално кљуцају."
+    },
+    {
+      "id": "serbian-cyrillic-002",
+      "category": "serbian-cyrillic",
+      "text": "Да ли си стигла да погледаш понуду коју сам ти послао?"
+    },
+    {
+      "id": "serbian-cyrillic-003",
+      "category": "serbian-cyrillic",
+      "text": "Улица испред зграде је затворена због радова на водоводу."
+    },
+    {
+      "id": "serbian-cyrillic-004",
+      "category": "serbian-cyrillic",
+      "text": "Мачка је поново прескочила ограду и нестала у комшијском дворишту."
+    },
+    {
+      "id": "serbian-cyrillic-005",
+      "category": "serbian-cyrillic",
+      "text": "Не могу да нађем пуњач, а телефон ће се ускоро угасити."
+    },
+    {
+      "id": "serbian-cyrillic-006",
+      "category": "serbian-cyrillic",
+      "text": "Воз је био пун, па смо стајали скоро два сата."
+    },
+    {
+      "id": "serbian-cyrillic-007",
+      "category": "serbian-cyrillic",
+      "text": "Хоћеш ли да се нађемо после посла на кафи у центру?"
+    },
+    {
+      "id": "serbian-cyrillic-008",
+      "category": "serbian-cyrillic",
+      "text": "Шеф је тражио да до среде припремимо краћу презентацију."
+    },
+    {
+      "id": "serbian-cyrillic-009",
+      "category": "serbian-cyrillic",
+      "text": "Јесења киша је трајала целу ноћ и подрум је поплављен."
+    },
+    {
+      "id": "serbian-cyrillic-010",
+      "category": "serbian-cyrillic",
+      "text": "Мој брат учи да свира гитару, али суседи нису одушевљени."
+    },
+    {
+      "id": "serbian-cyrillic-011",
+      "category": "serbian-cyrillic",
+      "text": "Купила сам нове патике, а већ ме жуљају после једне шетње."
+    },
+    {
+      "id": "serbian-cyrillic-012",
+      "category": "serbian-cyrillic",
+      "text": "Ако заборавиш кључеве, остави ми поруку и сачекај код комшинице."
+    },
+    {
+      "id": "serbian-cyrillic-013",
+      "category": "serbian-cyrillic",
+      "text": "Библиотека ради дуже током испитног рока, чак и викендом."
+    },
+    {
+      "id": "serbian-cyrillic-014",
+      "category": "serbian-cyrillic",
+      "text": "Нико није очекивао да ће се утакмица завршити нерешено у последњем минуту."
+    }
+  ]
+}

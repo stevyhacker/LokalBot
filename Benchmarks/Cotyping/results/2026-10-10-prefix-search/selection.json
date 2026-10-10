@@ -1,0 +1,33 @@
+{
+  "frozenPlan": "plan.json",
+  "results": {
+    "baseline": {
+      "guards": {
+        "serbianUsefulIncreases": true,
+        "serbianPoorDoesNotIncrease": true,
+        "englishUsefulDropAtMostTwo": true,
+        "allCaseMeanBelow1point5TimesControl": true,
+        "allCaseP95Below250ms": true
+      },
+      "passed": true,
+      "meanIncreaseMs": 15.701660839120379,
+      "meanRatio": 1.283778593385505,
+      "serbianMidwordP95Ms": 167.67325
+    },
+    "luchador": {
+      "guards": {
+        "serbianUsefulIncreases": true,
+        "serbianPoorDoesNotIncrease": true,
+        "englishUsefulDropAtMostTwo": true,
+        "allCaseMeanBelow1point5TimesControl": true,
+        "allCaseP95Below250ms": true
+      },
+      "passed": true,
+      "meanIncreaseMs": 14.88775708101852,
+      "meanRatio": 1.1740338214579316,
+      "serbianMidwordP95Ms": 251.661125
+    }
+  },
+  "decision": "Retain prefixSearch as the native sampled-decoder source default for compatible attention models. No installed setting or model default change.",
+  "caveat": "Point guards passed, not formal noninferiority. Luchador Serbian midword p95 is 251.7ms despite its all-case p95 passing. Fixed E2B versus fixed Luchador overall utility interval crosses zero."
+}

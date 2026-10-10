@@ -1,0 +1,155 @@
+{
+  "totals": {
+    "checkpoints": 600,
+    "shown": 338,
+    "selectedMatches": 189,
+    "oracleMatches": 194,
+    "missedOracleSelections": 5,
+    "duplicateNonemptyFinalists": 122,
+    "dedupTopOneChanges": 0,
+    "randomFinalistExpectedMatches": 187.0,
+    "referenceAvailableButControlSuppressed": 0
+  },
+  "scoreMarginBins": {
+    "0-0.05": {
+      "count": 122,
+      "referenceAgreement": 0.5573770491803278
+    },
+    "0.05-0.2": {
+      "count": 133,
+      "referenceAgreement": 0.5263157894736842
+    },
+    "0.2+": {
+      "count": 61,
+      "referenceAgreement": 0.639344262295082
+    }
+  },
+  "visibleWordCountBins": {
+    "1": {
+      "count": 49,
+      "referenceAgreement": 0.673469387755102
+    },
+    "2": {
+      "count": 30,
+      "referenceAgreement": 0.6666666666666666
+    },
+    "3": {
+      "count": 46,
+      "referenceAgreement": 0.5652173913043478
+    },
+    "4": {
+      "count": 213,
+      "referenceAgreement": 0.5164319248826291
+    }
+  },
+  "firstWordProbabilityBins": {},
+  "missedSelections": [
+    {
+      "id": "public-word:science-073:5:0",
+      "selected": "pores called stomata.",
+      "candidates": [
+        "pores called stomata.",
+        "openings called stomata."
+      ],
+      "scores": [
+        -0.4838073385667478,
+        -0.5711698155925162
+      ],
+      "referenceFirstWord": "openings",
+      "tokenCounts": [
+        5,
+        5
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "public-word:entertainment-103:5:0",
+      "selected": "1 answer in our",
+      "candidates": [
+        "1 answer in our",
+        "one answer."
+      ],
+      "scores": [
+        -0.47123368490378553,
+        -0.7565299916720821
+      ],
+      "referenceFirstWord": "one",
+      "tokenCounts": [
+        7,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-03:7:0",
+      "selected": "best for you.",
+      "candidates": [
+        "best for you.",
+        "for you."
+      ],
+      "scores": [
+        -0.33996818119099625,
+        -0.3504758715961387
+      ],
+      "referenceFirstWord": "for",
+      "tokenCounts": [
+        4,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-email-05:5:0",
+      "selected": "from you.",
+      "candidates": [
+        "from you.",
+        "your feedback."
+      ],
+      "scores": [
+        -0.6089183360053004,
+        -0.7138324251437022
+      ],
+      "referenceFirstWord": "your",
+      "tokenCounts": [
+        3,
+        3
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "challenge-word:quality-formatting-06:5:0",
+      "selected": "values",
+      "candidates": [
+        "values",
+        "prices"
+      ],
+      "scores": [
+        -0.6338739887840882,
+        -0.7305306722041455
+      ],
+      "referenceFirstWord": "prices",
+      "tokenCounts": [
+        7,
+        7
+      ],
+      "healingTokenCounts": [
+        1,
+        1
+      ]
+    }
+  ],
+  "interpretation": "Descriptive only. Oracle is unattainable without future reference access. Random expectation samples nonempty finalists uniformly, including duplicates. Bins are fixed, not tuned. First-word gate is disabled midword. Suppressed candidates were pruned, so their alternatives cannot be reconstructed.",
+  "missingDiagnostics": []
+}

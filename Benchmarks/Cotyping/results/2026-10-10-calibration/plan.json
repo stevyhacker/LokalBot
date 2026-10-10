@@ -1,0 +1,44 @@
+{
+  "createdAtUTC": "2026-10-10T16:03:06.828408+00:00",
+  "status": "frozen before inference",
+  "models": [
+    "baseline",
+    "luchador",
+    "gemma4_it",
+    "qwen3_base4",
+    "salamandra2",
+    "yugogpt7"
+  ],
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true
+  },
+  "topP": 0.7,
+  "topK": 20,
+  "minP": 0.08,
+  "seed": 12648430,
+  "ratioGrid": [
+    0.5,
+    1.0,
+    2.0,
+    3.1,
+    5.0,
+    10.0,
+    1000000.0
+  ],
+  "corpusSHA256": "464fe7f613480eecd0786a8471354230184ccc7362ba5d628c0a3246fee2cece",
+  "scriptSHA256": "f3b4bb27fb8bc5a75dea3f240ca3f8971a57bd1835eda79c93655cb7422fd45e",
+  "targetCoverage": 0.6,
+  "split": "32 paired everyday/work scenarios per split, each in EN and Serbian Latin. Two word boundaries and one midword per sentence. The cross-language pairs share a bootstrap cluster.",
+  "primary": "Equal frequency at word boundaries, separately within English and Serbian Latin (38/64 per language, 59.375%). Midword healing is ungated and reported separately, never silently suppressed to force a match.",
+  "fit": "On development only, choose one fallback/primary threshold ratio per model from a frozen 7-point grid, maximizing balanced mean Claude utility at equal frequency; ties: fewer poor outputs, then closest to existing ratio 3.1. Fit language cutoffs from scores.",
+  "confirmation": "Freeze ratio and development cutoffs before confirmation inference. Report frozen-cutoff generalization. For the equal-frequency comparison only, recompute the cutoff from unlabeled confirmation scores, preserving the frozen ratio. This is a transductive diagnostic, not a deployable fixed policy.",
+  "judge": "Claude Opus 5.5, anonymous options, no model names, future/reference, latency or source. Full and one-word candidates deduplicated. 16 reversed-option repeat cases each split. One judge, synthetic text, no human acceptance claims.",
+  "timing": "Three serial rounds in counterbalanced model order. Trace disabled and actual calibrated early exits enabled. Eight excluded warmups. Measures native generation plus normalization; excludes load, UI/debounce and first visible latency. Do not time during downloads, builds or another GPU run.",
+  "production": "No prompt, token budget, sampler, cache policy or midword gate changes. Replay-only thresholds and tracing. No PR CI or UI tests.",
+  "selection": "Compare all six at equal EN/SR Latin frequency. Report uncertainty versus Luchador and E2B. Cyrillic does not enter selection. A small synthetic judged study cannot establish real user acceptance."
+}

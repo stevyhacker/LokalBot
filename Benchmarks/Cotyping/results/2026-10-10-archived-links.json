@@ -1,0 +1,152 @@
+{
+  "Benchmarks/Cotyping/results/2026-10-10-cache/ATTRIBUTION.md": [
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-cache/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-cache/REPORT.md": [
+    {
+      "label": "raw archive",
+      "originalTarget": "raw-runs.tar.gz",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-cache/raw-runs.tar.gz"
+    },
+    {
+      "label": "license",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-cache/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-candidates/ATTRIBUTION.md": [
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-candidates/REPORT.md": [
+    {
+      "label": "candidate state",
+      "originalTarget": "../../../../LokalBot/Cotyping/Llama/CotypingCandidateSearch.swift",
+      "archivePath": "LokalBot/Cotyping/Llama/CotypingCandidateSearch.swift"
+    },
+    {
+      "label": "raw-runs.tar.gz",
+      "originalTarget": "raw-runs.tar.gz",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates/raw-runs.tar.gz"
+    },
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-candidates-master/ATTRIBUTION.md": [
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-candidates-master/REPORT.md": [
+    {
+      "label": "raw-runs.tar.gz",
+      "originalTarget": "raw-runs.tar.gz",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/raw-runs.tar.gz"
+    },
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-candidates-master/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/ATTRIBUTION.md": [
+    {
+      "label": "COTABBY-LICENSE.txt",
+      "originalTarget": "COTABBY-LICENSE.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-decoder-loop/COTABBY-LICENSE.txt"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-midword/EXAMPLES.md": [
+    {
+      "label": "the judge case mapping",
+      "originalTarget": "judge-fresh/cases.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-midword/judge-fresh/cases.json"
+    },
+    {
+      "label": "scores",
+      "originalTarget": "judge-fresh/scores.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-midword/judge-fresh/scores.json"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-midword/REPORT.md": [
+    {
+      "label": "judge receipts",
+      "originalTarget": "judge-fresh/protocol.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-midword/judge-fresh/protocol.json"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-models/REPORT.md": [
+    {
+      "label": "all-comparisons.csv",
+      "originalTarget": "all-comparisons.csv",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/all-comparisons.csv"
+    },
+    {
+      "label": "all-comparisons.json",
+      "originalTarget": "all-comparisons.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/all-comparisons.json"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-models/CLAUDE-TEST-LIST.md": [
+    {
+      "label": "request",
+      "originalTarget": "claude-model-selection/request.txt",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/request.txt"
+    },
+    {
+      "label": "model receipt",
+      "originalTarget": "claude-model-selection/receipt.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/receipt.json"
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/sources/BSC-LT--salamandra-2b--README.md": [
+    {
+      "label": "lang distrib",
+      "originalTarget": "./images/corpus_languages_1.1.png",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/sources/images/corpus_languages_1.1.png",
+      "notCaptured": true
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/sources/RichardErkhov--BSC-LT_-_salamandra-2b-gguf--README.md": [
+    {
+      "label": "lang distrib",
+      "originalTarget": "./images/corpus_languages.png",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-models/claude-model-selection/sources/images/corpus_languages.png",
+      "notCaptured": true
+    }
+  ],
+  "Benchmarks/Cotyping/results/2026-10-10-prefix-search/REPORT.md": [
+    {
+      "label": "This request\u2019s Swift patch",
+      "originalTarget": "provenance/this-turn-swift.patch",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-prefix-search/provenance/this-turn-swift.patch"
+    },
+    {
+      "label": "manifest",
+      "originalTarget": "provenance/final-source-manifest.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-prefix-search/provenance/final-source-manifest.json"
+    },
+    {
+      "label": "judge protocol",
+      "originalTarget": "judge-fresh/protocol.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-prefix-search/judge-fresh/protocol.json"
+    },
+    {
+      "label": "judge repeats",
+      "originalTarget": "judge-fresh/stability.json",
+      "archivePath": "Benchmarks/Cotyping/results/2026-10-10-prefix-search/judge-fresh/stability.json"
+    }
+  ]
+}

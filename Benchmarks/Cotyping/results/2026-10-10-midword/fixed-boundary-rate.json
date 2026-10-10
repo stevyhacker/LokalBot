@@ -1,0 +1,30 @@
+{
+  "createdAtUTC": "2026-10-10T17:02:02.230349+00:00",
+  "ratio": 3.1,
+  "target": 29,
+  "denominator": 48,
+  "usesQualityLabels": false,
+  "transductive": true,
+  "models": {
+    "baseline": {
+      "en": {
+        "primary": 0.06803913414478302,
+        "fallback": 0.2109213024377823
+      },
+      "sr_latn": {
+        "primary": 0.0606083944439888,
+        "fallback": 0.18788602948188782
+      }
+    },
+    "luchador": {
+      "en": {
+        "primary": 0.17223231494426727,
+        "fallback": 0.533920168876648
+      },
+      "sr_latn": {
+        "primary": 0.08718693256378174,
+        "fallback": 0.27027949690818787
+      }
+    }
+  }
+}

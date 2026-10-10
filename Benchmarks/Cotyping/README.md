@@ -254,3 +254,21 @@ Run it with the same runner and `--corpus Benchmarks/Cotyping/visible-memory-lin
 The original context fixture stays unchanged and is rerun as a regression set
 when the retrieval integration changes. The scorer checks permission-dependent
 source selections, so a correct guess cannot hide a missing or unauthorized lookup.
+
+## Experimental E2B hybrid and midword completion
+
+The [complete experiment index](results/2026-10-10-experiments.md) covers the
+Cotypist investigation, candidate decoder and cache experiments, nine decoder
+variants, Claude judging, all model trials, confidence calibration, rejected
+atomic healing and the final prefix-search confirmation. The [trial guide](../../Docs/experimental-autocomplete-hybrid.md)
+explains the E2B default and one-switch rollback.
+
+Production replay supports `selectiveOneWordHybrid`, `healingMode` (`wordBoundary`
+or `prefixSearch`), `firstWordThreshold`, `hybridFallbackThreshold`,
+`confidenceBoundaryMode`, `confidenceTrace`, `healingTrace`, and
+`useNativeSpellingVerdicts`. Cases may override both thresholds and request
+`resetCache`. With no explicit healing mode, the hybrid flag selects prefix
+search, matching the app. Traces are for diagnosis; disable them for latency.
+The complete archive includes research source for rejected beam/cache/early-stop
+and alternative-healing modes. The production replay rejects those modes so
+an archived experiment cannot silently run with the wrong decoder.

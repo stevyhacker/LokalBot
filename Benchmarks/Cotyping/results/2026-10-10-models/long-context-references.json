@@ -1,0 +1,810 @@
+{
+  "email-00:3:0": {
+    "phraseID": "email-00",
+    "category": "email",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "the",
+      "draft",
+      "i",
+      "will",
+      "review",
+      "the",
+      "remaining",
+      "sections",
+      "tomorrow",
+      "morning"
+    ],
+    "matchingCharacterCredits": [
+      3,
+      9,
+      12,
+      17,
+      24,
+      28,
+      38,
+      47,
+      56,
+      64
+    ]
+  },
+  "email-00:6:0": {
+    "phraseID": "email-00",
+    "category": "email",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "will",
+      "review",
+      "the",
+      "remaining",
+      "sections",
+      "tomorrow",
+      "morning"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      11,
+      15,
+      25,
+      34,
+      43,
+      51
+    ]
+  },
+  "email-00:6:2": {
+    "phraseID": "email-00",
+    "category": "email",
+    "language": "en",
+    "kind": "midword",
+    "typed": "wi",
+    "words": [
+      "will",
+      "review",
+      "the",
+      "remaining",
+      "sections",
+      "tomorrow",
+      "morning"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      9,
+      13,
+      23,
+      32,
+      41,
+      49
+    ]
+  },
+  "email-00:9:4": {
+    "phraseID": "email-00",
+    "category": "email",
+    "language": "en",
+    "kind": "midword",
+    "typed": "rema",
+    "words": [
+      "remaining",
+      "sections",
+      "tomorrow",
+      "morning"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      14,
+      23,
+      31
+    ]
+  },
+  "chat-00:3:0": {
+    "phraseID": "chat-00",
+    "category": "chat",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "a",
+      "little",
+      "late",
+      "so",
+      "please",
+      "start",
+      "the",
+      "meeting",
+      "without",
+      "me"
+    ],
+    "matchingCharacterCredits": [
+      1,
+      8,
+      13,
+      17,
+      24,
+      30,
+      34,
+      42,
+      50,
+      53
+    ]
+  },
+  "chat-00:5:2": {
+    "phraseID": "chat-00",
+    "category": "chat",
+    "language": "en",
+    "kind": "midword",
+    "typed": "la",
+    "words": [
+      "late",
+      "so",
+      "please",
+      "start",
+      "the",
+      "meeting",
+      "without",
+      "me"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      6,
+      13,
+      19,
+      23,
+      31,
+      39,
+      42
+    ]
+  },
+  "chat-00:6:0": {
+    "phraseID": "chat-00",
+    "category": "chat",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "so",
+      "please",
+      "start",
+      "the",
+      "meeting",
+      "without",
+      "me"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      9,
+      15,
+      19,
+      27,
+      35,
+      38
+    ]
+  },
+  "chat-00:10:3": {
+    "phraseID": "chat-00",
+    "category": "chat",
+    "language": "en",
+    "kind": "midword",
+    "typed": "mee",
+    "words": [
+      "meeting",
+      "without",
+      "me"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      12,
+      15
+    ]
+  },
+  "planning-00:4:0": {
+    "phraseID": "planning-00",
+    "category": "planning",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "a",
+      "deadline",
+      "we",
+      "need",
+      "to",
+      "understand",
+      "how",
+      "much",
+      "work",
+      "remains"
+    ],
+    "matchingCharacterCredits": [
+      1,
+      10,
+      14,
+      19,
+      22,
+      33,
+      37,
+      42,
+      47,
+      55
+    ]
+  },
+  "planning-00:5:4": {
+    "phraseID": "planning-00",
+    "category": "planning",
+    "language": "en",
+    "kind": "midword",
+    "typed": "dead",
+    "words": [
+      "deadline",
+      "we",
+      "need",
+      "to",
+      "understand",
+      "how",
+      "much",
+      "work",
+      "remains"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      8,
+      13,
+      16,
+      27,
+      31,
+      36,
+      41,
+      49
+    ]
+  },
+  "planning-00:7:0": {
+    "phraseID": "planning-00",
+    "category": "planning",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "need",
+      "to",
+      "understand",
+      "how",
+      "much",
+      "work",
+      "remains"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      7,
+      18,
+      22,
+      27,
+      32,
+      40
+    ]
+  },
+  "planning-00:9:5": {
+    "phraseID": "planning-00",
+    "category": "planning",
+    "language": "en",
+    "kind": "midword",
+    "typed": "under",
+    "words": [
+      "understand",
+      "how",
+      "much",
+      "work",
+      "remains"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      9,
+      14,
+      19,
+      27
+    ]
+  },
+  "technical-00:4:0": {
+    "phraseID": "technical-00",
+    "category": "technical",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "the",
+      "pending",
+      "request",
+      "whenever",
+      "the",
+      "user",
+      "switches",
+      "to",
+      "another",
+      "window"
+    ],
+    "matchingCharacterCredits": [
+      3,
+      11,
+      19,
+      28,
+      32,
+      37,
+      46,
+      49,
+      57,
+      64
+    ]
+  },
+  "technical-00:6:3": {
+    "phraseID": "technical-00",
+    "category": "technical",
+    "language": "en",
+    "kind": "midword",
+    "typed": "req",
+    "words": [
+      "request",
+      "whenever",
+      "the",
+      "user",
+      "switches",
+      "to",
+      "another",
+      "window"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      13,
+      17,
+      22,
+      31,
+      34,
+      42,
+      49
+    ]
+  },
+  "technical-00:7:0": {
+    "phraseID": "technical-00",
+    "category": "technical",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "whenever",
+      "the",
+      "user",
+      "switches",
+      "to",
+      "another",
+      "window"
+    ],
+    "matchingCharacterCredits": [
+      8,
+      12,
+      17,
+      26,
+      29,
+      37,
+      44
+    ]
+  },
+  "technical-00:10:4": {
+    "phraseID": "technical-00",
+    "category": "technical",
+    "language": "en",
+    "kind": "midword",
+    "typed": "swit",
+    "words": [
+      "switches",
+      "to",
+      "another",
+      "window"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      7,
+      15,
+      22
+    ]
+  },
+  "support-00:4:0": {
+    "phraseID": "support-00",
+    "category": "support",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "document",
+      "because",
+      "the",
+      "application",
+      "says",
+      "that",
+      "i",
+      "do",
+      "not",
+      "have",
+      "permission"
+    ],
+    "matchingCharacterCredits": [
+      8,
+      16,
+      20,
+      32,
+      37,
+      42,
+      44,
+      47,
+      51,
+      56,
+      67
+    ]
+  },
+  "support-00:5:3": {
+    "phraseID": "support-00",
+    "category": "support",
+    "language": "en",
+    "kind": "midword",
+    "typed": "bec",
+    "words": [
+      "because",
+      "the",
+      "application",
+      "says",
+      "that",
+      "i",
+      "do",
+      "not",
+      "have",
+      "permission"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      8,
+      20,
+      25,
+      30,
+      32,
+      35,
+      39,
+      44,
+      55
+    ]
+  },
+  "support-00:8:0": {
+    "phraseID": "support-00",
+    "category": "support",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "says",
+      "that",
+      "i",
+      "do",
+      "not",
+      "have",
+      "permission"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      9,
+      11,
+      14,
+      18,
+      23,
+      34
+    ]
+  },
+  "support-00:9:2": {
+    "phraseID": "support-00",
+    "category": "support",
+    "language": "en",
+    "kind": "midword",
+    "typed": "th",
+    "words": [
+      "that",
+      "i",
+      "do",
+      "not",
+      "have",
+      "permission"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      4,
+      7,
+      11,
+      16,
+      27
+    ]
+  },
+  "everyday-00:4:0": {
+    "phraseID": "everyday-00",
+    "category": "everyday",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "this",
+      "afternoon",
+      "so",
+      "we",
+      "could",
+      "go",
+      "for",
+      "a",
+      "walk",
+      "after",
+      "lunch"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      14,
+      18,
+      21,
+      27,
+      30,
+      34,
+      36,
+      41,
+      47,
+      53
+    ]
+  },
+  "everyday-00:5:4": {
+    "phraseID": "everyday-00",
+    "category": "everyday",
+    "language": "en",
+    "kind": "midword",
+    "typed": "afte",
+    "words": [
+      "afternoon",
+      "so",
+      "we",
+      "could",
+      "go",
+      "for",
+      "a",
+      "walk",
+      "after",
+      "lunch"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      9,
+      12,
+      18,
+      21,
+      25,
+      27,
+      32,
+      38,
+      44
+    ]
+  },
+  "everyday-00:8:0": {
+    "phraseID": "everyday-00",
+    "category": "everyday",
+    "language": "en",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "could",
+      "go",
+      "for",
+      "a",
+      "walk",
+      "after",
+      "lunch"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      8,
+      12,
+      14,
+      19,
+      25,
+      31
+    ]
+  },
+  "everyday-00:12:2": {
+    "phraseID": "everyday-00",
+    "category": "everyday",
+    "language": "en",
+    "kind": "midword",
+    "typed": "wa",
+    "words": [
+      "walk",
+      "after",
+      "lunch"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      8,
+      14
+    ]
+  },
+  "sr_latin-00:3:0": {
+    "phraseID": "sr_latin-00",
+    "category": "sr_latin",
+    "language": "sr",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "poslaću",
+      "ti",
+      "ažurirani",
+      "dokument",
+      "čim",
+      "završim",
+      "poslednju",
+      "proveru"
+    ],
+    "matchingCharacterCredits": [
+      7,
+      10,
+      20,
+      29,
+      33,
+      41,
+      51,
+      59
+    ]
+  },
+  "sr_latin-00:5:4": {
+    "phraseID": "sr_latin-00",
+    "category": "sr_latin",
+    "language": "sr",
+    "kind": "midword",
+    "typed": "ažur",
+    "words": [
+      "ažurirani",
+      "dokument",
+      "čim",
+      "završim",
+      "poslednju",
+      "proveru"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      14,
+      18,
+      26,
+      36,
+      44
+    ]
+  },
+  "sr_latin-00:6:0": {
+    "phraseID": "sr_latin-00",
+    "category": "sr_latin",
+    "language": "sr",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "dokument",
+      "čim",
+      "završim",
+      "poslednju",
+      "proveru"
+    ],
+    "matchingCharacterCredits": [
+      8,
+      12,
+      20,
+      30,
+      38
+    ]
+  },
+  "sr_latin-00:8:3": {
+    "phraseID": "sr_latin-00",
+    "category": "sr_latin",
+    "language": "sr",
+    "kind": "midword",
+    "typed": "zav",
+    "words": [
+      "završim",
+      "poslednju",
+      "proveru"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      14,
+      22
+    ]
+  },
+  "sr_cyrillic-00:3:0": {
+    "phraseID": "sr_cyrillic-00",
+    "category": "sr_cyrillic",
+    "language": "sr",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "радо",
+      "ћу",
+      "се",
+      "придружити",
+      "разговору",
+      "када",
+      "завршим",
+      "тренутне",
+      "обавезе"
+    ],
+    "matchingCharacterCredits": [
+      4,
+      7,
+      10,
+      21,
+      31,
+      36,
+      44,
+      53,
+      61
+    ]
+  },
+  "sr_cyrillic-00:6:0": {
+    "phraseID": "sr_cyrillic-00",
+    "category": "sr_cyrillic",
+    "language": "sr",
+    "kind": "boundary",
+    "typed": "",
+    "words": [
+      "придружити",
+      "разговору",
+      "када",
+      "завршим",
+      "тренутне",
+      "обавезе"
+    ],
+    "matchingCharacterCredits": [
+      10,
+      20,
+      25,
+      33,
+      42,
+      50
+    ]
+  },
+  "sr_cyrillic-00:6:5": {
+    "phraseID": "sr_cyrillic-00",
+    "category": "sr_cyrillic",
+    "language": "sr",
+    "kind": "midword",
+    "typed": "придр",
+    "words": [
+      "придружити",
+      "разговору",
+      "када",
+      "завршим",
+      "тренутне",
+      "обавезе"
+    ],
+    "matchingCharacterCredits": [
+      5,
+      15,
+      20,
+      28,
+      37,
+      45
+    ]
+  },
+  "sr_cyrillic-00:8:2": {
+    "phraseID": "sr_cyrillic-00",
+    "category": "sr_cyrillic",
+    "language": "sr",
+    "kind": "midword",
+    "typed": "ка",
+    "words": [
+      "када",
+      "завршим",
+      "тренутне",
+      "обавезе"
+    ],
+    "matchingCharacterCredits": [
+      2,
+      10,
+      19,
+      27
+    ]
+  }
+}

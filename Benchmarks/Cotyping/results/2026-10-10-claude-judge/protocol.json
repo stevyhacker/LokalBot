@@ -1,0 +1,123 @@
+{
+  "createdAtUTC": "2026-10-10T07:35:14.529716+00:00",
+  "seed": "lokalbot-blind-usefulness-2026-10-10-v1",
+  "status": "frozen before any judging",
+  "policies": [
+    "current",
+    "boundary_mass",
+    "intersection",
+    "union",
+    "hybrid_one_word"
+  ],
+  "selection": "Every changed checkpoint plus up to 12 shared shown checkpoints per category; no reference words sent.",
+  "primary": "Mean utility difference versus current, divided by all 1361 checkpoints; unchanged cases contribute zero. Phrase-cluster bootstrap.",
+  "utility": "Ordinal -2..2 relative to silence=0; model opinion, not acceptance probability.",
+  "hybrid": "Keep the exact current suggestion if present; otherwise retain only the first complete word of the boundary-mass suggestion.",
+  "timing": "Only prior native timings for current and boundary mass are measured. Other policies are offline output compositions with unknown native latency.",
+  "repeat": "24 changed and 8 shared cases, new anonymous IDs, reversed alternative order. Primary scores are not replaced by repeat scores.",
+  "counts": {
+    "all": 1361,
+    "changed": 213,
+    "sharedShownSample": 96,
+    "repeat": 32
+  },
+  "inputSHA256": {
+    "confirmation-1-control": "57d6ff9732246781cfda60f59a4582bb35b39e10ea1b97062b9a0c3ca5f7e635",
+    "confirmation-1-boundary-mass-calibrated-stop": "bb4c76472909dc0668782e18bd0f82bf051343f294984b31a313c04e6d023f18"
+  },
+  "casesSHA256": "945d977dc687142da32fa456931e786566c37fd318d3b56fda45f358e1e5447c",
+  "systemSHA256": "d4d20724fb8dd8d628fc71115a7d52aedc9ee4fa7e1604a8fce0abd881f534c4",
+  "schemaSHA256": "ebaaeae0c9e40637aa0f2467dd54120715df345d2f5e2634f0fa54694dfab8a4",
+  "batches": [
+    {
+      "id": "primary-01",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "e8cdeaed087b7770be8228fb9f6159938179bbb9ef92d5f260003473dac3e29f"
+    },
+    {
+      "id": "primary-02",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "739ebdc3a93d3b6f426c44a1042d06b84fb7685e8098cdbfdb43857dc3da4db5"
+    },
+    {
+      "id": "primary-03",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "fe49a809ace8cf16daf41b26ed15ae73cec9410d0dee77e008e0f2fff1a68381"
+    },
+    {
+      "id": "primary-04",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "422819054ab92461cc36e8e1de24f2267627f1383f72b740c63b6b355e6b9c0e"
+    },
+    {
+      "id": "primary-05",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "c6b18157057c03030fc3246f363aa050da1bebca6e6bb401c9c57bd39586180f"
+    },
+    {
+      "id": "primary-06",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "5f3317d97235f56dab192ad8b1b44444142d710b99c655a7f4358487e682d8de"
+    },
+    {
+      "id": "primary-07",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "7e7e84f80867f0f1e19f17711aa150a6f0eb5d8a87fbf7d5a3274a63c37ccc4e"
+    },
+    {
+      "id": "primary-08",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "0238f873014d3c92cd5e7e394c1b7b53644ba167fb3ecc45910cb931334224a3"
+    },
+    {
+      "id": "primary-09",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "bb2eb2fe111145a7159fe8c3d7a5a793f0d08bbece4ec6cb4f34e67933997eab"
+    },
+    {
+      "id": "primary-10",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "7f7c027db2457c2cb68808d0c11371895bb57c7d3b4b478df0a48453c50f876a"
+    },
+    {
+      "id": "primary-11",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "ded5613e0b1eac99957623ebce8648d458e63357402f5cc64193f3ce151cc327"
+    },
+    {
+      "id": "primary-12",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "3c7b736c243e3f3edf1f41474fe4788c943a8076b22edb9b6310a0310a2dbbd0"
+    },
+    {
+      "id": "primary-13",
+      "stage": "primary",
+      "cases": 21,
+      "requestSHA256": "e9c1927751b8cdd1f5ac4687c4aa30bf504d9407dd4acb35a628797e1a34b08d"
+    },
+    {
+      "id": "repeat-01",
+      "stage": "repeat",
+      "cases": 24,
+      "requestSHA256": "fcfe2493495a970f6199ccc6cd11fad1208269619376905ef173d6c5466ee40f"
+    },
+    {
+      "id": "repeat-02",
+      "stage": "repeat",
+      "cases": 8,
+      "requestSHA256": "d5b0f60782cf96a10390eeb9a3953634718b8d58ce1a5b06dd8e63ee72495a66"
+    }
+  ]
+}

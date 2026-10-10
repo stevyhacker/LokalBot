@@ -1,0 +1,109 @@
+{
+  "beforeHEAD": "32381e9f8e8137c95d1b94984549a62cdb004aab",
+  "afterHEAD": "193460c3def4e11aa44dc95e28bef8724c783e80",
+  "beforeAppSHA256": "90c72d243852b7f448f26325b29134dd35471d4d46d10d5aafe9910f986839e8",
+  "afterAppSHA256": "e0ad7e4eabbd18253757f5094faf638344a5520a5f75e1eefbb84bda3331880c",
+  "modelAndCorpusUnchanged": true,
+  "runs": [
+    {
+      "round": 1,
+      "width": 1,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 1,
+      "width": 2,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 1,
+      "width": 4,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 2,
+      "width": 1,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 2,
+      "width": 2,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 2,
+      "width": 4,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 3,
+      "width": 1,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 3,
+      "width": 2,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    },
+    {
+      "round": 3,
+      "width": 4,
+      "changedCheckpoints": {
+        "prompt": 0,
+        "text": 0,
+        "suppression": 0,
+        "error": 0,
+        "decoderCandidates": 0
+      }
+    }
+  ],
+  "allOutputsAndPromptsIdentical": true
+}
