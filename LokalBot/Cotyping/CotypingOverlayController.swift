@@ -7,12 +7,16 @@ import AppKit
 /// Inline suggestions are drawn in the field's own font, starting at the caret
 /// on the field's baseline. Accepting or topping up an inline suggestion moves
 /// it from the layout already on screen, without waiting for another
-/// Accessibility read.
+/// Accessibility read. An inline suggestion is never drawn over text: what does
+/// not fit after the caret, or on free lines inside the field, is left out,
+/// and `acceptanceText` says what is shown.
 @MainActor
 final class CotypingOverlayController {
     private var panel: CotypingOverlayPanel?
     private var ghostView: CotypingGhostTextView?
     private(set) var isVisible = false
+    /// What an accept can take: the suggestion on screen, which may be only
+    /// the start of the text it was given.
     private(set) var acceptanceText: String?
     private let sampler = CotypingBackgroundSampler()
     private var sampleGeneration = 0
@@ -26,6 +30,7 @@ final class CotypingOverlayController {
         var caretRect: CGRect
         var inputFrameRect: CGRect?
         var precedingLine: String
+        var linesBelowAreFree: Bool
         var visible: CGRect?
         var style: CotypingFieldStyle?
         var emphasisLength: Int
@@ -37,8 +42,19 @@ final class CotypingOverlayController {
     private static let chromePadding = CGSize(width: 8, height: 4)
     private static let mirrorPointSizes: ClosedRange<CGFloat> = 11...17
 
-    /// - Parameter emphasisLength: characters of `text` the next accept takes;
-    ///   nil when one accept takes all of it.
+    /// Whether the suggestion on screen is drawn at the caret, in the text.
+    var isShowingInline: Bool { isVisible && inline != nil }
+
+    /// - Parameters:
+    ///   - acceptanceText: what an accept inserts, when it differs from what
+    ///     is drawn.
+    ///   - mayShowPart: an inline suggestion may be cut short after any word
+    ///     that fits, as a continuation can; `acceptanceText` is then what is
+    ///     drawn. Otherwise it is drawn whole or not at all.
+    ///   - trailingText: the field's text after the caret. Wrapped lines are
+    ///     never drawn over it.
+    ///   - emphasisLength: characters of `text` the next accept takes; nil
+    ///     when one accept takes all of it.
     func show(
         text: String,
         caretRect: CGRect,
@@ -46,8 +62,10 @@ final class CotypingOverlayController {
         style: CotypingFieldStyle? = nil,
         placement: CotypingOverlayPlacement = .inlineDefault,
         acceptanceText: String? = nil,
+        mayShowPart: Bool = true,
         isRightToLeft: Bool = false,
         precedingText: String = "",
+        trailingText: String = "",
         emphasisLength: Int? = nil
     ) {
         guard !text.isEmpty,
@@ -64,20 +82,29 @@ final class CotypingOverlayController {
         switch placement.mode {
         case .inline:
             let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-            let precedingLine = String(precedingText.split(separator: "\n", omittingEmptySubsequences: false).last ?? "")
+            let precedingLine = Self.lastParagraph(of: precedingText)
+            let linesBelowAreFree = Self.linesBelowAreFree(trailingText: trailingText)
+            guard let fitted = CotypingInlineGhostLayout.longestDrawable(
+                text, allowsPartial: mayShowPart && acceptanceText == nil, layout: { candidate in
+                    .make(
+                        text: candidate, font: font, caretRect: caretRect, inputFrameRect: inputFrameRect,
+                        precedingLine: precedingLine, visible: visible, isRightToLeft: isRightToLeft,
+                        linesBelowAreFree: linesBelowAreFree)
+                }) else {
+                hide()
+                return
+            }
             let state = InlineState(
-                text: text,
-                layout: .make(
-                    text: text, font: font, caretRect: caretRect, inputFrameRect: inputFrameRect,
-                    precedingLine: precedingLine, visible: visible, isRightToLeft: isRightToLeft),
+                text: fitted.text, layout: fitted.layout,
                 caretRect: caretRect, inputFrameRect: inputFrameRect, precedingLine: precedingLine,
-                visible: visible, style: style, emphasisLength: emphasis,
+                linesBelowAreFree: linesBelowAreFree, visible: visible, style: style, emphasisLength: emphasis,
                 luminance: sampler.cachedLuminance(forApp: bundleID))
             guard presentInline(state) else {
                 hide()
                 return
             }
             if state.luminance == nil { sampleBackground(behind: caretRect, forApp: bundleID) }
+            self.acceptanceText = acceptanceText ?? fitted.text
         case .mirror:
             inline = nil
             guard presentMirror(
@@ -87,12 +114,16 @@ final class CotypingOverlayController {
                 hide()
                 return
             }
+            self.acceptanceText = acceptanceText ?? text
+        case .withheld:
+            hide()
         }
-        self.acceptanceText = acceptanceText ?? text
     }
 
     /// Moves a visible inline ghost past text that was just accepted or typed,
-    /// as the host will show it, without waiting for the host's new caret.
+    /// to where the host will show the caret, without waiting for it. False
+    /// when that place is only known once the host shows the text; the ghost
+    /// is then left as it was.
     @discardableResult
     func advanceInline(
         to remainingText: String,
@@ -107,39 +138,42 @@ final class CotypingOverlayController {
               !insertedText.isEmpty,
               state.text.hasPrefix(insertedText),
               String(state.text.dropFirst(insertedText.count)) == remainingText,
-              let firstLine = state.layout.lines.first,
-              firstLine.offset == 0,
-              firstLine.origin.x == (isRightToLeft ? state.caretRect.minX : state.caretRect.maxX) else {
+              // Measured as typed: the host draws every space, while the ghost
+              // draws a run of them as one.
+              let caret = CotypingInlineGhostLayout.caretRect(
+                  afterTyping: insertedText, font: state.layout.font,
+                  caretRect: state.caretRect, inputFrameRect: state.inputFrameRect,
+                  precedingLine: state.precedingLine, visible: state.visible, isRightToLeft: isRightToLeft,
+                  linesBelowAreFree: state.linesBelowAreFree, wrapEdge: state.layout.wrapEdge) else {
             return false
         }
-        let inserted = CotypingInlineGhostLayout.displayText(insertedText)
-        // Only text on the caret's own line moves the caret along that line.
-        guard inserted.count <= firstLine.text.count else { return false }
-        let advance = CotypingInlineGhostLayout.width(of: inserted, font: state.layout.font)
-        state.caretRect.origin.x += isRightToLeft ? -advance : advance
+        state.caretRect = caret
         state.precedingLine += insertedText
         state.text = remainingText
         state.emphasisLength = emphasisLength ?? remainingText.count
         state.layout = relayout(state)
+        guard state.layout.isComplete, !state.layout.lines.isEmpty else { return false }
         return presentInline(state)
     }
 
-    /// Adds words to the end of a visible inline ghost. Words already on
-    /// screen keep their places.
+    /// Adds words to the end of a visible inline ghost, as many as fit where
+    /// it may be drawn. Words already on screen keep their places, and
+    /// `acceptanceText` grows by the words added.
     @discardableResult
     func extendInline(to text: String, emphasisLength: Int? = nil) -> Bool {
         guard isVisible,
               var state = inline,
               text.count > state.text.count,
-              text.hasPrefix(state.text) else {
+              text.hasPrefix(state.text),
+              let fitted = CotypingInlineGhostLayout.longestDrawable(
+                  text, allowsPartial: true, layout: { relayout(state, text: $0) }),
+              fitted.text.count >= state.text.count else {
             return false
         }
-        state.text = text
+        state.text = fitted.text
+        state.layout = fitted.layout
         state.emphasisLength = emphasisLength ?? state.emphasisLength
-        state.layout = relayout(state)
-        guard presentInline(state) else { return false }
-        acceptanceText = text
-        return true
+        return presentInline(state)
     }
 
     /// Whether a re-read caret is close enough to the visible ghost to leave it
@@ -152,7 +186,9 @@ final class CotypingOverlayController {
         placement: CotypingOverlayPlacement,
         millisecondsSinceLastAcceptance: Int?,
         inputFrameRect: CGRect? = nil,
-        isRightToLeft: Bool = false
+        isRightToLeft: Bool = false,
+        precedingText: String = "",
+        trailingText: String = ""
     ) -> Bool {
         guard isVisible,
               placement.mode == .inline,
@@ -165,8 +201,10 @@ final class CotypingOverlayController {
             for: style ?? state.style, caretHeight: caretRect.height, caretIsExact: placement.caretIsExact)
         let target = CotypingInlineGhostLayout.make(
             text: text, font: font, caretRect: caretRect, inputFrameRect: inputFrameRect,
-            visible: screenVisibleFrame(containing: caretRect), isRightToLeft: isRightToLeft)
-        guard let targetLine = target.lines.first else { return false }
+            precedingLine: Self.lastParagraph(of: precedingText),
+            visible: screenVisibleFrame(containing: caretRect), isRightToLeft: isRightToLeft,
+            linesBelowAreFree: Self.linesBelowAreFree(trailingText: trailingText))
+        guard target.isComplete, let targetLine = target.lines.first else { return false }
         return CotypingOverlayGeometry.shouldHoldInlineReanchor(
             currentFrame: CGRect(origin: current.origin, size: .zero),
             targetFrame: CGRect(origin: targetLine.origin, size: .zero),
@@ -184,11 +222,24 @@ final class CotypingOverlayController {
 
     // MARK: - Presentation
 
-    private func relayout(_ state: InlineState) -> CotypingInlineGhostLayout {
+    /// `text`, or the state's own, laid out like the ghost on screen.
+    private func relayout(_ state: InlineState, text: String? = nil) -> CotypingInlineGhostLayout {
         .make(
-            text: state.text, font: state.layout.font, caretRect: state.caretRect,
+            text: text ?? state.text, font: state.layout.font, caretRect: state.caretRect,
             inputFrameRect: state.inputFrameRect, precedingLine: state.precedingLine,
-            visible: state.visible, isRightToLeft: state.layout.isRightToLeft)
+            visible: state.visible, isRightToLeft: state.layout.isRightToLeft,
+            linesBelowAreFree: state.linesBelowAreFree, wrapEdge: state.layout.wrapEdge)
+    }
+
+    /// The caret's paragraph up to the caret.
+    private nonisolated static func lastParagraph(of precedingText: String) -> String {
+        String(precedingText.split(separator: "\n", omittingEmptySubsequences: false).last ?? "")
+    }
+
+    /// Whether the lines under the caret hold no text, so a suggestion may
+    /// wrap onto them.
+    nonisolated static func linesBelowAreFree(trailingText: String) -> Bool {
+        !trailingText.contains { !$0.isWhitespace }
     }
 
     private func presentInline(_ state: InlineState) -> Bool {

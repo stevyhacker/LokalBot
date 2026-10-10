@@ -543,6 +543,43 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.extensionTask)
     }
 
+    // MARK: - Typing away from a suggestion
+
+    /// The 2026-10-09 report: in Chrome the ghost stayed on screen over the
+    /// letters just typed until the browser published them, which takes a
+    /// while there. A key that leaves the suggestion takes it down at once.
+    func testAKeyThatLeavesTheSuggestionTakesItDownAtOnce() {
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        defer { coordinator.stop() }
+        for key in [CotypingInputEvent(kind: .textMutation, characters: "x"),
+                    CotypingInputEvent(kind: .textMutation, characters: "")] {
+            coordinator.session = shownSession(" up on the timeline", after: "I wanted to follow")
+            coordinator.markReady(" up on the timeline")
+            coordinator.handleKey(key)
+            XCTAssertNil(coordinator.session, key.characters.debugDescription)
+            XCTAssertEqual(coordinator.state, .idle)
+            XCTAssertFalse(coordinator.inputMonitor.isAcceptActive)
+        }
+    }
+
+    /// A suggestion with nowhere on screen to go that covers no text is
+    /// dropped, not drawn somewhere else: here a guessed caret in a field
+    /// that reports no frame, so a popup has no outside to go to.
+    func testASuggestionWithNowhereToBeShownIsDropped() {
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        defer { coordinator.stop() }
+        var field = liveField("I wanted to follow", bundleID: "com.google.Chrome")
+        field.caretIsExact = false
+        coordinator.pendingKeystrokeUptime = DispatchTime.now().uptimeNanoseconds
+        coordinator.present(CotypingSession(field: field, fullText: " up on the timeline"), overlayText: " up on the timeline")
+        XCTAssertNil(coordinator.session)
+        XCTAssertEqual(coordinator.state, .idle)
+        XCTAssertFalse(coordinator.inputMonitor.isAcceptActive)
+        XCTAssertNil(stats.stats.live["browser"], "nothing was shown, so no wait is measured")
+    }
+
     // MARK: - A suggestion left alone
 
     /// Cotypist 2026.5 fixed a suggestion staying up after a minute without
@@ -573,6 +610,21 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.clearSuggestion()
         XCTAssertNil(coordinator.suggestionExpiryTask)
         XCTAssertNil(coordinator.lastSuggestionActivity)
+    }
+
+    /// One pending re-read of the caret at a time, and none once the
+    /// suggestion it was for is gone.
+    func testOnlyTheLatestCaretRereadRuns() {
+        let coordinator = makeCoordinator()
+        coordinator.session = shownSession(" up", after: "I wanted to follow")
+        coordinator.refreshCaretSoon()
+        let first = coordinator.caretRefreshTask
+        coordinator.refreshCaretSoon()
+        XCTAssertTrue(first?.isCancelled ?? false, "a newer key replaces the read")
+        let second = coordinator.caretRefreshTask
+        coordinator.clearSuggestion()
+        XCTAssertTrue(second?.isCancelled ?? false)
+        XCTAssertNil(coordinator.caretRefreshTask)
     }
 
     // MARK: - Escape

@@ -29,6 +29,26 @@ final class CotypingRenderModeTests: XCTestCase {
         XCTAssertEqual(midLine, .mirror(reason: .caretMidLine))
     }
 
+    /// The 2026-10-09 report: in Viber, which reports no caret at all, and
+    /// in Chrome text areas, the suggestion appeared above or below the field
+    /// until the caret was found on screen, then on the line, and back again.
+    /// Where the caret will be found, the suggestion waits for it.
+    func testAnEstimatedCaretThatWillBeFoundOnScreenIsWaitedFor() {
+        let auto = CotypingRenderModePolicy(userPreference: .auto)
+        XCTAssertEqual(auto.mode(caretIsExact: false, isCaretAtEndOfLine: true, caretIsFoundOnScreen: true), .withheld)
+        XCTAssertEqual(auto.mode(caretIsExact: true, isCaretAtEndOfLine: true, caretIsFoundOnScreen: true), .inline)
+        XCTAssertEqual(
+            auto.mode(caretIsExact: false, isCaretAtEndOfLine: false, caretIsFoundOnScreen: true),
+            .mirror(reason: .caretMidLine))
+        XCTAssertEqual(
+            CotypingRenderModePolicy(userPreference: .alwaysMirror)
+                .mode(caretIsExact: false, isCaretAtEndOfLine: true, caretIsFoundOnScreen: true),
+            .mirror(reason: .userPreference))
+        var placement = CotypingOverlayPlacement(caretIsExact: false, isCaretAtEndOfLine: true, preference: .auto)
+        placement.caretIsFoundOnScreen = true
+        XCTAssertEqual(placement.mode, .withheld)
+    }
+
     func testAlwaysInlineMidLineStillOverrides() {
         // An explicit inline pin cannot render mid-line, so it is promoted too.
         let mode = CotypingRenderModePolicy(userPreference: .alwaysInline).mode(caretIsExact: true, isCaretAtEndOfLine: false)

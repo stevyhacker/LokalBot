@@ -75,6 +75,32 @@ LokalBot defaults:
   bounds, since the ghost itself is hidden from screen capture.
 - The word the next accept keypress takes is drawn a little stronger than the
   rest of the suggestion, inline and in the popup.
+- The ghost is never drawn over text (reported 2026-10-09 for LinkedIn in
+  Chrome and for Viber). A key that leaves the suggestion takes it down at
+  once; it used to stay until the app published the key, which in Chrome took
+  long enough to sit over every new letter. A typed space moved the ghost by
+  nothing, because the ghost draws runs of spaces as one, so letters typed
+  after it landed on the ghost; typed text now moves it by its width as typed.
+  Once the app publishes the caret, the ghost moves to it whenever it would
+  cover typed text (it used to hold up to 6 pt of overlap).
+- Wrapped ghost lines go only onto empty lines inside the field. A one-line
+  chat box shows the words that fit after the caret, and Tab and the
+  full-accept key take only what is shown. The rest of a word that does not
+  fit after the caret is not drawn, since the app moves the whole word down.
+- Chromium sometimes answers the caret query with the whole line's or field's
+  box (a one-character message in the Claude app gave 788×23); such a box is
+  not taken for the caret, and the text runs place it instead.
+- Viber (Qt Quick) reports no caret at all, so its suggestions are placed from
+  the field's text on screen, as in Chrome's text areas. Until that caret is
+  found nothing is shown, rather than a popup above or below the field.
+- Measured live in Viber the same day, by reading the ghost window's bounds
+  and capturing only the row beside it: recognition at 2× misread "je" as
+  "Je" and sized the font 5% small, missed short last words, ended lines at
+  the last letter's ink rather than its advance, and read the caret bar as
+  "|". With the font sized from the typed text, the line's end aligned with
+  it, the side bearing added, a caret bar taken as the caret and a 3× capture
+  on the non-Retina display, five suggestions began 0.6–1.0 pt after the
+  caret (before: 2–5 pt over the last letter).
 
 ## Keystroke latency
 

@@ -6,12 +6,15 @@ import CoreGraphics
 nonisolated enum CotypingOverlayGeometry {
     /// Gap between the caret and the popup / screen edges.
     static let gap: CGFloat = 2
-    static let reanchorDriftTolerance: CGFloat = 6
+    /// Movement too small to see, or to be more than rounding between reads.
+    static let reanchorDriftTolerance: CGFloat = 1.5
     static let backwardDriftHoldWindowMilliseconds = 300
 
-    /// CoTabby-style post-accept stability rule for inline ghosts. Hold small
-    /// same-text drift, and briefly hold larger backward jumps because AX often
-    /// publishes inserted text before its caret frames catch up.
+    /// Whether an inline ghost stays where it is when the caret is read
+    /// again. It moves to any other line, and whenever the caret is further
+    /// along the line than the ghost starts, because then the ghost covers
+    /// text just typed. A ghost ahead of the caret is held only right after
+    /// an accept: hosts often publish inserted text before its caret moves.
     static func shouldHoldInlineReanchor(
         currentFrame: CGRect,
         targetFrame: CGRect,
@@ -22,15 +25,14 @@ nonisolated enum CotypingOverlayGeometry {
         guard abs(deltaY) <= reanchorDriftTolerance else { return false }
 
         let deltaX = targetFrame.origin.x - currentFrame.origin.x
-        if abs(deltaX) <= reanchorDriftTolerance {
+        // Positive when the caret is further along the line than the ghost.
+        let caretAhead = isRightToLeft ? -deltaX : deltaX
+        if abs(caretAhead) <= reanchorDriftTolerance {
             return true
         }
-        let isBackward = isRightToLeft
-            ? deltaX > reanchorDriftTolerance
-            : deltaX < -reanchorDriftTolerance
-        let insideHoldWindow = millisecondsSinceLastAcceptance
+        guard caretAhead < 0 else { return false }
+        return millisecondsSinceLastAcceptance
             .map { $0 <= backwardDriftHoldWindowMilliseconds } ?? false
-        return isBackward && insideHoldWindow
     }
 
     /// Mirror (popup) frame: a chrome pill one line below the caret, flipped

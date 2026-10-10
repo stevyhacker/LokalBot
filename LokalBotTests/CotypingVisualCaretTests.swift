@@ -9,11 +9,23 @@ final class CotypingVisualCaretTests: XCTestCase {
     /// A GitHub comment box: 797×103 with 14 pt text inset 13 pt.
     private let field = CGRect(x: 1170, y: 300, width: 797, height: 103)
 
-    private func line(_ text: String, minX: CGFloat = 1183, baseline: CGFloat, size: CGFloat = 14) -> Locator.RecognizedLine {
-        let width = CotypingInlineGhostLayout.width(of: text, font: .systemFont(ofSize: size))
+    /// A line as recognition reports it: from where the ink of its first
+    /// letter starts to where the ink of its last one ends, for text drawn
+    /// from `origin`.
+    private func line(_ text: String, minX origin: CGFloat = 1183, baseline: CGFloat, size: CGFloat = 14) -> Locator.RecognizedLine {
+        let font = NSFont.systemFont(ofSize: size)
+        let width = CotypingInlineGhostLayout.width(of: text, font: font)
+        let ink = CTLineGetImageBounds(CTLineCreateWithAttributedString(NSAttributedString(
+            string: text, attributes: [.font: font])), nil)
         return Locator.RecognizedLine(
-            text: text, minX: minX, maxX: minX + width, baseline: baseline,
-            box: CGRect(x: minX, y: baseline - 3, width: width, height: 13))
+            text: text, minX: origin + ink.minX, maxX: origin + ink.maxX, baseline: baseline,
+            box: CGRect(x: origin, y: baseline - 3, width: width, height: 13))
+    }
+
+    /// Where the caret is after `text` drawn from `origin`: where its last
+    /// letter's advance ends.
+    private func end(of text: String, from origin: CGFloat = 1183, size: CGFloat = 14) -> CGFloat {
+        origin + CotypingInlineGhostLayout.width(of: text, font: .systemFont(ofSize: size))
     }
 
     func testTheCaretIsAtTheEndOfTheLineThatEndsTheTypedText() throws {
@@ -23,18 +35,60 @@ final class CotypingVisualCaretTests: XCTestCase {
             lines: [first, second],
             precedingText: "Thanks for the quick review, I will push the fixes in a follow-up later",
             fieldFrame: field))
-        XCTAssertEqual(found.caretX, second.maxX, accuracy: 0.01)
+        XCTAssertEqual(found.caretX, end(of: "in a follow-up later"), accuracy: 0.05)
         XCTAssertEqual(found.baseline, 354)
         XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
-        XCTAssertEqual(found.lineMinX, 1183)
-        XCTAssertEqual(found.lineMaxX, field.maxX - 13, accuracy: 0.01)
+        XCTAssertEqual(found.lineMinX, second.minX)
+        XCTAssertEqual(found.lineMaxX, field.maxX - (second.minX - field.minX), accuracy: 0.01)
+    }
+
+    /// Recognition ends a line where its last letter's ink ends; the caret is
+    /// that letter's side bearing further on. Taking the ink's end put the
+    /// ghost 0.6–0.8 pt over the last letter (measured 2026-10-09).
+    func testTheCaretFollowsTheLastLettersAdvanceNotItsInk() throws {
+        let recognized = line("Looks good", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: "Looks good", fieldFrame: field))
+        XCTAssertGreaterThan(found.caretX, recognized.maxX + 0.3)
+        XCTAssertEqual(found.caretX, end(of: "Looks good"), accuracy: 0.05)
     }
 
     func testATypedSpaceMovesTheCaretOneSpacePastTheLastLetter() throws {
         let typed = line("Looks good, just a", baseline: 375)
         let found = try XCTUnwrap(Locator.locate(lines: [typed], precedingText: "Looks good, just a ", fieldFrame: field))
-        let space = CotypingInlineGhostLayout.width(of: " ", font: .systemFont(ofSize: found.pointSize))
-        XCTAssertEqual(found.caretX, typed.maxX + space, accuracy: 0.01)
+        XCTAssertEqual(found.caretX, end(of: "Looks good, just a "), accuracy: 0.05)
+    }
+
+    /// Viber's caret is a bar that recognition reads as "|" (2026-10-09). The
+    /// caret is where that bar is drawn, already past the space typed before
+    /// it; adding the space again put the ghost a space too far right.
+    func testTheAppsCaretReadAsABarIsTheCaret() throws {
+        func withCaret(_ text: String, recognizedAs reading: String, caretAt caretX: CGFloat) -> Locator.RecognizedLine {
+            var recognized = line(text, baseline: 375)
+            recognized.text = reading
+            recognized.characterBeforeLastMaxX = recognized.maxX
+            recognized.lastCharacterMinX = caretX - 0.7
+            recognized.maxX = caretX + 0.7
+            return recognized
+        }
+        let afterSpace = end(of: "Looks good, just a ")
+        let spaced = try XCTUnwrap(Locator.locate(
+            lines: [withCaret("Looks good, just a", recognizedAs: "Looks good, just a |", caretAt: afterSpace)],
+            precedingText: "Looks good, just a ", fieldFrame: field))
+        XCTAssertEqual(spaced.caretX, afterSpace, accuracy: 0.05)
+        XCTAssertEqual(spaced.pointSize, 14, accuracy: 0.05)
+
+        let afterWord = end(of: "Looks good, just to")
+        let joined = try XCTUnwrap(Locator.locate(
+            lines: [withCaret("Looks good, just to", recognizedAs: "Looks good, just tol", caretAt: afterWord)],
+            precedingText: "Looks good, just to", fieldFrame: field))
+        XCTAssertEqual(joined.caretX, afterWord, accuracy: 0.05)
+
+        // A word that really ends in "l" is text, not a caret.
+        let stol = line("Looks good, the stol", baseline: 375)
+        let typedL = try XCTUnwrap(Locator.locate(
+            lines: [{ var l = stol; l.lastCharacterMinX = l.maxX - 2; l.characterBeforeLastMaxX = l.maxX - 3; return l }()],
+            precedingText: "Looks good, the stol", fieldFrame: field))
+        XCTAssertEqual(typedL.caretX, end(of: "Looks good, the stol"), accuracy: 0.05)
     }
 
     func testSmallRecognitionMistakesStillMatch() {
@@ -84,6 +138,134 @@ final class CotypingVisualCaretTests: XCTestCase {
             lines: [line("Looks good", baseline: 340)], precedingText: "Looks good", fieldFrame: narrow))
         XCTAssertNotNil(Locator.caretX(for: short, precedingText: "Looks good, ok"))
         XCTAssertNil(Locator.caretX(for: short, precedingText: "Looks good, just wonderful"))
+    }
+
+    /// A capture can be a frame behind the typing, and recognition can miss
+    /// a final full stop. Taking the end of what was recognized for the
+    /// caret put the ghost over the last letters typed.
+    func testACaptureThatLacksTheLastLettersStillPutsTheCaretAfterThem() throws {
+        let behind = line("Looks goo", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(lines: [behind], precedingText: "Looks good", fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: "Looks good"), accuracy: 0.1)
+        XCTAssertEqual(found.precedingText, "Looks good")
+
+        let noStop = line("Thanks, see you tomorrow", baseline: 375)
+        let stopped = try XCTUnwrap(Locator.locate(
+            lines: [noStop], precedingText: "Thanks, see you tomorrow. ", fieldFrame: field))
+        XCTAssertEqual(stopped.caretX, end(of: "Thanks, see you tomorrow. "), accuracy: 0.1)
+        // A line that shows everything is taken as it is.
+        let whole = line("Looks good", baseline: 375)
+        XCTAssertEqual(
+            try XCTUnwrap(Locator.locate(lines: [whole], precedingText: "Looks good", fieldFrame: field)).caretX,
+            end(of: "Looks good"), accuracy: 0.05)
+    }
+
+    /// The 2026-10-09 report from Viber: after "Ima i dalje preklapanja te"
+    /// the ghost "lefonskih brojeva, ali" began a letter or two early, over
+    /// "te". Recognition had returned the line without its short last word,
+    /// which still matched well enough, and the caret was put at the end of
+    /// what was recognized.
+    func testALineWithoutItsLastWordPutsTheCaretAfterThatWord() throws {
+        let typed = "Ima i dalje preklapanja te"
+        let recognized = line("Ima i dalje preklapanja", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.1)
+
+        // Recognition split the row in two: the longer piece sizes the font.
+        let start = line("Ima i dalje preklapanja", baseline: 375)
+        let lastWord = line("te", minX: end(of: "Ima i dalje preklapanja "), baseline: 375)
+        let split = try XCTUnwrap(Locator.locate(lines: [lastWord, start], precedingText: typed, fieldFrame: field))
+        XCTAssertEqual(split.caretX, end(of: typed), accuracy: 0.5)
+        XCTAssertEqual(split.pointSize, 14, accuracy: 0.05)
+
+        // Unseen words that would pass the end of the line went to the next one.
+        let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
+        XCTAssertNil(Locator.locate(
+            lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay then", fieldFrame: narrow))
+    }
+
+    /// Measured in Viber on 2026-10-09: at LokalBot's 2× capture, recognition
+    /// read "bolje ali i dalje nije" as "bolJe all I dalJe nlJe". Sizing the
+    /// font from that text made it 12.8 pt instead of 13.5 pt, so every
+    /// letter typed afterwards put the ghost a little further behind the
+    /// caret; after "uvS" it began over the "S".
+    func testTheFontIsSizedFromTheTypedTextNotTheMisreadOne() throws {
+        let typed = "Sad je sve puno bolje ali i dalje nije skroz kako treba uvS"
+        let viberField = CGRect(x: 2561, y: 180, width: 499, height: 17)
+        var misread = line(typed, minX: 2561.5, baseline: 184, size: 13.5)
+        misread.text = "Sad Je sve puno bolJe all I dalJe nlJe skroz kako treba uvS"
+        let found = try XCTUnwrap(Locator.locate(lines: [misread], precedingText: typed, fieldFrame: viberField))
+        XCTAssertEqual(found.pointSize, 13.5, accuracy: 0.05)
+        let next = try XCTUnwrap(Locator.caretX(for: found, precedingText: typed + " te lefonskih"))
+        XCTAssertEqual(next, end(of: typed + " te lefonskih", from: 2561.5, size: 13.5), accuracy: 0.3)
+    }
+
+    /// Fast recognition often drops accents, as on Serbian text.
+    func testAccentsDoNotStopAMatch() throws {
+        let recognized = line("Vidimo se sutra, hvala sto", baseline: 375)
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [recognized], precedingText: "Vidimo se sutra, hvala što", fieldFrame: field))
+        XCTAssertEqual(found.caretX, end(of: "Vidimo se sutra, hvala sto"), accuracy: 0.05)
+        XCTAssertEqual(Locator.normalized("  Šta  ćeš\u{00A0}raditi “Đoko” — "), "sta ces raditi \"đoko\" -")
+    }
+
+    /// The field's right text edge is only estimated, so a word typed close
+    /// to it may already be on the next line. Following the caret along the
+    /// line put the ghost on the line above, and its wrapped words on the
+    /// word just typed. Spaces never wrap.
+    func testLettersTypedNearTheLineEndAreFoundAgain() throws {
+        let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
+        let short = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good", baseline: 340)], precedingText: "Looks good", fieldFrame: narrow))
+        XCTAssertNotNil(Locator.caretX(for: short, precedingText: "Looks good, okay"))
+        XCTAssertNil(Locator.caretX(for: short, precedingText: "Looks good, ok then"))
+
+        let full = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay", fieldFrame: narrow))
+        XCTAssertNotNil(Locator.caretX(for: full, precedingText: "Looks good, okay  "))
+        XCTAssertNil(Locator.caretX(for: full, precedingText: "Looks good, okay t"))
+    }
+
+    /// Deleting back into the first word of a wrapped line can let that
+    /// word fit on the line above again.
+    func testDeletingIntoTheFirstWordOfAWrappedLineIsFoundAgain() throws {
+        let first = "Thanks for the quick review, I will push the fixes"
+        let found = try XCTUnwrap(Locator.locate(
+            lines: [line(first, baseline: 375), line("in a follow-up later", baseline: 354)],
+            precedingText: first + " in a follow-up later", fieldFrame: field))
+        XCTAssertNotNil(Locator.caretX(for: found, precedingText: first + " in a "))
+        XCTAssertNil(Locator.caretX(for: found, precedingText: first + " i"))
+        // A paragraph's first line has no line above to go back to.
+        let single = try XCTUnwrap(Locator.locate(
+            lines: [line("Looks good", baseline: 375)], precedingText: "Looks good", fieldFrame: field))
+        XCTAssertNil(single.firstWordEndX)
+        XCTAssertNotNil(Locator.caretX(for: single, precedingText: "Lo"))
+    }
+
+    /// A field whose caret is found on screen waits for it instead of a
+    /// popup outside the field, unless finds there keep failing.
+    @MainActor
+    func testAFieldWhoseCaretIsFoundOnScreenIsKnown() {
+        let visualCaret = CotypingVisualCaret()
+        var viber = CotypingField(
+            appName: "Viber", bundleID: "com.viber.osx", processID: 7, role: "AXTextField",
+            precedingText: "Hey, are we", trailingText: "", selectionLength: 0,
+            caretRect: CGRect(x: 2565, y: 180, width: 1, height: 17), inputFrameRect: CGRect(x: 2561, y: 180, width: 499, height: 17),
+            isSecure: false, caretIsExact: false)
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }), "privacy not checked yet")
+        visualCaret.notePermission(false, for: viber)
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
+        visualCaret.notePermission(true, for: viber)
+        XCTAssertTrue(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { false }), "no Screen Recording")
+        var midLine = viber
+        midLine.trailingText = " later"
+        XCTAssertFalse(visualCaret.canFind(midLine, screenCaptureAllowed: { true }))
+        for _ in 0..<CotypingVisualCaretLocator.maximumFailedFinds { visualCaret.noteFailedFind(for: viber) }
+        XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }), "finds keep failing")
+        // Another field starts afresh, and a find that works clears the count.
+        viber.inputFrameRect = CGRect(x: 2561, y: 180, width: 499, height: 34)
+        XCTAssertTrue(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
     }
 
     func testTypingIsFollowedWhenOnlyTheNewestTextIsKept() throws {
@@ -146,6 +328,8 @@ final class CotypingVisualCaretTests: XCTestCase {
         let next = visualCaret.resolve(chromeField("element-2", text: "Looks good, just"))
         XCTAssertTrue(next.caretIsExact)
         XCTAssertGreaterThan(next.caretRect.minX, found.caretX)
+        XCTAssertEqual(next.fieldStyle?.fontPointSize, found.pointSize,
+                       "the ghost is drawn at the size the caret moves by")
         // Another field of the same kind elsewhere, or other text: not reused.
         var moved = chromeField("element-3", text: "Looks good")
         moved.inputFrameRect = self.field.offsetBy(dx: 0, dy: -200)
@@ -153,16 +337,21 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertFalse(visualCaret.resolve(chromeField("element-4", text: "Something else")).caretIsExact)
     }
 
-    /// On a non-Retina display the capture is scaled up to twice its point
-    /// size, not left at its own pixels in a corner of a larger image.
-    func testTheCaptureIsScaledToTwiceTheFieldsPointSize() {
+    /// On a non-Retina display the capture is scaled up to three times its
+    /// point size, not left at its own pixels in a corner of a larger image;
+    /// at two times recognition misread Viber's "je" as "Je" throughout.
+    /// A field too big for that is captured at two times.
+    func testTheCaptureIsScaledUpOnANonRetinaDisplay() {
         let display = CGRect(x: 0, y: 0, width: 3440, height: 1440)
         let config = CotypingVisualCaret.captureConfiguration(
             for: CGRect(x: 725, y: 279, width: 796, height: 103), screenFrame: display, backingScale: 1)
         XCTAssertTrue(config.scalesToFit)
-        XCTAssertEqual(config.width, 1592)
-        XCTAssertEqual(config.height, 206)
+        XCTAssertEqual(config.width, 2388)
+        XCTAssertEqual(config.height, 309)
         XCTAssertEqual(config.sourceRect, CGRect(x: 725, y: 1058, width: 796, height: 103))
+        let page = CotypingVisualCaret.captureConfiguration(
+            for: CGRect(x: 100, y: 100, width: 2000, height: 800), screenFrame: display, backingScale: 1)
+        XCTAssertEqual(page.width, 4000)
         let retina = CotypingVisualCaret.captureConfiguration(
             for: CGRect(x: -1500, y: -900, width: 400, height: 50),
             screenFrame: CGRect(x: -1728, y: -1117, width: 1728, height: 1117), backingScale: 2)

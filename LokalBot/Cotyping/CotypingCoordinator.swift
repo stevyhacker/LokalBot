@@ -84,6 +84,9 @@ final class CotypingCoordinator: ObservableObject {
     var pendingInsertionConsumedCount: Int?
     /// Tops up the visible suggestion while it is accepted or typed through.
     var extensionTask: Task<Void, Never>?
+    /// Reads the field again just after an accept or a typed-through letter,
+    /// so the ghost moves to the app's own caret as soon as the app shows them.
+    var caretRefreshTask: Task<Void, Never>?
     var extensionGeneration: UInt64 = 0
     /// Set by Escape: no suggestions in this field until the time passes.
     var escapePause: (fieldAnchor: String, until: Date)?
