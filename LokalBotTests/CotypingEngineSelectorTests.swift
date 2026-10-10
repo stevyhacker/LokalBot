@@ -5,6 +5,59 @@ import XCTest
 final class CotypingEngineSelectorTests: XCTestCase {
     private let modelURL = URL(fileURLWithPath: "/models/gemma.gguf")
 
+    func testHybridSwitchRebuildsSameModelAndRestoresCurrentDecoder() throws {
+        try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon)
+        let env = try GGUFFixture()
+        defer { env.tearDown() }
+        var settings = env.settings
+        var modes: [Bool] = []
+        var locals: [RecordingLocalEngine] = []
+        let selector = CotypingEngineSelector(
+            http: RecordingHTTPEngine(),
+            makeLocal: { _, hybrid in
+                if let previous = locals.last { XCTAssertEqual(previous.unloadCalls, 1) }
+                modes.append(hybrid)
+                let engine = RecordingLocalEngine()
+                locals.append(engine)
+                return engine
+            }, settings: { settings }, storage: env.storage,
+            verifyModel: { _, _ in self.modelURL })
+        for hybrid in [false, true, false] {
+            settings.cotypingSelectiveOneWordHybrid = hybrid
+            _ = try awaitGenerate(selector, makeMinimalRequestExpectingNoServer())
+            _ = try awaitGenerate(selector, makeMinimalRequestExpectingNoServer())
+        }
+        XCTAssertEqual(modes, [false, true, false], "reuse only within the same mode")
+        awaitUnload(selector)
+    }
+
+    func testHybridSwitchInvalidatesSuspendedModelResolution() throws {
+        try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon)
+        let env = try GGUFFixture()
+        defer { env.tearDown() }
+        var settings = env.settings
+        let entered = expectation(description: "verification suspended")
+        let verifier = SuspendedModelVerifier { entered.fulfill() }
+        let http = RecordingHTTPEngine()
+        let selector = CotypingEngineSelector(
+            http: http,
+            makeLocal: { _, _ in XCTFail("stale mode must not be installed"); return RecordingLocalEngine() },
+            settings: { settings }, storage: env.storage,
+            verifyModel: { _, _ in await verifier.verify() })
+        let finished = expectation(description: "old request cancelled")
+        var failure: Error?
+        Task { @MainActor in
+            do { _ = try await selector.generate(makeMinimalRequestExpectingNoServer()) } catch { failure = error }
+            finished.fulfill()
+        }
+        wait(for: [entered], timeout: 5)
+        settings.cotypingSelectiveOneWordHybrid = true
+        verifier.resumeAll(with: modelURL)
+        wait(for: [finished], timeout: 5)
+        XCTAssertTrue(failure is CancellationError)
+        XCTAssertEqual(http.generateCalls, 0)
+    }
+
     func testUsesLocalWhenFlagOnAppleSiliconAndModelResolves() {
         var s = AppSettings(); s.cotypingInProcessRuntime = true
         XCTAssertTrue(CotypingEngineSelector.shouldUseLocal(
@@ -52,7 +105,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in
+            makeLocal: { _, _ in
                 counter.bump()
                 let engine = RecordingLocalEngine()
                 engine.delayUnload = true
@@ -109,7 +162,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         local.onUnload = { events.append("local-unload") }
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in local },
+            makeLocal: { _, _ in local },
             settings: {
                 var settings = env.settings
                 settings.cotypingInProcessRuntime = flagOn
@@ -170,7 +223,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { path in
+            makeLocal: { path, _ in
                 let engine = RecordingLocalEngine()
                 engine.onGenerate = { events.append("generate:\(path)") }
                 engine.onUnload = { events.append("local-unload") }
@@ -217,7 +270,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let http = RecordingHTTPEngine()
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in ThrowingLocalEngine(error: .decodeFailed) },
+            makeLocal: { _, _ in ThrowingLocalEngine(error: .decodeFailed) },
             settings: { env.settings },
             storage: env.storage)
 
@@ -250,7 +303,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [ThrowingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in
+            makeLocal: { _, _ in
                 let engine = ThrowingLocalEngine(error: .decodeFailed)
                 engine.onUnload = { events.append("unload") }
                 locals.append(engine)
@@ -294,7 +347,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in
+            makeLocal: { _, _ in
                 let engine = RecordingLocalEngine()
                 locals.append(engine)
                 return engine
@@ -334,7 +387,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in
+            makeLocal: { _, _ in
                 let engine = RecordingLocalEngine()
                 locals.append(engine)
                 return engine
@@ -381,7 +434,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let http = RecordingHTTPEngine()
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _ in XCTFail("local engine should not be built"); return RecordingLocalEngine() },
+            makeLocal: { _, _ in XCTFail("local engine should not be built"); return RecordingLocalEngine() },
             settings: { settings },
             storage: StorageManager())
 

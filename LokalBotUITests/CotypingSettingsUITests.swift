@@ -50,6 +50,29 @@ final class CotypingSettingsUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["sidebar.type"].exists)
     }
 
+    func testExperimentalHybridCanBeEnabledAndSwitchedBack() {
+        func hybridToggle() -> XCUIElement {
+            let toggle = UITestHarness.toggle("Experimental hybrid suggestions", in: app)
+            UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
+            XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+            return toggle
+        }
+        let toggle = hybridToggle()
+        XCTAssertEqual(toggle.value as? Int, 0, "The experiment must be opt-in")
+        toggle.click()
+        XCTAssertTrue(UITestHarness.waitUntil { (toggle.value as? Int) == 1 })
+        let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+        screenshot.name = "Experimental hybrid in Writing settings"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+        UITestHarness.selectSettingsCategory("General", in: app)
+        UITestHarness.selectSettingsCategory("Writing", in: app)
+        let restored = hybridToggle()
+        XCTAssertEqual(restored.value as? Int, 1)
+        restored.click()
+        XCTAssertTrue(UITestHarness.waitUntil { (restored.value as? Int) == 0 }, "Off restores the current decoder")
+    }
+
     func testAutocompleteTabPersistsAcrossNavigation() {
         UITestHarness.clickSidebar("sidebar.timeline", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]

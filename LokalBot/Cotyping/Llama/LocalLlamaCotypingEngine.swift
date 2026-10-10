@@ -116,6 +116,7 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
             seed: UInt32(truncatingIfNeeded: request.seed))
 
         let accumulator = TokenAccumulator()
+        let hybrid = runtime.selectiveOneWordHybrid
         // `try` (not silent `await`): a thrown LlamaRuntimeError.decodeFailed
         // propagates out of run() → the selector's `catch let error as
         // LlamaRuntimeError`, so a decode failure reaches the HTTP fallback
@@ -131,11 +132,14 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
                 preferWordExtendingOvershoot: !request.wordPrefixIsValidWord,
                 // Inside a word the first token is forced, so it is not weighed.
                 minimumFirstWordProbability: request.wordPrefixAtCaret.isEmpty ? minimumFirstWordProbability : 0,
-                onLowConfidence: { accumulator.markUnsure() }
+                onLowConfidence: { accumulator.markUnsure() },
+                onHybridFallback: { accumulator.markHybridFallback() }
             ) { piece in
                 if Task.isCancelled { return false }
                 accumulator.append(piece)
-                onPartial?(CotypingTextNormalizer.normalizeDetailed(accumulator.raw, for: request))
+                // A fallback is capped only after full normalization, which can
+                // still suppress it (for example when a later question mark arrives).
+                if !hybrid { onPartial?(CotypingTextNormalizer.normalizeDetailed(accumulator.raw, for: request)) }
                 // Native decode-stop at the SAME boundary the HTTP path stops at.
                 if CotypingDecodeStopPolicy.verdict(
                     accumulated: accumulator.raw,
@@ -150,9 +154,25 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
 
         if Task.isCancelled { throw CancellationError() }
         if accumulator.isUnsure {
-            return CotypingNormalizationResult(text: "", suppression: .lowConfidence)
+            let result = CotypingNormalizationResult(text: "", suppression: .lowConfidence)
+            if hybrid { onPartial?(result) }
+            return result
         }
-        return CotypingTextNormalizer.normalizeDetailed(raw, for: request)
+        let normalized = CotypingTextNormalizer.normalizeDetailed(raw, for: request)
+        let result = accumulator.isHybridFallback ? Self.oneWordFallback(normalized) : normalized
+        if hybrid { onPartial?(result) }
+        return result
+    }
+
+    /// Cap only the completed normalization result, preserving its suppression.
+    /// Matches the offline policy's Unicode word/apostrophe/hyphen definition.
+    nonisolated static func oneWordFallback(_ normalized: CotypingNormalizationResult) -> CotypingNormalizationResult {
+        guard normalized.suppression == nil, !normalized.text.isEmpty else { return normalized }
+        guard let range = normalized.text.range(
+            of: #"^\s*[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*"#, options: .regularExpression) else {
+            return CotypingNormalizationResult(text: "", suppression: .normalizedToEmpty)
+        }
+        return CotypingNormalizationResult(text: String(normalized.text[range]), suppression: nil)
     }
 
     /// The healed (prompt, required-prefix) pair for a request. Healing applies
@@ -177,6 +197,8 @@ private final class TokenAccumulator: @unchecked Sendable {
     private(set) var raw = ""
     private(set) var count = 0
     private(set) var isUnsure = false
+    private(set) var isHybridFallback = false
+    func markHybridFallback() { isHybridFallback = true }
     func append(_ piece: String) { raw += piece; count += 1 }
     func markUnsure() { isUnsure = true }
 }

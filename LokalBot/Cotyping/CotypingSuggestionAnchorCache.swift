@@ -165,6 +165,7 @@ enum CotypingSuggestionCacheFingerprint {
             selectedModel?.expectedSHA256 ?? "",
             selectedModel?.expectedSizeBytes.map(String.init) ?? "",
             settings.cotypingInProcessRuntime ? "local" : "http",
+            settings.cotypingSelectiveOneWordHybrid ? "hybrid" : "current",
             settings.cotypingUseClipboard ? "clipboard:on" : "clipboard:off",
             settings.cotypingUseLocalLearning ? "learning:on" : "learning:off",
             settings.cotypingUseMeetingMemory ? "meeting-memory:on" : "meeting-memory:off",

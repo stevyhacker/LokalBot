@@ -5,6 +5,17 @@ import XCTest
 // MARK: - Settings codec
 
 final class CotypingSettingsTests: XCTestCase {
+    func testHybridDefaultsOffAndRoundTripsBothDirections() throws {
+        XCTAssertFalse(AppSettings().cotypingSelectiveOneWordHybrid)
+        XCTAssertFalse(try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8)).cotypingSelectiveOneWordHybrid)
+        var settings = AppSettings()
+        for enabled in [true, false] {
+            settings.cotypingSelectiveOneWordHybrid = enabled
+            let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+            XCTAssertEqual(decoded.cotypingSelectiveOneWordHybrid, enabled)
+        }
+    }
+
     func testDefaultsDisabled() {
         XCTAssertFalse(AppSettings().cotypingEnabled)
     }

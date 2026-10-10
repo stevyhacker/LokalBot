@@ -106,6 +106,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingLanguages", title: "Languages (optional)", category: .writing, aliases: "cotypingLanguages"),
         .init(id: "settings.cotypingSuggestInIntegratedTerminals", title: "Suggest in integrated terminals", category: .writing, aliases: "cotypingSuggestInIntegratedTerminals"),
         .init(id: "settings.cotypingInProcessRuntime", title: "Use fast in-process runtime", category: .writing, aliases: "cotypingInProcessRuntime"),
+        .init(id: "settings.cotypingSelectiveOneWordHybrid", title: "Experimental hybrid suggestions", category: .writing, aliases: "hybrid experimental decoder current one word autocomplete"),
         .init(id: "settings.cotypingMatchHostStyle", title: "Match the app font and text color", category: .writing, aliases: "cotypingMatchHostStyle"),
         .init(id: "settings.cotypingAutocorrect", title: "Autocorrect the current word", category: .writing, aliases: "cotypingAutocorrect"),
         .init(id: "settings.cotypingEmoji", title: "Emoji autocomplete", category: .writing, aliases: "cotypingEmoji"),

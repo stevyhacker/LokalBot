@@ -1,0 +1,715 @@
+{
+  "static": {
+    "development": {
+      "parity": {
+        "pairedRequests": 600,
+        "textMismatches": 0,
+        "newlyShown": 60
+      },
+      "arms": {
+        "control": {
+          "quality": {
+            "checkpoints": 600,
+            "correct": 187,
+            "shown": 324,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.31166666666666665,
+            "coverage": 0.54,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.04922279792746114,
+            "p50Ms": 28.440042,
+            "p90Ms": 77.997,
+            "p95Ms": 83.161958,
+            "incorrectShown": 137,
+            "precisionWhenShown": 0.5771604938271605,
+            "meanMs": 40.80373091,
+            "oracleFirstWordMatches": 187,
+            "matchingCharacters": 1122,
+            "matchingCharactersPerCheckpoint": 1.87
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 54,
+              "shown": 88,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.30337078651685395,
+              "coverage": 0.4943820224719101,
+              "2WordAccuracy": 0.136986301369863,
+              "3WordAccuracy": 0.05263157894736842,
+              "p50Ms": 24.972375,
+              "p90Ms": 78.092208,
+              "p95Ms": 101.6605
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 72,
+              "shown": 112,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.6428571428571429,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.1956521739130435,
+              "3WordAccuracy": 0.06756756756756757,
+              "p50Ms": 68.214167,
+              "p90Ms": 88.487833,
+              "p95Ms": 94.414875
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 61,
+              "shown": 124,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.1967741935483871,
+              "coverage": 0.4,
+              "2WordAccuracy": 0.08267716535433071,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 20.966417,
+              "p90Ms": 67.647666,
+              "p95Ms": 74.577333
+            }
+          },
+          "timing": {
+            "count": 600,
+            "meanMs": 40.80373091,
+            "p50Ms": 28.440042,
+            "p95Ms": 83.161958,
+            "p99Ms": 121.817583
+          },
+          "roundTiming": [
+            {
+              "count": 600,
+              "meanMs": 40.80373091,
+              "p50Ms": 28.440042,
+              "p95Ms": 83.161958,
+              "p99Ms": 121.817583
+            }
+          ],
+          "repeatDifferences": 0
+        },
+        "hybrid": {
+          "quality": {
+            "checkpoints": 600,
+            "correct": 214,
+            "shown": 384,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.3566666666666667,
+            "coverage": 0.64,
+            "2WordAccuracy": 0.11991869918699187,
+            "3WordAccuracy": 0.04922279792746114,
+            "p50Ms": 37.392584,
+            "p90Ms": 79.04625,
+            "p95Ms": 83.916083,
+            "incorrectShown": 170,
+            "precisionWhenShown": 0.5572916666666666,
+            "meanMs": 45.59823852833333,
+            "oracleFirstWordMatches": 214,
+            "matchingCharacters": 1210,
+            "matchingCharactersPerCheckpoint": 2.0166666666666666
+          },
+          "groups": {
+            "challenge-word": {
+              "checkpoints": 178,
+              "correct": 65,
+              "shown": 108,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.3651685393258427,
+              "coverage": 0.6067415730337079,
+              "2WordAccuracy": 0.136986301369863,
+              "3WordAccuracy": 0.05263157894736842,
+              "p50Ms": 31.062791,
+              "p90Ms": 80.636583,
+              "p95Ms": 101.199041
+            },
+            "public-midword": {
+              "checkpoints": 112,
+              "correct": 72,
+              "shown": 112,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.6428571428571429,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.1956521739130435,
+              "3WordAccuracy": 0.06756756756756757,
+              "p50Ms": 72.825917,
+              "p90Ms": 90.628583,
+              "p95Ms": 94.511833
+            },
+            "public-word": {
+              "checkpoints": 310,
+              "correct": 77,
+              "shown": 164,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.24838709677419354,
+              "coverage": 0.5290322580645161,
+              "2WordAccuracy": 0.08267716535433071,
+              "3WordAccuracy": 0.04040404040404041,
+              "p50Ms": 25.095292,
+              "p90Ms": 75.948125,
+              "p95Ms": 78.8135
+            }
+          },
+          "timing": {
+            "count": 600,
+            "meanMs": 45.59823852833333,
+            "p50Ms": 37.392584,
+            "p95Ms": 83.916083,
+            "p99Ms": 123.961584
+          },
+          "roundTiming": [
+            {
+              "count": 600,
+              "meanMs": 45.59823852833333,
+              "p50Ms": 37.392584,
+              "p95Ms": 83.916083,
+              "p99Ms": 123.961584
+            }
+          ],
+          "repeatDifferences": 0
+        }
+      },
+      "qualityDelta": {
+        "phrases": 88,
+        "resamples": 5000,
+        "pairedPhraseBootstrap": {
+          "correct": {
+            "deltaPerCheckpoint": 0.045,
+            "ci95": [
+              0.029462738301559793,
+              0.06218487394957983
+            ]
+          },
+          "incorrectShown": {
+            "deltaPerCheckpoint": 0.055,
+            "ci95": [
+              0.03776683087027915,
+              0.07419898819561552
+            ]
+          },
+          "matchingCharacters": {
+            "deltaPerCheckpoint": 0.14666666666666667,
+            "ci95": [
+              0.08780487804878048,
+              0.21294718909710392
+            ]
+          }
+        }
+      },
+      "latencyDelta": {
+        "meanDifferenceMs": 4.794507618333333,
+        "ci95": [
+          3.6366353051118216,
+          5.945660348608838
+        ],
+        "groups": 88,
+        "resamples": 3000,
+        "unit": "whole phrase or typing trace, retaining all paired rounds; not independent repetitions"
+      },
+      "controlDifferencesFromPriorBinary": 0
+    },
+    "regression": {
+      "parity": {
+        "pairedRequests": 1361,
+        "textMismatches": 0,
+        "newlyShown": 104
+      },
+      "arms": {
+        "control": {
+          "quality": {
+            "checkpoints": 1361,
+            "correct": 369,
+            "shown": 638,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.27112417340191036,
+            "coverage": 0.46877296105804556,
+            "2WordAccuracy": 0.10361842105263158,
+            "3WordAccuracy": 0.04415823367065318,
+            "p50Ms": 24.493333,
+            "p90Ms": 77.429208,
+            "p95Ms": 79.7265,
+            "incorrectShown": 269,
+            "precisionWhenShown": 0.5783699059561128,
+            "meanMs": 36.64731286113152,
+            "oracleFirstWordMatches": 369,
+            "matchingCharacters": 2174,
+            "matchingCharactersPerCheckpoint": 1.5973548861131521
+          },
+          "groups": {
+            "confirmation-midword": {
+              "checkpoints": 224,
+              "correct": 145,
+              "shown": 224,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.6473214285714286,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.16230366492146597,
+              "3WordAccuracy": 0.07471264367816093,
+              "p50Ms": 68.226125,
+              "p90Ms": 86.631458,
+              "p95Ms": 98.80975
+            },
+            "confirmation-word": {
+              "checkpoints": 1137,
+              "correct": 224,
+              "shown": 414,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.19700967458223395,
+              "coverage": 0.3641160949868074,
+              "2WordAccuracy": 0.09268292682926829,
+              "3WordAccuracy": 0.038335158817086525,
+              "p50Ms": 21.574042,
+              "p90Ms": 72.0135,
+              "p95Ms": 76.847458
+            }
+          },
+          "timing": {
+            "count": 1361,
+            "meanMs": 36.64731286113152,
+            "p50Ms": 24.493333,
+            "p95Ms": 79.7265,
+            "p99Ms": 98.385708
+          },
+          "roundTiming": [
+            {
+              "count": 1361,
+              "meanMs": 36.64731286113152,
+              "p50Ms": 24.493333,
+              "p95Ms": 79.7265,
+              "p99Ms": 98.385708
+            }
+          ],
+          "repeatDifferences": 0
+        },
+        "hybrid": {
+          "quality": {
+            "checkpoints": 1361,
+            "correct": 422,
+            "shown": 742,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.3100661278471712,
+            "coverage": 0.5451873622336517,
+            "2WordAccuracy": 0.10361842105263158,
+            "3WordAccuracy": 0.04415823367065318,
+            "p50Ms": 30.77425,
+            "p90Ms": 80.704584,
+            "p95Ms": 84.474042,
+            "incorrectShown": 320,
+            "precisionWhenShown": 0.568733153638814,
+            "meanMs": 41.98804735855988,
+            "oracleFirstWordMatches": 422,
+            "matchingCharacters": 2321,
+            "matchingCharactersPerCheckpoint": 1.7053637031594415
+          },
+          "groups": {
+            "confirmation-midword": {
+              "checkpoints": 224,
+              "correct": 145,
+              "shown": 224,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.6473214285714286,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.16230366492146597,
+              "3WordAccuracy": 0.07471264367816093,
+              "p50Ms": 74.635542,
+              "p90Ms": 91.615916,
+              "p95Ms": 99.698292
+            },
+            "confirmation-word": {
+              "checkpoints": 1137,
+              "correct": 277,
+              "shown": 518,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.2436235708003518,
+              "coverage": 0.455584872471416,
+              "2WordAccuracy": 0.09268292682926829,
+              "3WordAccuracy": 0.038335158817086525,
+              "p50Ms": 25.558042,
+              "p90Ms": 76.964959,
+              "p95Ms": 80.245375
+            }
+          },
+          "timing": {
+            "count": 1361,
+            "meanMs": 41.98804735855988,
+            "p50Ms": 30.77425,
+            "p95Ms": 84.474042,
+            "p99Ms": 99.698292
+          },
+          "roundTiming": [
+            {
+              "count": 1361,
+              "meanMs": 41.98804735855988,
+              "p50Ms": 30.77425,
+              "p95Ms": 84.474042,
+              "p99Ms": 99.698292
+            }
+          ],
+          "repeatDifferences": 0
+        }
+      },
+      "qualityDelta": {
+        "phrases": 112,
+        "resamples": 5000,
+        "pairedPhraseBootstrap": {
+          "correct": {
+            "deltaPerCheckpoint": 0.038941954445260836,
+            "ci95": [
+              0.02897473997028232,
+              0.04937361827560796
+            ]
+          },
+          "incorrectShown": {
+            "deltaPerCheckpoint": 0.03747244673034533,
+            "ci95": [
+              0.028210838901262063,
+              0.047232472324723246
+            ]
+          },
+          "matchingCharacters": {
+            "deltaPerCheckpoint": 0.1080088170462895,
+            "ci95": [
+              0.0779510022271715,
+              0.14033798677443057
+            ]
+          }
+        }
+      },
+      "latencyDelta": {
+        "meanDifferenceMs": 5.340734497428361,
+        "ci95": [
+          4.568703146647016,
+          6.1556744369501475
+        ],
+        "groups": 112,
+        "resamples": 3000,
+        "unit": "whole phrase or typing trace, retaining all paired rounds; not independent repetitions"
+      },
+      "controlDifferencesFromPriorBinary": 0
+    },
+    "fresh": {
+      "parity": {
+        "pairedRequests": 738,
+        "textMismatches": 0,
+        "newlyShown": 77
+      },
+      "arms": {
+        "control": {
+          "quality": {
+            "checkpoints": 738,
+            "correct": 157,
+            "shown": 306,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.2127371273712737,
+            "coverage": 0.4146341463414634,
+            "2WordAccuracy": 0.0832072617246596,
+            "3WordAccuracy": 0.022298456260720412,
+            "p50Ms": 23.108458,
+            "p90Ms": 76.608125,
+            "p95Ms": 81.466541,
+            "incorrectShown": 149,
+            "precisionWhenShown": 0.5130718954248366,
+            "meanMs": 36.379749796747966,
+            "oracleFirstWordMatches": 157,
+            "matchingCharacters": 788,
+            "matchingCharactersPerCheckpoint": 1.067750677506775
+          },
+          "groups": {
+            "confirmation-midword": {
+              "checkpoints": 128,
+              "correct": 72,
+              "shown": 128,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.5625,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.17391304347826086,
+              "3WordAccuracy": 0.0594059405940594,
+              "p50Ms": 74.131167,
+              "p90Ms": 93.912334,
+              "p95Ms": 101.419875
+            },
+            "confirmation-word": {
+              "checkpoints": 610,
+              "correct": 85,
+              "shown": 178,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.13934426229508196,
+              "coverage": 0.29180327868852457,
+              "2WordAccuracy": 0.0641025641025641,
+              "3WordAccuracy": 0.014522821576763486,
+              "p50Ms": 20.506292,
+              "p90Ms": 70.148792,
+              "p95Ms": 74.009209
+            }
+          },
+          "timing": {
+            "count": 2952,
+            "meanMs": 36.608105976626014,
+            "p50Ms": 23.139625,
+            "p95Ms": 81.699958,
+            "p99Ms": 100.670625
+          },
+          "roundTiming": [
+            {
+              "count": 738,
+              "meanMs": 36.379749796747966,
+              "p50Ms": 23.108458,
+              "p95Ms": 81.466541,
+              "p99Ms": 99.969333
+            },
+            {
+              "count": 738,
+              "meanMs": 36.69666679810298,
+              "p50Ms": 23.150709,
+              "p95Ms": 82.968542,
+              "p99Ms": 99.96025
+            },
+            {
+              "count": 738,
+              "meanMs": 36.74004372764227,
+              "p50Ms": 23.290458,
+              "p95Ms": 81.699958,
+              "p99Ms": 101.718333
+            },
+            {
+              "count": 738,
+              "meanMs": 36.61596358401084,
+              "p50Ms": 22.982959,
+              "p95Ms": 81.933875,
+              "p99Ms": 100.670625
+            }
+          ],
+          "repeatDifferences": 0
+        },
+        "hybrid": {
+          "quality": {
+            "checkpoints": 738,
+            "correct": 189,
+            "shown": 383,
+            "errors": 0,
+            "retries": 0,
+            "accuracy": 0.25609756097560976,
+            "coverage": 0.518970189701897,
+            "2WordAccuracy": 0.0832072617246596,
+            "3WordAccuracy": 0.022298456260720412,
+            "p50Ms": 28.147166,
+            "p90Ms": 78.152625,
+            "p95Ms": 80.83925,
+            "incorrectShown": 194,
+            "precisionWhenShown": 0.4934725848563969,
+            "meanMs": 40.47959818428184,
+            "oracleFirstWordMatches": 189,
+            "matchingCharacters": 880,
+            "matchingCharactersPerCheckpoint": 1.1924119241192412
+          },
+          "groups": {
+            "confirmation-midword": {
+              "checkpoints": 128,
+              "correct": 72,
+              "shown": 128,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.5625,
+              "coverage": 1.0,
+              "2WordAccuracy": 0.17391304347826086,
+              "3WordAccuracy": 0.0594059405940594,
+              "p50Ms": 73.161167,
+              "p90Ms": 92.487167,
+              "p95Ms": 101.547208
+            },
+            "confirmation-word": {
+              "checkpoints": 610,
+              "correct": 117,
+              "shown": 255,
+              "errors": 0,
+              "retries": 0,
+              "accuracy": 0.1918032786885246,
+              "coverage": 0.4180327868852459,
+              "2WordAccuracy": 0.0641025641025641,
+              "3WordAccuracy": 0.014522821576763486,
+              "p50Ms": 23.755833,
+              "p90Ms": 73.669084,
+              "p95Ms": 76.764542
+            }
+          },
+          "timing": {
+            "count": 2952,
+            "meanMs": 40.217060305555556,
+            "p50Ms": 27.223916,
+            "p95Ms": 81.591291,
+            "p99Ms": 99.363667
+          },
+          "roundTiming": [
+            {
+              "count": 738,
+              "meanMs": 40.47959818428184,
+              "p50Ms": 28.147166,
+              "p95Ms": 80.83925,
+              "p99Ms": 100.251833
+            },
+            {
+              "count": 738,
+              "meanMs": 40.28098079945799,
+              "p50Ms": 26.981375,
+              "p95Ms": 80.0485,
+              "p99Ms": 96.061084
+            },
+            {
+              "count": 738,
+              "meanMs": 39.80125564905149,
+              "p50Ms": 25.585125,
+              "p95Ms": 82.198291,
+              "p99Ms": 99.363667
+            },
+            {
+              "count": 738,
+              "meanMs": 40.30640658943089,
+              "p50Ms": 27.952,
+              "p95Ms": 81.880083,
+              "p99Ms": 100.685458
+            }
+          ],
+          "repeatDifferences": 0
+        }
+      },
+      "qualityDelta": {
+        "phrases": 64,
+        "resamples": 5000,
+        "pairedPhraseBootstrap": {
+          "correct": {
+            "deltaPerCheckpoint": 0.04336043360433604,
+            "ci95": [
+              0.028846153846153848,
+              0.059147180192572216
+            ]
+          },
+          "incorrectShown": {
+            "deltaPerCheckpoint": 0.06097560975609756,
+            "ci95": [
+              0.04619565217391304,
+              0.07692307692307693
+            ]
+          },
+          "matchingCharacters": {
+            "deltaPerCheckpoint": 0.12466124661246612,
+            "ci95": [
+              0.08299319727891157,
+              0.1699867197875166
+            ]
+          }
+        }
+      },
+      "latencyDelta": {
+        "meanDifferenceMs": 3.6089543289295394,
+        "ci95": [
+          2.7097418297002727,
+          4.596434598951507
+        ],
+        "groups": 64,
+        "resamples": 3000,
+        "unit": "whole phrase or typing trace, retaining all paired rounds; not independent repetitions"
+      }
+    }
+  },
+  "dynamic": {
+    "parity": {
+      "pairedRequests": 323,
+      "textMismatches": 0,
+      "newlyShown": 2
+    },
+    "arms": {
+      "control": {
+        "timing": {
+          "count": 614,
+          "meanMs": 84.57337188436482,
+          "p50Ms": 80.441292,
+          "p95Ms": 120.02425,
+          "p99Ms": 233.620875
+        },
+        "roundTiming": [
+          {
+            "count": 307,
+            "meanMs": 84.88121350162866,
+            "p50Ms": 79.773125,
+            "p95Ms": 114.331083,
+            "p99Ms": 233.18475
+          },
+          {
+            "count": 307,
+            "meanMs": 84.26553026710097,
+            "p50Ms": 80.931042,
+            "p95Ms": 153.983792,
+            "p99Ms": 233.620875
+          }
+        ],
+        "cancelled": 32,
+        "cancellationReturn": {
+          "count": 32,
+          "meanMs": 0.54636190625,
+          "p50Ms": 0.327292,
+          "p95Ms": 1.670458,
+          "p99Ms": 1.828708
+        },
+        "repeatDifferences": 0
+      },
+      "hybrid": {
+        "timing": {
+          "count": 614,
+          "meanMs": 83.89178629641694,
+          "p50Ms": 81.039166,
+          "p95Ms": 113.640167,
+          "p99Ms": 233.296709
+        },
+        "roundTiming": [
+          {
+            "count": 307,
+            "meanMs": 83.99957885993486,
+            "p50Ms": 81.164875,
+            "p95Ms": 113.575875,
+            "p99Ms": 233.296709
+          },
+          {
+            "count": 307,
+            "meanMs": 83.78399373289902,
+            "p50Ms": 81.039166,
+            "p95Ms": 114.041958,
+            "p99Ms": 232.066375
+          }
+        ],
+        "cancelled": 32,
+        "cancellationReturn": {
+          "count": 32,
+          "meanMs": 0.402630375,
+          "p50Ms": 0.296958,
+          "p95Ms": 0.978209,
+          "p99Ms": 1.052791
+        },
+        "repeatDifferences": 0
+      }
+    },
+    "latencyDelta": {
+      "meanDifferenceMs": -0.6815855879478826,
+      "ci95": [
+        -1.8385083576051777,
+        0.3759285684039089
+      ],
+      "groups": 16,
+      "resamples": 3000,
+      "unit": "whole phrase or typing trace, retaining all paired rounds; not independent repetitions"
+    }
+  }
+}

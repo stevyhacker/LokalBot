@@ -523,6 +523,9 @@ struct AppSettings: Codable, Equatable {
     /// `llama-server` path. The HTTP fallback also covers non-GGUF backends and
     /// any in-process load failure regardless of this flag.
     var cotypingInProcessRuntime: Bool = true
+    /// Opt-in trial: keep current suggestions and rescue at most one word when
+    /// its confidence gate is silent. Off restores the current decoder.
+    var cotypingSelectiveOneWordHybrid: Bool = false
     /// Learn from accepted continuation text, encrypted locally. Stores accepted
     /// text plus a short sanitized prefix/context hint for ranking — never full
     /// raw typing streams — and skips secure fields, terminals, and code editors.
@@ -827,6 +830,7 @@ struct AppSettings: Codable, Equatable {
         case cotypingExtendedContext
         case cotypingBuiltInModelID
         case cotypingInProcessRuntime
+        case cotypingSelectiveOneWordHybrid
         case cotypingUseLocalLearning
         case cotypingLearningExamplesInPrompt
     }
@@ -1014,6 +1018,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(cotypingExtendedContext, forKey: .cotypingExtendedContext)
         try c.encode(cotypingBuiltInModelID, forKey: .cotypingBuiltInModelID)
         try c.encode(cotypingInProcessRuntime, forKey: .cotypingInProcessRuntime)
+        try c.encode(cotypingSelectiveOneWordHybrid, forKey: .cotypingSelectiveOneWordHybrid)
         try c.encode(cotypingUseLocalLearning, forKey: .cotypingUseLocalLearning)
         try c.encode(cotypingLearningExamplesInPrompt, forKey: .cotypingLearningExamplesInPrompt)
     }
@@ -1197,6 +1202,7 @@ struct AppSettings: Codable, Equatable {
         cotypingExtendedContext = decode(.cotypingExtendedContext, defaults.cotypingExtendedContext)
         cotypingBuiltInModelID = decode(.cotypingBuiltInModelID, defaults.cotypingBuiltInModelID)
         cotypingInProcessRuntime = decode(.cotypingInProcessRuntime, defaults.cotypingInProcessRuntime)
+        cotypingSelectiveOneWordHybrid = decode(.cotypingSelectiveOneWordHybrid, defaults.cotypingSelectiveOneWordHybrid)
         cotypingUseLocalLearning = decode(.cotypingUseLocalLearning, defaults.cotypingUseLocalLearning)
         cotypingLearningExamplesInPrompt = min(5, max(1, decode(
             .cotypingLearningExamplesInPrompt, defaults.cotypingLearningExamplesInPrompt)))

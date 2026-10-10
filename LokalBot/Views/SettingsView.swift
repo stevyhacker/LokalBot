@@ -315,11 +315,17 @@ struct SettingsView: View {
     @ViewBuilder private var cotypingSection: some View {
         if shows("Autocomplete", ["cotyping", "autocomplete", "suggestion", "suggestions",
                               "length", "words", "max words", "ghost", "inline",
-                              "completion", "typing"]) {
+                              "completion", "typing", "hybrid", "experimental", "decoder"]) {
             Section("Autocomplete") {
                 Toggle("Enable autocomplete", isOn: $app.settings.cotypingEnabled)
                     .accessibilityLabel("Enable autocomplete")
                     .settingTarget("settings.cotypingEnabled", selected: app.focusedSettingID)
+                Toggle("Experimental hybrid suggestions", isOn: $app.settings.cotypingSelectiveOneWordHybrid)
+                    .accessibilityLabel("Experimental hybrid suggestions")
+                    .settingTarget("settings.cotypingSelectiveOneWordHybrid", selected: app.focusedSettingID)
+                Text("Keeps current suggestions and may add a single word when autocomplete would otherwise stay quiet. Turn off to restore the current decoder. Requires the fast in-process runtime; suggestions appear when decoding finishes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 LabeledContent("Autocomplete model") {
                     Button("Manage in Models…") { app.openSettings(tab: .models) }
                 }

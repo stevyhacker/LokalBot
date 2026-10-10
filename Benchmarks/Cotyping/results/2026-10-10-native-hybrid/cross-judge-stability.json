@@ -1,0 +1,540 @@
+{
+  "sameNativeOutputCases": 104,
+  "priorUtilityDistribution": {
+    "-1": 2,
+    "0": 25,
+    "1": 73,
+    "2": 4
+  },
+  "newUtilityDistribution": {
+    "-1": 2,
+    "0": 4,
+    "1": 93,
+    "2": 5
+  },
+  "exactUtilityAgreement": 0.75,
+  "showVsSilenceAgreement": 0.7596153846153846,
+  "note": "Same 104 new outputs, same rubric, newly judged in a two-policy packet rather than among five display policies. Differences are judging/context variability, not implementation gains.",
+  "cases": [
+    {
+      "id": "fresh-conversation-001:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-001:8:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-002:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-003:9:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-005:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-006:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-006:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-008:3:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-conversation-010:5:0",
+      "priorUtility": 1,
+      "newUtility": 2
+    },
+    {
+      "id": "fresh-conversation-013:5:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-001:6:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-002:9:0",
+      "priorUtility": 2,
+      "newUtility": 2
+    },
+    {
+      "id": "fresh-work-005:2:0",
+      "priorUtility": 0,
+      "newUtility": 0
+    },
+    {
+      "id": "fresh-work-006:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-007:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-008:1:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-008:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-008:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-009:4:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-009:6:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-010:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-010:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-011:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-012:6:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-013:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-014:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-work-014:10:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-001:3:0",
+      "priorUtility": 2,
+      "newUtility": 2
+    },
+    {
+      "id": "fresh-technology-001:9:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-002:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-004:6:0",
+      "priorUtility": 1,
+      "newUtility": 0
+    },
+    {
+      "id": "fresh-technology-005:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-007:8:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-008:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-011:5:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-011:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-011:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-012:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-012:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-technology-014:10:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-001:9:0",
+      "priorUtility": 2,
+      "newUtility": 2
+    },
+    {
+      "id": "fresh-everyday-002:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-002:5:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-003:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-003:5:0",
+      "priorUtility": 2,
+      "newUtility": 2
+    },
+    {
+      "id": "fresh-everyday-004:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-004:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-004:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-005:5:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-010:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-011:2:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-011:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-012:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-013:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-013:10:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-014:1:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-014:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-everyday-014:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-001:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-004:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-005:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-006:7:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-008:6:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-008:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-009:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-009:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-010:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-011:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-011:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-011:6:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-011:7:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-013:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-014:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-travel-014:8:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-006:1:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-006:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-007:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-008:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-010:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-011:6:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-011:8:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-014:2:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-014:4:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-science-014:9:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-002:8:0",
+      "priorUtility": 1,
+      "newUtility": 0
+    },
+    {
+      "id": "fresh-serbian-latin-004:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-004:5:0",
+      "priorUtility": 0,
+      "newUtility": 0
+    },
+    {
+      "id": "fresh-serbian-latin-004:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-005:6:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-007:4:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-008:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-008:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-009:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-010:3:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-011:2:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-012:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-013:5:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-latin-013:8:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-002:4:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-003:7:0",
+      "priorUtility": 0,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-004:7:0",
+      "priorUtility": -1,
+      "newUtility": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-009:9:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-013:5:0",
+      "priorUtility": -1,
+      "newUtility": -1
+    },
+    {
+      "id": "fresh-serbian-cyrillic-014:11:0",
+      "priorUtility": 1,
+      "newUtility": 1
+    }
+  ]
+}

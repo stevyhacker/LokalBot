@@ -1,0 +1,2356 @@
+{
+  "models": [
+    "claude-opus-5-5"
+  ],
+  "counts": {
+    "all": 738,
+    "changed": 77,
+    "sharedShownSample": 64,
+    "repeat": 24
+  },
+  "policies": {
+    "current": {
+      "changedCaseUtilityTotal": 0,
+      "changedCaseMeanUtility": 0.0,
+      "changedCaseHelpful": 0,
+      "changedCaseHarmful": 0,
+      "winsVsCurrent": 0,
+      "lossesVsCurrent": 0,
+      "tiesVsCurrent": 77,
+      "totalShown": 306,
+      "utilityDelta": {
+        "deltaPerCheckpoint": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "phrases": 64,
+        "resamples": 5000
+      },
+      "firstWordScoreTotalChanged": 0
+    },
+    "hybrid_one_word": {
+      "changedCaseUtilityTotal": 74,
+      "changedCaseMeanUtility": 0.961038961038961,
+      "changedCaseHelpful": 71,
+      "changedCaseHarmful": 0,
+      "winsVsCurrent": 71,
+      "lossesVsCurrent": 0,
+      "tiesVsCurrent": 6,
+      "totalShown": 383,
+      "utilityDelta": {
+        "deltaPerCheckpoint": 0.1002710027100271,
+        "ci95": [
+          0.0811554332874828,
+          0.1194225721784777
+        ],
+        "phrases": 64,
+        "resamples": 5000
+      },
+      "firstWordScoreTotalChanged": 128
+    }
+  },
+  "languages": {
+    "English": {
+      "changedCases": 68,
+      "utilityTotals": {
+        "current": 0,
+        "hybrid_one_word": 65
+      }
+    },
+    "Serbian": {
+      "changedCases": 9,
+      "utilityTotals": {
+        "current": 0,
+        "hybrid_one_word": 9
+      }
+    }
+  },
+  "repeat": {
+    "cases": 24,
+    "distinctOptions": 24,
+    "exactUtilityAgreement": 0.8333333333333334,
+    "showVsSilenceAgreement": 0.9583333333333334,
+    "meanAbsoluteDifference": 0.16666666666666666,
+    "comparisons": [
+      {
+        "id": "fresh-hybrid-serbian-cyrillic-04:5:0",
+        "text": "је",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-travel-04:4:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-travel-04:9:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-conversation-08:9:0",
+        "text": "a",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-science-04:3:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-serbian-cyrillic-08:3:0",
+        "text": "и",
+        "primary": 0,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-everyday-08:10:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-serbian-latin-02:4:0",
+        "text": "što",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-technology-07:10:0",
+        "text": "is",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-serbian-latin-06:8:0",
+        "text": "što",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-travel-02:10:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-work-07:7:0",
+        "text": "be",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-everyday-05:8:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-travel-07:5:0",
+        "text": "the",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-work-01:9:0",
+        "text": "and",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-conversation-01:6:0",
+        "text": "I",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-serbian-cyrillic-08:7:3",
+        "text": "ар.",
+        "primary": 1,
+        "repeat": 2
+      },
+      {
+        "id": "fresh-hybrid-conversation-08:2:0",
+        "text": "a look at the",
+        "primary": 2,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-serbian-cyrillic-02:2:0",
+        "text": "да ли је ово",
+        "primary": 2,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-travel-02:8:0",
+        "text": "quieter than the other",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-science-03:7:0",
+        "text": "the sky to work",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-everyday-02:11:0",
+        "text": "sink.",
+        "primary": 1,
+        "repeat": 1
+      },
+      {
+        "id": "fresh-hybrid-work-05:6:3",
+        "text": "d them to the",
+        "primary": 2,
+        "repeat": 2
+      },
+      {
+        "id": "fresh-hybrid-work-08:7:4",
+        "text": "ard this to the",
+        "primary": 2,
+        "repeat": 2
+      }
+    ]
+  },
+  "examples": [
+    {
+      "id": "fresh-hybrid-conversation-01:6:0",
+      "phraseID": "fresh-hybrid-conversation-01",
+      "category": "conversation",
+      "prefix": "Let me check my calendar before ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "I"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "Plausible next word; 'we' equally likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-04:4:0",
+      "phraseID": "fresh-hybrid-conversation-04",
+      "category": "conversation",
+      "prefix": "We can talk after ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'After the meeting' style; natural article."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-05:9:0",
+      "phraseID": "fresh-hybrid-conversation-05",
+      "category": "conversation",
+      "prefix": "Sorry I missed your call; my phone was in ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"In the\" fits naturally, as in \"in the car\" or \"in the other room\"."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-06:1:0",
+      "phraseID": "fresh-hybrid-conversation-06",
+      "category": "conversation",
+      "prefix": "Give ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "your"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Possible, but \"me\" or \"it\" seem more likely after \"Give\"."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-06:2:0",
+      "phraseID": "fresh-hybrid-conversation-06",
+      "category": "conversation",
+      "prefix": "Give me ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural but single letter saves almost nothing."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-06:8:0",
+      "phraseID": "fresh-hybrid-conversation-06",
+      "category": "conversation",
+      "prefix": "Give me a minute to finish what I'm ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "doing"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'What I'm doing' is the idiomatic, highly likely completion."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-08:8:0",
+      "phraseID": "fresh-hybrid-conversation-08",
+      "category": "conversation",
+      "prefix": "Let's take a short break and come back ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Come back to' natural, e.g., 'to this'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-conversation-08:9:0",
+      "phraseID": "fresh-hybrid-conversation-08",
+      "category": "conversation",
+      "prefix": "Let's take a short break and come back with ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "A likely article, but it saves only one keystroke."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-01:1:0",
+      "phraseID": "fresh-hybrid-work-01",
+      "category": "work",
+      "prefix": "I've ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "been"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"I've been\" is a very common continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-01:9:0",
+      "phraseID": "fresh-hybrid-work-01",
+      "category": "work",
+      "prefix": "I've split the estimate into separate sections for design ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "and"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'and' naturally continues the list of sections."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-02:7:0",
+      "phraseID": "fresh-hybrid-work-02",
+      "category": "work",
+      "prefix": "Please add the revised delivery date to ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural article before a noun like 'the order'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-03:6:0",
+      "phraseID": "fresh-hybrid-work-03",
+      "category": "work",
+      "prefix": "We should ask the support team ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Ask the support team to\" is a natural construction."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-04:3:0",
+      "phraseID": "fresh-hybrid-work-04",
+      "category": "work",
+      "prefix": "The supplier needs ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "'Needs to' plausible; 'a' also likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-04:8:0",
+      "phraseID": "fresh-hybrid-work-04",
+      "category": "work",
+      "prefix": "The supplier needs a signed copy before releasing ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Releasing the' natural before shipment or payment."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-06:4:0",
+      "phraseID": "fresh-hybrid-work-06",
+      "category": "work",
+      "prefix": "Our next interview is ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "with"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "'With' plausible; 'on' or 'scheduled' equally likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-06:9:0",
+      "phraseID": "fresh-hybrid-work-06",
+      "category": "work",
+      "prefix": "Our next interview is with someone who has managed ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "'managed to' plausible, though 'managed teams' equally likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-07:7:0",
+      "phraseID": "fresh-hybrid-work-07",
+      "category": "work",
+      "prefix": "The proposal includes maintenance, but training will ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "be"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural next word, e.g. 'be billed separately'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-work-08:10:0",
+      "phraseID": "fresh-hybrid-work-08",
+      "category": "work",
+      "prefix": "Could you check the totals before I forward this to ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'To the team/client'; natural article."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-01:2:0",
+      "phraseID": "fresh-hybrid-technology-01",
+      "category": "technology",
+      "prefix": "The migration ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "of"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "'Migration of' plausible; 'is' or 'script' also likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-02:3:0",
+      "phraseID": "fresh-hybrid-technology-02",
+      "category": "technology",
+      "prefix": "This function should ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "be"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"Should be\" is plausible, though \"return\" or \"handle\" are equally likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-02:4:0",
+      "phraseID": "fresh-hybrid-technology-02",
+      "category": "technology",
+      "prefix": "This function should return ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Return the\" is a very common continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-03:4:0",
+      "phraseID": "fresh-hybrid-technology-03",
+      "category": "technology",
+      "prefix": "Restarting the service clears ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Clears the cache\" is likely, so \"the\" is natural."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-04:2:0",
+      "phraseID": "fresh-hybrid-technology-04",
+      "category": "technology",
+      "prefix": "I moved ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"Moved to\" is common, though many objects could follow \"moved\"."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-04:5:0",
+      "phraseID": "fresh-hybrid-technology-04",
+      "category": "technology",
+      "prefix": "I moved the configuration into ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural but single-letter article gives negligible benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-04:7:0",
+      "phraseID": "fresh-hybrid-technology-04",
+      "category": "technology",
+      "prefix": "I moved the configuration into a separate ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "file"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Separate file' is the strongly expected completion."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-06:5:0",
+      "phraseID": "fresh-hybrid-technology-06",
+      "category": "technology",
+      "prefix": "Please reproduce the error with ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible article; small benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-06:10:0",
+      "phraseID": "fresh-hybrid-technology-06",
+      "category": "technology",
+      "prefix": "Please reproduce the error with a clean profile and attach ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article before the attached item; small saving."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-07:2:0",
+      "phraseID": "fresh-hybrid-technology-07",
+      "category": "technology",
+      "prefix": "We need ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "'We need to' is highly natural."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-07:10:0",
+      "phraseID": "fresh-hybrid-technology-07",
+      "category": "technology",
+      "prefix": "We need to cancel the pending request when the document ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "is"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "A likely verb, but only a small saving."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-08:2:0",
+      "phraseID": "fresh-hybrid-technology-08",
+      "category": "technology",
+      "prefix": "The keyboard ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "is"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "A common verb after the subject; plausible small help."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-technology-08:10:0",
+      "phraseID": "fresh-hybrid-technology-08",
+      "category": "technology",
+      "prefix": "The keyboard shortcut works in the editor but not in ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Parallel to 'in the editor'; very natural."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-01:4:0",
+      "phraseID": "fresh-hybrid-everyday-01",
+      "category": "everyday",
+      "prefix": "Put the leftovers in ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"In a container\" is plausible, though \"the fridge\" seems more likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-02:6:0",
+      "phraseID": "fresh-hybrid-everyday-02",
+      "category": "everyday",
+      "prefix": "I left a clean towel on ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"The\" is the very likely next word before a furniture noun."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-02:9:0",
+      "phraseID": "fresh-hybrid-everyday-02",
+      "category": "everyday",
+      "prefix": "I left a clean towel on the chair beside ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Beside the\" is very likely next."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-03:6:0",
+      "phraseID": "fresh-hybrid-everyday-03",
+      "category": "everyday",
+      "prefix": "The bread needs another few minutes ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "to"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "'To bake' plausible; 'in the oven' also likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-03:8:0",
+      "phraseID": "fresh-hybrid-everyday-03",
+      "category": "everyday",
+      "prefix": "The bread needs another few minutes before we ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "can"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Before we can\" is a highly natural continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-05:5:0",
+      "phraseID": "fresh-hybrid-everyday-05",
+      "category": "everyday",
+      "prefix": "I found your glasses under ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Under the couch' style; natural article."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-05:8:0",
+      "phraseID": "fresh-hybrid-everyday-05",
+      "category": "everyday",
+      "prefix": "I found your glasses under the newspaper on ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible article; small benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-07:2:0",
+      "phraseID": "fresh-hybrid-everyday-07",
+      "category": "everyday",
+      "prefix": "Please leave ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"Leave a\" is plausible, as in \"leave a message\" or \"leave a note\"."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-07:5:0",
+      "phraseID": "fresh-hybrid-everyday-07",
+      "category": "everyday",
+      "prefix": "Please leave the hallway clear ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "of"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"Clear of\" is a natural phrase; it's plausible but not the only option."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-07:6:0",
+      "phraseID": "fresh-hybrid-everyday-07",
+      "category": "everyday",
+      "prefix": "Please leave the hallway clear so ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "that"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "\"So that\" is natural, though the next word could also be a subject directly."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-08:3:0",
+      "phraseID": "fresh-hybrid-everyday-08",
+      "category": "everyday",
+      "prefix": "I can pick ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "up"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Pick up' is very natural; short benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-08:7:0",
+      "phraseID": "fresh-hybrid-everyday-08",
+      "category": "everyday",
+      "prefix": "I can pick up the groceries if ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "you"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"If you\" is a highly natural continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-everyday-08:10:0",
+      "phraseID": "fresh-hybrid-everyday-08",
+      "category": "everyday",
+      "prefix": "I can pick up the groceries if you send me ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "A likely article, as in \"the list\"; small saving."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-02:2:0",
+      "phraseID": "fresh-hybrid-travel-02",
+      "category": "travel",
+      "prefix": "Our room ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "was"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible verb, though many alternatives exist."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-02:3:0",
+      "phraseID": "fresh-hybrid-travel-02",
+      "category": "travel",
+      "prefix": "Our room faces ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article after 'faces'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-02:10:0",
+      "phraseID": "fresh-hybrid-travel-02",
+      "category": "travel",
+      "prefix": "Our room faces the courtyard and is much quieter than ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible article, small benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-03:1:0",
+      "phraseID": "fresh-hybrid-travel-03",
+      "category": "travel",
+      "prefix": "Keep ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "your"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "'Keep your' is plausible among many options."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-03:7:0",
+      "phraseID": "fresh-hybrid-travel-03",
+      "category": "travel",
+      "prefix": "Keep the boarding passes together so we ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "can"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Very natural modal after 'so we'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-04:4:0",
+      "phraseID": "fresh-hybrid-travel-04",
+      "category": "travel",
+      "prefix": "The walking route follows ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Very likely next word, but it saves very little typing."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-04:9:0",
+      "phraseID": "fresh-hybrid-travel-04",
+      "category": "travel",
+      "prefix": "The walking route follows the river until it reaches ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Likely next word, but it saves very little typing."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-05:6:0",
+      "phraseID": "fresh-hybrid-travel-05",
+      "category": "travel",
+      "prefix": "We can leave our bags at ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'At the hotel' style; natural article."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-06:2:0",
+      "phraseID": "fresh-hybrid-travel-06",
+      "category": "travel",
+      "prefix": "I booked ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "a"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article but saves only one character."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-06:4:0",
+      "phraseID": "fresh-hybrid-travel-06",
+      "category": "travel",
+      "prefix": "I booked seats near ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article after 'near'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-06:7:0",
+      "phraseID": "fresh-hybrid-travel-06",
+      "category": "travel",
+      "prefix": "I booked seats near the aisle because ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "I"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible subject after 'because'; little typing saved."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-07:3:0",
+      "phraseID": "fresh-hybrid-travel-07",
+      "category": "travel",
+      "prefix": "The station entrance ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "is"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'Is' is a natural verb after subject."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-07:5:0",
+      "phraseID": "fresh-hybrid-travel-07",
+      "category": "travel",
+      "prefix": "The station entrance is behind ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible article, small benefit."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-07:9:0",
+      "phraseID": "fresh-hybrid-travel-07",
+      "category": "travel",
+      "prefix": "The station entrance is behind the cafe, next to ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article after 'next to'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-08:2:0",
+      "phraseID": "fresh-hybrid-travel-08",
+      "category": "travel",
+      "prefix": "Check whether ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Common article after 'Check whether'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-travel-08:7:0",
+      "phraseID": "fresh-hybrid-travel-08",
+      "category": "travel",
+      "prefix": "Check whether breakfast is included before we ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "book"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'before we book' fits breakfast/hotel context well."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-01:7:0",
+      "phraseID": "fresh-hybrid-science-01",
+      "category": "science",
+      "prefix": "The measurements vary slightly because the room ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "is"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'The room is' natural before an explanation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-02:2:0",
+      "phraseID": "fresh-hybrid-science-02",
+      "category": "science",
+      "prefix": "We repeated ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "'The' is a natural determiner here."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-04:3:0",
+      "phraseID": "fresh-hybrid-science-04",
+      "category": "science",
+      "prefix": "Water collects on ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "A highly likely article, but only a small saving."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-05:3:0",
+      "phraseID": "fresh-hybrid-science-05",
+      "category": "science",
+      "prefix": "The graph shows ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Shows the\" is a very common continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-06:8:0",
+      "phraseID": "fresh-hybrid-science-06",
+      "category": "science",
+      "prefix": "Label each container before adding the samples to ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural article after 'to'."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-07:3:0",
+      "phraseID": "fresh-hybrid-science-07",
+      "category": "science",
+      "prefix": "The soil near ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "the"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural article after 'near'; small but useful."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-07:5:0",
+      "phraseID": "fresh-hybrid-science-07",
+      "category": "science",
+      "prefix": "The soil near the stream ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "is"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Natural verb after subject phrase."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-science-08:9:0",
+      "phraseID": "fresh-hybrid-science-08",
+      "category": "science",
+      "prefix": "A second observation would help us distinguish a pattern ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "of"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "\"Distinguish a pattern from\" seems more likely; \"of\" is possible but weaker."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-latin-02:4:0",
+      "phraseID": "fresh-hybrid-serbian-latin-02",
+      "category": "serbian-latin",
+      "prefix": "Zatvori prozor pre nego ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "što"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Near-certain next word, with the diacritic included."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-latin-04:6:0",
+      "phraseID": "fresh-hybrid-serbian-latin-04",
+      "category": "serbian-latin",
+      "prefix": "Nemoj još da brišeš poruke, treba ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "da"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "'treba da' is the expected continuation."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-latin-06:8:0",
+      "phraseID": "fresh-hybrid-serbian-latin-06",
+      "category": "serbian-latin",
+      "prefix": "Proveri da li je rezervacija potvrđena pre nego ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "što"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Near-certain next word, with the diacritic included."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-latin-07:2:0",
+      "phraseID": "fresh-hybrid-serbian-latin-07",
+      "category": "serbian-latin",
+      "prefix": "Posle sastanka ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "sa"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible 'sastanka sa', though a comma or verb also likely."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-cyrillic-03:2:0",
+      "phraseID": "fresh-hybrid-serbian-cyrillic-03",
+      "category": "serbian-cyrillic",
+      "prefix": "Кад стигнеш ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "до"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [],
+          "reason": "\"Стигнеш до\" is a highly natural Serbian collocation, and the script matches."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-cyrillic-03:6:0",
+      "phraseID": "fresh-hybrid-serbian-cyrillic-03",
+      "category": "serbian-cyrillic",
+      "prefix": "Кад стигнеш до моста, скрени лево ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "и"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 1,
+          "flags": [],
+          "reason": "The conjunction \"и\" fits naturally in step-by-step directions."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-cyrillic-04:5:0",
+      "phraseID": "fresh-hybrid-serbian-cyrillic-04",
+      "category": "serbian-cyrillic",
+      "prefix": "Порука је стигла тек пошто ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "је"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 1,
+          "first_word": 2,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Highly likely next word, but it saves very little typing."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-cyrillic-06:3:0",
+      "phraseID": "fresh-hybrid-serbian-cyrillic-06",
+      "category": "serbian-cyrillic",
+      "prefix": "Одштампај само последњу ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "страницу"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 2,
+          "first_word": 2,
+          "flags": [],
+          "reason": "Natural Cyrillic noun completing the phrase."
+        }
+      }
+    },
+    {
+      "id": "fresh-hybrid-serbian-cyrillic-08:3:0",
+      "phraseID": "fresh-hybrid-serbian-cyrillic-08",
+      "category": "serbian-cyrillic",
+      "prefix": "Понеси нешто топло ",
+      "kind": "newly_shown",
+      "policies": {
+        "current": "",
+        "hybrid_one_word": "и"
+      },
+      "ratings": {
+        "current": {
+          "utility": 0,
+          "first_word": 0,
+          "flags": [],
+          "reason": "No suggestion."
+        },
+        "hybrid_one_word": {
+          "id": "o1",
+          "utility": 0,
+          "first_word": 1,
+          "flags": [
+            "minimal_value"
+          ],
+          "reason": "Plausible conjunction with very little benefit."
+        }
+      }
+    }
+  ],
+  "pairwiseUtilityDelta": {
+    "hybrid_one_word_vs_current": {
+      "deltaPerCheckpoint": 0.1002710027100271,
+      "ci95": [
+        0.0811554332874828,
+        0.1194225721784777
+      ],
+      "phrases": 64,
+      "resamples": 5000
+    }
+  },
+  "preferenceConsistency": {
+    "inconsistentCaseIDs": {
+      "primary": [],
+      "repeat": []
+    },
+    "primaryConsistentChangedCases": 77,
+    "utilityTotalsExcludingInconsistent": {
+      "current": 0,
+      "hybrid_one_word": 74
+    },
+    "note": "Primary is the frozen numeric-utility rubric. Raw inconsistent preference labels are retained; sensitivity excludes those cases without rejudging them."
+  },
+  "postHocSensitivity": {
+    "minimal_value": {
+      "utilityTotals": {
+        "current": 0,
+        "hybrid_one_word": 49
+      },
+      "hybridWins": 46,
+      "hybridLosses": 0,
+      "hybridDeltaVsCurrent": {
+        "deltaPerCheckpoint": 0.06639566395663957,
+        "ci95": [
+          0.04986522911051213,
+          0.084
+        ],
+        "phrases": 64,
+        "resamples": 5000
+      },
+      "note": "Post-hoc discount applied uniformly to all policies; it does not replace the primary rubric."
+    },
+    "short_single_word": {
+      "utilityTotals": {
+        "current": 0,
+        "hybrid_one_word": 11
+      },
+      "hybridWins": 8,
+      "hybridLosses": 0,
+      "hybridDeltaVsCurrent": {
+        "deltaPerCheckpoint": 0.014905149051490514,
+        "ci95": [
+          0.005376344086021506,
+          0.02627939142461964
+        ],
+        "phrases": 64,
+        "resamples": 5000
+      },
+      "note": "Post-hoc discount applied uniformly to all policies; it does not replace the primary rubric."
+    }
+  },
+  "sharedShownDiagnostic": {
+    "count": 64,
+    "helpful": 45,
+    "harmful": 14,
+    "meanUtility": 0.71875,
+    "note": "Equal-category sample, not population-weighted; all policies show identical text here."
+  }
+}

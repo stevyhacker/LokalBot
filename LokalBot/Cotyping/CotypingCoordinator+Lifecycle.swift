@@ -49,6 +49,18 @@ extension CotypingCoordinator {
         start()
     }
 
+    /// Decoder switches take effect immediately, including already visible text
+    /// and type-through remainders. Cancellation also invalidates late callbacks.
+    func decoderSettingsDidChange() {
+        cancelPendingGenerationWork()
+        acceptedSuggestionBatch.discardLearningRecord()
+        clearSuggestion()
+        suggestionAnchorCache.removeAll()
+        activeSuggestionRequestFingerprint = nil
+        lastSuggestion = nil
+        lastAcceptedTail = nil
+    }
+
     func forgetLearnedText() async throws {
         cancelPendingGenerationWork()
         acceptedSuggestionBatch.discardLearningRecord()

@@ -15,13 +15,14 @@ final class CotypingEngineSelector: CotypingCompleting {
     static let localRetryCooldown: TimeInterval = 60
 
     private let http: CotypingCompleting
-    private let makeLocal: (String) -> CotypingCompleting
+    private let makeLocal: (String, Bool) -> CotypingCompleting
     private let settings: () -> AppSettings
     private let storage: StorageManager
     private let now: () -> Date
     private let verifyModel: ModelVerifier
     private var local: CotypingCompleting?
     private var localModelPath: String?
+    private var localIdentity: LocalRouteIdentity?
     /// Set after the first in-process failure so the HTTP fallback is logged
     /// once per failure episode (spec §13), not on every keystroke. Reset on a
     /// successful local generation or a model-path change.
@@ -52,6 +53,7 @@ final class CotypingEngineSelector: CotypingCompleting {
     private struct LocalRouteIdentity: Equatable {
         let requestedModelID: String
         let entry: ModelCatalog.Entry
+        let selectiveOneWordHybrid: Bool
     }
 
     /// The actual resolved route, not merely the user's preferred setting.
@@ -63,7 +65,7 @@ final class CotypingEngineSelector: CotypingCompleting {
 
     init(
         http: CotypingCompleting,
-        makeLocal: @escaping (String) -> CotypingCompleting,
+        makeLocal: @escaping (String, Bool) -> CotypingCompleting,
         settings: @escaping () -> AppSettings,
         storage: StorageManager,
         now: @escaping () -> Date = { Date() },
@@ -96,7 +98,8 @@ final class CotypingEngineSelector: CotypingCompleting {
             id: settings.cotypingBuiltInModelID,
             custom: settings.customBuiltInModels
         ) ?? ModelCatalog.entry(id: ModelCatalog.recommendedCotypingID) else { return nil }
-        return LocalRouteIdentity(requestedModelID: settings.cotypingBuiltInModelID, entry: entry)
+        return LocalRouteIdentity(requestedModelID: settings.cotypingBuiltInModelID, entry: entry,
+                                  selectiveOneWordHybrid: settings.cotypingSelectiveOneWordHybrid)
     }
 
     /// Resolves the built-in cotyping model path the same way `makeTextEngine` does.
@@ -186,8 +189,8 @@ final class CotypingEngineSelector: CotypingCompleting {
             try requireCurrentLocalRoute(generation: invalidation, identity: identity)
             return nil
         }
-        if let local, localModelPath == url.path { return local }
-        if local == nil || localModelPath != url.path {
+        if let local, localModelPath == url.path, localIdentity == identity { return local }
+        if local == nil || localModelPath != url.path || localIdentity != identity {
             // A model change must release the old in-process weights before a
             // replacement is built. The old implementation overwrote `local`
             // and leaked its runtime until deinit happened to run.
@@ -208,11 +211,12 @@ final class CotypingEngineSelector: CotypingCompleting {
             // this operation was suspended in `http.unload()`. Reuse it rather
             // than overwriting a live engine and orphaning its loaded weights.
             if let local {
-                guard localModelPath == url.path else { throw CancellationError() }
+                guard localModelPath == url.path, localIdentity == identity else { throw CancellationError() }
                 return local
             }
-            local = makeLocal(url.path)
+            local = makeLocal(url.path, identity.selectiveOneWordHybrid)
             localModelPath = url.path
+            localIdentity = identity
             didLogLocalFailure = false
         }
         return local
@@ -222,6 +226,7 @@ final class CotypingEngineSelector: CotypingCompleting {
         guard let engine = local else { return nil }
         local = nil
         localModelPath = nil
+        localIdentity = nil
         return engine
     }
 

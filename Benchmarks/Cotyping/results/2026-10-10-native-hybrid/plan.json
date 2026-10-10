@@ -1,0 +1,54 @@
+{
+  "createdAtUTC": "2026-10-10T08:00:45.088461+00:00",
+  "status": "frozen before native evaluation",
+  "fixedModelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "settings": {
+    "control": {},
+    "hybrid": {
+      "selectiveOneWordHybrid": true
+    },
+    "mass-reference": {
+      "confidenceBoundaryMode": "boundaryMass",
+      "firstWordThreshold": 0.31
+    }
+  },
+  "freshOrders": [
+    [
+      "control",
+      "hybrid"
+    ],
+    [
+      "hybrid",
+      "control"
+    ],
+    [
+      "hybrid",
+      "control"
+    ],
+    [
+      "control",
+      "hybrid"
+    ]
+  ],
+  "freshPhrases": 64,
+  "freshCheckpoints": 738,
+  "dynamicRequests": 323,
+  "regression": "All 600 development and 1361 old confirmation checkpoints, once per arm; now regression only.",
+  "latency": "Four fresh-corpus rounds AB/BA/BA/AB; two dynamic rounds AB/BA. Mass reference once, excluded from speed comparison.",
+  "primaryQuality": "Blinded Claude utility delta for actual native hybrid versus current on every changed fresh checkpoint. Unchanged outputs contribute zero. Whole-phrase bootstrap, ordinal utility -2..2 with silence=0.",
+  "judgeSelection": "Fresh: all differences plus up to 8 shared shown per category, 16 changed + 8 shared blind repeats. Regression: all differences plus 4 shared per category, same repeat rule. Every new fallback is judged; no reference future or algorithm identities sent.",
+  "success": "Exact native equivalence to current if nonempty else first complete normalized mass-reference word. No loss/change of current nonempty outputs. Quality improvement requires positive phrase-bootstrap CI; report measured latency tradeoff independently.",
+  "policy": "One sampled stream; selected-token .1 primary and boundary-mass .31 fallback. Cap only after unchanged full normalization. No early-stop, cache, sampler, model or prompt changes. No tuning on fresh corpus.",
+  "limitations": "Synthetic corpus written by implementing assistant; one model judge, not user acceptance. Complete warm headless calls exclude load/debounce/AX/overlay and first-visible timing. Hybrid waits for final normalization before publishing. Defaults remain current.",
+  "inputSHA256": {
+    "development-input.json": "f53ce37caabccb4dcd5000379a411e3d325996bd336104fb3c4d57d63078a201",
+    "development-references.json": "057db0a99b3b2ba57867fa28ebde5cbb8b26380260e4d55148d0e102b95c5ef6",
+    "dynamic-input.json": "f7aa963fbbfeefca6e28404b3f46e31879b5e7717ac4887086945b7f32ff2758",
+    "dynamic-metadata.json": "ed8d71af7202883d3f09d164bc3dc1f9ed7da7b956c2076f743a23cf752a1f3d",
+    "fresh-input.json": "9e631750992773f934d0eacfdd9355427bd032a3b0edbb76157e29146cece060",
+    "fresh-references.json": "3dbcbf0f5df7b895be34af5e704dfec8abaa2ed1dc6b8a6ef10fa4e7bd507431",
+    "hybrid-confirmation-cases.json": "e48e3de05b7533671f44506b81572409ddcb58a5166dc740204fb026e6152a18",
+    "regression-input.json": "bdb32b204586aa06e7d94101ebbbb474161accd09879ffe55f13f986f43c5109",
+    "regression-references.json": "cf2d1d0f9008f510a5b9df212ce29c5cd13608a689449e8991fd3df7959d5e88"
+  }
+}

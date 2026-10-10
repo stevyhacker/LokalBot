@@ -94,6 +94,9 @@ actor LlamaCotypingRuntime {
     private(set) var lastPrefillTokenCount: Int = 0
     /// Reused for the confidence gate's softmax, one float per vocabulary entry.
     private var probabilityScratch: [Float] = []
+    private var boundaryTokenMask: [Float] = []
+    private let confidenceBoundaryMode: CotypingConfidenceBoundaryMode
+    nonisolated let selectiveOneWordHybrid: Bool
     /// When a suggestion was last generated, for the memory-pressure policy.
     private var lastUsedUptime: TimeInterval?
     /// True only for pure-attention models, whose per-position KV cells can be
@@ -112,7 +115,11 @@ actor LlamaCotypingRuntime {
         llama_backend_init()
     }()
 
-    init(postLoadAdmissionHook: @escaping PostLoadAdmissionHook = {}) {
+    init(confidenceBoundaryMode: CotypingConfidenceBoundaryMode = .selectedToken,
+         selectiveOneWordHybrid: Bool = false,
+         postLoadAdmissionHook: @escaping PostLoadAdmissionHook = {}) {
+        self.confidenceBoundaryMode = confidenceBoundaryMode
+        self.selectiveOneWordHybrid = selectiveOneWordHybrid
         self.postLoadAdmissionHook = postLoadAdmissionHook
     }
 
@@ -207,6 +214,13 @@ actor LlamaCotypingRuntime {
         // Cache the architecture capability once, at load: probing inside generate
         // would emit a dylib stderr warning on every call for recurrent models.
         supportsPartialReuse = !llama_model_is_recurrent(m) && !llama_model_is_hybrid(m)
+        if confidenceBoundaryMode == .boundaryMass || selectiveOneWordHybrid, let vocab {
+            boundaryTokenMask = (0..<llama_vocab_n_tokens(vocab)).map { token in
+                if llama_vocab_is_eog(vocab, token) { return 1 }
+                if llama_vocab_is_control(vocab, token) { return 0 }
+                return CotypingFirstWordConfidence.tokenStartsBoundary(pieceBytes(for: token)) ? 1 : 0
+            }
+        }
         warmup()
         let generation = UUID()
         residencyGeneration = generation
@@ -331,6 +345,8 @@ actor LlamaCotypingRuntime {
         cachedTokens = []
         supportsPartialReuse = false
         tokenPrefixIndex = nil
+        boundaryTokenMask = []
+        probabilityScratch = []
         // Keep this path synchronous for memory pressure, but only remove the
         // generation that was actually freed. A reload may register before
         // this main-actor task gets its turn.
@@ -487,6 +503,7 @@ actor LlamaCotypingRuntime {
         preferWordExtendingOvershoot: Bool = false,
         minimumFirstWordProbability: Float = 0,
         onLowConfidence: @Sendable () -> Void = {},
+        onHybridFallback: @Sendable () -> Void = {},
         onToken: @Sendable (String) -> Bool
     ) throws -> String {
         guard let ctx, let vocab, !promptTokens.isEmpty else { return "" }
@@ -549,11 +566,16 @@ actor LlamaCotypingRuntime {
         var output = ""
         var textDecoder = CotypingUTF8TokenDecoder()
         var pos = Int32(promptTokens.count)
-        var confidence = CotypingFirstWordConfidence(minimum: minimumFirstWordProbability)
-        func confident(_ token: Int32, _ piece: String) -> Bool {
-            guard !confidence.isSettled else { return true }
+        var confidence = CotypingConfidenceDecision(
+            minimum: minimumFirstWordProbability, boundaryMode: confidenceBoundaryMode,
+            selectiveOneWordHybrid: selectiveOneWordHybrid)
+        defer { if confidence.usesFallback { onHybridFallback() } }
+        func confident(_ token: Int32, _ piece: String, isEOG: Bool = false) -> Bool {
+            guard confidence.needsEvaluation else { return true }
             let probability = tokenProbability(token, ctx: ctx, vocab: vocab)
-            return confidence.accept(piece: piece, probability: probability)
+            let boundary = confidence.needsBoundaryMass(for: piece)
+                ? Self.boundaryMass(numerators: probabilityScratch, mask: boundaryTokenMask) : nil
+            return confidence.accept(piece: piece, probability: probability, boundaryProbability: boundary, isEOG: isEOG)
         }
 
         // Constrained phase: force-decode the healed word fragment. Each step
@@ -592,10 +614,16 @@ actor LlamaCotypingRuntime {
         for _ in 0..<maxTokens {
             try Task.checkCancellation()
             if stopAtArgmaxEOG, argmaxTokenIsEOG(ctx: ctx, vocab: vocab) {
+                if confidence.needsEOGEvaluation,
+                   let token = Self.argmaxToken(in: llama_get_logits_ith(ctx, -1), vocabularySize: llama_vocab_n_tokens(vocab)),
+                   !confident(token, " ", isEOG: true) { onLowConfidence(); return "" }
                 break
             }
             let tok = llama_sampler_sample(sampler, ctx, -1)
-            if llama_vocab_is_eog(vocab, tok) { break }
+            if llama_vocab_is_eog(vocab, tok) {
+                if confidence.needsEOGEvaluation, !confident(tok, " ", isEOG: true) { onLowConfidence(); return "" }
+                break
+            }
             llama_sampler_accept(sampler, tok)
             guard let text = textDecoder.append(pieceBytes(for: tok)) else { return "" }
             guard confident(tok, text) else { onLowConfidence(); return "" }
@@ -621,6 +649,18 @@ actor LlamaCotypingRuntime {
         return probabilityScratch.withUnsafeMutableBufferPointer { scratch in
             Self.probability(of: token, in: llama_get_logits_ith(ctx, -1), scratch: scratch)
         } ?? 0
+    }
+
+    /// `probability(of:)` leaves exp(logit - max) in scratch. Reuse it instead
+    /// of another softmax or decode. The mask is tokenizer-only, built at load.
+    nonisolated static func boundaryMass(numerators: [Float], mask: [Float]) -> Float {
+        guard !numerators.isEmpty, numerators.count == mask.count else { return 0 }
+        var total: Float = 0
+        var boundary: Float = 0
+        vDSP_sve(numerators, 1, &total, vDSP_Length(numerators.count))
+        vDSP_dotpr(numerators, 1, mask, 1, &boundary, vDSP_Length(numerators.count))
+        guard total.isFinite, total > 0, boundary.isFinite else { return 0 }
+        return min(1, max(0, boundary / total))
     }
 
     /// Softmax probability of `token`, vectorized over the whole vocabulary.
