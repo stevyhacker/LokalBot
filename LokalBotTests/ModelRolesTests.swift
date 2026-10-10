@@ -60,6 +60,42 @@ final class ModelRolesTests: XCTestCase {
         XCTAssertEqual(snapshot.primaryActionStatus, .ready)
     }
 
+    func testLocalFunASRIsLoadCheckedEvenWhenFilesArePresent() async throws {
+        let storage = temporaryStorage()
+        defer { try? FileManager.default.removeItem(at: storage.rootURL) }
+        var settings = isolatedSettings(transcription: .funASRNano)
+        settings.funASRNanoModelDirectory = "/tmp/selected-model"
+        var loadedPath: String?
+        let roles = ModelRoles(
+            settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
+            prepareTranscription: { configuration, _, _ in loadedPath = configuration.funASRNanoModelDirectory },
+            downloadedTranscriptionModels: { _ in [TranscriptionModelChoice.funASRNano.id] },
+            onReadinessChanged: {})
+        try await roles.ensureTranscriptionAvailable(.funASRNano, configuration: settings)
+        XCTAssertEqual(loadedPath, settings.funASRNanoModelDirectory)
+    }
+
+    func testChangingFunASRDirectoryCancelsOldPreparation() async {
+        let storage = temporaryStorage()
+        defer { try? FileManager.default.removeItem(at: storage.rootURL) }
+        var settings = isolatedSettings(transcription: .funASRNano)
+        settings.funASRNanoModelDirectory = "/tmp/old-model"
+        let gate = PreparationGate()
+        let roles = ModelRoles(
+            settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
+            prepareTranscription: { _, _, _ in await gate.run() },
+            downloadedTranscriptionModels: { _ in [] }, onReadinessChanged: {})
+        roles.prepareTranscriptionModel(.funASRNano)
+        await gate.waitUntilStarted()
+        let previous = settings
+        settings.funASRNanoModelDirectory = "/tmp/new-model"
+        roles.settingsDidChange(from: previous, to: settings)
+        XCTAssertFalse(roles.isPreparingTranscription)
+        await gate.release()
+        await gate.waitUntilCompleted()
+        XCTAssertNil(roles.transcriptionErrors[TranscriptionModelChoice.funASRNano.id])
+    }
+
     func testFailureStopsOnboardingSpinnerAndOffersRecovery() {
         let snapshot = makeSnapshot(statuses: [
             .transcribe: .ready,

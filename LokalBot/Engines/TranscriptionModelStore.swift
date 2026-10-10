@@ -43,19 +43,22 @@ struct TranscriptionModelStore {
 
     static func downloadedChoices(
         environment: Environment = .live,
-        graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel
+        graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
+        funASRNanoDirectory: String = ""
     ) -> Set<String> {
         Set(TranscriptionModelChoice.allCases.filter {
             isDownloaded(
                 $0,
                 environment: environment,
-                graniteConfiguration: graniteConfiguration)
+                graniteConfiguration: graniteConfiguration,
+                funASRNanoDirectory: funASRNanoDirectory)
         }.map(\.id))
     }
 
     static func isDownloaded(_ choice: TranscriptionModelChoice,
                              environment: Environment = .live,
-                             graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel) -> Bool {
+                             graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
+                             funASRNanoDirectory: String = "") -> Bool {
         switch choice {
         case .parakeetUltra:
             return AsrModels.modelsExist(
@@ -94,6 +97,8 @@ struct TranscriptionModelStore {
             return requiredFilesPresent(
                 at: cohereDirectory(environment: environment),
                 requiredFiles: ModelNames.CohereTranscribe.requiredModels)
+        case .funASRNano:
+            return (try? FunASRNanoModel.load(directory: funASRNanoDirectory)) != nil
         case .senseVoice:
             return onnxModelExists(model: .senseVoice, environment: environment)
         case .gigaamRussian:
@@ -141,6 +146,8 @@ struct TranscriptionModelStore {
             whisperModelDirectories(environment: environment)
         case .cohere:
             [cohereDirectory(environment: environment)]
+        case .funASRNano:
+            [] // A user-selected folder is never an app-owned cache.
         case .senseVoice:
             [onnxDirectory(folderName: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09",
                            environment: environment)]

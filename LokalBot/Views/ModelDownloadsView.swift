@@ -229,6 +229,7 @@ struct ModelDownloadsView: View {
             return uses.isEmpty ? "You can download it again later."
                 : "\(uses.joined(separator: ", ")) will need this model downloaded again."
         case .transcription(let choice):
+            if choice == .funASRNano { return app.settings.appLanguage.localized("Only the saved folder selection is removed. Your model files stay on disk.") }
             return choice == app.settings.transcriptionModel
                 ? "Transcription will need this model downloaded again." : "You can download it again later."
         case .speech: return "Read aloud will need this model downloaded again."
@@ -245,6 +246,7 @@ struct ModelDownloadsView: View {
             if app.settings.cotypingBuiltInModelID == entry.id { affected.insert(.autocomplete) }
             app.modelChecks.invalidate(affected)
         case .transcription(let choice):
+            if choice == .funASRNano { app.settings.funASRNanoModelDirectory = "" }
             roles.deleteTranscriptionModel(choice)
             if app.settings.transcriptionModel == choice { app.modelChecks.invalidate([.transcribe]) }
         case .speech: speech.delete()

@@ -134,6 +134,8 @@ struct AppSettings: Codable, Equatable {
     /// settings decode to the pinned Q4 default; custom Hugging Face choices
     /// retain immutable revision and checksum metadata.
     var graniteSpeechModel = GraniteSpeechModelConfiguration.defaultModel
+    /// User-owned sherpa-onnx model directory; never copied or deleted by the app.
+    var funASRNanoModelDirectory: String = ""
     var transcriptionLanguage: TranscriptionLanguage = .auto
     var transcriptionPrompt: String = ""
     /// Adds names LokalBot already knows (calendar attendees, names applied
@@ -167,6 +169,7 @@ struct AppSettings: Codable, Equatable {
         if choice == .graniteSpeech {
             return GraniteSpeechEngine.configured(graniteSpeechModel)
         }
+        if choice == .funASRNano { return FunASRNanoEngine(directory: funASRNanoModelDirectory) }
         return choice.engine
     }
 
@@ -724,6 +727,7 @@ struct AppSettings: Codable, Equatable {
         case appLanguage
         case textSize
         case transcriptionModel
+        case funASRNanoModelDirectory
         case graniteSpeechModel
         case transcriptionLanguage
         case languageHint // legacy key used by builds before typed language selection
@@ -901,6 +905,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(appLanguage, forKey: .appLanguage)
         try c.encode(textSize, forKey: .textSize)
         try c.encode(transcriptionModel, forKey: .transcriptionModel)
+        try c.encode(funASRNanoModelDirectory, forKey: .funASRNanoModelDirectory)
         try c.encode(graniteSpeechModel, forKey: .graniteSpeechModel)
         try c.encode(transcriptionLanguage, forKey: .transcriptionLanguage)
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
@@ -1050,6 +1055,7 @@ struct AppSettings: Codable, Equatable {
         appLanguage = decode(.appLanguage, defaults.appLanguage)
         textSize = decode(.textSize, defaults.textSize)
         transcriptionModel = decode(.transcriptionModel, defaults.transcriptionModel)
+        funASRNanoModelDirectory = decode(.funASRNanoModelDirectory, defaults.funASRNanoModelDirectory)
         graniteSpeechModel = decode(.graniteSpeechModel, defaults.graniteSpeechModel)
         if c.contains(.transcriptionLanguage) {
             transcriptionLanguage = decode(.transcriptionLanguage, defaults.transcriptionLanguage)
