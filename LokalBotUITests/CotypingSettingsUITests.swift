@@ -58,9 +58,9 @@ final class CotypingSettingsUITests: XCTestCase {
             return toggle
         }
         let toggle = hybridToggle()
-        XCTAssertEqual(toggle.value as? String, "0", "The experiment must be opt-in")
+        XCTAssertEqual(toggle.value as? Int, 0, "The experiment must be opt-in")
         toggle.click()
-        XCTAssertEqual(toggle.value as? String, "1")
+        XCTAssertTrue(UITestHarness.waitUntil { (toggle.value as? Int) == 1 })
         let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
         screenshot.name = "Experimental hybrid in Writing settings"
         screenshot.lifetime = .keepAlways
@@ -68,9 +68,9 @@ final class CotypingSettingsUITests: XCTestCase {
         UITestHarness.selectSettingsCategory("General", in: app)
         UITestHarness.selectSettingsCategory("Writing", in: app)
         let restored = hybridToggle()
-        XCTAssertEqual(restored.value as? String, "1")
+        XCTAssertEqual(restored.value as? Int, 1)
         restored.click()
-        XCTAssertEqual(restored.value as? String, "0", "Off restores the current decoder")
+        XCTAssertTrue(UITestHarness.waitUntil { (restored.value as? Int) == 0 }, "Off restores the current decoder")
     }
 
     func testAutocompleteTabPersistsAcrossNavigation() {
