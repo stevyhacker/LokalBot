@@ -4,6 +4,8 @@
 Uses Cotabby's public v2 corpus format and exact next-word definition. The corpus
 is supplied explicitly; only already-typed prefixes and surface metadata enter
 the app. Screen text, categories and expected answers never enter inference.
+With --completions-url the same production prompts go to a hosted raw-completions
+endpoint instead of a local model; the key is read from the named environment variable.
 """
 
 import argparse
@@ -96,19 +98,21 @@ def score(observations, references):
                 consecutive += 1
         rows.append({"id": observation["id"], **reference, "correct": consecutive > 0,
                      "matchingWords": consecutive, "shown": bool(observation["text"]),
-                     "error": observation.get("error"), "latencyMs": observation["latencyMs"]})
+                     "error": observation.get("error"), "latencyMs": observation["latencyMs"],
+                     "attempts": observation.get("attempts", 1)})
 
     def aggregate(items):
         latency = sorted(row["latencyMs"] for row in items if not row["error"])
         result = {"checkpoints": len(items), "correct": sum(row["correct"] for row in items),
-                  "shown": sum(row["shown"] for row in items), "errors": sum(bool(row["error"]) for row in items)}
+                  "shown": sum(row["shown"] for row in items), "errors": sum(bool(row["error"]) for row in items),
+                  "retries": sum(row["attempts"] - 1 for row in items)}
         result["accuracy"] = result["correct"] / len(items) if items else 0
         result["coverage"] = result["shown"] / len(items) if items else 0
         for length in [2, 3]:
             eligible = [row for row in items if len(row["words"]) >= length]
             result[f"{length}WordAccuracy"] = (sum(row["matchingWords"] >= length for row in eligible)
                                                / len(eligible)) if eligible else None
-        for percentile in [50, 95]:
+        for percentile in [50, 90, 95]:
             result[f"p{percentile}Ms"] = latency[math.ceil(len(latency) * percentile / 100) - 1] if latency else None
         return result
 
@@ -120,7 +124,14 @@ def score(observations, references):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", type=Path, required=True)
-    parser.add_argument("--model", type=Path, required=True)
+    engine = parser.add_mutually_exclusive_group(required=True)
+    engine.add_argument("--model", type=Path, help="local GGUF served by the in-process runtime")
+    engine.add_argument("--completions-url", help="hosted OpenAI-compatible base URL, e.g. https://api.cerebras.ai/v1")
+    parser.add_argument("--completions-model", help="provider model ID for --completions-url")
+    parser.add_argument("--completions-extra-body", help="JSON object merged into every hosted request")
+    parser.add_argument("--api-key-env", help="environment variable holding the hosted API key")
+    parser.add_argument("--completions-chat", action="store_true",
+                        help="ask through /chat/completions (prompt as the user message) instead of raw completions")
     parser.add_argument("--corpus", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--split", choices=["screen", "heldout", "all"], default="screen")
@@ -133,8 +144,28 @@ def main():
     parser.add_argument("--temperature", type=float)
     parser.add_argument("--repeat-penalty", type=float)
     parser.add_argument("--no-app-context", action="store_true")
+    parser.add_argument("--timeout", type=int, default=7200, help="seconds before the app replay is stopped")
     args = parser.parse_args()
-    app, model = args.app.resolve(strict=True), args.model.resolve(strict=True)
+    app = args.app.resolve(strict=True)
+    if args.completions_url:
+        if not args.completions_model or not args.api_key_env:
+            parser.error("--completions-url needs --completions-model and --api-key-env")
+        if not os.environ.get(args.api_key_env):
+            parser.error(f"{args.api_key_env} is not set")
+        extra_body = json.loads(args.completions_extra_body or "{}")
+        if not isinstance(extra_body, dict):
+            parser.error("--completions-extra-body must be a JSON object")
+        engine_args = ["--completions-url", args.completions_url, "--completions-model", args.completions_model]
+        if args.completions_chat:
+            engine_args.append("--completions-chat")
+        if extra_body:
+            engine_args += ["--completions-extra-body", json.dumps(extra_body, sort_keys=True)]
+        engine_manifest = {"kind": "remote", "baseURL": args.completions_url, "model": args.completions_model,
+                           "extraBody": extra_body, "endpoint": "chat" if args.completions_chat else "completions"}
+    else:
+        model = args.model.resolve(strict=True)
+        engine_args = ["--model-path", str(model)]
+        engine_manifest = {"kind": "local", "modelFile": model.name, "modelSHA256": digest(model)}
     corpus = json.loads(args.corpus.read_text())
     phrases = selected_phrases(corpus, args.split, args.per_category)
     cases, references = checkpoints(phrases, args.mode)
@@ -167,7 +198,9 @@ def main():
                     "without repeating their text or explaining. Match their language and style.<|im_end|>\n"
                     f"<|im_start|>user\n{prefix}<|im_end|>\n<|im_start|>assistant\n")
     args.output.mkdir(parents=True, exist_ok=False)
-    manifest = {"modelFile": model.name, "modelSHA256": digest(model), "appSHA256": digest(app),
+    manifest = {**({key: engine_manifest[key] for key in ["modelFile", "modelSHA256"]}
+                   if engine_manifest["kind"] == "local" else {}),
+                "engine": engine_manifest, "appSHA256": digest(app),
                 "corpusSHA256": digest(args.corpus), "scriptSHA256": digest(__file__),
                 "split": args.split, "splitSeed": 1337, "screenPerCategory": 20,
                 "phraseIDs": [p["id"] for p in phrases], "mode": args.mode,
@@ -179,10 +212,17 @@ def main():
         root = Path(temp)
         (root / "home").mkdir()
         env = dict(os.environ, LOKALBOT_STORAGE_ROOT=str(root / "storage"), CFFIXED_USER_HOME=str(root / "home"))
+        env.pop("LOKALBOT_REPLAY_API_KEY", None)
+        if args.completions_url:
+            env["LOKALBOT_REPLAY_API_KEY"] = os.environ[args.api_key_env]
         with (args.output / "observations.jsonl").open("w") as stdout, (args.output / "stderr.log").open("w") as stderr:
             completed = subprocess.run([str(app), "--cotyping-replay", str((args.output / "input.json").resolve()),
-                                        "--model-path", str(model)], env=env, stdout=stdout, stderr=stderr, timeout=3600)
+                                        *engine_args], env=env, stdout=stdout, stderr=stderr, timeout=args.timeout)
     observations = [json.loads(line) for line in (args.output / "observations.jsonl").read_text().splitlines()]
+    if completed.returncode and len(observations) < len(cases):
+        # A negative code is the signal that ended the app.
+        raise SystemExit(f"replay stopped after {len(observations)} of {len(cases)} cases "
+                         f"(app exit code {completed.returncode})")
     report = score(observations, references)
     report["manifest"] = manifest
     (args.output / "report.json").write_text(json.dumps(report, indent=2) + "\n")

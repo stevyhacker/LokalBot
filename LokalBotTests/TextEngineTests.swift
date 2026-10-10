@@ -840,4 +840,24 @@ final class TextEngineTests: XCTestCase {
             XCTFail("unexpected error: \(error)")
         }
     }
+
+    func testRawCompletionBodyCanLeaveOutLlamaSamplingExtensions() {
+        let request = CompletionRequest(prompt: "Thanks for the ", maxTokens: 8, temperature: 0.1, topP: 0.7,
+                                        topK: 20, minP: 0.08, repeatPenalty: 1.05, seed: 7, stop: ["\n"])
+        let llama = OpenAICompatibleEngine(baseURL: URL(string: "http://127.0.0.1:1/v1")!, model: "m")
+        let local = llama.completionBody(request, stream: false)
+        XCTAssertEqual(local["top_k"] as? Int, 20)
+        XCTAssertEqual(local["repeat_penalty"] as? Double, 1.05)
+
+        let hosted = OpenAICompatibleEngine(
+            baseURL: URL(string: "https://api.example.com/v1")!, model: "m",
+            extraBody: ["top_k": 40], sendsLlamaSamplingExtensions: false)
+        let body = hosted.completionBody(request, stream: true)
+        XCTAssertNil(body["min_p"])
+        XCTAssertNil(body["repeat_penalty"])
+        XCTAssertEqual(body["top_k"] as? Int, 40, "explicit provider fields still apply")
+        XCTAssertEqual(body["top_p"] as? Double, 0.7)
+        XCTAssertEqual(body["stop"] as? [String], ["\n"])
+        XCTAssertEqual(body["stream"] as? Bool, true)
+    }
 }

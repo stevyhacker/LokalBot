@@ -19,7 +19,7 @@ enum HeadlessCommand: Equatable {
     case chat(question: String)
     case agent(prompt: String)
     case cotypingBench
-    case cotypingReplay(input: URL, model: URL)
+    case cotypingReplay(input: URL, engine: CotypingQualityReplay.Engine)
     /// Print the saved autocomplete counters and typing measurements and exit.
     /// Runs before SwiftUI launches and reads one preferences value.
     case cotypingMeasurements
@@ -74,9 +74,8 @@ enum HeadlessCommand: Equatable {
             return .dictationReplay(input: URL(fileURLWithPath: args[flag + 1]), endpoint: endpoint)
         }
         if let flag = args.firstIndex(of: "--cotyping-replay"), args.count > flag + 1,
-           let modelFlag = args.firstIndex(of: "--model-path"), args.count > modelFlag + 1 {
-            return .cotypingReplay(input: URL(fileURLWithPath: args[flag + 1]),
-                                  model: URL(fileURLWithPath: args[modelFlag + 1]))
+           let engine = CotypingQualityReplay.Engine.parse(args) {
+            return .cotypingReplay(input: URL(fileURLWithPath: args[flag + 1]), engine: engine)
         }
         if args.contains("--health") {
             let dayFlag = args.firstIndex(of: "--day")
@@ -228,8 +227,8 @@ struct HeadlessCommandRunner {
         case .chat(let question): runChat(question: question)
         case .agent(let prompt): runAgent(prompt: prompt)
         case .cotypingBench: runCotypingBench()
-        case .cotypingReplay(let input, let model):
-            Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, model: model)) }
+        case .cotypingReplay(let input, let engine):
+            Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, engine: engine)) }
         case .dictationReplay(let input, let endpoint):
             Task { @MainActor in exit(await DictationContextReplay.run(input: input, endpoint: endpoint)) }
         case .exportDiagnostics(let destination): runExportDiagnostics(to: destination)

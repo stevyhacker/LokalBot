@@ -20,9 +20,10 @@ enum LokalBotMain {
     static func main() {
         configureDependencyLogging()
         // Explicit synthetic replay runs before migration, AppState, permissions,
-        // learning, or capture. Only the supplied fixture and model are read.
-        if case .cotypingReplay(let input, let model)? = HeadlessCommand.parse(CommandLine.arguments) {
-            Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, model: model)) }
+        // learning, or capture. Only the supplied fixture and model are read; a
+        // remote replay sends the fixture's prompts to the endpoint it names.
+        if case .cotypingReplay(let input, let engine)? = HeadlessCommand.parse(CommandLine.arguments) {
+            Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, engine: engine)) }
             RunLoop.main.run()
             return
         }

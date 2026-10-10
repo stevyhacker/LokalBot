@@ -4,6 +4,39 @@ import Foundation
 /// caller: the model receives only the already-typed text and permitted context.
 /// Uses production request construction, token healing, decoding and normalization.
 enum CotypingQualityReplay {
+    /// Which model serves the replay. Remote runs exist only to compare hosted
+    /// models against the local one; the app itself never sends autocomplete text out.
+    enum Engine: Equatable {
+        /// The production in-process GGUF runtime.
+        case local(model: URL)
+        /// A hosted raw `/v1/completions` endpoint behind the HTTP `CotypingEngine`.
+        /// The key comes from `LOKALBOT_REPLAY_API_KEY`, never the command line.
+        /// `extraBodyJSON` is a JSON object merged into every request body.
+        /// `chat` asks through `/chat/completions` instead, for hosts whose raw
+        /// endpoint cannot serve the model: the prompt is the user message.
+        case remote(baseURL: URL, model: String, extraBodyJSON: String?, chat: Bool = false)
+
+        static let apiKeyEnvironmentKey = "LOKALBOT_REPLAY_API_KEY"
+
+        static func parse(_ args: [String]) -> Engine? {
+            func value(after flag: String) -> String? {
+                args.firstIndex(of: flag).flatMap { args.count > $0 + 1 ? args[$0 + 1] : nil }
+            }
+            if let model = value(after: "--model-path") {
+                return .local(model: URL(fileURLWithPath: model))
+            }
+            guard let base = value(after: "--completions-url"), let baseURL = URL(string: base),
+                  baseURL.scheme == "https" || ["127.0.0.1", "localhost"].contains(baseURL.host ?? ""),
+                  let model = value(after: "--completions-model"), !model.isEmpty else { return nil }
+            return .remote(baseURL: baseURL, model: model, extraBodyJSON: value(after: "--completions-extra-body"),
+                           chat: args.contains("--completions-chat"))
+        }
+    }
+
+    /// A rate limit or provider hiccup is retried so it does not score as a miss;
+    /// only the attempt that answered is timed.
+    static let remoteRetryLimit = 5
+
     struct Input: Decodable {
         var cases: [Case]
         var maxWords: Int?
@@ -51,11 +84,32 @@ enum CotypingQualityReplay {
         var memoryIDs: [String] = []
         var visibleIDs: [String] = []
         var visibleTextReadIDs: [String] = []
+        var attempts = 1
     }
 
     @MainActor
-    static func run(input: URL, model: URL) async -> Int32 {
-        let engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(), modelPath: model.path)
+    static func run(input: URL, engine engineChoice: Engine) async -> Int32 {
+        let engine: CotypingCompleting
+        var retryLimit = 0
+        switch engineChoice {
+        case .local(let model):
+            engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(), modelPath: model.path)
+        case .remote(let baseURL, let model, let extraBodyJSON, let chat):
+            guard let extraBody = extraBody(from: extraBodyJSON) else {
+                try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: --completions-extra-body must be a JSON object\n".utf8))
+                return 1
+            }
+            let remote = OpenAICompatibleEngine(
+                baseURL: baseURL, model: model,
+                apiKey: ProcessInfo.processInfo.environment[Engine.apiKeyEnvironmentKey],
+                extraBody: extraBody, sendsLlamaSamplingExtensions: false,
+                chatDialect: .inferred(from: baseURL))
+            // A chat message has no token boundary at the caret, so it is not healed.
+            engine = chat
+                ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) })
+                : CotypingEngine(makeEngine: { remote }, healsCaretBoundary: true)
+            retryLimit = remoteRetryLimit
+        }
         do {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -65,7 +119,10 @@ enum CotypingQualityReplay {
                 throw ReplayError.invalidCases
             }
             let config = try configuration(for: fixture)
-            if fixture.confidenceGate == false { engine.minimumFirstWordProbability = 0 }
+            // The gate reads the local model's token probabilities; hosted engines have none.
+            if fixture.confidenceGate == false, let local = engine as? LocalLlamaCotypingEngine {
+                local.minimumFirstWordProbability = 0
+            }
             let personalization = CotypingPersonalization(
                 userName: fixture.userName, styleNote: fixture.styleNote,
                 languageHint: fixture.languageHint, isMultiLine: false,
@@ -73,12 +130,18 @@ enum CotypingQualityReplay {
                 extendedContext: fixture.extendedContext)
             // Loading/Metal priming is outside warm prediction latency.
             try await engine.prewarm()
+            if case .remote = engineChoice {
+                // Opens the connection outside the timed cases, and stops a bad key,
+                // model ID or rejected field before it fails every case.
+                try await warmUpConnection(engine, config: config)
+            }
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
             var failed = false
             for (index, item) in fixture.cases.enumerated() {
                 let observation = await replay(item, generation: UInt64(index), config: config,
-                                               personalization: personalization, engine: engine, fixture: fixture)
+                                               personalization: personalization, engine: engine, fixture: fixture,
+                                               retryLimit: retryLimit)
                 failed = failed || observation.error != nil
                 let line = try encoder.encode(observation) + Data([10])
                 try FileHandle.standardOutput.write(contentsOf: line)
@@ -110,10 +173,41 @@ enum CotypingQualityReplay {
         return config
     }
 
+    static func extraBody(from json: String?) -> [String: Any]? {
+        guard let json else { return [:] }
+        return (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
+    }
+
+    /// Seconds to wait before retrying a remote failure, or nil when retrying
+    /// cannot help (bad key, unknown model, rejected request field).
+    static func retryDelay(after error: Error, attempt: Int) -> TimeInterval? {
+        let backoff = min(pow(2, Double(attempt - 1)), 16)
+        switch error as? TextEngineError {
+        case .httpStatus(let code, _, let retryAfter)? where code == 429 || code >= 500:
+            return min(retryAfter ?? backoff, 30)
+        case .serverUnreachable?:
+            return backoff
+        default:
+            return nil
+        }
+    }
+
+    @MainActor
+    private static func warmUpConnection(_ engine: CotypingCompleting, config: CotypingConfiguration) async throws {
+        let field = CotypingField(
+            appName: "Notes", bundleID: "com.apple.Notes", processID: 0, role: "AXTextArea",
+            precedingText: "Thanks for the ", trailingText: "", selectionLength: 0,
+            caretRect: .zero, isSecure: false, caretIsExact: true)
+        guard let request = CotypingRequestBuilder.build(
+            field: field, config: config, personalization: .none, generation: 0) else { return }
+        _ = try await engine.generate(request)
+    }
+
     @MainActor
     private static func replay(
         _ item: Case, generation: UInt64, config: CotypingConfiguration,
-        personalization: CotypingPersonalization, engine: LocalLlamaCotypingEngine, fixture: Input
+        personalization: CotypingPersonalization, engine: CotypingCompleting, fixture: Input,
+        retryLimit: Int
     ) async -> Observation {
         var field = CotypingField(
             appName: item.appName ?? "Notes", bundleID: item.bundleID ?? "com.apple.Notes",
@@ -137,19 +231,28 @@ enum CotypingQualityReplay {
                                latencyMs: 0, usedPromptOverride: false)
         }
         let request = overridingPrompt(item.promptOverride, in: built)
-        let start = ContinuousClock.now
-        do {
-            let result = try await engine.generate(request)
-            return Observation(id: item.id, prompt: request.prompt, text: result.text,
-                               suppression: result.suppression?.rawValue,
-                               latencyMs: milliseconds(since: start), usedPromptOverride: item.promptOverride != nil,
-                               memoryIDs: memory.items.map(\.id),
-                               visibleIDs: visible?.excerpts.map(\.id) ?? [],
-                               visibleTextReadIDs: visibleSource?.textReadIDs ?? [])
-        } catch {
-            return Observation(id: item.id, prompt: request.prompt, text: "",
-                               latencyMs: milliseconds(since: start), error: String(describing: error),
-                               usedPromptOverride: item.promptOverride != nil)
+        var attempt = 1
+        while true {
+            let start = ContinuousClock.now
+            do {
+                let result = try await engine.generate(request)
+                return Observation(id: item.id, prompt: request.prompt, text: result.text,
+                                   suppression: result.suppression?.rawValue,
+                                   latencyMs: milliseconds(since: start), usedPromptOverride: item.promptOverride != nil,
+                                   memoryIDs: memory.items.map(\.id),
+                                   visibleIDs: visible?.excerpts.map(\.id) ?? [],
+                                   visibleTextReadIDs: visibleSource?.textReadIDs ?? [],
+                                   attempts: attempt)
+            } catch {
+                if attempt <= retryLimit, let delay = retryDelay(after: error, attempt: attempt) {
+                    try? await Task.sleep(for: .seconds(delay))
+                    attempt += 1
+                    continue
+                }
+                return Observation(id: item.id, prompt: request.prompt, text: "",
+                                   latencyMs: milliseconds(since: start), error: String(describing: error),
+                                   usedPromptOverride: item.promptOverride != nil, attempts: attempt)
+            }
         }
     }
 
@@ -170,4 +273,30 @@ enum CotypingQualityReplay {
     }
 
     enum ReplayError: Error { case invalidCases, invalidConfiguration }
+}
+
+/// Autocomplete through a chat endpoint: the app's autocomplete instruction as the
+/// system message and the rendered prompt as the user message, with thinking off.
+/// The reply budget is at least 32 tokens, so a phrase that runs a little long is
+/// trimmed by the normalizer instead of failing as truncated. An empty reply means
+/// the model had nothing to add, which is an empty suggestion rather than an error.
+private struct ChatContinuationEngine: TextEngine {
+    let base: OpenAICompatibleEngine
+
+    var displayName: String { base.displayName }
+
+    func generate(system: String, prompt: String, context: [String]) async throws -> String {
+        try await base.generate(system: system, prompt: prompt, context: context)
+    }
+
+    func complete(_ request: CompletionRequest) async throws -> String {
+        do {
+            return try await base.generate(
+                system: PromptTemplates.autocompleteSystem, prompt: request.prompt, context: [],
+                options: TextGenerationOptions(maxTokens: max(request.maxTokens, 32), reasoningBudgetTokens: 0,
+                                               temperature: request.temperature))
+        } catch TextEngineError.badResponse(let detail) where detail.contains("contained no text") {
+            return ""
+        }
+    }
 }

@@ -1,0 +1,227 @@
+{
+ "variant": "sr-visible",
+ "messages": 60,
+ "checkpoints": 1500,
+ "latencyMs": {
+  "local": {
+   "p50": 37.162,
+   "p95": 101.513541
+  },
+  "e4b": {
+   "p50": 108.477333,
+   "p95": 352.332583
+  },
+  "cloud": {
+   "p50": 263.661416,
+   "p95": 868.016875
+  }
+ },
+ "errors": {
+  "local": 0,
+  "e4b": 0,
+  "cloud": 0
+ },
+ "paces": {
+  "unlimited": {
+   "local E2B": {
+    "saved": 0.14743716603997625,
+    "wrongPer100Words": 55.50708833151581,
+    "shownPer100Words": 75.02726281352236,
+    "nextWord": 0.056320400500625784,
+    "firstLetter": 0.2271186440677966,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0
+   },
+   "local E4B": {
+    "saved": 0.14723926380368102,
+    "wrongPer100Words": 56.706652126499456,
+    "shownPer100Words": 76.99018538713196,
+    "nextWord": 0.06956521739130435,
+    "firstLetter": 0.22298456260720412,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0,
+    "savedDeltaVsE2B": -0.00019790223629523318,
+    "savedDelta95": [
+     -0.011246145474333447,
+     0.010801468999783959
+    ]
+   },
+   "cloud alone": {
+    "saved": 0.10053433603799722,
+    "wrongPer100Words": 103.38058887677208,
+    "shownPer100Words": 120.17448200654307,
+    "nextWord": 0.11942098914354644,
+    "firstLetter": 0.09433962264150944,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 120.17448200654307,
+    "savedDeltaVsE2B": -0.046902830001979035,
+    "savedDelta95": [
+     -0.06225756400310323,
+     -0.03159622486663938
+    ]
+   },
+   "hybrid: top-ups": {
+    "saved": 0.14921828616663368,
+    "wrongPer100Words": 65.8669574700109,
+    "shownPer100Words": 85.49618320610686,
+    "nextWord": 0.06015037593984962,
+    "firstLetter": 0.22487223168654175,
+    "cloudCallsPer100Words": 16.902944383860415,
+    "cloudShownPer100Words": 13.522355507088331,
+    "savedDeltaVsE2B": 0.0017811201266574317,
+    "savedDelta95": [
+     -0.0003278151122766415,
+     0.005438192846684786
+    ]
+   },
+   "hybrid: top-ups + pauses": {
+    "saved": 0.15713437561844446,
+    "wrongPer100Words": 104.14394765539804,
+    "shownPer100Words": 127.15376226826608,
+    "nextWord": 0.10651629072681704,
+    "firstLetter": 0.21837088388214904,
+    "cloudCallsPer100Words": 87.02290076335878,
+    "cloudShownPer100Words": 63.57688113413304,
+    "savedDeltaVsE2B": 0.009697209578468202,
+    "savedDelta95": [
+     0.005564715581203639,
+     0.014775292427662623
+    ]
+   }
+  },
+  "300": {
+   "local E2B": {
+    "saved": 0.14743716603997625,
+    "wrongPer100Words": 55.39803707742639,
+    "shownPer100Words": 74.91821155943293,
+    "nextWord": 0.056320400500625784,
+    "firstLetter": 0.2271186440677966,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0
+   },
+   "local E4B": {
+    "saved": 0.08846229962398577,
+    "wrongPer100Words": 31.62486368593239,
+    "shownPer100Words": 44.16575790621592,
+    "nextWord": 0.043689320388349516,
+    "firstLetter": 0.1310116086235489,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0,
+    "savedDeltaVsE2B": -0.05897486641599048,
+    "savedDelta95": [
+     -0.09723528305435392,
+     -0.025368401417645958
+    ]
+   },
+   "cloud alone": {
+    "saved": 0.03779932713239664,
+    "wrongPer100Words": 29.11668484187568,
+    "shownPer100Words": 34.35114503816794,
+    "nextWord": 0.03914590747330961,
+    "firstLetter": 0.024271844660194174,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 34.35114503816794,
+    "savedDeltaVsE2B": -0.10963783890757961,
+    "savedDelta95": [
+     -0.13200451297480253,
+     -0.08617482951022937
+    ]
+   },
+   "hybrid: top-ups": {
+    "saved": 0.14921828616663368,
+    "wrongPer100Words": 65.75790621592148,
+    "shownPer100Words": 85.38713195201746,
+    "nextWord": 0.06015037593984962,
+    "firstLetter": 0.22487223168654175,
+    "cloudCallsPer100Words": 16.902944383860415,
+    "cloudShownPer100Words": 13.522355507088331,
+    "savedDeltaVsE2B": 0.0017811201266574317,
+    "savedDelta95": [
+     -0.00021168501270119044,
+     0.005592377796188819
+    ]
+   },
+   "hybrid: top-ups + pauses": {
+    "saved": 0.15159311300217693,
+    "wrongPer100Words": 74.91821155943293,
+    "shownPer100Words": 95.5288985823337,
+    "nextWord": 0.07393483709273183,
+    "firstLetter": 0.2226027397260274,
+    "cloudCallsPer100Words": 87.02290076335878,
+    "cloudShownPer100Words": 26.172300981461287,
+    "savedDeltaVsE2B": 0.004155946962200674,
+    "savedDelta95": [
+     0.0015250544662309684,
+     0.00825970034575485
+    ]
+   }
+  },
+  "200": {
+   "local E2B": {
+    "saved": 0.14328121907777558,
+    "wrongPer100Words": 52.12649945474373,
+    "shownPer100Words": 71.10141766630316,
+    "nextWord": 0.05493133583021224,
+    "firstLetter": 0.21996615905245348,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0
+   },
+   "local E4B": {
+    "saved": 0.04729863447456961,
+    "wrongPer100Words": 11.886586695747,
+    "shownPer100Words": 18.3206106870229,
+    "nextWord": 0.02491103202846975,
+    "firstLetter": 0.061389337641357025,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0,
+    "savedDeltaVsE2B": -0.09598258460320597,
+    "savedDelta95": [
+     -0.13035714285714284,
+     -0.06306661411115488
+    ]
+   },
+   "cloud alone": {
+    "saved": 0.0,
+    "wrongPer100Words": 0.0,
+    "shownPer100Words": 0.0,
+    "nextWord": 0.0,
+    "firstLetter": 0.0,
+    "cloudCallsPer100Words": 0.0,
+    "cloudShownPer100Words": 0.0,
+    "savedDeltaVsE2B": -0.14328121907777558,
+    "savedDelta95": [
+     -0.1800890327802509,
+     -0.1096965839168258
+    ]
+   },
+   "hybrid: top-ups": {
+    "saved": 0.145062339204433,
+    "wrongPer100Words": 62.05016357688113,
+    "shownPer100Words": 81.13413304253,
+    "nextWord": 0.05875,
+    "firstLetter": 0.21768707482993196,
+    "cloudCallsPer100Words": 16.357688113413303,
+    "cloudShownPer100Words": 13.086150490730644,
+    "savedDeltaVsE2B": 0.0017811201266574317,
+    "savedDelta95": [
+     -0.00020529665366453287,
+     0.005944798301486198
+    ]
+   },
+   "hybrid: top-ups + pauses": {
+    "saved": 0.145062339204433,
+    "wrongPer100Words": 62.05016357688113,
+    "shownPer100Words": 81.13413304253,
+    "nextWord": 0.05875,
+    "firstLetter": 0.21768707482993196,
+    "cloudCallsPer100Words": 87.24100327153762,
+    "cloudShownPer100Words": 13.086150490730644,
+    "savedDeltaVsE2B": 0.0017811201266574317,
+    "savedDelta95": [
+     -0.00021920210434012155,
+     0.005668934240362855
+    ]
+   }
+  }
+ }
+}

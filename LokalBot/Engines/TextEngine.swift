@@ -541,6 +541,8 @@ struct OpenAICompatibleEngine: TextEngine {
     var apiKey: String?
     /// Extra top-level request fields for server-specific compatibility.
     var extraBody: [String: Any] = [:]
+    /// Whether raw completions carry llama.cpp's `top_k`/`min_p`/`repeat_penalty`.
+    var sendsLlamaSamplingExtensions = true
     var chatDialect: ChatCompletionDialect = .generic
     var openRouterDataPolicy: OpenRouterDataPolicy = .privateOnly
     /// llama-server's request-level thinking ceiling. Kept nil for generic
@@ -1069,9 +1071,31 @@ struct OpenAICompatibleEngine: TextEngine {
         }
     }
 
+    /// Body for raw `/v1/completions`. `top_k`/`min_p`/`repeat_penalty` are
+    /// llama.cpp extensions a generic server ignores; hosted APIs that reject
+    /// unknown fields get only the OpenAI sampling fields, plus `extraBody`.
+    func completionBody(_ request: CompletionRequest, stream: Bool) -> [String: Any] {
+        var body: [String: Any] = [
+            "model": model,
+            "prompt": request.prompt,
+            "max_tokens": request.maxTokens,
+            "temperature": request.temperature,
+            "top_p": request.topP,
+            "seed": request.seed,
+            "stream": stream,
+        ]
+        if sendsLlamaSamplingExtensions {
+            body["top_k"] = request.topK
+            body["min_p"] = request.minP
+            body["repeat_penalty"] = request.repeatPenalty
+        }
+        if !request.stop.isEmpty { body["stop"] = request.stop }
+        body.merge(extraBody) { _, new in new }
+        return body
+    }
+
     /// Raw `/v1/completions`: the model continues `request.prompt` directly with
-    /// no chat template, which is what cotyping wants. `top_k`/`min_p`/
-    /// `repeat_penalty` are llama.cpp extensions a generic server ignores.
+    /// no chat template, which is what cotyping wants.
     func complete(_ request: CompletionRequest) async throws -> String {
         guard !model.isEmpty else { throw TextEngineError.noModel }
         var urlRequest = URLRequest(url: baseURL.appendingPathComponent("completions"))
@@ -1080,21 +1104,7 @@ struct OpenAICompatibleEngine: TextEngine {
         if let apiKey, !apiKey.isEmpty {
             urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
-        var body: [String: Any] = [
-            "model": model,
-            "prompt": request.prompt,
-            "max_tokens": request.maxTokens,
-            "temperature": request.temperature,
-            "top_p": request.topP,
-            "top_k": request.topK,
-            "min_p": request.minP,
-            "repeat_penalty": request.repeatPenalty,
-            "seed": request.seed,
-            "stream": false,
-        ]
-        if !request.stop.isEmpty { body["stop"] = request.stop }
-        body.merge(extraBody) { _, new in new }
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: completionBody(request, stream: false))
 
         let (data, response) = try await cotypingCompletionSend(urlRequest, base: baseURL)
         let httpResponse = response as? HTTPURLResponse
@@ -1126,21 +1136,7 @@ struct OpenAICompatibleEngine: TextEngine {
         if let apiKey, !apiKey.isEmpty {
             urlRequest.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         }
-        var body: [String: Any] = [
-            "model": model,
-            "prompt": request.prompt,
-            "max_tokens": request.maxTokens,
-            "temperature": request.temperature,
-            "top_p": request.topP,
-            "top_k": request.topK,
-            "min_p": request.minP,
-            "repeat_penalty": request.repeatPenalty,
-            "seed": request.seed,
-            "stream": true,
-        ]
-        if !request.stop.isEmpty { body["stop"] = request.stop }
-        body.merge(extraBody) { _, new in new }
-        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: body)
+        urlRequest.httpBody = try JSONSerialization.data(withJSONObject: completionBody(request, stream: true))
 
         var accumulated = ""
         var tokenLikeChunks = 0
