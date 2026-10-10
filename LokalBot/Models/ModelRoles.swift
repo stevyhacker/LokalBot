@@ -120,7 +120,7 @@ final class ModelRoles: ObservableObject {
     private let onReadinessChanged: () -> Void
     private var downloadObserver: AnyCancellable?
     private var preparationTask: (
-        id: String, token: UUID, granite: GraniteSpeechModelConfiguration, task: Task<Void, Never>
+        id: String, token: UUID, granite: GraniteSpeechModelConfiguration, funASRNanoDirectory: String, task: Task<Void, Never>
     )?
     private var storageInfo: (date: Date, storedBytes: Int64, availableBytes: Int64?)?
     @Published private var diskState = ModelReadinessSnapshot.DiskState()
@@ -148,7 +148,8 @@ final class ModelRoles: ObservableObject {
         }
         self.downloadedTranscriptionModels = downloadedTranscriptionModels ?? { settings in
             TranscriptionModelStore.downloadedChoices(
-                graniteConfiguration: settings.graniteSpeechModel)
+                graniteConfiguration: settings.graniteSpeechModel,
+                funASRNanoDirectory: settings.funASRNanoModelDirectory)
         }
         self.onReadinessChanged = onReadinessChanged
         downloadObserver = downloads.$progress
@@ -242,6 +243,8 @@ final class ModelRoles: ObservableObject {
         guard ModelReadinessSnapshot.processingReadinessChanged(from: old, to: new)
                 || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID else { return }
         let selectionChanged = old.transcriptionModel != new.transcriptionModel
+        let funASRDirectoryChanged = old.funASRNanoModelDirectory != new.funASRNanoModelDirectory
+        if funASRDirectoryChanged { transcriptionErrors[TranscriptionModelChoice.funASRNano.id] = nil }
         let graniteConfigurationChanged = old.graniteSpeechModel != new.graniteSpeechModel
         if graniteConfigurationChanged {
             transcriptionErrors[TranscriptionModelChoice.graniteSpeech.id] = nil
@@ -251,7 +254,9 @@ final class ModelRoles: ObservableObject {
             && preparationTask?.id != new.transcriptionModel.id
         let invalidatedActiveGranitePreparation = graniteConfigurationChanged
             && preparationTask?.id == TranscriptionModelChoice.graniteSpeech.id
-        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation {
+        let invalidatedFunASR = funASRDirectoryChanged
+            && preparationTask?.id == TranscriptionModelChoice.funASRNano.id
+        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation || invalidatedFunASR {
             cancelPreparation()
         }
         refreshDiskState()
@@ -328,18 +333,19 @@ final class ModelRoles: ObservableObject {
             self.transcriptionErrors[choice.id] = failure
             self.readinessDidChange()
         }
-        preparationTask = (choice.id, token, configuration.graniteSpeechModel, task)
+        preparationTask = (choice.id, token, configuration.graniteSpeechModel, configuration.funASRNanoModelDirectory, task)
     }
 
     /// Selection sheets prepare against their draft, keeping the current
     /// model and its settings intact until the replacement is available.
     func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
-        if downloadedTranscriptionModels(configuration).contains(choice.id), transcriptionErrors[choice.id] == nil {
+        if choice != .funASRNano, downloadedTranscriptionModels(configuration).contains(choice.id), transcriptionErrors[choice.id] == nil {
             return
         }
         if let preparationTask,
            preparationTask.id != choice.id
-            || (choice == .graniteSpeech && preparationTask.granite != configuration.graniteSpeechModel) {
+            || (choice == .graniteSpeech && preparationTask.granite != configuration.graniteSpeechModel)
+            || (choice == .funASRNano && preparationTask.funASRNanoDirectory != configuration.funASRNanoModelDirectory) {
             throw ModelDownloadManager.PreparationError.failed(
                 "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
         }

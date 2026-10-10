@@ -236,7 +236,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         }
     }
 
-    private static func makeWorkDir() throws -> URL {
+    static func makeWorkDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("onnx-asr-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -264,16 +264,22 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         case .gigaamRussian:
             args.append("--nemo-ctc-model=\(modelFile.path)")
         }
-        args.append(contentsOf: wavs.map(\.path))
+        return try await runBatch(runtime: runtime, arguments: args, weights: [modelFile],
+                                  modelID: model.modelType, label: model.displayName, wavs: wavs)
+    }
 
+    static func runBatch(runtime: (binary: URL, libDir: URL), arguments: [String], weights: [URL],
+                         modelID: String, label: String, wavs: [URL], requireAllResults: Bool = false) async throws -> [String] {
+        guard !wavs.isEmpty else { return [] }
+        let args = arguments + wavs.map(\.path)
         let binary = runtime.binary
         let libDir = runtime.libDir
         let processController = ONNXProcessController()
         let execution = Task.detached(priority: .userInitiated) { () throws -> String in
-            let runtimeID = "transcription:onnx:\(model.modelType):\(UUID().uuidString)"
-            let estimatedBytes = ModelRuntimeRegistry.fileBytes(at: modelFile)
+            let runtimeID = "transcription:onnx:\(modelID):\(UUID().uuidString)"
+            let estimatedBytes = weights.reduce(UInt64(0)) { $0 + (ModelRuntimeRegistry.fileBytes(at: $1) ?? 0) }
             await ModelRuntimeRegistry.shared.reserve(
-                id: runtimeID, role: "Transcribe", label: model.displayName,
+                id: runtimeID, role: "Transcribe", label: label,
                 estimatedBytes: estimatedBytes)
             do {
                 // Cancellation can arrive while the MainActor reservation call
@@ -297,7 +303,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                 await ModelRuntimeRegistry.shared.register(
                     id: runtimeID,
                     role: "Transcribe",
-                    label: model.displayName,
+                    label: label,
                     estimatedBytes: estimatedBytes,
                     processIdentifier: processUsage?.processIdentifier,
                     processStartTime: processUsage?.startTime
@@ -322,7 +328,9 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
             execution.cancel()
             processController.cancel()
         }
-        return Self.parseTexts(stdout)
+        let texts = Self.parseTexts(stdout)
+        if requireAllResults, texts.count != wavs.count { throw EngineError.incompleteResults }
+        return texts
     }
 
     /// `sherpa-onnx-offline` prints one JSON object per wav, in input order, on
@@ -377,8 +385,10 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         case runtimeMissing
         case modelUnavailable
         case transcriptionFailed(Int)
+        case incompleteResults
         var errorDescription: String? {
             switch self {
+            case .incompleteResults: "The transcription runtime returned incomplete results. No partial transcript was saved."
             case .runtimeMissing: "The bundled sherpa-onnx runtime is missing from the app."
             case .modelUnavailable: "The transcription model could not be downloaded."
             case .transcriptionFailed(let code): "sherpa-onnx-offline exited with code \(code)."

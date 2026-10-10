@@ -17,7 +17,9 @@ struct ModelCheckIdentity: Equatable {
             encoder.outputFormatting = .sortedKeys
             let granite = settings.transcriptionModel == .graniteSpeech
                 ? (try? encoder.encode(settings.graniteSpeechModel))?.base64EncodedString() ?? "" : ""
-            parts = [settings.transcriptionModel.id, granite, settings.transcriptionLanguage.rawValue,
+            parts = [settings.transcriptionModel.id, granite,
+                     settings.transcriptionModel == .funASRNano ? settings.funASRNanoModelDirectory : "",
+                     settings.transcriptionLanguage.rawValue,
                      settings.transcriptionPrompt]
         case .think:
             switch settings.summarizerBackend {

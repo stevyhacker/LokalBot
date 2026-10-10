@@ -39,7 +39,7 @@ private func downloadProgressHandler(
 /// User-facing transcription model list (Settings). CoreML/MLX families
 /// (Parakeet, Qwen3-ASR, Whisper, Cohere) plus ONNX-runtime models for languages
 /// those cover poorly — SenseVoice (CJK) and GigaAM (Russian) — via the bundled
-/// sherpa-onnx engine.
+/// sherpa-onnx engine. Fun-ASR-Nano uses a user-selected local ONNX folder.
 enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case parakeetUltra = "parakeet-ultra"
     case parakeetV3 = "parakeet-v3"
@@ -49,6 +49,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case graniteSpeech = "granite-speech"
     case graniteTurbo = "granite-speech-5-turbo"
     case whisperLarge = "whisper-large-v3-turbo"
+    case funASRNano = "fun-asr-nano-2512"
     case senseVoice = "sense-voice"
     case gigaamRussian = "gigaam-russian"
     case cohere = "cohere-transcribe"
@@ -72,6 +73,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .graniteTurbo: "Granite Speech 5 fast (English)"
         case .whisperLarge: "Whisper large-v3 turbo"
         case .cohere: "Cohere Transcribe (multilingual)"
+        case .funASRNano: "Fun-ASR-Nano-2512"
         case .senseVoice: "SenseVoice (Chinese/Japanese/Korean)"
         case .gigaamRussian: "GigaAM (Russian)"
         }
@@ -118,6 +120,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .graniteTurbo: "0.95 GB · English only · fast local transcription without punctuation or vocabulary prompts"
         case .whisperLarge: "1.6 GB · 99 languages, word timestamps, wide-language legacy fallback"
         case .cohere: "2B params · legacy — no auto language detection, timestamps, or diarization"
+        case .funASRNano: "Chinese · English · Japanese · local ONNX model folder"
         case .senseVoice: "Chinese · Japanese · Korean · Cantonese · English (ONNX, downloaded on first use)"
         case .gigaamRussian: "Russian — high accuracy (ONNX, downloaded on first use)"
         }
@@ -134,6 +137,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .graniteTurbo: GraniteTurboEngine.shared
         case .whisperLarge: WhisperEngine.shared
         case .cohere: CohereEngine.shared
+        case .funASRNano: FunASRNanoEngine(directory: "")
         case .senseVoice: OnnxTranscriptionEngine.senseVoice
         case .gigaamRussian: OnnxTranscriptionEngine.gigaamRussian
         }

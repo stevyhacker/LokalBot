@@ -205,6 +205,46 @@ Models auto-download on first use (Hugging Face; the ONNX specialists fetch sher
 
 ## Configuration
 
+### Fun-ASR-Nano local transcription
+
+Choose **Settings → Models → Transcribe → Fun-ASR-Nano-2512 → Choose model
+folder…**, select an extracted model directory, then choose **Use model**.
+LokalBot checks the files and loads a short synthetic input before activating
+the selection. A failed or cancelled load leaves the previous model active.
+
+This uses the bundled sherpa-onnx CPU runtime and its
+[Fun-ASR-Nano-2512 ONNX exports](https://k2-fsa.github.io/sherpa/onnx/funasr-nano/pretrained.html),
+not the original Hugging Face/ModelScope PyTorch checkpoint. Supported layouts:
+
+| Export | Encoder / embedding | Decoder | Extra weights |
+| --- | --- | --- | --- |
+| int8 | `encoder_adaptor.int8.onnx`, `embedding.int8.onnx` | `llm.int8.onnx` | — |
+| fp16 | Same int8 encoder and embedding | `llm.fp16.onnx` | — |
+| fp32 | `encoder_adaptor.onnx`, `embedding.onnx` | `llm.fp32.onnx` | `llm.fp32.data` |
+
+All layouts need `Qwen3-0.6B/tokenizer.json`, `vocab.json`, and `merges.txt`.
+An inline `llm.onnx` decoder is also accepted. Actual graph compatibility is
+checked by the runtime; empty files, Git LFS pointers, missing tokenizer files,
+and missing fp32 external weights are rejected before loading.
+
+The selected path is saved as `funASRNanoModelDirectory`. Files are used in
+place, including local cache symlinks; the app never imports, overwrites, or
+deletes this directory. Removing the model in **Downloaded** only clears the
+saved path. Moving the folder requires selecting it again. No Fun-ASR model
+download or remote inference occurs. The existing shared Silero VAD may still
+download its small pinned model on first use, as with other transcription engines.
+Speech is decoded in at most 20-second regions with span/coarse timestamps;
+this is not streaming or word-aligned transcription. Chinese, English, and
+Japanese hints are supported; automatic detection is used for other selections.
+
+`FunASRNanoModelTests`, `FunASRNanoSelectionTests`, and the FunASR cases in
+`ModelRolesTests` cover directory validation, settings persistence, selection
+undo, readiness invalidation, file ownership, and preparation cancellation.
+`FunASRNanoRuntimeTests` checks subprocess results and offers an opt-in real
+model check using `LOKALBOT_FUNASR_TEST_MODEL_DIR` and `LOKALBOT_FUNASR_TEST_WAV`
+(public or synthetic audio only). Prefix these variables with `TEST_RUNNER_`
+when running through `xcodebuild`.
+
 ### Interface language
 
 Choose **Settings → General → Appearance → App language** (or the picker in

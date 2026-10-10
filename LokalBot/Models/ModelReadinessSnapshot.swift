@@ -16,7 +16,8 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
             let models = root.appendingPathComponent("models", isDirectory: true)
             return Self(
                 downloadedTranscriptionIDs: TranscriptionModelStore.downloadedChoices(
-                    graniteConfiguration: settings.graniteSpeechModel),
+                    graniteConfiguration: settings.graniteSpeechModel,
+                    funASRNanoDirectory: settings.funASRNanoModelDirectory),
                 thinkReady: ModelCatalog.entry(id: settings.builtInModelID, custom: settings.customBuiltInModels)
                     .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil,
                 autocompleteReady: ModelReadinessSnapshot.autocompleteReady(settings, storage: storage),
@@ -82,7 +83,8 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     static func transcriptionReady(_ settings: AppSettings) -> Bool {
         TranscriptionModelStore.isDownloaded(
             settings.transcriptionModel,
-            graniteConfiguration: settings.graniteSpeechModel)
+            graniteConfiguration: settings.graniteSpeechModel,
+            funASRNanoDirectory: settings.funASRNanoModelDirectory)
     }
 
     /// True when the Think role can run without triggering a model download.
@@ -112,6 +114,7 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
                                            to new: AppSettings) -> Bool {
         old.transcriptionModel != new.transcriptionModel
             || old.graniteSpeechModel != new.graniteSpeechModel
+            || old.funASRNanoModelDirectory != new.funASRNanoModelDirectory
             || old.summarizerBackend != new.summarizerBackend
             || old.builtInModelID != new.builtInModelID
             || old.customBuiltInModels != new.customBuiltInModels

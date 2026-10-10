@@ -1109,3 +1109,11 @@
 "↑↓ Navigate" = "↑↓ Navigate";
 "↩ Open" = "↩ Open";
 "简体中文" = "简体中文";
+"Local model folder" = "Local model folder";
+"Choose model folder…" = "Choose model folder…";
+"Model format & downloads" = "Model format & downloads";
+"Choose Fun-ASR-Nano model folder" = "Choose Fun-ASR-Nano model folder";
+"Select the extracted sherpa-onnx model folder (int8, fp16, or fp32). The selected model stays in this folder and is never downloaded automatically." = "Select the extracted sherpa-onnx model folder (int8, fp16, or fp32). The selected model stays in this folder and is never downloaded automatically.";
+"Chinese · English · Japanese · local ONNX model folder" = "Chinese · English · Japanese · local ONNX model folder";
+"Only the saved folder selection is removed. Your model files stay on disk." = "Only the saved folder selection is removed. Your model files stay on disk.";
+"Checking local model…" = "Checking local model…";

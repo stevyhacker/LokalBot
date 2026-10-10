@@ -1109,3 +1109,11 @@
 "↑↓ Navigate" = "↑↓ 导航";
 "↩ Open" = "↩ 打开";
 "简体中文" = "简体中文";
+"Local model folder" = "本地模型目录";
+"Choose model folder…" = "选择模型目录…";
+"Model format & downloads" = "模型格式与下载";
+"Choose Fun-ASR-Nano model folder" = "选择 Fun-ASR-Nano 模型目录";
+"Select the extracted sherpa-onnx model folder (int8, fp16, or fp32). The selected model stays in this folder and is never downloaded automatically." = "请选择解压后的 sherpa-onnx 模型目录（int8、fp16 或 fp32）。所选模型保留在原目录中，不会自动下载。";
+"Chinese · English · Japanese · local ONNX model folder" = "中文 · 英语 · 日语 · 本地 ONNX 模型目录";
+"Only the saved folder selection is removed. Your model files stay on disk." = "仅清除保存的目录选择，磁盘上的模型文件不会被删除。";
+"Checking local model…" = "正在检查本地模型…";

@@ -46,6 +46,7 @@ enum ModelsSettingsSheet: String, Identifiable {
 struct ModelSelectionPatch: Equatable {
     var transcription: TranscriptionModelChoice?
     var granite: GraniteSpeechModelConfiguration?
+    var funASRNanoDirectory: String?
     var language: TranscriptionLanguage?
     var backend: AppSettings.SummarizerBackend?
     var assistantModelID: String?
@@ -58,6 +59,7 @@ struct ModelSelectionPatch: Equatable {
         var next = settings
         if let transcription { next.transcriptionModel = transcription }
         if let granite { next.graniteSpeechModel = granite }
+        if let funASRNanoDirectory { next.funASRNanoModelDirectory = funASRNanoDirectory }
         if let language { next.transcriptionLanguage = language }
         if let backend { next.summarizerBackend = backend }
         if let assistantModelID { next.builtInModelID = assistantModelID }
@@ -72,6 +74,7 @@ struct ModelSelectionPatch: Equatable {
         Self(
             transcription: transcription.map { _ in settings.transcriptionModel },
             granite: granite.map { _ in settings.graniteSpeechModel },
+            funASRNanoDirectory: funASRNanoDirectory.map { _ in settings.funASRNanoModelDirectory },
             language: language.map { _ in settings.transcriptionLanguage },
             backend: backend.map { _ in settings.summarizerBackend },
             assistantModelID: assistantModelID.map { _ in settings.builtInModelID },
@@ -93,6 +96,8 @@ struct ModelSelectionPatch: Equatable {
         let target = applying(to: original)
         if transcription == .graniteSpeech,
            original.graniteSpeechModel != latest.graniteSpeechModel { return false }
+        if transcription == .funASRNano,
+           original.funASRNanoModelDirectory != latest.funASRNanoModelDirectory { return false }
         if backend != nil || remoteModel != nil || ollamaModel != nil {
             switch target.summarizerBackend {
             case .openAICompatible: return original.openAIBaseURL == latest.openAIBaseURL
@@ -251,7 +256,7 @@ enum ModelSettingsPresentation {
         case .whisperLarge: 1_600_000_000
         case .graniteSpeech:
             safeCombinedBytes(granite.model.sizeBytes, granite.projector.sizeBytes)
-        case .cohere, .senseVoice, .gigaamRussian: nil
+        case .cohere, .senseVoice, .gigaamRussian, .funASRNano: nil
         }
     }
 
