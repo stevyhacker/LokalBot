@@ -323,7 +323,7 @@ struct SettingsView: View {
                 Toggle("Experimental hybrid suggestions", isOn: $app.settings.cotypingSelectiveOneWordHybrid)
                     .accessibilityLabel("Experimental hybrid suggestions")
                     .settingTarget("settings.cotypingSelectiveOneWordHybrid", selected: app.focusedSettingID)
-                Text("Keeps current suggestions and may add a single word when autocomplete would otherwise stay quiet. Turn off to restore the current decoder. Requires the fast in-process runtime; suggestions appear when decoding finishes.")
+                Text("May add a single word when autocomplete would otherwise stay quiet and improve words you have started typing. Turn off to restore the previous decoder. Experimental: some suggestions can be worse, and may take longer. Suggestions appear when decoding finishes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 LabeledContent("Autocomplete model") {

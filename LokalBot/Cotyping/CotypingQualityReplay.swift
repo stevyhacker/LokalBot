@@ -59,6 +59,18 @@ enum CotypingQualityReplay {
         var confidenceGate: Bool?
         /// Same opt-in flag as Settings → Writing → Autocomplete.
         var selectiveOneWordHybrid: Bool?
+        var firstWordThreshold: Float?
+        var hybridFallbackThreshold: Float?
+        var confidenceBoundaryMode: CotypingConfidenceBoundaryMode?
+        var confidenceTrace: Bool?
+        var healingMode: CotypingHealingMode?
+        var healingTrace: Bool?
+        var useNativeSpellingVerdicts: Bool?
+        // Reject archived research modes this integration does not implement.
+        var decoderCandidates: Int?
+        var logitCache: Bool?
+        var candidateRanking: String?
+        var stopAtDisplayLimit: Bool?
     }
 
     struct Case: Decodable {
@@ -73,6 +85,12 @@ enum CotypingQualityReplay {
         /// Explicit experiment control, recorded in output. Omit for product replay.
         var promptOverride: String?
         var visibleContext: CotypingVisibleContextReplay.Fixture?
+        var resetCache: Bool?
+        var firstWordThreshold: Float?
+        var hybridFallbackThreshold: Float?
+        var cacheScope: String?
+        var delayBeforeMs: Double?
+        var cancelAfterMs: Double?
     }
 
     struct Observation: Encodable {
@@ -88,6 +106,18 @@ enum CotypingQualityReplay {
         var visibleTextReadIDs: [String] = []
         var attempts = 1
         var selectiveOneWordHybrid = false
+        var firstWordThreshold = CotypingFirstWordConfidence.minimumProbability
+        var hybridFallbackThreshold = CotypingConfidenceDecision.hybridMinimum
+        var confidenceBoundaryMode = CotypingConfidenceBoundaryMode.selectedToken
+        var confidenceTrace = false
+        var oneWordText: String?
+        var healingMode = CotypingHealingMode.wordBoundary
+        var rawText: String?
+        var healingTrace: CotypingHealingTrace?
+        var wordPrefixIsValidWord: Bool?
+        var nativeSpellVerdictsApply: Bool?
+        // Keep the research JSON key for confidence-trace reconstruction.
+        var cache: CotypingReplayDiagnostics?
     }
 
     @MainActor
@@ -103,11 +133,16 @@ enum CotypingQualityReplay {
             }
             try validateHybrid(fixture, engine: engineChoice)
             let config = try configuration(for: fixture)
+            let healingMode = fixture.healingMode ?? (fixture.selectiveOneWordHybrid == true ? .prefixSearch : .wordBoundary)
             let engine: CotypingCompleting
             var retryLimit = 0
             switch engineChoice {
             case .local(let model):
-                engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(selectiveOneWordHybrid: fixture.selectiveOneWordHybrid == true), modelPath: model.path)
+                engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(
+                    confidenceBoundaryMode: fixture.confidenceBoundaryMode ?? .selectedToken,
+                    selectiveOneWordHybrid: fixture.selectiveOneWordHybrid == true,
+                    confidenceTraceEnabled: fixture.confidenceTrace == true,
+                    healingTraceEnabled: fixture.healingTrace == true), modelPath: model.path)
             case .remote(let baseURL, let model, let extraBodyJSON, let chat):
                 guard let extraBody = extraBody(from: extraBodyJSON) else {
                     try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: --completions-extra-body must be a JSON object\n".utf8))
@@ -144,11 +179,45 @@ enum CotypingQualityReplay {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
             var failed = false
-            for (index, item) in fixture.cases.enumerated() {
+            let spellChecker = CotypingSpellChecker()
+            for (index, originalItem) in fixture.cases.enumerated() {
+                var item = originalItem
+                if fixture.useNativeSpellingVerdicts == true {
+                    item.wordPrefixIsValidWord = spellChecker.wordPrefixIsValidWord(context: item.prefix)
+                }
+                if let local = engine as? LocalLlamaCotypingEngine {
+                    local.minimumFirstWordProbability = item.firstWordThreshold ?? fixture.firstWordThreshold
+                        ?? (fixture.confidenceGate == false ? 0 : CotypingFirstWordConfidence.minimumProbability)
+                    local.replayHybridFallbackMinimum = item.hybridFallbackThreshold ?? fixture.hybridFallbackThreshold
+                        ?? CotypingConfidenceDecision.hybridMinimum
+                    local.healingMode = healingMode
+                    if item.resetCache == true { await local.clearReplayCache() }
+                }
                 var observation = await replay(item, generation: UInt64(index), config: config,
                                                personalization: personalization, engine: engine, fixture: fixture,
                                                retryLimit: retryLimit)
                 observation.selectiveOneWordHybrid = fixture.selectiveOneWordHybrid == true
+                observation.firstWordThreshold = item.firstWordThreshold ?? fixture.firstWordThreshold
+                    ?? (fixture.confidenceGate == false ? 0 : CotypingFirstWordConfidence.minimumProbability)
+                observation.hybridFallbackThreshold = item.hybridFallbackThreshold ?? fixture.hybridFallbackThreshold
+                    ?? CotypingConfidenceDecision.hybridMinimum
+                observation.confidenceBoundaryMode = fixture.confidenceBoundaryMode ?? .selectedToken
+                observation.confidenceTrace = fixture.confidenceTrace == true
+                observation.healingMode = healingMode
+                observation.wordPrefixIsValidWord = item.wordPrefixIsValidWord ?? true
+                if fixture.useNativeSpellingVerdicts == true {
+                    observation.nativeSpellVerdictsApply = spellChecker.verdictsApply(context: item.prefix)
+                }
+                if fixture.healingTrace == true {
+                    observation.rawText = (engine as? LocalLlamaCotypingEngine)?.lastRawText
+                    observation.healingTrace = (engine as? LocalLlamaCotypingEngine)?.lastHealingTrace
+                }
+                if observation.confidenceTrace {
+                    observation.oneWordText = LocalLlamaCotypingEngine.oneWordFallback(
+                        CotypingNormalizationResult(text: observation.text, suppression: nil)).text
+                }
+                observation.cache = observation.suppression == "pre-generation-gate"
+                    ? nil : (engine as? LocalLlamaCotypingEngine)?.lastReplayDiagnostics
                 failed = failed || observation.error != nil
                 let line = try encoder.encode(observation) + Data([10])
                 try FileHandle.standardOutput.write(contentsOf: line)
@@ -163,9 +232,36 @@ enum CotypingQualityReplay {
     }
 
     static func validateHybrid(_ input: Input, engine: Engine) throws {
-        guard input.selectiveOneWordHybrid == true else { return }
-        guard case .local = engine, input.confidenceGate != false else {
+        guard (input.decoderCandidates ?? 1) == 1, input.logitCache != true,
+              input.candidateRanking == nil, input.stopAtDisplayLimit != true,
+              input.cases.allSatisfy({ $0.cacheScope == nil && $0.delayBeforeMs == nil && $0.cancelAfterMs == nil }) else {
             throw ReplayError.invalidConfiguration
+        }
+        let nativeControls = input.firstWordThreshold != nil || input.hybridFallbackThreshold != nil
+            || input.confidenceBoundaryMode != nil || input.confidenceTrace != nil
+            || input.healingMode != nil || input.healingTrace != nil || input.useNativeSpellingVerdicts != nil
+            || input.cases.contains { $0.firstWordThreshold != nil || $0.hybridFallbackThreshold != nil || $0.resetCache != nil }
+        if case .remote = engine, nativeControls || input.selectiveOneWordHybrid == true {
+            throw ReplayError.invalidConfiguration
+        }
+        for threshold in [input.firstWordThreshold, input.hybridFallbackThreshold]
+            + input.cases.flatMap({ [$0.firstWordThreshold, $0.hybridFallbackThreshold] }) {
+            guard let threshold else { continue }
+            guard threshold.isFinite, (0...1).contains(threshold), input.confidenceGate != false else {
+                throw ReplayError.invalidConfiguration
+            }
+        }
+        if input.hybridFallbackThreshold != nil || input.confidenceTrace == true
+            || input.cases.contains(where: { $0.hybridFallbackThreshold != nil }) {
+            guard input.selectiveOneWordHybrid == true else { throw ReplayError.invalidConfiguration }
+        }
+        if input.selectiveOneWordHybrid == true {
+            guard input.confidenceGate != false,
+                  (input.confidenceBoundaryMode ?? .selectedToken) == .selectedToken,
+                  (input.firstWordThreshold ?? 0.1) > 0, (input.hybridFallbackThreshold ?? 0.31) > 0,
+                  input.cases.allSatisfy({ ($0.firstWordThreshold ?? 0.1) > 0 && ($0.hybridFallbackThreshold ?? 0.31) > 0 }) else {
+                throw ReplayError.invalidConfiguration
+            }
         }
     }
 

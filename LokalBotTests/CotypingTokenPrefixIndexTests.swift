@@ -2,6 +2,20 @@ import XCTest
 @testable import LokalBot
 
 final class CotypingTokenPrefixIndexTests: XCTestCase {
+    func testPrefixPathComparesWholeProbabilityAndKeepsUsefulShortPieces() throws {
+        let root = CotypingHealingPath(remaining: Array(" ab".utf8))
+        let partial = try XCTUnwrap(root.appending(token: 1, bytes: Array(" a".utf8), logProbability: log(0.7)))
+        let weak = try XCTUnwrap(partial.appending(token: 2, bytes: Array("b".utf8), logProbability: log(0.01)))
+        let whole = try XCTUnwrap(root.appending(token: 3, bytes: Array(" abc".utf8), logProbability: log(0.1)))
+        XCTAssertTrue(CotypingHealingPath.outranks(whole, weak))
+        let strong = try XCTUnwrap(partial.appending(token: 4, bytes: Array("b".utf8), logProbability: log(0.8)))
+        XCTAssertTrue(CotypingHealingPath.outranks(strong, whole))
+        XCTAssertTrue(strong.remaining.isEmpty)
+        XCTAssertLessThanOrEqual(strong.logProbability, partial.logProbability)
+        XCTAssertNil(root.appending(token: 5, bytes: [], logProbability: -1))
+        XCTAssertNil(root.appending(token: 5, bytes: Array(" ab".utf8), logProbability: .nan))
+    }
+
     func testPromptBudgetKeepsCaretAndReservesDecodeRoom() {
         let tokens = (0..<3000).map(Int32.init)
         let bounded = LlamaCotypingRuntime.boundedPromptTokens(tokens, contextSize: 2048, outputReserve: 64)

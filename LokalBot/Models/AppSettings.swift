@@ -525,6 +525,7 @@ struct AppSettings: Codable, Equatable {
     var cotypingInProcessRuntime: Bool = true
     /// Opt-in trial: keep current suggestions and rescue at most one word when
     /// its confidence gate is silent. Off restores the current decoder.
+    /// Also enables bounded prefix search. Off restores the prior decoder.
     var cotypingSelectiveOneWordHybrid: Bool = false
     /// Learn from accepted continuation text, encrypted locally. Stores accepted
     /// text plus a short sanitized prefix/context hint for ranking — never full

@@ -9,6 +9,11 @@ import Foundation
 final class LocalLlamaCotypingEngine: CotypingCompleting {
     private let runtime: LlamaCotypingRuntime
     private let modelPath: String
+    var healingMode: CotypingHealingMode
+    var replayHybridFallbackMinimum = CotypingConfidenceDecision.hybridMinimum
+    private(set) var lastRawText: String?
+    private(set) var lastHealingTrace: CotypingHealingTrace?
+    private(set) var lastReplayDiagnostics: CotypingReplayDiagnostics?
     private var memoryPressureSource: DispatchSourceMemoryPressure?
     private var inflightPrewarmTask: Task<Void, Never>?
     /// The confidence gate for suggestions at the start of a word; 0 turns it
@@ -18,6 +23,8 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
     init(runtime: LlamaCotypingRuntime, modelPath: String) {
         self.runtime = runtime
         self.modelPath = modelPath
+        // One saved switch rolls back both experimental decoder changes.
+        self.healingMode = runtime.selectiveOneWordHybrid ? .prefixSearch : .wordBoundary
 
         let source = DispatchSource.makeMemoryPressureSource(
             eventMask: [.warning, .critical], queue: .global(qos: .utility))
@@ -77,8 +84,17 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
         await runtime.unload()
     }
 
+    func clearReplayCache() async { await runtime.clearReplayCache() }
+
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
-        try await run(request, onPartial: nil)
+        do {
+            let result = try await run(request, onPartial: nil)
+            lastReplayDiagnostics = await runtime.lastReplayDiagnostics
+            return result
+        } catch {
+            lastReplayDiagnostics = await runtime.lastReplayDiagnostics
+            throw error
+        }
     }
 
     func generateStreaming(
@@ -94,6 +110,9 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
         _ request: CotypingRequest,
         onPartial: (@Sendable (CotypingNormalizationResult) -> Void)?
     ) async throws -> CotypingNormalizationResult {
+        lastRawText = nil
+        lastHealingTrace = nil
+        lastReplayDiagnostics = nil
         inflightPrewarmTask?.cancel()
         inflightPrewarmTask = nil
         try Task.checkCancellation()
@@ -130,8 +149,10 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
                 // A fragment that is not a valid standalone word must keep
                 // being spelled across the caret, not merely reach it.
                 preferWordExtendingOvershoot: !request.wordPrefixIsValidWord,
+                prefixSearchWidth: !request.wordPrefixAtCaret.isEmpty && healingMode == .prefixSearch ? 4 : 1,
                 // Inside a word the first token is forced, so it is not weighed.
                 minimumFirstWordProbability: request.wordPrefixAtCaret.isEmpty ? minimumFirstWordProbability : 0,
+                hybridFallbackMinimum: replayHybridFallbackMinimum,
                 onLowConfidence: { accumulator.markUnsure() },
                 onHybridFallback: { accumulator.markHybridFallback() }
             ) { piece in
@@ -157,6 +178,12 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
             let result = CotypingNormalizationResult(text: "", suppression: .lowConfidence)
             if hybrid { onPartial?(result) }
             return result
+        }
+        lastRawText = raw
+        if runtime.healingTraceEnabled {
+            var trace = await runtime.lastHealingTrace
+            trace?.canonicalTokens = await runtime.tokenize(request.prompt + raw, addBOS: true)
+            lastHealingTrace = trace
         }
         let normalized = CotypingTextNormalizer.normalizeDetailed(raw, for: request)
         let result = accumulator.isHybridFallback ? Self.oneWordFallback(normalized) : normalized

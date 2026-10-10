@@ -45,6 +45,29 @@ struct CotypingTokenPrefixIndex {
         return best ?? boundary
     }
 
+    func bestTokens(
+        in logits: UnsafePointer<Float>, matching remaining: ArraySlice<UInt8>,
+        preferWordExtendingOvershoot: Bool, limit: Int
+    ) -> [Int32] {
+        guard let first = remaining.first else { return [] }
+        var preferred: [Int32] = []
+        var fallback: [Int32] = []
+        for entry in buckets[Int(first)] {
+            guard logits[Int(entry.token)].isFinite else { continue }
+            var boundary = false
+            switch CotypingRequiredPrefixMatcher.match(pieceBytes: entry.bytes, remaining: remaining) {
+            case .mismatch: continue
+            case .consumes(let count): boundary = preferWordExtendingOvershoot && count == remaining.count
+            case .overshoots(let extra):
+                boundary = preferWordExtendingOvershoot && !CotypingRequiredPrefixMatcher.extendsWord(extraBytes: extra)
+            }
+            if boundary { fallback.append(entry.token) } else { preferred.append(entry.token) }
+        }
+        return Array((preferred.isEmpty ? fallback : preferred).sorted {
+            outranks($0, $1, logits: logits)
+        }.prefix(max(1, limit)))
+    }
+
     private func outranks(_ token: Int32, _ other: Int32?, logits: UnsafePointer<Float>) -> Bool {
         guard let other else { return true }
         let score = logits[Int(token)]

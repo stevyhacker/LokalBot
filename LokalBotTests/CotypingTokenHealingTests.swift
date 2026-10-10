@@ -166,6 +166,62 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
 // MARK: - Engine healing seam
 
 final class LocalLlamaHealedGenerationTests: XCTestCase {
+    @MainActor
+    func testExperimentalSwitchSelectsPrefixSearchAndRollsBack() {
+        for enabled in [false, true, false] {
+            let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: enabled)
+            let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: "/unused.gguf")
+            XCTAssertEqual(engine.healingMode, enabled ? .prefixSearch : .wordBoundary)
+        }
+    }
+
+    @MainActor
+    func testNativePrefixSearchRetainsBaselineAndRestoresKVForSampling() async throws {
+        guard let model = ProcessInfo.processInfo.environment["LOKALBOT_CANDIDATE_TEST_MODEL"] else {
+            throw XCTSkip("Set LOKALBOT_CANDIDATE_TEST_MODEL for prefix-path parity.")
+        }
+        let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: true, healingTraceEnabled: true)
+        let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
+        // Test-only ablation: the same assertion must fail on the old decoder.
+        let selectedMode: CotypingHealingMode = ProcessInfo.processInfo.environment["LOKALBOT_TEST_LEGACY_HEALING"] == "1"
+            ? .wordBoundary : .prefixSearch
+        try await engine.prewarm()
+        let longPrefix = String(repeating: "The project notes mention testing and examples. ", count: 80)
+            + "Mačka se stalno skriva iza kauča čim uključimo usi"
+        for prefix in ["Mačka se stalno skriva iza kauča čim uključimo usi", "The delivery driver called because the numb",
+                       "Dostavljač je zvao da kaže da ne mo", "Please review the ", longPrefix] {
+            let request = CotypingRequest(
+                prompt: prefix, prefixText: prefix, trailingText: "", isMultiLine: false,
+                maxTokens: 6, maxWords: 4, temperature: 0.1, topP: 0.7, topK: 20, minP: 0.08,
+                repeatPenalty: 1.05, seed: 0xC0FFEE, generation: 0,
+                wordPrefixAtCaret: CotypingMidWord.currentPartialWord(in: prefix))
+            engine.healingMode = .wordBoundary
+            await engine.clearReplayCache()
+            let baseline = try await engine.generate(request)
+            engine.healingMode = selectedMode
+            await engine.clearReplayCache()
+            let selected = try await engine.generate(request)
+            if prefix == "Mačka se stalno skriva iza kauča čim uključimo usi" {
+                XCTAssertTrue(selected.text.hasPrefix("sivač"), "Complete usisivač instead of the malformed usig")
+                XCTAssertFalse(baseline.text.hasPrefix("sivač"), "The escaped regression must reproduce with the fix disabled")
+            }
+            if let trace = engine.lastHealingTrace, let search = trace.search {
+                XCTAssertGreaterThanOrEqual(search.selectedLogProbability, search.baselineLogProbability)
+                if !search.changedPath { XCTAssertEqual(selected, baseline) }
+                XCTAssertLessThanOrEqual(search.expansions, 32)
+                let coldScore = try await runtime.coldScore(
+                    promptTokens: trace.promptTokens, continuationTokens: trace.steps.map(\.token))
+                XCTAssertEqual(coldScore, search.selectedLogProbability, accuracy: 0.015,
+                               "Search rollback must preserve the cold probability of the chosen token path")
+            } else { XCTAssertEqual(selected, baseline) }
+            await engine.clearReplayCache()
+            try await engine.prewarm(for: request)
+            let warmed = try await engine.generate(request)
+            XCTAssertEqual(warmed, selected)
+        }
+        await engine.unload()
+    }
+
     private func request(prompt: String, wordPrefix: String) -> CotypingRequest {
         CotypingRequest(
             prompt: prompt, prefixText: prompt, trailingText: "", isMultiLine: false,

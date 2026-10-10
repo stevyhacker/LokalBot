@@ -97,6 +97,10 @@ actor LlamaCotypingRuntime {
     private var boundaryTokenMask: [Float] = []
     private let confidenceBoundaryMode: CotypingConfidenceBoundaryMode
     nonisolated let selectiveOneWordHybrid: Bool
+    nonisolated let confidenceTraceEnabled: Bool
+    nonisolated let healingTraceEnabled: Bool
+    private(set) var lastHealingTrace: CotypingHealingTrace?
+    private(set) var lastReplayDiagnostics = CotypingReplayDiagnostics()
     /// When a suggestion was last generated, for the memory-pressure policy.
     private var lastUsedUptime: TimeInterval?
     /// True only for pure-attention models, whose per-position KV cells can be
@@ -117,9 +121,12 @@ actor LlamaCotypingRuntime {
 
     init(confidenceBoundaryMode: CotypingConfidenceBoundaryMode = .selectedToken,
          selectiveOneWordHybrid: Bool = false,
+         confidenceTraceEnabled: Bool = false, healingTraceEnabled: Bool = false,
          postLoadAdmissionHook: @escaping PostLoadAdmissionHook = {}) {
         self.confidenceBoundaryMode = confidenceBoundaryMode
         self.selectiveOneWordHybrid = selectiveOneWordHybrid
+        self.confidenceTraceEnabled = confidenceTraceEnabled
+        self.healingTraceEnabled = healingTraceEnabled
         self.postLoadAdmissionHook = postLoadAdmissionHook
     }
 
@@ -392,6 +399,12 @@ actor LlamaCotypingRuntime {
         cachedTokens = []
     }
 
+    /// Replay/test reset; model weights remain resident.
+    func clearReplayCache() {
+        if let ctx { llama_memory_clear(llama_get_memory(ctx), true) }
+        cachedTokens = []
+    }
+
     // MARK: - Tokenize / detokenize
 
     func tokenize(_ text: String, addBOS: Bool) -> [Int32] {
@@ -429,6 +442,7 @@ actor LlamaCotypingRuntime {
     @discardableResult
     private func decode(_ tokens: [Int32], startPos: Int32, logitsLastOnly: Bool) -> Bool {
         guard let ctx, !tokens.isEmpty else { return true }
+        lastReplayDiagnostics.decodedTokens += tokens.count
         var batch = llama_batch_init(Int32(tokens.count), 0, 1)
         defer { llama_batch_free(batch) }
         for i in 0..<tokens.count {
@@ -501,12 +515,17 @@ actor LlamaCotypingRuntime {
         stopAtArgmaxEOG: Bool = true,
         requiredPrefixUTF8: [UInt8] = [],
         preferWordExtendingOvershoot: Bool = false,
+        prefixSearchWidth: Int = 1,
         minimumFirstWordProbability: Float = 0,
+        hybridFallbackMinimum: Float = CotypingConfidenceDecision.hybridMinimum,
         onLowConfidence: @Sendable () -> Void = {},
         onHybridFallback: @Sendable () -> Void = {},
         onToken: @Sendable (String) -> Bool
     ) throws -> String {
         guard let ctx, let vocab, !promptTokens.isEmpty else { return "" }
+        lastReplayDiagnostics = .init()
+        lastHealingTrace = healingTraceEnabled
+            ? CotypingHealingTrace(promptTokens: promptTokens, requiredPrefix: requiredPrefixUTF8) : nil
         lastUsedUptime = ProcessInfo.processInfo.systemUptime
         let promptTokens = Self.boundedPromptTokens(
             promptTokens, contextSize: Int(llama_n_ctx(ctx)),
@@ -563,15 +582,37 @@ actor LlamaCotypingRuntime {
             throw error
         }
 
+        var plannedHealing = [Int32]().makeIterator()
+        if prefixSearchWidth > 1, !requiredPrefixUTF8.isEmpty, supportsPartialReuse {
+            plannedHealing = try searchPrefixPath(prompt: promptTokens, requiredPrefix: requiredPrefixUTF8,
+                preferOvershoot: preferWordExtendingOvershoot, width: min(4, prefixSearchWidth)).makeIterator()
+        }
         var output = ""
         var textDecoder = CotypingUTF8TokenDecoder()
         var pos = Int32(promptTokens.count)
         var confidence = CotypingConfidenceDecision(
             minimum: minimumFirstWordProbability, boundaryMode: confidenceBoundaryMode,
-            selectiveOneWordHybrid: selectiveOneWordHybrid)
-        defer { if confidence.usesFallback { onHybridFallback() } }
+            selectiveOneWordHybrid: selectiveOneWordHybrid, fallbackMinimum: hybridFallbackMinimum,
+            traceOnly: confidenceTraceEnabled && minimumFirstWordProbability > 0)
+        var confidenceEvaluations = 0
+        defer {
+            lastReplayDiagnostics.confidenceTrace = confidenceTraceEnabled
+            lastReplayDiagnostics.confidenceGateEligible = minimumFirstWordProbability > 0
+            if minimumFirstWordProbability > 0, confidenceEvaluations > 0 {
+                lastReplayDiagnostics.firstWordProbability = confidence.primary.probability
+                lastReplayDiagnostics.firstWordGateSettled = confidence.primary.isSettled
+                if selectiveOneWordHybrid {
+                    lastReplayDiagnostics.hybridFallbackProbability = confidence.fallback?.probability
+                    lastReplayDiagnostics.hybridFallbackSettled = confidence.fallback?.isSettled
+                    lastReplayDiagnostics.hybridPrimaryPassed = confidence.primaryPassed
+                    lastReplayDiagnostics.hybridUsedFallback = confidence.usesFallback
+                }
+            }
+            if confidence.usesFallback { onHybridFallback() }
+        }
         func confident(_ token: Int32, _ piece: String, isEOG: Bool = false) -> Bool {
             guard confidence.needsEvaluation else { return true }
+            confidenceEvaluations += 1
             let probability = tokenProbability(token, ctx: ctx, vocab: vocab)
             let boundary = confidence.needsBoundaryMass(for: piece)
                 ? Self.boundaryMass(numerators: probabilityScratch, mask: boundaryTokenMask) : nil
@@ -584,7 +625,7 @@ actor LlamaCotypingRuntime {
         var constraintStopped = false
         while !remaining.isEmpty {
             try Task.checkCancellation()
-            guard let tok = constrainedToken(
+            guard let tok = plannedHealing.next() ?? constrainedToken(
                 matching: remaining,
                 vocab: vocab,
                 preferWordExtendingOvershoot: preferWordExtendingOvershoot) else {
@@ -593,6 +634,7 @@ actor LlamaCotypingRuntime {
                 return ""
             }
             llama_sampler_accept(sampler, tok)
+            lastHealingTrace?.steps.append(.init(token: tok, bytes: pieceBytes(for: tok), remaining: remaining.count))
             switch CotypingRequiredPrefixMatcher.match(
                 pieceBytes: pieceBytes(for: tok), remaining: remaining) {
             case .consumes(let count):
@@ -625,6 +667,7 @@ actor LlamaCotypingRuntime {
                 break
             }
             llama_sampler_accept(sampler, tok)
+            lastHealingTrace?.freeTokens.append(tok)
             guard let text = textDecoder.append(pieceBytes(for: tok)) else { return "" }
             guard confident(tok, text) else { onLowConfidence(); return "" }
             output += text
@@ -753,9 +796,18 @@ actor LlamaCotypingRuntime {
         vocab: OpaquePointer,
         preferWordExtendingOvershoot: Bool = false
     ) -> Int32? {
+        guard let ctx else { return nil }
+        return constrainedToken(matching: remaining, vocab: vocab, logits: llama_get_logits_ith(ctx, -1),
+                                preferWordExtendingOvershoot: preferWordExtendingOvershoot)
+    }
+
+    private func constrainedToken(
+        matching remaining: ArraySlice<UInt8>, vocab: OpaquePointer, logits: UnsafePointer<Float>?,
+        preferWordExtendingOvershoot: Bool
+    ) -> Int32? {
         let vocabularySize = llama_vocab_n_tokens(vocab)
         var exactBoundaryFallback: Int32?
-        if let ctx, let logits = llama_get_logits_ith(ctx, -1), vocabularySize > 0 {
+        if let logits, vocabularySize > 0 {
             let candidates = CotypingTokenCandidates.topTokens(
                 in: logits,
                 vocabularySize: vocabularySize,
@@ -785,7 +837,7 @@ actor LlamaCotypingRuntime {
             }
         }
         if let exactBoundaryFallback { return exactBoundaryFallback }
-        if let ctx, let logits = llama_get_logits_ith(ctx, -1) {
+        if let logits {
             if tokenPrefixIndex == nil {
                 tokenPrefixIndex = CotypingTokenPrefixIndex(vocabularySize: vocabularySize) { token in
                     llama_vocab_is_eog(vocab, token) ? [] : pieceBytes(for: token)
@@ -799,6 +851,170 @@ actor LlamaCotypingRuntime {
         }
         let text = String(decoding: remaining, as: UTF8.self)
         return tokenize(text, addBOS: false).first
+    }
+
+    /// Search only the hidden prefix path. No free token is sampled or scored
+    /// here, and the sampler's RNG/history remains untouched until replay.
+    private func searchPrefixPath(
+        prompt: [Int32], requiredPrefix: [UInt8], preferOvershoot: Bool, width: Int
+    ) throws -> [Int32] {
+        guard let ctx, let vocab else { return [] }
+        let vocabularySize = llama_vocab_n_tokens(vocab)
+        // A highest-ranked compatible token that already covers the prefix
+        // cannot be beaten by a lower-ranked token followed by more factors
+        // <=1. Keep this common case on the original single-decode path.
+        if let first = constrainedToken(matching: requiredPrefix[...], vocab: vocab,
+                                        preferWordExtendingOvershoot: preferOvershoot) {
+            let complete: Bool
+            switch CotypingRequiredPrefixMatcher.match(pieceBytes: pieceBytes(for: first), remaining: requiredPrefix[...]) {
+            case .consumes(let count): complete = count == requiredPrefix.count
+            case .overshoots: complete = true
+            case .mismatch: complete = false
+            }
+            if complete {
+                if healingTraceEnabled, let logits = llama_get_logits_ith(ctx, -1),
+                   let normalizer = searchLogNormalizer(logits, vocabularySize: Int(vocabularySize)) {
+                    let score = min(0, Double(logits[Int(first)]) - normalizer)
+                    lastHealingTrace?.search = .init(expansions: 0, baselineLogProbability: score,
+                        selectedLogProbability: score, changedPath: false, certified: true, budgetFallback: false)
+                }
+                return [first]
+            }
+        }
+        if tokenPrefixIndex == nil {
+            tokenPrefixIndex = CotypingTokenPrefixIndex(vocabularySize: vocabularySize) { token in
+                llama_vocab_is_eog(vocab, token) ? [] : pieceBytes(for: token)
+            }
+        }
+        let memory = llama_get_memory(ctx)
+        var physical = prompt
+        func restore(_ path: [Int32]) throws {
+            let wanted = prompt + path
+            let shared = min(IncrementalPrefill.commonPrefixLength(physical, wanted), wanted.count - 1)
+            if shared > 0, llama_memory_seq_rm(memory, 0, Int32(shared), -1) {
+                try decodeOrThrow(Array(wanted[shared...]), startPos: Int32(shared), logitsLastOnly: true)
+            } else {
+                llama_memory_seq_rm(memory, 0, 0, -1)
+                try decodeCancellable(wanted, startPos: 0, logitsLastOnly: true)
+            }
+            physical = wanted
+        }
+        var active = [CotypingHealingPath(remaining: requiredPrefix)]
+        var best: CotypingHealingPath?
+        do {
+            // Seed with the exact previous decoder path. Candidate pruning
+            // must never remove the existing completion from consideration.
+            var baseline = CotypingHealingPath(remaining: requiredPrefix)
+            for _ in 0..<requiredPrefix.count {
+                try Task.checkCancellation()
+                try restore(baseline.tokens)
+                guard let logits = llama_get_logits_ith(ctx, -1),
+                      let normalizer = searchLogNormalizer(logits, vocabularySize: Int(vocabularySize)),
+                      let token = constrainedToken(matching: baseline.remaining[...], vocab: vocab, logits: logits,
+                                                   preferWordExtendingOvershoot: preferOvershoot),
+                      let next = baseline.appending(token: token, bytes: pieceBytes(for: token),
+                          logProbability: min(0, Double(logits[Int(token)]) - normalizer)) else { break }
+                baseline = next
+                if baseline.remaining.isEmpty { best = baseline; break }
+            }
+            var expansions = 0
+            var finished = false
+            var prunedUpperBound = -Double.infinity
+            for _ in 0..<32 {
+                try Task.checkCancellation()
+                guard !active.isEmpty else { finished = true; break }
+                active.sort(by: CotypingHealingPath.outranks)
+                let parent = active.removeFirst()
+                // Additional token log probabilities are <=0, so an unfinished
+                // path cannot beat a completed path above this upper bound.
+                if let best, best.logProbability > parent.logProbability { finished = true; break }
+                try restore(parent.tokens)
+                guard let logits = llama_get_logits_ith(ctx, -1),
+                      let normalizer = searchLogNormalizer(logits, vocabularySize: Int(vocabularySize)) else {
+                    throw LlamaRuntimeError.decodeFailed
+                }
+                let tokens = tokenPrefixIndex?.bestTokens(in: logits, matching: parent.remaining[...],
+                    preferWordExtendingOvershoot: preferOvershoot, limit: width + 1) ?? []
+                if tokens.count > width, let pruned = tokens.last {
+                    prunedUpperBound = max(prunedUpperBound, parent.logProbability + Double(logits[Int(pruned)]) - normalizer)
+                }
+                expansions += 1
+                for token in tokens.prefix(width) {
+                    guard let child = parent.appending(token: token, bytes: pieceBytes(for: token),
+                        logProbability: min(0, Double(logits[Int(token)]) - normalizer)) else { continue }
+                    if child.remaining.isEmpty {
+                        if best.map({ CotypingHealingPath.outranks(child, $0) }) ?? true { best = child }
+                    } else { active.append(child) }
+                }
+                active.sort(by: CotypingHealingPath.outranks)
+                if active.count > width { prunedUpperBound = max(prunedUpperBound, active[width].logProbability) }
+                active = Array(active.prefix(width))
+            }
+            try restore([])
+            guard baseline.remaining.isEmpty else { return [] }
+            let selected: CotypingHealingPath
+            if finished, let best, best.logProbability > baseline.logProbability + 0.0001 {
+                selected = best
+            } else { selected = baseline }
+            lastHealingTrace?.search = .init(expansions: expansions,
+                baselineLogProbability: baseline.logProbability, selectedLogProbability: selected.logProbability,
+                changedPath: selected.tokens != baseline.tokens,
+                certified: finished && prunedUpperBound <= selected.logProbability,
+                budgetFallback: !finished)
+            return selected.tokens
+        } catch {
+            llama_memory_seq_rm(memory, 0, 0, -1)
+            cachedTokens = []
+            throw error
+        }
+    }
+
+    /// Test oracle: rescore the selected path after a cold prefill.
+    func coldScore(promptTokens: [Int32], continuationTokens: [Int32]) throws -> Double {
+        guard let ctx, let vocab, !promptTokens.isEmpty else { throw LlamaRuntimeError.decodeFailed }
+        let memory = llama_get_memory(ctx)
+        llama_memory_clear(memory, true)
+        cachedTokens = []
+        decodeAbortState.beginDecode()
+        defer {
+            llama_memory_clear(memory, true)
+            cachedTokens = []
+            decodeAbortState.endDecode()
+        }
+        try decodeCancellable(promptTokens, startPos: 0, logitsLastOnly: true)
+        var score = 0.0
+        for (index, token) in continuationTokens.enumerated() {
+            try Task.checkCancellation()
+            guard let logits = llama_get_logits_ith(ctx, -1),
+                  let normalizer = searchLogNormalizer(logits, vocabularySize: Int(llama_vocab_n_tokens(vocab))) else {
+                throw LlamaRuntimeError.decodeFailed
+            }
+            score += Double(logits[Int(token)]) - normalizer
+            if index + 1 < continuationTokens.count {
+                try decodeOrThrow([token], startPos: Int32(promptTokens.count + index), logitsLastOnly: true)
+            }
+        }
+        return score
+    }
+
+    private func searchLogNormalizer(_ logits: UnsafePointer<Float>, vocabularySize: Int) -> Double? {
+        if probabilityScratch.count != vocabularySize {
+            probabilityScratch = [Float](repeating: 0, count: vocabularySize)
+        }
+        return probabilityScratch.withUnsafeMutableBufferPointer { scratch in
+            guard let buffer = scratch.baseAddress else { return nil }
+            var maximum: Float = 0
+            vDSP_maxv(logits, 1, &maximum, vDSP_Length(vocabularySize))
+            guard maximum.isFinite else { return nil }
+            var offset = -maximum
+            vDSP_vsadd(logits, 1, &offset, buffer, 1, vDSP_Length(vocabularySize))
+            var count = Int32(vocabularySize)
+            vvexpf(buffer, buffer, &count)
+            var sum: Float = 0
+            vDSP_sve(buffer, 1, &sum, vDSP_Length(vocabularySize))
+            guard sum.isFinite, sum > 0 else { return nil }
+            return Double(maximum) + log(Double(sum))
+        }
     }
 
     private func makeSampler(_ specs: [LlamaSamplerSpec]) -> UnsafeMutablePointer<llama_sampler>? {
@@ -820,4 +1036,19 @@ actor LlamaCotypingRuntime {
         }
         return chain
     }
+}
+
+/// Headless confidence and decode counters; never persisted by live autocomplete.
+struct CotypingReplayDiagnostics: Codable, Sendable {
+    /// Tokens submitted to native decode, including a decode that was aborted.
+    var decodedTokens = 0
+    /// This is the existing raw first-word gate, not a calibrated acceptance probability.
+    var firstWordProbability: Float?
+    var firstWordGateSettled: Bool?
+    var hybridFallbackProbability: Float?
+    var hybridFallbackSettled: Bool?
+    var hybridPrimaryPassed: Bool?
+    var hybridUsedFallback: Bool?
+    var confidenceTrace: Bool?
+    var confidenceGateEligible: Bool?
 }

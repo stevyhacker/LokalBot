@@ -1,5 +1,59 @@
 import Foundation
 
+/// Headless controls for isolating partial-word conditioning from sampling.
+enum CotypingHealingMode: String, Codable, Sendable {
+    case wordBoundary, prefixSearch
+}
+
+/// Probability of a complete token path through the typed bytes. Summing log
+/// probabilities compares paths rather than favoring the first greedy piece.
+struct CotypingHealingPath {
+    var tokens: [Int32] = []
+    var remaining: [UInt8]
+    var logProbability: Double = 0
+
+    func appending(token: Int32, bytes: [UInt8], logProbability score: Double) -> Self? {
+        guard score.isFinite, score <= 0 else { return nil }
+        var child = self
+        switch CotypingRequiredPrefixMatcher.match(pieceBytes: bytes, remaining: remaining[...]) {
+        case .consumes(let count): child.remaining.removeFirst(count)
+        case .overshoots: child.remaining.removeAll()
+        case .mismatch: return nil
+        }
+        child.tokens.append(token)
+        child.logProbability += score
+        return child
+    }
+
+    static func outranks(_ lhs: Self, _ rhs: Self) -> Bool {
+        lhs.logProbability == rhs.logProbability
+            ? lhs.tokens.lexicographicallyPrecedes(rhs.tokens) : lhs.logProbability > rhs.logProbability
+    }
+}
+
+/// Opt-in replay evidence; never emitted by live autocomplete.
+struct CotypingHealingTrace: Encodable, Sendable {
+    struct Search: Encodable, Sendable {
+        let expansions: Int
+        let baselineLogProbability: Double
+        let selectedLogProbability: Double
+        let changedPath: Bool
+        let certified: Bool
+        let budgetFallback: Bool
+    }
+    struct Step: Encodable, Sendable {
+        let token: Int32
+        let bytes: [UInt8]
+        let remaining: Int
+    }
+    let promptTokens: [Int32]
+    let requiredPrefix: [UInt8]
+    var steps: [Step] = []
+    var freeTokens: [Int32] = []
+    var canonicalTokens: [Int32] = []
+    var search: Search?
+}
+
 /// Token healing for mid-word completions — the mechanism behind Cotypist's
 /// "snaps to the word you meant" behavior (its binary calls it
 /// `requiredPrefix` / `remainingRequiredPrefix`).
@@ -121,7 +175,7 @@ enum CotypingRequiredPrefixMatcher {
 /// Token pieces are byte fragments, not necessarily complete Unicode scalars.
 /// Keep an unfinished scalar for the next piece and publish only validated UTF-8.
 /// An incomplete final scalar is withheld; malformed bytes reject the generation.
-struct CotypingUTF8TokenDecoder {
+struct CotypingUTF8TokenDecoder: Sendable {
     private var pending: [UInt8] = []
     private var failed = false
 

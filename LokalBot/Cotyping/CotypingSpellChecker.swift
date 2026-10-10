@@ -27,6 +27,14 @@ final class CotypingSpellChecker {
         return applies
     }
 
+    /// Shared by live prediction and headless replay. Unknown dictionary
+    /// coverage must not turn every Serbian fragment into a spelling error.
+    func wordPrefixIsValidWord(context: String) -> Bool {
+        let partial = CotypingMidWord.currentPartialWord(in: context)
+        guard partial.count >= 2, verdictsApply(context: context) else { return true }
+        return !isTypo(partial)
+    }
+
     /// True when the whole word is misspelled (range must start at 0 and span the
     /// entire word, so partly-flagged tokens like `I'm` don't misfire).
     func isTypo(_ word: String) -> Bool {

@@ -86,26 +86,31 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
             return try XCTUnwrap(CotypingRequestBuilder.build(field: field, config: .standard, personalization: .none,
                                                               generation: 1, wordPrefixIsValidWord: !prefix.hasSuffix("tomor")))
         }
-        var current: [CotypingNormalizationResult] = []
-        var boundary: [CotypingNormalizationResult] = []
-        for mode in 0...2 {
-            let runtime = LlamaCotypingRuntime(confidenceBoundaryMode: mode == 1 ? .boundaryMass : .selectedToken,
-                                              selectiveOneWordHybrid: mode == 2)
-            let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
-            if mode == 1 { engine.minimumFirstWordProbability = CotypingConfidenceDecision.hybridMinimum }
-            try await engine.prewarm()
-            for (index, request) in requests.enumerated() {
-                if mode == 0 { current.append(try await engine.generate(request)); continue }
-                if mode == 1 { boundary.append(try await engine.generate(request)); continue }
-                let captured = HybridCapturedResults()
-                let actual = try await engine.generateStreaming(request) { captured.values.append($0) }
-                let expected = current[index].text.isEmpty
-                    ? LocalLlamaCotypingEngine.oneWordFallback(boundary[index]) : current[index]
-                XCTAssertEqual(actual.text, expected.text, prefixes[index])
-                if !current[index].text.isEmpty { XCTAssertEqual(actual, current[index]) }
-                XCTAssertEqual(captured.values, [actual], "No speculative full fallback may be published")
+        // Isolate confidence-gate composition under each shared healing policy.
+        // The app switch intentionally changes midword healing as well as the gate.
+        for healingMode in [CotypingHealingMode.wordBoundary, .prefixSearch] {
+            var current: [CotypingNormalizationResult] = []
+            var boundary: [CotypingNormalizationResult] = []
+            for mode in 0...2 {
+                let runtime = LlamaCotypingRuntime(confidenceBoundaryMode: mode == 1 ? .boundaryMass : .selectedToken,
+                                                  selectiveOneWordHybrid: mode == 2)
+                let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
+                engine.healingMode = healingMode
+                if mode == 1 { engine.minimumFirstWordProbability = CotypingConfidenceDecision.hybridMinimum }
+                try await engine.prewarm()
+                for (index, request) in requests.enumerated() {
+                    if mode == 0 { current.append(try await engine.generate(request)); continue }
+                    if mode == 1 { boundary.append(try await engine.generate(request)); continue }
+                    let captured = HybridCapturedResults()
+                    let actual = try await engine.generateStreaming(request) { captured.values.append($0) }
+                    let expected = current[index].text.isEmpty
+                        ? LocalLlamaCotypingEngine.oneWordFallback(boundary[index]) : current[index]
+                    XCTAssertEqual(actual.text, expected.text, prefixes[index])
+                    if !current[index].text.isEmpty { XCTAssertEqual(actual, current[index]) }
+                    XCTAssertEqual(captured.values, [actual], "No speculative full fallback may be published")
+                }
+                await engine.unload()
             }
-            await engine.unload()
         }
     }
 

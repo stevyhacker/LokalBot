@@ -472,7 +472,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let storage: StorageManager
         let settings: AppSettings
         private let tempRoot: URL
-        private let previousDefault: String?
 
         init() throws {
             tempRoot = FileManager.default.temporaryDirectory
@@ -484,10 +483,9 @@ final class CotypingEngineSelectorTests: XCTestCase {
             let modelFile = modelsDir.appendingPathComponent(fileName)
             try Data("GGUF".utf8).write(to: modelFile)   // magic-only stub; not loaded
 
-            // Point StorageManager at the temp root via the UI-test override hook.
-            previousDefault = UserDefaults.standard.string(forKey: UITestRuntime.storageRootKey)
-            UserDefaults.standard.set(tempRoot.path, forKey: UITestRuntime.storageRootKey)
-            storage = StorageManager()
+            // Inject the fixture root directly: a suite-wide storage environment
+            // override takes priority over UserDefaults and otherwise hides this model.
+            storage = StorageManager(rootURL: tempRoot)
 
             let custom = ModelCatalog.Entry(
                 id: "selector-fixture", displayName: "Selector Fixture",
@@ -500,11 +498,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         }
 
         func tearDown() {
-            if let previousDefault {
-                UserDefaults.standard.set(previousDefault, forKey: UITestRuntime.storageRootKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: UITestRuntime.storageRootKey)
-            }
             try? FileManager.default.removeItem(at: tempRoot)
         }
     }

@@ -468,10 +468,7 @@ extension CotypingCoordinator {
     /// normalizer's signal for accepting a whitespace-leading continuation
     /// after a fragment ("the" may be complete; "follo" must be extended).
     private func wordPrefixIsValidWord(for precedingText: String) -> Bool {
-        let partial = CotypingMidWord.currentPartialWord(in: precedingText)
-        guard partial.count >= 2 else { return true }
-        guard spellChecker.verdictsApply(context: precedingText) else { return true }
-        return !spellChecker.isTypo(partial)
+        spellChecker.wordPrefixIsValidWord(context: precedingText)
     }
 
     /// Starts finding the caret on screen for a field whose app reports

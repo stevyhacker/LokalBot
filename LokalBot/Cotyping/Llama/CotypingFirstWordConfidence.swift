@@ -1,8 +1,9 @@
 import Foundation
 
-/// The production gate and the experimental fallback. Neither is a calibrated acceptance probability.
+/// Replay-only alternatives. Neither is a calibrated acceptance probability.
 enum CotypingConfidenceBoundaryMode: String, Codable, Sendable {
     case selectedToken
+    case wordOnly
     case boundaryMass
 }
 
@@ -15,10 +16,13 @@ struct CotypingConfidenceDecision: Sendable {
     private(set) var primaryPassed = true
     private(set) var fallbackPassed = false
 
-    init(minimum: Float, boundaryMode: CotypingConfidenceBoundaryMode, selectiveOneWordHybrid: Bool) {
-        primary = CotypingFirstWordConfidence(minimum: minimum, boundaryMode: boundaryMode)
+    init(minimum: Float, boundaryMode: CotypingConfidenceBoundaryMode, selectiveOneWordHybrid: Bool,
+         fallbackMinimum: Float = Self.hybridMinimum, traceOnly: Bool = false) {
+        primary = CotypingFirstWordConfidence(minimum: traceOnly ? 0 : minimum, boundaryMode: boundaryMode,
+                                             measureWhenDisabled: traceOnly)
         if selectiveOneWordHybrid, minimum > 0 {
-            fallback = CotypingFirstWordConfidence(minimum: Self.hybridMinimum, boundaryMode: .boundaryMass)
+            fallback = CotypingFirstWordConfidence(minimum: traceOnly ? 0 : fallbackMinimum,
+                                                  boundaryMode: .boundaryMass, measureWhenDisabled: traceOnly)
             fallbackPassed = true
         }
     }
@@ -72,10 +76,11 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
     /// The first word has ended, or the gate is off: nothing more to weigh.
     private(set) var isSettled: Bool
 
-    init(minimum: Float, boundaryMode: CotypingConfidenceBoundaryMode = .selectedToken) {
+    init(minimum: Float, boundaryMode: CotypingConfidenceBoundaryMode = .selectedToken,
+         measureWhenDisabled: Bool = false) {
         self.minimum = minimum
         self.boundaryMode = boundaryMode
-        isSettled = minimum <= 0
+        isSettled = minimum <= 0 && !measureWhenDisabled
     }
 
     func needsBoundaryMass(for piece: String) -> Bool {
@@ -113,9 +118,10 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
         guard !isSettled else { return true }
         if boundaryMode != .selectedToken, startsNewBoundary(piece) {
             // A token that begins the next word is evidence of termination; its
-            // particular suffix is irrelevant to first-word agreement. Retain termination mass
+            // particular suffix is irrelevant to first-word agreement. WordOnly
+            // is an upper-bound heuristic. BoundaryMass retains termination mass
             // on this token path; it does not marginalize other tokenizations.
-            let factor: Float = boundaryProbability ?? 0
+            let factor: Float = boundaryMode == .wordOnly ? 1 : (boundaryProbability ?? 0)
             probability *= factor.isFinite ? min(1, max(0, factor)) : 0
             isSettled = true
             return probability >= minimum
