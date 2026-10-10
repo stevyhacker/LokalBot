@@ -57,6 +57,8 @@ enum CotypingQualityReplay {
         var useVisibleContext: Bool?
         /// False turns the confidence gate off, to compare against it.
         var confidenceGate: Bool?
+        /// Same opt-in flag as Settings → Writing → Autocomplete.
+        var selectiveOneWordHybrid: Bool?
     }
 
     struct Case: Decodable {
@@ -85,31 +87,12 @@ enum CotypingQualityReplay {
         var visibleIDs: [String] = []
         var visibleTextReadIDs: [String] = []
         var attempts = 1
+        var selectiveOneWordHybrid = false
     }
 
     @MainActor
     static func run(input: URL, engine engineChoice: Engine) async -> Int32 {
-        let engine: CotypingCompleting
-        var retryLimit = 0
-        switch engineChoice {
-        case .local(let model):
-            engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(), modelPath: model.path)
-        case .remote(let baseURL, let model, let extraBodyJSON, let chat):
-            guard let extraBody = extraBody(from: extraBodyJSON) else {
-                try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: --completions-extra-body must be a JSON object\n".utf8))
-                return 1
-            }
-            let remote = OpenAICompatibleEngine(
-                baseURL: baseURL, model: model,
-                apiKey: ProcessInfo.processInfo.environment[Engine.apiKeyEnvironmentKey],
-                extraBody: extraBody, sendsLlamaSamplingExtensions: false,
-                chatDialect: .inferred(from: baseURL))
-            // A chat message has no token boundary at the caret, so it is not healed.
-            engine = chat
-                ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) })
-                : CotypingEngine(makeEngine: { remote }, healsCaretBoundary: true)
-            retryLimit = remoteRetryLimit
-        }
+        var activeEngine: CotypingCompleting?
         do {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -118,7 +101,30 @@ enum CotypingQualityReplay {
                   Set(fixture.cases.map(\.id)).count == fixture.cases.count else {
                 throw ReplayError.invalidCases
             }
+            try validateHybrid(fixture, engine: engineChoice)
             let config = try configuration(for: fixture)
+            let engine: CotypingCompleting
+            var retryLimit = 0
+            switch engineChoice {
+            case .local(let model):
+                engine = LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(selectiveOneWordHybrid: fixture.selectiveOneWordHybrid == true), modelPath: model.path)
+            case .remote(let baseURL, let model, let extraBodyJSON, let chat):
+                guard let extraBody = extraBody(from: extraBodyJSON) else {
+                    try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: --completions-extra-body must be a JSON object\n".utf8))
+                    return 1
+                }
+                let remote = OpenAICompatibleEngine(
+                    baseURL: baseURL, model: model,
+                    apiKey: ProcessInfo.processInfo.environment[Engine.apiKeyEnvironmentKey],
+                    extraBody: extraBody, sendsLlamaSamplingExtensions: false,
+                    chatDialect: .inferred(from: baseURL))
+                // A chat message has no token boundary at the caret, so it is not healed.
+                engine = chat
+                    ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) })
+                    : CotypingEngine(makeEngine: { remote }, healsCaretBoundary: true)
+                retryLimit = remoteRetryLimit
+            }
+            activeEngine = engine
             // The gate reads the local model's token probabilities; hosted engines have none.
             if fixture.confidenceGate == false, let local = engine as? LocalLlamaCotypingEngine {
                 local.minimumFirstWordProbability = 0
@@ -139,9 +145,10 @@ enum CotypingQualityReplay {
             encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
             var failed = false
             for (index, item) in fixture.cases.enumerated() {
-                let observation = await replay(item, generation: UInt64(index), config: config,
+                var observation = await replay(item, generation: UInt64(index), config: config,
                                                personalization: personalization, engine: engine, fixture: fixture,
                                                retryLimit: retryLimit)
+                observation.selectiveOneWordHybrid = fixture.selectiveOneWordHybrid == true
                 failed = failed || observation.error != nil
                 let line = try encoder.encode(observation) + Data([10])
                 try FileHandle.standardOutput.write(contentsOf: line)
@@ -150,8 +157,15 @@ enum CotypingQualityReplay {
             return failed ? 1 : 0
         } catch {
             try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: \(error)\n".utf8))
-            await engine.unload()
+            await activeEngine?.unload()
             return 1
+        }
+    }
+
+    static func validateHybrid(_ input: Input, engine: Engine) throws {
+        guard input.selectiveOneWordHybrid == true else { return }
+        guard case .local = engine, input.confidenceGate != false else {
+            throw ReplayError.invalidConfiguration
         }
     }
 

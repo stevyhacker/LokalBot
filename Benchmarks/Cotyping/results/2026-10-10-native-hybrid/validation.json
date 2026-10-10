@@ -1,0 +1,36 @@
+{
+  "nativeRequests": 14140,
+  "cancelled": 80,
+  "errors": 0,
+  "weightsAndExecutableRehashedAtEnd": true,
+  "liveAndArchivedSourcesMatchMeasuredHashes": true,
+  "changedExistingFilesThisTurn": [
+    "Benchmarks/Cotyping/claude_judge.py",
+    "Benchmarks/Cotyping/decoder_loop.py",
+    "LokalBot/Cotyping/Llama/CotypingLogitCache.swift",
+    "Benchmarks/Cotyping/README.md",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift",
+    "LokalBot/Cotyping/Llama/CotypingFirstWordConfidence.swift",
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift",
+    "LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift",
+    "LokalBotTests/CotypingFirstWordConfidenceTests.swift"
+  ],
+  "unrelatedExistingFilesUnchanged": true,
+  "releaseBuild": "passed",
+  "focusedNonUITests": 71,
+  "skippedNonUITests": 0,
+  "pythonTests": 54,
+  "strictSwiftLint": "passed",
+  "gitDiffCheck": "passed",
+  "installed": false,
+  "released": false,
+  "productionDefaultChanged": false,
+  "claudeJudge": {
+    "model": "claude-opus-5-5",
+    "validatedBatches": 14,
+    "judgedCasesIncludingRepeats": 325,
+    "toolsEnabled": false,
+    "personalWritingOrProductSourceSent": false,
+    "referenceFutureOrDecoderNamesSent": false
+  }
+}

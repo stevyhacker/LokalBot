@@ -62,6 +62,21 @@ final class CotypingCoordinatorTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
+    func testDecoderSwitchClearsCachedAndPendingSuggestions() {
+        let coordinator = makeCoordinator()
+        coordinator.suggestionAnchorCache.record(identityKey: "field", requestFingerprint: "hybrid",
+                                                  precedingText: "Hello", fullText: " world")
+        coordinator.activeSuggestionRequestFingerprint = "hybrid"
+        let pending = Task<Void, Never> { }
+        coordinator.generationTask = pending
+        coordinator.decoderSettingsDidChange()
+        XCTAssertTrue(pending.isCancelled)
+        XCTAssertNil(coordinator.generationTask)
+        XCTAssertNil(coordinator.activeSuggestionRequestFingerprint)
+        XCTAssertNil(coordinator.session)
+        XCTAssertNil(coordinator.suggestionAnchorCache.remainder(identityKey: "field", requestFingerprint: "hybrid", precedingText: "Hello"))
+    }
+
     private func makeCoordinator() -> CotypingCoordinator {
         CotypingCoordinator(
             engine: engine,

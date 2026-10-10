@@ -1,0 +1,70 @@
+{
+  "createdAtUTC": "2026-10-10T08:05:06.943236+00:00",
+  "status": "frozen before rejudging",
+  "policies": [
+    "current",
+    "hybrid_one_word"
+  ],
+  "split": "regression",
+  "qualityStatus": "previously evaluated regression",
+  "counts": {
+    "all": 1361,
+    "changed": 104,
+    "sharedShownSample": 32,
+    "repeat": 24
+  },
+  "selection": "All actual native differences plus frozen hash-selected shared suggestions and repeats.",
+  "scoring": "Same prior rubric; all-checkpoint phrase bootstrap. Silent current utility 0. Synthetic model opinion, not acceptance.",
+  "blind": "No references, future words, decoder names, timings or product source in public packets.",
+  "sourceSHA256": {
+    "current": "28b0ec4eba5d0c65443404b24b1e03e8ef867ec9944899229821043b8dce396f",
+    "hybrid": "04dcd5f1e2d01c7f835c7fd6fad04100a91cd6beedc5bc6e07c1d8100422084d"
+  },
+  "casesSHA256": "7754ac3e86e73179b36b0fbeb87b79bd0b98ce6ec9a48e7036d40bdf5245c75e",
+  "systemSHA256": "d4d20724fb8dd8d628fc71115a7d52aedc9ee4fa7e1604a8fce0abd881f534c4",
+  "schemaSHA256": "ebaaeae0c9e40637aa0f2467dd54120715df345d2f5e2634f0fa54694dfab8a4",
+  "batches": [
+    {
+      "id": "primary-01",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "284c79584056366493f82267e44aa708cf37a9b634d3f362e0c6cb16ae2bcdc6"
+    },
+    {
+      "id": "primary-02",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "b61f8e53b3591e5a5a3d4d7461306fd1d80de10997646a6bed4d14237ca95ce2"
+    },
+    {
+      "id": "primary-03",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "f99fd218075698d05cf107e4aade2960c416496001c77add2f195e0c86a8f3fe"
+    },
+    {
+      "id": "primary-04",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "dfe854080f41a6c7035fb73a5d34de17e04ee8b5c56daf23a097ad4ad0d037d4"
+    },
+    {
+      "id": "primary-05",
+      "stage": "primary",
+      "cases": 24,
+      "requestSHA256": "d4f8cac5fb52c7689c6f033c4a3d30fdbf9b05c988cc041a9464067728a71b6f"
+    },
+    {
+      "id": "primary-06",
+      "stage": "primary",
+      "cases": 16,
+      "requestSHA256": "28a5011bdb09f26afca036cf0076c92e92da3480c2578dbecc1e1c894a61f9a3"
+    },
+    {
+      "id": "repeat-01",
+      "stage": "repeat",
+      "cases": 24,
+      "requestSHA256": "f2798cbdd0cc2afb2b6dce66795b4c70faf63a5832fcaaf5109ddbc72c5bf8bd"
+    }
+  ]
+}

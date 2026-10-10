@@ -33,7 +33,7 @@ struct ModelCheckIdentity: Equatable {
             }
         case .autocomplete:
             parts = [entryIdentity(settings.cotypingBuiltInModelID), String(settings.cotypingInProcessRuntime),
-                     String(settings.cotypingMaxWords)]
+                     String(settings.cotypingMaxWords), String(settings.cotypingSelectiveOneWordHybrid)]
         }
     }
 }
