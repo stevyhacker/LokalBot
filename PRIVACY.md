@@ -280,6 +280,19 @@ meeting access does not enable screen-memory access, or vice versa. A connected
 MCP client may transmit tool inputs and results under that client's own privacy
 terms.
 
+The optional [ChatGPT plugin companion](Distribution/chatgpt-plugin/README.md)
+is a separate connection that must be paired and run deliberately. It delegates
+meeting reads to the same CLI permission gate. Requested meeting metadata,
+summaries, transcript excerpts, action items, and people pass through the
+publisher's Cloudflare relay to the authorized client; this connection is not
+entirely on-device. It does not expose screen memory, remote inference, library
+writes, or Agent Mode. The adapter and relay do not persist meeting payloads;
+the relay stores device and OAuth metadata to authorize requests. Cloudflare
+and the connected client's own data-handling terms also apply. Stopping the
+companion, disabling meeting access, or revoking the pairing blocks subsequent
+reads, but cannot recall content already returned. Building this source does
+not install the companion or connect the app to a public service.
+
 **Open in Claude** and **Open in Codex**, in a meeting's More menu, start a new
 conversation in that installed app with the meeting's title, summary, and as much
 of its transcript as fits already typed into the composer. LokalBot hands the

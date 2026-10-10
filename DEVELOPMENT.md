@@ -241,6 +241,19 @@ Everything lives in **Settings**, organized into searchable categories:
 
 ## Agent CLI & MCP
 
+The optional [ChatGPT plugin](Distribution/chatgpt-plugin/README.md) adds a
+meeting-only MCP adapter, an interactive panel and composer mentions, and a
+public OAuth relay with per-Mac pairing. Its foreground companion delegates
+all reads to the embedded CLI's existing permission gate. The plugin has its
+own Node build, protocol tests, and isolated native CLI integration workflow;
+see its README and [launch runbook](Distribution/chatgpt-plugin/docs/DEPLOYMENT.md).
+No public endpoint or installed companion is created by building the app.
+
+The stdio reader must answer newline-delimited requests while stdin stays open.
+It uses a bounded POSIX read because Foundation's `read(upToCount:)` can wait
+to fill a pipe buffer, blocking interactive MCP handshakes. The native
+integration test and plugin fixture test cover the live-pipe behavior.
+
 `lokalbot-cli` (ArgumentParser, embedded in `Contents/Helpers/`) gives coding agents read-only access to the meeting library via `list` / `get` / `search` / `actions` / `people` / `path`. `actions` and `people` share the app's outcome projection, thread clustering, due-date resolution, and People rules (the CLI target compiles those model files). JSON by default, `--table` for humans. Settings → Advanced → Agent CLI (or `lokalbot-cli install-skill`) symlinks the binary to `~/.local/bin/lokalbot-cli` and the bundled skill to `~/.agents/skills/lokalbot-cli/`.
 
 The same binary is an **MCP server**: `lokalbot-cli mcp` speaks MCP over stdio. Meeting tools are `list_meetings` / `get_meeting` / `search_meetings` / `ask_library` / `get_action_items` / `list_people` / `get_person`; people tools return names only, never attendee addresses. Independently gated screen tools are `search_screen` / `get_timeline` / `get_recent_activity` / `get_app_usage` / `get_screenshot_detail`; they use a query-only SQLite connection and return captured text/metadata, never decrypted pixels or file paths. The screen marker stores one of three profiles: today, rolling seven days, or all retained history; every query is clamped and out-of-scope detail ids appear missing. LokalBot does not upload library content, but an external MCP client may transmit tool inputs and results under its own privacy terms.
