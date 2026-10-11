@@ -138,18 +138,19 @@ final class CotypingSuggestionCacheFingerprintTests: XCTestCase {
             conditioningPreface: conditioningPreface)
     }
 
-    func testHybridSwitchCannotReuseSuggestionsFromTheOtherDecoder() {
-        var settings = AppSettings()
-        settings.cotypingSelectiveOneWordHybrid = false
+    func testObsoleteHybridPreferenceDoesNotChangeCacheOrModelCheckIdentity() throws {
+        let settings = AppSettings()
         let current = CotypingSuggestionCacheFingerprint.make(request: request(), settings: settings)
-        settings.cotypingSelectiveOneWordHybrid = true
-        let hybrid = CotypingSuggestionCacheFingerprint.make(request: request(), settings: settings)
-        XCTAssertNotEqual(current, hybrid)
-        var cache = CotypingSuggestionAnchorCache()
-        cache.record(identityKey: "field", requestFingerprint: hybrid, precedingText: "Hello", fullText: " world")
-        XCTAssertNil(cache.remainder(identityKey: "field", requestFingerprint: current, precedingText: "Hello"))
-        settings.cotypingSelectiveOneWordHybrid = false
-        XCTAssertEqual(current, CotypingSuggestionCacheFingerprint.make(request: request(), settings: settings))
+        let modelCheck = ModelCheckIdentity(role: .autocomplete, settings: settings)
+        let encoded = try JSONEncoder().encode(settings)
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        for oldChoice in [false, true] {
+            legacy["cotypingSelectiveOneWordHybrid"] = oldChoice
+            let saved = try JSONSerialization.data(withJSONObject: legacy)
+            let decoded = try JSONDecoder().decode(AppSettings.self, from: saved)
+            XCTAssertEqual(current, CotypingSuggestionCacheFingerprint.make(request: request(), settings: decoded))
+            XCTAssertEqual(modelCheck, ModelCheckIdentity(role: .autocomplete, settings: decoded))
+        }
     }
 
     func testFingerprintChangesWithOutputAffectingSettingsAndRequestContext() {

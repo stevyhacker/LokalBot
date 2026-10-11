@@ -5,18 +5,24 @@ import XCTest
 // MARK: - Settings codec
 
 final class CotypingSettingsTests: XCTestCase {
-    func testHybridDefaultsOnAndPreservesExplicitRollback() throws {
-        XCTAssertTrue(AppSettings().cotypingSelectiveOneWordHybrid)
-        XCTAssertTrue(try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8)).cotypingSelectiveOneWordHybrid)
-        let savedRollback = Data(#"{"cotypingSelectiveOneWordHybrid":false}"#.utf8)
-        XCTAssertFalse(try JSONDecoder().decode(AppSettings.self, from: savedRollback).cotypingSelectiveOneWordHybrid)
-        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-base-q6")
-        var settings = AppSettings()
-        for enabled in [true, false] {
-            settings.cotypingSelectiveOneWordHybrid = enabled
-            let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
-            XCTAssertEqual(decoded.cotypingSelectiveOneWordHybrid, enabled)
+    func testObsoleteHybridPreferenceIsIgnoredAndNotSaved() throws {
+        let current = try JSONEncoder().encode(AppSettings())
+        var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: current) as? [String: Any])
+        for oldChoice in [false, true] {
+            legacy["cotypingSelectiveOneWordHybrid"] = oldChoice
+            legacy["cotypingEnabled"] = true
+            legacy["cotypingMaxWords"] = 6
+            let saved = try JSONSerialization.data(withJSONObject: legacy)
+            let settings = try JSONDecoder().decode(AppSettings.self, from: saved)
+            XCTAssertTrue(settings.cotypingEnabled)
+            XCTAssertEqual(settings.cotypingMaxWords, 6)
+            XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-base-q6")
+            let encoded = try JSONEncoder().encode(settings)
+            let values = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            XCTAssertNil(values["cotypingSelectiveOneWordHybrid"], "The retired flag must not be persisted")
         }
+        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-base-q6")
+        XCTAssertFalse(SettingDescriptor.all.contains { $0.id == "settings.cotypingSelectiveOneWordHybrid" })
     }
 
     func testDefaultsDisabled() {

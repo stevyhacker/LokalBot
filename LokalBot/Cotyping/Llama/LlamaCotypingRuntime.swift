@@ -141,15 +141,12 @@ actor LlamaCotypingRuntime {
         self.postLoadAdmissionHook = postLoadAdmissionHook
     }
 
-    /// The app policy is separate from replay defaults, so archived baseline
-    /// fixtures remain comparable. Off restores the old search and thread policy.
+    /// All app autocomplete uses the measured hybrid policy. Replay keeps its
+    /// explicit controls and baseline initializer defaults for historical parity.
     /// Two generation/prefill threads won the fixed-E2B M4 Max latency study;
     /// other hardware and cancellation responsiveness still need broader trials.
-    nonisolated static func forAutocomplete(selectiveOneWordHybrid: Bool) -> LlamaCotypingRuntime {
-        LlamaCotypingRuntime(
-            selectiveOneWordHybrid: selectiveOneWordHybrid,
-            searchExperiment: selectiveOneWordHybrid ? .certified : .baseline,
-            replayThreadCount: selectiveOneWordHybrid ? 2 : nil)
+    nonisolated static func forAutocomplete() -> LlamaCotypingRuntime {
+        LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: .certified, replayThreadCount: 2)
     }
 
     var isLoaded: Bool { model != nil && ctx != nil }

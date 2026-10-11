@@ -161,9 +161,6 @@ final class AppState: ObservableObject {
                         scheduleCotypingRuntimeUnload()
                     }
                 }
-                if oldValue.cotypingSelectiveOneWordHybrid != settings.cotypingSelectiveOneWordHybrid {
-                    cotyping.decoderSettingsDidChange()
-                }
                 if Self.cotypingRuntimeChanged(from: oldValue, to: settings) {
                     scheduleCotypingPrewarm()
                 }
@@ -217,7 +214,6 @@ final class AppState: ObservableObject {
         return !old.cotypingEnabled
             || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID
             || old.cotypingInProcessRuntime != new.cotypingInProcessRuntime
-            || old.cotypingSelectiveOneWordHybrid != new.cotypingSelectiveOneWordHybrid
             || old.customBuiltInModels != new.customBuiltInModels
     }
 
@@ -759,8 +755,8 @@ final class AppState: ObservableObject {
                     purpose: "cotyping")
             },
             stopRuntime: { await LlamaServer.cotyping.stop() }),
-        makeLocal: { modelPath, hybrid in
-            LocalLlamaCotypingEngine(runtime: .forAutocomplete(selectiveOneWordHybrid: hybrid), modelPath: modelPath)
+        makeLocal: { modelPath in
+            LocalLlamaCotypingEngine(runtime: .forAutocomplete(), modelPath: modelPath)
         },
         settings: { [store = settingsStore] in store.current },
         storage: storage)

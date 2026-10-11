@@ -15,7 +15,7 @@ final class CotypingEngineSelector: CotypingCompleting {
     static let localRetryCooldown: TimeInterval = 60
 
     private let http: CotypingCompleting
-    private let makeLocal: (String, Bool) -> CotypingCompleting
+    private let makeLocal: (String) -> CotypingCompleting
     private let settings: () -> AppSettings
     private let storage: StorageManager
     private let now: () -> Date
@@ -53,7 +53,6 @@ final class CotypingEngineSelector: CotypingCompleting {
     private struct LocalRouteIdentity: Equatable {
         let requestedModelID: String
         let entry: ModelCatalog.Entry
-        let selectiveOneWordHybrid: Bool
     }
 
     /// The actual resolved route, not merely the user's preferred setting.
@@ -65,7 +64,7 @@ final class CotypingEngineSelector: CotypingCompleting {
 
     init(
         http: CotypingCompleting,
-        makeLocal: @escaping (String, Bool) -> CotypingCompleting,
+        makeLocal: @escaping (String) -> CotypingCompleting,
         settings: @escaping () -> AppSettings,
         storage: StorageManager,
         now: @escaping () -> Date = { Date() },
@@ -98,8 +97,7 @@ final class CotypingEngineSelector: CotypingCompleting {
             id: settings.cotypingBuiltInModelID,
             custom: settings.customBuiltInModels
         ) ?? ModelCatalog.entry(id: ModelCatalog.recommendedCotypingID) else { return nil }
-        return LocalRouteIdentity(requestedModelID: settings.cotypingBuiltInModelID, entry: entry,
-                                  selectiveOneWordHybrid: settings.cotypingSelectiveOneWordHybrid)
+        return LocalRouteIdentity(requestedModelID: settings.cotypingBuiltInModelID, entry: entry)
     }
 
     /// Resolves the built-in cotyping model path the same way `makeTextEngine` does.
@@ -214,7 +212,7 @@ final class CotypingEngineSelector: CotypingCompleting {
                 guard localModelPath == url.path, localIdentity == identity else { throw CancellationError() }
                 return local
             }
-            local = makeLocal(url.path, identity.selectiveOneWordHybrid)
+            local = makeLocal(url.path)
             localModelPath = url.path
             localIdentity = identity
             didLogLocalFailure = false

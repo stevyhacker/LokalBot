@@ -1,0 +1,13 @@
+{
+  "sourceBaseCommit": "5c4b26c2b4b7c25a01de3b9efa680f067ec6420c",
+  "sourceManifestSHA256": "80ee520205d906b9c9b522fd16e45adb3b1bf90f74687f924bbde8b4b003aa73",
+  "testsPassed": 280,
+  "failures": 0,
+  "skips": 0,
+  "testLogSHA256": "2649a1437cfc8d7db364fa4732e08ada127fdbab632176d5146ab7266c64c99e",
+  "uiTestBuildSucceeded": true,
+  "uiTestsExecuted": false,
+  "uiBuildLogSHA256": "a9df342b7b8bdf83f3aff0e5128d064d908d3cf9a492ac96871d8fa341641145",
+  "earlierAttempt": "An attempted replacement for the removed decoder-switch lifecycle test asserted an unrelated fingerprint-cleanup contract. That replacement was removed together with the obsolete switch test; existing enable/disable coverage was retained. The final affected suite passed.",
+  "scope": "App settings/model selection, native runtime and prefix healing, selector lifecycle, cache identities, coordinator; real E2B and pinned Qwen fixtures present."
+}

@@ -1,0 +1,67 @@
+{
+  "kind": "Installed Release output parity; no new speed or quality claim",
+  "installedExecutableSHA256": "322e74f16ffe42bc77cd60f3a56aeae2e0a1ca05ad0ba78d579f465bf6160379",
+  "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "runs": [
+    {
+      "dataset": "fresh",
+      "measuredPairs": 144,
+      "warmupPairs": 8,
+      "shown": 111,
+      "differences": [],
+      "inputSHA256": "78b7875521600512ef1ba96868ee2f75c88365656a314b4c76c57c47601fe7de",
+      "rawSHA256": "9e7d64cde540e9dd3fc1b3f1507ffa44c3fcd1259ff4a4ab82360edeacf14381",
+      "referenceSHA256": "95dddc18cdc351324f8531e74e69b4c249a158eafee0b2bb469e80d8c89c2631",
+      "comparedFields": [
+        "id",
+        "prompt",
+        "text",
+        "suppression",
+        "error",
+        "cancelled",
+        "healingMode",
+        "selectiveOneWordHybrid",
+        "searchExperiment",
+        "nativeThreads",
+        "nativeBatchThreads",
+        "firstWordThreshold",
+        "hybridFallbackThreshold",
+        "confidenceTrace",
+        "nativeSpellVerdictsApply",
+        "wordPrefixIsValidWord",
+        "usedPromptOverride"
+      ]
+    },
+    {
+      "dataset": "edges",
+      "measuredPairs": 32,
+      "warmupPairs": 8,
+      "shown": 32,
+      "differences": [],
+      "inputSHA256": "847239691222c735ef1595a9168a0589ae728902e7458e329ed1663a650c5118",
+      "rawSHA256": "079bfd78e03eb31e200a5c6f61bc2376862a336c584b935fd224cd2c46ffb874",
+      "referenceSHA256": "6b31b345fb7f14f30e2fa0884c5582a3414b94224ca1b56bf1fdb2e6bf8fd4fa",
+      "comparedFields": [
+        "id",
+        "prompt",
+        "text",
+        "suppression",
+        "error",
+        "cancelled",
+        "healingMode",
+        "selectiveOneWordHybrid",
+        "searchExperiment",
+        "nativeThreads",
+        "nativeBatchThreads",
+        "firstWordThreshold",
+        "hybridFallbackThreshold",
+        "confidenceTrace",
+        "nativeSpellVerdictsApply",
+        "wordPrefixIsValidWord",
+        "usedPromptOverride"
+      ]
+    }
+  ],
+  "complete": true,
+  "measuredPairs": 176
+}

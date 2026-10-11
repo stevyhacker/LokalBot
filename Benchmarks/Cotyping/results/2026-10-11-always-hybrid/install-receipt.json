@@ -1,0 +1,24 @@
+{
+  "installedApp": "/Applications/LokalBot.app",
+  "version": "0.10.3",
+  "build": "47",
+  "bundleID": "me.dotenv.LokalBot",
+  "teamID": "3N8B4562P4",
+  "designatedRequirement": "identifier \"me.dotenv.LokalBot\" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = \"3N8B4562P4\"",
+  "entitlementsText": "[Dict]\n\t[Key] com.apple.security.device.audio-input\n\t[Value]\n\t\t[Bool] true\n\t[Key] com.apple.security.personal-information.calendars\n\t[Value]\n\t\t[Bool] true\n",
+  "identityUnchanged": true,
+  "installedMatchesSignedExport": true,
+  "executableSHA256": "322e74f16ffe42bc77cd60f3a56aeae2e0a1ca05ad0ba78d579f465bf6160379",
+  "previousExecutableSHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+  "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "preferences": {
+    "cotypingEnabled": true,
+    "cotypingInProcessRuntime": true,
+    "cotypingBuiltInModelID": "gemma4-e2b-base-q6"
+  },
+  "retiredPreferencePresent": true,
+  "retiredPreferenceUsed": false,
+  "testStorageOverridePresent": false,
+  "runningPID": "84590",
+  "notarizedOrReleased": false
+}

@@ -1,0 +1,18 @@
+{
+  "archiveSHA256": "d86bcf2e2fd7cab119a7c4c148403f54545164a677d459aac95263006d081521",
+  "files": {
+    "parity/edges/input.json": "847239691222c735ef1595a9168a0589ae728902e7458e329ed1663a650c5118",
+    "parity/edges/raw.jsonl": "079bfd78e03eb31e200a5c6f61bc2376862a336c584b935fd224cd2c46ffb874",
+    "parity/edges/receipt.json": "824e0ef20bf61ebef4f2308d9cf2dbc56e9f871cdc598219a8feb7974ec10c3c",
+    "parity/edges/reference-receipt.json": "dff10ecc2cd28381d71cc337ab1c053d58a4f208ca05f515c0415bb5ac012269",
+    "parity/edges/reference.jsonl": "6b31b345fb7f14f30e2fa0884c5582a3414b94224ca1b56bf1fdb2e6bf8fd4fa",
+    "parity/edges/stderr.log": "b4a3042fbf14f3ae72aa2df3295d8a279e611f31ef207d3fc6fd4bb6ddfa883c",
+    "parity/fresh/input.json": "78b7875521600512ef1ba96868ee2f75c88365656a314b4c76c57c47601fe7de",
+    "parity/fresh/raw.jsonl": "9e7d64cde540e9dd3fc1b3f1507ffa44c3fcd1259ff4a4ab82360edeacf14381",
+    "parity/fresh/receipt.json": "9219e34d00efa2133c2ef08071e8dbe0d17d0d287502071764d78580826bf18d",
+    "parity/fresh/reference-receipt.json": "90d389dc001f58b78a62d998f8bd57bcf73c966b2b92787d00e45fec94cb97ad",
+    "parity/fresh/reference.jsonl": "95dddc18cdc351324f8531e74e69b4c249a158eafee0b2bb469e80d8c89c2631",
+    "parity/fresh/stderr.log": "bae2683a8326d43ba61bc4efe21225a5251ec21ab8f2b72f477ab37508b1415a",
+    "parity/parity.json": "22303b93035cfecede0a60da29928869047df2b049e0d47e215480496811ec68"
+  }
+}

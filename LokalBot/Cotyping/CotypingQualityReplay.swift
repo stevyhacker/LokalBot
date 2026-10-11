@@ -57,7 +57,7 @@ enum CotypingQualityReplay {
         var useVisibleContext: Bool?
         /// False turns the confidence gate off, to compare against it.
         var confidenceGate: Bool?
-        /// Same opt-in flag as Settings → Writing → Autocomplete.
+        /// Replay-only comparison control; app autocomplete always enables the hybrid.
         var selectiveOneWordHybrid: Bool?
         var firstWordThreshold: Float?
         var hybridFallbackThreshold: Float?

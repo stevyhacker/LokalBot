@@ -1,5 +1,6 @@
 **Faster E2B default — activation and installation, 11 October 2026**
 
+**Historical stage:** this records the initial default-on rollout. The subsequent [always-enabled integration](../2026-10-11-always-hybrid/VALIDATION.md) removes the toggle and ignores old saved off choices; the measurements and receipts below remain unchanged.
 At the user's request, the fastest confirmed candidate is now the app's default experimental hybrid: `certified` prefix search, two generation threads and two prefill threads. Gemma 4 E2B Q6_K remains selected and remains the catalog default. Model weights, prompt, sampler, confidence gates (0.1/0.31), four-path search width and 32-expansion budget are unchanged.
 
 The hybrid preference defaults on for new settings and missing keys. An explicitly saved false is preserved. Autocomplete itself remains opt-in. **Settings → Writing → Autocomplete → Experimental hybrid suggestions** turns off the hybrid confidence fallback and prefix-search path, restores baseline search and the old automatic thread policy, cancels pending work and invalidates cached suggestions. No restart is required.

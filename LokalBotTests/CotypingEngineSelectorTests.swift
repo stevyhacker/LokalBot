@@ -5,44 +5,44 @@ import XCTest
 final class CotypingEngineSelectorTests: XCTestCase {
     private let modelURL = URL(fileURLWithPath: "/models/gemma.gguf")
 
-    func testHybridSwitchRebuildsSameModelAndRestoresCurrentDecoder() throws {
+    func testLegacyHybridPreferenceDoesNotRebuildTheSameModel() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon)
         let env = try GGUFFixture()
         defer { env.tearDown() }
         var settings = env.settings
-        var modes: [Bool] = []
-        var locals: [RecordingLocalEngine] = []
+        let local = RecordingLocalEngine()
+        var builds = 0
         let selector = CotypingEngineSelector(
             http: RecordingHTTPEngine(),
-            makeLocal: { _, hybrid in
-                if let previous = locals.last { XCTAssertEqual(previous.unloadCalls, 1) }
-                modes.append(hybrid)
-                let engine = RecordingLocalEngine()
-                locals.append(engine)
-                return engine
+            makeLocal: { path in
+                XCTAssertEqual(path, self.modelURL.path)
+                builds += 1
+                return local
             }, settings: { settings }, storage: env.storage,
             verifyModel: { _, _ in self.modelURL })
-        for hybrid in [false, true, false] {
-            settings.cotypingSelectiveOneWordHybrid = hybrid
-            _ = try awaitGenerate(selector, makeMinimalRequestExpectingNoServer())
+        for legacyChoice in [false, true, false] {
+            let encoded = try JSONEncoder().encode(settings)
+            var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+            legacy["cotypingSelectiveOneWordHybrid"] = legacyChoice
+            settings = try JSONDecoder().decode(AppSettings.self, from: JSONSerialization.data(withJSONObject: legacy))
             _ = try awaitGenerate(selector, makeMinimalRequestExpectingNoServer())
         }
-        XCTAssertEqual(modes, [false, true, false], "reuse only within the same mode")
+        XCTAssertEqual(builds, 1)
+        XCTAssertEqual(local.unloadCalls, 0)
         awaitUnload(selector)
     }
 
-    func testHybridSwitchInvalidatesSuspendedModelResolution() throws {
+    func testModelChangeInvalidatesSuspendedModelResolution() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon)
         let env = try GGUFFixture()
         defer { env.tearDown() }
         var settings = env.settings
-        settings.cotypingSelectiveOneWordHybrid = false
         let entered = expectation(description: "verification suspended")
         let verifier = SuspendedModelVerifier { entered.fulfill() }
         let http = RecordingHTTPEngine()
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in XCTFail("stale mode must not be installed"); return RecordingLocalEngine() },
+            makeLocal: { _ in XCTFail("stale model must not be installed"); return RecordingLocalEngine() },
             settings: { settings }, storage: env.storage,
             verifyModel: { _, _ in await verifier.verify() })
         let finished = expectation(description: "old request cancelled")
@@ -52,7 +52,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
             finished.fulfill()
         }
         wait(for: [entered], timeout: 5)
-        settings.cotypingSelectiveOneWordHybrid = true
+        settings.cotypingBuiltInModelID = ModelCatalog.recommendedCotypingID
         verifier.resumeAll(with: modelURL)
         wait(for: [finished], timeout: 5)
         XCTAssertTrue(failure is CancellationError)
@@ -106,7 +106,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in
+            makeLocal: { _ in
                 counter.bump()
                 let engine = RecordingLocalEngine()
                 engine.delayUnload = true
@@ -163,7 +163,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         local.onUnload = { events.append("local-unload") }
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in local },
+            makeLocal: { _ in local },
             settings: {
                 var settings = env.settings
                 settings.cotypingInProcessRuntime = flagOn
@@ -224,7 +224,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { path, _ in
+            makeLocal: { path in
                 let engine = RecordingLocalEngine()
                 engine.onGenerate = { events.append("generate:\(path)") }
                 engine.onUnload = { events.append("local-unload") }
@@ -271,7 +271,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let http = RecordingHTTPEngine()
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in ThrowingLocalEngine(error: .decodeFailed) },
+            makeLocal: { _ in ThrowingLocalEngine(error: .decodeFailed) },
             settings: { env.settings },
             storage: env.storage)
 
@@ -304,7 +304,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [ThrowingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in
+            makeLocal: { _ in
                 let engine = ThrowingLocalEngine(error: .decodeFailed)
                 engine.onUnload = { events.append("unload") }
                 locals.append(engine)
@@ -348,7 +348,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in
+            makeLocal: { _ in
                 let engine = RecordingLocalEngine()
                 locals.append(engine)
                 return engine
@@ -388,7 +388,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         var locals: [RecordingLocalEngine] = []
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in
+            makeLocal: { _ in
                 let engine = RecordingLocalEngine()
                 locals.append(engine)
                 return engine
@@ -435,7 +435,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let http = RecordingHTTPEngine()
         let selector = CotypingEngineSelector(
             http: http,
-            makeLocal: { _, _ in XCTFail("local engine should not be built"); return RecordingLocalEngine() },
+            makeLocal: { _ in XCTFail("local engine should not be built"); return RecordingLocalEngine() },
             settings: { settings },
             storage: StorageManager())
 

@@ -167,15 +167,14 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
 
 final class LocalLlamaHealedGenerationTests: XCTestCase {
     @MainActor
-    func testExperimentalSwitchSelectsPrefixSearchAndRollsBack() {
-        for enabled in [false, true, false] {
-            let runtime = LlamaCotypingRuntime.forAutocomplete(selectiveOneWordHybrid: enabled)
-            let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: "/unused.gguf")
-            XCTAssertEqual(engine.healingMode, enabled ? .prefixSearch : .wordBoundary)
-            XCTAssertEqual(runtime.searchExperiment, enabled ? .certified : .baseline)
-            XCTAssertEqual(runtime.replayThreadCount, enabled ? 2 : nil)
-            XCTAssertNil(runtime.replayBatchThreadCount, "Prefill inherits the generation thread policy")
-        }
+    func testAppAutocompleteAlwaysUsesTheFastHybrid() {
+        let runtime = LlamaCotypingRuntime.forAutocomplete()
+        let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: "/unused.gguf")
+        XCTAssertTrue(runtime.selectiveOneWordHybrid)
+        XCTAssertEqual(engine.healingMode, .prefixSearch)
+        XCTAssertEqual(runtime.searchExperiment, .certified)
+        XCTAssertEqual(runtime.replayThreadCount, 2)
+        XCTAssertNil(runtime.replayBatchThreadCount, "Prefill inherits the two generation threads")
     }
 
     @MainActor
@@ -244,7 +243,7 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
         let runtimes = configurations.map { experiment, threads, batchThreads in
             LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: experiment,
                                  replayThreadCount: threads, replayBatchThreadCount: batchThreads)
-        } + [.forAutocomplete(selectiveOneWordHybrid: true)]
+        } + [.forAutocomplete()]
         for (runtimeIndex, runtime) in runtimes.enumerated() {
             let experiment = runtime.searchExperiment
             let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
