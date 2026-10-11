@@ -1,0 +1,11 @@
+{
+  "newSentences": 96,
+  "disjointFrom": [
+    "Benchmarks/Cotyping/prefix-confirmation-corpus.json",
+    "Benchmarks/Cotyping/midword-corpus.json",
+    "Benchmarks/Cotyping/model-study-corpus.json",
+    "Benchmarks/Cotyping/calibration-corpus.json",
+    "/private/tmp/lokalbot-cancellation-20261011/corpus.json"
+  ],
+  "priorSourceManifestMatches": true
+}

@@ -1,0 +1,35 @@
+{
+  "frozenAtUTC": "2026-10-11T10:20:25.876371+00:00",
+  "reason": "Q8 fresh mean changed from 86.7 to 57.8 ms between primary rounds; separate fully warmed native generation from first-use kernel/cache effects. Original primary timings remain preserved. No quality-driven selection.",
+  "orders": [
+    [
+      "q6",
+      "q4",
+      "q8",
+      "q5",
+      "iq4"
+    ],
+    [
+      "iq4",
+      "q5",
+      "q8",
+      "q4",
+      "q6"
+    ]
+  ],
+  "rounds": [
+    3,
+    4
+  ],
+  "dataset": "fresh",
+  "models": [
+    "q6",
+    "q4",
+    "iq4",
+    "q5",
+    "q8"
+  ],
+  "mode": "production",
+  "settings": "Exact frozen production input, default thresholds, same model/binary hashes, eight warmups; no configuration changes.",
+  "measurement": "Two further paired reverse-order rounds after production/trace/matched runs; report as warmed timing follow-up, not an independent quality sample."
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "q6",
+    "path": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "file": "gemma-4-E2B.i1-Q6_K.gguf",
+    "bytes": 3845328608,
+    "sha256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "repository": "mradermacher/gemma-4-E2B-i1-GGUF",
+    "revision": "a9bf638e53783fc93778f357cc5c672eab5393b1",
+    "downloadURL": "https://huggingface.co/mradermacher/gemma-4-E2B-i1-GGUF/resolve/a9bf638e53783fc93778f357cc5c672eab5393b1/gemma-4-E2B.i1-Q6_K.gguf",
+    "verifiedAtUTC": "2026-10-11T10:05:41.587424+00:00"
+  },
+  {
+    "id": "q4",
+    "path": "/private/tmp/lokalbot-quantization-20261011/models/gemma-4-E2B.i1-Q4_K_M.gguf",
+    "file": "gemma-4-E2B.i1-Q4_K_M.gguf",
+    "bytes": 3427862240,
+    "sha256": "3cc0e9c2b4bbffea7f3f6cfe1ffd1591f4dafe02c43f78952f1142a24172df65",
+    "repository": "mradermacher/gemma-4-E2B-i1-GGUF",
+    "revision": "a9bf638e53783fc93778f357cc5c672eab5393b1",
+    "downloadURL": "https://huggingface.co/mradermacher/gemma-4-E2B-i1-GGUF/resolve/a9bf638e53783fc93778f357cc5c672eab5393b1/gemma-4-E2B.i1-Q4_K_M.gguf",
+    "verifiedAtUTC": "2026-10-11T10:07:43.168902+00:00"
+  },
+  {
+    "id": "iq4",
+    "path": "/private/tmp/lokalbot-quantization-20261011/models/gemma-4-E2B.i1-IQ4_XS.gguf",
+    "file": "gemma-4-E2B.i1-IQ4_XS.gguf",
+    "bytes": 3303913184,
+    "sha256": "ff6bd7e4bff80f25a394cea55b100f3ce7602b23ac7be6fd801e240e481475c2",
+    "repository": "mradermacher/gemma-4-E2B-i1-GGUF",
+    "revision": "a9bf638e53783fc93778f357cc5c672eab5393b1",
+    "downloadURL": "https://huggingface.co/mradermacher/gemma-4-E2B-i1-GGUF/resolve/a9bf638e53783fc93778f357cc5c672eab5393b1/gemma-4-E2B.i1-IQ4_XS.gguf",
+    "verifiedAtUTC": "2026-10-11T10:07:35.668154+00:00"
+  },
+  {
+    "id": "q5",
+    "path": "/private/tmp/lokalbot-quantization-20261011/models/gemma-4-E2B.i1-Q5_K_M.gguf",
+    "file": "gemma-4-E2B.i1-Q5_K_M.gguf",
+    "bytes": 3630270176,
+    "sha256": "b646de7f13ecb4c47183d3d6452722b4ee8b38a22e52231468b60f659790b7f7",
+    "repository": "mradermacher/gemma-4-E2B-i1-GGUF",
+    "revision": "a9bf638e53783fc93778f357cc5c672eab5393b1",
+    "downloadURL": "https://huggingface.co/mradermacher/gemma-4-E2B-i1-GGUF/resolve/a9bf638e53783fc93778f357cc5c672eab5393b1/gemma-4-E2B.i1-Q5_K_M.gguf",
+    "verifiedAtUTC": "2026-10-11T10:09:32.433943+00:00"
+  },
+  {
+    "id": "q8",
+    "path": "/private/tmp/lokalbot-quantization-20261011/models/gemma-4-E2B.Q8_0.gguf",
+    "file": "gemma-4-E2B.Q8_0.gguf",
+    "bytes": 4967478752,
+    "sha256": "526ee0ac37da0b7e52ff561e73f10e73fc7bf79abda657a6fceb5dc9c75c6f46",
+    "repository": "mradermacher/gemma-4-E2B-GGUF",
+    "revision": "3762686d74ff8db6c98f8d3c389f56fbdf994d5a",
+    "downloadURL": "https://huggingface.co/mradermacher/gemma-4-E2B-GGUF/resolve/3762686d74ff8db6c98f8d3c389f56fbdf994d5a/gemma-4-E2B.Q8_0.gguf",
+    "verifiedAtUTC": "2026-10-11T10:09:06.556717+00:00"
+  }
+]

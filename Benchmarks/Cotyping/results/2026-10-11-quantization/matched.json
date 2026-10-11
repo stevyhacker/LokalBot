@@ -1,0 +1,68 @@
+{
+  "createdAtUTC": "2026-10-11T10:24:01.528953+00:00",
+  "frequencies": {
+    "en": {
+      "baselineProduction": 124,
+      "matched": 124,
+      "total": 144
+    },
+    "sr_latn": {
+      "baselineProduction": 108,
+      "matched": 108,
+      "total": 144
+    }
+  },
+  "cutoffs": {
+    "q6": {
+      "en": {
+        "primary": 0.0996427834033966,
+        "fallback": 0.3088926374912262
+      },
+      "sr_latn": {
+        "primary": 0.10388689488172531,
+        "fallback": 0.3220493793487549
+      }
+    },
+    "q4": {
+      "en": {
+        "primary": 0.08741255104541779,
+        "fallback": 0.2709788978099823
+      },
+      "sr_latn": {
+        "primary": 0.08517495542764664,
+        "fallback": 0.26404234766960144
+      }
+    },
+    "iq4": {
+      "en": {
+        "primary": 0.09063907712697983,
+        "fallback": 0.2809811234474182
+      },
+      "sr_latn": {
+        "primary": 0.10401253402233124,
+        "fallback": 0.3224388360977173
+      }
+    },
+    "q5": {
+      "en": {
+        "primary": 0.0981869325041771,
+        "fallback": 0.30437949299812317
+      },
+      "sr_latn": {
+        "primary": 0.09746850281953812,
+        "fallback": 0.3021523356437683
+      }
+    },
+    "q8": {
+      "en": {
+        "primary": 0.10080536454916,
+        "fallback": 0.3124966323375702
+      },
+      "sr_latn": {
+        "primary": 0.10407910495996475,
+        "fallback": 0.3226452171802521
+      }
+    }
+  },
+  "note": "Transductive equal-frequency diagnostic only; no quality labels or production setting changes."
+}

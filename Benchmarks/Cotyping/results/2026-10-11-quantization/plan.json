@@ -1,0 +1,67 @@
+{
+  "frozenAtUTC": "2026-10-11T10:10:55.872843+00:00",
+  "corpusSHA256": "f3f4bb42c58279f4f02a5d53c888a143995f7f71aa9174f5034272ad412d693a",
+  "models": [
+    "q6",
+    "q4",
+    "iq4",
+    "q5",
+    "q8"
+  ],
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "searchExperiment": "certified",
+    "nativeThreads": 2,
+    "nativeBatchThreads": 2,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true,
+    "healingMode": "prefixSearch",
+    "firstWordThreshold": 0.1,
+    "hybridFallbackThreshold": 0.31,
+    "useNativeSpellingVerdicts": true,
+    "confidenceTrace": false
+  },
+  "seed": 12648430,
+  "topP": 0.7,
+  "topK": 20,
+  "minP": 0.08,
+  "orders": [
+    [
+      "q6",
+      "q4",
+      "q8",
+      "q5",
+      "iq4"
+    ],
+    [
+      "iq4",
+      "q5",
+      "q8",
+      "q4",
+      "q6"
+    ]
+  ],
+  "inputSHA256": {
+    "dynamic.json": "ca1cabb51573b91a791900434ec863047403afaba83e60f6f92c64155eb5f722",
+    "cancellation.json": "f6d231bb6830184f55797d362a177185c576bf91963a6c767e72bac05f0be5e7",
+    "long.json": "2bd9b6a3eceea0418fe1cbb8cddef7099408e92e6af7e7f438982ac934f06b0a",
+    "fresh.json": "a49f52079b585950726b4bef52529b9047fde7b8c785580bba416119fb524668"
+  },
+  "runnerSHA256": "3c6657a076087f4930078d6cb3bafe6d8c7e4638d5de22edc6a75cda150620c8",
+  "primary": "Drop-in production thresholds 0.1/0.31, every quantization, fixed prompt/decoder/native runtime. No parameter tuning.",
+  "matched": "Separate diagnostic: preserve every native midword output. Per language match total shown count to Q6 production (or the greatest lower common feasible count) using only unlabeled boundary confidence and ratio3.1. No quality labels determine cutoffs. Actual native matched runs are timed; traced outputs are not timed.",
+  "quality": "Anonymous Claude usefulness rubric, all unique nonempty production/matched suggestions; silence=0. 24 reversed-option repeats, 5000 scenario-cluster paired bootstrap draws. Reference-word agreement is secondary. If external judging is unavailable, report that limit and do not infer subjective quality from exact-reference score alone.",
+  "timing": "Two serial reverse-order rounds for production fresh/long/dynamic/cancellation, plus two for matched fresh. Eight excluded warmups. No builds, native tests or downloads during inference. Peak process RSS/footprint and launch-to-first-output are separate from native latency.",
+  "cancellation": "Use actual issued time, require both arms cancelled for paired latency, also measure through the next completed replacement; compare recovery with a cold reference. Report unmatched/undelivered timers.",
+  "decision": "Keep Q6 unless quality is non-regressing in each language at both production and matched frequency (including poor counts), and normal/cancellation mean and p95 do not regress. A worthwhile speed upgrade should improve fresh mean by at least10%; a Q8 quality upgrade requires a positive quality interval and no normal-speed regression. Otherwise retain Q6 and describe optional tradeoffs. No installed model changes during measurement.",
+  "scope": "48 new bilingual scenarios, 288 fresh checkpoints; long/dynamic/cancellation subsets identified in metadata. One machine, one synthetic corpus, model-judge opinion rather than human acceptance. No UI tests or CI actions.",
+  "hardware": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": "51539607552",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t98%; charging; 0:15 remaining present: true"
+  }
+}

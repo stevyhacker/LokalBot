@@ -1,0 +1,35 @@
+{
+  "verifiedAtUTC": "2026-10-11T10:35:28.447495+00:00",
+  "pythonTests": 6,
+  "pythonFailures": 0,
+  "validation": {
+    "processes": 65,
+    "measured": 12960,
+    "excludedWarmups": 520,
+    "byteIdenticalPromptComparisons": 12960,
+    "deterministicRepeatedOutputs": 6480,
+    "allComplete": true,
+    "noReplayErrors": true,
+    "fixedBinaryAndModelPins": true
+  },
+  "nativeFrequencyParity": true,
+  "midwordOutputsUnchangedByMatching": 960,
+  "recoveryColdPairs": 480,
+  "recoveryMismatches": 0,
+  "claudeBatches": 22,
+  "claudeModel": "claude-opus-5-5",
+  "noLocalUITests": true,
+  "noAppBuildOrReinstall": true,
+  "sourceSHA256": {
+    "quantization_experiment.py": "3c6657a076087f4930078d6cb3bafe6d8c7e4638d5de22edc6a75cda150620c8",
+    "quantization_analysis.py": "7455d7bf9af61b9e56b000e3fbe1ff03d455c103b5682af45146802da4bf3641",
+    "test_quantization_experiment.py": "b827373c871297edb7399108db4031f311afa1f0f1b1843d12744e8c806e70de",
+    "cancellation_experiment.py": "913f350c3f4def300c1d697409ed194e8c5299beb9fb60a22d480585b5ed5397",
+    "claude_judge.py": "5cebe30a28bb4ee35e7b303ce8018d6ac43ad472a21b48d7edaa13652e7e9208",
+    "run_steady_timing.py": "b0430cf2a0e875ddcfb9c34806cba05e21adf73f1ef46c96c345e40e71b80cc2",
+    "run_blind_judge.py": "80dd96a0ba304f0efb0ed005d40d88b4ccd4508afcb29ad387214fe39e999a84",
+    "inspect_gguf.py": "52e84b87b436e5340c7a381ade5ec1d3c1dc89c4c5f683d1d9ed7eac35f8fb21",
+    "download_models.py": "3b938e6bd2ca732daaefe012f366d71c7f15eb8145bd992fcb6a4e4fb74f3729",
+    "make_tables.py": "aead802f0ff274039d1b095fbd0a36bae43835f6a190cc9c525756dc20d01d8c"
+  }
+}

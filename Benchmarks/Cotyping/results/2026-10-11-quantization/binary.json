@@ -1,0 +1,7 @@
+{
+  "path": "/private/tmp/lokalbot-cancellation-20261011/adaptive/candidate.app/Contents/MacOS/LokalBot",
+  "sha256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9",
+  "sourceCommit": "ea3970204e0831d6a76a533f6daec0b9a7a67c5d",
+  "installedSHA256": "322e74f16ffe42bc77cd60f3a56aeae2e0a1ca05ad0ba78d579f465bf6160379",
+  "note": "Unchanged Release replay binary from the cancellation study; source runtime hashes verified before reuse."
+}

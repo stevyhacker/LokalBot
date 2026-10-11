@@ -1,0 +1,7 @@
+{
+  "decision": "retain-q6",
+  "installedAppChanged": false,
+  "reason": "No quantization establishes non-regressing English/Serbian Latin quality and normal/cancellation latency. Q4 is faster but has more poor suggestions and slower recovery; Q8 quality advantage is uncertain and costs speed/memory.",
+  "sourceSummary": "summary.json",
+  "qualityIsModelOpinion": true
+}

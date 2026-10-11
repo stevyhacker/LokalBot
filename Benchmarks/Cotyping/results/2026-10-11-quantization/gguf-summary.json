@@ -1,0 +1,159 @@
+{
+  "commonTensorCount": 284,
+  "commonTensorBytes": 28695648,
+  "commonTensorMatches": {
+    "q6": 284,
+    "q4": 284,
+    "iq4": 284,
+    "q5": 284,
+    "q8": 284
+  },
+  "note": "Metadata, tokenizer and shapes match. Common-type tensor hashes are extra provenance evidence; publisher cards identify the same upstream model, but do not supply a full unquantized checkpoint hash.",
+  "models": {
+    "q6": {
+      "version": 3,
+      "tensorDataOffset": 15800960,
+      "tensorCount": 601,
+      "tokenizerSHA256": "da7977ab3ceeb6810bf2940998698eeea6db27f8e3e08f1bd603cf3cacefa198",
+      "architectureSHA256": "7c270d0748221231afbb9d9d8c422d6fd8b98546305a056ebd55e9b33deca2c6",
+      "tensorShapesSHA256": "05a32f8c9728812a06d6c7075be4e5daaf8b678bc62c1af92136b618987d3227",
+      "storedTypes": {
+        "F32": {
+          "tensors": 283,
+          "parameters": 292387,
+          "paddedBytes": 1170528
+        },
+        "BF16": {
+          "tensors": 1,
+          "parameters": 13762560,
+          "paddedBytes": 27525120
+        },
+        "Q6_K": {
+          "tensors": 317,
+          "parameters": 4633395200,
+          "paddedBytes": 3800832000
+        }
+      }
+    },
+    "q4": {
+      "version": 3,
+      "tensorDataOffset": 15800960,
+      "tensorCount": 601,
+      "tokenizerSHA256": "da7977ab3ceeb6810bf2940998698eeea6db27f8e3e08f1bd603cf3cacefa198",
+      "architectureSHA256": "7c270d0748221231afbb9d9d8c422d6fd8b98546305a056ebd55e9b33deca2c6",
+      "tensorShapesSHA256": "05a32f8c9728812a06d6c7075be4e5daaf8b678bc62c1af92136b618987d3227",
+      "storedTypes": {
+        "F32": {
+          "tensors": 283,
+          "parameters": 292387,
+          "paddedBytes": 1170528
+        },
+        "BF16": {
+          "tensors": 1,
+          "parameters": 13762560,
+          "paddedBytes": 27525120
+        },
+        "Q6_K": {
+          "tensors": 36,
+          "parameters": 3014131712,
+          "paddedBytes": 2472529920
+        },
+        "Q4_K": {
+          "tensors": 281,
+          "parameters": 1619263488,
+          "paddedBytes": 910835712
+        }
+      }
+    },
+    "iq4": {
+      "version": 3,
+      "tensorDataOffset": 15800960,
+      "tensorCount": 601,
+      "tokenizerSHA256": "da7977ab3ceeb6810bf2940998698eeea6db27f8e3e08f1bd603cf3cacefa198",
+      "architectureSHA256": "7c270d0748221231afbb9d9d8c422d6fd8b98546305a056ebd55e9b33deca2c6",
+      "tensorShapesSHA256": "05a32f8c9728812a06d6c7075be4e5daaf8b678bc62c1af92136b618987d3227",
+      "storedTypes": {
+        "F32": {
+          "tensors": 283,
+          "parameters": 292387,
+          "paddedBytes": 1170528
+        },
+        "BF16": {
+          "tensors": 1,
+          "parameters": 13762560,
+          "paddedBytes": 27525120
+        },
+        "Q6_K": {
+          "tensors": 2,
+          "parameters": 2751463424,
+          "paddedBytes": 2257059840
+        },
+        "IQ4_XS": {
+          "tensors": 280,
+          "parameters": 1865416704,
+          "paddedBytes": 991002624
+        },
+        "Q5_K": {
+          "tensors": 35,
+          "parameters": 16515072,
+          "paddedBytes": 11354112
+        }
+      }
+    },
+    "q5": {
+      "version": 3,
+      "tensorDataOffset": 15800960,
+      "tensorCount": 601,
+      "tokenizerSHA256": "da7977ab3ceeb6810bf2940998698eeea6db27f8e3e08f1bd603cf3cacefa198",
+      "architectureSHA256": "7c270d0748221231afbb9d9d8c422d6fd8b98546305a056ebd55e9b33deca2c6",
+      "tensorShapesSHA256": "05a32f8c9728812a06d6c7075be4e5daaf8b678bc62c1af92136b618987d3227",
+      "storedTypes": {
+        "F32": {
+          "tensors": 283,
+          "parameters": 292387,
+          "paddedBytes": 1170528
+        },
+        "BF16": {
+          "tensors": 1,
+          "parameters": 13762560,
+          "paddedBytes": 27525120
+        },
+        "Q6_K": {
+          "tensors": 36,
+          "parameters": 3014131712,
+          "paddedBytes": 2472529920
+        },
+        "Q5_K": {
+          "tensors": 281,
+          "parameters": 1619263488,
+          "paddedBytes": 1113243648
+        }
+      }
+    },
+    "q8": {
+      "version": 3,
+      "tensorDataOffset": 15800704,
+      "tensorCount": 601,
+      "tokenizerSHA256": "da7977ab3ceeb6810bf2940998698eeea6db27f8e3e08f1bd603cf3cacefa198",
+      "architectureSHA256": "7c270d0748221231afbb9d9d8c422d6fd8b98546305a056ebd55e9b33deca2c6",
+      "tensorShapesSHA256": "05a32f8c9728812a06d6c7075be4e5daaf8b678bc62c1af92136b618987d3227",
+      "storedTypes": {
+        "F32": {
+          "tensors": 283,
+          "parameters": 292387,
+          "paddedBytes": 1170528
+        },
+        "BF16": {
+          "tensors": 1,
+          "parameters": 13762560,
+          "paddedBytes": 27525120
+        },
+        "Q8_0": {
+          "tensors": 317,
+          "parameters": 4633395200,
+          "paddedBytes": 4922982400
+        }
+      }
+    }
+  }
+}
