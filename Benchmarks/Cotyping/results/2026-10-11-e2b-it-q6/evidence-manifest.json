@@ -1,13 +1,13 @@
 {
   "archive": "evidence.tar.gz",
-  "bytes": 1771839,
-  "sha256": "c4f1784223741a035b4fc2f41caae1a23b14abcd7d1ab8f29a719c531de1e769",
+  "bytes": 2023528,
+  "sha256": "a2787d34502835a7ac29bfec2149b894e2f6eb44dc21b4f7453d926c04ab18b4",
   "excluded": "Model weights, app/probe binaries, raw process inventory, PR state, profiling data and Python caches.",
   "members": [
     {
       "path": "EXAMPLES.md",
-      "bytes": 1991,
-      "sha256": "f8a3e2105cad03bb6fe37975debde5e821440b552cb8fed86cdddc586502c086"
+      "bytes": 4143,
+      "sha256": "3b7a7ea1e850062051df1581e3f5f1500736dc9ff5f16d8b3fb7f577806d2d8f"
     },
     {
       "path": "METHOD.md",
@@ -21,23 +21,43 @@
     },
     {
       "path": "REPORT.md",
-      "bytes": 7088,
-      "sha256": "f053c36831fea960e6b047f9f178a4afeb119a1f0ca937487527901ffef55a60"
+      "bytes": 10015,
+      "sha256": "bac429ffc049ecae9424746736fd710883460a98d5d014d925e46a5076bddba1"
     },
     {
       "path": "TABLES.md",
-      "bytes": 2398,
-      "sha256": "9dcabc054828a0074e39d3072974c8944b5caac397412ae099444d5fa2f04e4d"
+      "bytes": 3719,
+      "sha256": "03236f6ef5198cd3903341dcd528afc85b5561310c32a3932918b701c3d94a79"
     },
     {
       "path": "VALIDATION.md",
-      "bytes": 6312,
-      "sha256": "fa473bd38109e848ea246631fcebb576c1142bc08509e7d187b77af21ed47e25"
+      "bytes": 7849,
+      "sha256": "83b6dffab4cbf029dbb17da07e8fd8a4ad7148f22a7a3e0c66ee1f37345ecee8"
     },
     {
       "path": "analysis-timing.log",
       "bytes": 1168,
       "sha256": "dcfd5f84d33c1fc807f9c29ae96b2252641f94b3d8575da01ce99f79235c56d0"
+    },
+    {
+      "path": "analysis-with-judge.log",
+      "bytes": 1168,
+      "sha256": "dcfd5f84d33c1fc807f9c29ae96b2252641f94b3d8575da01ce99f79235c56d0"
+    },
+    {
+      "path": "before-direct-judge-judge-status.json",
+      "bytes": 725,
+      "sha256": "42620be52743c23e595f6bcb99f538feccf2f71a34c52641492370dffbdb71f7"
+    },
+    {
+      "path": "before-direct-judge-summary.json",
+      "bytes": 134817,
+      "sha256": "44c15ceb0c41d9eb9bd7e14914f602369c7d4cda71961ea7f9214dea72b99dc3"
+    },
+    {
+      "path": "before-direct-judge-validation.json",
+      "bytes": 672,
+      "sha256": "00bd23a61c09f1a6e060833e42037742211cdf248c4f61669d9614a3e5bfba96"
     },
     {
       "path": "binary.json",
@@ -145,6 +165,46 @@
       "sha256": "b28140afe75f94f948d36c899299317257439cf3994621b2a8913aee1d4b4466"
     },
     {
+      "path": "judge/anthropic-format-failures/primary-01/anthropic-request.json",
+      "bytes": 8136,
+      "sha256": "7585f90f1139060fa56c7f3f2230e73981fb08aef09153a7bbaaca686037304f"
+    },
+    {
+      "path": "judge/anthropic-format-failures/primary-01/anthropic-response.json",
+      "bytes": 5916,
+      "sha256": "ea7d522e44c2ac36f225d6101b962440a8708552460f9cc25959232a4e66c3dc"
+    },
+    {
+      "path": "judge/anthropic-format-failures/primary-01/failure.json",
+      "bytes": 658,
+      "sha256": "9c5da2c262dd4c4b7dbef78dcf15aa006163f9645110ab0cde9e9611f9db37a4"
+    },
+    {
+      "path": "judge/anthropic-format-failures/primary-01/judge-anthropic-preflight.log",
+      "bytes": 110,
+      "sha256": "1588129e20ff6c4df035359787c815fa2bccbc730caf99b9a0ff44b38ae251f7"
+    },
+    {
+      "path": "judge/anthropic-format-failures/primary-01/judge-direct-api-amendment.json",
+      "bytes": 4197,
+      "sha256": "a9b7efbf088edd6250770a7a0c1636051aecc3c00af712f3dc24498470afd703"
+    },
+    {
+      "path": "judge/anthropic-format-failures/primary-01/run_anthropic_judge.py",
+      "bytes": 9558,
+      "sha256": "4710bae30ed18abe8e4bbfd22128866743e777e689e52e2132816c409bb5fb77"
+    },
+    {
+      "path": "judge/batches/primary-01/anthropic-request.json",
+      "bytes": 5486,
+      "sha256": "668c248be43798dfa8bb20eedc81989ca33dce7f0102620d2523d25088000344"
+    },
+    {
+      "path": "judge/batches/primary-01/anthropic-response.json",
+      "bytes": 11194,
+      "sha256": "d60c76192d539f152bb7cc97a3c58c4ce34faa346f293f23c687bf7898c015b6"
+    },
+    {
       "path": "judge/batches/primary-01/api-error.json",
       "bytes": 950,
       "sha256": "18a83afab5119f200368a44645ccbb24157612e074b4ea744215ec80031e646f"
@@ -155,9 +215,29 @@
       "sha256": "ea4052c8dbe9db0d0d913c0c19a9dde0969466cae5929a761f8d1ea4620a6185"
     },
     {
+      "path": "judge/batches/primary-01/execution.json",
+      "bytes": 563,
+      "sha256": "ffcaa1b5ed0a4965ee3cb8d6db9f77594d0620f2aa191feb4a10be7f7aa482d8"
+    },
+    {
       "path": "judge/batches/primary-01/packet.json",
       "bytes": 3684,
       "sha256": "27b476000c1c1f80f2d60a6e0c39365f956a664e9ae6cd5593f0bae87b812397"
+    },
+    {
+      "path": "judge/batches/primary-01/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-01/ratings.json",
+      "bytes": 6129,
+      "sha256": "9e5d2c32cfee30f0b4c59fa27ad0dec71805ec6666e31ac333a5612009c8364d"
+    },
+    {
+      "path": "judge/batches/primary-01/receipt.json",
+      "bytes": 794,
+      "sha256": "652c4c504e6ba743b2db99412a8c41e137f1d622094646077421d247b2609375"
     },
     {
       "path": "judge/batches/primary-01/request.txt",
@@ -165,9 +245,44 @@
       "sha256": "5a2c5f896db94e9af61b5a76687804bd297e35d691a81c5ad2673d0dd5a6adc8"
     },
     {
+      "path": "judge/batches/primary-01/response.json",
+      "bytes": 6896,
+      "sha256": "1a69f47109bd141bbf37654938fd391f39592a89e18807df186d8f78c9fa1c70"
+    },
+    {
+      "path": "judge/batches/primary-02/anthropic-request.json",
+      "bytes": 5410,
+      "sha256": "6c9387ed1455e1cda2542367e0535571bd659eef8e8b0bd14b7ccf67f304f54b"
+    },
+    {
+      "path": "judge/batches/primary-02/anthropic-response.json",
+      "bytes": 8144,
+      "sha256": "6de5f5fc80b8ca977ecda59d395d7800bcc3414ad28ae601e7aeecf61db59844"
+    },
+    {
+      "path": "judge/batches/primary-02/execution.json",
+      "bytes": 562,
+      "sha256": "8318c930fe3d942217ccc8fba482261b43cc7ba9c72fcddf0fee102385725333"
+    },
+    {
       "path": "judge/batches/primary-02/packet.json",
       "bytes": 3572,
       "sha256": "b376823e687359eeae9d43949e036ac33e20537046615209be0dd424222d3836"
+    },
+    {
+      "path": "judge/batches/primary-02/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-02/ratings.json",
+      "bytes": 5547,
+      "sha256": "05350879df391e90b942bda5ccaacb4cc169c68adc6d69e32d6aa14f03f3c319"
+    },
+    {
+      "path": "judge/batches/primary-02/receipt.json",
+      "bytes": 793,
+      "sha256": "3c20b2a0850fd01b179c268eb1fe6d66d80fb9cafa194001d014921d856cffe9"
     },
     {
       "path": "judge/batches/primary-02/request.txt",
@@ -175,9 +290,44 @@
       "sha256": "6de89dff5e9b444fa493be2fd010dea6d9f858d7695f21ba30bd15a4c739ff78"
     },
     {
+      "path": "judge/batches/primary-02/response.json",
+      "bytes": 6268,
+      "sha256": "3d9dd6773af09afcdc12aaa8ba7e8eab9302fd8769bb2f4ac3869efc7463399d"
+    },
+    {
+      "path": "judge/batches/primary-03/anthropic-request.json",
+      "bytes": 5301,
+      "sha256": "07cf17d0e0d6372e970a081ab52a9e78481e21d4bc1a9acb34b4866a98b61f19"
+    },
+    {
+      "path": "judge/batches/primary-03/anthropic-response.json",
+      "bytes": 11307,
+      "sha256": "3d5a6c454dbd321a3dbdd98f6febd80c42440b09eb6618036acb28f29f55ab98"
+    },
+    {
+      "path": "judge/batches/primary-03/execution.json",
+      "bytes": 562,
+      "sha256": "d7f754d5ea485a1ac81f11564a72927db7ad75d9eb136c33c3af3a94b36a9276"
+    },
+    {
       "path": "judge/batches/primary-03/packet.json",
       "bytes": 3499,
       "sha256": "65ba121dfd0ca659e35583fe6da44397d0c26dcf1ec5d435a8c152839067dbc5"
+    },
+    {
+      "path": "judge/batches/primary-03/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-03/ratings.json",
+      "bytes": 6084,
+      "sha256": "7bf69d0b30a5b7d3b2cbe00e9808ba508c7c7705351c910b818fe99f5a55b0e0"
+    },
+    {
+      "path": "judge/batches/primary-03/receipt.json",
+      "bytes": 793,
+      "sha256": "1cc84c28f3154c4213e843f3463d5022e3fc972f59dea4074f56c52f8dba748f"
     },
     {
       "path": "judge/batches/primary-03/request.txt",
@@ -185,9 +335,44 @@
       "sha256": "4f4c91959c9feb43e1d50bb8f6be4549879d1180e1368e2d316c3b984673c5bb"
     },
     {
+      "path": "judge/batches/primary-03/response.json",
+      "bytes": 6847,
+      "sha256": "a22490a34807375611c8febaccf8c56435d08666c0dc474cf273d26f80a049f1"
+    },
+    {
+      "path": "judge/batches/primary-04/anthropic-request.json",
+      "bytes": 5296,
+      "sha256": "357ee45ede325741170c634a189383e218b4658eca88c713db5aafa9d3c02c94"
+    },
+    {
+      "path": "judge/batches/primary-04/anthropic-response.json",
+      "bytes": 8655,
+      "sha256": "4f100f4b95f6d80abdbc9b1b373cba4dd6711be2c19b3510b42b601abb18c90b"
+    },
+    {
+      "path": "judge/batches/primary-04/execution.json",
+      "bytes": 563,
+      "sha256": "e5599d81d106658611bc8b1604c6fcf8e00250453c368f0a663938666cd2df5e"
+    },
+    {
       "path": "judge/batches/primary-04/packet.json",
       "bytes": 3528,
       "sha256": "51f1c110d7a1533e4e03bb492ea78c065cb61a45fad615b1d1a3967e4aa44cba"
+    },
+    {
+      "path": "judge/batches/primary-04/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-04/ratings.json",
+      "bytes": 6045,
+      "sha256": "1e6e0f26ae95045850f2d8fe2b6d1f6076a9f0e6b31dc2d099dff9083e70c3d6"
+    },
+    {
+      "path": "judge/batches/primary-04/receipt.json",
+      "bytes": 794,
+      "sha256": "fa16f95abf544fbec6e3cea2d6e86ce01f869918f64a4335f4a40513f0623aad"
     },
     {
       "path": "judge/batches/primary-04/request.txt",
@@ -195,9 +380,44 @@
       "sha256": "06b8c36c6e731e86da832419aeab707b9f117687707991b63dc4da6997cf27bb"
     },
     {
+      "path": "judge/batches/primary-04/response.json",
+      "bytes": 6812,
+      "sha256": "50c508498fbd8222436f9ec9cfbfab6b5f961047d799348298de0b8d88a7a0b2"
+    },
+    {
+      "path": "judge/batches/primary-05/anthropic-request.json",
+      "bytes": 5244,
+      "sha256": "1d0198a71fdb56867c28304d2246f1b613bf83ca0b84dba5a3ab575442dff582"
+    },
+    {
+      "path": "judge/batches/primary-05/anthropic-response.json",
+      "bytes": 8348,
+      "sha256": "2e00eeeb76b7fa3ea721e5233f63cd67eb431bd7504eecb87397ffbe8d2182b1"
+    },
+    {
+      "path": "judge/batches/primary-05/execution.json",
+      "bytes": 563,
+      "sha256": "8716e5701448913d5935b39e9376dbda066a7daca1170fa89e4730c738ad37f8"
+    },
+    {
       "path": "judge/batches/primary-05/packet.json",
       "bytes": 3408,
       "sha256": "8e6522c2ee141946153ab375b6eb8d9751d7f1d1a25168ab321681cf3bdcee04"
+    },
+    {
+      "path": "judge/batches/primary-05/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-05/ratings.json",
+      "bytes": 5630,
+      "sha256": "ccb13be04f767012ab3ccbaee3bfa93d45885623cfbc8a1b3d8dab22da90735e"
+    },
+    {
+      "path": "judge/batches/primary-05/receipt.json",
+      "bytes": 794,
+      "sha256": "6419c552a2ca5fe3c051e463b5378f1fd2c702b2741562ec5a029a2cb0befb16"
     },
     {
       "path": "judge/batches/primary-05/request.txt",
@@ -205,9 +425,44 @@
       "sha256": "c27e850e88908c158442353d40ce50cebc76e2479f31bd72190e52d1d258e2eb"
     },
     {
+      "path": "judge/batches/primary-05/response.json",
+      "bytes": 6361,
+      "sha256": "3a00a4a8f48a45779cfd76745e648617b48e0745ae9980880c73f3616edf78d7"
+    },
+    {
+      "path": "judge/batches/primary-06/anthropic-request.json",
+      "bytes": 5600,
+      "sha256": "cd465517266d72daf1718a37e5ee856e50c501d9309222c448d54b3930c62bbb"
+    },
+    {
+      "path": "judge/batches/primary-06/anthropic-response.json",
+      "bytes": 9392,
+      "sha256": "fd479b0a81bf76dbbe3f677a3ec7b1ab9167cdb7ca7069abdd7830eb554b0f11"
+    },
+    {
+      "path": "judge/batches/primary-06/execution.json",
+      "bytes": 562,
+      "sha256": "94591b6b165eafc63ca2869b6df06c83f48948193df9f2419c570090c93514ac"
+    },
+    {
       "path": "judge/batches/primary-06/packet.json",
       "bytes": 3900,
       "sha256": "2060d7ee0c491f34cb29c94c733798b960ac2c1ed00b0c0124bea4daed28e4ba"
+    },
+    {
+      "path": "judge/batches/primary-06/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-06/ratings.json",
+      "bytes": 6446,
+      "sha256": "a861128d7c6a8f807a8c96032a0f801a179aea4b2932054d4658be05a72bbddc"
+    },
+    {
+      "path": "judge/batches/primary-06/receipt.json",
+      "bytes": 793,
+      "sha256": "47e91ae61a28fa0e0025cdb638f4ffc9ffb797a752a4e26273e870bdd9afc114"
     },
     {
       "path": "judge/batches/primary-06/request.txt",
@@ -215,9 +470,44 @@
       "sha256": "262b28f5d735b3f331f527b3e013f26b5cd566fd4fab81f676fbd4413d4bc7ad"
     },
     {
+      "path": "judge/batches/primary-06/response.json",
+      "bytes": 7233,
+      "sha256": "21382b8655f437e7e444a6ddd0d101988b7265b24c8fa1f34f6bb98dc220ef3b"
+    },
+    {
+      "path": "judge/batches/primary-07/anthropic-request.json",
+      "bytes": 5350,
+      "sha256": "10e64b8e0484bb8a194092575bca3841af1a986e2161d102dd80b4d286a70aa5"
+    },
+    {
+      "path": "judge/batches/primary-07/anthropic-response.json",
+      "bytes": 9863,
+      "sha256": "3d16f7bec365c80aa05fa516c5689652210f4464ed71324642e29df69f4d3d47"
+    },
+    {
+      "path": "judge/batches/primary-07/execution.json",
+      "bytes": 561,
+      "sha256": "a5da68237d6835efeb2bcf4cfc9a01c1e75c859514aab3db5704675755d1aed4"
+    },
+    {
       "path": "judge/batches/primary-07/packet.json",
       "bytes": 3548,
       "sha256": "4407a8d4a08c5ba06f668ff3dc2bdf5f5f7bdaf149e00004ef9676b53913c7c2"
+    },
+    {
+      "path": "judge/batches/primary-07/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-07/ratings.json",
+      "bytes": 6038,
+      "sha256": "e35ad5bb0ee42d9ec225f8a5ed584c86b7921724b300520e9a20941424bc4ad7"
+    },
+    {
+      "path": "judge/batches/primary-07/receipt.json",
+      "bytes": 792,
+      "sha256": "0d16a4d6e29e766aed6f642375f0c4dee55d997fe6717f994d9ac93dd2affd54"
     },
     {
       "path": "judge/batches/primary-07/request.txt",
@@ -225,9 +515,44 @@
       "sha256": "57858889e7703c8a192ec7e05302bef4d5763ab5ae5615f54724382d9295a533"
     },
     {
+      "path": "judge/batches/primary-07/response.json",
+      "bytes": 6789,
+      "sha256": "ee65cd37fd1c2941e5e5ac5d3bd4e862264592788ff01fc37f9e6edd76dc01f4"
+    },
+    {
+      "path": "judge/batches/primary-08/anthropic-request.json",
+      "bytes": 5270,
+      "sha256": "8d148d45d15c4e593d6b51f3606d96ac187b77f4099c13f6cc3815d00aad6bdb"
+    },
+    {
+      "path": "judge/batches/primary-08/anthropic-response.json",
+      "bytes": 6882,
+      "sha256": "4dd747c9a40002b2af7a44123f42436255bbc91f67f6e5300e0bf947fdc18949"
+    },
+    {
+      "path": "judge/batches/primary-08/execution.json",
+      "bytes": 562,
+      "sha256": "5376f948559c0227941f9c228cc2681722165757401eaa18909a43747a679be3"
+    },
+    {
       "path": "judge/batches/primary-08/packet.json",
       "bytes": 3366,
       "sha256": "723b9ec5cf1bd75bc87f6c4f4c2dbe02ad4210897b19e70f56fed29c0ba76a4e"
+    },
+    {
+      "path": "judge/batches/primary-08/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-08/ratings.json",
+      "bytes": 5175,
+      "sha256": "97f05f3de5a0a2e23f767197f973b9763d73a22945836d7e7dfa8c697998671b"
+    },
+    {
+      "path": "judge/batches/primary-08/receipt.json",
+      "bytes": 794,
+      "sha256": "cc6b63878a6426f1a251420f2c33f84ac7381d057a3d12ca2b3e96f8b205f47e"
     },
     {
       "path": "judge/batches/primary-08/request.txt",
@@ -235,9 +560,44 @@
       "sha256": "292a10dfe2dcdec8311eda88395a4e57be7a213b36228a1ab78afc3eecd849dc"
     },
     {
+      "path": "judge/batches/primary-08/response.json",
+      "bytes": 5874,
+      "sha256": "9f98ac34a765b38dcaf70787beeece8fbde66ae4016a72f7e35a05c71071442c"
+    },
+    {
+      "path": "judge/batches/primary-09/anthropic-request.json",
+      "bytes": 5464,
+      "sha256": "49b1fb98dbb6cbe054dbee52afc1741c82277c1cb6f1659def5ec27d81792c01"
+    },
+    {
+      "path": "judge/batches/primary-09/anthropic-response.json",
+      "bytes": 9637,
+      "sha256": "8314f5c95e48e535141de7212d40de6740c2b1cfb8e4cac8386403d53e2ef0be"
+    },
+    {
+      "path": "judge/batches/primary-09/execution.json",
+      "bytes": 563,
+      "sha256": "1bfcc92c2eebffbba8a7886c4758e1e657358b2aae0e21a3f11571aad0ce84a1"
+    },
+    {
       "path": "judge/batches/primary-09/packet.json",
       "bytes": 3696,
       "sha256": "09e2f54bd08a9b133a2b113ebef2c5e27b4f20b9b6d66032a36ff7b559b42be8"
+    },
+    {
+      "path": "judge/batches/primary-09/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-09/ratings.json",
+      "bytes": 5772,
+      "sha256": "b8cda8f7a194f4f104e344a85f7f0ba9ba2f2752b3af4cdf5c9c0b9714fca264"
+    },
+    {
+      "path": "judge/batches/primary-09/receipt.json",
+      "bytes": 794,
+      "sha256": "e8f658d30ddb743863ec62d9174629b63660d37078ad0df7e067563a795ab59a"
     },
     {
       "path": "judge/batches/primary-09/request.txt",
@@ -245,9 +605,44 @@
       "sha256": "9b4c043c288eaacadf726ca061710ed2820eaa758c5a86234c439f2a78beddb4"
     },
     {
+      "path": "judge/batches/primary-09/response.json",
+      "bytes": 6513,
+      "sha256": "5dc8b65e5235dfd2c11ef03f20d81d17a5969430987dfd25fdc5a51d196984de"
+    },
+    {
+      "path": "judge/batches/primary-10/anthropic-request.json",
+      "bytes": 5438,
+      "sha256": "7c5704f38bafd8c8472f3f1088cc307ee74ba1881b09da31de7b43e5b229e98d"
+    },
+    {
+      "path": "judge/batches/primary-10/anthropic-response.json",
+      "bytes": 9419,
+      "sha256": "55f32c9340e2dee2f3a42b886927df4722db38ab74090da358627a5a5ca0d9ed"
+    },
+    {
+      "path": "judge/batches/primary-10/execution.json",
+      "bytes": 563,
+      "sha256": "b998280137725e92b0460e8798c26c0fe9c51d3da2c49901ccaad0934f5b6167"
+    },
+    {
       "path": "judge/batches/primary-10/packet.json",
       "bytes": 3670,
       "sha256": "ab1fe44e256cd8457bc90caebdc5d6fb5afa90bf020455833b7ac68746aa8c4d"
+    },
+    {
+      "path": "judge/batches/primary-10/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-10/ratings.json",
+      "bytes": 6062,
+      "sha256": "295afe64fea27e5c23d9b688168c7cc0e3f49e12c20c1701b6bdbed2857c7661"
+    },
+    {
+      "path": "judge/batches/primary-10/receipt.json",
+      "bytes": 794,
+      "sha256": "0715a489c055f54be4866571b72aaf2b0d3d27b924d37d4cec971d891cee1475"
     },
     {
       "path": "judge/batches/primary-10/request.txt",
@@ -255,9 +650,44 @@
       "sha256": "637118e4dd4b89eee31b2968aba76483065a42bda1ee92c4636d80549c5f229d"
     },
     {
+      "path": "judge/batches/primary-10/response.json",
+      "bytes": 6819,
+      "sha256": "be8f371e016786356491111ea9390fbd88c76a4bc146cf45a268091c7f702a39"
+    },
+    {
+      "path": "judge/batches/primary-11/anthropic-request.json",
+      "bytes": 5416,
+      "sha256": "7731ca5d6f5a66c078584629c76ca65b3588b9e2f32e757ccc2847dc828200af"
+    },
+    {
+      "path": "judge/batches/primary-11/anthropic-response.json",
+      "bytes": 9035,
+      "sha256": "c7731590295109866bf7236a49592102c586354cfd188422022529356ca4d2cb"
+    },
+    {
+      "path": "judge/batches/primary-11/execution.json",
+      "bytes": 563,
+      "sha256": "8720745e8c19a878bf09c7172c4135221c4c595f836530a5538ab4baa742f58b"
+    },
+    {
       "path": "judge/batches/primary-11/packet.json",
       "bytes": 3580,
       "sha256": "d255f35a961eea5ca72f4f11ff508b6114978cee14e087ad531af41841d669d0"
+    },
+    {
+      "path": "judge/batches/primary-11/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-11/ratings.json",
+      "bytes": 5803,
+      "sha256": "925bfed664a79074a5da73700e355c027e563064be96622f9c15fa910e933bcf"
+    },
+    {
+      "path": "judge/batches/primary-11/receipt.json",
+      "bytes": 794,
+      "sha256": "f5e9ff218fb25670406850f26d87b68088ee6654ce14be3b51b8685bd7deb0b2"
     },
     {
       "path": "judge/batches/primary-11/request.txt",
@@ -265,9 +695,44 @@
       "sha256": "25a3f410da0b66fb645a4f316b7fabf045dbd925fddb34f64b5530c4cb4e7b67"
     },
     {
+      "path": "judge/batches/primary-11/response.json",
+      "bytes": 6546,
+      "sha256": "30c31327098eacbde3bef990f38634f07b1cf4e436ba0b7290ef906d71fd6757"
+    },
+    {
+      "path": "judge/batches/primary-12/anthropic-request.json",
+      "bytes": 5279,
+      "sha256": "622ef9b6f9fd1176aefde3cff1de1e49cf87e7801a0d412d6d855bb752b1c116"
+    },
+    {
+      "path": "judge/batches/primary-12/anthropic-response.json",
+      "bytes": 8373,
+      "sha256": "46ad0c1d705f0c8e47a9f323c26f7c7412401ac906a5d508498f4f6685f40182"
+    },
+    {
+      "path": "judge/batches/primary-12/execution.json",
+      "bytes": 563,
+      "sha256": "b71f30d1241379f38b0b63eca700270294f7ce2eeb91e64e85ca654f1362442e"
+    },
+    {
       "path": "judge/batches/primary-12/packet.json",
       "bytes": 3409,
       "sha256": "d8b46e3589af9ac0e79e0b6bc785e72362e45ede9edd5c22dabcb4d2e82a0e67"
+    },
+    {
+      "path": "judge/batches/primary-12/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-12/ratings.json",
+      "bytes": 5409,
+      "sha256": "f97260b64fdff7223aa0b1e8bf993f4035f1a52b657b6c5c5c709bde0be9f024"
+    },
+    {
+      "path": "judge/batches/primary-12/receipt.json",
+      "bytes": 794,
+      "sha256": "48b488b9dd7e94f7314329d260dcb9d35f3957ab8c3ef71820cfb629a18ba2cc"
     },
     {
       "path": "judge/batches/primary-12/request.txt",
@@ -275,9 +740,44 @@
       "sha256": "a125e7f8e2fec205b621ff18556b84fccbafdafa9dbe1d3107f8662ed05ada7d"
     },
     {
+      "path": "judge/batches/primary-12/response.json",
+      "bytes": 6138,
+      "sha256": "c38e7c025222bc746e4351d83ffce82bcfd0ec5a4c1b2e56fd6e185dc6569c8c"
+    },
+    {
+      "path": "judge/batches/primary-13/anthropic-request.json",
+      "bytes": 5026,
+      "sha256": "df456ad657900c78a66ff1b37f51f9461cdf7a55f37ff50bd625bd2bebbde713"
+    },
+    {
+      "path": "judge/batches/primary-13/anthropic-response.json",
+      "bytes": 7794,
+      "sha256": "2d5cb8d3fd7dc519e17f1cdf1dfc864911c391b4e75c55bb1167ecbc775bebb7"
+    },
+    {
+      "path": "judge/batches/primary-13/execution.json",
+      "bytes": 563,
+      "sha256": "5663c28cdccd533f224eca5731c459bca7f3a2cdfc98b25a028d4704d9a444d5"
+    },
+    {
       "path": "judge/batches/primary-13/packet.json",
       "bytes": 3088,
       "sha256": "1b838df8aeece0d26eb7cc43063922d79a9750bc41e84ec4daeae131583ceae7"
+    },
+    {
+      "path": "judge/batches/primary-13/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-13/ratings.json",
+      "bytes": 5089,
+      "sha256": "b7e3533e0ddfb1630f56a12051943b5b5a3d7abf38ca1b27ca419d736a18e753"
+    },
+    {
+      "path": "judge/batches/primary-13/receipt.json",
+      "bytes": 794,
+      "sha256": "ad78f94a879bb86c9adf343a642c2e622ffab6f1e703f916b7477a464dbde0d2"
     },
     {
       "path": "judge/batches/primary-13/request.txt",
@@ -285,9 +785,44 @@
       "sha256": "d271acf297470545cb1c21b3529b6b51f67adc0e4eb9a0f75a713d06b37719c9"
     },
     {
+      "path": "judge/batches/primary-13/response.json",
+      "bytes": 5776,
+      "sha256": "65ea5c000740f8516c57a9e306fff9a5c6d87aac2ecbfb2585207ad471b6de18"
+    },
+    {
+      "path": "judge/batches/primary-14/anthropic-request.json",
+      "bytes": 5565,
+      "sha256": "f2eb3fcca60fd8b19985ab088bf9ac64e4f65fd9bc82daf229c751ecffa1d70d"
+    },
+    {
+      "path": "judge/batches/primary-14/anthropic-response.json",
+      "bytes": 10230,
+      "sha256": "4e13f74ca954440c1cb033fee5745bf1d314dbe33f33e4513b9af8164fd0d32f"
+    },
+    {
+      "path": "judge/batches/primary-14/execution.json",
+      "bytes": 562,
+      "sha256": "53232881cb97eaa6b0c241becb89d6d89524cea4b84d1b1deb54da71beec2a38"
+    },
+    {
       "path": "judge/batches/primary-14/packet.json",
       "bytes": 3899,
       "sha256": "8b8e4b0a1cb6a1604350bb27f2bb548faf26b7d0eeaaa99435c1401d8ed56aa2"
+    },
+    {
+      "path": "judge/batches/primary-14/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-14/ratings.json",
+      "bytes": 6677,
+      "sha256": "f5796ca693aea5dd0e6174d9376b40d86170bdbd1a000064ccad829c0a34c8fd"
+    },
+    {
+      "path": "judge/batches/primary-14/receipt.json",
+      "bytes": 793,
+      "sha256": "e2cd7fdbe6d6a1508348d18935c51a485bd522ada839ea7bad9e7527beec80e4"
     },
     {
       "path": "judge/batches/primary-14/request.txt",
@@ -295,9 +830,44 @@
       "sha256": "32a591c39f960483ad92ac4910ffdb50aa1722f79da80de10e07c275bac8fb48"
     },
     {
+      "path": "judge/batches/primary-14/response.json",
+      "bytes": 7492,
+      "sha256": "20f7d26ed000f99f949fe38a55c32881ab317ac03a5420c0b30fcb366565e3ce"
+    },
+    {
+      "path": "judge/batches/primary-15/anthropic-request.json",
+      "bytes": 5302,
+      "sha256": "d9e569bb547bd90caa72c2201789f15239bbe2c4a3a538f9036515b3d3a1b974"
+    },
+    {
+      "path": "judge/batches/primary-15/anthropic-response.json",
+      "bytes": 10076,
+      "sha256": "8999f2f11d5c8d81731ac1f44a237e337be0fadf80951de6f94f5b9f5ad553a6"
+    },
+    {
+      "path": "judge/batches/primary-15/execution.json",
+      "bytes": 563,
+      "sha256": "2e8eeedb2d4847a35eb1004bd2f2a51abd243fa936236e0a7fa39527c0dd573c"
+    },
+    {
       "path": "judge/batches/primary-15/packet.json",
       "bytes": 3466,
       "sha256": "a9c1b35c6447c286a35e64ae394d0c7989553d43b0aeb2cb751db4a7866239c3"
+    },
+    {
+      "path": "judge/batches/primary-15/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-15/ratings.json",
+      "bytes": 5769,
+      "sha256": "c2503b222a851ecf08e2e2bee0a60de67b572903db404b7adde7ff77df52c439"
+    },
+    {
+      "path": "judge/batches/primary-15/receipt.json",
+      "bytes": 794,
+      "sha256": "ce8cfde475a627ba002c0063ff66c232afe94f4df8c3392c2671017585cdcce4"
     },
     {
       "path": "judge/batches/primary-15/request.txt",
@@ -305,9 +875,44 @@
       "sha256": "e8f2d8ae34b3a5f47ca3818cb8ac5886313d70f8271dbace4071f85101f38260"
     },
     {
+      "path": "judge/batches/primary-15/response.json",
+      "bytes": 6518,
+      "sha256": "c6c84830464ae7b28de1297dd0a19206f7b0ed600d4e9e028d841f23bf4a9c58"
+    },
+    {
+      "path": "judge/batches/primary-16/anthropic-request.json",
+      "bytes": 5618,
+      "sha256": "d9aa6af8dd6289b0cbe5d77617c5b16e317a7da43c503d73599a04abdc42f528"
+    },
+    {
+      "path": "judge/batches/primary-16/anthropic-response.json",
+      "bytes": 10862,
+      "sha256": "6fe83953c047dd9c98e75355eebac9536b318cdbeec531c103c23faf14646798"
+    },
+    {
+      "path": "judge/batches/primary-16/execution.json",
+      "bytes": 563,
+      "sha256": "9792e949765038aa5bb3f1b1d8a46041b6be0dae5351e0c558e9a4c53e20593c"
+    },
+    {
       "path": "judge/batches/primary-16/packet.json",
       "bytes": 3952,
       "sha256": "3616a8f39fe17de92f3a927b0ca99c63552149a316f77ab0de1e798d060367d3"
+    },
+    {
+      "path": "judge/batches/primary-16/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-16/ratings.json",
+      "bytes": 6761,
+      "sha256": "550c633e5aa35cab7b88954fdca5fea6ed335ecc48c67aeec18fd0c1bd7f3afc"
+    },
+    {
+      "path": "judge/batches/primary-16/receipt.json",
+      "bytes": 794,
+      "sha256": "d9c7569c278e0596cb7012549d4f7e3883adb6e84824cd5656ccfc7c800fbd92"
     },
     {
       "path": "judge/batches/primary-16/request.txt",
@@ -315,9 +920,44 @@
       "sha256": "1be068c1392e3f9f76b37a6639499cc211f1893b54d259e7043e99a770a6704b"
     },
     {
+      "path": "judge/batches/primary-16/response.json",
+      "bytes": 7584,
+      "sha256": "a535ea9ed06aae9de8f44fc2671a3acae228a95e6a1c8f445171721f712ae618"
+    },
+    {
+      "path": "judge/batches/primary-17/anthropic-request.json",
+      "bytes": 5210,
+      "sha256": "cd45c3f06954cc2c7c4d0d6228650291e78530af93246c3dd0fbc1764db46801"
+    },
+    {
+      "path": "judge/batches/primary-17/anthropic-response.json",
+      "bytes": 8188,
+      "sha256": "1b0b30adabc0aca2df63362210faece93d3607d115725303d6e301b418569f01"
+    },
+    {
+      "path": "judge/batches/primary-17/execution.json",
+      "bytes": 562,
+      "sha256": "bddf1d6e66cdf77d222762e9da6d355bf069e9bb322aefcb496475e0d2d904d6"
+    },
+    {
       "path": "judge/batches/primary-17/packet.json",
       "bytes": 3340,
       "sha256": "706a25b317e5bc25d7b90d025832184e922788cc98b78ed7d80ea4cf7eadedd5"
+    },
+    {
+      "path": "judge/batches/primary-17/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-17/ratings.json",
+      "bytes": 5423,
+      "sha256": "96d7ff8cd004a745f342a7c62c9f9037665b4cc889569884ade52e1a277cb91e"
+    },
+    {
+      "path": "judge/batches/primary-17/receipt.json",
+      "bytes": 793,
+      "sha256": "602f3628b24c049c0d0c2376ad4967ddadd1ffba695b11eb59194c9c8831b059"
     },
     {
       "path": "judge/batches/primary-17/request.txt",
@@ -325,9 +965,44 @@
       "sha256": "10c037fc4c565d5ac24a5cac7ae765a88f1da36c735351ea25da41e80772480e"
     },
     {
+      "path": "judge/batches/primary-17/response.json",
+      "bytes": 6138,
+      "sha256": "d52c46ada0cd571c5bbbead35f31be56ccbe12b0b1706d143262eec638a4b8b9"
+    },
+    {
+      "path": "judge/batches/primary-18/anthropic-request.json",
+      "bytes": 5415,
+      "sha256": "3e08759963082f0d283bf98e39fc76f6df123fa3c6c74a2dc32fd62ced177099"
+    },
+    {
+      "path": "judge/batches/primary-18/anthropic-response.json",
+      "bytes": 8585,
+      "sha256": "abab79fd666bd278edbc27ddf758b0fe3826f69a9983e28bafde15076568f9e9"
+    },
+    {
+      "path": "judge/batches/primary-18/execution.json",
+      "bytes": 563,
+      "sha256": "57ac08b3d8ee938ccb9e4c5e1fec6714f2c100d96f85dcff30423f62dfc55e71"
+    },
+    {
       "path": "judge/batches/primary-18/packet.json",
       "bytes": 3573,
       "sha256": "d0a4d784a1d18d2a749c7372fadb37ad4268324202279cbaad8d8c5fe3e05c56"
+    },
+    {
+      "path": "judge/batches/primary-18/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-18/ratings.json",
+      "bytes": 5600,
+      "sha256": "a2533550254ae80d3d0f1e82e7ddb18474aa69096f27c4fbc1ab11fc059c33e8"
+    },
+    {
+      "path": "judge/batches/primary-18/receipt.json",
+      "bytes": 794,
+      "sha256": "ed36ca5c85cbc50c74970f9f3e43f526ce1346e0b879f4ab6286e97ed5b5f87c"
     },
     {
       "path": "judge/batches/primary-18/request.txt",
@@ -335,9 +1010,44 @@
       "sha256": "afcef9ec87927e42d589b8a014444431c3706376d83a145ca33ca70d54af9086"
     },
     {
+      "path": "judge/batches/primary-18/response.json",
+      "bytes": 6329,
+      "sha256": "5024896e2675db1a6520168bdea7a7f167dbf2d38d15e8576cf9f2498bdb3bb1"
+    },
+    {
+      "path": "judge/batches/primary-19/anthropic-request.json",
+      "bytes": 5064,
+      "sha256": "0a10022b59d4c42734e2cf0d65307d8e149e3adf1ac267ca91ed282f617619ef"
+    },
+    {
+      "path": "judge/batches/primary-19/anthropic-response.json",
+      "bytes": 8864,
+      "sha256": "bf4c5f3370fa9e0c818a02f3061f50d6467cdad2baea3faad9bd26a7d14af3a1"
+    },
+    {
+      "path": "judge/batches/primary-19/execution.json",
+      "bytes": 563,
+      "sha256": "bfee0d1d39adf53b0389acfbf1f9b277e219f18f7ef34a4388dbefc9dea04af7"
+    },
+    {
       "path": "judge/batches/primary-19/packet.json",
       "bytes": 3160,
       "sha256": "8f9b16fee19711803681722147521e2059f1298d8e3d4252777f2e4a61d15291"
+    },
+    {
+      "path": "judge/batches/primary-19/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-19/ratings.json",
+      "bytes": 5229,
+      "sha256": "c7c77f6d8e99fd90eb4cd18fbec28bfd21ea9be33be0ae63d416072ede0bc9d8"
+    },
+    {
+      "path": "judge/batches/primary-19/receipt.json",
+      "bytes": 794,
+      "sha256": "6e64f7b77c33db99244fca0427f9baf1a4fb5bc018116f4a660799e2463fce94"
     },
     {
       "path": "judge/batches/primary-19/request.txt",
@@ -345,9 +1055,44 @@
       "sha256": "0f2a1c3412a105d5f89357a0208c99067dbd0a4879260d56d12e83c741407aa5"
     },
     {
+      "path": "judge/batches/primary-19/response.json",
+      "bytes": 5934,
+      "sha256": "d79276379909dd916970044569e8491055f3f019bf548516000fbe852caacb10"
+    },
+    {
+      "path": "judge/batches/primary-20/anthropic-request.json",
+      "bytes": 5141,
+      "sha256": "932b7e5273a86029e6511a797ce748fabf1f68d2ccb0c46c93eaec2452a42bad"
+    },
+    {
+      "path": "judge/batches/primary-20/anthropic-response.json",
+      "bytes": 9598,
+      "sha256": "573f15d30a085e15cb1d7c802e79b227e3d1e5c4f312d80c6c145938b3428e36"
+    },
+    {
+      "path": "judge/batches/primary-20/execution.json",
+      "bytes": 563,
+      "sha256": "5669f54fa8b44e568194d7813677f092daa57c835338b21cb582e89d3967170d"
+    },
+    {
       "path": "judge/batches/primary-20/packet.json",
       "bytes": 3265,
       "sha256": "1cf7a0669265f0796825b8ef0b230a3f5fb0e96b1644af0b5c5c48194beae5a7"
+    },
+    {
+      "path": "judge/batches/primary-20/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-20/ratings.json",
+      "bytes": 5656,
+      "sha256": "9338bded4f76d8bdb506d41137ab2c67d84ea6ab9e85ef735cdbe601379e2c31"
+    },
+    {
+      "path": "judge/batches/primary-20/receipt.json",
+      "bytes": 794,
+      "sha256": "ea65d4fad79ec3b49ada3bcaf5220e76b3b73c7f95e814dd66438725bc5663ab"
     },
     {
       "path": "judge/batches/primary-20/request.txt",
@@ -355,9 +1100,44 @@
       "sha256": "934cd5b9a99f2e651b4b47d175a5a63fb8a793f9933b185661ca8bcd31d709ea"
     },
     {
+      "path": "judge/batches/primary-20/response.json",
+      "bytes": 6381,
+      "sha256": "519cb8d5adbd66380eb95189bf5deef6a2c0b1d7b2e9caf5b45b8ac46c22e574"
+    },
+    {
+      "path": "judge/batches/primary-21/anthropic-request.json",
+      "bytes": 5190,
+      "sha256": "adcbaee95762d52f6e70f7684beea907a990cba09d32daf7af21db3aeaf308bf"
+    },
+    {
+      "path": "judge/batches/primary-21/anthropic-response.json",
+      "bytes": 8112,
+      "sha256": "85a3021fa9f146d7b5614c4b2c1ad47c02f761e61c599c9e3a7c1b658d60c5aa"
+    },
+    {
+      "path": "judge/batches/primary-21/execution.json",
+      "bytes": 563,
+      "sha256": "206392e78e540e88323c06c1df0bb2fc26093f428555094f8a63961cfa078bac"
+    },
+    {
       "path": "judge/batches/primary-21/packet.json",
       "bytes": 3286,
       "sha256": "52c925527ca766a5b207823e57dcceb9cd9160681b2d25e8f33e99040d443811"
+    },
+    {
+      "path": "judge/batches/primary-21/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-21/ratings.json",
+      "bytes": 5329,
+      "sha256": "55558210705650c2f2ecc0b46cfdf0c15467a3197df2f9d6291ab9347e460e06"
+    },
+    {
+      "path": "judge/batches/primary-21/receipt.json",
+      "bytes": 794,
+      "sha256": "3259ce2cdd4052c2e3ddfd3ca727d54c58a0d71c276f342a2a868656a84669ef"
     },
     {
       "path": "judge/batches/primary-21/request.txt",
@@ -365,9 +1145,44 @@
       "sha256": "daf2789efdb6c16f20f211c513a2e4283284b16acfe8d0d3e68f7943bf0b48a3"
     },
     {
+      "path": "judge/batches/primary-21/response.json",
+      "bytes": 6026,
+      "sha256": "5d7d8ff5e917c7000ad51013a4fb2c4712c92f331615d99f35d980c4e113f125"
+    },
+    {
+      "path": "judge/batches/primary-22/anthropic-request.json",
+      "bytes": 5346,
+      "sha256": "138eb547eeafac4cd83dc4f6eb420b4276d62a4baf745f007ac1375e7b36c749"
+    },
+    {
+      "path": "judge/batches/primary-22/anthropic-response.json",
+      "bytes": 10182,
+      "sha256": "c9514ff65dd65170c17dbb168638541f61bafcbf5e8809c5e8f8426f132e31c0"
+    },
+    {
+      "path": "judge/batches/primary-22/execution.json",
+      "bytes": 562,
+      "sha256": "3d56adef7340fe6ebe7b0ffbb655c22917caa6045f6b4719690852c50f3f647c"
+    },
+    {
       "path": "judge/batches/primary-22/packet.json",
       "bytes": 3510,
       "sha256": "335acf9fe8755d9c2d71140e44525a9eefaf5bf57aae5e5567e4f0375849dcc8"
+    },
+    {
+      "path": "judge/batches/primary-22/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-22/ratings.json",
+      "bytes": 5806,
+      "sha256": "e4a8e3b8933199c9b6c2acfdd8f4b0c473b06000fdad4c78f43d5734ac457504"
+    },
+    {
+      "path": "judge/batches/primary-22/receipt.json",
+      "bytes": 793,
+      "sha256": "f7caa5f05670e5cc1444d4fa608ea360645615a94d877cfc6cbd380d5379b4c2"
     },
     {
       "path": "judge/batches/primary-22/request.txt",
@@ -375,9 +1190,44 @@
       "sha256": "bb63afc2adf685882c21a252a44e0995f686cf19930aae6961164998aecf55d2"
     },
     {
+      "path": "judge/batches/primary-22/response.json",
+      "bytes": 6541,
+      "sha256": "0daad773e56955b292bfdf06babe5753564932e7808a5011ab726d2df59e772d"
+    },
+    {
+      "path": "judge/batches/primary-23/anthropic-request.json",
+      "bytes": 4547,
+      "sha256": "b983e4e3f4cf6a2ba3f49f14c651d1525490ff852bf7c71d3b2c5efcc7a6fbd3"
+    },
+    {
+      "path": "judge/batches/primary-23/anthropic-response.json",
+      "bytes": 7059,
+      "sha256": "3e6f292ecf1f91ea637f5fb6685957fedc97edca18ce5c8561b323535095c211"
+    },
+    {
+      "path": "judge/batches/primary-23/execution.json",
+      "bytes": 562,
+      "sha256": "d018389ea521b7d27c620819e0908c09e7081ddb776cc7d3e1814e7b76f1233a"
+    },
+    {
       "path": "judge/batches/primary-23/packet.json",
       "bytes": 2383,
       "sha256": "cc86fa633b5b4ca1599259bd2311b3a8b52d8e173d3871f91b7c2251a427aaa7"
+    },
+    {
+      "path": "judge/batches/primary-23/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/primary-23/ratings.json",
+      "bytes": 4175,
+      "sha256": "a173fb7ec36b7a5594de566b0bbe7debee6fd5314ba73add3d61a14e79fa2418"
+    },
+    {
+      "path": "judge/batches/primary-23/receipt.json",
+      "bytes": 794,
+      "sha256": "9169fd7f9e41b3ed7ade431128d7c018ad116e8517e47ca288f09a486ca1493e"
     },
     {
       "path": "judge/batches/primary-23/request.txt",
@@ -385,9 +1235,44 @@
       "sha256": "c574a1a6b1fabf6bc0cadc269aa9196377f1c86b57b7e97bebe236f34ff72228"
     },
     {
+      "path": "judge/batches/primary-23/response.json",
+      "bytes": 4756,
+      "sha256": "276b3a855e109aeb6036c520b2436c383be8a08b49aa6014500cff1c2a91301d"
+    },
+    {
+      "path": "judge/batches/repeat-01/anthropic-request.json",
+      "bytes": 5141,
+      "sha256": "c7fc6a1c475d1a90bf4e082ec3d35ae3ee1b6551ca0417d75dfda267ef61f391"
+    },
+    {
+      "path": "judge/batches/repeat-01/anthropic-response.json",
+      "bytes": 7747,
+      "sha256": "b9aa7604348f945e3985e004725024b9b997426353c256fd3dbbebe8ed3369af"
+    },
+    {
+      "path": "judge/batches/repeat-01/execution.json",
+      "bytes": 562,
+      "sha256": "85b3c7eb9298fcbfd7e210a1453b3a85e0e30182f3b8f8e70ccbbc6cd0cafd17"
+    },
+    {
       "path": "judge/batches/repeat-01/packet.json",
       "bytes": 3237,
       "sha256": "11bfa4f60cb9cfa0dba488d65340cfcba5a59b9a28fadcf36fa0f1ed9324c3f1"
+    },
+    {
+      "path": "judge/batches/repeat-01/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/repeat-01/ratings.json",
+      "bytes": 5208,
+      "sha256": "ac98b4d79389a56755b9a9c419a6026e8e6e7add4e7285661b19a331e46b4dbe"
+    },
+    {
+      "path": "judge/batches/repeat-01/receipt.json",
+      "bytes": 794,
+      "sha256": "b76c7ef7b45b6c6e17edd33107338b0f61c6ac625b5ff1085aa1434d3c2e6d92"
     },
     {
       "path": "judge/batches/repeat-01/request.txt",
@@ -395,14 +1280,54 @@
       "sha256": "3c9638d0ca4cd5d88972970b4de80e9104880dc583e715dd460d0f13017b379d"
     },
     {
+      "path": "judge/batches/repeat-01/response.json",
+      "bytes": 5907,
+      "sha256": "4c84af1d56f8a9f836ecdca3e4d27bf12dd4a8e1683534ba82eeb4f9e4eb4657"
+    },
+    {
+      "path": "judge/batches/repeat-02/anthropic-request.json",
+      "bytes": 5323,
+      "sha256": "5531809d59b1852440898070ca280e42815a2db64ec0882b727eb907c5a0ea9c"
+    },
+    {
+      "path": "judge/batches/repeat-02/anthropic-response.json",
+      "bytes": 8735,
+      "sha256": "7777d4104101413d4291244b4f54c32c8402fc8d260df5adba7a7e76878306f4"
+    },
+    {
+      "path": "judge/batches/repeat-02/execution.json",
+      "bytes": 563,
+      "sha256": "1ecaf7939a0db2bf478c72622d5b2f9ede5963626a34f63c195c4d4127fcfc2c"
+    },
+    {
       "path": "judge/batches/repeat-02/packet.json",
       "bytes": 3521,
       "sha256": "588a03848961c71e73cf9aa4ed6e0d12a1782cf7cce748bd3f565582b7b2f4d1"
     },
     {
+      "path": "judge/batches/repeat-02/preference-disagreements.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "judge/batches/repeat-02/ratings.json",
+      "bytes": 5762,
+      "sha256": "30f3ffc95f0af7d793057349fd0755d2ccfb4321e80eb6b66b65e4cba657f28a"
+    },
+    {
+      "path": "judge/batches/repeat-02/receipt.json",
+      "bytes": 794,
+      "sha256": "7dc8810a6a57f82a74ad2dbd1305c96c8fa8719effb30ae56fa3ba888f825686"
+    },
+    {
       "path": "judge/batches/repeat-02/request.txt",
       "bytes": 4472,
       "sha256": "2b26d8dffe1a0b35f99ee113376ad887a34b9bb48fa9aa3cda349b3546cc9d4d"
+    },
+    {
+      "path": "judge/batches/repeat-02/response.json",
+      "bytes": 6521,
+      "sha256": "66a3245351b6b8999a2579e82072e979fc1ae1a49cfbeb0d4565b8f49fe50594"
     },
     {
       "path": "judge/cases.json",
@@ -805,9 +1730,39 @@
       "sha256": "d4d20724fb8dd8d628fc71115a7d52aedc9ee4fa7e1604a8fce0abd881f534c4"
     },
     {
+      "path": "judge-anthropic-preflight-plain.log",
+      "bytes": 452,
+      "sha256": "679d68e8520bb261ad04fdba94311481861f1e4178c92b309ff669f1f8b66cfc"
+    },
+    {
+      "path": "judge-anthropic-preflight.log",
+      "bytes": 110,
+      "sha256": "1588129e20ff6c4df035359787c815fa2bccbc730caf99b9a0ff44b38ae251f7"
+    },
+    {
+      "path": "judge-anthropic.log",
+      "bytes": 9525,
+      "sha256": "574e428f7ce24aeea5d70db0dcde0eaba2698b985cad8af2b3200b7ce2941879"
+    },
+    {
       "path": "judge-api-preflight.log",
       "bytes": 138,
       "sha256": "056d5a64585b93998873ac6768685b8e60caa1a0a7e57d6389d9d1c5c1022fb1"
+    },
+    {
+      "path": "judge-direct-api-amendment.json",
+      "bytes": 4341,
+      "sha256": "8db01737fde4b968394afdb814e405e93bc3fabee97ebbb7eaf066c28240a575"
+    },
+    {
+      "path": "judge-followup-installation-receipt.json",
+      "bytes": 745,
+      "sha256": "3cf814498a98e75b4358ef6ab8db57839b404375e03b4f5aec5816d777bb87e5"
+    },
+    {
+      "path": "judge-followup-tests.log",
+      "bytes": 2084,
+      "sha256": "83ae1e5c36c3704a4d5d7cf717f1736add93a6644382b13815894c27eeb54c35"
     },
     {
       "path": "judge-prepare.log",
@@ -816,8 +1771,8 @@
     },
     {
       "path": "judge-status.json",
-      "bytes": 725,
-      "sha256": "42620be52743c23e595f6bcb99f538feccf2f71a34c52641492370dffbdb71f7"
+      "bytes": 1145,
+      "sha256": "b4138d0ab6c16bc02d5ab9c264170c34f49763104526d2e0ced110e3c6c6866b"
     },
     {
       "path": "judge-transport-amendment.json",
@@ -830,14 +1785,24 @@
       "sha256": "1101b6902742f013dd4c53ae4f9d0f33dddd04b523973de0c369d2bfd747c3fb"
     },
     {
+      "path": "judged-example-selection.json",
+      "bytes": 690,
+      "sha256": "61ddf715c8aac0b0bb8617fac4d2e4b893dfc18ac20be41276775b9d1e5d36f6"
+    },
+    {
+      "path": "make_examples.py",
+      "bytes": 3576,
+      "sha256": "c36740991e6c1b5744133ca99a49e06a055511ead8ba7d90c40aead7eda12bca"
+    },
+    {
       "path": "make_pending_tables.py",
       "bytes": 3875,
       "sha256": "d4abcecca1268f786ef97edc60345cc93fafa326506ee0b3d62e4d69eb0af589"
     },
     {
       "path": "make_tables.py",
-      "bytes": 3072,
-      "sha256": "0a0f0e3229ac894d532d9d9880adfa313d337aacea268f8e1d1e8e624cf8bb12"
+      "bytes": 5443,
+      "sha256": "1537028fe37905c581ab4f6dec89d70ccdd6630030c3db59ca17fcbd6a3983a4"
     },
     {
       "path": "matched.json",
@@ -935,6 +1900,11 @@
       "sha256": "83ae1e5c36c3704a4d5d7cf717f1736add93a6644382b13815894c27eeb54c35"
     },
     {
+      "path": "quality-examples.json",
+      "bytes": 484203,
+      "sha256": "52d546d1ea4ea75e085fa3c79424e5db2f50c52a46fcd0aacfd90ba37bf7b7e3"
+    },
+    {
       "path": "quantization_analysis.py",
       "bytes": 14672,
       "sha256": "7455d7bf9af61b9e56b000e3fbe1ff03d455c103b5682af45146802da4bf3641"
@@ -946,8 +1916,13 @@
     },
     {
       "path": "reproduce_archive.py",
-      "bytes": 2469,
-      "sha256": "81e2e8ae0b699b542035e108e5afa2881571e6ea0908570b224a45e35f774984"
+      "bytes": 2616,
+      "sha256": "9f649eecc420b5a097183efafa9b58d3a5710037b09b35d4da40c5d56bca5c73"
+    },
+    {
+      "path": "run_anthropic_judge.py",
+      "bytes": 9820,
+      "sha256": "e8e441258398f85039d2486c79d3974f959d5f1d227d79b06d3beb7e300f270d"
     },
     {
       "path": "run_blind_judge.py",
@@ -1745,6 +2720,11 @@
       "sha256": "284167a29cb26baa96a1bcb24f16ac202eda3436f46530666172f52544457f73"
     },
     {
+      "path": "sources/anthropic-opus-5-5.json",
+      "bytes": 1602,
+      "sha256": "7cba86c5967aad6f7d180206a4ab3cd4fe5b15961a70d23677b40c55a76b7d9f"
+    },
+    {
       "path": "sources/bartowski__google_gemma-4-E2B-it-GGUF.json",
       "bytes": 29308,
       "sha256": "69997d837fc12030d7d997a3cd8abf2f04d31b626775fc85864e3b8ec54c4cb7"
@@ -1781,8 +2761,8 @@
     },
     {
       "path": "summary.json",
-      "bytes": 134817,
-      "sha256": "44c15ceb0c41d9eb9bd7e14914f602369c7d4cda71961ea7f9214dea72b99dc3"
+      "bytes": 180865,
+      "sha256": "6a1e74fa58a5e371323c7868d5ad3261efe630743c23fcd40675e0044c4f3708"
     },
     {
       "path": "test_claude_judge.py",
@@ -1836,13 +2816,18 @@
     },
     {
       "path": "validate_evidence.py",
-      "bytes": 4866,
-      "sha256": "40c5251156775503e9a3386842802c2f665d923466a35cba32173f860f557a87"
+      "bytes": 10012,
+      "sha256": "784450afad2de06883709aefa77f4e211a4fd08a24cab2cca12661e8703c0f3c"
+    },
+    {
+      "path": "validation-with-judge.log",
+      "bytes": 1025,
+      "sha256": "c7650a9d16628f07b3c6b0ee49194b240c9881e496e92c4a75fdd08d31ff64cd"
     },
     {
       "path": "validation.json",
-      "bytes": 672,
-      "sha256": "00bd23a61c09f1a6e060833e42037742211cdf248c4f61669d9614a3e5bfba96"
+      "bytes": 1058,
+      "sha256": "4a3155adc2d3410eb42e98709de454127db7147deafaf328af646ab94764fbb4"
     },
     {
       "path": "validation.log",

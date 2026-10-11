@@ -1,0 +1,111 @@
+{
+  "atUTC": "2026-10-11T17:54:32.749471+00:00",
+  "reason": "The user explicitly authorized the existing ANTHROPIC_API_KEY in the main checkout after the Claude CLI quota and configured OpenRouter model guardrail blocked all ratings.",
+  "priorRatingsReceived": 0,
+  "transport": "Anthropic Messages API",
+  "endpoint": "https://api.anthropic.com/v1/messages",
+  "apiVersion": "2023-06-01",
+  "requestedModel": "claude-opus-5-5",
+  "effort": "high",
+  "thinking": {
+    "type": "adaptive",
+    "display": "omitted"
+  },
+  "toolsEnabled": false,
+  "adapterSHA256": "e8e441258398f85039d2486c79d3974f959d5f1d227d79b06d3beb7e300f270d",
+  "protocolSHA256": "0ae4c1a7b918361687032298526238ce18af5fc04b4fabaaa9f6aa4e1739851d",
+  "rubricSHA256": "376f42a1290c8ef86220afeeef76f52b303470f6ea5d679735a62b0b0fa2bdbc",
+  "systemSHA256": "d4d20724fb8dd8d628fc71115a7d52aedc9ee4fa7e1604a8fce0abd881f534c4",
+  "outputFormat": "Plain JSON requested by the unchanged frozen rubric; parsed and coverage-validated against the original schema and packets. No API-level constrained output decoder.",
+  "formatCorrection": "One schema-constrained direct API preflight returned only one empty case and no ratings. Original request, response, usage, adapter and amendment are preserved under judge/anthropic-format-failures/primary-01. Correct output transport only; no valid scores existed or were discarded.",
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "cases"
+    ],
+    "properties": {
+      "cases": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "ratings",
+            "preferred"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "preferred": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ratings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "utility",
+                  "first_word",
+                  "flags",
+                  "reason"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "utility": {
+                    "type": "integer",
+                    "minimum": -2,
+                    "maximum": 2
+                  },
+                  "first_word": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2
+                  },
+                  "flags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "malformed",
+                        "arbitrary_specificity",
+                        "script_switch",
+                        "language_switch",
+                        "repetition",
+                        "awkward",
+                        "minimal_value"
+                      ]
+                    }
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "maxOutputTokensPerBatch": 16000,
+  "maximumBatches": 25,
+  "automaticRetries": false,
+  "responseAdapter": "response.json contains the parsed original API JSON ratings, actual model ID, transport and SHA-256 of the unmodified anthropic-response.json. Both are independently validated.",
+  "unchanged": "All frozen case IDs, anonymous option orders, packet/request hashes, system instruction, rubric, scoring, matching, native inputs, timings, default model and installed application.",
+  "credentials": "Read only the specifically authorized variable in memory; never persisted in this evidence or supplied as evaluation data.",
+  "documentation": [
+    "https://platform.claude.com/docs/en/api/messages/create",
+    "https://platform.claude.com/docs/en/build-with-claude/structured-outputs",
+    "https://platform.claude.com/docs/en/build-with-claude/thinking"
+  ]
+}

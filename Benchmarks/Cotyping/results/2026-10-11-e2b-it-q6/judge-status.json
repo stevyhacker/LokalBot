@@ -1,12 +1,18 @@
 {
-  "atUTC": "2026-10-11T16:40:08.809101+00:00",
-  "completed": false,
-  "ratingsReceived": 0,
+  "atUTC": "2026-10-11T18:00:03.000620+00:00",
+  "completed": true,
+  "model": "claude-opus-5-5",
+  "transport": "Anthropic Messages API",
+  "effort": "high",
   "preparedBatches": 25,
+  "completedBatches": 25,
   "primaryCases": 272,
   "repeatCases": 24,
   "allSilentCases": 16,
-  "blockers": [
+  "optionRatings": 504,
+  "primaryOptionRatings": 465,
+  "repeatOptionRatings": 39,
+  "historicalAccessFailures": [
     {
       "transport": "Claude Code",
       "status": 429,
@@ -19,7 +25,21 @@
       "reason": "model-ignored-by-guardrail"
     }
   ],
+  "formatPreflightFailures": 1,
+  "validRatingsDiscarded": 0,
+  "automaticRetries": false,
   "guardrailChanged": false,
   "defaultChanged": false,
-  "nextAction": "Wait for user-selected authorized Claude route or subscription reset; reuse the frozen packets. Native replay and matching do not need rerunning."
+  "toolsEnabled": false,
+  "verification": {
+    "batches": 25,
+    "cases": 296,
+    "options": 504,
+    "inputTokens": 47027,
+    "outputTokens": 71744,
+    "thinkingTokens": 33233,
+    "failedFormatPreflights": 1,
+    "failedPreflightInputTokens": 2655,
+    "failedPreflightOutputTokens": 1549
+  }
 }

@@ -1,0 +1,16 @@
+{
+  "atUTC": "2026-10-11T18:00:51.709141+00:00",
+  "before": {
+    "installedExecutableSHA256": "b1d1878f324db7d58b48edd467f9ace83973c3637ee7d7020ab2eabafc188d3e",
+    "currentQ6SHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "binarySHA256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9"
+  },
+  "after": {
+    "installedExecutableSHA256": "b1d1878f324db7d58b48edd467f9ace83973c3637ee7d7020ab2eabafc188d3e",
+    "currentQ6SHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "binarySHA256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9"
+  },
+  "unchanged": true,
+  "appBuiltOrInstalledByFollowup": false,
+  "defaultChangedByFollowup": false
+}

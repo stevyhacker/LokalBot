@@ -4537,5 +4537,1771 @@
       }
     },
     "note": "Transductive equal-frequency diagnostic only; no quality labels or production setting changes."
+  },
+  "quality": {
+    "models": [
+      "claude-opus-5-5"
+    ],
+    "preferenceInconsistencies": {
+      "primary": [],
+      "repeat": []
+    },
+    "policies": {
+      "production": {
+        "q6": {
+          "all": {
+            "n": 288,
+            "shown": 221,
+            "meanUtility": 0.9722222222222222,
+            "utilityTotal": 280,
+            "firstWordTotal": 411,
+            "helpful": 191,
+            "poor": 18,
+            "wins": 0,
+            "losses": 0,
+            "ties": 288,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 18,
+              "repetition": 5,
+              "malformed": 6,
+              "arbitrary_specificity": 10,
+              "minimal_value": 16,
+              "language_switch": 1
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 112,
+            "meanUtility": 1.125,
+            "utilityTotal": 162,
+            "firstWordTotal": 214,
+            "helpful": 104,
+            "poor": 4,
+            "wins": 0,
+            "losses": 0,
+            "ties": 144,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "arbitrary_specificity": 4,
+              "awkward": 5,
+              "minimal_value": 8
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 109,
+            "meanUtility": 0.8194444444444444,
+            "utilityTotal": 118,
+            "firstWordTotal": 197,
+            "helpful": 87,
+            "poor": 14,
+            "wins": 0,
+            "losses": 0,
+            "ties": 144,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 13,
+              "repetition": 5,
+              "malformed": 6,
+              "arbitrary_specificity": 6,
+              "language_switch": 1,
+              "minimal_value": 8
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 29,
+            "meanUtility": 0.3020833333333333,
+            "utilityTotal": 29,
+            "firstWordTotal": 53,
+            "helpful": 24,
+            "poor": 1,
+            "wins": 0,
+            "losses": 0,
+            "ties": 96,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "arbitrary_specificity": 2,
+              "minimal_value": 7,
+              "repetition": 1,
+              "awkward": 1
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 1.3072916666666667,
+            "utilityTotal": 251,
+            "firstWordTotal": 358,
+            "helpful": 167,
+            "poor": 17,
+            "wins": 0,
+            "losses": 0,
+            "ties": 192,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 17,
+              "repetition": 4,
+              "malformed": 6,
+              "arbitrary_specificity": 8,
+              "minimal_value": 9,
+              "language_switch": 1
+            }
+          }
+        },
+        "unsloth": {
+          "all": {
+            "n": 288,
+            "shown": 267,
+            "meanUtility": 0.8020833333333334,
+            "utilityTotal": 231,
+            "firstWordTotal": 443,
+            "helpful": 196,
+            "poor": 54,
+            "wins": 78,
+            "losses": 80,
+            "ties": 130,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.8020833333333334,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.3541666666666667,
+                0.010416666666666666
+              ],
+              "scenarioCount": 48,
+              "delta": -0.1701388888888889
+            },
+            "flags": {
+              "malformed": 26,
+              "script_switch": 2,
+              "arbitrary_specificity": 14,
+              "awkward": 38,
+              "repetition": 4,
+              "minimal_value": 14,
+              "language_switch": 7
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 139,
+            "meanUtility": 1.3402777777777777,
+            "utilityTotal": 193,
+            "firstWordTotal": 257,
+            "helpful": 126,
+            "poor": 6,
+            "wins": 45,
+            "losses": 19,
+            "ties": 80,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.3402777777777777,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.06944444444444445,
+                0.3611111111111111
+              ],
+              "scenarioCount": 48,
+              "delta": 0.2152777777777778
+            },
+            "flags": {
+              "malformed": 2,
+              "arbitrary_specificity": 9,
+              "awkward": 7,
+              "minimal_value": 8
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 128,
+            "meanUtility": 0.2638888888888889,
+            "utilityTotal": 38,
+            "firstWordTotal": 186,
+            "helpful": 70,
+            "poor": 48,
+            "wins": 33,
+            "losses": 61,
+            "ties": 50,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.2638888888888889,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.8611111111111112,
+                -0.2638888888888889
+              ],
+              "scenarioCount": 48,
+              "delta": -0.5555555555555556
+            },
+            "flags": {
+              "malformed": 24,
+              "script_switch": 2,
+              "awkward": 31,
+              "arbitrary_specificity": 5,
+              "repetition": 4,
+              "minimal_value": 6,
+              "language_switch": 7
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 75,
+            "meanUtility": 0.4166666666666667,
+            "utilityTotal": 40,
+            "firstWordTotal": 112,
+            "helpful": 49,
+            "poor": 18,
+            "wins": 36,
+            "losses": 22,
+            "ties": 38,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.4166666666666667,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.11458333333333333,
+                0.34375
+              ],
+              "scenarioCount": 48,
+              "delta": 0.11458333333333333
+            },
+            "flags": {
+              "malformed": 8,
+              "arbitrary_specificity": 10,
+              "awkward": 12,
+              "language_switch": 4,
+              "minimal_value": 2
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 0.9947916666666666,
+            "utilityTotal": 191,
+            "firstWordTotal": 331,
+            "helpful": 147,
+            "poor": 36,
+            "wins": 42,
+            "losses": 58,
+            "ties": 92,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 0.9947916666666666,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.5416666666666666,
+                -0.09375
+              ],
+              "scenarioCount": 48,
+              "delta": -0.3125
+            },
+            "flags": {
+              "malformed": 18,
+              "script_switch": 2,
+              "awkward": 26,
+              "arbitrary_specificity": 4,
+              "repetition": 4,
+              "minimal_value": 12,
+              "language_switch": 3
+            }
+          }
+        },
+        "bartowski": {
+          "all": {
+            "n": 288,
+            "shown": 265,
+            "meanUtility": 0.7881944444444444,
+            "utilityTotal": 227,
+            "firstWordTotal": 440,
+            "helpful": 192,
+            "poor": 54,
+            "wins": 76,
+            "losses": 79,
+            "ties": 133,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.7881944444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.3645833333333333,
+                -0.010416666666666666
+              ],
+              "scenarioCount": 48,
+              "delta": -0.1840277777777778
+            },
+            "flags": {
+              "arbitrary_specificity": 13,
+              "malformed": 25,
+              "script_switch": 2,
+              "awkward": 40,
+              "repetition": 3,
+              "minimal_value": 13,
+              "language_switch": 7
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 138,
+            "meanUtility": 1.3402777777777777,
+            "utilityTotal": 193,
+            "firstWordTotal": 257,
+            "helpful": 124,
+            "poor": 5,
+            "wins": 45,
+            "losses": 18,
+            "ties": 81,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.3402777777777777,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0763888888888889,
+                0.3472222222222222
+              ],
+              "scenarioCount": 48,
+              "delta": 0.2152777777777778
+            },
+            "flags": {
+              "arbitrary_specificity": 10,
+              "malformed": 1,
+              "awkward": 7,
+              "minimal_value": 7
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 127,
+            "meanUtility": 0.2361111111111111,
+            "utilityTotal": 34,
+            "firstWordTotal": 183,
+            "helpful": 68,
+            "poor": 49,
+            "wins": 31,
+            "losses": 61,
+            "ties": 52,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.2361111111111111,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.8819444444444444,
+                -0.2986111111111111
+              ],
+              "scenarioCount": 48,
+              "delta": -0.5833333333333334
+            },
+            "flags": {
+              "malformed": 24,
+              "script_switch": 2,
+              "awkward": 33,
+              "arbitrary_specificity": 3,
+              "repetition": 3,
+              "minimal_value": 6,
+              "language_switch": 7
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 73,
+            "meanUtility": 0.3854166666666667,
+            "utilityTotal": 37,
+            "firstWordTotal": 109,
+            "helpful": 46,
+            "poor": 17,
+            "wins": 34,
+            "losses": 23,
+            "ties": 39,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.3854166666666667,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.14583333333333334,
+                0.3125
+              ],
+              "scenarioCount": 48,
+              "delta": 0.08333333333333333
+            },
+            "flags": {
+              "arbitrary_specificity": 10,
+              "malformed": 7,
+              "awkward": 12,
+              "language_switch": 4,
+              "minimal_value": 2
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 0.9895833333333334,
+            "utilityTotal": 190,
+            "firstWordTotal": 331,
+            "helpful": 146,
+            "poor": 37,
+            "wins": 42,
+            "losses": 56,
+            "ties": 94,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 0.9895833333333334,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.5416666666666666,
+                -0.10416666666666667
+              ],
+              "scenarioCount": 48,
+              "delta": -0.3177083333333333
+            },
+            "flags": {
+              "malformed": 18,
+              "script_switch": 2,
+              "awkward": 28,
+              "arbitrary_specificity": 3,
+              "repetition": 3,
+              "minimal_value": 11,
+              "language_switch": 3
+            }
+          }
+        }
+      },
+      "matched": {
+        "q6": {
+          "all": {
+            "n": 288,
+            "shown": 221,
+            "meanUtility": 0.9722222222222222,
+            "utilityTotal": 280,
+            "firstWordTotal": 411,
+            "helpful": 191,
+            "poor": 18,
+            "wins": 0,
+            "losses": 0,
+            "ties": 288,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 18,
+              "repetition": 5,
+              "malformed": 6,
+              "arbitrary_specificity": 10,
+              "minimal_value": 16,
+              "language_switch": 1
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 112,
+            "meanUtility": 1.125,
+            "utilityTotal": 162,
+            "firstWordTotal": 214,
+            "helpful": 104,
+            "poor": 4,
+            "wins": 0,
+            "losses": 0,
+            "ties": 144,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "arbitrary_specificity": 4,
+              "awkward": 5,
+              "minimal_value": 8
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 109,
+            "meanUtility": 0.8194444444444444,
+            "utilityTotal": 118,
+            "firstWordTotal": 197,
+            "helpful": 87,
+            "poor": 14,
+            "wins": 0,
+            "losses": 0,
+            "ties": 144,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 13,
+              "repetition": 5,
+              "malformed": 6,
+              "arbitrary_specificity": 6,
+              "language_switch": 1,
+              "minimal_value": 8
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 29,
+            "meanUtility": 0.3020833333333333,
+            "utilityTotal": 29,
+            "firstWordTotal": 53,
+            "helpful": 24,
+            "poor": 1,
+            "wins": 0,
+            "losses": 0,
+            "ties": 96,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "arbitrary_specificity": 2,
+              "minimal_value": 7,
+              "repetition": 1,
+              "awkward": 1
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 1.3072916666666667,
+            "utilityTotal": 251,
+            "firstWordTotal": 358,
+            "helpful": 167,
+            "poor": 17,
+            "wins": 0,
+            "losses": 0,
+            "ties": 192,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                0.0,
+                0.0
+              ],
+              "scenarioCount": 48,
+              "delta": 0
+            },
+            "flags": {
+              "awkward": 17,
+              "repetition": 4,
+              "malformed": 6,
+              "arbitrary_specificity": 8,
+              "minimal_value": 9,
+              "language_switch": 1
+            }
+          }
+        },
+        "unsloth": {
+          "all": {
+            "n": 288,
+            "shown": 221,
+            "meanUtility": 0.7430555555555556,
+            "utilityTotal": 214,
+            "firstWordTotal": 377,
+            "helpful": 170,
+            "poor": 41,
+            "wins": 57,
+            "losses": 77,
+            "ties": 154,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.7430555555555556,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.3993055555555556,
+                -0.0625
+              ],
+              "scenarioCount": 48,
+              "delta": -0.22916666666666666
+            },
+            "flags": {
+              "malformed": 20,
+              "script_switch": 2,
+              "awkward": 30,
+              "arbitrary_specificity": 7,
+              "repetition": 4,
+              "minimal_value": 12,
+              "language_switch": 5
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 112,
+            "meanUtility": 1.2152777777777777,
+            "utilityTotal": 175,
+            "firstWordTotal": 214,
+            "helpful": 107,
+            "poor": 1,
+            "wins": 29,
+            "losses": 20,
+            "ties": 95,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.2152777777777777,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.034722222222222224,
+                0.2222222222222222
+              ],
+              "scenarioCount": 48,
+              "delta": 0.09027777777777778
+            },
+            "flags": {
+              "arbitrary_specificity": 3,
+              "awkward": 5,
+              "minimal_value": 7
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 109,
+            "meanUtility": 0.2708333333333333,
+            "utilityTotal": 39,
+            "firstWordTotal": 163,
+            "helpful": 63,
+            "poor": 40,
+            "wins": 28,
+            "losses": 57,
+            "ties": 59,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.2708333333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.8333333333333334,
+                -0.2847222222222222
+              ],
+              "scenarioCount": 48,
+              "delta": -0.5486111111111112
+            },
+            "flags": {
+              "malformed": 20,
+              "script_switch": 2,
+              "awkward": 25,
+              "arbitrary_specificity": 4,
+              "repetition": 4,
+              "minimal_value": 5,
+              "language_switch": 5
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 29,
+            "meanUtility": 0.23958333333333334,
+            "utilityTotal": 23,
+            "firstWordTotal": 46,
+            "helpful": 23,
+            "poor": 5,
+            "wins": 15,
+            "losses": 19,
+            "ties": 62,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.23958333333333334,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.21875,
+                0.09375
+              ],
+              "scenarioCount": 48,
+              "delta": -0.0625
+            },
+            "flags": {
+              "arbitrary_specificity": 3,
+              "awkward": 4,
+              "language_switch": 2,
+              "malformed": 2
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 0.9947916666666666,
+            "utilityTotal": 191,
+            "firstWordTotal": 331,
+            "helpful": 147,
+            "poor": 36,
+            "wins": 42,
+            "losses": 58,
+            "ties": 92,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 0.9947916666666666,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.5416666666666666,
+                -0.09375
+              ],
+              "scenarioCount": 48,
+              "delta": -0.3125
+            },
+            "flags": {
+              "malformed": 18,
+              "script_switch": 2,
+              "awkward": 26,
+              "arbitrary_specificity": 4,
+              "repetition": 4,
+              "minimal_value": 12,
+              "language_switch": 3
+            }
+          }
+        },
+        "bartowski": {
+          "all": {
+            "n": 288,
+            "shown": 221,
+            "meanUtility": 0.7395833333333334,
+            "utilityTotal": 213,
+            "firstWordTotal": 378,
+            "helpful": 169,
+            "poor": 42,
+            "wins": 57,
+            "losses": 74,
+            "ties": 157,
+            "delta": {
+              "default": {
+                "n": 288,
+                "mean": 0.9722222222222222,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 288,
+                "mean": 0.7395833333333334,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.3958333333333333,
+                -0.07291666666666667
+              ],
+              "scenarioCount": 48,
+              "delta": -0.2326388888888889
+            },
+            "flags": {
+              "malformed": 20,
+              "script_switch": 2,
+              "awkward": 32,
+              "arbitrary_specificity": 6,
+              "repetition": 3,
+              "minimal_value": 11,
+              "language_switch": 5
+            }
+          },
+          "en": {
+            "n": 144,
+            "shown": 112,
+            "meanUtility": 1.2013888888888888,
+            "utilityTotal": 173,
+            "firstWordTotal": 214,
+            "helpful": 106,
+            "poor": 1,
+            "wins": 30,
+            "losses": 20,
+            "ties": 94,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 1.125,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 1.2013888888888888,
+                "p50": 1,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.041666666666666664,
+                0.1875
+              ],
+              "scenarioCount": 48,
+              "delta": 0.0763888888888889
+            },
+            "flags": {
+              "arbitrary_specificity": 4,
+              "awkward": 5,
+              "minimal_value": 6
+            }
+          },
+          "sr_latn": {
+            "n": 144,
+            "shown": 109,
+            "meanUtility": 0.2777777777777778,
+            "utilityTotal": 40,
+            "firstWordTotal": 164,
+            "helpful": 63,
+            "poor": 41,
+            "wins": 27,
+            "losses": 54,
+            "ties": 63,
+            "delta": {
+              "default": {
+                "n": 144,
+                "mean": 0.8194444444444444,
+                "p50": 1,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 144,
+                "mean": 0.2777777777777778,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.8194444444444444,
+                -0.2847222222222222
+              ],
+              "scenarioCount": 48,
+              "delta": -0.5416666666666666
+            },
+            "flags": {
+              "malformed": 20,
+              "script_switch": 2,
+              "awkward": 27,
+              "arbitrary_specificity": 2,
+              "repetition": 3,
+              "minimal_value": 5,
+              "language_switch": 5
+            }
+          },
+          "boundary": {
+            "n": 96,
+            "shown": 29,
+            "meanUtility": 0.23958333333333334,
+            "utilityTotal": 23,
+            "firstWordTotal": 47,
+            "helpful": 23,
+            "poor": 5,
+            "wins": 15,
+            "losses": 18,
+            "ties": 63,
+            "delta": {
+              "default": {
+                "n": 96,
+                "mean": 0.3020833333333333,
+                "p50": 0,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 96,
+                "mean": 0.23958333333333334,
+                "p50": 0,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.21875,
+                0.08333333333333333
+              ],
+              "scenarioCount": 48,
+              "delta": -0.0625
+            },
+            "flags": {
+              "arbitrary_specificity": 3,
+              "awkward": 4,
+              "language_switch": 2,
+              "malformed": 2
+            }
+          },
+          "midword": {
+            "n": 192,
+            "shown": 192,
+            "meanUtility": 0.9895833333333334,
+            "utilityTotal": 190,
+            "firstWordTotal": 331,
+            "helpful": 146,
+            "poor": 37,
+            "wins": 42,
+            "losses": 56,
+            "ties": 94,
+            "delta": {
+              "default": {
+                "n": 192,
+                "mean": 1.3072916666666667,
+                "p50": 2,
+                "p95": 2
+              },
+              "candidate": {
+                "n": 192,
+                "mean": 0.9895833333333334,
+                "p50": 2,
+                "p95": 2
+              },
+              "delta95CI": [
+                -0.5416666666666666,
+                -0.10416666666666667
+              ],
+              "scenarioCount": 48,
+              "delta": -0.3177083333333333
+            },
+            "flags": {
+              "malformed": 18,
+              "script_switch": 2,
+              "awkward": 28,
+              "arbitrary_specificity": 3,
+              "repetition": 3,
+              "minimal_value": 11,
+              "language_switch": 3
+            }
+          }
+        }
+      }
+    },
+    "repeat": {
+      "cases": 24,
+      "options": 39,
+      "exactUtilityAgreement": 0.7435897435897436,
+      "showVsSilenceAgreement": 0.9230769230769231,
+      "meanAbsoluteDifference": 0.2564102564102564,
+      "comparisons": [
+        {
+          "id": "fresh-18-en-0",
+          "text": "you are taking to",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-18-en-0",
+          "text": "are typically involved in",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-43-en-0",
+          "text": "case",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-43-en-0",
+          "text": "a backup folder.",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-17-en-1",
+          "text": "ible in the table.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-17-en-1",
+          "text": "ible in the output.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-41-en-1",
+          "text": "rp one?",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-41-en-2",
+          "text": "ed link?",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-41-en-2",
+          "text": "ed folder?",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-14-en-0",
+          "text": "easier to find the",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-14-en-0",
+          "text": "easier to find what",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-38-sr_latn-0",
+          "text": "joj poslati informacije.",
+          "primary": 0,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-18-sr_latn-1",
+          "text": "lem.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-29-en-2",
+          "text": "p hill.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-45-sr_latn-0",
+          "text": "(side input) veya side",
+          "primary": -2,
+          "repeat": -2
+        },
+        {
+          "id": "fresh-45-sr_latn-0",
+          "text": "(side input) özelliğini kullanarak",
+          "primary": -2,
+          "repeat": -2
+        },
+        {
+          "id": "fresh-34-en-2",
+          "text": "g.",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-18-en-1",
+          "text": "lem.",
+          "primary": 1,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-38-sr_latn-1",
+          "text": "v za pomoć.",
+          "primary": 1,
+          "repeat": 0
+        },
+        {
+          "id": "fresh-38-sr_latn-1",
+          "text": "tivnu atmosferu.",
+          "primary": -1,
+          "repeat": -1
+        },
+        {
+          "id": "fresh-21-sr_latn-1",
+          "text": "ježi kada se otvori",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-21-sr_latn-1",
+          "text": "ježi kada se korisnik",
+          "primary": 2,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-36-sr_latn-0",
+          "text": "pomogao.",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-11-en-0",
+          "text": "suggestions regarding the user",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-19-sr_latn-2",
+          "text": "gla da mi pomogne.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-19-sr_latn-2",
+          "text": "ja.",
+          "primary": -2,
+          "repeat": -2
+        },
+        {
+          "id": "fresh-19-sr_latn-2",
+          "text": "gla sećer.",
+          "primary": -2,
+          "repeat": -2
+        },
+        {
+          "id": "fresh-10-sr_latn-1",
+          "text": "rdi da je tvoj",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-10-sr_latn-1",
+          "text": "rditi da je sve",
+          "primary": -1,
+          "repeat": -1
+        },
+        {
+          "id": "fresh-35-en-2",
+          "text": "rge gate.",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-35-en-2",
+          "text": "rge fountain.",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-10-en-0",
+          "text": "let's review the draft.",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-22-sr_latn-2",
+          "text": "m se održava?",
+          "primary": 1,
+          "repeat": 1
+        },
+        {
+          "id": "fresh-22-sr_latn-2",
+          "text": "m se održava događaj?",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-22-sr_latn-2",
+          "text": "m će se održati",
+          "primary": 2,
+          "repeat": 2
+        },
+        {
+          "id": "fresh-04-sr_latn-1",
+          "text": "ipa iz Beograda je",
+          "primary": 1,
+          "repeat": 0
+        },
+        {
+          "id": "fresh-04-sr_latn-1",
+          "text": "splodirao?",
+          "primary": -2,
+          "repeat": -2
+        },
+        {
+          "id": "fresh-38-en-2",
+          "text": ".",
+          "primary": 0,
+          "repeat": 0
+        },
+        {
+          "id": "fresh-09-sr_latn-0",
+          "text": "slike.",
+          "primary": 1,
+          "repeat": 1
+        }
+      ]
+    },
+    "consistentPreferenceSensitivity": {
+      "q6-production": {
+        "n": 288,
+        "shown": 221,
+        "meanUtility": 0.9722222222222222,
+        "utilityTotal": 280,
+        "firstWordTotal": 411,
+        "helpful": 191,
+        "poor": 18,
+        "wins": 0,
+        "losses": 0,
+        "ties": 288,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            0.0,
+            0.0
+          ],
+          "scenarioCount": 48,
+          "delta": 0
+        },
+        "flags": {
+          "awkward": 18,
+          "repetition": 5,
+          "malformed": 6,
+          "arbitrary_specificity": 10,
+          "minimal_value": 16,
+          "language_switch": 1
+        }
+      },
+      "q6-matched": {
+        "n": 288,
+        "shown": 221,
+        "meanUtility": 0.9722222222222222,
+        "utilityTotal": 280,
+        "firstWordTotal": 411,
+        "helpful": 191,
+        "poor": 18,
+        "wins": 0,
+        "losses": 0,
+        "ties": 288,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            0.0,
+            0.0
+          ],
+          "scenarioCount": 48,
+          "delta": 0
+        },
+        "flags": {
+          "awkward": 18,
+          "repetition": 5,
+          "malformed": 6,
+          "arbitrary_specificity": 10,
+          "minimal_value": 16,
+          "language_switch": 1
+        }
+      },
+      "unsloth-production": {
+        "n": 288,
+        "shown": 267,
+        "meanUtility": 0.8020833333333334,
+        "utilityTotal": 231,
+        "firstWordTotal": 443,
+        "helpful": 196,
+        "poor": 54,
+        "wins": 78,
+        "losses": 80,
+        "ties": 130,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.8020833333333334,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            -0.3541666666666667,
+            0.010416666666666666
+          ],
+          "scenarioCount": 48,
+          "delta": -0.1701388888888889
+        },
+        "flags": {
+          "malformed": 26,
+          "script_switch": 2,
+          "arbitrary_specificity": 14,
+          "awkward": 38,
+          "repetition": 4,
+          "minimal_value": 14,
+          "language_switch": 7
+        }
+      },
+      "unsloth-matched": {
+        "n": 288,
+        "shown": 221,
+        "meanUtility": 0.7430555555555556,
+        "utilityTotal": 214,
+        "firstWordTotal": 377,
+        "helpful": 170,
+        "poor": 41,
+        "wins": 57,
+        "losses": 77,
+        "ties": 154,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.7430555555555556,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            -0.3993055555555556,
+            -0.0625
+          ],
+          "scenarioCount": 48,
+          "delta": -0.22916666666666666
+        },
+        "flags": {
+          "malformed": 20,
+          "script_switch": 2,
+          "awkward": 30,
+          "arbitrary_specificity": 7,
+          "repetition": 4,
+          "minimal_value": 12,
+          "language_switch": 5
+        }
+      },
+      "bartowski-production": {
+        "n": 288,
+        "shown": 265,
+        "meanUtility": 0.7881944444444444,
+        "utilityTotal": 227,
+        "firstWordTotal": 440,
+        "helpful": 192,
+        "poor": 54,
+        "wins": 76,
+        "losses": 79,
+        "ties": 133,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.7881944444444444,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            -0.3645833333333333,
+            -0.010416666666666666
+          ],
+          "scenarioCount": 48,
+          "delta": -0.1840277777777778
+        },
+        "flags": {
+          "arbitrary_specificity": 13,
+          "malformed": 25,
+          "script_switch": 2,
+          "awkward": 40,
+          "repetition": 3,
+          "minimal_value": 13,
+          "language_switch": 7
+        }
+      },
+      "bartowski-matched": {
+        "n": 288,
+        "shown": 221,
+        "meanUtility": 0.7395833333333334,
+        "utilityTotal": 213,
+        "firstWordTotal": 378,
+        "helpful": 169,
+        "poor": 42,
+        "wins": 57,
+        "losses": 74,
+        "ties": 157,
+        "delta": {
+          "default": {
+            "n": 288,
+            "mean": 0.9722222222222222,
+            "p50": 1,
+            "p95": 2
+          },
+          "candidate": {
+            "n": 288,
+            "mean": 0.7395833333333334,
+            "p50": 1,
+            "p95": 2
+          },
+          "delta95CI": [
+            -0.3958333333333333,
+            -0.07291666666666667
+          ],
+          "scenarioCount": 48,
+          "delta": -0.2326388888888889
+        },
+        "flags": {
+          "malformed": 20,
+          "script_switch": 2,
+          "awkward": 32,
+          "arbitrary_specificity": 6,
+          "repetition": 3,
+          "minimal_value": 11,
+          "language_switch": 5
+        }
+      }
+    }
+  },
+  "publisherITQualityPairs": {
+    "bartowski-vs-unsloth": {
+      "all": {
+        "default": {
+          "n": 288,
+          "mean": 0.7430555555555556,
+          "p50": 1,
+          "p95": 2
+        },
+        "candidate": {
+          "n": 288,
+          "mean": 0.7395833333333334,
+          "p50": 1,
+          "p95": 2
+        },
+        "delta95CI": [
+          -0.059027777777777776,
+          0.04861111111111111
+        ],
+        "scenarioCount": 48,
+        "delta": -0.003472222222222222
+      },
+      "en": {
+        "default": {
+          "n": 144,
+          "mean": 1.2152777777777777,
+          "p50": 1,
+          "p95": 2
+        },
+        "candidate": {
+          "n": 144,
+          "mean": 1.2013888888888888,
+          "p50": 1,
+          "p95": 2
+        },
+        "delta95CI": [
+          -0.08333333333333333,
+          0.034722222222222224
+        ],
+        "scenarioCount": 48,
+        "delta": -0.013888888888888888
+      },
+      "sr_latn": {
+        "default": {
+          "n": 144,
+          "mean": 0.2708333333333333,
+          "p50": 0,
+          "p95": 2
+        },
+        "candidate": {
+          "n": 144,
+          "mean": 0.2777777777777778,
+          "p50": 0,
+          "p95": 2
+        },
+        "delta95CI": [
+          -0.0763888888888889,
+          0.08333333333333333
+        ],
+        "scenarioCount": 48,
+        "delta": 0.006944444444444444
+      }
+    }
   }
 }

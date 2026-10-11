@@ -1,6 +1,6 @@
-**Unsloth and Bartowski E2B IT Q6 — native results, Claude judgment pending**
+**Unsloth and Bartowski E2B IT Q6 — completed native and blind Claude comparison**
 
-**Keep the current E2B base Q6 default.** Both instruction-tuned candidates generate faster at matched suggestion frequency, but the requested Claude quality comparison is blocked by service access. No quality winner or combined upgrade is established. The installed app, model and default remain unchanged.
+**Keep the current E2B base Q6 default.** The IT candidates are 11.7–12.9% faster at matched suggestion frequency, but Claude Opus 5.5 rates substantially more poor Serbian Latin suggestions. Current Q6 has **191 helpful / 18 poor** suggestions, versus **170/41 Unsloth** and **169/42 Bartowski**. Their small English-quality advantages remain uncertain. Neither meets the combined quality and speed requirement. The installed app, model and default remain unchanged.
 
 All three models were rerun on the same Mac with the current native decoder and prompt fixed. The test uses the preceding Q6 study's 48 fictional bilingual scenarios, yielding 144 English and 144 Serbian Latin checkpoints; this is a reused corpus, not a new untouched holdout. No previous timings or judge scores are pooled.
 
@@ -18,13 +18,27 @@ The matched English means are 44.4 / 36.6 / 36.4 ms for current / Unsloth / Bart
 
 At the **unchanged production gates**, the IT models offer suggestions far more often: Unsloth 267/288 and Bartowski 265/288 versus current 221/288. Their warmed means are 51.2 and 50.8 ms versus current 52.5 ms; both paired difference intervals include zero. The clearer matched-frequency gain therefore depends on evaluation-fitted gates, not a demonstrated drop-in speed improvement with unchanged production settings. Both IT fallback thresholds reach the existing probability cap: `fallback = min(1, 3.1 × primary)`. These are diagnostic cutoffs fitted on this corpus, not deployable calibration. [All timing and gate tables](TABLES.md) · [Matching clarification](matching-notes.json).
 
-**Quality is still unresolved**
+**Blind quality judgment at equal frequency**
 
-Claude Opus 5.5 received no successful request. All 25 CLI batches returned `429 usage_limit_reached`, with a reported reset at **22:30 Europe/Podgorica on 11 October**. A single attempt through the configured OpenRouter account, restricted to Anthropic's Opus 5.5 endpoint, returned `404 model-ignored-by-guardrail`. No guardrail or account setting was changed. The failed requests and responses are retained; no ratings were fabricated, substituted from another model or borrowed from earlier studies. [Judge status](judge-status.json).
+Claude Opus 5.5 independently rated only the synthetic typed prefixes and shuffled anonymous suggestions. It received no model labels, timings, intended futures or app source. All 272 non-silent primary cases and 24 reversed-order repeat cases completed; the 16 all-silent checkpoints contribute zero in the 288-checkpoint denominator. The native prompt, rubric, packet order and high reasoning effort remain fixed. Previous studies’ ratings are not pooled.
 
-The full blinded evaluation is prepared: 272 checkpoints where at least one production or matched policy offers text, 16 all-silent cases retained as zero, and 24 reversed-order repeat cases. Packets contain only fictional prefixes and anonymous unique suggestions. Once an authorized Claude connection is available, the same packets can be judged without repeating native benchmarks.
+Utility is an ordinal −2..2 judgment relative to silence at zero. “Helpful” means >0 and “poor” means <0; neutral suggestions are omitted from those two counts. Counts below use **exactly 112 shown English and 109 shown Serbian Latin suggestions per arm**. Utility means retain all 144 checkpoints per language, including silence.
 
-An available **reference-word diagnostic** is lower for the IT models: 141/288 Unsloth and 142/288 Bartowski versus 164/288 current. This checks the first completed word against one authored continuation; it does not measure plausible alternative quality and cannot replace Claude or human ratings. The [literal English and Serbian Latin examples](EXAMPLES.md) include differences in phrase length, unsupported specifics and language/word-form behavior. They are not presented as judged wins or losses.
+| Variant | English helpful / poor | English utility | Serbian Latin helpful / poor | Serbian Latin utility | Overall utility delta vs current, 95% interval |
+|---|---:|---:|---:|---:|---:|
+| Current E2B base i1 Q6 | **104 / 4** | 1.125 | **87 / 14** | **0.819** | Reference |
+| Unsloth E2B IT Q6_K | 107 / 1 | 1.215 | 63 / 40 | 0.271 | **−0.229 [−0.399, −0.062]** |
+| Bartowski E2B IT Q6_K | 106 / 1 | 1.201 | 63 / 41 | 0.278 | **−0.233 [−0.396, −0.073]** |
+
+English utility differences are +0.090 [−0.035, +0.222] for Unsloth and +0.076 [−0.042, +0.188] for Bartowski: both intervals include zero. Serbian Latin differences are −0.549 [−0.833, −0.285] and −0.542 [−0.819, −0.285]. Each IT model has 20 Serbian Latin suggestions flagged malformed, versus six for current Q6, and five language-switch flags versus one. Their extra Serbian errors outweigh the possible English benefit in this equally weighted bilingual sample. This is a result for the fixed raw-prefix prompt; it does not establish that these publishers are generally worse.
+
+The IT publishers are effectively tied here: Bartowski minus Unsloth overall utility is −0.003 [−0.059, +0.049]. Bartowski’s lower memory footprint therefore makes it the more economical candidate for a future IT-specific study, but neither is a replacement recommendation. [All quality, timing and gate tables](TABLES.md) · [Literal examples with ratings](EXAMPLES.md) · [Every paired case](quality-examples.json).
+
+The 24 repeated cases contain 39 distinct nonempty options. Exact utility agreement is **29/39 (74.4%)**; agreement on positive utility versus nonpositive is **36/39 (92.3%)**. All differing ratings move one point. No preferred-option contradictions occur, so the planned consistency sensitivity leaves the result unchanged. Repeats do not replace original ratings. The intervals capture scenario sampling uncertainty, not the full uncertainty of a model judge; these ratings are not observed human acceptance.
+
+The user-authorized direct Anthropic API resolved the access blocker. Every successful response identifies `claude-opus-5-5`, and every saved API request is checked against the original blinded packet and system instruction. The earlier 25 CLI quota failures and one OpenRouter guardrail failure remain archived. One direct-API structured-format preflight produced no ratings; its response is preserved, followed by plain-JSON output with the unchanged rubric. All 25 plain-JSON batches passed complete case/option coverage on their first attempt. No valid scores were discarded or rerated. [Judge status](judge-status.json) · [Direct-API amendment](judge-direct-api-amendment.json).
+
+The authored first-word diagnostic remains 164/288 current, 141 Unsloth and 142 Bartowski. It tests one reference continuation and is not used as a substitute for the blind usefulness ratings above.
 
 **Long fields, cancellation and provenance**
 
@@ -36,6 +50,8 @@ The fixed prompt is LokalBot's raw typed prefix, with no IT chat template added.
 
 **Next step and validation**
 
-Finish the prepared blind Claude evaluation for both languages before considering an upgrade. Bartowski is the more economical IT candidate to investigate first because its measured latency is comparable to Unsloth's and it uses substantially less memory; that is a performance observation, not a quality recommendation. If its quality survives judging, fit gates on a separate calibration set and confirm on new bilingual scenarios and human ratings before proposing adoption. Current Q6 stays enabled throughout.
+Retain current Q6 for English and Serbian Latin. Do not adopt the fitted IT thresholds: this reused corpus is not an untouched holdout and the quality guard fails. A future English-only investigation could prioritize Bartowski because of its lower memory cost, but the English quality advantage needs confirmation on new scenarios and human ratings. Language-specific routing is only a hypothesis; this experiment did not measure its identification, memory or model-switching costs.
 
-All **39 native processes / 7,776 measured observations** completed, with 312 excluded warmups, byte-identical prompts, 3,888 deterministic repeated outputs, exact native frequency matching and no replay errors. Eleven focused Python tests pass. The app executable and installed Q6 hashes are unchanged. No app build, reinstall, local UI tests, release, workflow changes or manual CI actions were performed. [Validation and reproduction](VALIDATION.md) · [Frozen method](METHOD.md) · [Numerical summary](summary.json) · [Complete evidence](evidence.tar.gz).
+For the current feature, the most useful quality follow-up is a Serbian Latin midword/output-validity experiment that preserves legitimate word forms while catching malformed or cross-language tails, evaluated at equal frequency. For speed, continue measuring decoder/runtime changes that preserve current-Q6 outputs. These are proposed next experiments, not implemented changes.
+
+All **39 native processes / 7,776 measured observations** completed, with 312 excluded warmups, byte-identical prompts, 3,888 deterministic repeated outputs, exact native frequency matching and no replay errors. Eleven focused Python tests pass, and the full saved-data analysis reproduces the native measurements unchanged while adding all 504 primary/repeat option ratings. The app executable and installed Q6 hashes are unchanged. No app build, reinstall, local UI tests, release, workflow changes or manual CI actions were performed. [Validation and reproduction](VALIDATION.md) · [Frozen method](METHOD.md) · [Numerical summary](summary.json) · [Complete evidence](evidence.tar.gz).

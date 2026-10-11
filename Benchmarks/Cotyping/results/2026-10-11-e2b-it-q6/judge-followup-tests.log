@@ -1,0 +1,17 @@
+WARN `--no-project` was provided, but no project was found
+test_cancellation_uses_actual_issuance_and_excludes_unpaired_completion (test_quantization_experiment.QuantizationEvaluationTests.test_cancellation_uses_actual_issuance_and_excludes_unpaired_completion) ... ok
+test_equal_frequency_retains_ungated_midword_and_shortens_fallback (test_quantization_experiment.QuantizationEvaluationTests.test_equal_frequency_retains_ungated_midword_and_shortens_fallback) ... ok
+test_matching_uses_fallback_mass_not_only_selected_probability (test_quantization_experiment.QuantizationEvaluationTests.test_matching_uses_fallback_mass_not_only_selected_probability) ... ok
+test_quality_keeps_silence_in_denominator_and_clusters_repeated_checkpoints (test_quantization_experiment.QuantizationEvaluationTests.test_quality_keeps_silence_in_denominator_and_clusters_repeated_checkpoints) ... ok
+test_unmatchable_tie_fails_instead_of_changing_frequency (test_quantization_experiment.QuantizationEvaluationTests.test_unmatchable_tie_fails_instead_of_changing_frequency) ... ok
+test_word_match_joins_fragment_without_counting_empty_as_a_completion (test_quantization_experiment.QuantizationEvaluationTests.test_word_match_joins_fragment_without_counting_empty_as_a_completion) ... ok
+testBlindPacketExcludesReferencePolicyAndPhraseIdentity (test_claude_judge.ClaudeJudgeTests.testBlindPacketExcludesReferencePolicyAndPhraseIdentity) ... ok
+testBootstrapIncludesUnchangedCasesAsZeroDelta (test_claude_judge.ClaudeJudgeTests.testBootstrapIncludesUnchangedCasesAsZeroDelta) ... ok
+testHybridKeepsCurrentAndOnlyTruncatesNewSuggestions (test_claude_judge.ClaudeJudgeTests.testHybridKeepsCurrentAndOnlyTruncatesNewSuggestions) ... ok
+testMissingAndContradictoryRatingsAreRejected (test_claude_judge.ClaudeJudgeTests.testMissingAndContradictoryRatingsAreRejected) ... ok
+testWordCapPreservesUnicodeAndDoesNotInventText (test_claude_judge.ClaudeJudgeTests.testWordCapPreservesUnicodeAndDoesNotInventText) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.004s
+
+OK

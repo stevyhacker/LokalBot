@@ -19,6 +19,19 @@
   "judgeRepeatCases": 24,
   "allSilentCases": 16,
   "exactFrequencyVerified": true,
-  "judgeCompleted": false,
-  "judgeCoverageVerified": false
+  "judgeCompleted": true,
+  "judgeCoverageVerified": true,
+  "directAPIJudgeVerification": {
+    "batches": 25,
+    "cases": 296,
+    "options": 504,
+    "inputTokens": 47027,
+    "outputTokens": 71744,
+    "thinkingTokens": 33233,
+    "failedFormatPreflights": 1,
+    "failedPreflightInputTokens": 2655,
+    "failedPreflightOutputTokens": 1549
+  },
+  "previouslyPublishedNativeResultsUnchanged": true,
+  "followupInstalledHashesUnchanged": true
 }
