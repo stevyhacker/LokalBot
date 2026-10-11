@@ -1,0 +1,38 @@
+[
+  {
+    "arm": "q6",
+    "source": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "sourceSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "evaluation": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "evaluationSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "offset": 15764395,
+    "oldValue": false,
+    "newValue": false,
+    "changedBytes": 0,
+    "everyOtherByteIdentical": true
+  },
+  {
+    "arm": "unsloth",
+    "source": "/private/tmp/lokalbot-e2b-it-q6-20261011/models/unsloth.gguf",
+    "sourceSHA256": "f7b8980ecc1c115898fd8d9a3d421d90becbac984194a44b478669c26815843d",
+    "evaluation": "/private/tmp/lokalbot-e2b-it-q6-20261011/models/unsloth.eval.gguf",
+    "evaluationSHA256": "2e57aac08049e78d82726209e813922f920127332941746ddadb9475a086ed33",
+    "offset": 15764871,
+    "oldValue": true,
+    "newValue": false,
+    "changedBytes": 1,
+    "everyOtherByteIdentical": true
+  },
+  {
+    "arm": "bartowski",
+    "source": "/private/tmp/lokalbot-e2b-it-q6-20261011/models/bartowski.gguf",
+    "sourceSHA256": "d7ea8cdd30d8e15bf11e5a37e8c141a600ad161d847165591fe86ab0288fb9d4",
+    "evaluation": "/private/tmp/lokalbot-e2b-it-q6-20261011/models/bartowski.eval.gguf",
+    "evaluationSHA256": "29ac660d0bc92df749d11216e912ef7e50e7ae8d20cdb9c066bbb6b5c6bba97a",
+    "offset": 15764442,
+    "oldValue": true,
+    "newValue": false,
+    "changedBytes": 1,
+    "everyOtherByteIdentical": true
+  }
+]

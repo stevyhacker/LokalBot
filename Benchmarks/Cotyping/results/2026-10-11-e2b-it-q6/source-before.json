@@ -1,0 +1,18 @@
+{
+  "atUTC": "2026-10-11T16:19:57.063815+00:00",
+  "sourceCommit": "0cb3488d3b504522ff09881e3390e224cc996791",
+  "binarySHA256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9",
+  "sourceFileHashes": {
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "11643ba3d230cfbea3408e0cfcddeb816b95f26355a58671afe526f4ec7e2d3c",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": "6c91a30ce6971d741e76bc65ebd7e1b23f8a400d105f936ea3153002f5f8a220",
+    "LokalBotTests/CotypingFirstWordConfidenceTests.swift": "0dd3d11a5a87abaf6b862a86d2593c1818eb15eddd0543130e547f85f165b46f",
+    "LokalBotTests/CotypingTokenHealingTests.swift": "31ef1d40bfa614f1decd1baa24b8332fcd650a5e4ce131ade1ff513e2dabc011",
+    "Benchmarks/Cotyping/cancellation_experiment.py": "913f350c3f4def300c1d697409ed194e8c5299beb9fb60a22d480585b5ed5397",
+    "Benchmarks/Cotyping/test_cancellation_experiment.py": "6f8d8295e021f4237dbfd5b80b21c3a67213a856a5dda4dd1b12539a852e6919"
+  },
+  "sourceHashesMatch": true,
+  "installedExecutableSHA256": "b1d1878f324db7d58b48edd467f9ace83973c3637ee7d7020ab2eabafc188d3e",
+  "currentQ6SHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "corpusSHA256": "9dbe06a822440848702212d1c3600d3be92165ad66db42f6ad9c6a4642fa10a6",
+  "corpusSameAsPrevious": true
+}

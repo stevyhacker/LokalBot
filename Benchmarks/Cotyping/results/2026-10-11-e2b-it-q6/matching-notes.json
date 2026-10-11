@@ -1,0 +1,10 @@
+{
+  "atUTC": "2026-10-11T16:33:14.732181+00:00",
+  "type": "Clarification of the frozen matching implementation; no algorithm or threshold-selection change.",
+  "rule": "fallback = min(1, 3.1 * primary), rounded to float32 by the existing runner. Probability cutoffs are capped at 1.",
+  "effect": "Both IT fallback thresholds saturate at 1; the current-Q6 thresholds do not. The protocol shorthand about the 3.1 ratio is subject to this pre-existing cap.",
+  "qualityLabelsUsed": false,
+  "nativeMidwordShownPerArm": 192,
+  "matchedBoundaryQuota": 29,
+  "runnerSHA256": "3c6657a076087f4930078d6cb3bafe6d8c7e4638d5de22edc6a75cda150620c8"
+}

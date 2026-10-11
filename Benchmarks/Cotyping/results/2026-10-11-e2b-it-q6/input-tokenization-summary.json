@@ -1,0 +1,44 @@
+{
+  "uniquePrompts": 402,
+  "exactNativeTokenParity": true,
+  "inputAddSpecial": true,
+  "parseSpecial": true,
+  "compileCommand": [
+    "clang",
+    "-O2",
+    "-std=c11",
+    "-I/private/tmp/lokalbot-cancellation-20261011/adaptive/candidate.app/Contents/Resources/llama-cpp/include",
+    "/private/tmp/lokalbot-e2b-it-q6-20261011/tokenize_probe.c",
+    "-L/private/tmp/lokalbot-cancellation-20261011/adaptive/candidate.app/Contents/Resources/llama-cpp",
+    "-lllama",
+    "-Wl,-rpath,/private/tmp/lokalbot-cancellation-20261011/adaptive/candidate.app/Contents/Resources/llama-cpp",
+    "-o",
+    "/private/tmp/lokalbot-e2b-it-q6-20261011/tokenize-probe"
+  ],
+  "probeSourceSHA256": "98b535a941b141a06d823c05a5ca9a552eadb3fd1e3432523019c6a4a195fecb",
+  "probeExecutableSHA256": "ae09a2c5cdf81351f481a0763cbf502c52e8ad696dc6a68edaa13a78a484acaf",
+  "librarySHA256": "efb94e534f3a40f1ac8e762604e6223ec71ca9e39f0b6371e6dea036f3ed75fc",
+  "headerSHA256": "84867ea210156fd2618871c8d3181b5b7703750e829bdac6a12ad54e76570faa",
+  "models": {
+    "q6": {
+      "modelSHA256": "92aac784ca2ee8f7dcd8e7c4da7509216241a7c8f944f4608aef3224b9e62a4f",
+      "sequencesSHA256": "a73ea3ebc96d7bd3fa447030925607b3a92249cb3d0de28a26c82b3bd36e43f0",
+      "sequenceCount": 402
+    },
+    "unsloth": {
+      "modelSHA256": "92aac784ca2ee8f7dcd8e7c4da7509216241a7c8f944f4608aef3224b9e62a4f",
+      "sequencesSHA256": "a73ea3ebc96d7bd3fa447030925607b3a92249cb3d0de28a26c82b3bd36e43f0",
+      "sequenceCount": 402
+    },
+    "bartowski": {
+      "modelSHA256": "92aac784ca2ee8f7dcd8e7c4da7509216241a7c8f944f4608aef3224b9e62a4f",
+      "sequencesSHA256": "a73ea3ebc96d7bd3fa447030925607b3a92249cb3d0de28a26c82b3bd36e43f0",
+      "sequenceCount": 402
+    }
+  },
+  "fullEvidence": {
+    "archiveMember": "input-tokenization.json",
+    "sha256": "3be048d0d354329edcf84d48fc5b714e8c17f928a1d0c81bf6284277275ea266",
+    "note": "All literal prefixes and token-ID arrays are preserved in evidence.tar.gz."
+  }
+}

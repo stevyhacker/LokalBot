@@ -1,0 +1,25 @@
+{
+  "atUTC": "2026-10-11T16:40:08.809101+00:00",
+  "completed": false,
+  "ratingsReceived": 0,
+  "preparedBatches": 25,
+  "primaryCases": 272,
+  "repeatCases": 24,
+  "allSilentCases": 16,
+  "blockers": [
+    {
+      "transport": "Claude Code",
+      "status": 429,
+      "reason": "usage_limit_reached",
+      "reportedReset": "22:30 Europe/Podgorica, 2026-10-11"
+    },
+    {
+      "transport": "OpenRouter, Anthropic only",
+      "status": 404,
+      "reason": "model-ignored-by-guardrail"
+    }
+  ],
+  "guardrailChanged": false,
+  "defaultChanged": false,
+  "nextAction": "Wait for user-selected authorized Claude route or subscription reset; reuse the frozen packets. Native replay and matching do not need rerunning."
+}

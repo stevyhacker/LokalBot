@@ -1,0 +1,48 @@
+{
+  "createdAtUTC": "2026-10-11T16:32:35.629379+00:00",
+  "frequencies": {
+    "en": {
+      "baselineProduction": 112,
+      "matched": 112,
+      "total": 144
+    },
+    "sr_latn": {
+      "baselineProduction": 109,
+      "matched": 109,
+      "total": 144
+    }
+  },
+  "cutoffs": {
+    "q6": {
+      "en": {
+        "primary": 0.1000504195690155,
+        "fallback": 0.31015628576278687
+      },
+      "sr_latn": {
+        "primary": 0.09625111520290375,
+        "fallback": 0.29837843775749207
+      }
+    },
+    "unsloth": {
+      "en": {
+        "primary": 0.49802160263061523,
+        "fallback": 1.0
+      },
+      "sr_latn": {
+        "primary": 0.3512646555900574,
+        "fallback": 1.0
+      }
+    },
+    "bartowski": {
+      "en": {
+        "primary": 0.47946232557296753,
+        "fallback": 1.0
+      },
+      "sr_latn": {
+        "primary": 0.3429175913333893,
+        "fallback": 1.0
+      }
+    }
+  },
+  "note": "Transductive equal-frequency diagnostic only; no quality labels or production setting changes."
+}

@@ -1,0 +1,11 @@
+{
+  "archiveSHA256": "c4f1784223741a035b4fc2f41caae1a23b14abcd7d1ab8f29a719c531de1e769",
+  "verifiedMembers": 370,
+  "byteIdenticalRecomputed": {
+    "summary.json": "44c15ceb0c41d9eb9bd7e14914f602369c7d4cda71961ea7f9214dea72b99dc3",
+    "validation.json": "00bd23a61c09f1a6e060833e42037742211cdf248c4f61669d9614a3e5bfba96",
+    "TABLES.md": "9dcabc054828a0074e39d3072974c8944b5caac397412ae099444d5fa2f04e4d"
+  },
+  "modelInference": false,
+  "contactedJudge": false
+}

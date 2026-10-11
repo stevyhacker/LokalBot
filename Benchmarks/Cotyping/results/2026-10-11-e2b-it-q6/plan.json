@@ -1,0 +1,67 @@
+{
+  "frozenAtUTC": "2026-10-11T16:23:38.473457+00:00",
+  "corpusSHA256": "9dbe06a822440848702212d1c3600d3be92165ad66db42f6ad9c6a4642fa10a6",
+  "models": [
+    "q6",
+    "unsloth",
+    "bartowski"
+  ],
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "searchExperiment": "certified",
+    "nativeThreads": 2,
+    "nativeBatchThreads": 2,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true,
+    "healingMode": "prefixSearch",
+    "firstWordThreshold": 0.1,
+    "hybridFallbackThreshold": 0.31,
+    "useNativeSpellingVerdicts": true,
+    "confidenceTrace": false
+  },
+  "seed": 12648430,
+  "topP": 0.7,
+  "topK": 20,
+  "minP": 0.08,
+  "orders": [
+    [
+      "q6",
+      "unsloth",
+      "bartowski"
+    ],
+    [
+      "bartowski",
+      "unsloth",
+      "q6"
+    ]
+  ],
+  "inputSHA256": {
+    "dynamic.json": "ba16d2129bed48b78c9ca44e78152b447fba9ba416e1d8f1676e99f62b024b73",
+    "cancellation.json": "7b0d235be10c961b2166ceec91168423196c71815f38c64e3914521cc96ba45e",
+    "long.json": "e6b2b2fe28b48493de28b7cc5e816b63e0907cc99da3b217ddc6818afa8cc649",
+    "fresh.json": "45b7d335b484af9265f2640014be61315ec480438f82c67051e25f91f590207a"
+  },
+  "runnerSHA256": "3c6657a076087f4930078d6cb3bafe6d8c7e4638d5de22edc6a75cda150620c8",
+  "primary": "Hold the replay executable, continuation prompt, sampler, search, token budget, threads and production gates fixed. Change only the model artifact, with automatic input BOS aligned to current Q6 when necessary; preserve publisher weights and model stopping metadata.",
+  "matched": "Per-language native boundary confidence cutoffs target current Q6 production shown counts. Preserve all native ungated midword outputs and fallback/primary ratio 3.1. If that rate is infeasible, use the greatest common feasible lower rate and explicitly report the reduction. Stop and document if native gates cannot realize any common rate; do not silently censor outputs or tune from quality labels.",
+  "quality": "Anonymous Claude usefulness rubric, all unique nonempty production/matched suggestions; silence=0. 24 reversed-option repeats, 5000 scenario-cluster paired bootstrap draws. Reference-word agreement is secondary. If external judging is unavailable, report that limit and do not infer subjective quality from exact-reference score alone.",
+  "timing": "Two reverse-order production rounds over fresh/long/dynamic/cancellation, two predeclared additional warm fresh rounds, one confidence trace and two native matched-frequency rounds. Eight excluded warmups per process; all native processes serial.",
+  "cancellation": "Use actual issued time, require both arms cancelled for paired latency, also measure through the next completed replacement; compare recovery with a cold reference. Report unmatched/undelivered timers.",
+  "decision": "Keep the current installed model/default regardless of results. Report overall and per-language quality, poor counts, normal and cancellation latency, artifact precision/memory and uncertainty. No app installation, UI tests or CI management.",
+  "scope": "Reuse the frozen 48 bilingual scenarios / 288 checkpoints from the preceding Q6 study. All models, including current Q6, are rerun; no previous timings or judge scores are pooled. This is a fixed-prompt IT substitution test, not an IT-specific chat-template evaluation.",
+  "hardware": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": "51539607552",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; finishing charge; 0:05 remaining present: true"
+  },
+  "experiment": "E2B base Q6 versus Unsloth and Bartowski E2B IT Q6_K",
+  "wrapperSHA256": "b28140afe75f94f948d36c899299317257439cf3994621b2a8913aee1d4b4466",
+  "expectedProcesses": 39,
+  "expectedMeasuredObservations": 7776,
+  "judge": "New blinded Claude Opus 5.5 ratings of all distinct production/matched suggestions, with silence zero. English and Serbian Latin only; no reference futures, models, timings, code or personal writing. 24 reversed-order repeats; scenario-cluster 5000-draw bootstrap.",
+  "corpusHistory": "The evaluation corpus was authored for the previous base-Q6 publisher study and has been seen by that judge. IT candidates and this fixed protocol were not selected or tuned on their outputs."
+}

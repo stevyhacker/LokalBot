@@ -1,0 +1,18 @@
+{
+  "atUTC": "2026-10-11T16:24:27.552008+00:00",
+  "modelManifestSHA256": "cf2831c96182c25febd0959b54587d9a1c3bddf50744df5d64301c8ed326be83",
+  "tokenizationSHA256": "3be048d0d354329edcf84d48fc5b714e8c17f928a1d0c81bf6284277275ea266",
+  "methodSHA256": "77a686f744a48bfa73928978be3d7c29ad62a86ac5e07cd6d645cd5cd8e18903",
+  "scripts": {
+    "prepare_models.py": "313d0afdae9d070a7218e12009202d20b4dab5cfce8cbd2f3984b1fc26a160b8",
+    "it_q6_analysis.py": "d8e518af09d27c266b9f40add1075fc61c7e5225db613cf569bdb13d9819c4c6",
+    "run_blind_judge.py": "89797563dc9fc139bdb8812e5ad24d243de812b6ae10608f76a7c3c42aafd16a",
+    "verify_tokenization.py": "6568c14e7030f2c6b3c7ffa562d903579e3a7c40d1cfe0c750de951c47e59e77",
+    "normalize_and_inspect.py": "11c321016729f9d203b079131be6f628fae6c4eabedb5ebe334dbe0e834467a1"
+  },
+  "amendment": {
+    "beforeAnyGeneration": true,
+    "originalPreparationSHA256": "9b628152a15680da54e9c747843699a956a634c7f4e6195c44ad77e917465f8b",
+    "reason": "Initial all-token-type equality check identified only Unsloth EOS token id 1 normal/control classification and stopping-id differences. Preserve publisher stopping metadata; exact native vocabulary-only tokenization verifies all 402 input prefixes remain identical. Reused clones verified byte-for-byte except BOS; original failed assertion retained."
+  }
+}
