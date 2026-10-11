@@ -105,6 +105,11 @@ actor LlamaCotypingRuntime {
     nonisolated let searchExperiment: CotypingSearchExperiment
     nonisolated let replayThreadCount: Int32?
     nonisolated let replayBatchThreadCount: Int32?
+    /// Replay-only cancellation experiments; app policy remains unchanged until measured.
+    nonisolated let replayPrefillChunkSize: Int
+    nonisolated let replayPrefillFirstChunkSize: Int?
+    nonisolated let replayFinalPrefillLogitsOnly: Bool
+    nonisolated let replaySynchronizePrefillChunks: Bool
     private(set) var lastHealingTrace: CotypingHealingTrace?
     private(set) var lastReplayDiagnostics = CotypingReplayDiagnostics()
     /// When a suggestion was last generated, for the memory-pressure policy.
@@ -130,6 +135,9 @@ actor LlamaCotypingRuntime {
          confidenceTraceEnabled: Bool = false, healingTraceEnabled: Bool = false,
          searchExperiment: CotypingSearchExperiment = .baseline, replayThreadCount: Int32? = nil,
          replayBatchThreadCount: Int32? = nil,
+         replayPrefillChunkSize: Int = 256, replayPrefillFirstChunkSize: Int? = nil,
+         replayFinalPrefillLogitsOnly: Bool = false,
+         replaySynchronizePrefillChunks: Bool = false,
          postLoadAdmissionHook: @escaping PostLoadAdmissionHook = {}) {
         self.confidenceBoundaryMode = confidenceBoundaryMode
         self.selectiveOneWordHybrid = selectiveOneWordHybrid
@@ -138,6 +146,10 @@ actor LlamaCotypingRuntime {
         self.searchExperiment = searchExperiment
         self.replayThreadCount = replayThreadCount
         self.replayBatchThreadCount = replayBatchThreadCount
+        self.replayPrefillChunkSize = min(2048, max(1, replayPrefillChunkSize))
+        self.replayPrefillFirstChunkSize = replayPrefillFirstChunkSize.map { min(256, max(1, $0)) }
+        self.replayFinalPrefillLogitsOnly = replayFinalPrefillLogitsOnly
+        self.replaySynchronizePrefillChunks = replaySynchronizePrefillChunks
         self.postLoadAdmissionHook = postLoadAdmissionHook
     }
 
@@ -459,7 +471,9 @@ actor LlamaCotypingRuntime {
     /// Decodes `tokens` starting at `startPos` in sequence 0. When
     /// `logitsLastOnly` is true only the final token requests logits (prefill).
     @discardableResult
-    private func decode(_ tokens: [Int32], startPos: Int32, logitsLastOnly: Bool) -> Bool {
+    private func decode(
+        _ tokens: [Int32], startPos: Int32, logitsLastOnly: Bool, requestLogits: Bool = true
+    ) -> Bool {
         guard let ctx, !tokens.isEmpty else { return true }
         lastReplayDiagnostics.decodedTokens += tokens.count
         lastReplayDiagnostics.decodeCalls += 1
@@ -473,11 +487,11 @@ actor LlamaCotypingRuntime {
             batch.pos[i] = startPos + Int32(i)
             batch.n_seq_id[i] = 1
             batch.seq_id[i]![0] = 0
-            batch.logits[i] = (logitsLastOnly ? (i == tokens.count - 1) : true) ? 1 : 0
+            batch.logits[i] = requestLogits && (!logitsLastOnly || i == tokens.count - 1) ? 1 : 0
         }
         batch.n_tokens = Int32(tokens.count)
         let succeeded = llama_decode(ctx, batch) == 0
-        if succeeded {
+        if succeeded, requestLogits {
             lastDecodeTokenCount = tokens.count
             lastLogitsPosition = startPos + Int32(tokens.count - 1)
             lastLogitsToken = tokens.last
@@ -490,15 +504,25 @@ actor LlamaCotypingRuntime {
         startPos: Int32,
         logitsLastOnly: Bool
     ) throws {
-        let chunkSize = 256
+        // Adaptive experiments protect the existing single-chunk path. Only
+        // a multi-chunk prefill gets an early checkpoint and a larger remainder.
+        let firstChunk = tokens.count > 256 ? replayPrefillFirstChunkSize : nil
+        let chunkSize = replayPrefillFirstChunkSize != nil && firstChunk == nil ? 256 : replayPrefillChunkSize
         var offset = 0
         while offset < tokens.count {
             try Task.checkCancellation()
-            let end = min(tokens.count, offset + chunkSize)
+            let size = offset == 0 ? firstChunk ?? chunkSize : chunkSize
+            let end = min(tokens.count, offset + size)
+            let requestLogits = !replayFinalPrefillLogitsOnly || !logitsLastOnly || end == tokens.count
+            lastReplayDiagnostics.prefillChunks += 1
+            if requestLogits { lastReplayDiagnostics.prefillLogitRows += logitsLastOnly ? 1 : end - offset }
             try decodeOrThrow(
                 Array(tokens[offset..<end]),
                 startPos: startPos + Int32(offset),
-                logitsLastOnly: logitsLastOnly)
+                logitsLastOnly: logitsLastOnly, requestLogits: requestLogits)
+            // A native call can queue Metal work. Include completion at each
+            // intermediate boundary when measuring cooperative interruption.
+            if replaySynchronizePrefillChunks, end < tokens.count, let ctx { llama_synchronize(ctx) }
             offset = end
         }
         try Task.checkCancellation()
@@ -507,9 +531,10 @@ actor LlamaCotypingRuntime {
     private func decodeOrThrow(
         _ tokens: [Int32],
         startPos: Int32,
-        logitsLastOnly: Bool
+        logitsLastOnly: Bool,
+        requestLogits: Bool = true
     ) throws {
-        guard decode(tokens, startPos: startPos, logitsLastOnly: logitsLastOnly) else {
+        guard decode(tokens, startPos: startPos, logitsLastOnly: logitsLastOnly, requestLogits: requestLogits) else {
             if decodeAbortState.isAbortRequested || Task.isCancelled {
                 throw CancellationError()
             }
@@ -1131,6 +1156,8 @@ struct CotypingReplayDiagnostics: Codable, Sendable {
     /// Tokens submitted to native decode, including a decode that was aborted.
     var decodedTokens = 0
     var decodeCalls = 0
+    var prefillChunks = 0
+    var prefillLogitRows = 0
     var searchRestoreSkips = 0
     var searchPrefillFallbacks = 0
     var certifiedSkips = 0

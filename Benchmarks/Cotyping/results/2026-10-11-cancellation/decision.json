@@ -1,0 +1,15 @@
+{
+  "adopt": false,
+  "rounds": [
+    1,
+    2
+  ],
+  "earlyStoppedForRejection": true,
+  "clearNormalRegressions": [
+    "fresh",
+    "long",
+    "dynamic"
+  ],
+  "qualityPassed": true,
+  "reason": "Predeclared rejection-only futility: speed regression or changed outputs on fresh confirmation data. Current installed/default policy retained."
+}

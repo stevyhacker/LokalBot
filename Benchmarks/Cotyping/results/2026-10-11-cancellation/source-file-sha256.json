@@ -1,0 +1,23 @@
+{
+  "baseCommit": "1d39a5ea796d90ed391290ce260eb08370ab8c0b",
+  "files": {
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "11643ba3d230cfbea3408e0cfcddeb816b95f26355a58671afe526f4ec7e2d3c",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": "6c91a30ce6971d741e76bc65ebd7e1b23f8a400d105f936ea3153002f5f8a220",
+    "LokalBotTests/CotypingFirstWordConfidenceTests.swift": "0dd3d11a5a87abaf6b862a86d2593c1818eb15eddd0543130e547f85f165b46f",
+    "LokalBotTests/CotypingTokenHealingTests.swift": "31ef1d40bfa614f1decd1baa24b8332fcd650a5e4ce131ade1ff513e2dabc011",
+    "Benchmarks/Cotyping/cancellation_experiment.py": "913f350c3f4def300c1d697409ed194e8c5299beb9fb60a22d480585b5ed5397",
+    "Benchmarks/Cotyping/test_cancellation_experiment.py": "6f8d8295e021f4237dbfd5b80b21c3a67213a856a5dda4dd1b12539a852e6919"
+  },
+  "binaries": {
+    "fixed": {
+      "path": "/private/tmp/lokalbot-cancellation-20261011/candidate.app",
+      "executableSHA256": "4afa403649ff4cdb39df689c5de3f1135d97efd344ecd34df50af37a2d6ee212",
+      "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629"
+    },
+    "adaptive": {
+      "path": "/private/tmp/lokalbot-cancellation-20261011/adaptive/candidate.app",
+      "executableSHA256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9",
+      "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629"
+    }
+  }
+}

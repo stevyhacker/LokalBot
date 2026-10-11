@@ -69,6 +69,10 @@ enum CotypingQualityReplay {
         var searchExperiment: CotypingSearchExperiment?
         var nativeThreads: Int32?
         var nativeBatchThreads: Int32?
+        var nativePrefillChunkSize: Int?
+        var nativePrefillFirstChunkSize: Int?
+        var nativeFinalPrefillLogitsOnly: Bool?
+        var nativeSynchronizePrefillChunks: Bool?
         // Reject archived research modes this integration does not implement.
         var decoderCandidates: Int?
         var logitCache: Bool?
@@ -112,9 +116,17 @@ enum CotypingQualityReplay {
         var prewarmMs = 0.0
         var cancelled = false
         var cancellationRequestedAfterMs: Double?
+        /// Monotonic replay-relative timestamps include inter-request cleanup
+        /// and preparation when measuring cancellation through its replacement.
+        var generationStartedAtMs: Double?
+        var replayCompletedAtMs: Double?
         var searchExperiment = CotypingSearchExperiment.baseline
         var nativeThreads: Int32?
         var nativeBatchThreads: Int32?
+        var nativePrefillChunkSize: Int?
+        var nativePrefillFirstChunkSize: Int?
+        var nativeFinalPrefillLogitsOnly: Bool?
+        var nativeSynchronizePrefillChunks: Bool?
         var selectiveOneWordHybrid = false
         var firstWordThreshold = CotypingFirstWordConfidence.minimumProbability
         var hybridFallbackThreshold = CotypingConfidenceDecision.hybridMinimum
@@ -155,7 +167,11 @@ enum CotypingQualityReplay {
                     healingTraceEnabled: fixture.healingTrace == true,
                     searchExperiment: fixture.searchExperiment ?? .baseline,
                     replayThreadCount: fixture.nativeThreads,
-                    replayBatchThreadCount: fixture.nativeBatchThreads), modelPath: model.path)
+                    replayBatchThreadCount: fixture.nativeBatchThreads,
+                    replayPrefillChunkSize: fixture.nativePrefillChunkSize ?? 256,
+                    replayPrefillFirstChunkSize: fixture.nativePrefillFirstChunkSize,
+                    replayFinalPrefillLogitsOnly: fixture.nativeFinalPrefillLogitsOnly == true,
+                    replaySynchronizePrefillChunks: fixture.nativeSynchronizePrefillChunks == true), modelPath: model.path)
             case .remote(let baseURL, let model, let extraBodyJSON, let chat):
                 guard let extraBody = extraBody(from: extraBodyJSON) else {
                     try? FileHandle.standardError.write(contentsOf: Data("Cotyping replay: --completions-extra-body must be a JSON object\n".utf8))
@@ -194,6 +210,7 @@ enum CotypingQualityReplay {
             var failed = false
             let spellChecker = CotypingSpellChecker()
             var previousScope: String?
+            let replayEpoch = ContinuousClock.now
             for (index, originalItem) in fixture.cases.enumerated() {
                 var item = originalItem
                 if fixture.useNativeSpellingVerdicts == true {
@@ -212,11 +229,15 @@ enum CotypingQualityReplay {
                 }
                 var observation = await replay(item, generation: UInt64(index), config: config,
                                                personalization: personalization, engine: engine, fixture: fixture,
-                                               retryLimit: retryLimit)
+                                               retryLimit: retryLimit, replayEpoch: replayEpoch)
                 observation.selectiveOneWordHybrid = fixture.selectiveOneWordHybrid == true
                 observation.searchExperiment = fixture.searchExperiment ?? .baseline
                 observation.nativeThreads = fixture.nativeThreads
                 observation.nativeBatchThreads = fixture.nativeBatchThreads
+                observation.nativePrefillChunkSize = fixture.nativePrefillChunkSize
+                observation.nativePrefillFirstChunkSize = fixture.nativePrefillFirstChunkSize
+                observation.nativeFinalPrefillLogitsOnly = fixture.nativeFinalPrefillLogitsOnly
+                observation.nativeSynchronizePrefillChunks = fixture.nativeSynchronizePrefillChunks
                 observation.firstWordThreshold = item.firstWordThreshold ?? fixture.firstWordThreshold
                     ?? (fixture.confidenceGate == false ? 0 : CotypingFirstWordConfidence.minimumProbability)
                 observation.hybridFallbackThreshold = item.hybridFallbackThreshold ?? fixture.hybridFallbackThreshold
@@ -239,6 +260,7 @@ enum CotypingQualityReplay {
                 observation.cache = observation.suppression == "pre-generation-gate"
                     ? nil : (engine as? LocalLlamaCotypingEngine)?.lastReplayDiagnostics
                 failed = failed || observation.error != nil
+                observation.replayCompletedAtMs = milliseconds(since: replayEpoch)
                 let line = try encoder.encode(observation) + Data([10])
                 try FileHandle.standardOutput.write(contentsOf: line)
             }
@@ -255,13 +277,17 @@ enum CotypingQualityReplay {
         guard (input.decoderCandidates ?? 1) == 1, input.logitCache != true,
               input.candidateRanking == nil, input.stopAtDisplayLimit != true,
               input.nativeThreads.map({ (1...32).contains($0) }) ?? true,
-              input.nativeBatchThreads.map({ (1...32).contains($0) }) ?? true else {
+              input.nativeBatchThreads.map({ (1...32).contains($0) }) ?? true,
+              input.nativePrefillChunkSize.map({ (1...2048).contains($0) }) ?? true,
+              input.nativePrefillFirstChunkSize.map({ (1...256).contains($0) }) ?? true else {
             throw ReplayError.invalidConfiguration
         }
         for delay in input.cases.flatMap({ [$0.delayBeforeMs, $0.cancelAfterMs] }) {
             if let delay, !delay.isFinite || delay < 0 || delay > 1000 { throw ReplayError.invalidConfiguration }
         }
-        let nativeControls = input.searchExperiment != nil || input.nativeThreads != nil || input.nativeBatchThreads != nil || input.firstWordThreshold != nil || input.hybridFallbackThreshold != nil
+        let nativeControls = input.searchExperiment != nil || input.nativeThreads != nil || input.nativeBatchThreads != nil
+            || input.nativePrefillChunkSize != nil || input.nativePrefillFirstChunkSize != nil || input.nativeFinalPrefillLogitsOnly != nil
+            || input.nativeSynchronizePrefillChunks != nil || input.firstWordThreshold != nil || input.hybridFallbackThreshold != nil
             || input.confidenceBoundaryMode != nil || input.confidenceTrace != nil
             || input.healingMode != nil || input.healingTrace != nil || input.useNativeSpellingVerdicts != nil
             || input.cases.contains {
@@ -344,7 +370,7 @@ enum CotypingQualityReplay {
     private static func replay(
         _ item: Case, generation: UInt64, config: CotypingConfiguration,
         personalization: CotypingPersonalization, engine: CotypingCompleting, fixture: Input,
-        retryLimit: Int
+        retryLimit: Int, replayEpoch: ContinuousClock.Instant
     ) async -> Observation {
         var field = CotypingField(
             appName: item.appName ?? "Notes", bundleID: item.bundleID ?? "com.apple.Notes",
@@ -378,6 +404,7 @@ enum CotypingQualityReplay {
         var attempt = 1
         while true {
             let start = ContinuousClock.now
+            let generationStartedAtMs = milliseconds(since: replayEpoch)
             let generation = Task { try await engine.generate(request) }
             let canceller: Task<Double?, Never>? = item.cancelAfterMs.map { delay in
                 Task {
@@ -400,14 +427,15 @@ enum CotypingQualityReplay {
                                    visibleIDs: visible?.excerpts.map(\.id) ?? [],
                                    visibleTextReadIDs: visibleSource?.textReadIDs ?? [],
                                    attempts: attempt, prewarmMs: prewarmMs,
-                                   cancellationRequestedAfterMs: cancellationIssued)
+                                   cancellationRequestedAfterMs: cancellationIssued, generationStartedAtMs: generationStartedAtMs)
             } catch {
                 if error is CancellationError {
                     canceller?.cancel()
                     let cancellationIssued = await canceller?.value
                     return Observation(id: item.id, prompt: request.prompt, text: "",
                         latencyMs: milliseconds(since: start), usedPromptOverride: item.promptOverride != nil,
-                        prewarmMs: prewarmMs, cancelled: true, cancellationRequestedAfterMs: cancellationIssued)
+                        prewarmMs: prewarmMs, cancelled: true, cancellationRequestedAfterMs: cancellationIssued,
+                        generationStartedAtMs: generationStartedAtMs)
                 }
                 if attempt <= retryLimit, let delay = retryDelay(after: error, attempt: attempt) {
                     try? await Task.sleep(for: .seconds(delay))
@@ -416,7 +444,7 @@ enum CotypingQualityReplay {
                 }
                 return Observation(id: item.id, prompt: request.prompt, text: "",
                                    latencyMs: milliseconds(since: start), error: String(describing: error),
-                                   usedPromptOverride: item.promptOverride != nil, attempts: attempt)
+                                   usedPromptOverride: item.promptOverride != nil, attempts: attempt, generationStartedAtMs: generationStartedAtMs)
             }
         }
     }

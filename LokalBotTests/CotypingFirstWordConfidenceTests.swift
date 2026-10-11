@@ -95,6 +95,40 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
         }
     }
 
+    func testReplayPrefillControlsAreBoundedAndNativeOnly() throws {
+        let local = CotypingQualityReplay.Engine.local(model: URL(fileURLWithPath: "/synthetic.gguf"))
+        let remote = CotypingQualityReplay.Engine.remote(
+            baseURL: URL(string: "https://example.com")!, model: "test", extraBodyJSON: nil)
+        let controls = ["nativePrefillChunkSize": "128", "nativePrefillFirstChunkSize": "64",
+                        "nativeFinalPrefillLogitsOnly": "true",
+                        "nativeSynchronizePrefillChunks": "false"]
+        for (key, value) in controls {
+            let json = "{\"cases\":[],\"\(key)\":\(value)}"
+            let input = try JSONDecoder().decode(CotypingQualityReplay.Input.self, from: Data(json.utf8))
+            XCTAssertNoThrow(try CotypingQualityReplay.validateHybrid(input, engine: local))
+            XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: remote))
+        }
+        var input = try JSONDecoder().decode(CotypingQualityReplay.Input.self, from: Data(#"{"cases":[]}"#.utf8))
+        for size in [0, -1, 2049] {
+            input.nativePrefillChunkSize = size
+            XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        }
+        for size in [1, 64, 128, 256, 2048] {
+            input.nativePrefillChunkSize = size
+            XCTAssertNoThrow(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        }
+        input.nativePrefillChunkSize = 256
+        for size in [0, -1, 257] {
+            input.nativePrefillFirstChunkSize = size
+            XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        }
+        let app = LlamaCotypingRuntime.forAutocomplete()
+        XCTAssertNil(app.replayPrefillFirstChunkSize)
+        XCTAssertEqual(app.replayPrefillChunkSize, 256)
+        XCTAssertFalse(app.replayFinalPrefillLogitsOnly)
+        XCTAssertFalse(app.replaySynchronizePrefillChunks)
+    }
+
     @MainActor
     func testNativeHybridMatchesCompositionAndNeverStreamsUncappedFallback() async throws {
         guard let model = ProcessInfo.processInfo.environment["LOKALBOT_CANDIDATE_TEST_MODEL"] else {

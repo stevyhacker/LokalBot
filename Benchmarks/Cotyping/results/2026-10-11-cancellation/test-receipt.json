@@ -1,0 +1,17 @@
+{
+  "tests": 282,
+  "passed": 282,
+  "failed": 0,
+  "skipped": 0,
+  "fullLogSHA256": "a98f5202861d494cb635a00a140347f0b67f7b0466c533553581e4d5e0c8212a",
+  "pythonTests": 2,
+  "uiTestsRun": false,
+  "commands": {
+    "xctest": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -configuration Debug -destination platform=macOS -derivedDataPath .build/HybridDerivedData -clonedSourcePackagesDirPath .build/SourcePackages -disableAutomaticPackageResolution -parallel-testing-enabled NO \"-only-testing:LokalBotTests/CotypingTokenHealingTests\" \"-only-testing:LokalBotTests/CotypingRequiredPrefixMatcherTests\" \"-only-testing:LokalBotTests/LocalLlamaHealedGenerationTests\" \"-only-testing:LokalBotTests/CotypingUTF8TokenDecoderTests\" \"-only-testing:LokalBotTests/CotypingTokenPrefixIndexTests\" \"-only-testing:LokalBotTests/CotypingTextNormalizerTests\" \"-only-testing:LokalBotTests/CotypingFirstWordConfidenceTests\" \"-only-testing:LokalBotTests/CotypingSpellLanguageGateTests\" \"-only-testing:LokalBotTests/CotypingRequestBuilderTests\" \"-only-testing:LokalBotTests/CotypingSettingsTests\" \"-only-testing:LokalBotTests/CotypingEngineSelectorTests\" \"-only-testing:LokalBotTests/CotypingSuggestionAnchorCacheTests\" \"-only-testing:LokalBotTests/CotypingSuggestionCacheFingerprintTests\" \"-only-testing:LokalBotTests/CotypingCoordinatorTests\" \"-only-testing:LokalBotTests/LlamaCotypingRuntimeTests\" \"-only-testing:LokalBotTests/AppSettingsTests\" \"-only-testing:LokalBotTests/ModelSettingsTests\" \"-only-testing:LokalBotTests/ModelRoleNamingTests\" CODE_SIGNING_ALLOWED=NO test",
+    "releaseBuild": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project LokalBot.xcodeproj -scheme LokalBot -configuration Release -destination platform=macOS -derivedDataPath .build/HybridDerivedData -clonedSourcePackagesDirPath .build/SourcePackages -disableAutomaticPackageResolution CODE_SIGNING_ALLOWED=NO build",
+    "python": "UV_CACHE_DIR=/private/tmp/lokalbot-always-hybrid-uv uv run --no-project python -m unittest discover -s Benchmarks/Cotyping -p test_cancellation_experiment.py -v",
+    "lint": "swiftlint lint --strict --quiet --no-cache"
+  },
+  "resultBundle": ".build/HybridDerivedData/Logs/Test/Test-LokalBot-2026.10.11_11-47-35-+0200.xcresult",
+  "environment": "Serial tests with E2B and pinned Qwen fixtures; isolated test storage; unsigned local build."
+}

@@ -267,6 +267,44 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
         }
     }
 
+    func testNativePrefillPoliciesPreserveColdAndWarmChunkBoundaryOutputs() async throws {
+        guard let model = ProcessInfo.processInfo.environment["LOKALBOT_CANDIDATE_TEST_MODEL"] else {
+            throw XCTSkip("Set LOKALBOT_CANDIDATE_TEST_MODEL for prefill policy parity.")
+        }
+        let runtimes = [LlamaCotypingRuntime.forAutocomplete(),
+                        LlamaCotypingRuntime(replayThreadCount: 2, replayPrefillChunkSize: 64,
+                                             replayFinalPrefillLogitsOnly: true, replaySynchronizePrefillChunks: true),
+                        LlamaCotypingRuntime(replayThreadCount: 2, replayPrefillChunkSize: 2048,
+                                             replayPrefillFirstChunkSize: 128, replayFinalPrefillLogitsOnly: true),
+                        LlamaCotypingRuntime(replayThreadCount: 2, replayPrefillChunkSize: 2048,
+                                             replayPrefillFirstChunkSize: 192, replayFinalPrefillLogitsOnly: true,
+                                             replaySynchronizePrefillChunks: true)]
+        let lengths = [255, 256, 257, 511, 512, 513]
+        let specs = LlamaSamplerSpec.specs(from: .standard)
+        var reference: [Int: String] = [:]
+        for (index, runtime) in runtimes.enumerated() {
+            try await runtime.loadIfNeeded(modelPath: model)
+            let tokens = await runtime.tokenize(
+                String(repeating: "The project notes contain clear examples and practical instructions. ", count: 80), addBOS: true)
+            XCTAssertGreaterThan(tokens.count, 513)
+            for length in lengths {
+                let prompt = Array(tokens.prefix(length))
+                await runtime.clearReplayCache()
+                let cold = try await runtime.generate(promptTokens: prompt, maxTokens: 2, samplerSpecs: specs) { _ in true }
+                let diagnostics = await runtime.lastReplayDiagnostics
+                if length > 256 { XCTAssertGreaterThan(diagnostics.prefillChunks, 1) }
+                if runtime.replayFinalPrefillLogitsOnly { XCTAssertEqual(diagnostics.prefillLogitRows, 1) }
+                if index == 0 { reference[length] = cold }
+                XCTAssertEqual(cold, reference[length], "Policy \(index), boundary \(length)")
+                await runtime.clearReplayCache()
+                try await runtime.prefill(promptTokens: prompt)
+                let warm = try await runtime.generate(promptTokens: prompt, maxTokens: 2, samplerSpecs: specs) { _ in true }
+                XCTAssertEqual(warm, reference[length], "Warm policy \(index), boundary \(length)")
+            }
+            await runtime.unload()
+        }
+    }
+
     private func request(prompt: String, wordPrefix: String) -> CotypingRequest {
         CotypingRequest(
             prompt: prompt, prefixText: prompt, trailingText: "", isMultiLine: false,

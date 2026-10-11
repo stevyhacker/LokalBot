@@ -1,0 +1,625 @@
+Test Suite 'Selected tests' started at 2026-10-11 11:48:04.546.
+Test Suite 'LokalBotTests.xctest' started at 2026-10-11 11:48:04.547.
+Test Suite 'AppSettingsTests' started at 2026-10-11 11:48:04.547.
+Test Case '-[LokalBotTests.AppSettingsTests testAbsentKeysAreNotReportedAsCorruption]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testAbsentKeysAreNotReportedAsCorruption]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testApprovedRemoteInferenceOriginsRoundTrip]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testApprovedRemoteInferenceOriginsRoundTrip]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testAutomaticRemoteInferenceUsesTheExactOriginApproval]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testAutomaticRemoteInferenceUsesTheExactOriginApproval]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testCorruptedKeysAreNeverPersisted]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testCorruptedKeysAreNeverPersisted]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testCorruptFieldFallsBackToDefaultAndIsReported]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testCorruptFieldFallsBackToDefaultAndIsReported]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDayDigestDefaultsToAutomaticEveningGeneration]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDayDigestDefaultsToAutomaticEveningGeneration]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDayDigestSettingsRoundTripAndClampHour]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDayDigestSettingsRoundTripAndClampHour]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesLegacyLanguageHintIntoTypedLanguage]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesLegacyLanguageHintIntoTypedLanguage]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesLegacyTranscriptionModelDisplayString]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesLegacyTranscriptionModelDisplayString]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutDictationLivePreviewKeyAsDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutDictationLivePreviewKeyAsDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutKeepOCRTextForeverKeyAsDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutKeepOCRTextForeverKeyAsDefault]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutMenuBarOnlyKeyAsDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutMenuBarOnlyKeyAsDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutMultiSpeakerDiarizationKeyAsDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDecodesSettingsWithoutMultiSpeakerDiarizationKeyAsDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDiarizationModelPreservesLegacyBackendWhenSelectionIsMissingOrInvalid]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDiarizationModelPreservesLegacyBackendWhenSelectionIsMissingOrInvalid]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDictationCompositionCanOverrideMainLLMWithSmallerBuiltInModel]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDictationCompositionCanOverrideMainLLMWithSmallerBuiltInModel]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDictationCompositionDefaultsToMainLLMSettings]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDictationCompositionDefaultsToMainLLMSettings]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDictationDefaultsMatchHandyStyleShortcutFlow]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDictationDefaultsMatchHandyStyleShortcutFlow]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testDictationSettingsRoundTrip]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testDictationSettingsRoundTrip]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testEncodesTypedLanguageWithoutLegacyHintKey]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testEncodesTypedLanguageWithoutLegacyHintKey]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testExplicitDiarizationChoicesSurviveReloadWithoutReenablingDiarization]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testExplicitDiarizationChoicesSurviveReloadWithoutReenablingDiarization]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testFreshDayMemoryDefaultsToActivityOnly]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testFreshDayMemoryDefaultsToActivityOnly]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testFreshInstallAsksBeforeRecordingMeetings]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testFreshInstallAsksBeforeRecordingMeetings]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testFreshInstallDefaultsToNemotronAndPersistsItWithoutEnablingIdentityFeatures]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testFreshInstallDefaultsToNemotronAndPersistsItWithoutEnablingIdentityFeatures]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testGenerationBudgetPresetRoundTrips]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testGenerationBudgetPresetRoundTrips]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testHealthyRoundTripReportsNoCorruption]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testHealthyRoundTripReportsNoCorruption]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testInvalidDictationCompositionModelFallsBackToMainLLM]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testInvalidDictationCompositionModelFallsBackToMainLLM]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testKeepOCRTextForeverDefaultsFalse]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testKeepOCRTextForeverDefaultsFalse]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testKeepOCRTextForeverRoundTrips]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testKeepOCRTextForeverRoundTrips]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLegacyScreenshotChoiceMapsToVisualContext]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLegacyScreenshotChoiceMapsToVisualContext]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsDecodeWithDayDigestDefaults]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsDecodeWithDayDigestDefaults]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsDefaultToStandardGenerationBudget]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsDefaultToStandardGenerationBudget]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsHaveNoApprovedRemoteInferenceOrigins]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsHaveNoApprovedRemoteInferenceOrigins]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsKeepScreenMemoryAutomationOff]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLegacySettingsKeepScreenMemoryAutomationOff]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testLoadAndSaveCanUseInjectedDefaultsSuite]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testLoadAndSaveCanUseInjectedDefaultsSuite]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testMenuBarOnlyDefaultsTrue]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testMenuBarOnlyDefaultsTrue]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testMenuBarOnlyRoundTrips]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testMenuBarOnlyRoundTrips]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testMigratesLegacyStopDebounceDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testMigratesLegacyStopDebounceDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testMultiSpeakerDiarizationDefaultsTrue]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testMultiSpeakerDiarizationDefaultsTrue]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testOlderSettingsDefaultToEmptyTranscriptionPrompt]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testOlderSettingsDefaultToEmptyTranscriptionPrompt]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testOpenRouterAccountPolicyRoundTrips]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testOpenRouterAccountPolicyRoundTrips]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testOpenRouterDataPolicyDefaultsPrivateForLegacySettings]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testOpenRouterDataPolicyDefaultsPrivateForLegacySettings]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testPersistedDayTrackingOptOutSurvivesDefaultFlip]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testPersistedDayTrackingOptOutSurvivesDefaultFlip]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testPersistedManualMeetingRecordingSurvivesDefaultFlip]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testPersistedManualMeetingRecordingSurvivesDefaultFlip]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testPreservesExplicitCurrentStopDebounceValue]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testPreservesExplicitCurrentStopDebounceValue]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testRetiredMeetSpeakerNamingKeyDecodesSilentlyAndIsDropped]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testRetiredMeetSpeakerNamingKeyDecodesSilentlyAndIsDropped]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testScreenMemoryAutomationDefaultsOff]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testScreenMemoryAutomationDefaultsOff]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testScreenMemoryAutomationRoundTripsAndClampsHour]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testScreenMemoryAutomationRoundTripsAndClampsHour]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testSemanticSearchDefaultsOnButPreservesAnExplicitOffChoice]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testSemanticSearchDefaultsOnButPreservesAnExplicitOffChoice]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testSettingsFromTheRetiredAutomationApprovalFollowTheOriginApproval]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testSettingsFromTheRetiredAutomationApprovalFollowTheOriginApproval]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testSpeechDefaultsUseKokoroHeartAtNormalSpeed]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testSpeechDefaultsUseKokoroHeartAtNormalSpeed]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testSpeechSettingsRoundTripAndClampSpeed]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testSpeechSettingsRoundTripAndClampSpeed]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testStopDebounceDefaultsToBackToBackFriendlyValue]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testStopDebounceDefaultsToBackToBackFriendlyValue]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testTextContextPrivacyAndRoutineSettingsRoundTrip]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testTextContextPrivacyAndRoutineSettingsRoundTrip]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testThinkModelDisplayNameFollowsSelectedBackendNotLeftoverLocalID]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testThinkModelDisplayNameFollowsSelectedBackendNotLeftoverLocalID]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testThinkReasoningLevelRoundTripsAndDefaultsToAutomatic]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testThinkReasoningLevelRoundTripsAndDefaultsToAutomatic]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testTranscriptionModelPersistsStableRawValue]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testTranscriptionModelPersistsStableRawValue]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testTranscriptionPromptDefaultsEmptyAndRoundTrips]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testTranscriptionPromptDefaultsEmptyAndRoundTrips]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testUnknownOpenRouterDataPolicyFallsBackPrivateAndIsReported]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testUnknownOpenRouterDataPolicyFallsBackPrivateAndIsReported]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testUnknownTranscriptionModelFallsBackToDefault]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testUnknownTranscriptionModelFallsBackToDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testUsesRemoteMainLLMRequiresApprovedRemoteEndpoint]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testUsesRemoteMainLLMRequiresApprovedRemoteEndpoint]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.AppSettingsTests testWholeStoreCorruptionResetsWithMarker]' started.
+Test Case '-[LokalBotTests.AppSettingsTests testWholeStoreCorruptionResetsWithMarker]' passed (0.002 seconds).
+Test Suite 'AppSettingsTests' passed at 2026-10-11 11:48:04.592.
+	 Executed 61 tests, with 0 failures (0 unexpected) in 0.036 (0.045) seconds
+Test Suite 'CotypingCoordinatorTests' started at 2026-10-11 11:48:04.592.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAcceptedTextIsConfirmedOnceTheFieldShowsIt]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAcceptedTextIsConfirmedOnceTheFieldShowsIt]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAcceptsSentBeforeTheAppCatchesUpAreConfirmedTogether]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAcceptsSentBeforeTheAppCatchesUpAreConfirmedTogether]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAKeyThatChangesTheTextBeforeTheCaretClosesAnOpenCheck]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAKeyThatChangesTheTextBeforeTheCaretClosesAnOpenCheck]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAKeyThatLeavesTheSuggestionTakesItDownAtOnce]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAKeyThatLeavesTheSuggestionTakesItDownAtOnce]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAnInsertionCheckExpiresWithoutAnotherEvent]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAnInsertionCheckExpiresWithoutAnotherEvent]' passed (0.431 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testApplySettingsWithCotypingOffDisablesWithoutRunning]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testApplySettingsWithCotypingOffDisablesWithoutRunning]' passed (0.005 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAppStateReconcilesCotypingWhenExclusionListsChange]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testAppStateReconcilesCotypingWhenExclusionListsChange]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testASuggestionLeftAloneIsTakenDownSoTabReachesTheApp]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testASuggestionLeftAloneIsTakenDownSoTabReachesTheApp]' passed (1.106 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testASuggestionWithNowhereToBeShownIsDropped]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testASuggestionWithNowhereToBeShownIsDropped]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpContinuesFromTheEndOfTheSuggestionWithItsContext]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpContinuesFromTheEndOfTheSuggestionWithItsContext]' passed (0.128 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpIsOnlyAppliedToTheSuggestionOnScreen]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpIsOnlyAppliedToTheSuggestionOnScreen]' passed (0.004 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpThatWouldRewriteAVisibleWordIsDropped]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testATopUpThatWouldRewriteAVisibleWordIsDropped]' passed (0.109 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testChangedVisibleContextInvalidatesPendingAndCachedSuggestion]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testChangedVisibleContextInvalidatesPendingAndCachedSuggestion]' passed (0.008 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testClearingASuggestionStopsItsIdleClock]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testClearingASuggestionStopsItsIdleClock]' passed (0.005 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testEscapeHoldsOnlyTheFieldItWasPressedInAndOnlyBriefly]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testEscapeHoldsOnlyTheFieldItWasPressedInAndOnlyBriefly]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testEscapeIsLeftAloneWhenNoSuggestionIsShowing]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testEscapeIsLeftAloneWhenNoSuggestionIsShowing]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testExclusionChangesRefreshCachedAppReadPolicy]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testExclusionChangesRefreshCachedAppReadPolicy]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testKeystrokeToVisibleIsMeasuredOncePerKeystroke]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testKeystrokeToVisibleIsMeasuredOncePerKeystroke]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryGroundedAcceptanceDoesNotCreateLearningCopy]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryGroundedAcceptanceDoesNotCreateLearningCopy]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryInvalidationDropsCachedTextAndFencesPendingGeneration]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryInvalidationDropsCachedTextAndFencesPendingGeneration]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryPermissionRevokedDuringInferenceDropsPreview]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryPermissionRevokedDuringInferenceDropsPreview]' passed (0.105 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryPreviewIsOptInAndSampleNeverRetrieves]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemoryPreviewIsOptInAndSampleNeverRetrieves]' passed (0.107 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemorySourceMutationDuringInferenceDropsPreview]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testMemorySourceMutationDuringInferenceDropsPreview]' passed (0.107 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testOnlyAnImmediateDeletionOrUndoCountsAsACorrection]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testOnlyAnImmediateDeletionOrUndoCountsAsACorrection]' passed (0.005 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testOnlyTheLatestCaretRereadRuns]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testOnlyTheLatestCaretRereadRuns]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionPropagatesEngineFailure]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionPropagatesEngineFailure]' passed (0.009 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionRunsThePipelineAgainstTheEngine]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionRunsThePipelineAgainstTheEngine]' passed (0.110 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionWithBlankPrefixSkipsTheEngine]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testPreviewSuggestionWithBlankPrefixSkipsTheEngine]' passed (0.105 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testRehearsalOffersTheSampleConversationOnlyWithTheVisibleTextGrant]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testRehearsalOffersTheSampleConversationOnlyWithTheVisibleTextGrant]' passed (0.116 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testRehearsalReportsAMemoryLookupThatFoundNothing]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testRehearsalReportsAMemoryLookupThatFoundNothing]' passed (0.107 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testSetupCheckUsesSampleTextWithoutPersonalization]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testSetupCheckUsesSampleTextWithoutPersonalization]' passed (0.111 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testSharedCaptureExclusionAndVisibleConsentChangesInvalidateLifecycle]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testSharedCaptureExclusionAndVisibleConsentChangesInvalidateLifecycle]' passed (0.004 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testStopWithoutReasonReturnsToIdle]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testStopWithoutReasonReturnsToIdle]' passed (0.003 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testVisibleContextAcceptanceDoesNotEnterLearnedExamples]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testVisibleContextAcceptanceDoesNotEnterLearnedExamples]' passed (0.004 seconds).
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testVisibleTextGrantRevokedDuringInferenceDropsThePreview]' started.
+Test Case '-[LokalBotTests.CotypingCoordinatorTests testVisibleTextGrantRevokedDuringInferenceDropsThePreview]' passed (0.111 seconds).
+Test Suite 'CotypingCoordinatorTests' passed at 2026-10-11 11:48:07.448.
+	 Executed 35 tests, with 0 failures (0 unexpected) in 2.837 (2.856) seconds
+Test Suite 'CotypingEngineSelectorTests' started at 2026-10-11 11:48:07.449.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testConcurrentRouteAwayCoalescesLocalUnloadBeforeHTTP]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testConcurrentRouteAwayCoalescesLocalUnloadBeforeHTTP]' passed (0.238 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadAwaitsLocalEngineAndRebuilds]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadAwaitsLocalEngineAndRebuilds]' passed (0.213 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadInvalidatesSuspendedLocalResolution]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadInvalidatesSuspendedLocalResolution]' passed (0.315 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadStopsHTTPRuntimeWithoutLocalEngine]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testExplicitUnloadStopsHTTPRuntimeWithoutLocalEngine]' passed (0.049 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackOnIntel]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackOnIntel]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackWhenFlagOff]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackWhenFlagOff]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackWhenModelMissing]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testFallsBackWhenModelMissing]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testHTTPEngineUnloadAwaitsRuntimeStopHook]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testHTTPEngineUnloadAwaitsRuntimeStopHook]' passed (0.029 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLegacyHybridPreferenceDoesNotRebuildTheSameModel]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLegacyHybridPreferenceDoesNotRebuildTheSameModel]' passed (0.422 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLocalFailureFreesModelAndCoolsDownBeforeRetry]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLocalFailureFreesModelAndCoolsDownBeforeRetry]' passed (0.214 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLocalRuntimeErrorRoutesToHTTPFallback]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testLocalRuntimeErrorRoutesToHTTPFallback]' passed (0.109 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testModelChangeInvalidatesSuspendedModelResolution]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testModelChangeInvalidatesSuspendedModelResolution]' passed (0.208 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testModelChangeUnloadsOldLocalBeforeBuildingReplacement]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testModelChangeUnloadsOldLocalBeforeBuildingReplacement]' passed (0.208 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testPlainCompletingEngineDefaultsToModelServerDebounce]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testPlainCompletingEngineDefaultsToModelServerDebounce]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testRouteAwayDropsCacheAndRebuildOnReenable]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testRouteAwayDropsCacheAndRebuildOnReenable]' passed (0.238 seconds).
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testUsesLocalWhenFlagOnAppleSiliconAndModelResolves]' started.
+Test Case '-[LokalBotTests.CotypingEngineSelectorTests testUsesLocalWhenFlagOnAppleSiliconAndModelResolves]' passed (0.002 seconds).
+Test Suite 'CotypingEngineSelectorTests' passed at 2026-10-11 11:48:09.712.
+	 Executed 16 tests, with 0 failures (0 unexpected) in 2.251 (2.263) seconds
+Test Suite 'CotypingFirstWordConfidenceTests' started at 2026-10-11 11:48:09.713.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testAnUnsureFirstWordStopsGenerationAtOnce]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testAnUnsureFirstWordStopsGenerationAtOnce]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testAZeroMinimumTurnsTheGateOff]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testAZeroMinimumTurnsTheGateOff]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMaskHandlesUnicodeAndNeverCountsIncompleteByteFragments]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMaskHandlesUnicodeAndNeverCountsIncompleteByteFragments]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMassMarginalizesNextWordWithoutIgnoringTermination]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMassMarginalizesNextWordWithoutIgnoringTermination]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMassUsesFullVocabularySoftmaxAndFailsClosed]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testBoundaryMassUsesFullVocabularySoftmaxAndFailsClosed]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridCapPreservesSuppressionAndExactUnicodeWord]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridCapPreservesSuppressionAndExactUnicodeWord]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridEOSNeverChangesLegacyCurrentDecision]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridEOSNeverChangesLegacyCurrentDecision]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridKeepsCurrentWhenFallbackFailsAndNeverRevivesIt]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridKeepsCurrentWhenFallbackFailsAndNeverRevivesIt]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridKeepsFallbackAfterCurrentFailsWithoutRevivingCurrent]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridKeepsFallbackAfterCurrentFailsWithoutRevivingCurrent]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridReplayRequiresLocalEngineAndCurrentConfidenceGate]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridReplayRequiresLocalEngineAndCurrentConfidenceGate]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridStopsOnlyWhenBothFailAndDoesNotGateMidword]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testHybridStopsOnlyWhenBothFailAndDoesNotGateMidword]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testLaterWordsAreNotWeighed]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testLaterWordsAreNotWeighed]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testNativeHybridMatchesCompositionAndNeverStreamsUncappedFallback]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testNativeHybridMatchesCompositionAndNeverStreamsUncappedFallback]' passed (11.395 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testReplayLatencyControlsRejectRemoteAndInvalidLimits]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testReplayLatencyControlsRejectRemoteAndInvalidLimits]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testReplayPrefillControlsAreBoundedAndNativeOnly]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testReplayPrefillControlsAreBoundedAndNativeOnly]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testTheFirstWordIsWeighedUpToTheTokenThatEndsIt]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testTheFirstWordIsWeighedUpToTheTokenThatEndsIt]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testTokenProbabilityIsTheSoftmaxOverTheVocabulary]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testTokenProbabilityIsTheSoftmaxOverTheVocabulary]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testWhereTheFirstWordEnds]' started.
+Test Case '-[LokalBotTests.CotypingFirstWordConfidenceTests testWhereTheFirstWordEnds]' passed (0.000 seconds).
+Test Suite 'CotypingFirstWordConfidenceTests' passed at 2026-10-11 11:48:21.131.
+	 Executed 18 tests, with 0 failures (0 unexpected) in 11.412 (11.419) seconds
+Test Suite 'CotypingRequestBuilderTests' started at 2026-10-11 11:48:21.131.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testBuildsRequestWithPrefixAndGeneration]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testBuildsRequestWithPrefixAndGeneration]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testCapturesWordPrefixAtCaretWithSpellVerdict]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testCapturesWordPrefixAtCaretWithSpellVerdict]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testNilForBlankContext]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testNilForBlankContext]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testPersonalizationEntersPrompt]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testPersonalizationEntersPrompt]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testProductionRequestKeepsEarlierDocumentFacts]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testProductionRequestKeepsEarlierDocumentFacts]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testWordPrefixIsEmptyAtWordBoundary]' started.
+Test Case '-[LokalBotTests.CotypingRequestBuilderTests testWordPrefixIsEmptyAtWordBoundary]' passed (0.000 seconds).
+Test Suite 'CotypingRequestBuilderTests' passed at 2026-10-11 11:48:21.135.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'CotypingRequiredPrefixMatcherTests' started at 2026-10-11 11:48:21.138.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testApostropheExtendsTheWord]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testApostropheExtendsTheWord]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testDivergingPieceIsMismatch]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testDivergingPieceIsMismatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testEmptyOvershootDoesNotExtendTheWord]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testEmptyOvershootDoesNotExtendTheWord]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testEmptyPieceOrEmptyRemainingIsMismatch]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testEmptyPieceOrEmptyRemainingIsMismatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testLetterAndDigitFirstBytesExtendTheWord]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testLetterAndDigitFirstBytesExtendTheWord]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testMatchesAtByteLevelInsideMultiByteScalar]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testMatchesAtByteLevelInsideMultiByteScalar]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testMultiByteScalarLeadExtendsTheWord]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testMultiByteScalarLeadExtendsTheWord]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testOvershootingPieceReturnsBytesPastTheCaret]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testOvershootingPieceReturnsBytesPastTheCaret]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testOvershootPreferencePairThroughMatch]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testOvershootPreferencePairThroughMatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPieceCoveringWholePrefixConsumesEverything]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPieceCoveringWholePrefixConsumesEverything]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPieceInsidePrefixConsumesItsByteCount]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPieceInsidePrefixConsumesItsByteCount]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPunctuationAndWhitespaceFirstBytesDoNotExtendTheWord]' started.
+Test Case '-[LokalBotTests.CotypingRequiredPrefixMatcherTests testPunctuationAndWhitespaceFirstBytesDoNotExtendTheWord]' passed (0.000 seconds).
+Test Suite 'CotypingRequiredPrefixMatcherTests' passed at 2026-10-11 11:48:21.150.
+	 Executed 12 tests, with 0 failures (0 unexpected) in 0.004 (0.011) seconds
+Test Suite 'CotypingSettingsTests' started at 2026-10-11 11:48:21.150.
+Test Case '-[LokalBotTests.CotypingSettingsTests testCotypingDebounceDecodeClampsToSupportedRange]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testCotypingDebounceDecodeClampsToSupportedRange]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testDefaultsDisabled]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testDefaultsDisabled]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testDefaultsKeepCotypingSuggestionsConcise]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testDefaultsKeepCotypingSuggestionsConcise]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testEarlierDefaultsMoveToTheCotypistOnesOnce]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testEarlierDefaultsMoveToTheCotypistOnesOnce]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testInProcessRuntimeDefaultsOn]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testInProcessRuntimeDefaultsOn]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testInProcessRuntimeRoundTrips]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testInProcessRuntimeRoundTrips]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testLegacyCustomDebounceIsPreservedWithinSupportedRange]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testLegacyCustomDebounceIsPreservedWithinSupportedRange]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testLegacyDefaultDebounceMigratesToCurrentLatencyTarget]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testLegacyDefaultDebounceMigratesToCurrentLatencyTarget]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testMaxResponseTokensMirrorCotypistBudget]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testMaxResponseTokensMirrorCotypistBudget]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testObsoleteHybridPreferenceIsIgnoredAndNotSaved]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testObsoleteHybridPreferenceIsIgnoredAndNotSaved]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testPreviousLowLatencyDefaultMigratesToCurrentResourceFriendlyDefault]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testPreviousLowLatencyDefaultMigratesToCurrentResourceFriendlyDefault]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testRoundTripsCotypingFields]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testRoundTripsCotypingFields]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testSavedAutocompleteModelSelectionIsPreserved]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testSavedAutocompleteModelSelectionIsPreserved]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testTolerantDecodeDefaultsInProcessRuntimeOn]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testTolerantDecodeDefaultsInProcessRuntimeOn]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testTolerantDecodeKeepsOtherDefaults]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testTolerantDecodeKeepsOtherDefaults]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testUnversionedPreviewDefaultsMigrateToCurrentTargets]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testUnversionedPreviewDefaultsMigrateToCurrentTargets]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSettingsTests testVersionedShortCustomCotypingValuesArePreserved]' started.
+Test Case '-[LokalBotTests.CotypingSettingsTests testVersionedShortCustomCotypingValuesArePreserved]' passed (0.000 seconds).
+Test Suite 'CotypingSettingsTests' passed at 2026-10-11 11:48:21.165.
+	 Executed 17 tests, with 0 failures (0 unexpected) in 0.010 (0.015) seconds
+Test Suite 'CotypingSpellLanguageGateTests' started at 2026-10-11 11:48:21.165.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testAmbiguousShortContextKeepsVerdicts]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testAmbiguousShortContextKeepsVerdicts]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testDictionaryLookupMatchesBaseCode]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testDictionaryLookupMatchesBaseCode]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testEmptyContextKeepsVerdicts]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testEmptyContextKeepsVerdicts]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testEnglishContextKeepsVerdicts]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testEnglishContextKeepsVerdicts]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testGermanContextKeepsVerdicts]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testGermanContextKeepsVerdicts]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testIdentificationWindowsToCaretContext]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testIdentificationWindowsToCaretContext]' passed (0.002 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testMontenegrinContextStandsDown]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testMontenegrinContextStandsDown]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testSerbianLatinContextStandsDown]' started.
+Test Case '-[LokalBotTests.CotypingSpellLanguageGateTests testSerbianLatinContextStandsDown]' passed (0.001 seconds).
+Test Suite 'CotypingSpellLanguageGateTests' passed at 2026-10-11 11:48:21.173.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.008 (0.009) seconds
+Test Suite 'CotypingSuggestionAnchorCacheTests' started at 2026-10-11 11:48:21.173.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testARestoredTailKeepsWhetherItMayBeToppedUp]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testARestoredTailKeepsWhetherItMayBeToppedUp]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testBackspaceRollbackRestoresEarlierPosition]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testBackspaceRollbackRestoresEarlierPosition]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testCapacityEvictsOldest]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testCapacityEvictsOldest]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDeepestConsumedMatchWins]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDeepestConsumedMatchWins]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDifferentFieldDoesNotMatch]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDifferentFieldDoesNotMatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDifferentRequestFingerprintDoesNotMatch]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDifferentRequestFingerprintDoesNotMatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDivergentTypingDoesNotMatch]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testDivergentTypingDoesNotMatch]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testEntriesExpire]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testEntriesExpire]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testFreshAnchorMatchesAtZeroConsumed]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testFreshAnchorMatchesAtZeroConsumed]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testFullyConsumedSuggestionNeverReoffersItsTail]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testFullyConsumedSuggestionNeverReoffersItsTail]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testLongPrefixesMatchOnTheBoundedTail]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testLongPrefixesMatchOnTheBoundedTail]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testRemoveAllEmptiesTheCache]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testRemoveAllEmptiesTheCache]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testTypeThroughConsumesPrefix]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionAnchorCacheTests testTypeThroughConsumesPrefix]' passed (0.000 seconds).
+Test Suite 'CotypingSuggestionAnchorCacheTests' passed at 2026-10-11 11:48:21.180.
+	 Executed 13 tests, with 0 failures (0 unexpected) in 0.005 (0.006) seconds
+Test Suite 'CotypingSuggestionCacheFingerprintTests' started at 2026-10-11 11:48:21.180.
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testFingerprintChangesWithOutputAffectingSettingsAndRequestContext]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testFingerprintChangesWithOutputAffectingSettingsAndRequestContext]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testFingerprintIgnoresOnlyLivePrefixAndGenerationForTypeThroughReuse]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testFingerprintIgnoresOnlyLivePrefixAndGenerationForTypeThroughReuse]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testObsoleteHybridPreferenceDoesNotChangeCacheOrModelCheckIdentity]' started.
+Test Case '-[LokalBotTests.CotypingSuggestionCacheFingerprintTests testObsoleteHybridPreferenceDoesNotChangeCacheOrModelCheckIdentity]' passed (0.001 seconds).
+Test Suite 'CotypingSuggestionCacheFingerprintTests' passed at 2026-10-11 11:48:21.183.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'CotypingTextNormalizerTests' started at 2026-10-11 11:48:21.183.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testACompletionThatBeganOnANewLineKeepsOneSeparatingSpace]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testACompletionThatBeganOnANewLineKeepsOneSeparatingSpace]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testAllowsContextInformedContinuationThatIsNotScaffolding]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testAllowsContextInformedContinuationThatIsNotScaffolding]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testAllowsHowToContinuationWithoutQuestionMark]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testAllowsHowToContinuationWithoutQuestionMark]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testCapsSingleLineSuggestionsToShortPhrase]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testCapsSingleLineSuggestionsToShortPhrase]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testEllipsisStrippingPreservesInternalDotRuns]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testEllipsisStrippingPreservesInternalDotRuns]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testForceWordContinuationPathUnchangedByWordPrefixFields]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testForceWordContinuationPathUnchangedByWordPrefixFields]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testGuardNeverFiresWithoutFragmentAtCaret]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testGuardNeverFiresWithoutFragmentAtCaret]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testInsertsMissingSpaceAfterSentencePeriod]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testInsertsMissingSpaceAfterSentencePeriod]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testInsertsMissingSpaceAfterSentencePunctuationInsideSuggestion]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testInsertsMissingSpaceAfterSentencePunctuationInsideSuggestion]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testKeepsCompletionThatExtendsTheFragment]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testKeepsCompletionThatExtendsTheFragment]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testKeepsMultipleLinesInMultiLineMode]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testKeepsMultipleLinesInMultiLineMode]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testMissingSentenceSpaceRepairPreservesNonProseDots]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testMissingSentenceSpaceRepairPreservesNonProseDots]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testMultilinePreservesRequiredSeparatorAfterAWord]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testMultilinePreservesRequiredSeparatorAfterAWord]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testRejectsWhitespaceOnly]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testRejectsWhitespaceOnly]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSingleLineCollapse]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSingleLineCollapse]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSingleLineWordCapUsesRequestMaxWords]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSingleLineWordCapUsesRequestMaxWords]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsBenignInlineMarkupInsteadOfSuppressingSuggestion]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsBenignInlineMarkupInsteadOfSuppressingSuggestion]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsEchoedPrecedingWords]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsEchoedPrecedingWords]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsLeadingScaffoldingLabel]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsLeadingScaffoldingLabel]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsPromptEcho]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsPromptEcho]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsStylisticEllipsesFromUsefulSuggestion]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsStylisticEllipsesFromUsefulSuggestion]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsThinkBlock]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testStripsThinkBlock]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesBracketPlaceholderSuggestions]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesBracketPlaceholderSuggestions]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesEveryRenderedPromptContextLine]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesEveryRenderedPromptContextLine]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesNewQuestionContinuation]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesNewQuestionContinuation]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesPromptLeakPunctuationAndCaseVariants]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesPromptLeakPunctuationAndCaseVariants]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesPromptPrefixAfterLegacyWrapperIsRemoved]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesPromptPrefixAfterLegacyWrapperIsRemoved]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesStandaloneEllipsisSuggestions]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesStandaloneEllipsisSuggestions]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesStreamedPromptPrefixesBeforeTheyBecomeVisible]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesStreamedPromptPrefixesBeforeTheyBecomeVisible]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesTrailingDuplication]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesTrailingDuplication]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesUnicodePlaceholderSuggestions]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesUnicodePlaceholderSuggestions]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesWhitespaceLeadingCompletionAfterInvalidFragment]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testSuppressesWhitespaceLeadingCompletionAfterInvalidFragment]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testTruncatesAtControlToken]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testTruncatesAtControlToken]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testTruncatesBeforeSecondSentenceQuestion]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testTruncatesBeforeSecondSentenceQuestion]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testValidWordFragmentMayBeFollowedBySpace]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testValidWordFragmentMayBeFollowedBySpace]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testWholePromptEchoIsRemovedWithoutDiscardingItsContinuation]' started.
+Test Case '-[LokalBotTests.CotypingTextNormalizerTests testWholePromptEchoIsRemovedWithoutDiscardingItsContinuation]' passed (0.001 seconds).
+Test Suite 'CotypingTextNormalizerTests' passed at 2026-10-11 11:48:21.204.
+	 Executed 36 tests, with 0 failures (0 unexpected) in 0.016 (0.021) seconds
+Test Suite 'CotypingTokenHealingTests' started at 2026-10-11 11:48:21.204.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testFragmentLengthLimitIsInclusive]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testFragmentLengthLimitIsInclusive]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testKeepsMultiByteScalarsIntact]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testKeepsMultiByteScalarsIntact]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testNewlineRemainsInContext]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testNewlineRemainsInContext]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testNoSplitWithoutUsableContextBeforeFragment]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testNoSplitWithoutUsableContextBeforeFragment]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testReplaysSpaceAfterCompletedWord]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testReplaysSpaceAfterCompletedWord]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSeparatorHealingIsBoundedAndByteExact]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSeparatorHealingIsBoundedAndByteExact]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSplitsFragmentAfterPunctuationWithoutWhitespace]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSplitsFragmentAfterPunctuationWithoutWhitespace]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSplitsTrailingFragmentAndKeepsSeparatorInRequiredPrefix]' started.
+Test Case '-[LokalBotTests.CotypingTokenHealingTests testSplitsTrailingFragmentAndKeepsSeparatorInRequiredPrefix]' passed (0.000 seconds).
+Test Suite 'CotypingTokenHealingTests' passed at 2026-10-11 11:48:21.207.
+	 Executed 8 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'CotypingTokenPrefixIndexTests' started at 2026-10-11 11:48:21.207.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testExactOnlyAblationRejectsOvershootAndPreservesByteFragments]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testExactOnlyAblationRejectsOvershootAndPreservesByteFragments]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testFindsMostLikelyCompatibleWordOutsideGlobalTop64]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testFindsMostLikelyCompatibleWordOutsideGlobalTop64]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testInvalidLogitsDoNotWin]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testInvalidLogitsDoNotWin]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testPrefixPathComparesWholeProbabilityAndKeepsUsefulShortPieces]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testPrefixPathComparesWholeProbabilityAndKeepsUsefulShortPieces]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testPromptBudgetKeepsCaretAndReservesDecodeRoom]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testPromptBudgetKeepsCaretAndReservesDecodeRoom]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testSupportsByteFragmentsAndDeterministicTies]' started.
+Test Case '-[LokalBotTests.CotypingTokenPrefixIndexTests testSupportsByteFragmentsAndDeterministicTies]' passed (0.000 seconds).
+Test Suite 'CotypingTokenPrefixIndexTests' passed at 2026-10-11 11:48:21.211.
+	 Executed 6 tests, with 0 failures (0 unexpected) in 0.002 (0.003) seconds
+Test Suite 'CotypingUTF8TokenDecoderTests' started at 2026-10-11 11:48:21.211.
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testEveryByteSplitPreservesUnicodeScalars]' started.
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testEveryByteSplitPreservesUnicodeScalars]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testHealingOvershootAndFreeDecodeShareThePendingScalar]' started.
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testHealingOvershootAndFreeDecodeShareThePendingScalar]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testMalformedUTF8RejectsGenerationAndTruncatedTailIsWithheld]' started.
+Test Case '-[LokalBotTests.CotypingUTF8TokenDecoderTests testMalformedUTF8RejectsGenerationAndTruncatedTailIsWithheld]' passed (0.000 seconds).
+Test Suite 'CotypingUTF8TokenDecoderTests' passed at 2026-10-11 11:48:21.212.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.001 (0.002) seconds
+Test Suite 'LlamaCotypingRuntimeTests' started at 2026-10-11 11:48:21.212.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testAbortSignalDoesNotPoisonNextGeneration]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testAbortSignalDoesNotPoisonNextGeneration]' passed (0.523 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testAMemoryWarningFreesTheModelOnlyAfterAMinuteIdle]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testAMemoryWarningFreesTheModelOnlyAfterAMinuteIdle]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testArgmaxTokenChoosesLargestFiniteLogit]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testArgmaxTokenChoosesLargestFiniteLogit]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testArgmaxTokenReturnsNilForInvalidLogits]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testArgmaxTokenReturnsNilForInvalidLogits]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testFocusPrefillSkipsDecodeWhenPromptPrefixCannotBeReused]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testFocusPrefillSkipsDecodeWhenPromptPrefixCannotBeReused]' passed (0.273 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testGenerateHonorsTaskCancellationBeforePrefill]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testGenerateHonorsTaskCancellationBeforePrefill]' passed (0.250 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testLoadsAndGeneratesDeterministically]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testLoadsAndGeneratesDeterministically]' passed (0.319 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testMemoryPressureUnloadsWhenNotLoaded]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testMemoryPressureUnloadsWhenNotLoaded]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testOnTokenReturningFalseStopsDecode]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testOnTokenReturningFalseStopsDecode]' passed (0.269 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testReusedPrefixIsReflectedInPrefillTokenCount]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testReusedPrefixIsReflectedInPrefillTokenCount]' passed (0.273 seconds).
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testUnloadInvalidatesLoadSuspendedAfterResidencyAdmission]' started.
+Test Case '-[LokalBotTests.LlamaCotypingRuntimeTests testUnloadInvalidatesLoadSuspendedAfterResidencyAdmission]' passed (0.001 seconds).
+Test Suite 'LlamaCotypingRuntimeTests' passed at 2026-10-11 11:48:23.124.
+	 Executed 11 tests, with 0 failures (0 unexpected) in 1.910 (1.912) seconds
+Test Suite 'LocalLlamaHealedGenerationTests' started at 2026-10-11 11:48:23.124.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testAppAutocompleteAlwaysUsesTheFastHybrid]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testAppAutocompleteAlwaysUsesTheFastHybrid]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testCompletedWordCannotBeExtendedPastTypedSpace]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testCompletedWordCannotBeExtendedPastTypedSpace]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testHealsPromptAndEmitsRequiredBytesForMidWordCaret]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testHealsPromptAndEmitsRequiredBytesForMidWordCaret]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativePrefillPoliciesPreserveColdAndWarmChunkBoundaryOutputs]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativePrefillPoliciesPreserveColdAndWarmChunkBoundaryOutputs]' passed (11.111 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativePrefixSearchRetainsBaselineAndRestoresKVForSampling]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativePrefixSearchRetainsBaselineAndRestoresKVForSampling]' passed (4.292 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativeSearchReusePreservesColdAndWarmUnicodeOutputs]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testNativeSearchReusePreservesColdAndWarmUnicodeOutputs]' passed (31.016 seconds).
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testParagraphBoundaryIsNotRemoved]' started.
+Test Case '-[LokalBotTests.LocalLlamaHealedGenerationTests testParagraphBoundaryIsNotRemoved]' passed (0.000 seconds).
+Test Suite 'LocalLlamaHealedGenerationTests' passed at 2026-10-11 11:49:09.546.
+	 Executed 7 tests, with 0 failures (0 unexpected) in 46.421 (46.422) seconds
+Test Suite 'ModelRoleNamingTests' started at 2026-10-11 11:49:09.547.
+Test Case '-[LokalBotTests.ModelRoleNamingTests testPickerTitlesMatchRoleTitles]' started.
+Test Case '-[LokalBotTests.ModelRoleNamingTests testPickerTitlesMatchRoleTitles]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelRoleNamingTests testRoleTitlesMatchTheGlossary]' started.
+Test Case '-[LokalBotTests.ModelRoleNamingTests testRoleTitlesMatchTheGlossary]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelRoleNamingTests testSettingsSearchTitlesAvoidLegacyLLMNaming]' started.
+Test Case '-[LokalBotTests.ModelRoleNamingTests testSettingsSearchTitlesAvoidLegacyLLMNaming]' passed (0.003 seconds).
+Test Suite 'ModelRoleNamingTests' passed at 2026-10-11 11:49:09.551.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 0.003 (0.004) seconds
+Test Suite 'ModelSettingsTests' started at 2026-10-11 11:49:09.551.
+Test Case '-[LokalBotTests.ModelSettingsTests testCancelledSwitchCannotApplyALateDownload]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testCancelledSwitchCannotApplyALateDownload]' passed (0.006 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testChangedCustomModelFilesCannotActivateAPreparedID]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testChangedCustomModelFilesCannotActivateAPreparedID]' passed (0.006 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testChangedServerCannotActivateAPendingRemoteSwitch]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testChangedServerCannotActivateAPendingRemoteSwitch]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testCheckIdentityIgnoresUnrelatedPreferencesButTracksRelevantChanges]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testCheckIdentityIgnoresUnrelatedPreferencesButTracksRelevantChanges]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testCustomModelRemovalNeverOrphansAssignmentsOrFiles]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testCustomModelRemovalNeverOrphansAssignmentsOrFiles]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testDictationInheritanceShowsTheEffectiveRemoteDestination]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testDictationInheritanceShowsTheEffectiveRemoteDestination]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testFailedDownloadLeavesCurrentSetupUntouched]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testFailedDownloadLeavesCurrentSetupUntouched]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testModelUsageIncludesInheritedDictation]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testModelUsageIncludesInheritedDictation]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testNewerSelectionWinsWhenDownloadCompletes]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testNewerSelectionWinsWhenDownloadCompletes]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testOnlyMissingModelsWithRefusedSourcesAreBlocked]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testOnlyMissingModelsWithRefusedSourcesAreBlocked]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testPreparingAlreadySelectedMissingModelStillRunsPreparation]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testPreparingAlreadySelectedMissingModelStillRunsPreparation]' passed (0.006 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testPresetMatchingDoesNotDescribeACustomRemoteSetupAsLocal]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testPresetMatchingDoesNotDescribeACustomRemoteSetupAsLocal]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testPresetPreservesIndependentDictationModelAndConnectionApprovals]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testPresetPreservesIndependentDictationModelAndConnectionApprovals]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testRemoteCheckIdentityTracksCredentialAndApprovalChangesWithoutStoringTheKey]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testRemoteCheckIdentityTracksCredentialAndApprovalChangesWithoutStoringTheKey]' passed (0.001 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testRevokedApprovalCannotActivateAPendingRemoteSwitch]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testRevokedApprovalCannotActivateAPendingRemoteSwitch]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testSharedModelDownloadsAreDeduplicated]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testSharedModelDownloadsAreDeduplicated]' passed (0.000 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testSwitchWaitsForPreparationAndPreservesConcurrentPreferenceEdits]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testSwitchWaitsForPreparationAndPreservesConcurrentPreferenceEdits]' passed (0.007 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testUndoRestoresOnlyTheChangedAssignments]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testUndoRestoresOnlyTheChangedAssignments]' passed (0.014 seconds).
+Test Case '-[LokalBotTests.ModelSettingsTests testUnusableSourceFailureOffersNoRetry]' started.
+Test Case '-[LokalBotTests.ModelSettingsTests testUnusableSourceFailureOffersNoRetry]' passed (0.007 seconds).
+Test Suite 'ModelSettingsTests' passed at 2026-10-11 11:49:09.631.
+	 Executed 19 tests, with 0 failures (0 unexpected) in 0.077 (0.080) seconds
+Test Suite 'LokalBotTests.xctest' passed at 2026-10-11 11:49:09.631.
+	 Executed 282 tests, with 0 failures (0 unexpected) in 65.000 (65.084) seconds
+Test Suite 'Selected tests' passed at 2026-10-11 11:49:09.631.
+	 Executed 282 tests, with 0 failures (0 unexpected) in 65.000 (65.086) seconds
+** TEST SUCCEEDED **
