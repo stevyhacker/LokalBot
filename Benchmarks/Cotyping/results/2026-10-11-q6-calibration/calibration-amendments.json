@@ -1,0 +1,13 @@
+{
+  "atUTC": "2026-10-11T15:31:08.743036+00:00",
+  "beforeAnyCandidateEvaluation": true,
+  "toolArgumentRepair": {
+    "originalBuilderSHA256": "1255dd1d35a4fd6787b0ec081ce68465d8d44f10167aaadcf614ac8d39ff3529",
+    "builderSHA256": "2b41d29a05353220067d53dc7179b5cf46a993cbf3372982826549689881df54",
+    "reason": "Installed CLI requires -m even for merge-only operation. Added the same source path; existing matrices unchanged."
+  },
+  "bosControl": {
+    "reason": "Source/Animateus/Sporky explicitly set add_bos_token=true; current and published static set false. Align only this boolean in APFS-cloned evaluation files; retain original artifacts and hashes. Calibration uses the unchanged BF16 source and native BOS convention for all local calibrated arms.",
+    "normalizerSHA256": "11c321016729f9d203b079131be6f628fae6c4eabedb5ebe334dbe0e834467a1"
+  }
+}

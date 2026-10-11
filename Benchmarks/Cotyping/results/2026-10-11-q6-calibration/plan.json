@@ -1,0 +1,80 @@
+{
+  "frozenAtUTC": "2026-10-11T15:25:19.034747+00:00",
+  "corpusSHA256": "9dbe06a822440848702212d1c3600d3be92165ad66db42f6ad9c6a4642fa10a6",
+  "models": [
+    "q6",
+    "static",
+    "local_static",
+    "english",
+    "bilingual",
+    "animateus",
+    "sporky"
+  ],
+  "settings": {
+    "selectiveOneWordHybrid": true,
+    "searchExperiment": "certified",
+    "nativeThreads": 2,
+    "nativeBatchThreads": 2,
+    "maxWords": 4,
+    "maxTokens": 6,
+    "temperature": 0.1,
+    "repeatPenalty": 1.05,
+    "appContext": true,
+    "healingMode": "prefixSearch",
+    "firstWordThreshold": 0.1,
+    "hybridFallbackThreshold": 0.31,
+    "useNativeSpellingVerdicts": true,
+    "confidenceTrace": false
+  },
+  "seed": 12648430,
+  "topP": 0.7,
+  "topK": 20,
+  "minP": 0.08,
+  "orders": [
+    [
+      "q6",
+      "static",
+      "local_static",
+      "english",
+      "bilingual",
+      "animateus",
+      "sporky"
+    ],
+    [
+      "sporky",
+      "animateus",
+      "bilingual",
+      "english",
+      "local_static",
+      "static",
+      "q6"
+    ]
+  ],
+  "inputSHA256": {
+    "dynamic.json": "ba16d2129bed48b78c9ca44e78152b447fba9ba416e1d8f1676e99f62b024b73",
+    "cancellation.json": "7b0d235be10c961b2166ceec91168423196c71815f38c64e3914521cc96ba45e",
+    "long.json": "e6b2b2fe28b48493de28b7cc5e816b63e0907cc99da3b217ddc6818afa8cc649",
+    "fresh.json": "45b7d335b484af9265f2640014be61315ec480438f82c67051e25f91f590207a"
+  },
+  "runnerSHA256": "3c6657a076087f4930078d6cb3bafe6d8c7e4638d5de22edc6a75cda150620c8",
+  "primary": "Drop-in production thresholds 0.1/0.31, every quantization, fixed prompt/decoder/native runtime. No parameter tuning.",
+  "matched": "Separate diagnostic: preserve every native midword output. Per language match total shown count to Q6 production (or the greatest lower common feasible count) using only unlabeled boundary confidence and ratio3.1. No quality labels determine cutoffs. Actual native matched runs are timed; traced outputs are not timed.",
+  "quality": "Anonymous Claude usefulness rubric, all unique nonempty production/matched suggestions; silence=0. 24 reversed-option repeats, 5000 scenario-cluster paired bootstrap draws. Reference-word agreement is secondary. If external judging is unavailable, report that limit and do not infer subjective quality from exact-reference score alone.",
+  "timing": "Two reverse-order production rounds over fresh/long/dynamic/cancellation. Two additional reverse-order warmed fresh rounds are predeclared, followed by confidence traces and two native matched-frequency rounds. Eight excluded warmups per process. Serial inference, no simultaneous conversion/download/build.",
+  "cancellation": "Use actual issued time, require both arms cancelled for paired latency, also measure through the next completed replacement; compare recovery with a cold reference. Report unmatched/undelivered timers.",
+  "decision": "Report tradeoffs and retain installed E2B Q6. No source/default switch is part of this request. Highlight any positive overall and per-language quality evidence, poor counts, normal and cancellation latency, interval uncertainty, and judge repeat reliability.",
+  "scope": "48 new bilingual scenarios, 288 fresh checkpoints; long/dynamic/cancellation subsets identified in metadata. One machine, one synthetic corpus, model-judge opinion rather than human acceptance. No UI tests or CI actions.",
+  "hardware": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": "51539607552",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "power": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=23527523)\t100%; charged; 0:00 remaining present: true"
+  },
+  "experiment": "Q6 publishers and equal-budget language calibration",
+  "wrapperSHA256": "8ac92b3a495983ecb88d9cfb539d13b9554b2dd27fb2bf5aec804226628ecc04",
+  "calibration": "FLORES-200 dev plus devtest, EN and deterministic SR Cyrillic-to-Latin transliteration. Same pinned BF16 source and quantizer for local static/English/bilingual arms. English: 64 chunks x512 tokens. Bilingual: 32 EN +32 SR Latin chunks x512, merged importance accumulators. Calibration corpus is separate from fresh fictional evaluation cases and is never sent to Claude.",
+  "expectedProcesses": 91,
+  "expectedMeasuredObservations": 18144,
+  "provenance": "All published arms must declare Google E2B base; inspect architecture/tokenizer/tensor compatibility. Local static and two calibrated arms share one BF16 file and quantizer, so their comparison isolates calibration. Cross-publisher comparisons may include converter/checkpoint-snapshot differences; document them.",
+  "exclusions": "Unsloth/Bartowski/LM Studio IT and QAT files are different checkpoints and excluded from fixed-base comparisons. No personal writing, UI tests, app installs, or CI management."
+}

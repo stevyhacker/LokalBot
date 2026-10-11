@@ -1,0 +1,88 @@
+{
+  "createdAtUTC": "2026-10-11T15:53:48.599271+00:00",
+  "frequencies": {
+    "en": {
+      "baselineProduction": 112,
+      "matched": 112,
+      "total": 144
+    },
+    "sr_latn": {
+      "baselineProduction": 109,
+      "matched": 109,
+      "total": 144
+    }
+  },
+  "cutoffs": {
+    "q6": {
+      "en": {
+        "primary": 0.1000504195690155,
+        "fallback": 0.31015628576278687
+      },
+      "sr_latn": {
+        "primary": 0.09625111520290375,
+        "fallback": 0.29837843775749207
+      }
+    },
+    "static": {
+      "en": {
+        "primary": 0.0989961177110672,
+        "fallback": 0.3068879544734955
+      },
+      "sr_latn": {
+        "primary": 0.09468286484479904,
+        "fallback": 0.2935169041156769
+      }
+    },
+    "local_static": {
+      "en": {
+        "primary": 0.09899626672267914,
+        "fallback": 0.3068884313106537
+      },
+      "sr_latn": {
+        "primary": 0.09480269253253937,
+        "fallback": 0.2938883602619171
+      }
+    },
+    "english": {
+      "en": {
+        "primary": 0.10265373438596725,
+        "fallback": 0.31822657585144043
+      },
+      "sr_latn": {
+        "primary": 0.09615343809127808,
+        "fallback": 0.2980756461620331
+      }
+    },
+    "bilingual": {
+      "en": {
+        "primary": 0.09951478987932205,
+        "fallback": 0.3084958493709564
+      },
+      "sr_latn": {
+        "primary": 0.0982154905796051,
+        "fallback": 0.304468035697937
+      }
+    },
+    "animateus": {
+      "en": {
+        "primary": 0.098829485476017,
+        "fallback": 0.30637142062187195
+      },
+      "sr_latn": {
+        "primary": 0.0943983793258667,
+        "fallback": 0.2926349639892578
+      }
+    },
+    "sporky": {
+      "en": {
+        "primary": 0.0989961177110672,
+        "fallback": 0.3068879544734955
+      },
+      "sr_latn": {
+        "primary": 0.09468286484479904,
+        "fallback": 0.2935169041156769
+      }
+    }
+  },
+  "note": "Transductive equal-frequency diagnostic only; no quality labels or production setting changes."
+}

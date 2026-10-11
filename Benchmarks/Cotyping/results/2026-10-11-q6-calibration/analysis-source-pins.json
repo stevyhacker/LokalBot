@@ -1,0 +1,9 @@
+{
+  "q6_publisher_analysis.py": "0bdaacd598c5954603eabdcea1ba2c5e1cc2bbc03a57ef247c562f24737780e0",
+  "make_tables.py": "fb4bd8f6af1ee0fdf507d2032044e05c201c142fd3a4b47081bd7fd20443abf8",
+  "run_blind_judge.py": "5395f4a5f0e349e105fa31e94ba84201281a27d5ce798a1d03c30bde7e03bd46",
+  "validate_calibration.py": "e6ea62926fb2ba6d570f6d1dd5f2781babf45c34b285e13fad2852bab5cabf56",
+  "normalize_and_inspect.py": "11c321016729f9d203b079131be6f628fae6c4eabedb5ebe334dbe0e834467a1",
+  "validate_evidence.py": "134953979fc64c79db0438365acc561c2189bdc1e2cefacb4b352a07ef59fe4e",
+  "build_archive.py": "c8154e7fe97fb6301ed32c9a5e9f96bf729acf2164b3c4f22038ddfcc95d2217"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "source",
+  "path": "/private/tmp/lokalbot-q6-publishers-20261011/models/source.gguf",
+  "file": "gemma-4-E2B-BF16.gguf",
+  "bytes": 9311286336,
+  "sha256": "11111065543435393ecfe54d3b6f8ab106617c306666e2fa882ef48dd87d5331",
+  "repository": "ggml-org/gemma-4-E2B-GGUF",
+  "revision": "0d85c394df5e9f3c5b07c791e31680e399042acc",
+  "downloadURL": "https://huggingface.co/ggml-org/gemma-4-E2B-GGUF/resolve/0d85c394df5e9f3c5b07c791e31680e399042acc/gemma-4-E2B-BF16.gguf",
+  "verifiedAtUTC": "2026-10-11T15:29:08.960656+00:00"
+}

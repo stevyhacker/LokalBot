@@ -1,0 +1,11 @@
+{
+  "atUTC": "2026-10-11T15:33:05.958469+00:00",
+  "commit": "85b737cd89edef6a66aeaf4dd175148e1f5d4005",
+  "source": {
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "11643ba3d230cfbea3408e0cfcddeb816b95f26355a58671afe526f4ec7e2d3c",
+    "LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift": "3e6b9574354b06f563ca6212375a1b4d2ae747aff5b1e1525c938520ba697287",
+    "LokalBot/Cotyping/CotypingPromptRenderer.swift": "fcdcb12b39248de4f0d2ab5d05038543625a434612f6f46f75e0fa59676efc4c",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": "6c91a30ce6971d741e76bc65ebd7e1b23f8a400d105f936ea3153002f5f8a220"
+  },
+  "installedExecutableSHA256": "b1d1878f324db7d58b48edd467f9ace83973c3637ee7d7020ab2eabafc188d3e"
+}

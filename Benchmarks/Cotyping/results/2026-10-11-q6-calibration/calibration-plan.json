@@ -1,0 +1,44 @@
+{
+  "frozenAtUTC": "2026-10-11T15:29:04.425441+00:00",
+  "source": "0d85c394df5e9f3c5b07c791e31680e399042acc",
+  "sourceFileSHA256": "11111065543435393ecfe54d3b6f8ab106617c306666e2fa882ef48dd87d5331",
+  "toolVersion": "llama.cpp b11429 d81235049",
+  "tools": {
+    "/opt/homebrew/bin/llama-imatrix": "39264d1f27a31908b3b28a558d4cf814e5a935c3a10c128415f65c7507425e19",
+    "/opt/homebrew/bin/llama-quantize": "a51917f70cc2800dd0b4fd38b1e719e180decf64e76585497e971b8a4ed45906"
+  },
+  "chunks": 32,
+  "contextTokens": 512,
+  "parts": {
+    "english-a": {
+      "language": "en",
+      "fromChunk": 0
+    },
+    "english-b": {
+      "language": "en",
+      "fromChunk": 32
+    },
+    "serbian-a": {
+      "language": "sr_latn",
+      "fromChunk": 0
+    }
+  },
+  "arms": {
+    "local_static": [],
+    "english": [
+      "english-a",
+      "english-b"
+    ],
+    "bilingual": [
+      "english-a",
+      "serbian-a"
+    ]
+  },
+  "hashes": {
+    "build_calibrated.py": "1255dd1d35a4fd6787b0ec081ce68465d8d44f10167aaadcf614ac8d39ff3529",
+    "fetch_calibration.py": "d6e62a2cacecf2a028aca2cf2f2a7a52473c34e13e0b0e64a12ae156e09846b3",
+    "english.txt": "e04b68624dad6756f40b1db32851b1de52b41f487efedbac5a6d5adc59c6e0f0",
+    "serbian-latin.txt": "ed8c8723bc476e9ca9e637ebc3812d96cbf31d2bd712b13f27684064642c63b6",
+    "corpus.json": "9dbe06a822440848702212d1c3600d3be92165ad66db42f6ad9c6a4642fa10a6"
+  }
+}

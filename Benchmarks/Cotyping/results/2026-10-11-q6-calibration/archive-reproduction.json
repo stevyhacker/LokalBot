@@ -1,0 +1,13 @@
+{
+  "archiveSHA256": "f28a1f1319f9905649c38095ef0c4a72ece7c3fc627f18dad05d1b531c015c8b",
+  "archiveBytes": 27549572,
+  "membersVerified": 859,
+  "recomputedFiles": {
+    "summary.json": "d9f82248a5ab7f369e1363192dd37e8943f5c9b59ec8d8412eec47b5a3ab6b15",
+    "quality-examples.json": "7a57549e9c06a6cfa541259ce258aabd39ef9dfa8503b9a7c25ce69978c4ea6e",
+    "validation.json": "4987a7b4f248ede3be50b8cf25a5cc83feee2784fc79f510c8af878f1d6a96e7",
+    "TABLES.md": "3aa15ca8a963794873d3f3f419b50de5f9766d3cab6e6bd9b5539655dcf4b0c4"
+  },
+  "byteIdenticalToOriginal": true,
+  "noInferenceOrExternalJudge": true
+}

@@ -1,0 +1,12 @@
+WARN `--no-project` was provided, but no project was found
+test_bos_alignment_preserves_source_and_every_other_byte (test_q6_publisher_experiment.StudyChecks.test_bos_alignment_preserves_source_and_every_other_byte) ... ok
+test_cutoff_changes_frequency_without_rewriting_text (test_q6_publisher_experiment.StudyChecks.test_cutoff_changes_frequency_without_rewriting_text) ... ok
+test_frequency_gate_preserves_ungated_midword (test_q6_publisher_experiment.StudyChecks.test_frequency_gate_preserves_ungated_midword) ... ok
+test_fresh_fictional_evaluation_is_disjoint (test_q6_publisher_experiment.StudyChecks.test_fresh_fictional_evaluation_is_disjoint) ... ok
+test_matching_bos_setting_keeps_original_file (test_q6_publisher_experiment.StudyChecks.test_matching_bos_setting_keeps_original_file) ... ok
+test_missing_bos_setting_fails_closed (test_q6_publisher_experiment.StudyChecks.test_missing_bos_setting_fails_closed) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.014s
+
+OK

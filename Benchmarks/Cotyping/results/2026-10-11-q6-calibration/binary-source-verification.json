@@ -1,0 +1,21 @@
+{
+  "binarySHA256": "23562c21a51b6ef3cf32e3a6bab2b59f1c9ed2c8bf6b2e0f12b77921e3c48cf9",
+  "sourceFileHashes": {
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "11643ba3d230cfbea3408e0cfcddeb816b95f26355a58671afe526f4ec7e2d3c",
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": "6c91a30ce6971d741e76bc65ebd7e1b23f8a400d105f936ea3153002f5f8a220",
+    "LokalBotTests/CotypingFirstWordConfidenceTests.swift": "0dd3d11a5a87abaf6b862a86d2593c1818eb15eddd0543130e547f85f165b46f",
+    "LokalBotTests/CotypingTokenHealingTests.swift": "31ef1d40bfa614f1decd1baa24b8332fcd650a5e4ce131ade1ff513e2dabc011",
+    "Benchmarks/Cotyping/cancellation_experiment.py": "913f350c3f4def300c1d697409ed194e8c5299beb9fb60a22d480585b5ed5397",
+    "Benchmarks/Cotyping/test_cancellation_experiment.py": "6f8d8295e021f4237dbfd5b80b21c3a67213a856a5dda4dd1b12539a852e6919"
+  },
+  "allMatch": {
+    "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": true,
+    "LokalBot/Cotyping/CotypingQualityReplay.swift": true,
+    "LokalBotTests/CotypingFirstWordConfidenceTests.swift": true,
+    "LokalBotTests/CotypingTokenHealingTests.swift": true,
+    "Benchmarks/Cotyping/cancellation_experiment.py": true,
+    "Benchmarks/Cotyping/test_cancellation_experiment.py": true
+  },
+  "sourceCommit": "85b737cd89edef6a66aeaf4dd175148e1f5d4005",
+  "reusedBinary": true
+}

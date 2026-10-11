@@ -1,0 +1,69 @@
+{
+  "english-a": {
+    "metadata": {
+      "general.type": "imatrix",
+      "imatrix.chunk_count": 32,
+      "imatrix.chunk_size": 512
+    },
+    "countTensors": 276,
+    "countValues": [
+      16384.0
+    ],
+    "quantizationAccumulatorsFinite": true,
+    "undefinedDiagnosticStats": 120
+  },
+  "english-b": {
+    "metadata": {
+      "general.type": "imatrix",
+      "imatrix.chunk_count": 32,
+      "imatrix.chunk_size": 512
+    },
+    "countTensors": 276,
+    "countValues": [
+      16384.0
+    ],
+    "quantizationAccumulatorsFinite": true,
+    "undefinedDiagnosticStats": 120
+  },
+  "serbian-a": {
+    "metadata": {
+      "general.type": "imatrix",
+      "imatrix.chunk_count": 32,
+      "imatrix.chunk_size": 512
+    },
+    "countTensors": 276,
+    "countValues": [
+      16384.0
+    ],
+    "quantizationAccumulatorsFinite": true,
+    "undefinedDiagnosticStats": 120
+  },
+  "english": {
+    "metadata": {
+      "general.type": "imatrix",
+      "imatrix.chunk_count": 64,
+      "imatrix.chunk_size": 512
+    },
+    "countTensors": 276,
+    "countValues": [
+      32768.0
+    ],
+    "quantizationAccumulatorsFinite": true,
+    "undefinedDiagnosticStats": 120,
+    "verifiedMergedAccumulatorValues": 1391380
+  },
+  "bilingual": {
+    "metadata": {
+      "general.type": "imatrix",
+      "imatrix.chunk_count": 64,
+      "imatrix.chunk_size": 512
+    },
+    "countTensors": 276,
+    "countValues": [
+      32768.0
+    ],
+    "quantizationAccumulatorsFinite": true,
+    "undefinedDiagnosticStats": 120,
+    "verifiedMergedAccumulatorValues": 1391380
+  }
+}

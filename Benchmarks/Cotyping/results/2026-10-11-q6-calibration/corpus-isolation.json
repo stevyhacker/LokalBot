@@ -1,0 +1,31 @@
+{
+  "priorCorpora": [
+    {
+      "path": "calibration-corpus.json",
+      "sha256": "464fe7f613480eecd0786a8471354230184ccc7362ba5d628c0a3246fee2cece",
+      "exactSentenceOverlaps": []
+    },
+    {
+      "path": "midword-corpus.json",
+      "sha256": "542a876ba4db539bea47d20645331824746cbfaadb19ac15827ed4727e6d0e5c",
+      "exactSentenceOverlaps": []
+    },
+    {
+      "path": "model-study-corpus.json",
+      "sha256": "7e5eca518bcc4b94227d53995a111d857ab0e9b23682c586bc828c03a44424d7",
+      "exactSentenceOverlaps": []
+    },
+    {
+      "path": "prefix-confirmation-corpus.json",
+      "sha256": "89cb295393a6ef3e7f27b22dc0f1722667c35a9f012eb97093a1852ce6d8c555",
+      "exactSentenceOverlaps": []
+    },
+    {
+      "path": "quantization-corpus.json",
+      "sha256": "f3f4bb42c58279f4f02a5d53c888a143995f7f71aa9174f5034272ad412d693a",
+      "exactSentenceOverlaps": []
+    }
+  ],
+  "calibrationExactOverlap": false,
+  "notes": "Checks exact sentence text, not semantic independence. Calibration uses public FLORES text; evaluations are newly authored fictional scenarios."
+}

@@ -1,0 +1,79 @@
+[
+  {
+    "arm": "q6",
+    "source": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "sourceSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "offset": 15764395,
+    "oldValue": false,
+    "newValue": false,
+    "evaluation": "/Users/0xmithrandir/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf",
+    "evaluationSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+    "changedBytes": 0
+  },
+  {
+    "arm": "static",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/static.gguf",
+    "sourceSHA256": "a79c89cd23acb42908676493ce3ee3759e662df27842b462dc1346c897d9e41b",
+    "offset": 15764395,
+    "oldValue": false,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/static.gguf",
+    "evaluationSHA256": "a79c89cd23acb42908676493ce3ee3759e662df27842b462dc1346c897d9e41b",
+    "changedBytes": 0
+  },
+  {
+    "arm": "local_static",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/local_static.gguf",
+    "sourceSHA256": "5315e202ae5de767ed8696b2eb851a69d4770518f7327c441ee5b74c8caafb35",
+    "offset": 15764395,
+    "oldValue": true,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/local_static.eval.gguf",
+    "evaluationSHA256": "2f7edd3886296c1447edab3d10be50aae06ddf85f850ff064ac516c18ab9a379",
+    "changedBytes": 1
+  },
+  {
+    "arm": "english",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/english.gguf",
+    "sourceSHA256": "245e982145e3863cd9e06554b93738ae227dea59a21673ec5221f45a1df83c4f",
+    "offset": 15764395,
+    "oldValue": true,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/english.eval.gguf",
+    "evaluationSHA256": "d6965068c914dea1c16f36f8929aed3313bc9f55616946be666032e4faee1a53",
+    "changedBytes": 1
+  },
+  {
+    "arm": "bilingual",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/bilingual.gguf",
+    "sourceSHA256": "5a4f5fa9ececa25da43db030de3d81f2334825258b83cc376adcb461a47fc2df",
+    "offset": 15764395,
+    "oldValue": true,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/bilingual.eval.gguf",
+    "evaluationSHA256": "1390fcdc681aa6fce1239276c1c53aa69e93e38f6bd15d4b2a268d569f2d812b",
+    "changedBytes": 1
+  },
+  {
+    "arm": "animateus",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/animateus.gguf",
+    "sourceSHA256": "ee715622018952e81a01308bc1307b55e142f60748a19f5fd7c509abe5e8f73c",
+    "offset": 15764395,
+    "oldValue": true,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/animateus.eval.gguf",
+    "evaluationSHA256": "419a1c7ac94e29adb405ba5747f45e2583eee1a7cb96355ad416f14fa06d06f4",
+    "changedBytes": 1
+  },
+  {
+    "arm": "sporky",
+    "source": "/private/tmp/lokalbot-q6-publishers-20261011/models/sporky.gguf",
+    "sourceSHA256": "da9fae4fbbe935db6156847d4f4f2efdd5af94231d20d9b8517bff4813444390",
+    "offset": 15764395,
+    "oldValue": true,
+    "newValue": false,
+    "evaluation": "/private/tmp/lokalbot-q6-publishers-20261011/models/sporky.eval.gguf",
+    "evaluationSHA256": "6408e53c3c7a6eddcf1c19f8199d571b40c9bf332bd6810d85641cd891b33c6e",
+    "changedBytes": 1
+  }
+]

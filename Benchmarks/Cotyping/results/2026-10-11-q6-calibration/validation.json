@@ -1,0 +1,23 @@
+{
+  "processes": 91,
+  "measured": 18144,
+  "excludedWarmups": 728,
+  "byteIdenticalPromptComparisons": 18144,
+  "deterministicRepeatedOutputs": 9072,
+  "allComplete": true,
+  "noReplayErrors": true,
+  "fixedBinaryAndModelPins": true,
+  "noMeetingOrScreenContext": true,
+  "baselineMatchingChangedOutputs": 0,
+  "traceProductionChecks": 2016,
+  "nativeMatchedTraceChecks": 4032,
+  "preservedMidwordChecks": 2688,
+  "replacementColdChecks": 672,
+  "staticSporkyTensorMatches": 601,
+  "staticSporkyOutputMatches": 1440,
+  "judgeBatches": 21,
+  "judgePrimaryCases": 223,
+  "judgeRepeatCases": 24,
+  "allSilentCases": 65,
+  "exactFrequencyAndJudgeCoverage": true
+}
