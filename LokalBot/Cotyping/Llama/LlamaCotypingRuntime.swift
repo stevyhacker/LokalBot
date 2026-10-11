@@ -102,9 +102,9 @@ actor LlamaCotypingRuntime {
     nonisolated let selectiveOneWordHybrid: Bool
     nonisolated let confidenceTraceEnabled: Bool
     nonisolated let healingTraceEnabled: Bool
-    private let searchExperiment: CotypingSearchExperiment
-    private let replayThreadCount: Int32?
-    private let replayBatchThreadCount: Int32?
+    nonisolated let searchExperiment: CotypingSearchExperiment
+    nonisolated let replayThreadCount: Int32?
+    nonisolated let replayBatchThreadCount: Int32?
     private(set) var lastHealingTrace: CotypingHealingTrace?
     private(set) var lastReplayDiagnostics = CotypingReplayDiagnostics()
     /// When a suggestion was last generated, for the memory-pressure policy.
@@ -139,6 +139,17 @@ actor LlamaCotypingRuntime {
         self.replayThreadCount = replayThreadCount
         self.replayBatchThreadCount = replayBatchThreadCount
         self.postLoadAdmissionHook = postLoadAdmissionHook
+    }
+
+    /// The app policy is separate from replay defaults, so archived baseline
+    /// fixtures remain comparable. Off restores the old search and thread policy.
+    /// Two generation/prefill threads won the fixed-E2B M4 Max latency study;
+    /// other hardware and cancellation responsiveness still need broader trials.
+    nonisolated static func forAutocomplete(selectiveOneWordHybrid: Bool) -> LlamaCotypingRuntime {
+        LlamaCotypingRuntime(
+            selectiveOneWordHybrid: selectiveOneWordHybrid,
+            searchExperiment: selectiveOneWordHybrid ? .certified : .baseline,
+            replayThreadCount: selectiveOneWordHybrid ? 2 : nil)
     }
 
     var isLoaded: Bool { model != nil && ctx != nil }

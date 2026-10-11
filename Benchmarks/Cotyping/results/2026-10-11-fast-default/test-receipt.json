@@ -1,0 +1,21 @@
+{
+  "swiftFocused": {
+    "passed": 195,
+    "failed": 0,
+    "skipped": 0
+  },
+  "logSHA256": {
+    "tests.log": "1d53895cf96be450a322fb14d8a72c7083bb1b9778ef2bb120bfb3084ac3e6c8",
+    "cache-tests.log": "52388253cd6aff6a98c5af947e2bca857a2383caf662d91f79acbd7267a1f39d",
+    "swiftlint.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "swiftCacheFingerprint": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "totalSwiftPassed": 198,
+  "swiftlint": "passed",
+  "uiTests": "Not run locally",
+  "ci": "No manual dispatch or retry"
+}

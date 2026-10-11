@@ -36,6 +36,7 @@ final class CotypingEngineSelectorTests: XCTestCase {
         let env = try GGUFFixture()
         defer { env.tearDown() }
         var settings = env.settings
+        settings.cotypingSelectiveOneWordHybrid = false
         let entered = expectation(description: "verification suspended")
         let verifier = SuspendedModelVerifier { entered.fulfill() }
         let http = RecordingHTTPEngine()

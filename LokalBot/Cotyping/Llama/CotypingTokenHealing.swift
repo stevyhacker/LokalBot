@@ -5,7 +5,7 @@ enum CotypingHealingMode: String, Codable, Sendable {
     case wordBoundary, prefixSearch
 }
 
-/// Explicit replay-only comparisons. The installed policy remains the baseline.
+/// Search variants for controlled comparisons. The app hybrid uses `certified`.
 enum CotypingSearchExperiment: String, Codable, Sendable {
     case baseline, reuseRoot, memoized, certified, widthTwo, budgetEight, exactOnly
 

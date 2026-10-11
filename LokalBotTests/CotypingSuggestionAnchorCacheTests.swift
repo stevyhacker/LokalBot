@@ -140,6 +140,7 @@ final class CotypingSuggestionCacheFingerprintTests: XCTestCase {
 
     func testHybridSwitchCannotReuseSuggestionsFromTheOtherDecoder() {
         var settings = AppSettings()
+        settings.cotypingSelectiveOneWordHybrid = false
         let current = CotypingSuggestionCacheFingerprint.make(request: request(), settings: settings)
         settings.cotypingSelectiveOneWordHybrid = true
         let hybrid = CotypingSuggestionCacheFingerprint.make(request: request(), settings: settings)

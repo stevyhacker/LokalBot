@@ -169,9 +169,12 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
     @MainActor
     func testExperimentalSwitchSelectsPrefixSearchAndRollsBack() {
         for enabled in [false, true, false] {
-            let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: enabled)
+            let runtime = LlamaCotypingRuntime.forAutocomplete(selectiveOneWordHybrid: enabled)
             let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: "/unused.gguf")
             XCTAssertEqual(engine.healingMode, enabled ? .prefixSearch : .wordBoundary)
+            XCTAssertEqual(runtime.searchExperiment, enabled ? .certified : .baseline)
+            XCTAssertEqual(runtime.replayThreadCount, enabled ? 2 : nil)
+            XCTAssertNil(runtime.replayBatchThreadCount, "Prefill inherits the generation thread policy")
         }
     }
 
@@ -238,9 +241,12 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
             (.baseline, nil, nil), (.reuseRoot, nil, nil), (.memoized, nil, nil), (.certified, nil, nil),
             (.certified, 2, nil), (.certified, 2, 14)
         ]
-        for (experiment, threads, batchThreads) in configurations {
-            let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: experiment,
-                                              replayThreadCount: threads, replayBatchThreadCount: batchThreads)
+        let runtimes = configurations.map { experiment, threads, batchThreads in
+            LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: experiment,
+                                 replayThreadCount: threads, replayBatchThreadCount: batchThreads)
+        } + [.forAutocomplete(selectiveOneWordHybrid: true)]
+        for (runtimeIndex, runtime) in runtimes.enumerated() {
+            let experiment = runtime.searchExperiment
             let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
             try await engine.prewarm()
             for (index, prefix) in prefixes.enumerated() {
@@ -251,7 +257,7 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
                     wordPrefixAtCaret: CotypingMidWord.currentPartialWord(in: prefix))
                 await engine.clearReplayCache()
                 let cold = try await engine.generate(request)
-                if experiment == .baseline { reference.append(cold) }
+                if runtimeIndex == 0 { reference.append(cold) }
                 XCTAssertEqual(cold, reference[index], "\(experiment): \(prefix)")
                 await engine.clearReplayCache()
                 try await engine.prewarm(for: request)

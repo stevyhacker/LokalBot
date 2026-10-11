@@ -1,0 +1,131 @@
+{
+  "kind": "Signed Release integration parity, not a new latency benchmark",
+  "installedExecutableSHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+  "baselineExecutableSHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+  "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "fastProfile": {
+    "selectiveOneWordHybrid": true,
+    "searchExperiment": "certified",
+    "nativeThreads": 2,
+    "nativeBatchThreads": null
+  },
+  "runs": [
+    {
+      "name": "regression",
+      "measured": 288,
+      "nonCancelled": 288,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 288,
+      "completedBeforeCancellation": [],
+      "shown": 250,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "d3b4d74736e1785435236b4cf065596bcfdf132035d17e8e754daf7b241ae131",
+      "rawSHA256": "a6a63d32bca38347bd93fb863f09823cbd29903054a1d362fe20065cf77b9ea2",
+      "wallSeconds": 20.572829250013456
+    },
+    {
+      "name": "fresh",
+      "measured": 144,
+      "nonCancelled": 144,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 144,
+      "completedBeforeCancellation": [],
+      "shown": 111,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "78b7875521600512ef1ba96868ee2f75c88365656a314b4c76c57c47601fe7de",
+      "rawSHA256": "95dddc18cdc351324f8531e74e69b4c249a158eafee0b2bb469e80d8c89c2631",
+      "wallSeconds": 8.508313166996231
+    },
+    {
+      "name": "dynamic",
+      "measured": 204,
+      "nonCancelled": 192,
+      "cancelled": 12,
+      "differences": [],
+      "pairedNonCancelled": 192,
+      "completedBeforeCancellation": [],
+      "shown": 174,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "82a5402210ff9facf7ebee3a7339236f32c23e22cb79ac417eb0dbe45123ab59",
+      "rawSHA256": "1170709bf381c3912e236801c886e846617b6b8a0b83a2130d86af440b08ff97",
+      "wallSeconds": 17.770245041989256
+    },
+    {
+      "name": "long",
+      "measured": 48,
+      "nonCancelled": 48,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 48,
+      "completedBeforeCancellation": [],
+      "shown": 48,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "2dd68eff4b21d033cef842baa2bb17705dc0e8feadc546cc1f247a671a77d9ea",
+      "rawSHA256": "ca00ba50134de7d3997419996f1199af2b215c9edccee6e09647a33b02d8ed2d",
+      "wallSeconds": 10.911712875007652
+    },
+    {
+      "name": "edges",
+      "measured": 32,
+      "nonCancelled": 32,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 32,
+      "completedBeforeCancellation": [],
+      "shown": 32,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "847239691222c735ef1595a9168a0589ae728902e7458e329ed1663a650c5118",
+      "rawSHA256": "6b31b345fb7f14f30e2fa0884c5582a3414b94224ca1b56bf1fdb2e6bf8fd4fa",
+      "wallSeconds": 4.061282458016649
+    },
+    {
+      "name": "cancellation",
+      "measured": 36,
+      "nonCancelled": 25,
+      "cancelled": 11,
+      "differences": [],
+      "pairedNonCancelled": 24,
+      "completedBeforeCancellation": [
+        "cancel-search-2-130-cancel"
+      ],
+      "shown": 25,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "80c1e041d0ea33db460173962848410c33cda5f3fe8e6655f88d314159072e72",
+      "rawSHA256": "3e042930ab3d96aaa4e0c30dcef8e3e2401ba7a05726a86f0e02493540326f6f",
+      "wallSeconds": 5.160632334009279
+    },
+    {
+      "name": "rollback-previous-app",
+      "measured": 288,
+      "nonCancelled": 288,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 0,
+      "completedBeforeCancellation": [],
+      "shown": 225,
+      "binarySHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+      "inputSHA256": "6de7f52467b8970f74ba84d4fbb183728984fac95ffc997df1740f0f3e3c3ab9",
+      "rawSHA256": "aaa00db7b4300a4e4cd1bbe8df69af3a13cf0b084a87edc0584fdfd2c447047c",
+      "wallSeconds": 18.79501037497539
+    },
+    {
+      "name": "rollback-installed",
+      "measured": 288,
+      "nonCancelled": 288,
+      "cancelled": 0,
+      "differences": [],
+      "pairedNonCancelled": 288,
+      "completedBeforeCancellation": [],
+      "shown": 225,
+      "binarySHA256": "f4cfd2a81c9aaac0a7763a10f00e72fdc831c4c83371b46c719fdeab0a0b2a5e",
+      "inputSHA256": "6de7f52467b8970f74ba84d4fbb183728984fac95ffc997df1740f0f3e3c3ab9",
+      "rawSHA256": "41f30b1be132c9499dba12aa81d60f587f9e32ba421777d488122aafe3f65242",
+      "wallSeconds": 18.916082292009378
+    }
+  ],
+  "complete": true,
+  "fastNonCancelledPairs": 728,
+  "rollbackPairs": 288
+}

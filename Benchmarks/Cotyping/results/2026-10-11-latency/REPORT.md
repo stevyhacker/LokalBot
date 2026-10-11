@@ -2,7 +2,7 @@
 
 The strongest confirmed native-generation result is **per-request ranking reuse + bounded-search skip proof + two CPU threads**. On this M4 Max, mean latency fell **67.0 → 51.6 ms (23.0%)** and p95 **142.4 → 98.9 ms (30.5%)** on fresh English/Serbian Latin text. **All 1,496 paired non-cancelled observations in the primary study matched the current decoder exactly**, including suppression decisions and repeated measurements. This covers 728 distinct request IDs, many deliberately related. The 95% scenario-bootstrap interval for mean reduction is **21.6–24.4%**.
 
-**Keep E2B as the default.** The installed app and its saved hybrid switch remain unchanged. These new performance controls are **replay-only**, with `baseline` still the production default. The draft PR contains the implementation seams, evidence and tests; this report does not claim that the faster candidate has been installed or released.
+**Keep E2B as the default.** At the end of this study, the installed app was unchanged and the new controls were replay-only. The user subsequently requested activation of the fastest candidate: [default activation and install validation](../2026-10-11-fast-default/VALIDATION.md) records that separate integration. The measurements and frozen source in this report remain the original study; they are not new UI timings or release evidence.
 
 | Workload | Current mean / p95 ms | Candidate mean / p95 ms | Mean reduction |
 |---|---:|---:|---:|

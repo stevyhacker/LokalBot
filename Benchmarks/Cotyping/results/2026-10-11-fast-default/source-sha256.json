@@ -1,0 +1,12 @@
+{
+  "LokalBot/AppState.swift": "1d96378dccccdd253e54181e146a9a77b0a35dd4ef8561da694a5c35bcea48fe",
+  "LokalBot/Cotyping/Llama/CotypingTokenHealing.swift": "7483746a3f786c3be2c0e97c5bc51aeec7b44c586ec753ae4233fc21c0a4b806",
+  "LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift": "dbfafa74cebca10103d2d1e9ba57572f8b805c811f43e2722b120dec96d985d3",
+  "LokalBot/Cotyping/Llama/LocalLlamaCotypingEngine.swift": "28fce2158a19d737eab6ab11d7bff7b3cbec2c1fbb710092d1acddf796a9ffd2",
+  "LokalBot/Models/AppSettings.swift": "2b9bfb593b3708db933eafcf81639e07de45061163a81fe935340df3cdfd0b2d",
+  "LokalBot/Views/SettingsView.swift": "cd13947700ad0110d4c94f2738f98e1f7cb283c63a2fcfd1db6531e2abc33e19",
+  "LokalBotTests/CotypingEngineSelectorTests.swift": "64fbb66462cb8b87f4bdef23f22e350b2e69c94f60ef2c7c121d8ee9533ac29a",
+  "LokalBotTests/CotypingSettingsTests.swift": "988ded623c75d41da86ddffd5d5f2928d9f415f9bf315f50efb6c66211504acc",
+  "LokalBotTests/CotypingSuggestionAnchorCacheTests.swift": "3e3fdbbb0c15cde730d462cc07b1d6168ee8e81c864a8dabbb0f20c420fb9381",
+  "LokalBotTests/CotypingTokenHealingTests.swift": "815354c31f58f23e657265cad7505aa47d5bdf57afbde4649e5c499fc478f20f"
+}

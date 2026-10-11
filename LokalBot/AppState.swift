@@ -760,7 +760,7 @@ final class AppState: ObservableObject {
             },
             stopRuntime: { await LlamaServer.cotyping.stop() }),
         makeLocal: { modelPath, hybrid in
-            LocalLlamaCotypingEngine(runtime: LlamaCotypingRuntime(selectiveOneWordHybrid: hybrid), modelPath: modelPath)
+            LocalLlamaCotypingEngine(runtime: .forAutocomplete(selectiveOneWordHybrid: hybrid), modelPath: modelPath)
         },
         settings: { [store = settingsStore] in store.current },
         storage: storage)

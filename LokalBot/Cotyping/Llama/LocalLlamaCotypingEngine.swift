@@ -23,7 +23,8 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
     init(runtime: LlamaCotypingRuntime, modelPath: String) {
         self.runtime = runtime
         self.modelPath = modelPath
-        // One saved switch rolls back both experimental decoder changes.
+        // One saved switch rolls back the hybrid gate and midword path; the app
+        // runtime factory also restores the previous search and thread policy.
         self.healingMode = runtime.selectiveOneWordHybrid ? .prefixSearch : .wordBoundary
 
         let source = DispatchSource.makeMemoryPressureSource(

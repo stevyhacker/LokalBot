@@ -523,10 +523,10 @@ struct AppSettings: Codable, Equatable {
     /// `llama-server` path. The HTTP fallback also covers non-GGUF backends and
     /// any in-process load failure regardless of this flag.
     var cotypingInProcessRuntime: Bool = true
-    /// Opt-in trial: keep current suggestions and rescue at most one word when
-    /// its confidence gate is silent. Off restores the current decoder.
-    /// Also enables bounded prefix search. Off restores the prior decoder.
-    var cotypingSelectiveOneWordHybrid: Bool = false
+    /// Default experimental decoder: selective one-word rescue, bounded prefix
+    /// search and the measured faster runtime policy. An explicitly saved false
+    /// is preserved and restores the previous decoder and thread settings.
+    var cotypingSelectiveOneWordHybrid: Bool = true
     /// Learn from accepted continuation text, encrypted locally. Stores accepted
     /// text plus a short sanitized prefix/context hint for ranking — never full
     /// raw typing streams — and skips secure fields, terminals, and code editors.
