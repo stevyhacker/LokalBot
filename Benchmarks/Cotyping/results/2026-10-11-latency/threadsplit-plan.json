@@ -1,0 +1,19 @@
+{
+  "reason": "Close the independent generation/batch thread-count recommendation after observing slower cancellation in the combined two-thread arm.",
+  "beforeThreadsplitInference": true,
+  "controls": "Same E2B, prompts, sampler, budgets and gates; second frozen binary has only independent batch-thread setting and cancellation-issued timestamp instrumentation.",
+  "rounds": "Three counterbalanced fresh rounds of current, certified_threads2, split_batch14; one matched dynamic/long/Unicode/cancellation pass for all three. This follow-up reuses the frozen corpus and is not a new holdout.",
+  "compare": "Select only if output-identical. Treat small latency changes as uncertain; do not claim improved cancellation from a configured timer without measuring actual delivery.",
+  "arms": {
+    "current": {},
+    "certified_threads2": {
+      "searchExperiment": "certified",
+      "nativeThreads": 2
+    },
+    "split_batch14": {
+      "searchExperiment": "certified",
+      "nativeThreads": 2,
+      "nativeBatchThreads": 14
+    }
+  }
+}

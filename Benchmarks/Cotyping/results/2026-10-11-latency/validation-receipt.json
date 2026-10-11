@@ -1,0 +1,19 @@
+{
+  "tests": 195,
+  "skipped": 0,
+  "failures": 0,
+  "pythonTests": 61,
+  "replayRuns": 75,
+  "measuredRows": 11064,
+  "warmups": 600,
+  "recoveryPairs": 216,
+  "prewarmPairs": 288,
+  "localLogSHA256": {
+    "build-final.log": "f59c350a950771bf55c60fe0a7566c6d36df3b7adbf974a97407118ba3f65001",
+    "build-threadsplit.log": "9d47aa2811595dbf928058661603e2bc86cf4687be00cc51ca17a8714db75e5c",
+    "tests.log": "c14328a439d3602d13da8829c6cb16608a2a53474a78b049e73926d10de4df80",
+    "tests-final.log": "9af09b624c02628def7114304ea71c80d7cf2ac51a9f607cf804bfa5c96d78e7",
+    "swiftlint-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "python-tests-final.log": "25141dedf122449ee9129e318492c432a67d31e166b96b624ce3dcbfee708cec"
+  }
+}

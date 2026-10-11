@@ -1,0 +1,17 @@
+{
+  "frozenAtUTC": "2026-10-11T08:15:37.806819+00:00",
+  "arms": {
+    "threads2_only": {
+      "nativeThreads": 2
+    },
+    "certified_threads2": {
+      "searchExperiment": "certified",
+      "nativeThreads": 2
+    }
+  },
+  "order": [
+    "threads2_only",
+    "certified_threads2"
+  ],
+  "purpose": "Separate thread-count contribution and test the combination of the two independently promising search/thread changes. Select on development before fresh confirmation."
+}

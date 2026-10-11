@@ -1,0 +1,17 @@
+{
+  "pairedCases": 288,
+  "comparisons": [
+    {
+      "path": "/Users/0xmithrandir/.codex/worktrees/experimental-autocomplete-hybrid/LokalBot/Benchmarks/Cotyping/results/2026-10-11-latency/run-regression-current-1/raw.jsonl",
+      "changed": []
+    },
+    {
+      "path": "/Users/0xmithrandir/.codex/worktrees/experimental-autocomplete-hybrid/LokalBot/Benchmarks/Cotyping/results/2026-10-11-latency/run-regression-installed-1/raw.jsonl",
+      "changed": []
+    },
+    {
+      "path": "/Users/0xmithrandir/.codex/worktrees/experimental-autocomplete-hybrid/LokalBot/Benchmarks/Cotyping/results/2026-10-11-latency/run-regression-current-2/raw.jsonl",
+      "changed": []
+    }
+  ]
+}

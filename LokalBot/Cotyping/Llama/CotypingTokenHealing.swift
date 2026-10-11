@@ -5,6 +5,16 @@ enum CotypingHealingMode: String, Codable, Sendable {
     case wordBoundary, prefixSearch
 }
 
+/// Explicit replay-only comparisons. The installed policy remains the baseline.
+enum CotypingSearchExperiment: String, Codable, Sendable {
+    case baseline, reuseRoot, memoized, certified, widthTwo, budgetEight, exactOnly
+
+    var reusesIdenticalState: Bool { self != .baseline }
+    var memoizesRankings: Bool { self != .baseline && self != .reuseRoot }
+    var width: Int { self == .widthTwo ? 2 : 4 }
+    var expansionLimit: Int { self == .budgetEight ? 8 : 32 }
+}
+
 /// Probability of a complete token path through the typed bytes. Summing log
 /// probabilities compares paths rather than favoring the first greedy piece.
 struct CotypingHealingPath {

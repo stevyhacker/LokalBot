@@ -1,0 +1,423 @@
+{
+  "models": [
+    "claude-opus-5-5"
+  ],
+  "preferenceDisagreements": 0,
+  "comparisons": {
+    "current": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "certified": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "certified_threads2": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "exact": {
+      "all": {
+        "utilityDelta": {
+          "mean": -1.5,
+          "low95": -1.7430555555555556,
+          "high95": -1.25,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 4,
+        "losses": 72,
+        "ties": 68,
+        "shown": 110
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": -1.875,
+          "low95": -2.1666666666666665,
+          "high95": -1.5555555555555556,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 2,
+        "losses": 42,
+        "ties": 28,
+        "shown": 60
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": -1.125,
+          "low95": -1.4583333333333333,
+          "high95": -0.7916666666666666,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 2,
+        "losses": 30,
+        "ties": 40,
+        "shown": 50
+      }
+    },
+    "width2": {
+      "all": {
+        "utilityDelta": {
+          "mean": -0.09722222222222222,
+          "low95": -0.2013888888888889,
+          "high95": 0.006944444444444444,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 2,
+        "losses": 8,
+        "ties": 134,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": -0.013888888888888888,
+          "low95": -0.041666666666666664,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 1,
+        "ties": 71,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": -0.18055555555555555,
+          "low95": -0.3888888888888889,
+          "high95": 0.027777777777777776,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 2,
+        "losses": 7,
+        "ties": 63,
+        "shown": 50
+      }
+    },
+    "budget8": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0.020833333333333332,
+          "low95": 0.0,
+          "high95": 0.0625,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 1,
+        "losses": 0,
+        "ties": 143,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0.041666666666666664,
+          "low95": 0.0,
+          "high95": 0.125,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 1,
+        "losses": 0,
+        "ties": 71,
+        "shown": 50
+      }
+    },
+    "memo": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "threads2": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "threads2_only": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    },
+    "threads4": {
+      "all": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 144,
+        "shown": 111
+      },
+      "en": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 61
+      },
+      "sr_latn": {
+        "utilityDelta": {
+          "mean": 0,
+          "low95": 0.0,
+          "high95": 0.0,
+          "phrases": 24,
+          "resamples": 5000
+        },
+        "wins": 0,
+        "losses": 0,
+        "ties": 72,
+        "shown": 50
+      }
+    }
+  },
+  "repeatStability": {
+    "optionRatings": 42,
+    "exactAgreement": 39,
+    "meanAbsoluteDifference": 0.07142857142857142
+  }
+}

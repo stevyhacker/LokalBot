@@ -1,0 +1,12 @@
+{
+  "frozenAtUTC": "2026-10-11T08:13:50.526517+00:00",
+  "reason": "Isolate thread-count contribution after the combined candidate improved screening; stress cancellation across prefill/search/free decode on the three slowest development prefixes.",
+  "threadAblation": {
+    "threads2_only": {
+      "nativeThreads": 2
+    }
+  },
+  "cancellationCases": 36,
+  "cancellationSHA256": "3161c0ef4dda53168c56f9b29f7287aa5e8981d4e82529f9d7a1f84200d715fc",
+  "limits": "Cancellation cases are adaptively selected stress tests, not fresh quality evidence. Wall delays do not guarantee a particular cancellation stage; use returned counters."
+}

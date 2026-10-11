@@ -70,6 +70,31 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
         XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
     }
 
+    func testReplayLatencyControlsRejectRemoteAndInvalidLimits() throws {
+        let local = CotypingQualityReplay.Engine.local(model: URL(fileURLWithPath: "/synthetic.gguf"))
+        let remote = CotypingQualityReplay.Engine.remote(
+            baseURL: URL(string: "https://example.com")!, model: "test", extraBodyJSON: nil)
+        var input = try JSONDecoder().decode(CotypingQualityReplay.Input.self,
+            from: Data(#"{"cases":[{"id":"a","prefix":"Hello","cancelAfterMs":5}],"nativeThreads":2}"#.utf8))
+        XCTAssertNoThrow(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: remote))
+        input.nativeThreads = 0
+        XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        input.nativeThreads = 33
+        XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        input.nativeThreads = 4
+        input.nativeBatchThreads = 0
+        XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        input.nativeBatchThreads = 33
+        XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        input.nativeBatchThreads = 14
+        XCTAssertNoThrow(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        for delay in [Double.nan, .infinity, -1, 1001] {
+            input.cases[0].cancelAfterMs = delay
+            XCTAssertThrowsError(try CotypingQualityReplay.validateHybrid(input, engine: local))
+        }
+    }
+
     @MainActor
     func testNativeHybridMatchesCompositionAndNeverStreamsUncappedFallback() async throws {
         guard let model = ProcessInfo.processInfo.environment["LOKALBOT_CANDIDATE_TEST_MODEL"] else {

@@ -1,0 +1,4539 @@
+{
+  "cancellation": {
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 167.330614625,
+          "p50Ms": 165.649291,
+          "p95Ms": 187.089875,
+          "p99Ms": 195.526417,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -29.134951291666653,
+            "deltaMeanMsCI95": [
+              -33.26727587500002,
+              -25.37818737500004
+            ],
+            "relativePercent": -14.829545908327068,
+            "relativePercentCI95": [
+              -17.726367887382434,
+              -12.20001937924976
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 167.330614625,
+          "p50Ms": 165.649291,
+          "p95Ms": 187.089875,
+          "p99Ms": 195.526417,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -29.134951291666653,
+            "deltaMeanMsCI95": [
+              -33.26727587500002,
+              -25.37818737500004
+            ],
+            "relativePercent": -14.829545908327068,
+            "relativePercentCI95": [
+              -17.726367887382434,
+              -12.20001937924976
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 26.22222222222222,
+        "decodeCalls": 13.444444444444445,
+        "searchRestoreSkips": 0.08333333333333333,
+        "searchMemoHits": 1.6111111111111112,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 5.590437472222222,
+        "prefixSearchMs": 69.11569555555556,
+        "afterSearchMs": 49.19952547222222,
+        "baselinePathMs": 34.10864355555555,
+        "explorationMs": 23.15200227777778,
+        "searchRestoreMs": 14.896782277777778
+      },
+      "peakRSSBytes": 4151394304
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 150.51879341666665,
+          "p50Ms": 148.319209,
+          "p95Ms": 166.184209,
+          "p99Ms": 167.190209,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -45.94677250000001,
+            "deltaMeanMsCI95": [
+              -48.94943762500001,
+              -40.60510925000002
+            ],
+            "relativePercent": -23.386679638043496,
+            "relativePercentCI95": [
+              -26.082560606451498,
+              -19.520035549684454
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 150.51879341666665,
+          "p50Ms": 148.319209,
+          "p95Ms": 166.184209,
+          "p99Ms": 167.190209,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -45.94677250000001,
+            "deltaMeanMsCI95": [
+              -48.94943762500001,
+              -40.60510925000002
+            ],
+            "relativePercent": -23.386679638043496,
+            "relativePercentCI95": [
+              -26.082560606451498,
+              -19.520035549684454
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 26.38888888888889,
+        "decodeCalls": 13.61111111111111,
+        "searchRestoreSkips": 0.08333333333333333,
+        "searchMemoHits": 1.6111111111111112,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 4.93926525,
+        "prefixSearchMs": 61.85164011111111,
+        "afterSearchMs": 45.998354194444445,
+        "baselinePathMs": 29.775897027777777,
+        "explorationMs": 20.19698736111111,
+        "searchRestoreMs": 5.985154972222222
+      },
+      "peakRSSBytes": 4152770560
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 196.46556591666666,
+          "p50Ms": 192.858584,
+          "p95Ms": 214.752666,
+          "p99Ms": 215.464,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 196.46556591666666,
+          "p50Ms": 192.858584,
+          "p95Ms": 214.752666,
+          "p99Ms": 215.464,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 27.63888888888889,
+        "decodeCalls": 14.86111111111111,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 5.6864941388888885,
+        "prefixSearchMs": 87.581221,
+        "afterSearchMs": 50.29463888888889,
+        "baselinePathMs": 35.91621175,
+        "explorationMs": 39.40222105555556,
+        "searchRestoreMs": 19.63959711111111
+      },
+      "peakRSSBytes": 4151492608
+    }
+  },
+  "cancellation-threadsplit": {
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 156.25977783333335,
+          "p50Ms": 154.152417,
+          "p95Ms": 167.509375,
+          "p99Ms": 168.924209,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -46.357517333333334,
+            "deltaMeanMsCI95": [
+              -49.455822875,
+              -43.53631274999998
+            ],
+            "relativePercent": -22.87934862381865,
+            "relativePercentCI95": [
+              -24.933726367542775,
+              -20.653503445911316
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 156.25977783333335,
+          "p50Ms": 154.152417,
+          "p95Ms": 167.509375,
+          "p99Ms": 168.924209,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -46.357517333333334,
+            "deltaMeanMsCI95": [
+              -49.455822875,
+              -43.53631274999998
+            ],
+            "relativePercent": -22.87934862381865,
+            "relativePercentCI95": [
+              -24.933726367542775,
+              -20.653503445911316
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 26.13888888888889,
+        "decodeCalls": 13.36111111111111,
+        "searchRestoreSkips": 0.08333333333333333,
+        "searchMemoHits": 1.5555555555555556,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 5.20472675,
+        "prefixSearchMs": 64.53694677777777,
+        "afterSearchMs": 46.80797341666667,
+        "baselinePathMs": 30.939047388888888,
+        "explorationMs": 21.052622777777778,
+        "searchRestoreMs": 6.429402888888889
+      },
+      "peakRSSBytes": 4149919744
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 202.61729516666668,
+          "p50Ms": 206.887208,
+          "p95Ms": 213.109333,
+          "p99Ms": 214.410167,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 202.61729516666668,
+          "p50Ms": 206.887208,
+          "p95Ms": 213.109333,
+          "p99Ms": 214.410167,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 27.416666666666668,
+        "decodeCalls": 14.63888888888889,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 6.405338027777778,
+        "prefixSearchMs": 90.14023958333333,
+        "afterSearchMs": 50.84878,
+        "baselinePathMs": 36.09732644444445,
+        "explorationMs": 39.95872219444445,
+        "searchRestoreMs": 19.387124916666668
+      },
+      "peakRSSBytes": 4154736640
+    },
+    "split_batch14": {
+      "parts": {
+        "all": {
+          "n": 24,
+          "meanMs": 158.090878375,
+          "p50Ms": 154.532542,
+          "p95Ms": 169.476042,
+          "p99Ms": 172.008708,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -44.52641679166669,
+            "deltaMeanMsCI95": [
+              -46.370927000000016,
+              -41.365505500000005
+            ],
+            "relativePercent": -21.975624911506497,
+            "relativePercentCI95": [
+              -23.336104750710895,
+              -19.623678635626163
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 158.090878375,
+          "p50Ms": 154.532542,
+          "p95Ms": 169.476042,
+          "p99Ms": 172.008708,
+          "shown": 24,
+          "paired": {
+            "clusters": 3,
+            "resamples": 5000,
+            "deltaMeanMs": -44.52641679166669,
+            "deltaMeanMsCI95": [
+              -46.370927000000016,
+              -41.365505500000005
+            ],
+            "relativePercent": -21.975624911506497,
+            "relativePercentCI95": [
+              -23.336104750710895,
+              -19.623678635626163
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 26.083333333333332,
+        "decodeCalls": 13.305555555555555,
+        "searchRestoreSkips": 0.08333333333333333,
+        "searchMemoHits": 1.5555555555555556,
+        "searchExpansions": 4,
+        "certifiedSkips": 0,
+        "prefillMs": 5.822182777777778,
+        "prefixSearchMs": 65.08618161111112,
+        "afterSearchMs": 46.62951841666667,
+        "baselinePathMs": 31.130505833333334,
+        "explorationMs": 21.52945725,
+        "searchRestoreMs": 7.073127138888889
+      },
+      "peakRSSBytes": 4151820288
+    }
+  },
+  "dynamic": {
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 576,
+          "meanMs": 92.86139800520833,
+          "p50Ms": 76.9875,
+          "p95Ms": 221.322333,
+          "p99Ms": 274.136375,
+          "shown": 522,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -9.990728003472228,
+            "deltaMeanMsCI95": [
+              -12.807819642361121,
+              -7.068818751736103
+            ],
+            "relativePercent": -9.713681565152111,
+            "relativePercentCI95": [
+              -11.419930554229285,
+              -7.61334240826268
+            ]
+          }
+        },
+        "en": {
+          "n": 288,
+          "meanMs": 79.31355642361112,
+          "p50Ms": 70.60175,
+          "p95Ms": 191.6795,
+          "p99Ms": 240.405,
+          "shown": 276,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -7.87347165624999,
+            "deltaMeanMsCI95": [
+              -11.705722763888893,
+              -4.178376802083335
+            ],
+            "relativePercent": -9.030554005164737,
+            "relativePercentCI95": [
+              -12.127271048998677,
+              -5.290352520747177
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 288,
+          "meanMs": 106.40923958680555,
+          "p50Ms": 86.851375,
+          "p95Ms": 261.915375,
+          "p99Ms": 318.760583,
+          "shown": 246,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -12.107984350694451,
+            "deltaMeanMsCI95": [
+              -15.905906694444436,
+              -8.92975957986112
+            ],
+            "relativePercent": -10.216223387985846,
+            "relativePercentCI95": [
+              -12.122684971661979,
+              -8.358801479825473
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 36,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 71.6029411764706,
+        "decodeCalls": 7.387254901960785,
+        "searchRestoreSkips": 0.25,
+        "searchMemoHits": 0.6715686274509803,
+        "searchExpansions": 1.0686274509803921,
+        "certifiedSkips": 0.029411764705882353,
+        "prefillMs": 17.183027029411765,
+        "prefixSearchMs": 23.44728505392157,
+        "afterSearchMs": 46.498734637254906,
+        "baselinePathMs": 8.395965624183006,
+        "explorationMs": 3.8914098104575165,
+        "searchRestoreMs": 3.694319838235294
+      },
+      "peakRSSBytes": 4178100224
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 576,
+          "meanMs": 81.39066496006944,
+          "p50Ms": 62.454375,
+          "p95Ms": 199.74875,
+          "p99Ms": 268.764083,
+          "shown": 522,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -21.461461048611113,
+            "deltaMeanMsCI95": [
+              -25.300348826388888,
+              -17.579394847222222
+            ],
+            "relativePercent": -20.866327106159964,
+            "relativePercentCI95": [
+              -22.533212473195086,
+              -18.88229074573813
+            ]
+          }
+        },
+        "en": {
+          "n": 288,
+          "meanMs": 69.17523325694444,
+          "p50Ms": 58.163,
+          "p95Ms": 177.272417,
+          "p99Ms": 217.4235,
+          "shown": 276,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -18.01179482291667,
+            "deltaMeanMsCI95": [
+              -23.670876972222217,
+              -13.502471055555551
+            ],
+            "relativePercent": -20.65880122260656,
+            "relativePercentCI95": [
+              -23.90687253746021,
+              -17.062012183383978
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 288,
+          "meanMs": 93.60609666319445,
+          "p50Ms": 75.858417,
+          "p95Ms": 248.386208,
+          "p99Ms": 309.707958,
+          "shown": 246,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -24.911127274305557,
+            "deltaMeanMsCI95": [
+              -29.447158232638888,
+              -20.100214184027777
+            ],
+            "relativePercent": -21.018993228733084,
+            "relativePercentCI95": [
+              -22.464759346032004,
+              -19.094414874111855
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 36,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 71.6029411764706,
+        "decodeCalls": 7.387254901960785,
+        "searchRestoreSkips": 0.25,
+        "searchMemoHits": 0.6715686274509803,
+        "searchExpansions": 1.0686274509803921,
+        "certifiedSkips": 0.029411764705882353,
+        "prefillMs": 16.643692625816993,
+        "prefixSearchMs": 20.541226800653593,
+        "afterSearchMs": 39.15557926960784,
+        "baselinePathMs": 6.814085364379085,
+        "explorationMs": 3.164646493464052,
+        "searchRestoreMs": 1.2526130816993464
+      },
+      "peakRSSBytes": 4177248256
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 576,
+          "meanMs": 102.85212600868056,
+          "p50Ms": 78.939958,
+          "p95Ms": 248.329791,
+          "p99Ms": 294.086875,
+          "shown": 522,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 288,
+          "meanMs": 87.18702807986111,
+          "p50Ms": 74.065042,
+          "p95Ms": 195.40475,
+          "p99Ms": 261.246666,
+          "shown": 276,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 288,
+          "meanMs": 118.5172239375,
+          "p50Ms": 113.36825,
+          "p95Ms": 264.63825,
+          "p99Ms": 338.110292,
+          "shown": 246,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 36,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 72.62254901960785,
+        "decodeCalls": 8.387254901960784,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 1.1470588235294117,
+        "certifiedSkips": 0,
+        "prefillMs": 17.20821868137255,
+        "prefixSearchMs": 32.777578341503265,
+        "afterSearchMs": 46.53706695424837,
+        "baselinePathMs": 10.45516006372549,
+        "explorationMs": 11.17165481862745,
+        "searchRestoreMs": 5.830195315359477
+      },
+      "peakRSSBytes": 4177264640
+    }
+  },
+  "dynamic-threadsplit": {
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 192,
+          "meanMs": 82.86251322395833,
+          "p50Ms": 63.139292,
+          "p95Ms": 199.526375,
+          "p99Ms": 282.341583,
+          "shown": 174,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -22.246896270833332,
+            "deltaMeanMsCI95": [
+              -25.700138427083328,
+              -18.86996878124999
+            ],
+            "relativePercent": -21.165465944260397,
+            "relativePercentCI95": [
+              -22.465021819687802,
+              -19.618925064536874
+            ]
+          }
+        },
+        "en": {
+          "n": 96,
+          "meanMs": 69.64411151041666,
+          "p50Ms": 58.163708,
+          "p95Ms": 181.034375,
+          "p99Ms": 199.526375,
+          "shown": 92,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -18.62513417708334,
+            "deltaMeanMsCI95": [
+              -21.916123375,
+              -15.47857989583333
+            ],
+            "relativePercent": -21.10036630767411,
+            "relativePercentCI95": [
+              -22.887136233492157,
+              -18.90476535192567
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 96,
+          "meanMs": 96.0809149375,
+          "p50Ms": 78.092458,
+          "p95Ms": 259.999916,
+          "p99Ms": 323.491625,
+          "shown": 82,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -25.86865836458334,
+            "deltaMeanMsCI95": [
+              -29.971738645833323,
+              -21.913773854166674
+            ],
+            "relativePercent": -21.212586206024387,
+            "relativePercentCI95": [
+              -22.18977258767684,
+              -20.05116473340509
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 71.6029411764706,
+        "decodeCalls": 7.387254901960785,
+        "searchRestoreSkips": 0.25,
+        "searchMemoHits": 0.6715686274509803,
+        "searchExpansions": 1.0686274509803921,
+        "certifiedSkips": 0.029411764705882353,
+        "prefillMs": 17.203887093137254,
+        "prefixSearchMs": 20.898727333333333,
+        "afterSearchMs": 39.642812088235296,
+        "baselinePathMs": 6.883135823529412,
+        "explorationMs": 3.2090030637254903,
+        "searchRestoreMs": 1.2271161911764705
+      },
+      "peakRSSBytes": 4176576512
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 192,
+          "meanMs": 105.10940949479166,
+          "p50Ms": 79.490625,
+          "p95Ms": 227.605667,
+          "p99Ms": 288.525375,
+          "shown": 174,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 96,
+          "meanMs": 88.2692456875,
+          "p50Ms": 75.391042,
+          "p95Ms": 197.641708,
+          "p99Ms": 258.542792,
+          "shown": 92,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 96,
+          "meanMs": 121.94957330208334,
+          "p50Ms": 112.156417,
+          "p95Ms": 274.034208,
+          "p99Ms": 355.458708,
+          "shown": 82,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 72.62254901960785,
+        "decodeCalls": 8.387254901960784,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 1.1470588235294117,
+        "certifiedSkips": 0,
+        "prefillMs": 17.830545539215684,
+        "prefixSearchMs": 33.2912912254902,
+        "afterSearchMs": 47.54041214215686,
+        "baselinePathMs": 10.5194385,
+        "explorationMs": 11.338046568627451,
+        "searchRestoreMs": 5.878610901960784
+      },
+      "peakRSSBytes": 4176658432
+    },
+    "split_batch14": {
+      "parts": {
+        "all": {
+          "n": 192,
+          "meanMs": 83.23020680208333,
+          "p50Ms": 63.3545,
+          "p95Ms": 201.536542,
+          "p99Ms": 277.2405,
+          "shown": 174,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -21.879202692708333,
+            "deltaMeanMsCI95": [
+              -24.89490346354167,
+              -18.89856273437501
+            ],
+            "relativePercent": -20.815646094741393,
+            "relativePercentCI95": [
+              -22.021750048783396,
+              -19.572358626528818
+            ]
+          }
+        },
+        "en": {
+          "n": 96,
+          "meanMs": 70.96368492708334,
+          "p50Ms": 61.041792,
+          "p95Ms": 178.960458,
+          "p99Ms": 226.222417,
+          "shown": 92,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -17.305560760416668,
+            "deltaMeanMsCI95": [
+              -20.834849864583344,
+              -13.96389235416666
+            ],
+            "relativePercent": -19.605424998966924,
+            "relativePercentCI95": [
+              -21.80878938146307,
+              -17.198184096743518
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 96,
+          "meanMs": 95.49672867708334,
+          "p50Ms": 76.340916,
+          "p95Ms": 260.499459,
+          "p99Ms": 318.7915,
+          "shown": 82,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -26.452844624999997,
+            "deltaMeanMsCI95": [
+              -30.331003427083335,
+              -22.633119843750006
+            ],
+            "relativePercent": -21.691625406079286,
+            "relativePercentCI95": [
+              -22.530710081222228,
+              -20.733866447590856
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 12,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 71.6029411764706,
+        "decodeCalls": 7.387254901960785,
+        "searchRestoreSkips": 0.25,
+        "searchMemoHits": 0.6715686274509803,
+        "searchExpansions": 1.0686274509803921,
+        "certifiedSkips": 0.029411764705882353,
+        "prefillMs": 17.441703637254903,
+        "prefixSearchMs": 20.898239544117647,
+        "afterSearchMs": 39.7479278872549,
+        "baselinePathMs": 6.864517774509804,
+        "explorationMs": 3.2649456617647057,
+        "searchRestoreMs": 1.2944734607843138
+      },
+      "peakRSSBytes": 4175200256
+    }
+  },
+  "edges": {
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 116.6133216875,
+          "p50Ms": 115.573209,
+          "p95Ms": 209.313708,
+          "p99Ms": 241.432208,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": -15.02445171875,
+            "deltaMeanMsCI95": [
+              -21.634514187500002,
+              -8.700240843749995
+            ],
+            "relativePercent": -11.413480591458146,
+            "relativePercentCI95": [
+              -14.0547712639839,
+              -8.168231329887687
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 71.10370325,
+          "p50Ms": 56.010125,
+          "p95Ms": 128.941083,
+          "p99Ms": 128.941083,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": -10.936526,
+            "deltaMeanMsCI95": [
+              -20.481927,
+              -1.3911250000000024
+            ],
+            "relativePercent": -13.330686786202516,
+            "relativePercentCI95": [
+              -21.44097603188634,
+              -2.8492719860453986
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 131.7831945,
+          "p50Ms": 118.882209,
+          "p95Ms": 209.313708,
+          "p99Ms": 241.432208,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": -16.387093625000006,
+            "deltaMeanMsCI95": [
+              -24.38072191666667,
+              -8.438824250000001
+            ],
+            "relativePercent": -11.059635391391998,
+            "relativePercentCI95": [
+              -13.798331498097305,
+              -7.192120900418441
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 23.25,
+        "decodeCalls": 11.1875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 1.3125,
+        "searchExpansions": 3.15625,
+        "certifiedSkips": 0.09375,
+        "prefillMs": 4.39995178125,
+        "prefixSearchMs": 60.293091249999996,
+        "afterSearchMs": 51.63514190625,
+        "baselinePathMs": 23.23799475,
+        "explorationMs": 18.34118490625,
+        "searchRestoreMs": 11.62308975
+      },
+      "peakRSSBytes": 4152066048
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 100.8748931875,
+          "p50Ms": 100.865917,
+          "p95Ms": 179.427875,
+          "p99Ms": 197.81275,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": -30.76288021875,
+            "deltaMeanMsCI95": [
+              -41.2629531875,
+              -20.716406124999992
+            ],
+            "relativePercent": -23.369341050620818,
+            "relativePercentCI95": [
+              -25.584716521156214,
+              -20.692307581995895
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 61.98768225,
+          "p50Ms": 49.731167,
+          "p95Ms": 111.843042,
+          "p99Ms": 111.843042,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": -20.052546999999997,
+            "deltaMeanMsCI95": [
+              -33.21261449999999,
+              -4.3827815
+            ],
+            "relativePercent": -24.44233418570073,
+            "relativePercentCI95": [
+              -31.39228514357265,
+              -11.368287339551808
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 113.83729683333334,
+          "p50Ms": 101.580042,
+          "p95Ms": 179.427875,
+          "p99Ms": 197.81275,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": -34.33299129166667,
+            "deltaMeanMsCI95": [
+              -46.810992999999996,
+              -22.186175333333342
+            ],
+            "relativePercent": -23.171306289627058,
+            "relativePercentCI95": [
+              -25.45122083177206,
+              -20.123397874786942
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 23.25,
+        "decodeCalls": 11.1875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 1.3125,
+        "searchExpansions": 3.15625,
+        "certifiedSkips": 0.09375,
+        "prefillMs": 3.924972625,
+        "prefixSearchMs": 52.10998171875,
+        "afterSearchMs": 44.6280794375,
+        "baselinePathMs": 19.349845,
+        "explorationMs": 15.07410553125,
+        "searchRestoreMs": 4.00190640625
+      },
+      "peakRSSBytes": 4153671680
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 131.63777340625,
+          "p50Ms": 135.547791,
+          "p95Ms": 239.028375,
+          "p99Ms": 284.949292,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 82.04022925,
+          "p50Ms": 69.620125,
+          "p95Ms": 151.142333,
+          "p99Ms": 151.142333,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 148.170288125,
+          "p50Ms": 140.823125,
+          "p95Ms": 239.028375,
+          "p99Ms": 284.949292,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 25.03125,
+        "decodeCalls": 12.6875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 3.34375,
+        "certifiedSkips": 0,
+        "prefillMs": 4.39533209375,
+        "prefixSearchMs": 74.75765109375,
+        "afterSearchMs": 52.21760296875,
+        "baselinePathMs": 22.80099215625,
+        "explorationMs": 33.4159270625,
+        "searchRestoreMs": 14.19527728125
+      },
+      "peakRSSBytes": 4153655296
+    }
+  },
+  "edges-threadsplit": {
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 114.6852564375,
+          "p50Ms": 122.335958,
+          "p95Ms": 183.042375,
+          "p99Ms": 226.031291,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": -114.37243496875,
+            "deltaMeanMsCI95": [
+              -233.95812512499998,
+              -24.416757875000002
+            ],
+            "relativePercent": -49.931715571996406,
+            "relativePercentCI95": [
+              -66.00640312396952,
+              -18.653695693509075
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 82.01547925,
+          "p50Ms": 67.15225,
+          "p95Ms": 148.770458,
+          "p99Ms": 148.770458,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": 5.5130521250000015,
+            "deltaMeanMsCI95": [
+              0.11502612500001419,
+              11.791953500000005
+            ],
+            "relativePercent": 7.206375447398594,
+            "relativePercentCI95": [
+              0.19261849145204568,
+              20.287795190495196
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 125.57518216666666,
+          "p50Ms": 123.063375,
+          "p95Ms": 183.042375,
+          "p99Ms": 226.031291,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": -154.33426400000002,
+            "deltaMeanMsCI95": [
+              -300.16234212499995,
+              -36.49278116666667
+            ],
+            "relativePercent": -55.137211735292645,
+            "relativePercentCI95": [
+              -69.8991352472039,
+              -23.547721977279945
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 23.25,
+        "decodeCalls": 11.1875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 1.3125,
+        "searchExpansions": 3.15625,
+        "certifiedSkips": 0.09375,
+        "prefillMs": 4.438213625,
+        "prefixSearchMs": 59.1058893125,
+        "afterSearchMs": 50.71120053125,
+        "baselinePathMs": 21.77297521875,
+        "explorationMs": 16.2994244375,
+        "searchRestoreMs": 5.60762909375
+      },
+      "peakRSSBytes": 4151164928
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 229.05769140625,
+          "p50Ms": 135.299208,
+          "p95Ms": 748.100208,
+          "p99Ms": 802.06375,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 76.502427125,
+          "p50Ms": 65.296084,
+          "p95Ms": 136.123167,
+          "p99Ms": 136.123167,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 279.90944616666667,
+          "p50Ms": 169.176583,
+          "p95Ms": 748.100208,
+          "p99Ms": 802.06375,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 25.03125,
+        "decodeCalls": 12.6875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 3.34375,
+        "certifiedSkips": 0,
+        "prefillMs": 7.49013271875,
+        "prefixSearchMs": 114.992815125,
+        "afterSearchMs": 105.93405078125001,
+        "baselinePathMs": 30.74717975,
+        "explorationMs": 64.12483853124999,
+        "searchRestoreMs": 55.219902375
+      },
+      "peakRSSBytes": 4151984128
+    },
+    "split_batch14": {
+      "parts": {
+        "all": {
+          "n": 32,
+          "meanMs": 107.224501375,
+          "p50Ms": 106.015,
+          "p95Ms": 178.575125,
+          "p99Ms": 217.232375,
+          "shown": 32,
+          "paired": {
+            "clusters": 16,
+            "resamples": 5000,
+            "deltaMeanMs": -121.83319003125,
+            "deltaMeanMsCI95": [
+              -240.5153775,
+              -33.22903250000002
+            ],
+            "relativePercent": -53.1888666489571,
+            "relativePercentCI95": [
+              -67.73487087570308,
+              -24.871079376691284
+            ]
+          }
+        },
+        "en": {
+          "n": 8,
+          "meanMs": 72.5394165,
+          "p50Ms": 56.198,
+          "p95Ms": 133.817583,
+          "p99Ms": 133.817583,
+          "shown": 8,
+          "paired": {
+            "clusters": 4,
+            "resamples": 5000,
+            "deltaMeanMs": -3.9630106249999955,
+            "deltaMeanMsCI95": [
+              -11.039333499999998,
+              3.113312250000007
+            ],
+            "relativePercent": -5.1802416915801786,
+            "relativePercentCI95": [
+              -13.272892930504787,
+              6.845016457505126
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 118.78619633333334,
+          "p50Ms": 110.144292,
+          "p95Ms": 178.575125,
+          "p99Ms": 217.232375,
+          "shown": 24,
+          "paired": {
+            "clusters": 12,
+            "resamples": 5000,
+            "deltaMeanMs": -161.12324983333332,
+            "deltaMeanMsCI95": [
+              -305.8809355,
+              -45.03115625
+            ],
+            "relativePercent": -57.56263393033032,
+            "relativePercentCI95": [
+              -70.9471030891607,
+              -28.631509475615445
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 23.25,
+        "decodeCalls": 11.1875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 1.3125,
+        "searchExpansions": 3.15625,
+        "certifiedSkips": 0.09375,
+        "prefillMs": 5.1294738749999995,
+        "prefixSearchMs": 55.509770875,
+        "afterSearchMs": 46.2384948125,
+        "baselinePathMs": 20.25885428125,
+        "explorationMs": 15.91510809375,
+        "searchRestoreMs": 5.29712090625
+      },
+      "peakRSSBytes": 4153442304
+    }
+  },
+  "fresh": {
+    "budget8": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 60.480337347222225,
+          "p50Ms": 58.144209,
+          "p95Ms": 119.582333,
+          "p99Ms": 153.989834,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -6.02179224305555,
+            "deltaMeanMsCI95": [
+              -8.253569659722226,
+              -3.7790074930555497
+            ],
+            "relativePercent": -9.05503670357033,
+            "relativePercentCI95": [
+              -11.97780698493206,
+              -5.877665736431103
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 54.15354275,
+          "p50Ms": 54.55125,
+          "p95Ms": 94.138375,
+          "p99Ms": 113.677333,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -3.7886487083333336,
+            "deltaMeanMsCI95": [
+              -6.225793430555553,
+              -1.343679972222219
+            ],
+            "relativePercent": -6.538670031246186,
+            "relativePercentCI95": [
+              -10.291499292691086,
+              -2.448784873061971
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 66.80713194444445,
+          "p50Ms": 65.231375,
+          "p95Ms": 130.078959,
+          "p99Ms": 168.893584,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -8.254935777777774,
+            "deltaMeanMsCI95": [
+              -11.683512750000002,
+              -5.0307910972222265
+            ],
+            "relativePercent": -10.99747985670515,
+            "relativePercentCI95": [
+              -14.620948083944263,
+              -7.06796911503077
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [
+        "fresh-18-sr_latn-1"
+      ],
+      "changedObservations": 1,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 9.708333333333334,
+        "decodeCalls": 6.034722222222222,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.6458333333333334,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.160327854166667,
+        "prefixSearchMs": 16.036806965277776,
+        "afterSearchMs": 41.06532902083333,
+        "baselinePathMs": 6.9478993125,
+        "explorationMs": 2.58782525,
+        "searchRestoreMs": 2.8837011041666667
+      },
+      "peakRSSBytes": 4154408960
+    },
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 61.41757474537037,
+          "p50Ms": 60.060334,
+          "p95Ms": 120.423,
+          "p99Ms": 170.583625,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -5.621697043981484,
+            "deltaMeanMsCI95": [
+              -7.1736053148148144,
+              -4.128787032407411
+            ],
+            "relativePercent": -8.385677370789113,
+            "relativePercentCI95": [
+              -10.41752947447414,
+              -6.36571384020459
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 54.258855125,
+          "p50Ms": 56.928625,
+          "p95Ms": 100.938667,
+          "p99Ms": 113.82425,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -4.2317594259259295,
+            "deltaMeanMsCI95": [
+              -6.8678605231481535,
+              -1.8969640833333363
+            ],
+            "relativePercent": -7.234937533852492,
+            "relativePercentCI95": [
+              -11.198967946991845,
+              -3.3646125885936295
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 68.57629436574074,
+          "p50Ms": 67.980458,
+          "p95Ms": 139.263042,
+          "p99Ms": 178.526,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -7.011634662037039,
+            "deltaMeanMsCI95": [
+              -8.818590874999995,
+              -5.149509509259259
+            ],
+            "relativePercent": -9.276130133768223,
+            "relativePercentCI95": [
+              -11.219499362432595,
+              -7.2282335950265
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.5694444444444444,
+        "searchExpansions": 0.8333333333333334,
+        "certifiedSkips": 0.034722222222222224,
+        "prefillMs": 3.1880296967592594,
+        "prefixSearchMs": 16.134597511574075,
+        "afterSearchMs": 41.885727655092595,
+        "baselinePathMs": 6.956627418981482,
+        "explorationMs": 2.6359467685185187,
+        "searchRestoreMs": 2.9487582731481483
+      },
+      "peakRSSBytes": 4156686336
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 51.61352201388889,
+          "p50Ms": 50.777416,
+          "p95Ms": 98.927667,
+          "p99Ms": 141.943792,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -15.425749775462968,
+            "deltaMeanMsCI95": [
+              -17.19172923611111,
+              -13.592031067129634
+            ],
+            "relativePercent": -23.01001989391106,
+            "relativePercentCI95": [
+              -24.40311332341436,
+              -21.600697888158994
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 45.69112484722222,
+          "p50Ms": 48.135625,
+          "p95Ms": 88.103667,
+          "p99Ms": 93.476667,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -12.799489703703706,
+            "deltaMeanMsCI95": [
+              -15.417975000000002,
+              -10.194915657407407
+            ],
+            "relativePercent": -21.882980375526053,
+            "relativePercentCI95": [
+              -24.612595347173883,
+              -19.18913224470149
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 57.53591918055555,
+          "p50Ms": 56.696708,
+          "p95Ms": 126.66675,
+          "p99Ms": 151.055917,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -18.052009847222223,
+            "deltaMeanMsCI95": [
+              -20.656558805555555,
+              -15.36432776388889
+            ],
+            "relativePercent": -23.882133138729454,
+            "relativePercentCI95": [
+              -25.433338429396578,
+              -22.141776674399427
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.5694444444444444,
+        "searchExpansions": 0.8333333333333334,
+        "certifiedSkips": 0.034722222222222224,
+        "prefillMs": 2.564501074074074,
+        "prefixSearchMs": 13.771146789351851,
+        "afterSearchMs": 35.0620471712963,
+        "baselinePathMs": 5.683725284722223,
+        "explorationMs": 2.1106620416666666,
+        "searchRestoreMs": 1.0139718263888888
+      },
+      "peakRSSBytes": 4154933248
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 67.03927178935186,
+          "p50Ms": 60.222042,
+          "p95Ms": 142.421417,
+          "p99Ms": 202.517666,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 58.490614550925926,
+          "p50Ms": 56.686583,
+          "p95Ms": 125.63575,
+          "p99Ms": 130.237959,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 75.58792902777778,
+          "p50Ms": 67.330208,
+          "p95Ms": 160.796625,
+          "p99Ms": 203.4135,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 10.5625,
+        "decodeCalls": 6.875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.1244777430555555,
+        "prefixSearchMs": 23.166732236111113,
+        "afterSearchMs": 40.519069261574074,
+        "baselinePathMs": 8.130452550925925,
+        "explorationMs": 8.635457761574074,
+        "searchRestoreMs": 4.406481335648148
+      },
+      "peakRSSBytes": 4157915136
+    },
+    "exact": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 84.45491495138889,
+          "p50Ms": 85.660292,
+          "p95Ms": 159.430916,
+          "p99Ms": 184.587583,
+          "shown": 110,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 17.95278536111111,
+            "deltaMeanMsCI95": [
+              12.309053861111112,
+              23.39577290972222
+            ],
+            "relativePercent": 26.99580520461362,
+            "relativePercentCI95": [
+              17.766507046383538,
+              37.396547840598515
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 88.33209022222222,
+          "p50Ms": 87.991875,
+          "p95Ms": 157.123334,
+          "p99Ms": 183.10325,
+          "shown": 60,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 30.389898763888887,
+            "deltaMeanMsCI95": [
+              21.19279630555555,
+              38.52293404166667
+            ],
+            "relativePercent": 52.44865269851331,
+            "relativePercentCI95": [
+              34.298241478091015,
+              72.91393924014402
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 80.57773968055555,
+          "p50Ms": 80.54925,
+          "p95Ms": 163.409792,
+          "p99Ms": 184.587583,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 5.5156719583333285,
+            "deltaMeanMsCI95": [
+              0.39861126388888757,
+              11.573006972222224
+            ],
+            "relativePercent": 7.3481481735153675,
+            "relativePercentCI95": [
+              0.5073205220246013,
+              16.79571763350043
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [
+        "fresh-00-en-1",
+        "fresh-00-en-2",
+        "fresh-00-sr_latn-2",
+        "fresh-01-en-1",
+        "fresh-01-en-2",
+        "fresh-01-sr_latn-1",
+        "fresh-01-sr_latn-2",
+        "fresh-02-en-1",
+        "fresh-02-en-2",
+        "fresh-02-sr_latn-1",
+        "fresh-02-sr_latn-2",
+        "fresh-03-en-1",
+        "fresh-03-en-2",
+        "fresh-03-sr_latn-1",
+        "fresh-03-sr_latn-2",
+        "fresh-04-en-1",
+        "fresh-04-en-2",
+        "fresh-04-sr_latn-2",
+        "fresh-05-en-1",
+        "fresh-05-en-2",
+        "fresh-05-sr_latn-1",
+        "fresh-06-en-1",
+        "fresh-06-en-2",
+        "fresh-06-sr_latn-1",
+        "fresh-06-sr_latn-2",
+        "fresh-07-en-1",
+        "fresh-07-en-2",
+        "fresh-07-sr_latn-2",
+        "fresh-08-en-1",
+        "fresh-08-en-2",
+        "fresh-08-sr_latn-2",
+        "fresh-09-en-1",
+        "fresh-09-en-2",
+        "fresh-09-sr_latn-1",
+        "fresh-09-sr_latn-2",
+        "fresh-10-en-1",
+        "fresh-10-en-2",
+        "fresh-11-en-1",
+        "fresh-11-en-2",
+        "fresh-11-sr_latn-2",
+        "fresh-12-en-1",
+        "fresh-12-en-2",
+        "fresh-12-sr_latn-1",
+        "fresh-12-sr_latn-2",
+        "fresh-13-en-1",
+        "fresh-13-en-2",
+        "fresh-13-sr_latn-1",
+        "fresh-13-sr_latn-2",
+        "fresh-14-en-1",
+        "fresh-14-en-2",
+        "fresh-14-sr_latn-2",
+        "fresh-15-en-1",
+        "fresh-15-en-2",
+        "fresh-15-sr_latn-1",
+        "fresh-15-sr_latn-2",
+        "fresh-16-en-1",
+        "fresh-16-sr_latn-1",
+        "fresh-16-sr_latn-2",
+        "fresh-17-en-1",
+        "fresh-17-en-2",
+        "fresh-17-sr_latn-1",
+        "fresh-17-sr_latn-2",
+        "fresh-18-en-1",
+        "fresh-18-en-2",
+        "fresh-18-sr_latn-2",
+        "fresh-19-en-1",
+        "fresh-20-en-1",
+        "fresh-20-en-2",
+        "fresh-20-sr_latn-2",
+        "fresh-21-en-1",
+        "fresh-21-sr_latn-1",
+        "fresh-21-sr_latn-2",
+        "fresh-22-en-1",
+        "fresh-22-en-2",
+        "fresh-22-sr_latn-1",
+        "fresh-22-sr_latn-2",
+        "fresh-23-en-1",
+        "fresh-23-en-2",
+        "fresh-23-sr_latn-1",
+        "fresh-23-sr_latn-2"
+      ],
+      "changedObservations": 80,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 12.458333333333334,
+        "decodeCalls": 8.645833333333334,
+        "searchRestoreSkips": 0.4236111111111111,
+        "searchMemoHits": 1.3333333333333333,
+        "searchExpansions": 2.548611111111111,
+        "certifiedSkips": 0,
+        "prefillMs": 3.323471076388889,
+        "prefixSearchMs": 32.68716547222222,
+        "afterSearchMs": 48.22037038194444,
+        "baselinePathMs": 19.240023756944446,
+        "explorationMs": 12.010440694444444,
+        "searchRestoreMs": 9.588537861111112
+      },
+      "peakRSSBytes": 4153147392
+    },
+    "memo": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 60.536603291666665,
+          "p50Ms": 58.00825,
+          "p95Ms": 117.402834,
+          "p99Ms": 170.566625,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -5.96552629861111,
+            "deltaMeanMsCI95": [
+              -7.852664854166657,
+              -4.029306409722229
+            ],
+            "relativePercent": -8.970428970267507,
+            "relativePercentCI95": [
+              -11.429305450380934,
+              -6.301683564886018
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 53.799483208333335,
+          "p50Ms": 51.569333,
+          "p95Ms": 99.368917,
+          "p99Ms": 111.990167,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -4.142708249999998,
+            "deltaMeanMsCI95": [
+              -6.684091402777773,
+              -1.626260347222222
+            ],
+            "relativePercent": -7.149726556302327,
+            "relativePercentCI95": [
+              -11.166290864691186,
+              -2.876549492271585
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 67.273723375,
+          "p50Ms": 63.904208,
+          "p95Ms": 137.542167,
+          "p99Ms": 178.606042,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -7.788344347222221,
+            "deltaMeanMsCI95": [
+              -10.683694458333333,
+              -5.054052124999998
+            ],
+            "relativePercent": -10.37587237277302,
+            "relativePercentCI95": [
+              -13.813343465498507,
+              -7.076214341822706
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.6458333333333334,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.3249068055555555,
+        "prefixSearchMs": 15.974558993055556,
+        "afterSearchMs": 41.01699592361111,
+        "baselinePathMs": 6.867627611111111,
+        "explorationMs": 2.615922465277778,
+        "searchRestoreMs": 2.8887511666666668
+      },
+      "peakRSSBytes": 4154605568
+    },
+    "threads2": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 51.22090482638889,
+          "p50Ms": 51.29525,
+          "p95Ms": 98.240709,
+          "p99Ms": 140.024917,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -15.281224763888886,
+            "deltaMeanMsCI95": [
+              -17.645032590277772,
+              -12.902188333333331
+            ],
+            "relativePercent": -22.97854949613962,
+            "relativePercentCI95": [
+              -24.761852080468028,
+              -20.98240347527153
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 45.389906305555556,
+          "p50Ms": 48.834292,
+          "p95Ms": 80.918125,
+          "p99Ms": 92.922583,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -12.552285152777777,
+            "deltaMeanMsCI95": [
+              -15.395814708333331,
+              -9.656220930555556
+            ],
+            "relativePercent": -21.66346290475434,
+            "relativePercentCI95": [
+              -24.635336996167023,
+              -18.44630938532218
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 57.05190334722222,
+          "p50Ms": 56.851125,
+          "p95Ms": 106.443917,
+          "p99Ms": 149.581333,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -18.010164375000002,
+            "deltaMeanMsCI95": [
+              -21.395738916666673,
+              -14.681369333333325
+            ],
+            "relativePercent": -23.993696045849887,
+            "relativePercentCI95": [
+              -26.277896004986733,
+              -21.493900175682324
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.6458333333333334,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 2.5510419444444445,
+        "prefixSearchMs": 13.637184326388889,
+        "afterSearchMs": 34.814629333333336,
+        "baselinePathMs": 5.622740159722222,
+        "explorationMs": 2.0650144652777778,
+        "searchRestoreMs": 1.0246374097222222
+      },
+      "peakRSSBytes": 4154261504
+    },
+    "threads2_only": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 57.726133375,
+          "p50Ms": 53.097,
+          "p95Ms": 114.13475,
+          "p99Ms": 166.679167,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -8.775996215277772,
+            "deltaMeanMsCI95": [
+              -10.745985236111109,
+              -6.792451694444442
+            ],
+            "relativePercent": -13.1965641842555,
+            "relativePercentCI95": [
+              -15.19264817429865,
+              -10.820335094720324
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 50.36828523611111,
+          "p50Ms": 47.599875,
+          "p95Ms": 104.576,
+          "p99Ms": 108.872167,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -7.57390622222222,
+            "deltaMeanMsCI95": [
+              -9.758399875000002,
+              -5.384599597222222
+            ],
+            "relativePercent": -13.071487342118694,
+            "relativePercentCI95": [
+              -15.723305489540707,
+              -9.917886034588141
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 65.08398151388889,
+          "p50Ms": 56.901792,
+          "p95Ms": 131.676334,
+          "p99Ms": 170.302875,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -9.978086208333337,
+            "deltaMeanMsCI95": [
+              -12.562562555555562,
+              -7.3976649305555435
+            ],
+            "relativePercent": -13.293113967042103,
+            "relativePercentCI95": [
+              -15.535643822657775,
+              -10.639682407506335
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.5625,
+        "decodeCalls": 6.875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 2.564412826388889,
+        "prefixSearchMs": 19.970188041666667,
+        "afterSearchMs": 34.978940083333335,
+        "baselinePathMs": 6.756150173611111,
+        "explorationMs": 7.218595208333333,
+        "searchRestoreMs": 1.5447509236111112
+      },
+      "peakRSSBytes": 4153393152
+    },
+    "threads4": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 52.201958902777776,
+          "p50Ms": 52.474125,
+          "p95Ms": 98.855416,
+          "p99Ms": 140.149375,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -14.3001706875,
+            "deltaMeanMsCI95": [
+              -16.77728527083333,
+              -11.813444180555557
+            ],
+            "relativePercent": -21.503327450720622,
+            "relativePercentCI95": [
+              -23.61707196972661,
+              -19.06763129473016
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 46.35528702777778,
+          "p50Ms": 48.774417,
+          "p95Ms": 83.646041,
+          "p99Ms": 94.139042,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -11.586904430555556,
+            "deltaMeanMsCI95": [
+              -14.541905013888886,
+              -8.660988916666668
+            ],
+            "relativePercent": -19.997352773389288,
+            "relativePercentCI95": [
+              -23.41456267241305,
+              -16.35484090246936
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 58.04863077777778,
+          "p50Ms": 56.75,
+          "p95Ms": 112.863333,
+          "p99Ms": 149.953583,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -17.013436944444443,
+            "deltaMeanMsCI95": [
+              -20.503601222222212,
+              -13.628978611111116
+            ],
+            "relativePercent": -22.665825044155554,
+            "relativePercentCI95": [
+              -25.107848534988342,
+              -19.922292071100433
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.6458333333333334,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 2.5813529930555554,
+        "prefixSearchMs": 13.924144680555555,
+        "afterSearchMs": 35.50861081944444,
+        "baselinePathMs": 5.734991868055555,
+        "explorationMs": 2.1171970555555557,
+        "searchRestoreMs": 0.9995654097222222
+      },
+      "peakRSSBytes": 4154621952
+    },
+    "width2": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 58.71916784027778,
+          "p50Ms": 57.238125,
+          "p95Ms": 114.56675,
+          "p99Ms": 149.014708,
+          "shown": 111,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -7.782961749999998,
+            "deltaMeanMsCI95": [
+              -10.531043319444443,
+              -5.135628361111104
+            ],
+            "relativePercent": -11.703327093359462,
+            "relativePercentCI95": [
+              -15.162525569736584,
+              -8.082297858429788
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 52.23608455555556,
+          "p50Ms": 50.465875,
+          "p95Ms": 96.245333,
+          "p99Ms": 112.762542,
+          "shown": 61,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -5.706106902777776,
+            "deltaMeanMsCI95": [
+              -8.829417041666666,
+              -2.7579251388888983
+            ],
+            "relativePercent": -9.847930772313095,
+            "relativePercentCI95": [
+              -14.54347873154621,
+              -4.97173896969485
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 65.202251125,
+          "p50Ms": 61.878875,
+          "p95Ms": 131.821959,
+          "p99Ms": 151.559167,
+          "shown": 50,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -9.85981659722222,
+            "deltaMeanMsCI95": [
+              -13.399923152777774,
+              -6.258016791666673
+            ],
+            "relativePercent": -13.135551546101642,
+            "relativePercentCI95": [
+              -16.931545879621556,
+              -8.914686079164703
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [
+        "fresh-00-sr_latn-1",
+        "fresh-02-sr_latn-2",
+        "fresh-05-sr_latn-1",
+        "fresh-15-sr_latn-2",
+        "fresh-16-sr_latn-1",
+        "fresh-17-en-2",
+        "fresh-18-sr_latn-1",
+        "fresh-18-sr_latn-2",
+        "fresh-19-sr_latn-2",
+        "fresh-20-sr_latn-2",
+        "fresh-22-sr_latn-1"
+      ],
+      "changedObservations": 11,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 9.659722222222221,
+        "decodeCalls": 6,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.6736111111111112,
+        "searchExpansions": 0.8402777777777778,
+        "certifiedSkips": 0,
+        "prefillMs": 3.162799798611111,
+        "prefixSearchMs": 14.73021638888889,
+        "afterSearchMs": 40.59001330555556,
+        "baselinePathMs": 6.781708347222223,
+        "explorationMs": 1.5857358402777777,
+        "searchRestoreMs": 2.5926822986111113
+      },
+      "peakRSSBytes": 4153671680
+    }
+  },
+  "fresh-threadsplit": {
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 51.76198118981481,
+          "p50Ms": 51.299041,
+          "p95Ms": 100.132084,
+          "p99Ms": 142.329959,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -16.82358979398149,
+            "deltaMeanMsCI95": [
+              -18.72826315277778,
+              -14.892113050925925
+            ],
+            "relativePercent": -24.529342765049144,
+            "relativePercentCI95": [
+              -25.7637902982665,
+              -23.22402533494935
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 45.85835800925926,
+          "p50Ms": 48.774166,
+          "p95Ms": 86.798,
+          "p99Ms": 94.282209,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -13.824953171296293,
+            "deltaMeanMsCI95": [
+              -16.603253148148152,
+              -11.080359569444445
+            ],
+            "relativePercent": -23.16385082837089,
+            "relativePercentCI95": [
+              -25.628004162388507,
+              -20.507698821106747
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 57.66560437037037,
+          "p50Ms": 56.9995,
+          "p95Ms": 128.958708,
+          "p99Ms": 151.789125,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -19.822226416666673,
+            "deltaMeanMsCI95": [
+              -22.52869876851852,
+              -16.986815652777782
+            ],
+            "relativePercent": -25.581083139551154,
+            "relativePercentCI95": [
+              -26.97207178729467,
+              -24.092565549457234
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.5694444444444444,
+        "searchExpansions": 0.8333333333333334,
+        "certifiedSkips": 0.034722222222222224,
+        "prefillMs": 2.5750470787037036,
+        "prefixSearchMs": 13.783212215277779,
+        "afterSearchMs": 35.19517855555556,
+        "baselinePathMs": 5.682283837962963,
+        "explorationMs": 2.104421011574074,
+        "searchRestoreMs": 1.004156939814815
+      },
+      "peakRSSBytes": 4154834944
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 68.5855709837963,
+          "p50Ms": 62.82075,
+          "p95Ms": 143.254792,
+          "p99Ms": 203.782375,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 59.683311180555556,
+          "p50Ms": 56.654958,
+          "p95Ms": 124.129083,
+          "p99Ms": 139.264333,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 77.48783078703704,
+          "p50Ms": 70.917458,
+          "p95Ms": 160.719583,
+          "p99Ms": 211.991208,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 10.5625,
+        "decodeCalls": 6.875,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.9097222222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.214702847222222,
+        "prefixSearchMs": 23.663144493055555,
+        "afterSearchMs": 41.49670942592593,
+        "baselinePathMs": 8.31838173611111,
+        "explorationMs": 8.869616150462964,
+        "searchRestoreMs": 4.485235328703704
+      },
+      "peakRSSBytes": 4161880064
+    },
+    "split_batch14": {
+      "parts": {
+        "all": {
+          "n": 432,
+          "meanMs": 52.72524613425926,
+          "p50Ms": 52.642583,
+          "p95Ms": 100.773666,
+          "p99Ms": 151.1425,
+          "shown": 333,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -15.860324849537044,
+            "deltaMeanMsCI95": [
+              -17.81297168287037,
+              -13.935335807870372
+            ],
+            "relativePercent": -23.12487105091554,
+            "relativePercentCI95": [
+              -24.39177160459248,
+              -21.7503733935254
+            ]
+          }
+        },
+        "en": {
+          "n": 216,
+          "meanMs": 46.722150657407404,
+          "p50Ms": 48.909125,
+          "p95Ms": 86.644417,
+          "p99Ms": 93.532958,
+          "shown": 183,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -12.961160523148152,
+            "deltaMeanMsCI95": [
+              -15.710727444444442,
+              -10.220666652777785
+            ],
+            "relativePercent": -21.716557387269773,
+            "relativePercentCI95": [
+              -24.224700870068162,
+              -18.951007853960444
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 216,
+          "meanMs": 58.72834161111111,
+          "p50Ms": 57.039416,
+          "p95Ms": 128.007125,
+          "p99Ms": 151.281375,
+          "shown": 150,
+          "paired": {
+            "clusters": 24,
+            "resamples": 5000,
+            "deltaMeanMs": -18.75948917592593,
+            "deltaMeanMsCI95": [
+              -21.482023263888887,
+              -15.992218768518526
+            ],
+            "relativePercent": -24.20959392641071,
+            "relativePercentCI95": [
+              -25.678250706549566,
+              -22.719054356980084
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 9.729166666666666,
+        "decodeCalls": 6.055555555555555,
+        "searchRestoreSkips": 0.1736111111111111,
+        "searchMemoHits": 0.5694444444444444,
+        "searchExpansions": 0.8333333333333334,
+        "certifiedSkips": 0.034722222222222224,
+        "prefillMs": 3.2147782546296297,
+        "prefixSearchMs": 13.90544326388889,
+        "afterSearchMs": 35.406260895833334,
+        "baselinePathMs": 5.725141784722222,
+        "explorationMs": 2.1476611782407407,
+        "searchRestoreMs": 1.0289298958333333
+      },
+      "peakRSSBytes": 4156047360
+    }
+  },
+  "long": {
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 161.21448144444443,
+          "p50Ms": 163.415542,
+          "p95Ms": 271.1865,
+          "p99Ms": 284.712,
+          "shown": 144,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -7.747339743055562,
+            "deltaMeanMsCI95": [
+              -12.210236840277807,
+              -3.439503923611104
+            ],
+            "relativePercent": -4.58526055685573,
+            "relativePercentCI95": [
+              -6.682058781157463,
+              -2.2213605056003227
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 121.60071526388889,
+          "p50Ms": 106.862083,
+          "p95Ms": 185.998334,
+          "p99Ms": 203.572333,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -3.3454884166666687,
+            "deltaMeanMsCI95": [
+              -7.848648138888873,
+              0.8513795416666627
+            ],
+            "relativePercent": -2.677543069031474,
+            "relativePercentCI95": [
+              -5.661548958425955,
+              0.7495214997626842
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 200.828247625,
+          "p50Ms": 183.088708,
+          "p95Ms": 280.259625,
+          "p99Ms": 286.226459,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -12.149191069444441,
+            "deltaMeanMsCI95": [
+              -20.489150597222256,
+              -3.6842846805555687
+            ],
+            "relativePercent": -5.70444979708612,
+            "relativePercentCI95": [
+              -8.701608751097812,
+              -1.9254638294279092
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 186.33333333333334,
+        "decodeCalls": 7.5625,
+        "searchRestoreSkips": 0.1875,
+        "searchMemoHits": 0.5833333333333334,
+        "searchExpansions": 0.7916666666666666,
+        "certifiedSkips": 0.08333333333333333,
+        "prefillMs": 72.18611802777778,
+        "prefixSearchMs": 39.38379043055556,
+        "afterSearchMs": 48.87680815277778,
+        "baselinePathMs": 6.535114041666667,
+        "explorationMs": 2.0606235625,
+        "searchRestoreMs": 3.074303236111111
+      },
+      "peakRSSBytes": 4174266368
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 149.3312655763889,
+          "p50Ms": 148.898541,
+          "p95Ms": 251.726,
+          "p99Ms": 268.140875,
+          "shown": 144,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -19.630555611111106,
+            "deltaMeanMsCI95": [
+              -26.33454469444443,
+              -13.035970486111133
+            ],
+            "relativePercent": -11.618338079658075,
+            "relativePercentCI95": [
+              -14.40774575523739,
+              -8.500981663620866
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 112.65722048611111,
+          "p50Ms": 90.121333,
+          "p95Ms": 174.360167,
+          "p99Ms": 185.213792,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -12.288983194444441,
+            "deltaMeanMsCI95": [
+              -20.16221174999997,
+              -5.269763888888899
+            ],
+            "relativePercent": -9.835419430479975,
+            "relativePercentCI95": [
+              -14.428669191110066,
+              -4.888392741821335
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 186.00531066666667,
+          "p50Ms": 161.539708,
+          "p95Ms": 255.843167,
+          "p99Ms": 268.551166,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -26.972128027777757,
+            "deltaMeanMsCI95": [
+              -36.92579941666665,
+              -16.634027791666668
+            ],
+            "relativePercent": -12.664312329567585,
+            "relativePercentCI95": [
+              -15.69197710181861,
+              -8.811923645869534
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 186.33333333333334,
+        "decodeCalls": 7.5625,
+        "searchRestoreSkips": 0.1875,
+        "searchMemoHits": 0.5833333333333334,
+        "searchExpansions": 0.7916666666666666,
+        "certifiedSkips": 0.08333333333333333,
+        "prefillMs": 72.18908159027778,
+        "prefixSearchMs": 36.81171929166667,
+        "afterSearchMs": 39.54031629166667,
+        "baselinePathMs": 5.225923902777778,
+        "explorationMs": 1.5741495763888889,
+        "searchRestoreMs": 1.066631673611111
+      },
+      "peakRSSBytes": 4179312640
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 144,
+          "meanMs": 168.9618211875,
+          "p50Ms": 173.800541,
+          "p95Ms": 289.640417,
+          "p99Ms": 300.351333,
+          "shown": 144,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 72,
+          "meanMs": 124.94620368055556,
+          "p50Ms": 134.300375,
+          "p95Ms": 203.991708,
+          "p99Ms": 225.584583,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 72,
+          "meanMs": 212.97743869444443,
+          "p50Ms": 208.136791,
+          "p95Ms": 297.449458,
+          "p99Ms": 302.115667,
+          "shown": 72,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 187.27083333333334,
+        "decodeCalls": 8.5,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.9583333333333334,
+        "certifiedSkips": 0,
+        "prefillMs": 72.20053179166666,
+        "prefixSearchMs": 48.29702717361111,
+        "afterSearchMs": 47.669870652777774,
+        "baselinePathMs": 8.246848701388888,
+        "explorationMs": 9.377227145833333,
+        "searchRestoreMs": 5.246923013888889
+      },
+      "peakRSSBytes": 4175020032
+    }
+  },
+  "long-threadsplit": {
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 48,
+          "meanMs": 162.31667360416665,
+          "p50Ms": 164.348833,
+          "p95Ms": 277.474541,
+          "p99Ms": 280.455541,
+          "shown": 48,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -16.264884583333355,
+            "deltaMeanMsCI95": [
+              -21.348100729166656,
+              -10.593097208333328
+            ],
+            "relativePercent": -9.107818717908245,
+            "relativePercentCI95": [
+              -11.359390386284396,
+              -6.645795705993263
+            ]
+          }
+        },
+        "en": {
+          "n": 24,
+          "meanMs": 121.222691,
+          "p50Ms": 102.875,
+          "p95Ms": 188.383875,
+          "p99Ms": 192.084833,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -9.50332474999999,
+            "deltaMeanMsCI95": [
+              -15.078741333333332,
+              -4.210802291666671
+            ],
+            "relativePercent": -7.269650723673948,
+            "relativePercentCI95": [
+              -10.443832151363775,
+              -3.578654907265222
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 203.41065620833334,
+          "p50Ms": 181.040083,
+          "p95Ms": 280.251709,
+          "p99Ms": 280.455541,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -23.026444416666664,
+            "deltaMeanMsCI95": [
+              -32.59035241666667,
+              -13.40886283333335
+            ],
+            "relativePercent": -10.169024578176566,
+            "relativePercentCI95": [
+              -13.415315497883585,
+              -6.558044465846713
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 186.33333333333334,
+        "decodeCalls": 7.5625,
+        "searchRestoreSkips": 0.1875,
+        "searchMemoHits": 0.5833333333333334,
+        "searchExpansions": 0.7916666666666666,
+        "certifiedSkips": 0.08333333333333333,
+        "prefillMs": 79.16105029166667,
+        "prefixSearchMs": 40.39658945833333,
+        "afterSearchMs": 42.03567010416667,
+        "baselinePathMs": 5.523587708333333,
+        "explorationMs": 1.7224045208333334,
+        "searchRestoreMs": 0.9835564791666667
+      },
+      "peakRSSBytes": 4173987840
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 48,
+          "meanMs": 178.5815581875,
+          "p50Ms": 176.75625,
+          "p95Ms": 302.727792,
+          "p99Ms": 309.988416,
+          "shown": 48,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 24,
+          "meanMs": 130.72601575,
+          "p50Ms": 135.902,
+          "p95Ms": 197.296167,
+          "p99Ms": 205.111125,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 226.437100625,
+          "p50Ms": 220.210709,
+          "p95Ms": 308.046875,
+          "p99Ms": 309.988416,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 187.27083333333334,
+        "decodeCalls": 8.5,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.9583333333333334,
+        "certifiedSkips": 0,
+        "prefillMs": 76.366362875,
+        "prefixSearchMs": 51.1944123125,
+        "afterSearchMs": 50.2544618125,
+        "baselinePathMs": 8.281128520833333,
+        "explorationMs": 9.993841145833333,
+        "searchRestoreMs": 5.581307083333333
+      },
+      "peakRSSBytes": 4175822848
+    },
+    "split_batch14": {
+      "parts": {
+        "all": {
+          "n": 48,
+          "meanMs": 168.79410858333333,
+          "p50Ms": 169.208375,
+          "p95Ms": 281.989708,
+          "p99Ms": 292.403959,
+          "shown": 48,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -9.787449604166682,
+            "deltaMeanMsCI95": [
+              -15.926062312499994,
+              -3.8567664583333303
+            ],
+            "relativePercent": -5.4806608831861725,
+            "relativePercentCI95": [
+              -8.534680795196047,
+              -2.3759430291809713
+            ]
+          }
+        },
+        "en": {
+          "n": 24,
+          "meanMs": 126.02478479166666,
+          "p50Ms": 95.79225,
+          "p95Ms": 196.853666,
+          "p99Ms": 207.761583,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -4.701230958333326,
+            "deltaMeanMsCI95": [
+              -10.900795208333326,
+              1.449220541666648
+            ],
+            "relativePercent": -3.5962474120866283,
+            "relativePercentCI95": [
+              -7.73188935535577,
+              1.2337666129264457
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 24,
+          "meanMs": 211.563432375,
+          "p50Ms": 181.294542,
+          "p95Ms": 291.208292,
+          "p99Ms": 292.403959,
+          "shown": 24,
+          "paired": {
+            "clusters": 6,
+            "resamples": 5000,
+            "deltaMeanMs": -14.873668250000009,
+            "deltaMeanMsCI95": [
+              -26.959188916666676,
+              -2.694369583333317
+            ],
+            "relativePercent": -6.568565049166619,
+            "relativePercentCI95": [
+              -10.922115296792489,
+              -1.2812808760407912
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 186.33333333333334,
+        "decodeCalls": 7.5625,
+        "searchRestoreSkips": 0.1875,
+        "searchMemoHits": 0.5833333333333334,
+        "searchExpansions": 0.7916666666666666,
+        "certifiedSkips": 0.08333333333333333,
+        "prefillMs": 83.22494095833333,
+        "prefixSearchMs": 41.9594374375,
+        "afterSearchMs": 42.839078125,
+        "baselinePathMs": 5.673197020833333,
+        "explorationMs": 1.7710121875,
+        "searchRestoreMs": 1.0392560208333332
+      },
+      "peakRSSBytes": 4174446592
+    }
+  },
+  "regression": {
+    "budget8": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 69.94134346875,
+          "p50Ms": 73.075584,
+          "p95Ms": 130.506166,
+          "p99Ms": 164.946125,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -4.889541333333327,
+            "deltaMeanMsCI95": [
+              -6.472055684027775,
+              -3.43226640625
+            ],
+            "relativePercent": -6.5341220356614045,
+            "relativePercentCI95": [
+              -8.471361187695713,
+              -4.672759943735317
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 58.74929804166667,
+          "p50Ms": 64.282833,
+          "p95Ms": 101.153958,
+          "p99Ms": 121.422459,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -2.4626645902777753,
+            "deltaMeanMsCI95": [
+              -4.366844597222224,
+              -0.6563318194444479
+            ],
+            "relativePercent": -4.023175347415808,
+            "relativePercentCI95": [
+              -6.996331213766338,
+              -1.1320423739349494
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 81.13338889583333,
+          "p50Ms": 78.994583,
+          "p95Ms": 144.616625,
+          "p99Ms": 173.218792,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -7.316418076388885,
+            "deltaMeanMsCI95": [
+              -9.440326576388896,
+              -5.206914000000008
+            ],
+            "relativePercent": -8.271830461638674,
+            "relativePercentCI95": [
+              -10.45852653377275,
+              -6.064318457936569
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.6319444444444444,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 4.872775440972222,
+        "prefixSearchMs": 17.519659159722224,
+        "afterSearchMs": 47.33456830902778,
+        "baselinePathMs": 8.226262715277779,
+        "explorationMs": 2.3617877534722225,
+        "searchRestoreMs": 3.1300433923611113
+      },
+      "peakRSSBytes": 4145692672
+    },
+    "certified": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 68.74796339583334,
+          "p50Ms": 69.276875,
+          "p95Ms": 127.667083,
+          "p99Ms": 167.49575,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -6.082921406249994,
+            "deltaMeanMsCI95": [
+              -7.412104479166664,
+              -4.764041493055566
+            ],
+            "relativePercent": -8.128891462847776,
+            "relativePercentCI95": [
+              -9.703636169613617,
+              -6.55442468494114
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 57.84794013194445,
+          "p50Ms": 62.4395,
+          "p95Ms": 102.230333,
+          "p99Ms": 120.275625,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -3.3640224999999973,
+            "deltaMeanMsCI95": [
+              -4.917408986111108,
+              -1.799640826388889
+            ],
+            "relativePercent": -5.495694559292607,
+            "relativePercentCI95": [
+              -7.740957350755995,
+              -3.1228947573503696
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 79.64798665972222,
+          "p50Ms": 78.00875,
+          "p95Ms": 140.906833,
+          "p99Ms": 170.350083,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -8.801820312499999,
+            "deltaMeanMsCI95": [
+              -10.871856194444453,
+              -6.714995909722221
+            ],
+            "relativePercent": -9.951203528645603,
+            "relativePercentCI95": [
+              -11.991773475200706,
+              -7.800298242863624
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.4930555555555556,
+        "searchExpansions": 0.7395833333333334,
+        "certifiedSkips": 0.0625,
+        "prefillMs": 4.8659882847222224,
+        "prefixSearchMs": 17.28753285763889,
+        "afterSearchMs": 46.34794877430556,
+        "baselinePathMs": 8.194337954861112,
+        "explorationMs": 2.3333975798611113,
+        "searchRestoreMs": 3.2483081145833332
+      },
+      "peakRSSBytes": 4145512448
+    },
+    "certified_threads2": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 58.453942125,
+          "p50Ms": 60.050125,
+          "p95Ms": 111.419458,
+          "p99Ms": 134.675167,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -16.376942677083335,
+            "deltaMeanMsCI95": [
+              -17.95991978125,
+              -14.785404937499997
+            ],
+            "relativePercent": -21.885271997515375,
+            "relativePercentCI95": [
+              -23.100438419737912,
+              -20.64694975823813
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 48.639597208333335,
+          "p50Ms": 52.689417,
+          "p95Ms": 84.832708,
+          "p99Ms": 97.410208,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -12.57236542361111,
+            "deltaMeanMsCI95": [
+              -14.468618895833332,
+              -10.631804673611112
+            ],
+            "relativePercent": -20.53906603061607,
+            "relativePercentCI95": [
+              -22.279459630580533,
+              -18.65139096221067
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 68.26828704166667,
+          "p50Ms": 62.974959,
+          "p95Ms": 124.193708,
+          "p99Ms": 142.997958,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -20.181519930555552,
+            "deltaMeanMsCI95": [
+              -22.37485785416666,
+              -18.014140819444442
+            ],
+            "relativePercent": -22.816918002877717,
+            "relativePercentCI95": [
+              -24.279871940796085,
+              -21.274723993566546
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.4930555555555556,
+        "searchExpansions": 0.7395833333333334,
+        "certifiedSkips": 0.0625,
+        "prefillMs": 3.7862178958333335,
+        "prefixSearchMs": 15.135375725694445,
+        "afterSearchMs": 39.340557295138886,
+        "baselinePathMs": 6.775506666666667,
+        "explorationMs": 1.913398298611111,
+        "searchRestoreMs": 1.1817120763888889
+      },
+      "peakRSSBytes": 4145610752
+    },
+    "current": {
+      "parts": {
+        "all": {
+          "n": 864,
+          "meanMs": 75.31590173611112,
+          "p50Ms": 73.8235,
+          "p95Ms": 156.111542,
+          "p99Ms": 177.39975,
+          "shown": 750,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "en": {
+          "n": 432,
+          "meanMs": 61.64604239351852,
+          "p50Ms": 62.854208,
+          "p95Ms": 126.324083,
+          "p99Ms": 150.482125,
+          "shown": 375,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 432,
+          "meanMs": 88.9857610787037,
+          "p50Ms": 79.432417,
+          "p95Ms": 167.17525,
+          "p99Ms": 185.278083,
+          "shown": 375,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 0.0,
+            "deltaMeanMsCI95": [
+              0.0,
+              0.0
+            ],
+            "relativePercent": 0.0,
+            "relativePercentCI95": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 3,
+      "meanStages": {
+        "decodedTokens": 11.402777777777779,
+        "decodeCalls": 7.631944444444445,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 4.779341777777778,
+        "prefixSearchMs": 23.49530525347222,
+        "afterSearchMs": 46.8160462349537,
+        "baselinePathMs": 8.30879638425926,
+        "explorationMs": 8.311478974537037,
+        "searchRestoreMs": 4.445857559027778
+      },
+      "peakRSSBytes": 4153032704
+    },
+    "exact": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 90.8573398125,
+          "p50Ms": 87.269,
+          "p95Ms": 154.761,
+          "p99Ms": 201.299083,
+          "shown": 246,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 16.02645501041667,
+            "deltaMeanMsCI95": [
+              12.479291524305545,
+              19.591097659722223
+            ],
+            "relativePercent": 21.416898988705356,
+            "relativePercentCI95": [
+              16.232932338690365,
+              26.866368918213833
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 91.34350834027778,
+          "p50Ms": 89.02675,
+          "p95Ms": 153.976292,
+          "p99Ms": 201.81225,
+          "shown": 121,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 30.131545708333334,
+            "deltaMeanMsCI95": [
+              25.008364013888883,
+              35.22385328472223
+            ],
+            "relativePercent": 49.2249299201668,
+            "relativePercentCI95": [
+              39.33480203818458,
+              59.84585376487432
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 90.37117128472222,
+          "p50Ms": 86.177334,
+          "p95Ms": 154.708708,
+          "p99Ms": 168.656917,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 1.9213643125000033,
+            "deltaMeanMsCI95": [
+              -2.420489590277776,
+              6.383563694444446
+            ],
+            "relativePercent": 2.1722651278407,
+            "relativePercentCI95": [
+              -2.6431402091423695,
+              7.442089819820508
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [
+        "fresh-en-00-11-3",
+        "fresh-en-00-7-2",
+        "fresh-en-01-12-4",
+        "fresh-en-01-7-3",
+        "fresh-en-02-10-5",
+        "fresh-en-02-7-4",
+        "fresh-en-03-6-6",
+        "fresh-en-03-9-2",
+        "fresh-en-04-10-3",
+        "fresh-en-04-8-2",
+        "fresh-en-05-10-4",
+        "fresh-en-05-9-3",
+        "fresh-en-06-11-6",
+        "fresh-en-06-8-4",
+        "fresh-en-07-10-2",
+        "fresh-en-07-7-4",
+        "fresh-en-08-11-3",
+        "fresh-en-08-7-2",
+        "fresh-en-09-12-4",
+        "fresh-en-09-6-3",
+        "fresh-en-10-5-5",
+        "fresh-en-10-6-4",
+        "fresh-en-11-12-2",
+        "fresh-en-11-8-6",
+        "fresh-en-12-12-3",
+        "fresh-en-12-6-2",
+        "fresh-en-13-12-4",
+        "fresh-en-13-8-3",
+        "fresh-en-14-10-4",
+        "fresh-en-14-3-5",
+        "fresh-en-15-11-2",
+        "fresh-en-15-7-4",
+        "fresh-en-16-10-3",
+        "fresh-en-16-7-2",
+        "fresh-en-17-11-4",
+        "fresh-en-17-4-3",
+        "fresh-en-18-6-4",
+        "fresh-en-19-10-2",
+        "fresh-en-19-7-5",
+        "fresh-en-20-11-3",
+        "fresh-en-20-6-2",
+        "fresh-en-21-11-4",
+        "fresh-en-21-8-3",
+        "fresh-en-22-11-5",
+        "fresh-en-22-7-4",
+        "fresh-en-23-11-2",
+        "fresh-en-23-7-6",
+        "fresh-en-24-12-3",
+        "fresh-en-24-7-2",
+        "fresh-en-25-6-3",
+        "fresh-en-26-10-6",
+        "fresh-en-26-7-4",
+        "fresh-en-27-11-2",
+        "fresh-en-27-7-4",
+        "fresh-en-28-11-3",
+        "fresh-en-28-6-2",
+        "fresh-en-29-12-4",
+        "fresh-en-29-6-3",
+        "fresh-en-30-6-4",
+        "fresh-en-30-9-6",
+        "fresh-en-31-12-2",
+        "fresh-en-31-7-6",
+        "fresh-en-32-11-3",
+        "fresh-en-32-7-2",
+        "fresh-en-33-12-4",
+        "fresh-en-33-7-3",
+        "fresh-en-34-10-6",
+        "fresh-en-34-6-4",
+        "fresh-en-35-11-2",
+        "fresh-en-35-7-6",
+        "fresh-en-36-11-3",
+        "fresh-en-36-6-2",
+        "fresh-en-37-12-4",
+        "fresh-en-37-7-3",
+        "fresh-en-38-12-6",
+        "fresh-en-38-9-4",
+        "fresh-en-39-11-2",
+        "fresh-en-39-7-5",
+        "fresh-en-40-11-3",
+        "fresh-en-40-6-2",
+        "fresh-en-41-10-4",
+        "fresh-en-41-6-3",
+        "fresh-en-42-10-6",
+        "fresh-en-42-6-4",
+        "fresh-en-43-11-2",
+        "fresh-en-43-8-6",
+        "fresh-en-44-6-2",
+        "fresh-en-44-9-3",
+        "fresh-en-45-10-4",
+        "fresh-en-45-6-3",
+        "fresh-en-46-10-6",
+        "fresh-en-46-7-4",
+        "fresh-en-47-12-2",
+        "fresh-en-47-6-6",
+        "fresh-sr_latn-00-10-3",
+        "fresh-sr_latn-01-9-4",
+        "fresh-sr_latn-02-10-4",
+        "fresh-sr_latn-03-11-2",
+        "fresh-sr_latn-03-7-6",
+        "fresh-sr_latn-04-10-3",
+        "fresh-sr_latn-04-6-2",
+        "fresh-sr_latn-05-10-4",
+        "fresh-sr_latn-06-11-5",
+        "fresh-sr_latn-07-6-5",
+        "fresh-sr_latn-08-10-3",
+        "fresh-sr_latn-08-6-2",
+        "fresh-sr_latn-09-7-3",
+        "fresh-sr_latn-09-8-4",
+        "fresh-sr_latn-10-6-4",
+        "fresh-sr_latn-11-10-2",
+        "fresh-sr_latn-11-6-6",
+        "fresh-sr_latn-12-11-3",
+        "fresh-sr_latn-12-6-2",
+        "fresh-sr_latn-14-10-4",
+        "fresh-sr_latn-14-6-4",
+        "fresh-sr_latn-15-11-2",
+        "fresh-sr_latn-15-7-5",
+        "fresh-sr_latn-16-10-3",
+        "fresh-sr_latn-16-8-2",
+        "fresh-sr_latn-17-5-3",
+        "fresh-sr_latn-18-10-6",
+        "fresh-sr_latn-18-5-4",
+        "fresh-sr_latn-19-9-2",
+        "fresh-sr_latn-20-7-2",
+        "fresh-sr_latn-21-10-4",
+        "fresh-sr_latn-22-7-4",
+        "fresh-sr_latn-23-8-6",
+        "fresh-sr_latn-24-6-2",
+        "fresh-sr_latn-25-6-3",
+        "fresh-sr_latn-25-9-4",
+        "fresh-sr_latn-26-11-6",
+        "fresh-sr_latn-26-5-4",
+        "fresh-sr_latn-27-12-2",
+        "fresh-sr_latn-27-8-4",
+        "fresh-sr_latn-28-5-2",
+        "fresh-sr_latn-29-12-4",
+        "fresh-sr_latn-30-6-4",
+        "fresh-sr_latn-31-6-6",
+        "fresh-sr_latn-31-9-2",
+        "fresh-sr_latn-32-7-2",
+        "fresh-sr_latn-33-11-4",
+        "fresh-sr_latn-33-6-3",
+        "fresh-sr_latn-34-10-6",
+        "fresh-sr_latn-34-6-4",
+        "fresh-sr_latn-35-5-5",
+        "fresh-sr_latn-37-13-4",
+        "fresh-sr_latn-37-9-3",
+        "fresh-sr_latn-38-11-4",
+        "fresh-sr_latn-38-9-4",
+        "fresh-sr_latn-39-12-2",
+        "fresh-sr_latn-39-7-6",
+        "fresh-sr_latn-40-11-3",
+        "fresh-sr_latn-40-8-2",
+        "fresh-sr_latn-41-6-3",
+        "fresh-sr_latn-42-11-6",
+        "fresh-sr_latn-42-7-4",
+        "fresh-sr_latn-43-10-2",
+        "fresh-sr_latn-44-10-3",
+        "fresh-sr_latn-44-7-2",
+        "fresh-sr_latn-45-12-4",
+        "fresh-sr_latn-45-8-3",
+        "fresh-sr_latn-46-10-5",
+        "fresh-sr_latn-46-6-4",
+        "fresh-sr_latn-47-12-2",
+        "fresh-sr_latn-47-6-6"
+      ],
+      "changedObservations": 165,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 13.427083333333334,
+        "decodeCalls": 9.503472222222221,
+        "searchRestoreSkips": 0.1597222222222222,
+        "searchMemoHits": 1.3506944444444444,
+        "searchExpansions": 2.5729166666666665,
+        "certifiedSkips": 0,
+        "prefillMs": 4.6939500625,
+        "prefixSearchMs": 35.45323947222222,
+        "afterSearchMs": 50.46619806597222,
+        "baselinePathMs": 21.989981027777777,
+        "explorationMs": 12.063183336805556,
+        "searchRestoreMs": 12.41131525
+      },
+      "peakRSSBytes": 4149559296
+    },
+    "installed": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 75.49644662847223,
+          "p50Ms": 73.362416,
+          "p95Ms": 157.420916,
+          "p99Ms": 185.685958,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 0.6655618263888954,
+            "deltaMeanMsCI95": [
+              -1.008814989583344,
+              2.340424666666662
+            ],
+            "relativePercent": 0.8894212973015181,
+            "relativePercentCI95": [
+              -1.3298683333014205,
+              3.1434410298167403
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 61.21349368055556,
+          "p50Ms": 60.767916,
+          "p95Ms": 126.308833,
+          "p99Ms": 136.671542,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 0.001531048611113306,
+            "deltaMeanMsCI95": [
+              -1.9136787291666653,
+              1.895983000000001
+            ],
+            "relativePercent": 0.0025012245078892548,
+            "relativePercentCI95": [
+              -3.0305459330961293,
+              3.1988308107772756
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 89.77939957638888,
+          "p50Ms": 80.209917,
+          "p95Ms": 167.707167,
+          "p99Ms": 195.926917,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 1.3295926041666632,
+            "deltaMeanMsCI95": [
+              -0.7527996944444466,
+              3.4278266597222125
+            ],
+            "relativePercent": 1.5032170783416454,
+            "relativePercentCI95": [
+              -0.8493505012217573,
+              3.909678804878114
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 11.402777777777779,
+        "decodeCalls": 0,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0,
+        "certifiedSkips": 0,
+        "prefillMs": 0,
+        "prefixSearchMs": 0,
+        "afterSearchMs": 0,
+        "baselinePathMs": 0,
+        "explorationMs": 0,
+        "searchRestoreMs": 0
+      },
+      "peakRSSBytes": 4126031872
+    },
+    "memo": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 70.65908393055555,
+          "p50Ms": 73.346042,
+          "p95Ms": 131.665208,
+          "p99Ms": 173.150916,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -4.171800871527779,
+            "deltaMeanMsCI95": [
+              -5.966071753472217,
+              -2.4477415451388853
+            ],
+            "relativePercent": -5.574971995268507,
+            "relativePercentCI95": [
+              -7.792250095589692,
+              -3.358133511926642
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 59.26245372222222,
+          "p50Ms": 64.218792,
+          "p95Ms": 105.012375,
+          "p99Ms": 122.345208,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -1.9495089097222262,
+            "deltaMeanMsCI95": [
+              -3.8579024722222233,
+              -0.14332550694444357
+            ],
+            "relativePercent": -3.184849539042278,
+            "relativePercentCI95": [
+              -6.087953934695212,
+              -0.23830879490182033
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 82.05571413888889,
+          "p50Ms": 79.670417,
+          "p95Ms": 145.514,
+          "p99Ms": 178.368917,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -6.394092833333332,
+            "deltaMeanMsCI95": [
+              -8.922667868055555,
+              -3.919978819444446
+            ],
+            "relativePercent": -7.229063637574029,
+            "relativePercentCI95": [
+              -9.849048916068492,
+              -4.544269658606526
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.6319444444444444,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 4.859425052083333,
+        "prefixSearchMs": 17.89453976736111,
+        "afterSearchMs": 47.693264774305554,
+        "baselinePathMs": 8.424659854166666,
+        "explorationMs": 2.423724378472222,
+        "searchRestoreMs": 3.255160298611111
+      },
+      "peakRSSBytes": 4143955968
+    },
+    "reuse": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 76.86256628125,
+          "p50Ms": 74.990833,
+          "p95Ms": 158.1365,
+          "p99Ms": 176.591417,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 2.0316814791666644,
+            "deltaMeanMsCI95": [
+              0.4072669999999966,
+              3.6667817673611203
+            ],
+            "relativePercent": 2.715030678228869,
+            "relativePercentCI95": [
+              0.5375301984677172,
+              4.9231728059154545
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 63.195173652777775,
+          "p50Ms": 64.3145,
+          "p95Ms": 128.419916,
+          "p99Ms": 143.53225,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 1.9832110208333305,
+            "deltaMeanMsCI95": [
+              0.3236910208333307,
+              3.7728064930555547
+            ],
+            "relativePercent": 3.239907585969748,
+            "relativePercentCI95": [
+              0.5225072933925601,
+              6.162884041554917
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 90.52995890972223,
+          "p50Ms": 80.773417,
+          "p95Ms": 167.340792,
+          "p99Ms": 178.227,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": 2.0801519375000055,
+            "deltaMeanMsCI95": [
+              0.040165854166667084,
+              4.121744833333334
+            ],
+            "relativePercent": 2.3517879899424443,
+            "relativePercentCI95": [
+              0.04504765484878437,
+              4.6970304049994915
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 11.368055555555555,
+        "decodeCalls": 7.597222222222222,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 4.9399213020833335,
+        "prefixSearchMs": 23.836144565972223,
+        "afterSearchMs": 47.869219180555554,
+        "baselinePathMs": 8.171646413194445,
+        "explorationMs": 8.62582695138889,
+        "searchRestoreMs": 4.4362542395833335
+      },
+      "peakRSSBytes": 4144480256
+    },
+    "threads2": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 59.33350824652778,
+          "p50Ms": 60.999583,
+          "p95Ms": 114.821708,
+          "p99Ms": 135.988125,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -15.497376555555554,
+            "deltaMeanMsCI95": [
+              -16.993430069444443,
+              -13.972414777777784
+            ],
+            "relativePercent": -20.70986678367339,
+            "relativePercentCI95": [
+              -21.893861063155974,
+              -19.464781149932207
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 49.3455179375,
+          "p50Ms": 53.589458,
+          "p95Ms": 86.17675,
+          "p99Ms": 99.324417,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -11.866444694444446,
+            "deltaMeanMsCI95": [
+              -13.706043402777773,
+              -10.0280353125
+            ],
+            "relativePercent": -19.385826208179356,
+            "relativePercentCI95": [
+              -21.16925548517472,
+              -17.46260561485773
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 69.32149855555555,
+          "p50Ms": 63.2625,
+          "p95Ms": 121.929917,
+          "p99Ms": 140.984334,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -19.12830841666667,
+            "deltaMeanMsCI95": [
+              -21.318816229166664,
+              -16.952546562499997
+            ],
+            "relativePercent": -21.626173161320672,
+            "relativePercentCI95": [
+              -23.090538019324903,
+              -20.054541597842366
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.6319444444444444,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.8375662638888888,
+        "prefixSearchMs": 15.326692260416667,
+        "afterSearchMs": 39.97078834375,
+        "baselinePathMs": 6.874306423611111,
+        "explorationMs": 1.9481836041666667,
+        "searchRestoreMs": 1.1991087777777778
+      },
+      "peakRSSBytes": 4144971776
+    },
+    "threads2_only": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 63.72357650347222,
+          "p50Ms": 60.869458,
+          "p95Ms": 127.851833,
+          "p99Ms": 152.17025,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -11.107308298611109,
+            "deltaMeanMsCI95": [
+              -12.38521834375,
+              -9.825417090277787
+            ],
+            "relativePercent": -14.843213905579633,
+            "relativePercentCI95": [
+              -16.120887645857607,
+              -13.473004622003637
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 51.904467833333335,
+          "p50Ms": 55.362334,
+          "p95Ms": 101.16325,
+          "p99Ms": 112.73725,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -9.30749479861111,
+            "deltaMeanMsCI95": [
+              -10.861197951388887,
+              -7.6738758819444435
+            ],
+            "relativePercent": -15.205352676853789,
+            "relativePercentCI95": [
+              -16.972020285819333,
+              -13.14652155683097
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 75.5426851736111,
+          "p50Ms": 64.548,
+          "p95Ms": 139.096459,
+          "p99Ms": 157.026834,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -12.907121798611115,
+            "deltaMeanMsCI95": [
+              -14.607925562499998,
+              -11.2153651736111
+            ],
+            "relativePercent": -14.592594648244528,
+            "relativePercentCI95": [
+              -15.998552820326385,
+              -13.0963957969079
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 11.402777777777779,
+        "decodeCalls": 7.631944444444445,
+        "searchRestoreSkips": 0,
+        "searchMemoHits": 0,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.7630633368055557,
+        "prefixSearchMs": 20.246583184027777,
+        "afterSearchMs": 39.52197929166667,
+        "baselinePathMs": 6.830435770833334,
+        "explorationMs": 6.9072494027777775,
+        "searchRestoreMs": 1.5446860034722223
+      },
+      "peakRSSBytes": 4145135616
+    },
+    "threads4": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 61.00365291666667,
+          "p50Ms": 63.093541,
+          "p95Ms": 117.519583,
+          "p99Ms": 142.274125,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -13.827231885416666,
+            "deltaMeanMsCI95": [
+              -15.324007027777775,
+              -12.331894052083335
+            ],
+            "relativePercent": -18.477974598306112,
+            "relativePercentCI95": [
+              -19.839067338512695,
+              -17.094627579462628
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 50.79525486111111,
+          "p50Ms": 54.32675,
+          "p95Ms": 90.471458,
+          "p99Ms": 102.038458,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -10.416707770833334,
+            "deltaMeanMsCI95": [
+              -12.09149826388889,
+              -8.71495545138889
+            ],
+            "relativePercent": -17.017437969546823,
+            "relativePercentCI95": [
+              -18.812562403199262,
+              -15.158275732108283
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 71.21205097222222,
+          "p50Ms": 66.055542,
+          "p95Ms": 129.814333,
+          "p99Ms": 150.264667,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -17.237756000000005,
+            "deltaMeanMsCI95": [
+              -19.389532652777778,
+              -15.143262048611113
+            ],
+            "relativePercent": -19.48874349201637,
+            "relativePercentCI95": [
+              -21.142325991290022,
+              -17.74475356372215
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [],
+      "changedObservations": 0,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.73611111111111,
+        "decodeCalls": 6.965277777777778,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.6319444444444444,
+        "searchExpansions": 0.8784722222222222,
+        "certifiedSkips": 0,
+        "prefillMs": 3.9295221423611113,
+        "prefixSearchMs": 15.738558576388888,
+        "afterSearchMs": 41.131637902777776,
+        "baselinePathMs": 7.081812638888889,
+        "explorationMs": 2.008527486111111,
+        "searchRestoreMs": 1.2220461006944445
+      },
+      "peakRSSBytes": 4146462720
+    },
+    "width2": {
+      "parts": {
+        "all": {
+          "n": 288,
+          "meanMs": 69.05852620486111,
+          "p50Ms": 72.365958,
+          "p95Ms": 127.824666,
+          "p99Ms": 158.29675,
+          "shown": 250,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -5.772358597222222,
+            "deltaMeanMsCI95": [
+              -7.375247343749998,
+              -4.231037708333336
+            ],
+            "relativePercent": -7.713871902609815,
+            "relativePercentCI95": [
+              -9.681389578408528,
+              -5.824525033597061
+            ]
+          }
+        },
+        "en": {
+          "n": 144,
+          "meanMs": 58.58305640277778,
+          "p50Ms": 59.875458,
+          "p95Ms": 105.716709,
+          "p99Ms": 120.714417,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -2.6289062291666667,
+            "deltaMeanMsCI95": [
+              -4.383048069444448,
+              -0.985389729166665
+            ],
+            "relativePercent": -4.294758926410768,
+            "relativePercentCI95": [
+              -6.915367880846601,
+              -1.678568398616198
+            ]
+          }
+        },
+        "sr_latn": {
+          "n": 144,
+          "meanMs": 79.53399600694445,
+          "p50Ms": 78.422667,
+          "p95Ms": 131.880375,
+          "p99Ms": 161.046792,
+          "shown": 125,
+          "paired": {
+            "clusters": 48,
+            "resamples": 5000,
+            "deltaMeanMs": -8.915810965277771,
+            "deltaMeanMsCI95": [
+              -11.324979694444437,
+              -6.483261229166664
+            ],
+            "relativePercent": -10.08007961857712,
+            "relativePercentCI95": [
+              -12.585798699475193,
+              -7.573551015006485
+            ]
+          }
+        }
+      },
+      "changedUniqueIDs": [
+        "fresh-en-10-5-5",
+        "fresh-en-38-12-6",
+        "fresh-en-46-7-4",
+        "fresh-sr_latn-02-7-4",
+        "fresh-sr_latn-03-7-6",
+        "fresh-sr_latn-09-8-4",
+        "fresh-sr_latn-16-10-3",
+        "fresh-sr_latn-17-5-3",
+        "fresh-sr_latn-18-5-4",
+        "fresh-sr_latn-19-5-6",
+        "fresh-sr_latn-21-6-3",
+        "fresh-sr_latn-22-7-4",
+        "fresh-sr_latn-25-6-3",
+        "fresh-sr_latn-25-9-4",
+        "fresh-sr_latn-26-11-6",
+        "fresh-sr_latn-26-5-4",
+        "fresh-sr_latn-30-6-4",
+        "fresh-sr_latn-33-6-3",
+        "fresh-sr_latn-35-5-5",
+        "fresh-sr_latn-35-9-2",
+        "fresh-sr_latn-36-5-2",
+        "fresh-sr_latn-38-9-4",
+        "fresh-sr_latn-41-6-3",
+        "fresh-sr_latn-46-6-4"
+      ],
+      "changedObservations": 24,
+      "cancelled": 0,
+      "rounds": 1,
+      "meanStages": {
+        "decodedTokens": 10.67361111111111,
+        "decodeCalls": 6.913194444444445,
+        "searchRestoreSkips": 0.034722222222222224,
+        "searchMemoHits": 0.6597222222222222,
+        "searchExpansions": 0.8333333333333334,
+        "certifiedSkips": 0,
+        "prefillMs": 4.716702697916666,
+        "prefixSearchMs": 16.818671,
+        "afterSearchMs": 47.31249134375,
+        "baselinePathMs": 8.202642090277777,
+        "explorationMs": 1.6869646909722222,
+        "searchRestoreMs": 3.0187138541666667
+      },
+      "peakRSSBytes": 4145053696
+    }
+  }
+}

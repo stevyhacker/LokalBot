@@ -222,6 +222,46 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
         await engine.unload()
     }
 
+    @MainActor
+    func testNativeSearchReusePreservesColdAndWarmUnicodeOutputs() async throws {
+        guard let model = ProcessInfo.processInfo.environment["LOKALBOT_CANDIDATE_TEST_MODEL"] else {
+            throw XCTSkip("Set LOKALBOT_CANDIDATE_TEST_MODEL for search-reuse parity.")
+        }
+        let prefixes = ["Mačka se stalno skriva iza kauča čim uključimo usi",
+                        "Molim te sačekaj da pošaljem obaveš", "Račun je plaćen, proveri knjiž",
+                        "The delivery driver called because the numb", "Please review the ",
+                        "Pošalji mi ažurirani izveš".decomposedStringWithCanonicalMapping,
+                        String(repeating: "The project notes mention testing and examples. ", count: 40)
+                            + "Dogovorili smo sledeći sa"]
+        var reference: [CotypingNormalizationResult] = []
+        let configurations: [(CotypingSearchExperiment, Int32?, Int32?)] = [
+            (.baseline, nil, nil), (.reuseRoot, nil, nil), (.memoized, nil, nil), (.certified, nil, nil),
+            (.certified, 2, nil), (.certified, 2, 14)
+        ]
+        for (experiment, threads, batchThreads) in configurations {
+            let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: experiment,
+                                              replayThreadCount: threads, replayBatchThreadCount: batchThreads)
+            let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
+            try await engine.prewarm()
+            for (index, prefix) in prefixes.enumerated() {
+                let request = CotypingRequest(
+                    prompt: prefix, prefixText: prefix, trailingText: "", isMultiLine: false,
+                    maxTokens: 6, maxWords: 4, temperature: 0.1, topP: 0.7, topK: 20, minP: 0.08,
+                    repeatPenalty: 1.05, seed: 0xC0FFEE, generation: 0,
+                    wordPrefixAtCaret: CotypingMidWord.currentPartialWord(in: prefix))
+                await engine.clearReplayCache()
+                let cold = try await engine.generate(request)
+                if experiment == .baseline { reference.append(cold) }
+                XCTAssertEqual(cold, reference[index], "\(experiment): \(prefix)")
+                await engine.clearReplayCache()
+                try await engine.prewarm(for: request)
+                let warmed = try await engine.generate(request)
+                XCTAssertEqual(warmed, reference[index], "Warm \(experiment): \(prefix)")
+            }
+            await engine.unload()
+        }
+    }
+
     private func request(prompt: String, wordPrefix: String) -> CotypingRequest {
         CotypingRequest(
             prompt: prompt, prefixText: prompt, trailingText: "", isMultiLine: false,

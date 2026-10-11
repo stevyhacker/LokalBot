@@ -48,6 +48,19 @@ final class CotypingTokenPrefixIndexTests: XCTestCase {
         }
     }
 
+    func testExactOnlyAblationRejectsOvershootAndPreservesByteFragments() {
+        let pieces = [Array(" č".utf8), Array(" ča".utf8), Array(" čas".utf8), Array(" čaj".utf8)]
+        let index = CotypingTokenPrefixIndex(vocabularySize: 4) { pieces[Int($0)] }
+        let logits: [Float] = [2, 3, 5, 5]
+        logits.withUnsafeBufferPointer { buffer in
+            let remaining = Array(" ča".utf8)[...]
+            XCTAssertEqual(index.bestTokens(in: buffer.baseAddress!, matching: remaining,
+                preferWordExtendingOvershoot: false, limit: 4), [2, 3, 1, 0])
+            XCTAssertEqual(index.bestTokens(in: buffer.baseAddress!, matching: remaining,
+                preferWordExtendingOvershoot: false, limit: 4, exactOnly: true), [1, 0])
+        }
+    }
+
     func testInvalidLogitsDoNotWin() {
         let index = CotypingTokenPrefixIndex(vocabularySize: 3) { _ in Array(" name".utf8) }
         let logits: [Float] = [.nan, -.infinity, .infinity]

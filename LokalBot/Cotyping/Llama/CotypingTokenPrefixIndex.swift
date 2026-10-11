@@ -47,7 +47,7 @@ struct CotypingTokenPrefixIndex {
 
     func bestTokens(
         in logits: UnsafePointer<Float>, matching remaining: ArraySlice<UInt8>,
-        preferWordExtendingOvershoot: Bool, limit: Int
+        preferWordExtendingOvershoot: Bool, limit: Int, exactOnly: Bool = false
     ) -> [Int32] {
         guard let first = remaining.first else { return [] }
         var preferred: [Int32] = []
@@ -59,6 +59,7 @@ struct CotypingTokenPrefixIndex {
             case .mismatch: continue
             case .consumes(let count): boundary = preferWordExtendingOvershoot && count == remaining.count
             case .overshoots(let extra):
+                if exactOnly { continue }
                 boundary = preferWordExtendingOvershoot && !CotypingRequiredPrefixMatcher.extendsWord(extraBytes: extra)
             }
             if boundary { fallback.append(entry.token) } else { preferred.append(entry.token) }

@@ -1,0 +1,11 @@
+{
+  "reason": "Claude advice before any candidate inference: authoritative single-token logits provenance, certified skip, stage counters and A/A control.",
+  "newArm": {
+    "certified": {
+      "searchExperiment": "certified"
+    }
+  },
+  "beforeCandidateInference": true,
+  "aa": "Run current twice before screening and compare installed baseline on regression.",
+  "stageTiming": "Prefill, prefix search and after-search partition generation. Baseline/exploration/restores are overlapping diagnostic subcomponents, not additive total latency."
+}

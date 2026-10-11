@@ -1,0 +1,66 @@
+{
+  "frozenAtUTC": "2026-10-11T08:04:09.851364+00:00",
+  "sourceCommit": "43451050913894f14e37be354ee9e5b5395dc082",
+  "installedBinarySHA256": "ef6783c6e24a1d42f10ff76a353670c9e418132ddc33b73c2cd20d76baeb7b37",
+  "modelFile": "gemma-4-E2B.i1-Q6_K.gguf",
+  "modelSHA256": "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
+  "arms": {
+    "current": {},
+    "reuse": {
+      "searchExperiment": "reuseRoot"
+    },
+    "memo": {
+      "searchExperiment": "memoized"
+    },
+    "width2": {
+      "searchExperiment": "widthTwo"
+    },
+    "budget8": {
+      "searchExperiment": "budgetEight"
+    },
+    "exact": {
+      "searchExperiment": "exactOnly"
+    },
+    "threads2": {
+      "searchExperiment": "memoized",
+      "nativeThreads": 2
+    },
+    "threads4": {
+      "searchExperiment": "memoized",
+      "nativeThreads": 4
+    }
+  },
+  "controls": "E2B weights, raw prompt, sampler, budgets, confidence thresholds fixed within each dataset. Existing matched-frequency corpus is regression/development only. Fresh uses production gates.",
+  "adoption": "Only output-identical strategies qualify for adoption. Select on regression screening, then confirm latency on fresh, dynamic and long inputs. Require >=5% mean improvement and no material p95 regression; report paired scenario intervals. Changed-output arms are ablations only and get blind Claude judging.",
+  "timing": "Serial runs; one screening round of all arms, then three varied-order confirmation rounds of current and finalists. Eight excluded warmups. Tracing off. Compare same binary and isolate home, defaults and storage. Record prewarm separately from generation. No UI first-visible or human-acceptance claim.",
+  "gaps": [
+    "Exact-only/no-overshoot ablation",
+    "Prefix-work reuse",
+    "Focus-prewarm fresh/shared cases",
+    "Cancellation and cold-reference recovery",
+    "Six skipped Qwen native tests"
+  ],
+  "largerDeferred": [
+    "Multi-sequence batching if single-sequence reuse wins sufficiently",
+    "Token-history booster and training require a separate synthetic learning protocol; no private data mining",
+    "EuroLLM optional alternate and large MoE ceiling do not isolate E2B latency"
+  ],
+  "datasets": {
+    "regression": {
+      "sha256": "ea04f0ba881e462c810a2649827417e987d79179666864a9a0bad195b7bfbf89",
+      "cases": 288
+    },
+    "dynamic": {
+      "sha256": "ffb326cadf09ddbe3f351e37bbf341062d3c9a9def6d897826d1cf6c3258b917",
+      "cases": 204
+    },
+    "long": {
+      "sha256": "ab83bb3f0024d3b69cb70e870b1a63ecfebd4e4fd5c1b92b0ff178ad93e0f20b",
+      "cases": 48
+    },
+    "fresh": {
+      "sha256": "4634be1a9627ae32047efea50769a73b393b8d377ed865322b75e7fc7d1f98fb",
+      "cases": 144
+    }
+  }
+}
