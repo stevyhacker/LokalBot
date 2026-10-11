@@ -99,6 +99,18 @@ final class ModelRoles: ObservableObject {
         var label: String
     }
 
+    private struct TranscriptionConfiguration: Hashable {
+        let id: String
+        let granite: GraniteSpeechModelConfiguration?
+        let funASRNanoDirectory: String?
+
+        init(_ choice: TranscriptionModelChoice, _ settings: AppSettings) {
+            id = choice.id
+            granite = choice == .graniteSpeech ? settings.graniteSpeechModel : nil
+            funASRNanoDirectory = choice == .funASRNano ? settings.funASRNanoModelDirectory : nil
+        }
+    }
+
     typealias PrepareTranscription = @MainActor (
         AppSettings,
         TranscriptionModelChoice,
@@ -109,8 +121,16 @@ final class ModelRoles: ObservableObject {
     @Published private(set) var downloadProgress: [String: Double]
     @Published private(set) var downloadErrors: [String: String]
     @Published private(set) var transcriptionPreparations: [String: TranscriptionPreparation] = [:]
-    @Published private(set) var transcriptionErrors: [String: String] = [:]
+    @Published private var preparationErrors: [TranscriptionConfiguration: String] = [:]
     @Published private(set) var revision = 0
+
+    /// A draft folder's failure belongs to that folder, not the working selection.
+    var transcriptionErrors: [String: String] {
+        let current = settings()
+        return Dictionary(uniqueKeysWithValues: TranscriptionModelChoice.allCases.compactMap { choice in
+            preparationErrors[TranscriptionConfiguration(choice, current)].map { (choice.id, $0) }
+        })
+    }
 
     private let settings: () -> AppSettings
     private let storage: StorageManager
@@ -120,7 +140,7 @@ final class ModelRoles: ObservableObject {
     private let onReadinessChanged: () -> Void
     private var downloadObserver: AnyCancellable?
     private var preparationTask: (
-        id: String, token: UUID, granite: GraniteSpeechModelConfiguration, funASRNanoDirectory: String, task: Task<Void, Never>
+        id: String, token: UUID, configuration: TranscriptionConfiguration, task: Task<String?, Never>
     )?
     private var storageInfo: (date: Date, storedBytes: Int64, availableBytes: Int64?)?
     @Published private var diskState = ModelReadinessSnapshot.DiskState()
@@ -230,7 +250,8 @@ final class ModelRoles: ObservableObject {
         for choice: TranscriptionModelChoice,
         downloadedIDs: Set<String>
     ) -> ModelRoleStatus {
-        if let preparation = transcriptionPreparations[choice.id] {
+        if preparationTask?.configuration == TranscriptionConfiguration(choice, settings()),
+           let preparation = transcriptionPreparations[choice.id] {
             return .preparing(progress: preparation.progress, label: preparation.label)
         }
         if let error = transcriptionErrors[choice.id], !error.isEmpty {
@@ -244,11 +265,7 @@ final class ModelRoles: ObservableObject {
                 || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID else { return }
         let selectionChanged = old.transcriptionModel != new.transcriptionModel
         let funASRDirectoryChanged = old.funASRNanoModelDirectory != new.funASRNanoModelDirectory
-        if funASRDirectoryChanged { transcriptionErrors[TranscriptionModelChoice.funASRNano.id] = nil }
         let graniteConfigurationChanged = old.graniteSpeechModel != new.graniteSpeechModel
-        if graniteConfigurationChanged {
-            transcriptionErrors[TranscriptionModelChoice.graniteSpeech.id] = nil
-        }
         let changedAwayFromActiveSelection = selectionChanged
             && preparationTask?.id == old.transcriptionModel.id
             && preparationTask?.id != new.transcriptionModel.id
@@ -302,13 +319,14 @@ final class ModelRoles: ObservableObject {
     func prepareTranscriptionModel(_ choice: TranscriptionModelChoice, configuration: AppSettings? = nil) {
         guard preparationTask == nil else { return }
         let configuration = configuration ?? settings()
+        let key = TranscriptionConfiguration(choice, configuration)
         let token = UUID()
-        transcriptionErrors[choice.id] = nil
+        preparationErrors[key] = nil
         transcriptionPreparations[choice.id] = .init(
             progress: nil,
             label: "Preparing…")
-        let task = Task { [weak self] in
-            guard let self else { return }
+        let task = Task<String?, Never> { [weak self] in
+            guard let self else { return nil }
             let failure: String?
             do {
                 try await self.prepareTranscription(configuration, choice) { [weak self] update in
@@ -327,37 +345,38 @@ final class ModelRoles: ObservableObject {
                     : choice.displayName
                 failure = "Could not prepare \(displayName): \(error.localizedDescription)"
             }
-            guard self.preparationTask?.token == token else { return }
+            guard self.preparationTask?.token == token else { return failure }
             self.preparationTask = nil
             self.transcriptionPreparations[choice.id] = nil
-            self.transcriptionErrors[choice.id] = failure
+            self.preparationErrors[key] = failure
             self.readinessDidChange()
+            return failure
         }
-        preparationTask = (choice.id, token, configuration.graniteSpeechModel, configuration.funASRNanoModelDirectory, task)
+        preparationTask = (choice.id, token, key, task)
     }
 
     /// Selection sheets prepare against their draft, keeping the current
     /// model and its settings intact until the replacement is available.
     func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
-        if choice != .funASRNano, downloadedTranscriptionModels(configuration).contains(choice.id), transcriptionErrors[choice.id] == nil {
+        let key = TranscriptionConfiguration(choice, configuration)
+        if choice != .funASRNano, downloadedTranscriptionModels(configuration).contains(choice.id), preparationErrors[key] == nil {
             return
         }
-        if let preparationTask,
-           preparationTask.id != choice.id
-            || (choice == .graniteSpeech && preparationTask.granite != configuration.graniteSpeechModel)
-            || (choice == .funASRNano && preparationTask.funASRNanoDirectory != configuration.funASRNanoModelDirectory) {
+        if let preparationTask, preparationTask.configuration != key {
             throw ModelDownloadManager.PreparationError.failed(
                 "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
         }
         prepareTranscriptionModel(choice, configuration: configuration)
         if let preparationTask {
-            await preparationTask.task.value
+            let failure = await preparationTask.task.value
             // Some backends finish their file writes after cancellation. That
             // completion must not turn a cancelled download into an activation.
             guard !preparationTask.task.isCancelled else { throw CancellationError() }
+            try Task.checkCancellation()
+            if let failure { throw ModelDownloadManager.PreparationError.failed(failure) }
         }
         try Task.checkCancellation()
-        if let error = transcriptionErrors[choice.id] {
+        if let error = preparationErrors[key] {
             throw ModelDownloadManager.PreparationError.failed(error)
         }
         guard downloadedTranscriptionModels(configuration).contains(choice.id) else {
@@ -378,10 +397,10 @@ final class ModelRoles: ObservableObject {
             try TranscriptionModelStore.delete(
                 choice,
                 graniteConfiguration: settings().graniteSpeechModel)
-            transcriptionErrors[choice.id] = nil
+            preparationErrors[TranscriptionConfiguration(choice, settings())] = nil
             readinessDidChange()
         } catch {
-            transcriptionErrors[choice.id] = error.localizedDescription
+            preparationErrors[TranscriptionConfiguration(choice, settings())] = error.localizedDescription
         }
     }
 

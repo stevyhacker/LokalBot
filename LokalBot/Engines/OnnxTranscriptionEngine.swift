@@ -277,7 +277,10 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         let processController = ONNXProcessController()
         let execution = Task.detached(priority: .userInitiated) { () throws -> String in
             let runtimeID = "transcription:onnx:\(modelID):\(UUID().uuidString)"
-            let estimatedBytes = weights.reduce(UInt64(0)) { $0 + (ModelRuntimeRegistry.fileBytes(at: $1) ?? 0) }
+            let estimatedBytes = weights.reduce(UInt64(0)) { partial, url in
+                let sum = partial.addingReportingOverflow(ModelRuntimeRegistry.fileBytes(at: url) ?? 0)
+                return sum.overflow ? UInt64.max : sum.partialValue
+            }
             await ModelRuntimeRegistry.shared.reserve(
                 id: runtimeID, role: "Transcribe", label: label,
                 estimatedBytes: estimatedBytes)

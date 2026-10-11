@@ -1022,15 +1022,9 @@ final class ProcessingPipeline: ObservableObject {
             // an hour of completed transcription.
             let checkpoint = Self.checkpointURL(track: name, in: folder)
             do {
-                var checkpointParts: [String] = [audioRevision, name, engine.displayName,
-                    language ?? "", prompt,
-                    String(config.multiSpeakerDiarization), String(config.echoCancellation),
-                    config.diarizationModel.checkpointIdentity,
-                    meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"]
-                if engine.speakerAttribution == .alignedWords {
-                    checkpointParts.append("aligned-words-\(QwenWordAligner.snapshot.revision)-merged-windows-v2")
-                }
-                let checkpointInput = try JSONEncoder().encode(checkpointParts)
+                let checkpointInput = try Self.checkpointInput(
+                    audioRevision: audioRevision, track: name, engine: engine,
+                    config: config, prompt: prompt, meeting: meeting)
                 let prepared = track == .mic
                     ? try await Self.echoCancelledMicrophone(in: folder, microphone: url, config: config)
                     : (nil, TranscriptEchoReport(status: .noReference))
@@ -1078,6 +1072,19 @@ final class ProcessingPipeline: ObservableObject {
         }
         let merged = Transcript.merged(tracks)
         return TranscribedTracks(transcript: merged, turns: acousticTurns, samples: voiceSamples)
+    }
+
+    static func checkpointInput(audioRevision: String, track: String, engine: TranscriptionEngine,
+                                config: AppSettings, prompt: String, meeting: Meeting) throws -> Data {
+        var parts = [audioRevision, track, try engine.checkpointIdentity,
+            config.transcriptionLanguage.code ?? "", prompt,
+            String(config.multiSpeakerDiarization), String(config.echoCancellation),
+            config.diarizationModel.checkpointIdentity,
+            meeting.contentRange.map { "\($0.start):\($0.end)" } ?? "full", "identity-v2"]
+        if engine.speakerAttribution == .alignedWords {
+            parts.append("aligned-words-\(QwenWordAligner.snapshot.revision)-merged-windows-v2")
+        }
+        return try JSONEncoder().encode(parts)
     }
 
     /// Where a track's finished-but-not-yet-merged transcript is checkpointed.

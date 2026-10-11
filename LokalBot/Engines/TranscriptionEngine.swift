@@ -151,6 +151,8 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
 /// without per-engine switches.
 protocol TranscriptionEngine {
     var displayName: String { get }
+    /// Stable identity of the selected model files for crash-resume checkpoints.
+    var checkpointIdentity: String { get throws }
     var supportsStreaming: Bool { get }
     /// How `AttributedTrackTranscriber` combines this engine with speaker turns.
     var speakerAttribution: SpeakerAttributionStrategy { get }
@@ -173,6 +175,7 @@ enum SpeakerAttributionStrategy: Sendable {
 }
 
 extension TranscriptionEngine {
+    var checkpointIdentity: String { displayName }
     var speakerAttribution: SpeakerAttributionStrategy { .regions }
 
     func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> Transcript {

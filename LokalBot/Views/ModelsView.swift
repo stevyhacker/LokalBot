@@ -140,8 +140,11 @@ struct ModelSetupFeedback: View {
             .padding(.vertical, 14)
         } else if let completed = controller.completed {
             HStack {
-                Label("Using \(completed.title)", systemImage: "checkmark.circle")
-                    .font(.scaled(.body))
+                if completed.patch.transcription == nil, completed.patch.funASRNanoDirectory == "" {
+                    Label("Model folder selection cleared", systemImage: "checkmark.circle").font(.scaled(.body))
+                } else {
+                    Label("Using \(completed.title)", systemImage: "checkmark.circle").font(.scaled(.body))
+                }
                 Spacer()
                 if completed.patch != completed.previous {
                     Button("Undo") { controller.undo() }.accessibilityIdentifier("models.undo")

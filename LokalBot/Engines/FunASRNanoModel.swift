@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// The sherpa-onnx export of FunAudioLLM/Fun-ASR-Nano-2512. These files
@@ -11,6 +12,30 @@ struct FunASRNanoModel: Sendable {
     let externalData: URL?
 
     var weights: [URL] { [encoder, decoder, embedding] + (externalData.map { [$0] } ?? []) }
+
+    /// Include the resolved files and their revisions without reading gigabytes
+    /// of weights on every resume. Tokenizer changes also invalidate transcripts.
+    var checkpointIdentity: String {
+        get throws {
+            let files = weights + ["tokenizer.json", "vocab.json", "merges.txt"].map {
+                tokenizer.appendingPathComponent($0)
+            }
+            var parts = [["fun-asr-nano-2512-v1", directory.resolvingSymlinksInPath().path]]
+            for url in files {
+                let file = url.resolvingSymlinksInPath()
+                let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
+                parts.append([
+                    url.lastPathComponent, file.path,
+                    String(describing: attributes[.systemNumber]),
+                    String(describing: attributes[.systemFileNumber]),
+                    String(describing: attributes[.size]),
+                    String((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0),
+                    String((attributes[.creationDate] as? Date)?.timeIntervalSince1970 ?? 0),
+                ])
+            }
+            return SHA256.hash(data: try JSONEncoder().encode(parts)).map { String(format: "%02x", $0) }.joined()
+        }
+    }
 
     static func load(directory path: String) throws -> Self {
         guard !path.isEmpty, (path as NSString).isAbsolutePath else { throw ValidationError.chooseDirectory }

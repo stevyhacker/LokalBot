@@ -2,6 +2,67 @@ import XCTest
 @testable import LokalBot
 
 final class FunASRNanoModelTests: XCTestCase {
+    @MainActor
+    func testResumeCheckpointSeparatesLocalFoldersAndSurvivesUnchangedReload() throws {
+        let first = try fixture(), second = try fixture()
+        defer {
+            try? FileManager.default.removeItem(at: first)
+            try? FileManager.default.removeItem(at: second)
+        }
+        let saved = try checkpoint(first)
+        XCTAssertEqual(saved, try checkpoint(first), "Relaunching with the same model must reuse completed tracks")
+        XCTAssertNotEqual(saved, try checkpoint(second), "A new folder must not reuse the old model's transcript")
+    }
+
+    @MainActor
+    func testResumeCheckpointInvalidatesChangedWeightsAndTokenizer() throws {
+        let root = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var saved = try checkpoint(root)
+        for name in ["llm.int8.onnx", "Qwen3-0.6B/tokenizer.json", "Qwen3-0.6B/vocab.json", "Qwen3-0.6B/merges.txt"] {
+            let file = root.appendingPathComponent(name)
+            // Same-size in-place replacement: size and folder alone are insufficient.
+            try Data([2]).write(to: file)
+            try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 42)], ofItemAtPath: file.path)
+            let changed = try checkpoint(root)
+            XCTAssertNotEqual(saved, changed, name)
+            saved = changed
+        }
+        try FileManager.default.removeItem(at: root.appendingPathComponent("llm.int8.onnx"))
+        XCTAssertThrowsError(try checkpoint(root), "Missing files must not authorize cached transcripts")
+    }
+
+    func testCheckpointTracksSymlinkTargetsAndExternalWeights() throws {
+        let root = try fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fm = FileManager.default
+        let decoder = root.appendingPathComponent("llm.int8.onnx")
+        let first = root.appendingPathComponent("cached-first"), second = root.appendingPathComponent("cached-second")
+        try fm.moveItem(at: decoder, to: first)
+        try fm.copyItem(at: first, to: second)
+        try fm.createSymbolicLink(at: decoder, withDestinationURL: first)
+        let saved = try FunASRNanoModel.load(directory: root.path).checkpointIdentity
+        try fm.removeItem(at: decoder)
+        try fm.createSymbolicLink(at: decoder, withDestinationURL: second)
+        XCTAssertNotEqual(saved, try FunASRNanoModel.load(directory: root.path).checkpointIdentity)
+
+        try fm.moveItem(at: decoder, to: root.appendingPathComponent("llm.fp32.onnx"))
+        let external = root.appendingPathComponent("llm.fp32.data")
+        try Data([1]).write(to: external)
+        let fp32 = try FunASRNanoModel.load(directory: root.path).checkpointIdentity
+        try Data([1, 2]).write(to: external)
+        XCTAssertNotEqual(fp32, try FunASRNanoModel.load(directory: root.path).checkpointIdentity)
+    }
+
+    @MainActor
+    private func checkpoint(_ root: URL) throws -> Data {
+        let meeting = Meeting(id: UUID(), title: "Resume fixture", appName: "Test", startedAt: Date(),
+                              relativePath: "meetings/resume-fixture")
+        return try ProcessingPipeline.checkpointInput(
+            audioRevision: "unchanged-recording", track: "mic", engine: FunASRNanoEngine(directory: root.path),
+            config: AppSettings(), prompt: "", meeting: meeting)
+    }
+
     func testInt8DirectoryAndArgumentsPreserveSpacesAndChinesePaths() throws {
         let root = try fixture()
         defer { try? FileManager.default.removeItem(at: root) }

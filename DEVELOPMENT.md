@@ -229,8 +229,10 @@ and missing fp32 external weights are rejected before loading.
 
 The selected path is saved as `funASRNanoModelDirectory`. Files are used in
 place, including local cache symlinks; the app never imports, overwrites, or
-deletes this directory. Removing the model in **Downloaded** only clears the
-saved path. Moving the folder requires selecting it again. No Fun-ASR model
+deletes this directory. **Clear selection** in the picker is saved with the
+**Clear selection** button at the bottom; **Cancel** keeps the saved path.
+Undo validates the previous folder before restoring it. Removing the model in
+**Downloaded** also only clears the saved path. Moving the folder requires selecting it again. No Fun-ASR model
 download or remote inference occurs. The existing shared Silero VAD may still
 download its small pinned model on first use, as with other transcription engines.
 Speech is decoded in at most 20-second regions with span/coarse timestamps;

@@ -74,9 +74,9 @@ final class ModelRuntimeRegistry: ObservableObject {
     }
 
     nonisolated static func fileBytes(at url: URL) -> UInt64? {
-        guard let number = try? FileManager.default.attributesOfItem(
-            atPath: url.path
-        )[.size] as? NSNumber else { return nil }
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.resolvingSymlinksInPath().path),
+              attributes[.type] as? FileAttributeType == .typeRegular,
+              let number = attributes[.size] as? NSNumber else { return nil }
         return number.uint64Value
     }
 }

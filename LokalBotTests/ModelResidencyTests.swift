@@ -272,6 +272,30 @@ final class ModelResidencyTests: XCTestCase {
         XCTAssertEqual(registry.totalEstimatedBytes, 0)
     }
 
+    func testSymlinkedWeightsReserveTargetBytesAndEvictBeforeLoad() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("model-cache-\(UUID())")
+        let fm = FileManager.default
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: root) }
+        let weights = root.appendingPathComponent("weights"), link = root.appendingPathComponent("model.onnx")
+        try Data(repeating: 1, count: 1_048_576).write(to: weights)
+        try fm.createSymbolicLink(at: link, withDestinationURL: weights)
+        let bytes = try XCTUnwrap(ModelRuntimeRegistry.fileBytes(at: link))
+        XCTAssertEqual(bytes, 1_048_576)
+        XCTAssertEqual(bytes, ModelRuntimeRegistry.fileBytes(at: weights))
+
+        let residency = ModelResidency(budgetBytes: 1_500_000)
+        let registry = ModelRuntimeRegistry(residency: residency)
+        var evicted = false
+        residency.register(id: "idle-gguf", label: "Idle GGUF", bytes: 1_000_000) { evicted = true }
+        await registry.reserve(id: "funasr", role: "Transcribe", label: "Fun-ASR", estimatedBytes: bytes)
+        XCTAssertTrue(evicted, "Cache links must not bypass memory admission")
+        XCTAssertEqual(registry.totalEstimatedBytes, 1_048_576)
+        try fm.removeItem(at: weights)
+        XCTAssertNil(ModelRuntimeRegistry.fileBytes(at: link), "A broken link has no usable weights")
+        XCTAssertNil(ModelRuntimeRegistry.fileBytes(at: root), "Directory metadata is not a model size")
+    }
+
     func testGGUFAdmissionCountsAnExistingNonGGUFReservation() async {
         let residency = ModelResidency(budgetBytes: 10)
         let registry = ModelRuntimeRegistry(residency: residency)

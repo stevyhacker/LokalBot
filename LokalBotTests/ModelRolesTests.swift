@@ -96,6 +96,44 @@ final class ModelRolesTests: XCTestCase {
         XCTAssertNil(roles.transcriptionErrors[TranscriptionModelChoice.funASRNano.id])
     }
 
+    func testFailedReplacementDoesNotPoisonWorkingFunASRReadiness() async throws {
+        let storage = temporaryStorage()
+        defer { try? FileManager.default.removeItem(at: storage.rootURL) }
+        let gate = PreparationGate()
+        var settings = isolatedSettings(transcription: .funASRNano)
+        settings.funASRNanoModelDirectory = "/models/working"
+        var draft = settings
+        draft.funASRNanoModelDirectory = "/models/incompatible"
+        let roles = ModelRoles(
+            settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
+            prepareTranscription: { configuration, _, progress in
+                if configuration.funASRNanoModelDirectory == "/models/incompatible" {
+                    await progress?(.init(fractionCompleted: 0.5, status: "Checking replacement"))
+                    await gate.run()
+                    throw TestPreparationError.failed
+                }
+            },
+            downloadedTranscriptionModels: { _ in [TranscriptionModelChoice.funASRNano.id] },
+            onReadinessChanged: {})
+
+        let preparation = Task { try await roles.ensureTranscriptionAvailable(.funASRNano, configuration: draft) }
+        await gate.waitUntilStarted()
+        XCTAssertEqual(roles.snapshot[.transcribe], .ready, "Draft progress must not disable the working model")
+        XCTAssertTrue(roles.isPreparingTranscription)
+        await gate.release()
+        do {
+            try await preparation.value
+            XCTFail("The selection controller must receive the replacement failure")
+        } catch {
+            XCTAssertTrue(error.localizedDescription.contains("Expected preparation failure"))
+        }
+        XCTAssertEqual(settings.funASRNanoModelDirectory, "/models/working")
+        XCTAssertEqual(roles.snapshot[.transcribe], .ready, "The current model must remain eligible for model checks")
+        XCTAssertNil(roles.transcriptionErrors[TranscriptionModelChoice.funASRNano.id])
+        try await roles.ensureTranscriptionAvailable(.funASRNano, configuration: settings)
+        XCTAssertEqual(roles.snapshot[.transcribe], .ready)
+    }
+
     func testFailureStopsOnboardingSpinnerAndOffersRecovery() {
         let snapshot = makeSnapshot(statuses: [
             .transcribe: .ready,

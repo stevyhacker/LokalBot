@@ -55,6 +55,14 @@ struct ModelSelectionPatch: Equatable {
     var autocompleteModelID: String?
     var dictationModelID: String?
 
+    /// Clearing a path needs no runtime. Restoring it through Undo must still
+    /// validate the model, even when the patch changes no role assignment.
+    var transcriptionToPrepare: TranscriptionModelChoice? {
+        if let transcription { return transcription }
+        if let funASRNanoDirectory, !funASRNanoDirectory.isEmpty { return .funASRNano }
+        return nil
+    }
+
     func applying(to settings: AppSettings) -> AppSettings {
         var next = settings
         if let transcription { next.transcriptionModel = transcription }
@@ -96,7 +104,7 @@ struct ModelSelectionPatch: Equatable {
         let target = applying(to: original)
         if transcription == .graniteSpeech,
            original.graniteSpeechModel != latest.graniteSpeechModel { return false }
-        if transcription == .funASRNano,
+        if transcriptionToPrepare == .funASRNano,
            original.funASRNanoModelDirectory != latest.funASRNanoModelDirectory { return false }
         if backend != nil || remoteModel != nil || ollamaModel != nil {
             switch target.summarizerBackend {

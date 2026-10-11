@@ -8,6 +8,10 @@ actor FunASRNanoEngine: TranscriptionEngine {
     let directory: String
     static let maxSegmentSeconds: Double = 20
 
+    nonisolated var checkpointIdentity: String {
+        get throws { try FunASRNanoModel.load(directory: directory).checkpointIdentity }
+    }
+
     init(directory: String) { self.directory = directory }
 
     func prepare(progress: ModelPreparationProgressHandler?) async throws {

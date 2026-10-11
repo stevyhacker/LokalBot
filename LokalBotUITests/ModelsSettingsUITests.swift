@@ -19,6 +19,44 @@ final class ModelsSettingsUITests: XCTestCase {
         fixture?.cleanUp()
     }
 
+    func testFunASRFolderClearCanBeCancelledAndPersistsWhenSaved() throws {
+        let model = fixture.root.appendingPathComponent("user-model", isDirectory: true)
+        try FileManager.default.createDirectory(at: model, withIntermediateDirectories: true)
+        let weights = model.appendingPathComponent("keep-weights.onnx")
+        try Data([1, 2, 3]).write(to: weights)
+        try launch(approved: true, funASRDirectory: model.path)
+
+        let change = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+        let clear = app.buttons["models.funasr.clearFolder"]
+        XCTAssertTrue(clear.waitForExistence(timeout: 5))
+        clear.click()
+        let apply = app.buttons["models.picker.apply"]
+        XCTAssertTrue(apply.isEnabled, "Clearing a saved path must be saveable even if its files are unavailable")
+        XCTAssertEqual(apply.label, "Clear selection")
+        app.buttons["models.picker.cancel"].click()
+        change.click()
+        XCTAssertTrue(clear.waitForExistence(timeout: 5), "Cancel must keep the saved selection")
+        clear.click()
+        apply.click()
+        XCTAssertTrue(app.buttons["models.undo"].waitForExistence(timeout: 5))
+        XCTAssertEqual(try Data(contentsOf: weights), Data([1, 2, 3]))
+        capture("models-funasr-folder-cleared")
+
+        app.terminate()
+        app = try UITestHarness.relaunch(storageRoot: fixture.root, defaultsSuiteName: XCTUnwrap(suite),
+                                        environment: ["LOKALBOT_INITIAL_SECTION": "models", "LOKALBOT_MODELS_DEMO_READY": "1"])
+        let reopened = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(reopened.waitForExistence(timeout: 8))
+        reopened.click()
+        XCTAssertTrue(app.buttons["models.funasr.chooseFolder"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["models.funasr.clearFolder"].exists)
+        XCTAssertFalse(app.staticTexts["models.funasr.folder"].exists, "The empty selection must survive relaunch")
+        XCTAssertFalse(app.buttons["models.picker.apply"].isEnabled, "An empty folder cannot activate a model")
+        XCTAssertEqual(try Data(contentsOf: weights), Data([1, 2, 3]))
+    }
+
     func testRemoteThinkEditorKeepsConsentExplicit() throws {
         try launch(approved: false)
         let configure = app.buttons["models.stack.change.think"]
@@ -103,13 +141,17 @@ final class ModelsSettingsUITests: XCTestCase {
         }
     }
 
-    private func launch(approved: Bool, size: String = "1180x740", appearance: String = "light") throws {
+    private func launch(approved: Bool, size: String = "1180x740", appearance: String = "light", funASRDirectory: String? = nil) throws {
         let origins = approved ? "[\"https://openrouter.ai\"]" : "[]"
+        let localModel = try funASRDirectory.map {
+            "\"transcriptionModel\": \"fun-asr-nano-2512\", \"funASRNanoModelDirectory\": \(String(decoding: try JSONEncoder().encode($0), as: UTF8.self)),"
+        } ?? ""
         let result = try UITestHarness.launch(
             storageRoot: fixture.root,
             suitePrefix: "ModelsSettings",
             settingsJSON: """
             {
+              \(localModel)
               "menuBarOnly": false, "trackingEnabled": false,
               "screenshotsEnabled": false, "calendarDetectionEnabled": false,
               "semanticSearchEnabled": false, "cotypingEnabled": false,

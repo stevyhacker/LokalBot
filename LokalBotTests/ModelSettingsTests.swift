@@ -181,6 +181,58 @@ final class ModelSettingsTests: XCTestCase {
         XCTAssertTrue(didPrepare)
     }
 
+    func testClearingFunASRSelectionPersistsWithoutLoadingAndUndoValidatesRestoration() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("clear-funasr-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let weights = root.appendingPathComponent("user-weights")
+        try Data([1, 2, 3]).write(to: weights)
+        var settings = AppSettings()
+        settings.transcriptionModel = .funASRNano
+        settings.funASRNanoModelDirectory = root.path
+        let original = settings
+        var preparations: [String] = []
+        let gate = Gate()
+        let controller = ModelSetupController(settings: { settings }, update: { settings = $0 }) { patch, current in
+            if let choice = patch.transcriptionToPrepare {
+                XCTAssertEqual(choice, .funASRNano)
+                preparations.append(patch.applying(to: current).funASRNanoModelDirectory)
+                await gate.wait()
+            }
+        }
+        controller.apply(.init(funASRNanoDirectory: ""), title: "Clear selection")
+        await waitUntil { controller.pending == nil }
+        XCTAssertEqual(settings.funASRNanoModelDirectory, "")
+        XCTAssertEqual(settings.transcriptionModel, original.transcriptionModel)
+        XCTAssertTrue(preparations.isEmpty, "Clearing must not try to load an empty folder")
+        let reloaded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(reloaded.funASRNanoModelDirectory, "")
+        XCTAssertEqual(try Data(contentsOf: weights), Data([1, 2, 3]))
+
+        controller.undo()
+        await waitUntil { !preparations.isEmpty }
+        XCTAssertEqual(settings.funASRNanoModelDirectory, "", "Undo must wait until the old model is validated")
+        await gate.release()
+        await waitUntil { controller.pending == nil }
+        XCTAssertEqual(settings, original)
+        XCTAssertEqual(preparations, [root.path])
+    }
+
+    func testFailedUndoOfClearedFunASRDoesNotRestoreAnUnavailableFolder() async {
+        var settings = AppSettings()
+        settings.transcriptionModel = .funASRNano
+        settings.funASRNanoModelDirectory = "/models/no-longer-available"
+        let controller = ModelSetupController(settings: { settings }, update: { settings = $0 }) { patch, _ in
+            if patch.transcriptionToPrepare != nil { throw PreparationFailure.expected }
+        }
+        controller.apply(.init(funASRNanoDirectory: ""), title: "Clear selection")
+        await waitUntil { controller.pending == nil }
+        controller.undo()
+        await waitUntil { controller.pending == nil }
+        XCTAssertEqual(settings.funASRNanoModelDirectory, "")
+        XCTAssertEqual(controller.failure, "Expected download failure")
+    }
+
     func testUnusableSourceFailureOffersNoRetry() async {
         var settings = AppSettings()
         let original = settings

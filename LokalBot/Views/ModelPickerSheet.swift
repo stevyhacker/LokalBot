@@ -60,13 +60,20 @@ struct ModelPickerSheet: View {
         ModelCatalog.entry(id: selectedID, custom: app.settings.customBuiltInModels)
     }
 
+    private var clearsFunASRSelection: Bool {
+        role == .transcription && transcription == .funASRNano
+            && funASRNanoDirectory.isEmpty && !app.settings.funASRNanoModelDirectory.isEmpty
+    }
+
     private var patch: ModelSelectionPatch {
         switch role {
         case .transcription:
             ModelSelectionPatch(
-                transcription: transcription,
+                transcription: clearsFunASRSelection ? nil : transcription,
                 granite: transcription == .graniteSpeech ? granite : nil,
-                funASRNanoDirectory: transcription == .funASRNano ? funASRNanoDirectory : nil,
+                funASRNanoDirectory: transcription == .funASRNano
+                    || (funASRNanoDirectory.isEmpty && !app.settings.funASRNanoModelDirectory.isEmpty)
+                    ? funASRNanoDirectory : nil,
                 language: transcription == .graniteTurbo ? .en : nil)
         case .assistant:
             ModelSelectionPatch(
@@ -99,6 +106,7 @@ struct ModelPickerSheet: View {
     }
 
     private var selectedBlocker: String? {
+        if clearsFunASRSelection { return nil }
         if role == .transcription, transcription == .funASRNano {
             do { _ = try FunASRNanoModel.load(directory: funASRNanoDirectory) } catch { return error.localizedDescription }
             return nil
@@ -161,7 +169,9 @@ struct ModelPickerSheet: View {
             Divider()
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(needsDownload ? "Your current model stays active while this downloads." : "The change takes effect when you choose Use model.")
+                    Text(clearsFunASRSelection
+                         ? "Only the saved folder selection is removed. Your model files stay on disk."
+                         : needsDownload ? "Your current model stays active while this downloads." : "The change takes effect when you choose Use model.")
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
                     if role == .assistant, app.settings.dictationCompositionBuiltInModelID.isEmpty {
                         Text("Dictation composition will also use this model.")
@@ -171,7 +181,7 @@ struct ModelPickerSheet: View {
                 Spacer(minLength: 0)
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                     .accessibilityIdentifier("models.picker.cancel")
-                Button(needsDownload ? "Download and use" : "Use model") {
+                Button(clearsFunASRSelection ? "Clear selection" : needsDownload ? "Download and use" : "Use model") {
                     setup.apply(patch, title: selectedName)
                     dismiss()
                 }
