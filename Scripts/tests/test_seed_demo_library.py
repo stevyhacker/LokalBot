@@ -14,6 +14,7 @@ import sys
 import tempfile
 import time
 import unittest
+import wave
 from unittest import mock
 
 
@@ -68,6 +69,55 @@ class DemoLibraryDestinationTests(unittest.TestCase):
                              "LokalBot synthetic demo library\n")
             self.assertTrue((root / "meetings").is_dir())
 
+
+
+class SpeechFixtureTests(unittest.TestCase):
+    def exercise_track(self, speech_for_voice):
+        voices, encoded = [], []
+
+        def run(command, **kwargs):
+            if command[0] == "/usr/bin/say":
+                voice = command[command.index("-v") + 1] if "-v" in command else None
+                voices.append(voice)
+                speech = speech_for_voice(voice)
+                with wave.open(command[command.index("-o") + 1], "wb") as writer:
+                    writer.setnchannels(1)
+                    writer.setsampwidth(2)
+                    writer.setframerate(22_050)
+                    writer.writeframes(speech)
+            else:
+                self.assertEqual(command[0], "/usr/bin/afconvert")
+                with wave.open(command[-2]) as reader:
+                    encoded.append(reader.readframes(reader.getnframes()))
+            return subprocess.CompletedProcess(command, 0)
+
+        with tempfile.TemporaryDirectory() as root, mock.patch.object(SEEDER.subprocess, "run", side_effect=run):
+            SEEDER.say_track([(0, "me", "Synthetic fixture speech.")], "me", os.path.join(root, "mic.m4a"))
+            self.assertFalse(os.path.exists(os.path.join(root, "mic.m4a.line.wav")))
+        return voices, encoded
+
+    def test_silent_default_voice_falls_back_before_encoding(self):
+        voices, encoded = self.exercise_track(lambda voice: (b"\x00\x00" if voice is None else b"\x01\x02") * 22_050)
+        self.assertEqual(voices, [None, "Samantha"])
+        self.assertTrue(any(encoded[0]), "A successful say exit must not admit an all-silent fixture")
+
+    def test_working_default_voice_is_preserved(self):
+        voices, encoded = self.exercise_track(lambda voice: b"\x01\x02" * 22_050)
+        self.assertEqual(voices, [None])
+        self.assertTrue(any(encoded[0]))
+
+    def test_all_silent_voices_fail_instead_of_encoding(self):
+        with self.assertRaisesRegex(RuntimeError, "no usable audio"):
+            self.exercise_track(lambda voice: b"\x00\x00" * 22_050)
+
+    def test_unavailable_default_voice_uses_an_explicit_voice(self):
+        def speech(voice):
+            if voice is None:
+                raise subprocess.CalledProcessError(1, ["/usr/bin/say"])
+            return b"\x01\x02" * 22_050
+        voices, encoded = self.exercise_track(speech)
+        self.assertEqual(voices, [None, "Samantha"])
+        self.assertTrue(any(encoded[0]))
 
 
 class SeedProfileTests(unittest.TestCase):

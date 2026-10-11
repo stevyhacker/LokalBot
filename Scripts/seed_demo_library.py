@@ -640,6 +640,34 @@ SPRINT_LINES = [
 ]
 
 
+def say_speech(text, rate, clip):
+    """Some headless macOS runners return success but synthesize only silence
+    with their default voice. Try explicit voices and validate the PCM before
+    accepting a fixture; never turn a missing voice into a silent workday."""
+    failures = []
+    for voice in (None, "Samantha", "Alex", "Daniel", "Fred"):
+        command = ["/usr/bin/say", f"--data-format=LEI16@{rate}", "-o", clip]
+        if voice:
+            command += ["-v", voice]
+        try:
+            subprocess.run(command + [text], check=True, capture_output=True)
+            with wave.open(clip) as reader:
+                if (reader.getnchannels(), reader.getsampwidth(), reader.getframerate()) != (1, 2, rate):
+                    raise ValueError("unexpected speech PCM format")
+                speech = reader.readframes(reader.getnframes())
+            if any(speech):
+                if voice:
+                    print(f"Fixture speech: using {voice} after the default voice failed.", file=sys.stderr)
+                return speech
+            failures.append(f"{voice or 'default'}: silent audio")
+        except (subprocess.CalledProcessError, OSError, EOFError, wave.Error, ValueError) as error:
+            failures.append(f"{voice or 'default'}: {error}")
+        finally:
+            if os.path.exists(clip):
+                os.remove(clip)
+    raise RuntimeError("macOS speech synthesis produced no usable audio: " + "; ".join(failures))
+
+
 def say_track(lines, speaker, path):
     """Synthesize one speaker's lines at their start times (silence between) into
     an m4a. Both tracks of a meeting run to the same length, like a recording."""
@@ -649,10 +677,7 @@ def say_track(lines, speaker, path):
         if who != speaker:
             continue
         clip = path + ".line.wav"
-        subprocess.run(["/usr/bin/say", f"--data-format=LEI16@{rate}", "-o", clip, text], check=True)
-        with wave.open(clip) as reader:
-            speech = reader.readframes(reader.getnframes())
-        os.remove(clip)
+        speech = say_speech(text, rate, clip)
         offset = int(start * rate) * 2
         samples.extend(bytes(max(0, offset - len(samples))))
         samples[offset:offset + len(speech)] = speech
