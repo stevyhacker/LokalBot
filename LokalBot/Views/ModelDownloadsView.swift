@@ -172,7 +172,11 @@ struct ModelDownloadsView: View {
     }
 
     private func transcriptionRow(_ choice: TranscriptionModelChoice) -> some View {
-        let status = roles.transcriptionStatus(for: choice)
+        // Downloaded manages the in-flight candidate, while role readiness
+        // continues to describe the current model. Keep candidate cancellation available.
+        let status = roles.transcriptionPreparations[choice.id].map {
+            ModelRoleStatus.preparing(progress: $0.progress, label: $0.label)
+        } ?? roles.transcriptionStatus(for: choice)
         return HStack(spacing: 12) {
             Image(systemName: "waveform").settingsModelIcon().frame(width: 24)
             VStack(alignment: .leading, spacing: 5) {

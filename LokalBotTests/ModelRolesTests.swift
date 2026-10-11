@@ -108,7 +108,7 @@ final class ModelRolesTests: XCTestCase {
             settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
             prepareTranscription: { configuration, _, progress in
                 if configuration.funASRNanoModelDirectory == "/models/incompatible" {
-                    await progress?(.init(fractionCompleted: 0.5, status: "Checking replacement"))
+                    progress?(.init(fractionCompleted: 0.5, status: "Checking replacement"))
                     await gate.run()
                     throw TestPreparationError.failed
                 }
@@ -120,6 +120,8 @@ final class ModelRolesTests: XCTestCase {
         await gate.waitUntilStarted()
         XCTAssertEqual(roles.snapshot[.transcribe], .ready, "Draft progress must not disable the working model")
         XCTAssertTrue(roles.isPreparingTranscription)
+        XCTAssertEqual(roles.transcriptionPreparations[TranscriptionModelChoice.funASRNano.id]?.progress, 0.5,
+                       "Downloaded must retain the candidate's progress and cancellation control")
         await gate.release()
         do {
             try await preparation.value
