@@ -3,21 +3,18 @@ import XCTest
 
 final class LlamaCotypingRuntimeTests: XCTestCase {
 
-    /// Resolves the compact fallback model from the local cache or Vendor tree, or skips.
+    /// Resolves the compact fallback model from the local cache or
+    /// `LOKALBOT_COTYPING_TEST_MODEL`, or skips. Never from the checkout:
+    /// macOS asks each new test host for access to ~/Documents.
     private func bundledModelPath() throws -> String {
         let entry = ModelCatalog.entry(id: ModelCatalog.compactFallbackID)!
         let storage = StorageManager()
         guard let url = ModelCatalog.localURL(for: entry, storage: storage) else {
-            let repoRoot = URL(fileURLWithPath: #filePath)
-                .deletingLastPathComponent()
-                .deletingLastPathComponent()
-            let vendorURL = repoRoot
-                .appendingPathComponent("Vendor/llama-models")
-                .appendingPathComponent(entry.fileName)
-            guard ModelFileValidator.looksLikeGGUF(vendorURL) else {
-                throw XCTSkip("Compact fallback model \(entry.fileName) not present; skipping libllama integration test.")
+            guard let path = ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_TEST_MODEL"],
+                  ModelFileValidator.looksLikeGGUF(URL(fileURLWithPath: path)) else {
+                throw XCTSkip("Set LOKALBOT_COTYPING_TEST_MODEL to \(entry.fileName) to run this libllama integration test.")
             }
-            return vendorURL.path
+            return path
         }
         return url.path
     }

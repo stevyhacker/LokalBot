@@ -61,7 +61,9 @@ def main():
         with (output / "build.log").open("w") as log:
             subprocess.run([str(REPO / "Scripts/unit-tests.sh"), "MeetingNotesReplayTests"],
                            cwd=REPO, stdout=log, stderr=subprocess.STDOUT, check=True)
-    products = REPO / ".build/XcodeDerivedData/Build/Products"
+    derived = subprocess.run([str(REPO / "Scripts/unit-tests.sh"), "--derived-data-path"],
+                             check=True, capture_output=True, text=True).stdout.strip()
+    products = pathlib.Path(derived) / "Build/Products"
     candidates = list(products.glob("LokalBot_*macosx*-arm64.xctestrun"))
     if not candidates:
         parser.error("Build the non-UI tests first, or omit --skip-build.")
