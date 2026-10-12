@@ -16,7 +16,9 @@ struct TranscriptionModelStore {
             let fluidAudioRoot = AppDirectories.fluidAudioRoot
             let fluidAudioModelsRoot = fluidAudioRoot
                 .appendingPathComponent("Models", isDirectory: true)
-            let legacyWhisperKitRepoRoot = fileManager.urls(
+            // Unit tests never look in the user's Documents folder: macOS
+            // asks a freshly built test host for access every time.
+            let legacyWhisperKitRepoRoot = UITestRuntime.isUnitTesting ? nil : fileManager.urls(
                 for: .documentDirectory,
                 in: .userDomainMask
             ).first?

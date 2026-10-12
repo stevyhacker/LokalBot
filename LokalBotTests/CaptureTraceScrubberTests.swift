@@ -79,9 +79,9 @@ final class CaptureTraceScrubberTests: XCTestCase {
     }
 
     func testSwiftAllowlistMatchesTheSharedJSON() throws {
-        let json = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Scripts/record-capture/scrub-allowlist.json")
+        // A copy of Scripts/record-capture/scrub-allowlist.json; see project.yml.
+        let json = try XCTUnwrap(Bundle(for: Self.self).url(
+            forResource: "scrub-allowlist", withExtension: "json"))
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: json)) as? [String: Any])
         XCTAssertEqual(object["scrubberVersion"] as? Int, CaptureTraceScrubber.version)
         XCTAssertEqual(Set(object["vocabulary"] as? [String] ?? []), CaptureTraceScrubber.allowlist.vocabulary)

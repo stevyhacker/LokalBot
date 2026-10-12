@@ -162,8 +162,8 @@ final class CotypingMemoryRelevanceTests: XCTestCase {
     }
 
     private func fixture<Value: Decodable>(_ name: String, as type: Value.Type) throws -> Value {
-        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Benchmarks/Cotyping/\(name)")
+        // Copies of Benchmarks/Cotyping fixtures; see project.yml.
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: name, withExtension: nil))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(type, from: Data(contentsOf: url))

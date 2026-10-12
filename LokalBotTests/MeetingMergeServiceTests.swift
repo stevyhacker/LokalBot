@@ -241,8 +241,8 @@ final class MeetingMergeServiceTests: XCTestCase {
             .init(title: "Audio-only source", startedAt: start.addingTimeInterval(60)),
         ], under: root)
         let storage = StorageManager(rootURL: root)
-        let audioFixture = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/LiveTranscript/continuous-speech.wav")
+        let audioFixture = try XCTUnwrap(Bundle(for: Self.self).url(
+            forResource: "continuous-speech", withExtension: "wav", subdirectory: "Fixtures/LiveTranscript"))
         var sources = storage.loadMeetings().sorted { $0.startedAt < $1.startedAt }
         for index in sources.indices {
             if index == 1 {
