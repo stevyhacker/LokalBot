@@ -309,6 +309,8 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/LokalBot.app/Contents/MacOS/LokalBot"
         GENERATE_INFOPLIST_FILE: YES
+        # Fails any test that starts a model download; see the class.
+        INFOPLIST_KEY_NSPrincipalClass: LokalBotTests.LokalBotTestObservation
         PRODUCT_MODULE_NAME: LokalBotTests
         PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBotTests
         # Tests that `import LlamaCore` and call libllama C functions directly

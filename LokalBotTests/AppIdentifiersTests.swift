@@ -104,6 +104,60 @@ final class AppIdentifiersTests: XCTestCase {
             AppDirectories.applicationSupport.standardizedFileURL)
     }
 
+    /// Unit tests' settings turn semantic search on, so searching screens
+    /// through `AppState` used to download the 310 MB embedding model.
+    @MainActor
+    func testHostedUnitTestAppStateNeverDownloadsTheEmbeddingModel() async throws {
+        guard UITestRuntime.isUnitTesting else {
+            throw XCTSkip("requires the hosted LokalBot unit-test process")
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unit-test-embedder-\(UUID().uuidString)", isDirectory: true)
+        let previousRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
+        setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
+        defer {
+            if let previousRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
+            try? FileManager.default.removeItem(at: root)
+        }
+        let app = AppState()
+        XCTAssertTrue(app.settings.semanticSearchEnabled)
+        _ = try app.activityStore.insertScreenshot(
+            ts: Date(), path: "/tmp/synthetic-screen.enc", app: "Editor",
+            windowTitle: "Launch notes", ocr: "Launch budget review")
+
+        await app.embeddingIndex.reindexScreenText()
+
+        XCTAssertEqual(UITestRuntime.takeRefusedUnitTestDownloads(), [])
+    }
+
+    /// Any other unit test that reaches the real embedder is refused before
+    /// the download starts, and `LokalBotTestObservation` fails it.
+    @MainActor
+    func testHostedUnitTestEmbeddingModelDownloadIsRefused() async throws {
+        guard UITestRuntime.isUnitTesting else {
+            throw XCTSkip("requires the hosted LokalBot unit-test process")
+        }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unit-test-download-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let databaseURL = root.appendingPathComponent("lokalbotv3.sqlite")
+        _ = try ActivityStore(databaseURL: databaseURL).insertScreenshot(
+            ts: Date(), path: "/tmp/synthetic-screen.enc", app: "Editor",
+            windowTitle: "Launch notes", ocr: "Launch budget review")
+        let index = EmbeddingIndex(databaseURL: databaseURL, storage: StorageManager(rootURL: root))
+
+        await index.reindexScreenText()
+
+        XCTAssertEqual(UITestRuntime.takeRefusedUnitTestDownloads(), ["the embedding model"])
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: root.appendingPathComponent("models/\(EmbeddingIndex.modelFile)").path))
+    }
+
     @MainActor
     func testUITestRuntimeFlagDoesNotSelectDeterministicEncryptionKeyInProductionTarget() throws {
         guard ProcessInfo.processInfo.environment["LOKALBOT_RUN_KEYCHAIN_TESTS"] == "1" else {
