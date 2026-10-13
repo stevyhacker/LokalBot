@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LokalBot · Meeting library</title>
+  <style>/* HOST_STYLES */</style>
+  <style>
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-sans, system-ui, sans-serif); color: var(--color-text-primary, CanvasText); background: var(--color-background-primary, Canvas); }
+    main { max-width: 880px; margin: auto; padding: 24px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    h1 { font-size: 21px; letter-spacing: -.4px; margin: 0; }
+    header p, .muted { color: var(--color-text-secondary, GrayText); font-size: 13px; }
+    header p { margin: 6px 0 0; }
+    nav { display: flex; gap: 6px; margin: 24px 0 16px; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+    .tab { padding: 7px 13px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: inherit; }
+    .tab[aria-pressed="true"] { background: var(--color-background-secondary, ButtonFace); border-color: var(--color-border-primary, ButtonBorder); }
+    form { display: flex; gap: 8px; margin-bottom: 22px; }
+    input { min-width: 0; flex: 1; }
+    #status { margin: 12px 0; min-height: 20px; }
+    #status[role="alert"] { color: var(--color-text-danger, #b42318); }
+    .section-heading { font-size: 15px; margin: 24px 0 10px; }
+    .row { width: 100%; text-align: left; display: block; padding: 16px 0; background: transparent; border: 0; border-bottom: 1px solid var(--color-border-secondary, ButtonFace); color: inherit; }
+    button.row:hover { background: var(--color-background-secondary, ButtonFace); }
+    .row strong { font-size: 15px; font-weight: 600; }
+    .row p { margin: 7px 0 0; line-height: 1.55; font-size: 14px; }
+    .row .muted { font-size: 12px; }
+    .empty { padding: 32px 0; line-height: 1.6; }
+    .document { line-height: 1.65; overflow-wrap: anywhere; }
+    .document h2 { margin-top: 22px; font-size: 17px; }
+    .document h3 { margin-top: 20px; font-size: 15px; }
+    .document p { white-space: pre-wrap; margin: 8px 0; font-size: 14px; }
+    .detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+    footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--color-border-secondary, ButtonFace); line-height: 1.5; }
+    @media (max-width: 440px) { main { padding: 16px; } header { align-items: flex-start; } nav { margin-top: 18px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><div><h1>LokalBot</h1><p>Return to the conversation.</p></div><button class="btn btn-secondary" id="refresh" type="button">Refresh</button></header>
+    <nav aria-label="Library views">
+      <button class="tab" data-view="meetings" aria-pressed="true" type="button">Meetings</button>
+      <button class="tab" data-view="actions" aria-pressed="false" type="button">Commitments</button>
+      <button class="tab" data-view="people" aria-pressed="false" type="button">People</button>
+    </nav>
+    <form id="search"><input id="query" class="form-control" aria-label="Search recorded meetings" placeholder="Find a discussion or decision…" maxlength="200"><button class="btn btn-primary" type="submit">Search</button></form>
+    <p id="status" class="muted" role="status" aria-live="polite">Connecting to your library…</p>
+    <section id="content" aria-label="Library results"></section>
+    <footer class="muted">Your library stays on your Mac. Requested results are shared with this client. Manage access in LokalBot → Settings → Privacy.</footer>
+  </main>
+  <!-- APP_SCRIPT -->
+</body>
+</html>

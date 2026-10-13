@@ -1,0 +1,9 @@
+node_modules/
+.test-cli/
+.test-build/
+dist/
+artifacts/
+.cloudflare/
+.env*
+.dev.vars*
+device.json

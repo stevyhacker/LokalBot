@@ -1,0 +1,41 @@
+{
+  "name": "lokalbot-chatgpt-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "overrides": {
+    "miniflare": "$miniflare"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit && tsc -p relay/tsconfig.json",
+    "build:relay": "cf build",
+    "build:test-cli": "bash scripts/build-test-cli.sh",
+    "package:public": "node scripts/package-public.mjs",
+    "test": "tsc && node --test .test-build/tests/*.test.js tests/*.test.mjs",
+    "check": "npm run typecheck && npm run build && npm test",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "1.2.3",
+    "@modelcontextprotocol/ext-apps": "1.7.5",
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@openai/mcp-extensions": "0.1.0",
+    "ws": "8.22.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-beta.sha-52b0dc0e9",
+    "@cloudflare/workers-types": "5.20261009.1",
+    "@types/node": "22.19.0",
+    "@types/ws": "8.18.1",
+    "cf": "1.0.0-beta.5",
+    "esbuild": "0.28.2",
+    "miniflare": "5.20261006.1-alpha",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  }
+}
