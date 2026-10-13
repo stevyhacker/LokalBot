@@ -222,6 +222,14 @@ final class EmbeddingIndex {
     ) async throws -> [[Float]]
     private let embedder: Embedder
 
+    /// Fails like an embedder that is not ready, so search keeps its keyword
+    /// results and indexing tries again later. Unit tests' `AppState` uses it:
+    /// semantic search is on there, and the real embedder would download the
+    /// model into the test's temporary library.
+    static let unavailableEmbedder: Embedder = { _, _, _ in
+        throw TextEngineError.unavailable("The embedding model is not available.")
+    }
+
     private let databaseURL: URL
 
     init(databaseURL: URL, storage: StorageManager, embedder: Embedder? = nil) {
@@ -1068,6 +1076,7 @@ final class EmbeddingIndex {
             return path
         }
         DownloadIntegrity.removeFileAndMarker(at: path)
+        try UITestRuntime.refuseDownloadInUnitTests(of: "the embedding model")
         let stashed = try await ParallelRangeDownloader.download(
             from: URL(string: modelURL)!, session: .shared) { _ in }
         do {

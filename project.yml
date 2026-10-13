@@ -271,6 +271,22 @@ targets:
       - path: LokalBotTests/Fixtures
         type: folder
         buildPhase: resources
+      # Repository files that tests check, copied so a test never reads the
+      # checkout: macOS asks each new test host for access to ~/Documents.
+      - path: LokalBot/LokalBot.entitlements
+        buildPhase: resources
+      - path: Scripts/record-capture/scrub-allowlist.json
+        buildPhase: resources
+      - path: Scripts/seed_demo_library.py
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/memory-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/memory-relevance-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/visible-context-cases.json
+        buildPhase: resources
+      - path: Benchmarks/Cotyping/visible-memory-link-cases.json
+        buildPhase: resources
     dependencies:
       - target: LokalBot
     settings:
@@ -278,6 +294,8 @@ targets:
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/LokalBot.app/Contents/MacOS/LokalBot"
         GENERATE_INFOPLIST_FILE: YES
+        # Fails any test that starts a model download; see the class.
+        INFOPLIST_KEY_NSPrincipalClass: LokalBotTests.LokalBotTestObservation
         PRODUCT_MODULE_NAME: LokalBotTests
         PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBotTests
         # Tests that `import LlamaCore` and call libllama C functions directly

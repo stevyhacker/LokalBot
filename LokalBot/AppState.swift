@@ -582,7 +582,8 @@ final class AppState: ObservableObject {
         if let cachedEmbeddingIndex { return cachedEmbeddingIndex }
         let created = EmbeddingIndex(
             databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
-            storage: storage)
+            storage: storage,
+            embedder: UITestRuntime.isUnitTesting ? EmbeddingIndex.unavailableEmbedder : nil)
         for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
         cachedEmbeddingIndex = created
         return created

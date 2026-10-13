@@ -10,11 +10,9 @@ final class CalendarDetectionTests: XCTestCase {
 
     func testCalendarCapabilityIsConfiguredForGeneratedBuilds() throws {
         let entitlementKey = "com.apple.security.personal-information.calendars"
-        let repositoryRoot = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let entitlementsURL = repositoryRoot
-            .appendingPathComponent("LokalBot/LokalBot.entitlements")
+        // A copy of LokalBot/LokalBot.entitlements; see project.yml.
+        let entitlementsURL = try XCTUnwrap(Bundle(for: Self.self).url(
+            forResource: "LokalBot", withExtension: "entitlements"))
         let data = try Data(contentsOf: entitlementsURL)
         let properties = try XCTUnwrap(
             PropertyListSerialization.propertyList(from: data, format: nil)

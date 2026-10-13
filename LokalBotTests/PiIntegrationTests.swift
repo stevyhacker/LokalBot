@@ -63,15 +63,16 @@ final class PiIntegrationTests: XCTestCase {
         try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: workspace) }
 
-        let repoRoot = URL(fileURLWithPath: #filePath)      // …/LokalBotTests/PiIntegrationTests.swift
-            .deletingLastPathComponent().deletingLastPathComponent()
+        // The host app bundles LokalBot/Resources/pi, so the test never
+        // reads the checkout.
+        let resources = try XCTUnwrap(Bundle.main.resourceURL)
         let endpoint = AgentLLMEndpoint(
             baseURL: URL(string: "http://127.0.0.1:\(stubPort)/v1")!,
             model: "stub-model", contextTokens: 16_384, apiKey: nil)
         let plan = PiLaunchPlanner.plan(
             bun: bun,
             piCLI: AgentRuntimeLayout.piCLI(under: root),
-            extensionDirectory: repoRoot.appendingPathComponent("LokalBot/Resources/pi/lokalbot-extension"),
+            extensionDirectory: resources.appendingPathComponent("pi/lokalbot-extension"),
             skillDirectory: nil,
             sessionDirectory: workspace.appendingPathComponent("sessions"),
             workspace: workspace,
