@@ -128,6 +128,13 @@ final class ScopedChatToolRunner: ChatToolRunner {
 
     var specs: [ChatToolSpec] { base.specs.filter { allows($0.name) } }
 
+    func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey _: String?) -> ChatEvidence {
+        guard scopes.contains(.screen),
+              dayScopeKey == nil || dayScopeKey.flatMap({ AskDateScope(storageKey: $0) }) != nil else { return ChatEvidence() }
+        let allowed = screenSnapshotIDs.map { ids.intersection($0) } ?? ids
+        return base.attachedScreenEvidence(ids: allowed, dayScopeKey: dayScopeKey)
+    }
+
     func libraryOverview() -> String {
         // Source-limited and day-limited questions must not receive ambient
         // meeting titles outside the exact scope enforced by the tools below.

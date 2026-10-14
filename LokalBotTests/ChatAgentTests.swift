@@ -7,14 +7,23 @@ import XCTest
 /// against a planted on-disk library.
 @MainActor
 final class ChatAgentTests: XCTestCase {
+    private func observed(_ text: String) -> ChatEvidence {
+        var evidence = ChatEvidence(meetingIDs: ["aaaaaaaa"], meetingSeconds: ["aaaaaaaa": [12]])
+        evidence.excerpts = [.init(text: text, citation: .init(meetingID: "aaaaaaaa", seconds: 12))]
+        return evidence
+    }
+
     func testAgentValidatesNormalAndForcedAnswersAgainstTypedToolEvidence() async throws {
         let id = UUID(uuidString: "AAAAAAAA-1111-4222-8333-444444444444")!
         var evidence = ChatEvidence(screenIDs: [42])
         evidence.addMeeting(id, seconds: 12)
+        evidence.excerpts = [.init(text: "Observed meeting evidence.", citation: .init(meetingID: "aaaaaaaa", seconds: 12)),
+                             .init(text: "Observed screen evidence.", citation: .init(snapshotID: 42))]
         for maximumSteps in [1, 4] {
             let engine = ScriptedEngine([
-                #"{"tool":"search_meetings","arguments":{"query":"decision"}}"#,
+                #"{"tool":"search_meetings","arguments":{"query":"Decision?"}}"#,
                 "FINAL_ANSWER: Observed [meeting:aaaaaaaa@00:00:12] [screen:42]. Invented [meeting:aaaaaaaa@00:01:00] [screen:99].",
+                #"{"answer_sources":["E1","E2"]}"#,
             ])
             let runner = FakeRunner(
                 specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "",
@@ -27,23 +36,80 @@ final class ChatAgentTests: XCTestCase {
             }
             XCTAssertEqual(ChatCitationParser.extract(answer).citations,
                            [.init(meetingID: "aaaaaaaa", seconds: 12), .init(snapshotID: 42)])
-            XCTAssertTrue(answer.contains("source not verified"))
+            XCTAssertFalse(answer.contains("Invented"))
+            XCTAssertTrue(answer.contains("Observed meeting evidence."))
         }
+    }
+
+    func testUnsupportedSelectionGetsOneScopedRetryThenAbstains() async throws {
+        let engine = ScriptedEngine([
+            #"{"tool":"search_meetings","arguments":{"query":"What is Project South's budget?"}}"#,
+            #"{"answer_sources":["E1"]}"#, #"{"answer_sources":["E1"]}"#,
+        ], supportVerdicts: [#"{"supports_requested_answer":false}"#, #"{"supports_requested_answer":false}"#])
+        let runner = FakeRunner(specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "",
+            results: ["search_meetings": .init(text: "Project North budget is 40 euros.", summary: "one",
+                                              evidence: observed("Project North budget is 40 euros."))])
+        var agent = ChatAgent(engine: engine, runner: runner)
+        agent.workMemory = "MEMORY_SENTINEL"
+        agent.now = { Date(timeIntervalSince1970: 1_000) }
+        let answer = try await agent.respond(history: [.init(role: .assistant, text: "HISTORY_SENTINEL")],
+            latest: "What is Project South's budget?") { _ in }
+        XCTAssertEqual(answer, ChatGrounding.noAnswer)
+        XCTAssertEqual(runner.calls.count, 2)
+        XCTAssertEqual(runner.calls.last?.string("query"), "What is Project South's budget?")
+        let checks = engine.prompts.filter { $0.system.contains("Assess ANSWERABILITY") }
+        XCTAssertEqual(checks.count, 2)
+        XCTAssertTrue(checks.allSatisfy { $0.context.count == 3 && $0.context[0] == ChatPrompt.currentTimeLine(now: Date(timeIntervalSince1970: 1_000)) })
+        XCTAssertTrue(checks.allSatisfy { !$0.context.joined().contains("MEMORY_SENTINEL") && !$0.context.joined().contains("HISTORY_SENTINEL") })
+    }
+
+    func testSupportVerifierSeesLaterCorrectionAndRecoveryCanSelectIt() async throws {
+        var evidence = observed("Earlier: Project North uses SQLite.")
+        evidence.excerpts.append(.init(text: "Later correction: Project North now uses LMDB.",
+            citation: .init(meetingID: "aaaaaaaa", seconds: 12), label: "Later recorded correction"))
+        let engine = ScriptedEngine([
+            #"{"tool":"search_meetings","arguments":{"query":"What does North use now?"}}"#,
+            #"{"answer_sources":["E2"]}"#, #"{"answer_sources":["E1"]}"#,
+        ], supportVerdicts: [#"{"supports_requested_answer":false}"#, #"{"supports_requested_answer":true}"#])
+        let runner = FakeRunner(specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "",
+            results: ["search_meetings": .init(text: "Two records", summary: "two", evidence: evidence)])
+        let answer = try await ChatAgent(engine: engine, runner: runner).respond(history: [], latest: "What does North use now?") { _ in }
+        XCTAssertTrue(answer.contains("now uses LMDB"))
+        XCTAssertFalse(answer.contains("uses SQLite"))
+        let checks = engine.prompts.filter { $0.system.contains("Assess ANSWERABILITY") }
+        XCTAssertEqual(checks.count, 2)
+        XCTAssertTrue(checks[0].context.joined().contains("Later correction"))
+        // Query-focused ordering puts the current record first. Deliberately
+        // select the older E2 before recovery chooses the current E1.
+        XCTAssertEqual(checks[0].context.last, "Selected handles to assess: E2")
+        XCTAssertEqual(checks[1].context.last, "Selected handles to assess: E1")
+    }
+
+    func testSemanticSupportRespectsBackendStructuredOutputFloor() async throws {
+        let engine = ScriptedEngine([#"{"tool":"search_meetings","arguments":{"query":"Which datastore?"}}"#,
+                                     #"{"answer_sources":["E1"]}"#], structuredFloor: 2_048)
+        let runner = FakeRunner(specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "",
+            results: ["search_meetings": .init(text: "SQLite selected", summary: "one", evidence: observed("SQLite selected"))])
+        let answer = try await ChatAgent(engine: engine, runner: runner).respond(history: [], latest: "Which datastore?") { _ in }
+        XCTAssertTrue(answer.contains("SQLite selected"))
+        XCTAssertEqual(engine.generationOptions.last?.maxTokens, 2_048)
+        XCTAssertEqual(engine.generationOptions.last?.reasoningBudgetTokens, 128)
     }
 
     func testAmbientMeetingOverviewDoesNotAuthorizeContentCitation() async throws {
         let engine = ScriptedEngine([
             "FINAL_ANSWER: The roadmap was approved. [meeting:aaaaaaaa]",
+            "FINAL_ANSWER: The roadmap was approved. [meeting:aaaaaaaa]",
         ])
         let runner = FakeRunner(
-            specs: [],
+            specs: [.init(name: "search_meetings", summary: "search", arguments: [])],
             overview: "Most recent: [aaaaaaaa] Planning — today, 30m",
             results: [:])
 
         let answer = try await ChatAgent(engine: engine, runner: runner)
             .respond(history: [], latest: "What was approved?") { _ in }
 
-        XCTAssertTrue(answer.contains("source not verified"))
+        XCTAssertEqual(answer, ChatGrounding.noAnswer)
         XCTAssertTrue(ChatCitationParser.extract(answer).citations.isEmpty)
     }
 
@@ -69,18 +135,18 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertTrue(observation.text.contains("00:00:12"))
         XCTAssertFalse(observation.text.contains("00:00:30"))
     }
-    func testFinalAnswerAppearsBeforeGenerationCompletes() async throws {
+    func testUnverifiedMeetingAnswerNeverAppearsDuringStreaming() async throws {
         let engine = StreamingAnswerEngine()
-        let agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "", results: [:]))
+        let agent = ChatAgent(engine: engine, runner: FakeRunner(
+            specs: [.init(name: "search_meetings", summary: "search", arguments: [])], overview: "", results: [:]))
         var partials: [String] = []
         let answer = try await agent.respond(history: [], latest: "What was decided?") { event in
             if case .answerPartial(let text) = event {
-                XCTAssertFalse(engine.completed)
                 partials.append(text)
             }
         }
-        XCTAssertEqual(partials, ["The decision was Redis"])
-        XCTAssertEqual(answer, "The decision was Redis.")
+        XCTAssertTrue(partials.allSatisfy(\.isEmpty))
+        XCTAssertEqual(answer, ChatGrounding.noAnswer)
     }
     func testStreamingRequiresFinalMarkerAndWithholdsReasoningAndTools() {
         XCTAssertNil(ChatPrompt.streamingAnswer("<think>FINAL_ANSWER: hidden reasoning"))
@@ -251,22 +317,25 @@ final class ChatAgentTests: XCTestCase {
 
     func testMalformedToolAttemptRetriesWithConstrainedDecode() async throws {
         let engine = ScriptedEngine([
-            #"{"tool": "search_meetings", "arguments": {"query": "redis""#,       // truncated
-            #"{"call": {"tool": "search_meetings", "arguments": {"query": "redis"}}}"#, // constrained retry
-            "We picked Redis.",
+            #"{"tool": "search_meetings", "arguments": {"query": "what did we pick?""#,       // truncated
+            #"{"call": {"tool": "search_meetings", "arguments": {"query": "what did we pick?"}}}"#, // constrained retry
+            #"{"answer_sources":["E1"]}"#,
         ])
         let runner = FakeRunner(
             specs: [ChatToolSpec(name: "search_meetings", summary: "search",
                                  arguments: [.init(name: "query", description: "q", required: true)])],
             overview: "",
-            results: ["search_meetings": ChatToolResult(text: "Hit: Redis", summary: "1 match")])
+            results: ["search_meetings": ChatToolResult(text: "Hit: Redis", summary: "1 match", evidence: observed("We picked Redis."))])
         let agent = ChatAgent(engine: engine, runner: runner)
 
         let answer = try await agent.respond(history: [], latest: "what did we pick?") { _ in }
-        XCTAssertEqual(answer, "We picked Redis.")
+        XCTAssertTrue(answer.contains("> We picked Redis."))
         XCTAssertEqual(runner.calls.map(\.name), ["search_meetings"])
-        // Exactly one engine call carried the constraining schema.
-        XCTAssertEqual(engine.schemas.compactMap { $0 }.count, 1)
+        // The tool repair, anchored proposal, and independent final check each use a schema.
+        let constrained = engine.schemas.compactMap { $0 }
+        XCTAssertEqual(constrained.count, 3)
+        XCTAssertEqual(constrained.filter { ($0["properties"] as? [String: Any])?["call"] != nil }.count, 1)
+        XCTAssertEqual(constrained.filter { ($0["properties"] as? [String: Any])?["proposal"] != nil }.count, 1)
     }
 
     // MARK: - System prompt
@@ -325,14 +394,15 @@ final class ChatAgentTests: XCTestCase {
 
     func testAgentRunsToolThenAnswers() async throws {
         let engine = ScriptedEngine([
-            #"{"tool": "search_meetings", "arguments": {"query": "redis"}}"#,
-            "We decided to adopt Redis for caching.",
+            #"{"tool": "search_meetings", "arguments": {"query": "what did we decide?"}}"#,
+            #"{"answer_sources":["E1"]}"#,
         ])
         let runner = FakeRunner(
             specs: [ChatToolSpec(name: "search_meetings", summary: "search",
                                  arguments: [.init(name: "query", description: "q", required: true)])],
             overview: "1 meeting",
-            results: ["search_meetings": ChatToolResult(text: "Hit: adopt Redis", summary: "1 match")])
+            results: ["search_meetings": ChatToolResult(text: "Hit: adopt Redis", summary: "1 match",
+                                                       evidence: observed("We decided to adopt Redis for caching."))])
         let agent = ChatAgent(engine: engine, runner: runner)
 
         var events: [String] = []
@@ -344,12 +414,13 @@ final class ChatAgentTests: XCTestCase {
             }
         }
 
-        XCTAssertEqual(answer, "We decided to adopt Redis for caching.")
+        XCTAssertTrue(answer.contains("> We decided to adopt Redis for caching."))
         XCTAssertEqual(runner.calls.map(\.name), ["search_meetings"])
-        XCTAssertEqual(runner.calls.first?.string("query"), "redis")
+        XCTAssertEqual(runner.calls.first?.string("query"), "what did we decide?")
         XCTAssertEqual(events, ["start:search_meetings", "finish:search_meetings"])
         // The observation must have been fed back into the second generate call.
-        XCTAssertTrue(engine.prompts.last?.context.contains { $0.contains("Observation: Hit: adopt Redis") } ?? false)
+        XCTAssertTrue(engine.prompts[1].context.contains { $0.contains("Observation: Hit: adopt Redis") })
+        XCTAssertFalse(engine.prompts.last?.context.contains { $0.contains("Observation: Hit: adopt Redis") } ?? true)
     }
 
     func testAgentAnswersDirectlyWithoutTools() async throws {
@@ -362,7 +433,7 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testAgentForcesAnswerAfterMaxSteps() async throws {
-        let loopingCall = #"{"tool":"search_meetings","arguments":{"query":"x"}}"#
+        let loopingCall = #"{"tool":"search_meetings","arguments":{"query":"find x"}}"#
         let engine = ScriptedEngine(Array(repeating: loopingCall, count: 8))
         let runner = FakeRunner(
             specs: [ChatToolSpec(name: "search_meetings", summary: "search", arguments: [])],
@@ -372,9 +443,9 @@ final class ChatAgentTests: XCTestCase {
         agent.maxSteps = 2
 
         let answer = try await agent.respond(history: [], latest: "find x") { _ in }
-        // 2 in-loop tool calls, then a forced pass that still loops → fallback.
-        XCTAssertEqual(runner.calls.count, 2)
-        XCTAssertEqual(answer, ChatPrompt.fallbackAnswer)
+        // Two planner calls plus one bounded recovery search after the forced pass fails.
+        XCTAssertEqual(runner.calls.count, 3)
+        XCTAssertEqual(answer, ChatGrounding.noAnswer)
     }
 
     func testCurrentTimeGoesLastSoTheModelCanResolveRelativeDays() throws {
@@ -903,11 +974,18 @@ private final class StreamingAnswerEngine: TextEngine {
 /// so the agent loop can be exercised deterministically with no model.
 private final class ScriptedEngine: TextEngine {
     private var outputs: [String]
+    private var supportVerdicts: [String]
+    var minimumStructuredOutputTokens: Int
+    private(set) var generationOptions: [TextGenerationOptions] = []
     private(set) var prompts: [(system: String, prompt: String, context: [String])] = []
     /// One entry per generate call: the constraining schema, or nil for plain calls.
     private(set) var schemas: [[String: Any]?] = []
 
-    init(_ outputs: [String]) { self.outputs = outputs }
+    init(_ outputs: [String], supportVerdicts: [String] = [#"{"supports_requested_answer":true}"#], structuredFloor: Int = 512) {
+        self.outputs = outputs
+        self.supportVerdicts = supportVerdicts
+        self.minimumStructuredOutputTokens = structuredFloor
+    }
 
     var displayName: String { "Scripted" }
 
@@ -921,8 +999,35 @@ private final class ScriptedEngine: TextEngine {
                   schema: [String: Any]) async throws -> String {
         prompts.append((system, prompt, context))
         schemas.append(schema)
+        if (schema["properties"] as? [String: Any])?["proposal"] != nil {
+            return Self.scriptedAssessment(context: context,
+                supported: !supportVerdicts.isEmpty && ChatGrounding.supportsRequestedAnswer(supportVerdicts.removeFirst()))
+        }
+        if (schema["properties"] as? [String: Any])?["verdict"] != nil {
+            return #"{"evidence_check":"Synthetic independent evidence check.","verdict":"supported","issues":[]}"#
+        }
         return outputs.isEmpty ? "" : outputs.removeFirst()
     }
+    private static func scriptedAssessment(context: [String], supported: Bool) -> String {
+        let prefix = "Available recorded source catalog:\n"
+        let catalog = context.first(where: { $0.hasPrefix(prefix) }).map { String($0.dropFirst(prefix.count)) } ?? "[]"
+        let records = (try? JSONSerialization.jsonObject(with: Data(catalog.utf8))) as? [[String: String]] ?? []
+        let chosen = Set((context.last ?? "").replacingOccurrences(of: "Selected handles to assess: ", with: "")
+            .components(separatedBy: ", "))
+        let parts: [[String: Any]] = records.filter { chosen.contains($0["handle"] ?? "") }.map { record in
+            ["question_part": "Synthetic part " + (record["handle"] ?? ""),
+             "status": supported ? "supported_value" : "uncertain",
+             "evidence": [["source": record["handle"] ?? "", "quote": String((record["text"] ?? "").prefix(600))]]]
+        }
+        let data = try? JSONSerialization.data(withJSONObject: ["proposal": ["parts": parts]], options: .sortedKeys)
+        return data.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+    }
+    func generate(system: String, prompt: String, context: [String], schema: [String: Any],
+                  options: TextGenerationOptions) async throws -> String {
+        generationOptions.append(options)
+        return try await generate(system: system, prompt: prompt, context: context, schema: schema)
+    }
+
 }
 
 @MainActor

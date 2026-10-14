@@ -214,6 +214,24 @@ final class AskRoutingTests: XCTestCase {
         XCTAssertNil(base.lastCall)
     }
 
+    func testAttachedScreenEvidencePreservesSourceDateAndPinnedIDBoundaries() {
+        let base = RecordingToolRunner()
+        for runner in [ScopedChatToolRunner(base: base, scopes: [.meetings]),
+                       ScopedChatToolRunner(base: base, scopes: [.screen], dayScopeKey: "invalid")] {
+            XCTAssertTrue(runner.attachedScreenEvidence(ids: [42], dayScopeKey: nil).screenIDs.isEmpty)
+            XCTAssertNil(base.attachedIDs, "Disabled or invalid scopes must not access the source")
+        }
+        let scoped = ScopedChatToolRunner(base: base, scopes: [.screen], dayScopeKey: "2026-08-31",
+                                          screenSnapshotIDs: [42])
+        let result = scoped.attachedScreenEvidence(ids: [42, 99], dayScopeKey: "2020-01-01")
+        XCTAssertEqual(result.screenIDs, [42])
+        XCTAssertEqual(base.attachedIDs, [42])
+        XCTAssertEqual(base.attachedDay, "2026-08-31", "A caller cannot override the reviewed day")
+        let empty = ScopedChatToolRunner(base: base, scopes: [.screen], screenSnapshotIDs: [])
+        XCTAssertTrue(empty.attachedScreenEvidence(ids: [42], dayScopeKey: nil).screenIDs.isEmpty)
+        XCTAssertEqual(base.attachedIDs, [])
+    }
+
     private final class RecordingToolRunner: ChatToolRunner {
         let specs = [
             ChatToolSpec(name: "search_meetings", summary: "meetings", arguments: []),
@@ -221,6 +239,14 @@ final class AskRoutingTests: XCTestCase {
             ChatToolSpec(name: "activity_summary", summary: "today", arguments: []),
         ]
         var lastCall: ChatToolCall?
+        var attachedIDs: Set<Int64>?
+        var attachedDay: String?
+
+        func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence {
+            attachedIDs = ids
+            attachedDay = dayScopeKey
+            return ChatEvidence(screenIDs: ids)
+        }
 
         func libraryOverview() -> String { "all meeting titles" }
         func run(_ call: ChatToolCall) async -> ChatToolResult {

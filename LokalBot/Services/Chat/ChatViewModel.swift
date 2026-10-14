@@ -973,8 +973,8 @@ final class ChatViewModel: ObservableObject {
             var agent = ChatAgent(engine: engine, runner: scopedTools)
             agent.adaptLimits(to: engine)
             if scopes.contains(.screen) {
-                agent.initialEvidence.screenIDs = screenSnapshotIDs.map { attachedScreenIDs.intersection($0) }
-                    ?? attachedScreenIDs
+                agent.initialEvidence = scopedTools.attachedScreenEvidence(
+                    ids: attachedScreenIDs, dayScopeKey: dayScopeKey)
             }
             // Dream memory is distilled from meetings, activity, and screen
             // context. Including it in a restricted question would bypass the

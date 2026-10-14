@@ -6,6 +6,9 @@ struct ChatEvidence: Sendable {
     var meetingIDs: Set<String> = []
     var meetingSeconds: [String: Set<Int>] = [:]
     var screenIDs: Set<Int64> = []
+    /// App-owned text associated with an observed source, not model prose or
+    /// navigation metadata. Only these excerpts can support a factual answer.
+    var excerpts: [ChatSourceExcerpt] = []
 
     mutating func addMeeting(_ id: UUID, seconds: TimeInterval? = nil) {
         let key = SessionLookup.shortID(id).lowercased()
@@ -19,6 +22,7 @@ struct ChatEvidence: Sendable {
     mutating func merge(_ other: ChatEvidence) {
         meetingIDs.formUnion(other.meetingIDs)
         screenIDs.formUnion(other.screenIDs)
+        for excerpt in other.excerpts where !excerpts.contains(excerpt) { excerpts.append(excerpt) }
         for (id, seconds) in other.meetingSeconds { meetingSeconds[id, default: []].formUnion(seconds) }
     }
 
@@ -31,6 +35,41 @@ struct ChatEvidence: Sendable {
         guard let seconds = citation.seconds else { return true }
         guard let stamp = Int(exactly: seconds) else { return false }
         return meetingSeconds[id]?.contains(stamp) == true
+    }
+}
+
+struct ChatSourceExcerpt: Equatable, Sendable {
+    let text: String
+    let citation: ChatCitation?
+    let label: String
+    let meetingTitle: String
+    /// Display identity supplied by the transcript, never inferred from an ID.
+    let speakerLabel: String
+    let recordedAt: Date?
+
+    init(text: String, citation: ChatCitation, label: String = "Recorded source", meetingTitle: String = "",
+         speakerLabel: String = "", recordedAt: Date? = nil) {
+        self.text = text
+        self.citation = citation
+        self.label = label
+        self.meetingTitle = meetingTitle
+        self.speakerLabel = speakerLabel
+        self.recordedAt = recordedAt
+    }
+
+    init(activityText: String) {
+        text = activityText
+        citation = nil
+        label = "Recorded app activity"
+        meetingTitle = ""
+        speakerLabel = ""
+        recordedAt = nil
+    }
+
+    var marker: String {
+        guard let citation else { return "" }
+        if citation.kind == .screen { return "[screen:\(citation.sourceID)]" }
+        return "[meeting:\(citation.sourceID)\(citation.stampText.map { "@\($0)" } ?? "")]"
     }
 }
 

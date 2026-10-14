@@ -34,6 +34,9 @@ final class SearchIndex {
         let snippet: String
         let speaker: String
         var isSemantic = false
+        /// Whole stored document. Snippets are navigation aids and can omit a
+        /// negation; grounded chat quotes must use this source body instead.
+        var sourceText: String?
     }
 
     private let database: SQLiteDatabase?
@@ -299,7 +302,7 @@ final class SearchIndex {
               let database else { return [] }
         var sql = """
             SELECT meeting_id, kind, start, speaker,
-                   snippet(docs, 0, '«', '»', '…', 14)
+                   snippet(docs, 0, '«', '»', '…', 14), text
             FROM docs WHERE docs MATCH ?1
               AND NOT EXISTS (
                   SELECT 1 FROM deleted_meetings AS deleted
@@ -330,7 +333,8 @@ final class SearchIndex {
             return Hit(meetingID: meetingID, kind: kind,
                        start: sqlite3_column_double(statement, 2),
                        snippet: String(cString: snippetText),
-                       speaker: speaker)
+                       speaker: speaker,
+                       sourceText: sqlite3_column_text(statement, 5).map { String(cString: $0) })
         }.filter { !locallyDeletedMeetingIDs.contains($0.meetingID) }
     }
 
@@ -355,42 +359,82 @@ final class SearchIndex {
     /// Embeddings historically retained only the first 300 characters and lost
     /// source kind. Recover the matching document before choosing a reading excerpt.
     func semanticPassage(meetingID: UUID, start: TimeInterval, text: String, query: String) -> Hit? {
-        guard let database, !locallyDeletedMeetingIDs.contains(meetingID) else { return nil }
+        semanticSourcePassages(meetingID: meetingID, start: start, text: text).compactMap { source -> Hit? in
+            guard let body = source.sourceText, let snippet = RecallPassage.excerpt(body, query: query) else { return nil }
+            return Hit(meetingID: source.meetingID, kind: source.kind, start: source.start,
+                       snippet: snippet, speaker: source.speaker, isSemantic: true, sourceText: body)
+        }.sorted {
+            let left = RecallPassage.queryMatchCount($0.snippet, query: query)
+            let right = RecallPassage.queryMatchCount($1.snippet, query: query)
+            return left == right ? $0.start < $1.start : left > right
+        }.first
+    }
+
+    /// One semantic chunk can span several speakers/source segments. Grounded
+    /// answers need every whole matched source, not only the best UI excerpt:
+    /// otherwise a later assignment, correction or negation becomes unselectable.
+    func semanticSourcePassages(meetingID: UUID, start: TimeInterval, text: String) -> [Hit] {
+        guard let database, !locallyDeletedMeetingIDs.contains(meetingID) else { return [] }
         let candidates: [(String, Kind, TimeInterval, String)] = database.query("""
             SELECT text, kind, start, speaker FROM search_document_rows AS source
             JOIN docs ON docs.rowid = source.doc_rowid
             WHERE source.meeting_id = ?1
-              AND (kind IN ('summary', 'notes') OR (kind = 'segment' AND start >= ?2 AND start < ?3))
+              AND (kind IN ('summary', 'notes') OR (kind = 'segment' AND start >= ?2))
               AND NOT EXISTS (SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1)
-            LIMIT 100
-            """, bind: [meetingID.uuidString, start, start + 120]) { statement in
+            ORDER BY start, docs.rowid LIMIT 100
+            """, bind: [meetingID.uuidString, start]) { statement in
                 guard let body = sqlite3_column_text(statement, 0),
                       let rawKind = sqlite3_column_text(statement, 1),
                       let kind = Kind(rawValue: String(cString: rawKind)) else { return nil }
                 return (String(cString: body), kind, sqlite3_column_double(statement, 2),
                         sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? "")
             }
-        let fragments = text.split(separator: "\n").map { line -> String in
-            let line = String(line)
-            return line.range(of: ": ").map { String(line[$0.upperBound...]) } ?? line
-        }.filter { !$0.isEmpty }
-        let bodyText = text.hasPrefix(EmbeddingIndex.notesChunkMarker)
-            ? String(text.dropFirst(EmbeddingIndex.notesChunkMarker.count)) : text
-        let summaries = candidates.filter {
-            ($0.1 == .summary || $0.1 == .notes) && $0.0.contains(String(bodyText.prefix(100)))
+        let chunk = text.trimmingCharacters(in: .newlines)
+        guard !chunk.isEmpty else { return [] }
+        let segments = candidates.filter { $0.1 == .segment }
+        // Modern chunks contain complete rendered source units, in transcript
+        // order. Consume those exact units, including the speaker, rather than
+        // guessing from a short body prefix that can hide a later correction.
+        var matching: [(String, Kind, TimeInterval, String)] = []
+        var remainder = chunk[...]
+        if let first = segments.firstIndex(where: { source in
+            let rendered = "\(source.3): \(source.0)"
+            return source.2 == start && (remainder == rendered || remainder.hasPrefix(rendered + "\n"))
+        }) {
+            for source in segments[first...] {
+                let rendered = "\(source.3): \(source.0)"
+                guard remainder == rendered || remainder.hasPrefix(rendered + "\n") else { break }
+                matching.append(source)
+                remainder = remainder.dropFirst(rendered.count)
+                if remainder.hasPrefix("\n") { remainder = remainder.dropFirst() }
+                if remainder.isEmpty { break }
+            }
         }
-        let matching = summaries.isEmpty ? candidates.filter { candidate in
-            candidate.1 == .segment && fragments.contains { candidate.0.contains(String($0.prefix(80))) }
-        } : summaries
-        return matching.compactMap { match -> Hit? in
-            guard let snippet = RecallPassage.excerpt(match.0, query: query) else { return nil }
-            return Hit(meetingID: meetingID, kind: match.1, start: match.2,
-                       snippet: snippet, speaker: match.3, isSemantic: true)
-        }.sorted {
-            let left = RecallPassage.queryMatchCount($0.snippet, query: query)
-            let right = RecallPassage.queryMatchCount($1.snippet, query: query)
-            return left == right ? $0.start < $1.start : left > right
-        }.first
+        // An unresolved tail can contain the correction to an earlier claim.
+        // Never return only the earlier affirmative part of such a chunk.
+        if !matching.isEmpty && !remainder.isEmpty { return [] }
+        if matching.isEmpty {
+            // Oversized single segments are split by character count. Their
+            // chunk timestamp anchors the original row; require containment of
+            // the entire supplied fragment and reject ambiguous rows. This also
+            // safely handles legacy truncated chunks without prefix guessing.
+            let anchored = segments.filter {
+                $0.2 == start && "\($0.3): \($0.0)".contains(chunk)
+            }
+            if anchored.count == 1 { matching = anchored }
+        }
+        if matching.isEmpty {
+            let isNotes = chunk.hasPrefix(EmbeddingIndex.notesChunkMarker)
+            let body = isNotes ? String(chunk.dropFirst(EmbeddingIndex.notesChunkMarker.count)) : chunk
+            let documents = candidates.filter {
+                $0.1 == (isNotes ? .notes : .summary) && !body.isEmpty && $0.0.contains(body)
+            }
+            if documents.count == 1 { matching = documents }
+        }
+        return matching.map { match in
+            Hit(meetingID: meetingID, kind: match.1, start: match.2,
+                snippet: match.0, speaker: match.3, isSemantic: true, sourceText: match.0)
+        }
     }
 
     /// Common English function words that carry no retrieval signal. Stripped

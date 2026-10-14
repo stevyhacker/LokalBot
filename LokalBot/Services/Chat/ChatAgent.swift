@@ -94,6 +94,11 @@ protocol ChatToolRunner: AnyObject {
     /// the system prompt so simple questions can be answered without a tool call.
     func libraryOverview() -> String
     func run(_ call: ChatToolCall) async -> ChatToolResult
+    func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence
+}
+
+extension ChatToolRunner {
+    func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence { ChatEvidence() }
 }
 
 // MARK: - Prompt + parsing (pure, unit-tested)
@@ -126,7 +131,7 @@ enum ChatPrompt {
     static func systemPrompt(tools: [ChatToolSpec], libraryOverview: String,
                              workMemory: String = "",
                              inferencePrivacy: String = "Inference uses the selected backend, which may be local or remote. Do not claim that all processing stays on this Mac.",
-                             currentTime: String = "") -> String {
+                             currentTime: String = "", factualSelection: Bool = false) -> String {
         var lines: [String] = []
         lines.append("""
         You are LokalBot's assistant. You answer questions about the user's \
@@ -154,8 +159,9 @@ enum ChatPrompt {
         • To call a tool, reply with EXACTLY one JSON object and nothing else, e.g.
           {"tool": "search_meetings", "arguments": {"query": "pricing decision"}}
         • You then receive a line starting with "Observation:" with the result.
-        • Call one tool at a time. When you have enough information, reply with your \
-        final answer in plain language — no JSON, no tool call.
+        • Call one tool at a time. \(factualSelection
+            ? "When you have enough information, select app-owned source handles with {\"answer_sources\":[\"E1\"]}; do not write final prose."
+            : "When you have enough information, reply with your final answer in plain language — no JSON, no tool call.")
         • Prefer search_meetings for questions about what was said or decided. Use \
         get_meeting to read a specific meeting's summary or transcript. Use \
         list_meetings to enumerate meetings. Use get_action_items for to-dos, \
@@ -164,7 +170,9 @@ enum ChatPrompt {
         for how a day was spent across apps.
         """)
         lines.append("")
-        lines.append("""
+        if factualSelection {
+            lines.append(ChatGrounding.directive)
+        } else { lines.append("""
         Citing sources:
         • When part of your final answer comes from a specific meeting, append a \
         citation marker right after that sentence: [meeting:ID], or [meeting:ID@HH:MM:SS] \
@@ -174,7 +182,7 @@ enum ChatPrompt {
         • When part of your final answer comes from search_screen, append the exact \
         [screen:ID] marker that search_screen returned. The app renders it as a private, \
         local thumbnail linking to that captured moment. Never invent a screen id.
-        """)
+        """) }
         if !libraryOverview.isEmpty {
             lines.append("")
             lines.append("Current meeting library (navigation metadata only; call a tool before citing or describing meeting contents):")
@@ -533,6 +541,12 @@ struct ChatAgent {
 
     let engine: TextEngine
     let runner: ChatToolRunner
+    /// A caller replaying a historical library can freeze relative dates.
+    /// Interactive production callers retain the current wall clock.
+    var now: () -> Date = Date.init
+    /// Instrumented callers may wrap an engine while preserving the underlying
+    /// engine's already-resolved privacy description.
+    var inferencePrivacy: String?
     /// Hard cap on tool calls before we force a final synthesis pass. Six
     /// leaves room to search, then read a long meeting in a few transcript
     /// windows; see `adaptLimits(to:)` for small-window engines.
@@ -547,6 +561,9 @@ struct ChatAgent {
     /// empty when dreaming is off or has nothing yet.
     var workMemory = ""
     var initialEvidence = ChatEvidence()
+    /// In-process stage observer used by offline synthetic evaluation. It is
+    /// nil in normal callers and never changes an authorization decision.
+    var groundingObserver: ((ChatGrounding.Stage) -> Void)?
 
     struct Turn: Equatable {
         let role: ChatRole
@@ -587,32 +604,49 @@ struct ChatAgent {
     func respond(history: [Turn], latest: String,
                  onEvent: @escaping @MainActor (ChatAgentEvent) -> Void) async throws -> String {
         let toolNames = Set(runner.specs.map(\.name))
+        let writing = ChatGrounding.isWritingRequest(latest)
+        let groundsMeetingAnswers = !writing && (toolNames.contains("search_meetings") || toolNames.contains("get_meeting"))
+        if groundsMeetingAnswers, let greeting = ChatGrounding.greeting(latest) { return greeting }
         let system = ChatPrompt.systemPrompt(tools: runner.specs,
                                              libraryOverview: runner.libraryOverview(),
                                              workMemory: workMemory,
-                                             inferencePrivacy: ChatPrompt.inferencePrivacy(for: engine),
-                                             currentTime: ChatPrompt.currentTimeLine())
-        var evidence = initialEvidence
+                                             inferencePrivacy: inferencePrivacy ?? ChatPrompt.inferencePrivacy(for: engine),
+                                             currentTime: ChatPrompt.currentTimeLine(now: now()), factualSelection: groundsMeetingAnswers)
+        var evidence = ChatEvidenceOrdering.prioritize(initialEvidence, question: latest)
         var transcript: [String] = Self.replayedHistory(
             history, maxMessages: historyWindow, maxCharacters: historyCharacters).map {
             "\($0.role == .user ? "User" : "Assistant"): \($0.text)"
         }
         transcript.append("User: \(latest)")
+        var observedTools = !ChatGrounding.sources(evidence).isEmpty
+        var searchedMeetings = false
 
         for step in 0..<maxSteps {
             let observedEvidence = evidence
+            let grounding = groundsMeetingAnswers ? "\n" + ChatGrounding.directive
+                + "\nApp-owned source catalog:\n" + ChatGrounding.catalog(evidence) : ""
             let directive = step == 0
                 ? "Decide how to respond to the user's last message. If you need data from a tool, reply with a single tool-call JSON object; otherwise reply with your final answer."
-                : "Continue. Call another tool (one JSON object) if you still need data, or give your final answer in plain language."
-            let output = try await engine.generateStreaming(
+                : "Continue. Call another tool (one JSON object) if you still need data, or give your final answer."
+            let output: String
+            do {
+                output = try await engine.generateStreaming(
                 system: system,
-                prompt: directive + " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.",
+                prompt: directive + (groundsMeetingAnswers ? " Use answer_sources JSON for the final selection."
+                    : " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.") + grounding,
                 context: transcript,
                 options: TextGenerationOptions(maxTokens: Self.answerTokens)) { partial in
-                    if let answer = ChatPrompt.streamingAnswer(partial) {
-                        onEvent(.answerPartial(ChatCitationParser.verified(answer, evidence: observedEvidence, streaming: true)))
+                    if !groundsMeetingAnswers, let answer = ChatPrompt.streamingAnswer(partial) {
+                        onEvent(.answerPartial((writing ? "Draft\n\n" : "")
+                            + ChatCitationParser.verified(answer, evidence: observedEvidence, streaming: true)))
                     }
                 }
+            } catch TextEngineError.outputTruncated where groundsMeetingAnswers {
+                // Partial planner prose/JSON never grants source or tool
+                // authority. Discard it and use the existing bounded retrieval
+                // and grounded selection flow. Other errors still propagate.
+                output = ""
+            }
             try Task.checkCancellation()
 
             var action = ChatPrompt.parse(output, tools: toolNames)
@@ -635,15 +669,30 @@ struct ChatAgent {
                 }
             }
 
+            // A planner's premature answer must not bypass retrieval. Use the
+            // normal scoped runner; no separate index or hidden corpus access.
+            if groundsMeetingAnswers, !observedTools, case .answer = action,
+               toolNames.contains("search_meetings") {
+                action = .call(.init(name: "search_meetings", arguments: ["query": latest]))
+            }
+
             switch action {
             case .answer(let text):
-                return ChatCitationParser.verified(text, evidence: evidence)
+                if groundsMeetingAnswers {
+                    return try await groundedAnswer(text, question: latest, evidence: evidence, searchedMeetings: searchedMeetings, onEvent: onEvent)
+                }
+                return (writing ? "Draft\n\n" : "") + ChatCitationParser.verified(text, evidence: evidence)
             case .call(let call):
                 onEvent(.answerPartial(""))
                 onEvent(.toolStarted(call))
                 let result = await runner.run(call)
                 try Task.checkCancellation()
                 evidence.merge(result.evidence)
+                evidence = ChatEvidenceOrdering.prioritize(evidence, question: latest)
+                observedTools = true
+                if call.name == "search_meetings", Set(call.arguments.keys) == ["query"],
+                   call.string("query")?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    == latest.trimmingCharacters(in: .whitespacesAndNewlines) { searchedMeetings = true }
                 onEvent(.toolFinished(name: call.name, summary: result.summary))
                 transcript.append("Assistant: \(call.json)")
                 transcript.append("Observation: \(result.text)")
@@ -652,16 +701,169 @@ struct ChatAgent {
 
         // Out of tool budget — force a final answer from what we gathered.
         let finalEvidence = evidence
-        let forced = try await engine.generateStreaming(
+        let forced: String
+        do {
+            forced = try await engine.generateStreaming(
             system: system,
-            prompt: "Give your final answer now in plain language using the observations above. Begin with FINAL_ANSWER: on its own line. Do not call any more tools. If the observations do not cover everything the user asked, say which part you could not check.",
+            prompt: "Give your final answer now using the observations above. Do not call any more tools."
+                + (groundsMeetingAnswers ? "\n" + ChatGrounding.directive + "\nApp-owned source catalog:\n"
+                    + ChatGrounding.catalog(evidence) : " Begin with FINAL_ANSWER: on its own line."),
             context: transcript,
             options: TextGenerationOptions(maxTokens: Self.answerTokens)) { partial in
-                if let answer = ChatPrompt.streamingAnswer(partial) {
-                    onEvent(.answerPartial(ChatCitationParser.verified(answer, evidence: finalEvidence, streaming: true)))
+                if !groundsMeetingAnswers, let answer = ChatPrompt.streamingAnswer(partial) {
+                    onEvent(.answerPartial((writing ? "Draft\n\n" : "")
+                        + ChatCitationParser.verified(answer, evidence: finalEvidence, streaming: true)))
                 }
             }
+        } catch TextEngineError.outputTruncated where groundsMeetingAnswers {
+            forced = ""
+        }
         try Task.checkCancellation()
-        return ChatCitationParser.verified(ChatPrompt.finalText(forced), evidence: evidence)
+        if groundsMeetingAnswers { return try await groundedAnswer(forced, question: latest, evidence: evidence, searchedMeetings: searchedMeetings, onEvent: onEvent) }
+        return (writing ? "Draft\n\n" : "") + ChatCitationParser.verified(ChatPrompt.finalText(forced), evidence: evidence)
+    }
+
+    private func groundedAnswer(_ output: String, question: String, evidence: ChatEvidence,
+                                searchedMeetings: Bool,
+                                onEvent: @escaping @MainActor (ChatAgentEvent) -> Void) async throws -> String {
+        var current = evidence
+        var answer = ChatGrounding.selection(output, evidence: current)
+        if let answer {
+            groundingObserver?(answer.sources.isEmpty ? .selectionMissing : .selectionAccepted)
+        } else {
+            groundingObserver?(.selectionInvalid)
+        }
+        var usedRecoverySearch = false
+        let canSearch = runner.specs.contains { $0.name == "search_meetings" }
+        let meetingRecall = evidence.excerpts.contains { $0.citation?.kind == .meeting } || evidence.excerpts.isEmpty
+        // A Dream-led get_meeting can show only an obsolete record. Before
+        // approving meeting recall, obtain an unrestricted original-question
+        // search within the runner's authorized scope. Planner filters or a
+        // Dream-derived narrower query cannot waive this coverage step.
+        // The extra search shares the same one-search recovery budget.
+        if canSearch, meetingRecall, !searchedMeetings {
+            current = await recoveryEvidence(question: question, previous: current, onEvent: onEvent)
+            try Task.checkCancellation()
+            usedRecoverySearch = true
+            answer = nil
+        }
+        if answer == nil || answer?.sources.isEmpty == true {
+            answer = try await repairSelection(question: question, evidence: current)
+        }
+        var assessment = SupportEvaluation.notSupported
+        if let answer, !answer.sources.isEmpty {
+            assessment = try await supportedSelection(answer, question: question, evidence: current)
+        }
+        if case .supported(let supported) = assessment {
+            groundingObserver?(.answerGrounded)
+            return ChatCitationParser.verified(supported.rendered, evidence: current)
+        }
+        // Coverage already used the one extra search, but only one selection
+        // repair. A structurally invalid proposal can use the remaining repair
+        // against the same catalog. It still needs fresh exact anchors and an
+        // independent supported verdict; a negative final verdict never enters
+        // this path and is never discarded or retried unchanged.
+        if usedRecoverySearch, case .invalidProposal = assessment {
+            let repaired = try await repairSelection(question: question, evidence: current, invalidProposal: true)
+            if !repaired.sources.isEmpty,
+               case .supported(let supported) = try await supportedSelection(repaired, question: question, evidence: current) {
+                groundingObserver?(.answerGrounded)
+                return ChatCitationParser.verified(supported.rendered, evidence: current)
+            }
+            groundingObserver?(.answerAbstained)
+            return ChatGrounding.noAnswer
+        }
+        // Empty selection is not proof of absence. Failed, empty or uncertain
+        // candidates get the same bounded search/reselection, never raw prose.
+        guard canSearch, meetingRecall, !usedRecoverySearch else {
+            groundingObserver?(.answerAbstained)
+            return ChatGrounding.noAnswer
+        }
+        current = await recoveryEvidence(question: question, previous: current, onEvent: onEvent)
+        try Task.checkCancellation()
+        let repaired = try await repairSelection(question: question, evidence: current)
+        guard !repaired.sources.isEmpty,
+              case .supported(let supported) = try await supportedSelection(repaired, question: question, evidence: current) else {
+            groundingObserver?(.answerAbstained)
+            return ChatGrounding.noAnswer
+        }
+        groundingObserver?(.answerGrounded)
+        return ChatCitationParser.verified(supported.rendered, evidence: current)
+    }
+
+    private func recoveryEvidence(question: String, previous: ChatEvidence,
+                                  onEvent: @escaping @MainActor (ChatAgentEvent) -> Void) async -> ChatEvidence {
+        groundingObserver?(.recoverySearch)
+        let call = ChatToolCall(name: "search_meetings", arguments: ["query": question])
+        onEvent(.toolStarted(call))
+        let result = await runner.run(call)
+        onEvent(.toolFinished(name: call.name, summary: result.summary))
+        var recovered = result.evidence
+        recovered.merge(previous)
+        return ChatEvidenceOrdering.prioritize(recovered, question: question)
+    }
+
+    private func repairSelection(question: String, evidence: ChatEvidence, invalidProposal: Bool = false) async throws -> ChatGrounding.Selection {
+        groundingObserver?(.selectionRepair)
+        guard !ChatGrounding.sources(evidence).isEmpty else { return .init(sources: []) }
+        let repaired = try await engine.generate(
+            system: ChatGrounding.directive,
+            prompt: "Select the recorded excerpts that answer this question: " + question,
+            context: (invalidProposal ? ["The previous candidate failed exact selected-source/quote validation. Select records that explicitly contain the requested facts. Never pair text from one record with another record's handle."] : [])
+                + ["App-owned source catalog:\n" + ChatGrounding.catalog(evidence)],
+            schema: ChatGrounding.schema,
+            options: TextGenerationOptions(maxTokens: max(256, engine.minimumStructuredOutputTokens), reasoningBudgetTokens: 0, temperature: 0))
+        try Task.checkCancellation()
+        return ChatGrounding.selection(repaired, evidence: evidence) ?? .init(sources: [])
+    }
+
+    private enum SupportEvaluation {
+        case supported(ChatGrounding.Selection)
+        case invalidProposal
+        case notSupported
+    }
+
+    private func supportedSelection(_ selected: ChatGrounding.Selection, question: String, evidence: ChatEvidence) async throws -> SupportEvaluation {
+        // Isolated assessment: no planner draft, history or Dream memory.
+        // The bounded catalog permits checking retrieved later corrections.
+        // A model verdict reduces semantic errors but is not a formal entailment proof; invalid output fails closed.
+        guard ChatGrounding.hasCompleteCatalog(evidence) else {
+            groundingObserver?(.catalogIncomplete)
+            return .notSupported
+        }
+        guard let request = ChatGrounding.supportRequest(question: question, selected: selected, evidence: evidence,
+            currentTime: ChatPrompt.currentTimeLine(now: now())) else {
+            groundingObserver?(.supportBudgetExceeded)
+            return .notSupported
+        }
+        let verdict = try await engine.generate(
+            system: ChatGrounding.supportDirective,
+            prompt: request.prompt,
+            context: request.context,
+            schema: ChatGrounding.supportSchema,
+            options: TextGenerationOptions(maxTokens: max(1_024, engine.minimumStructuredOutputTokens), reasoningBudgetTokens: 128, temperature: 0))
+        try Task.checkCancellation()
+        guard let proposal = ChatGrounding.proposedSelection(verdict, selected: selected, evidence: evidence) else {
+            let declined = ChatGrounding.proposalDeclinesSupport(verdict)
+            groundingObserver?(declined ? .proposalDeclined : .proposalInvalid)
+            return declined ? .notSupported : .invalidProposal
+        }
+        groundingObserver?(.proposalAccepted)
+        guard let verification = ChatGrounding.verificationRequest(question: question, proposal: proposal,
+                  evidence: evidence, currentTime: ChatPrompt.currentTimeLine(now: now())) else {
+            groundingObserver?(.verificationBudgetExceeded)
+            return .notSupported
+        }
+        let checked = try await engine.generate(
+            system: ChatGrounding.verificationDirective,
+            prompt: verification.prompt,
+            context: verification.context,
+            schema: ChatGrounding.verificationSchema,
+            options: TextGenerationOptions(maxTokens: max(512, engine.minimumStructuredOutputTokens),
+                reasoningBudgetTokens: 128, temperature: 0))
+        try Task.checkCancellation()
+        let supported = ChatGrounding.verifiedProposal(checked)
+        groundingObserver?(supported ? .verificationAccepted : .verificationRejected)
+        return supported ? .supported(proposal.selection) : .notSupported
     }
 }

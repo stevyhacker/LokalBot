@@ -849,7 +849,10 @@ struct OpenAICompatibleEngine: TextEngine {
             body["provider"] = provider
         }
         body.merge(extraBody) { _, new in new }
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        // Grammar-constrained servers can emit schema properties in their wire
+        // order. Stable ordering prevents Swift dictionary hashing from making
+        // a verdict precede its evidence check in otherwise identical requests.
+        request.httpBody = try JSONSerialization.data(withJSONObject: body, options: schema == nil ? [] : [.sortedKeys])
         return request
     }
 

@@ -2,6 +2,26 @@ import XCTest
 @testable import LokalBot
 
 final class TextEngineTests: XCTestCase {
+    func testStructuredRequestHasCanonicalRecursiveBytesAndEvidenceFirst() throws {
+        let engine = OpenAICompatibleEngine(baseURL: URL(string: "http://127.0.0.1:18781/v1")!, model: "synthetic")
+        let schema: [String: Any] = ["type": "object", "properties": [
+            "verdict": ["type": "string"], "issues": ["type": "array", "items": ["type": "string"]],
+            "evidence_check": ["type": "string"]], "required": ["evidence_check", "verdict", "issues"]]
+        let request = try engine.makeChatRequest(system: "Evidence first.", prompt: "Question", context: ["Source"],
+                                                schema: schema, options: .init(maxTokens: 512, temperature: 0))
+        let bytes = try XCTUnwrap(request.httpBody)
+        let body = try JSONSerialization.jsonObject(with: bytes)
+        XCTAssertEqual(bytes, try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]))
+        let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
+        let evidence = try XCTUnwrap(text.range(of: "\"evidence_check\":"))
+        let issues = try XCTUnwrap(text.range(of: "\"issues\":"))
+        let verdict = try XCTUnwrap(text.range(of: "\"verdict\":"))
+        XCTAssertLessThan(evidence.lowerBound, issues.lowerBound)
+        XCTAssertLessThan(issues.lowerBound, verdict.lowerBound)
+        XCTAssertEqual(bytes, try engine.makeChatRequest(system: "Evidence first.", prompt: "Question", context: ["Source"],
+            schema: schema, options: .init(maxTokens: 512, temperature: 0)).httpBody)
+    }
+
     func testStrippingReasoningRemovesThinkBlocks() {
         let text = """
         <think>hidden chain</think>

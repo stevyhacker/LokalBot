@@ -318,19 +318,22 @@ final class MeetingChatTools: ChatToolRunner {
     private let embeddingIndex: EmbeddingIndex
     private let activityStore: ActivityStore
     private let settingsProvider: () -> AppSettings
+    private let now: () -> Date
 
     init(meetings: @escaping () -> [Meeting],
          storage: StorageManager,
          searchIndex: SearchIndex,
          embeddingIndex: EmbeddingIndex,
          activityStore: ActivityStore,
-         settings: @escaping () -> AppSettings) {
+         settings: @escaping () -> AppSettings,
+         now: @escaping () -> Date = Date.init) {
         self.meetingsProvider = meetings
         self.storage = storage
         self.searchIndex = searchIndex
         self.embeddingIndex = embeddingIndex
         self.activityStore = activityStore
         self.settingsProvider = settings
+        self.now = now
     }
 
     let specs: [ChatToolSpec] = [
@@ -414,19 +417,41 @@ final class MeetingChatTools: ChatToolRunner {
         }
         var semantic: [EmbeddingIndex.Hit] = []
         if settingsProvider().semanticSearchEnabled, embeddingIndex.hasEmbeddings {
-            // Drop semantic chunks already surfaced by keyword search.
-            let seen = Set(keyword.map { "\($0.meetingID)-\(Int($0.start))" })
             semantic = await embeddingIndex.search(query, limit: 5, meetingIDs: allowedIDs)
-                .filter {
-                    !seen.contains("\($0.meetingID)-\(Int($0.start))")
-                }
         }
         let text = MeetingChatFormat.searchResults(query: query, keyword: keyword,
                                                    semantic: semantic, meetings: meetings)
         let count = keyword.count + semantic.count
         var evidence = ChatEvidence()
-        for hit in keyword.prefix(8) { evidence.addMeeting(hit.meetingID, seconds: hit.kind == .segment ? hit.start : nil) }
-        for hit in semantic.prefix(5) { evidence.addMeeting(hit.meetingID, seconds: hit.start > 0 ? hit.start : nil) }
+        for hit in keyword.prefix(8) {
+            let seconds = hit.kind == .segment ? hit.start : nil
+            evidence.addMeeting(hit.meetingID, seconds: seconds)
+            guard let source = hit.sourceText else { continue }
+            evidence.excerpts.append(.init(text: source,
+                citation: .init(meetingID: SessionLookup.shortID(hit.meetingID), seconds: seconds),
+                label: sourceLabel(hit.meetingID, meetings: meetings, kind: hit.kind.rawValue, speaker: hit.speaker),
+                meetingTitle: meetings.first { $0.id == hit.meetingID }?.title ?? "",
+                speakerLabel: hit.speaker, recordedAt: meetings.first { $0.id == hit.meetingID }?.startedAt))
+        }
+        for hit in semantic.prefix(5) {
+            let seconds = hit.start > 0 ? hit.start : nil
+            evidence.addMeeting(hit.meetingID, seconds: seconds)
+            for passage in searchIndex.semanticSourcePassages(meetingID: hit.meetingID, start: hit.start, text: hit.text) {
+                guard let source = passage.sourceText else { continue }
+                let sourceSeconds = passage.kind == .segment ? passage.start : nil
+                evidence.addMeeting(hit.meetingID, seconds: sourceSeconds)
+                evidence.excerpts.append(.init(text: source,
+                    citation: .init(meetingID: SessionLookup.shortID(hit.meetingID), seconds: sourceSeconds),
+                    label: sourceLabel(hit.meetingID, meetings: meetings, kind: passage.kind.rawValue, speaker: passage.speaker),
+                    meetingTitle: meetings.first { $0.id == hit.meetingID }?.title ?? "",
+                    speakerLabel: passage.speaker, recordedAt: meetings.first { $0.id == hit.meetingID }?.startedAt))
+            }
+        }
+        // Deduplicate whole sources after hydration. Matching a chunk's first
+        // segment must not suppress different later segments in that chunk.
+        evidence.excerpts = evidence.excerpts.reduce(into: []) { unique, excerpt in
+            if !unique.contains(excerpt) { unique.append(excerpt) }
+        }
         return ChatToolResult(text: text,
                               summary: "“\(query)” — \(count) match\(count == 1 ? "" : "es")", evidence: evidence)
     }
@@ -439,7 +464,12 @@ final class MeetingChatTools: ChatToolRunner {
         let limit = max(1, min(call.int("limit") ?? 15, 50))
         meetings = Array(meetings.prefix(limit))
         var evidence = ChatEvidence()
-        for meeting in meetings { evidence.addMeeting(meeting.id) }
+        for meeting in meetings {
+            evidence.addMeeting(meeting.id)
+            evidence.excerpts.append(.init(text: MeetingChatFormat.list([meeting]),
+                citation: .init(meetingID: SessionLookup.shortID(meeting.id), seconds: nil),
+                label: "Meeting metadata", meetingTitle: meeting.title))
+        }
         return ChatToolResult(text: MeetingChatFormat.list(meetings),
                               summary: "\(meetings.count) meeting\(meetings.count == 1 ? "" : "s")", evidence: evidence)
     }
@@ -469,6 +499,18 @@ final class MeetingChatTools: ChatToolRunner {
                 : observation.text
             continuation = observation.nextStart.map(MeetingChatFormat.transcriptContinuation(next:))
             for seconds in observation.seconds { evidence.addMeeting(meeting.id, seconds: seconds) }
+            for display in Transcript.DisplayIndex(transcript: structured).segments
+                where observation.seconds.contains(display.segment.start) && observation.text.contains(display.text) {
+                evidence.excerpts.append(.init(text: display.text,
+                    citation: .init(meetingID: SessionLookup.shortID(meeting.id), seconds: display.segment.start),
+                    label: sourceLabel(meeting.id, meetings: meetings, kind: "transcript", speaker: display.speakerLabel),
+                    meetingTitle: meeting.title, speakerLabel: display.speakerLabel, recordedAt: meeting.startedAt))
+            }
+        }
+        if !include.lowercased().contains("transcript") || include.lowercased().contains("all"), let summary {
+            evidence.excerpts.append(.init(text: summary,
+                citation: .init(meetingID: SessionLookup.shortID(meeting.id), seconds: nil),
+                label: sourceLabel(meeting.id, meetings: meetings, kind: "generated summary"), meetingTitle: meeting.title))
         }
         let text = MeetingChatFormat.meeting(meeting, summary: summary,
                                              transcript: transcript, include: include,
@@ -503,7 +545,8 @@ final class MeetingChatTools: ChatToolRunner {
                 scopeLabel = scope.dateLabel
             } else {
                 let days = max(1, min(call.int("days") ?? 7, 90))
-                let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: Date()) ?? Date()
+                let current = now()
+                let cutoff = Calendar.current.date(byAdding: .day, value: -days, to: current) ?? current
                 scoped = meetings.filter { $0.startedAt >= cutoff }
                 scopeLabel = "last \(days) days"
             }
@@ -521,9 +564,19 @@ final class MeetingChatTools: ChatToolRunner {
             var nonActions = projection.outcomes
             nonActions.actionItems = []
             if !nonActions.isEmpty { evidence.addMeeting(projection.meeting.id) }
+            let observed = MeetingChatFormat.threadedOutcomes([projection], statusFilter: statusFilter)
+            evidence.excerpts.append(.init(text: observed,
+                citation: .init(meetingID: SessionLookup.shortID(projection.meeting.id), seconds: nil),
+                label: "Structured outcomes (may omit transcript details)", meetingTitle: projection.meeting.title))
         }
         return ChatToolResult(text: MeetingChatFormat.threadedOutcomes(projections, statusFilter: statusFilter),
                               summary: "\(scopeLabel) — \(count) action item\(count == 1 ? "" : "s")", evidence: evidence)
+    }
+
+    private func sourceLabel(_ id: UUID, meetings: [Meeting], kind: String, speaker: String = "") -> String {
+        let meeting = meetings.first { $0.id == id }
+        let date = meeting.map { MeetingChatFormat.dateLabel($0.startedAt) } ?? ""
+        return "\(meeting?.title ?? "Recorded meeting") · \(date) · \(kind)" + (speaker.isEmpty ? "" : " · \(speaker)")
     }
 
     private func searchScreen(_ call: ChatToolCall) -> ChatToolResult {
@@ -550,16 +603,33 @@ final class MeetingChatTools: ChatToolRunner {
                 query, limit: 12, matchAll: false, dropStopWords: true,
                 filter: filter)
         }
+        let evidence = attachedScreenEvidence(ids: Set(hits.prefix(12).map(\.snapshotID)),
+                                               dayScopeKey: call.string("_lokalbot_day_scope"))
         return ChatToolResult(
             text: MeetingChatFormat.screenResults(query: query, hits: hits),
             summary: "“\(query)” — \(hits.count) screen match\(hits.count == 1 ? "" : "es")",
-            evidence: ChatEvidence(screenIDs: Set(hits.prefix(12).map(\.snapshotID))))
+            evidence: evidence)
+    }
+
+    func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence {
+        var evidence = ChatEvidence()
+        let scope = dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
+        guard dayScopeKey == nil || scope != nil else { return evidence }
+        for id in ids.sorted() {
+            guard let shot = activityStore.screenshot(id: id), scope?.contains(shot.ts) ?? true,
+                  let text = activityStore.ocrText(snapshotID: id, maxChars: 12_001),
+                  !text.isEmpty, text.count <= 12_000 else { continue }
+            evidence.screenIDs.insert(id)
+            evidence.excerpts.append(.init(text: text, citation: .init(snapshotID: id),
+                label: "Captured screen text · \(MeetingChatFormat.dateLabel(shot.ts)) · \(shot.app)"))
+        }
+        return evidence
     }
 
     private func activitySummary(_ call: ChatToolCall) -> ChatToolResult {
         let argument = call.string("_lokalbot_day_scope") ?? call.string("day") ?? "today"
         let scope = AskDateScope(storageKey: argument)
-            ?? (call.string("_lokalbot_day_scope") == nil ? Self.parseDay(argument).map { AskDateScope(day: $0) } : nil)
+            ?? (call.string("_lokalbot_day_scope") == nil ? Self.parseDay(argument, now: now()).map { AskDateScope(day: $0) } : nil)
         guard let scope, let interval = scope.interval() else {
             return ChatToolResult(text: "Could not understand day or date scope '\(argument)'.", summary: "bad day argument")
         }
@@ -575,9 +645,10 @@ final class MeetingChatTools: ChatToolRunner {
         if !blocks.isEmpty {
             for meeting in meetings { evidence.addMeeting(meeting.id) }
         }
+        let text = MeetingChatFormat.activitySummary(dayLabel: label, blocks: blocks, meetings: meetings)
+        evidence.excerpts.append(.init(activityText: text))
         return ChatToolResult(
-            text: MeetingChatFormat.activitySummary(dayLabel: label, blocks: blocks,
-                                                    meetings: meetings),
+            text: text,
             summary: "\(label) — \(blocks.count) activity block\(blocks.count == 1 ? "" : "s")", evidence: evidence)
     }
 
