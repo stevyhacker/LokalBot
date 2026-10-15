@@ -89,12 +89,38 @@ enum UITestHarness {
             app.wait(for: .runningForeground, timeout: 4)
                 || app.wait(for: .runningBackground, timeout: 8),
             "LokalBot UI Test Host did not launch", file: file, line: line)
+        if environment["LOKALBOT_UI_TEST_WINDOW_LIFECYCLE"] == "1" {
+            // The hosted launch can finish without a visible workspace.
+            // Request the workspace through the real reopen
+            // route before exercising close; never create a substitute window.
+            XCTAssertTrue(waitUntil { runningApp.isFinishedLaunching }, file: file, line: line)
+            try reopen(runningApp, file: file, line: line)
+        }
         XCTAssertTrue(
             waitForVisibleWindow(processIdentifier: runningApp.processIdentifier, timeout: 8),
             "LokalBot UI Test Host did not create a visible native window",
             file: file,
             line: line)
         return app
+    }
+
+    static func reopen(
+        _ runningApp: NSRunningApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let completed = XCTestExpectation(description: "Reopen existing app through Launch Services")
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.openApplication(
+            at: try XCTUnwrap(runningApp.bundleURL, file: file, line: line), configuration: configuration
+        ) { application, error in
+            XCTAssertNil(error, file: file, line: line)
+            XCTAssertEqual(application?.processIdentifier, runningApp.processIdentifier,
+                           "Reopen launched a replacement process", file: file, line: line)
+            completed.fulfill()
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [completed], timeout: 10), .completed, file: file, line: line)
     }
 
     static func cleanUp(defaultsSuiteName: String?) {

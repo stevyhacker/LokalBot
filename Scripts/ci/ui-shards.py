@@ -17,6 +17,7 @@ REDUCED = 'RedesignUITests/testReducedMotionWorkspaceRemainsOperable'
 # model stub) run only in their own shard.
 BACKGROUND = 'BackgroundFlowUITests'
 SMOKE = [
+    'WindowLifecycleUITests',
     'RedesignUITests/testHighContrastKeepsActionsAccessible',
     'MainWindowUITests/testMeetingWaveformExposesSliderAndSupportsKeyboardSeeking',
     'AgentModeUITests',

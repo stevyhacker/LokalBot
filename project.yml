@@ -245,9 +245,9 @@ targets:
         Debug:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: LOKALBOT_DEV LOKALBOT_TEST_HOOKS $(inherited)
 
-  # UI-test host. Same app sources and dev-only Sparkle behavior, but compiled
-  # without the menu-bar extra so XCUITest can launch and snapshot a normal
-  # foreground window reliably.
+  # UI-test host. Same app sources and dev-only Sparkle behavior. Ordinary
+  # tests use a synthetic AppKit window with no inserted menu extra; lifecycle
+  # tests opt into the production SwiftUI scenes, menu extra and Dock policy.
   "LokalBot UI Test Host":
     templates:
       - LokalBotApp

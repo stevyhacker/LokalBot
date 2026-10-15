@@ -12,10 +12,19 @@ final class WindowLifecycleUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         fixture = try SyntheticFixture.plant()
+        app = XCUIApplication(bundleIdentifier: "me.dotenv.LokalBot.uitesthost")
     }
 
     override func tearDownWithError() throws {
         app?.terminate()
+        if let root = fixture?.root,
+           let trace = try? String(contentsOf: root.appendingPathComponent("window-lifecycle.log"), encoding: .utf8) {
+            let attachment = XCTAttachment(string: trace)
+            attachment.name = "SwiftUI window lifecycle"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            print(trace)
+        }
         fixture?.cleanUp()
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
@@ -48,6 +57,7 @@ final class WindowLifecycleUITests: XCTestCase {
             environment: [
                 "LOKALBOT_UI_TEST_WINDOW_LIFECYCLE": "1",
                 "LOKALBOT_UI_TEST_DIAGNOSTICS": "1",
+                "LOKALBOT_UI_TEST_DIAGNOSTICS_FILE": fixture.root.appendingPathComponent("window-lifecycle.log").path,
             ])
         app = launch.app
         defaultsSuiteName = launch.defaultsSuiteName
@@ -77,17 +87,7 @@ final class WindowLifecycleUITests: XCTestCase {
 
         // Exercise the actual Finder/Dock reopen route, not a test-only opener.
         // A replacement process must fail even if it shows an identical window.
-        let reopened = expectation(description: "Reopen existing app through Launch Services")
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.activates = true
-        NSWorkspace.shared.openApplication(
-            at: try XCTUnwrap(running.bundleURL), configuration: configuration
-        ) { application, error in
-            XCTAssertNil(error)
-            XCTAssertEqual(application?.processIdentifier, originalPID, "Reopen launched a replacement process")
-            reopened.fulfill()
-        }
-        wait(for: [reopened], timeout: 10)
+        try UITestHarness.reopen(running)
         XCTAssertFalse(running.isTerminated)
         XCTAssertTrue(app.descendants(matching: .any)["today.header"].waitForExistence(timeout: 10))
         XCTAssertEqual(app.windows.count, 1)

@@ -9,7 +9,20 @@ func uiTestDiagnosticLog(_ message: @autoclosure () -> String) {
     guard ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_DIAGNOSTICS"] == "1" else {
         return
     }
-    print("[LokalBot UI diagnostics] \(message())")
+    let line = "[LokalBot UI diagnostics] \(message())"
+    print(line)
+    // Launch Services does not inherit the test runner's stdout. Preserve the
+    // opt-in lifecycle trace in the synthetic fixture for XCTest attachment.
+    if let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_DIAGNOSTICS_FILE"] {
+        if !FileManager.default.fileExists(atPath: path) {
+            _ = FileManager.default.createFile(atPath: path, contents: nil)
+        }
+        if let file = FileHandle(forWritingAtPath: path) {
+            defer { try? file.close() }
+            file.seekToEndOfFile()
+            file.write(Data((line + "\n").utf8))
+        }
+    }
 #endif
 }
 
@@ -43,6 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// was already disabled in `LokalBotMain`. UI tests and not-yet-onboarded
     /// users stay windowed — see `lokalbotLaunchesMenuBarOnly()`.
     func applicationWillFinishLaunching(_ notification: Notification) {
+        uiTestDiagnosticLog("willFinishLaunching policy=\(NSApp.activationPolicy().rawValue)")
         if UITestRuntime.usesSyntheticWindow {
             NSApp.setActivationPolicy(.regular)
             return
@@ -114,6 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// apps' windows → raise it. Returning true keeps AppKit's default
     /// un-miniaturize behavior.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        uiTestDiagnosticLog("applicationShouldHandleReopen hasVisibleWindows=\(hasVisibleWindows)")
         if !hasVisibleWindows {
             WindowAccess.shared.open("main")
         } else if let main = WindowAccess.visibleMainWindow(in: sender) {
@@ -704,6 +719,7 @@ final class WindowAccess {
     /// Called from the first view that comes alive (the menu bar label at
     /// launch, then the popover/window). Flushes anything queued before now.
     func register(_ opener: @escaping (String) -> Void) {
+        uiTestDiagnosticLog("WindowAccess.register pending=\(pending)")
         self.opener = opener
         let queued = pending
         pending.removeAll()
@@ -711,6 +727,7 @@ final class WindowAccess {
     }
 
     func open(_ id: String) {
+        uiTestDiagnosticLog("WindowAccess.open id=\(id) hasOpener=\(opener != nil)")
         // An explicit, user-initiated open: cancel any launch-time window
         // eviction, then switch to a regular, Dock-visible app so the window
         // gets standard chrome and the app menu. `willClose` drops back to
