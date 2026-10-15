@@ -13,6 +13,11 @@ import Foundation
 /// URL back with progress reported throughout — there is exactly one download
 /// path to reason about.
 ///
+/// Each range streams straight into the partial file at its own offset, so
+/// every model byte is written to disk once. Landing a range in a download
+/// task's temp file and copying it into place wrote every byte twice: half of
+/// the 137 GB a 0.10.8 build wrote on 2026-10-14 was that copy.
+///
 /// Ranged downloads are resumable: the partially assembled file and a small
 /// manifest of completed parts live at a stable per-URL path, so a failed,
 /// cancelled, or app-quit download picks up where it stopped instead of
@@ -114,6 +119,7 @@ enum ParallelRangeDownloader {
         session: URLSession,
         partSize: Int64 = defaultPartSize,
         maxConcurrentParts: Int = defaultMaxConcurrentParts,
+        minimumRangedBytes: Int64 = ParallelRangeDownloader.minimumAcceleratedSize,
         stashDirectory: URL? = nil,
         progress: @escaping @Sendable (Progress) -> Void
     ) async throws -> URL {
@@ -121,6 +127,7 @@ enum ParallelRangeDownloader {
             return try await downloadRanged(
                 from: url, session: session, partSize: partSize,
                 maxConcurrentParts: maxConcurrentParts,
+                minimumRangedBytes: minimumRangedBytes,
                 stashDirectory: stashDirectory, progress: progress)
         } catch is FallbackRequired {
             return try await downloadWhole(from: url, session: session, progress: progress)
@@ -157,33 +164,29 @@ enum ParallelRangeDownloader {
         session: URLSession,
         partSize: Int64,
         maxConcurrentParts: Int,
+        minimumRangedBytes: Int64,
         stashDirectory: URL?,
         progress: @escaping @Sendable (Progress) -> Void
     ) async throws -> URL {
         try Task.checkCancellation()
         let probe = try await probe(url: url, session: session)
         guard probe.supportsByteRanges,
-              probe.totalBytes >= minimumAcceleratedSize else {
+              probe.totalBytes >= minimumRangedBytes else {
             throw FallbackRequired.unsupported
         }
 
         let fileManager = FileManager.default
-        let workDir = fileManager.temporaryDirectory
-            .appendingPathComponent("LokalBot-ranged-\(UUID().uuidString)", isDirectory: true)
         let stashDir = stashDirectory ?? fileManager.temporaryDirectory
         let assembled = stashPartialURL(for: url, in: stashDir)
         let manifestURL = stashDir.appendingPathComponent("LokalBot-resume-\(stashName(for: url)).json")
-        try fileManager.createDirectory(at: workDir, withIntermediateDirectories: true)
         try fileManager.createDirectory(at: stashDir, withIntermediateDirectories: true)
-
-        // On success the assembled file is handed to the caller and the
-        // manifest deleted; on any failure (including cancellation) both stay
-        // behind so the next attempt resumes instead of starting over.
-        defer { try? fileManager.removeItem(at: workDir) }
 
         let byteRanges = ranges(totalBytes: probe.totalBytes, partSize: partSize)
         guard !byteRanges.isEmpty else { throw DownloadError.invalidContentLength }
 
+        // On success the assembled file is handed to the caller and the
+        // manifest deleted; on any failure (including cancellation) both stay
+        // behind so the next attempt resumes instead of starting over.
         var completed: Set<Int> = []
         if let data = try? Data(contentsOf: manifestURL),
            let state = try? JSONDecoder().decode(ResumeState.self, from: data),
@@ -211,9 +214,8 @@ enum ParallelRangeDownloader {
             byteRanges,
             skipping: completed,
             url: url,
-            workDir: workDir,
             session: session,
-            output: output,
+            fileDescriptor: output.fileDescriptor,
             totalBytes: probe.totalBytes,
             maxConcurrentParts: max(1, maxConcurrentParts),
             progress: progress,
@@ -283,11 +285,6 @@ enum ParallelRangeDownloader {
         let validator: String?
     }
 
-    private struct PartResult: Sendable {
-        let range: ByteRange
-        let url: URL
-    }
-
     private static func probe(url: URL, session: URLSession) async throws -> Probe {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
@@ -339,16 +336,15 @@ enum ParallelRangeDownloader {
         _ byteRanges: [ByteRange],
         skipping alreadyCompleted: Set<Int> = [],
         url: URL,
-        workDir: URL,
         session: URLSession,
-        output: FileHandle,
+        fileDescriptor: Int32,
         totalBytes: Int64,
         maxConcurrentParts: Int,
         progress: @escaping @Sendable (Progress) -> Void,
         partCompleted: (Int) -> Void = { _ in }
     ) async throws {
         let remaining = byteRanges.filter { !alreadyCompleted.contains($0.index) }
-        try await withThrowingTaskGroup(of: PartResult.self) { group in
+        try await withThrowingTaskGroup(of: ByteRange.self) { group in
             var iterator = remaining.makeIterator()
             var active = 0
             var completedBytes: Int64 = byteRanges
@@ -363,7 +359,8 @@ enum ParallelRangeDownloader {
                 group.addTask {
                     try await downloadPart(
                         range, totalBytes: totalBytes,
-                        from: url, into: workDir, session: session)
+                        from: url, into: fileDescriptor, session: session)
+                    return range
                 }
             }
 
@@ -372,13 +369,11 @@ enum ParallelRangeDownloader {
             }
 
             while active > 0 {
-                guard let part = try await group.next() else { break }
+                guard let range = try await group.next() else { break }
                 active -= 1
-                defer { try? FileManager.default.removeItem(at: part.url) }
-                try copyFile(part.url, to: output, atOffset: part.range.start)
-                completedBytes += part.range.length
+                completedBytes += range.length
                 completedParts += 1
-                partCompleted(part.range.index)
+                partCompleted(range.index)
                 progress(.init(bytesWritten: completedBytes, totalBytes: totalBytes))
                 addNextPart()
             }
@@ -391,13 +386,15 @@ enum ParallelRangeDownloader {
         }
     }
 
+    /// Fetches one byte range and writes it at its offset in the partial
+    /// file as it arrives. Returns once every byte of the range is written.
     private static func downloadPart(
         _ range: ByteRange,
         totalBytes: Int64,
         from url: URL,
-        into workDir: URL,
+        into fileDescriptor: Int32,
         session: URLSession
-    ) async throws -> PartResult {
+    ) async throws {
         try Task.checkCancellation()
 
         var request = URLRequest(url: url)
@@ -406,31 +403,34 @@ enum ParallelRangeDownloader {
         request.setValue(AppIdentifiers.bundleID, forHTTPHeaderField: "User-Agent")
         request.setValue("bytes=\(range.start)-\(range.end)", forHTTPHeaderField: "Range")
 
-        let (temporary, response) = try await session.download(for: request)
+        let writer = RangeWriter(range: range, totalBytes: totalBytes, fileDescriptor: fileDescriptor)
+        let task = session.dataTask(with: request)
+        task.delegate = writer
+        try await withTaskCancellationHandler {
+            try await writer.run(task)
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    /// Why a ranged response must not be written, or nil when it is exactly
+    /// the requested range of the probed file.
+    private static func rangeResponseError(
+        _ response: URLResponse, range: ByteRange, totalBytes: Int64
+    ) -> Error? {
         guard let http = response as? HTTPURLResponse else {
-            throw DownloadError.invalidResponse
+            return DownloadError.invalidResponse
         }
         guard http.statusCode == 206 else {
-            throw DownloadError.unexpectedRangeStatus(http.statusCode)
+            return DownloadError.unexpectedRangeStatus(http.statusCode)
         }
         guard contentRangeMatches(
             http.value(forHTTPHeaderField: "Content-Range"),
             range: range,
             totalBytes: totalBytes) else {
-            try? FileManager.default.removeItem(at: temporary)
-            throw DownloadError.invalidResponse
+            return DownloadError.invalidResponse
         }
-
-        let size = fileSize(temporary)
-        guard size == range.length else {
-            try? FileManager.default.removeItem(at: temporary)
-            throw DownloadError.wrongPartSize(expected: range.length, actual: size)
-        }
-
-        let destination = workDir.appendingPathComponent(String(format: "part-%05d", range.index))
-        try? FileManager.default.removeItem(at: destination)
-        try FileManager.default.moveItem(at: temporary, to: destination)
-        return .init(range: range, url: destination)
+        return nil
     }
 
     private static func contentRangeMatches(
@@ -440,15 +440,143 @@ enum ParallelRangeDownloader {
         return header.lowercased() == "bytes \(range.start)-\(range.end)/\(totalBytes)"
     }
 
-    private static func copyFile(_ inputURL: URL, to output: FileHandle, atOffset offset: Int64) throws {
-        let input = try FileHandle(forReadingFrom: inputURL)
-        defer { try? input.close() }
+    /// `pwrite` at an absolute offset: concurrent parts share one descriptor
+    /// and never move a shared file position.
+    private static func writeFully(
+        _ bytes: UnsafeRawBufferPointer, to fileDescriptor: Int32, at offset: Int64
+    ) throws {
+        guard var cursor = bytes.baseAddress else { return }
+        var remaining = bytes.count
+        var position = off_t(offset)
+        while remaining > 0 {
+            let written = pwrite(fileDescriptor, cursor, remaining, position)
+            if written < 0 {
+                if errno == EINTR { continue }
+                throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+            }
+            guard written > 0 else { throw POSIXError(.EIO) }
+            cursor = cursor.advanced(by: written)
+            remaining -= written
+            position += off_t(written)
+        }
+    }
 
-        try output.seek(toOffset: UInt64(offset))
-        while true {
-            let data = try input.read(upToCount: 8 * 1024 * 1024) ?? Data()
-            if data.isEmpty { break }
-            try output.write(contentsOf: data)
+    /// Delegate for one ranged data task. It checks the response before any
+    /// byte lands, then writes each chunk at its final offset. URLSession
+    /// serializes a task's callbacks on the session's delegate queue; the
+    /// lock covers the hand-off to the task awaiting `run`.
+    private final class RangeWriter: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+        private let range: ByteRange
+        private let totalBytes: Int64
+        private let fileDescriptor: Int32
+        private let lock = NSLock()
+        private var received: Int64 = 0
+        private var failure: Error?
+        private var continuation: CheckedContinuation<Void, Error>?
+        /// Held when the task completes before `run` is waiting, e.g. one
+        /// cancelled before it was resumed.
+        private var outcome: Result<Void, Error>?
+
+        init(range: ByteRange, totalBytes: Int64, fileDescriptor: Int32) {
+            self.range = range
+            self.totalBytes = totalBytes
+            self.fileDescriptor = fileDescriptor
+            super.init()
+        }
+
+        func run(_ task: URLSessionDataTask) async throws {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let finished: Result<Void, Error>? = lock.withLock {
+                    if let outcome { return outcome }
+                    self.continuation = continuation
+                    return nil
+                }
+                if let finished {
+                    continuation.resume(with: finished)
+                } else {
+                    task.resume()
+                }
+            }
+        }
+
+        func urlSession(
+            _ session: URLSession,
+            dataTask: URLSessionDataTask,
+            didReceive response: URLResponse,
+            completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+        ) {
+            // A server that ignores Range answers 200 with the whole file;
+            // writing that at this part's offset would corrupt the partial.
+            if let error = ParallelRangeDownloader.rangeResponseError(
+                response, range: range, totalBytes: totalBytes) {
+                record(error)
+                completionHandler(.cancel)
+            } else {
+                completionHandler(.allow)
+            }
+        }
+
+        func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            let offset: Int64? = lock.withLock {
+                guard failure == nil else { return nil }
+                let end = received + Int64(data.count)
+                guard end <= range.length else {
+                    failure = DownloadError.wrongPartSize(expected: range.length, actual: end)
+                    return nil
+                }
+                let start = range.start + received
+                received = end
+                return start
+            }
+            guard let offset else {
+                dataTask.cancel()
+                return
+            }
+            do {
+                try data.withUnsafeBytes {
+                    try ParallelRangeDownloader.writeFully($0, to: fileDescriptor, at: offset)
+                }
+            } catch {
+                record(error)
+                dataTask.cancel()
+            }
+        }
+
+        /// Never copy a part into URLCache: that would be a second disk write.
+        func urlSession(
+            _ session: URLSession,
+            dataTask: URLSessionDataTask,
+            willCacheResponse proposedResponse: CachedURLResponse,
+            completionHandler: @escaping (CachedURLResponse?) -> Void
+        ) {
+            completionHandler(nil)
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            let (waiter, result): (CheckedContinuation<Void, Error>?, Result<Void, Error>) = lock.withLock {
+                let settled: Result<Void, Error>
+                if let failure {
+                    settled = .failure(failure)
+                } else if let error {
+                    settled = .failure(error)
+                } else if received != range.length {
+                    settled = .failure(DownloadError.wrongPartSize(
+                        expected: range.length, actual: received))
+                } else {
+                    settled = .success(())
+                }
+                let pending = continuation
+                continuation = nil
+                if pending == nil { outcome = settled }
+                return (pending, settled)
+            }
+            waiter?.resume(with: result)
+        }
+
+        private func record(_ error: Error) {
+            lock.withLock {
+                if failure == nil { failure = error }
+            }
         }
     }
 
