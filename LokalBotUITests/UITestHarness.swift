@@ -302,6 +302,24 @@ enum UITestHarness {
             "LOKALBOT_STORAGE_ROOT": storageRoot.path,
             "LOKALBOT_DEFAULTS_SUITE": defaultsSuiteName,
         ]) { _, new in new }.merging(environment) { _, new in new }
+        if environment["LOKALBOT_UI_TEST_WINDOW_LIFECYCLE"] == "1" {
+            // Lifecycle coverage must launch the .app through Launch Services,
+            // as Finder does, with its bundle identity and SwiftUI scene setup.
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.arguments = process.arguments ?? []
+            configuration.environment = process.environment ?? [:]
+            configuration.activates = true
+            let launched = XCTestExpectation(description: "Launch lifecycle test app bundle")
+            var launchError: Error?
+            NSWorkspace.shared.openApplication(at: appURL, configuration: configuration) { _, error in
+                launchError = error
+                launched.fulfill()
+            }
+            XCTAssertEqual(XCTWaiter.wait(for: [launched], timeout: 15), .completed,
+                           file: file, line: line)
+            if let launchError { throw launchError }
+            return XCUIApplication(bundleIdentifier: appBundleIdentifier)
+        }
         try process.run()
 
         return XCUIApplication(bundleIdentifier: appBundleIdentifier)

@@ -344,8 +344,7 @@ struct LokalBotApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
-#if !LOKALBOT_UI_TEST_HOST
-        MenuBarExtra {
+        MenuBarExtra(isInserted: .constant(!UITestRuntime.usesSyntheticWindow)) {
             MenuBarView(dictation: app.dictation)
                 .environmentObject(app)
                 .brandTinted()
@@ -356,7 +355,6 @@ struct LokalBotApp: App {
                 .appLanguageRoot(app.settingsStore)
         }
         .menuBarExtraStyle(.window)
-#endif
     }
 
     private var mainWindow: some View {

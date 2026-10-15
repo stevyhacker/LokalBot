@@ -43,7 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// was already disabled in `LokalBotMain`. UI tests and not-yet-onboarded
     /// users stay windowed — see `lokalbotLaunchesMenuBarOnly()`.
     func applicationWillFinishLaunching(_ notification: Notification) {
-        if AppState.isUITesting {
+        if UITestRuntime.usesSyntheticWindow {
             NSApp.setActivationPolicy(.regular)
             return
         }
@@ -56,10 +56,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// → show the Dock icon + app menu for full window UX; nothing open → fall
     /// back to a pure menu-bar accessory.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        uiTestDiagnosticLog(
+            "didFinishLaunching swiftUILifecycle=\(UITestRuntime.testsWindowLifecycle) "
+                + "delegate=\(NSApp.delegate.map { String(reflecting: type(of: $0)) } ?? "nil")")
         if let settings = Self.appState?.settings {
             AppAppearance.apply(theme: settings.appTheme)
         }
-        if AppState.isUITesting {
+        if UITestRuntime.usesSyntheticWindow {
             uiTestDiagnosticLog(
                 "didFinishLaunching application=\(NSStringFromClass(type(of: NSApp!))) "
                     + "principal=\(Bundle.main.principalClass.map(NSStringFromClass) ?? "nil")")
@@ -88,13 +91,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         // Read off the main thread now so General's toggle opens on the real value.
-        LaunchAtLoginState.shared.refresh()
+        if !AppState.isUITesting { LaunchAtLoginState.shared.refresh() }
         let center = NotificationCenter.default
         for name: NSNotification.Name in [
             NSWindow.didBecomeKeyNotification,
             NSWindow.willCloseNotification,
         ] {
-            center.addObserver(forName: name, object: nil, queue: .main) { _ in
+            center.addObserver(forName: name, object: nil, queue: .main) { notification in
+                uiTestDiagnosticLog(
+                    "window event=\(notification.name.rawValue) "
+                        + "id=\((notification.object as? NSWindow)?.identifier?.rawValue ?? "nil") "
+                        + "policy=\(NSApp.activationPolicy().rawValue)")
                 // `willClose` fires while the window still reports visible —
                 // re-evaluate on the next tick once it's actually gone.
                 DispatchQueue.main.async { DockPolicy.sync() }
@@ -115,19 +122,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// The main scene is a single SwiftUI `Window`, and SwiftUI quits the app
-    /// when that window closes unless the delegate answers here. LokalBot keeps
-    /// capturing in the background, so closing the window must leave it running:
-    /// `DockPolicy.sync()` drops to the menu bar when menu-bar-only, and a Dock
-    /// click reopens the window otherwise.
+    /// Opt out of AppKit's last-window termination. This does not prove that
+    /// SwiftUI asks the adapted delegate before terminating its primary scene;
+    /// WindowLifecycleUITests exercises that separate path in a running app.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        false
+        uiTestDiagnosticLog("applicationShouldTerminateAfterLastWindowClosed -> false")
+        return false
     }
 
     /// Give the in-process llama runtime a real shutdown window before AppKit
     /// calls exit(). Letting C++ static destructors run while Metal buffers are
     /// still resident trips ggml-metal's residency-set assertion on quit.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        uiTestDiagnosticLog("applicationShouldTerminate policy=\(sender.activationPolicy().rawValue)")
         if terminationCleanupFinished { return .terminateNow }
         guard !terminationCleanupStarted else { return .terminateLater }
         terminationCleanupStarted = true
@@ -657,7 +664,7 @@ enum DockPolicy {
     }
 
     static func sync() {
-        guard !AppState.isUITesting else { return }
+        guard !UITestRuntime.usesSyntheticWindow else { return }
         let menuBarOnly = AppSettings.load().menuBarOnly
 
         if menuBarOnly {

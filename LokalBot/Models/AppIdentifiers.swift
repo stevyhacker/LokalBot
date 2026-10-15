@@ -47,6 +47,19 @@ enum AppIdentifiers {
 }
 
 enum UITestRuntime {
+    /// Keep side effects disabled, but let lifecycle regressions exercise the
+    /// real SwiftUI scenes, menu extra and Dock policy instead of the synthetic
+    /// AppKit window. This opt-in cannot affect a shipped app.
+    static var testsWindowLifecycle: Bool {
+#if LOKALBOT_UI_TEST_HOST
+        ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_WINDOW_LIFECYCLE"] == "1"
+#else
+        false
+#endif
+    }
+
+    static var usesSyntheticWindow: Bool { isEnabled && !testsWindowLifecycle }
+
     static let enabledKey = "lokalbot.uiTest.enabled"
     static let storageRootKey = "lokalbot.uiTest.storageRoot"
     static let defaultsSuiteKey = "lokalbot.uiTest.defaultsSuite"
