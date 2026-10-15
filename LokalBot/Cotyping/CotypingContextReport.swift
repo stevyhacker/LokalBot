@@ -175,6 +175,8 @@ struct CotypingContextUse: Equatable, Sendable {
 /// A rehearsal suggestion and the optional sources behind it.
 struct CotypingPreview: Equatable, Sendable {
     var text = ""
+    /// Why the model's answer became no suggestion.
+    var suppression: CotypingSuppressionReason?
     var use = CotypingContextUse()
 }
 

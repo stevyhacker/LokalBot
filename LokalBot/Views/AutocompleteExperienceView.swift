@@ -4,6 +4,8 @@ import SwiftUI
 /// without touching production acceptance statistics or the learning store.
 struct AutocompleteExperienceView: View {
     @EnvironmentObject var app: AppState
+    /// Autocomplete on a chosen server, for its last problem.
+    @ObservedObject var server: RemoteCotypingEngine
     @ObservedObject private var permissions = PermissionManager.shared
     @ObservedObject private var stats = CotypingStatsStore.shared
 
@@ -15,6 +17,8 @@ struct AutocompleteExperienceView: View {
     @State private var contextUse: CotypingContextUse?
     @State private var generating = false
     @State private var error: String?
+    /// Why the model's last answer became no suggestion.
+    @State private var emptyReason: CotypingSuppressionReason?
     @State private var task: Task<Void, Never>?
     @State private var topUpTask: Task<Void, Never>?
     @State private var focusRevision = 0
@@ -52,6 +56,14 @@ struct AutocompleteExperienceView: View {
     private var serverSetupProblem: String? {
         if case .unavailable(let reason) = app.settings.cotypingRoute(includingCredentials: false) { return reason }
         return nil
+    }
+
+    /// Why the selected server's last request brought no suggestion.
+    private var serverProblem: String? {
+        guard usesServer, let problem = server.problem,
+              case .server(let endpoint) = app.settings.cotypingRoute(includingCredentials: false),
+              endpoint.identity == problem.identity else { return nil }
+        return problem.message
     }
 
     /// The model suggestions come from, on this Mac or a server.
@@ -95,6 +107,13 @@ struct AutocompleteExperienceView: View {
                         .font(AppFont.scaled(.callout))
                         .settingsSecondary()
                         .fixedSize(horizontal: false, vertical: true)
+                } else if let serverProblem, serverProblem != error {
+                    // Said once when the rehearsal below hit the same problem.
+                    Label(serverProblem, systemImage: "exclamationmark.triangle")
+                        .font(AppFont.scaled(.callout))
+                        .foregroundStyle(Brand.error)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("autocomplete.serverProblem")
                 } else if !modelReady {
                     CotypingModelPreparationView(compact: true)
                 }
@@ -233,10 +252,15 @@ struct AutocompleteExperienceView: View {
     }
 
     @ViewBuilder private var readiness: some View {
-        MemoryHealthStatus(value: usesServer ? (modelReady ? "Server ready" : "Server setup needed")
-                                             : (modelReady ? "Model ready" : "Model needed"),
-                           tone: modelReady ? .good : .attention)
-            .help(modelName)
+        if let serverProblem {
+            MemoryHealthStatus(value: "Server problem", tone: .attention)
+                .help(serverProblem)
+        } else {
+            MemoryHealthStatus(value: usesServer ? (modelReady ? "Server ready" : "Server setup needed")
+                                                 : (modelReady ? "Model ready" : "Model needed"),
+                               tone: modelReady ? .good : .attention)
+                .help(modelName)
+        }
         permissionStatus("Accessibility", .accessibility)
         permissionStatus("Input Monitoring", .inputMonitoring)
     }
@@ -312,6 +336,12 @@ struct AutocompleteExperienceView: View {
             if let error {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(AppFont.scaled(.callout)).foregroundStyle(Brand.error)
+            } else if let emptyReason {
+                Label(Self.explanation(emptyReason), systemImage: "info.circle")
+                    .font(AppFont.scaled(.callout))
+                    .settingsSecondary()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("autocomplete.rehearsal.empty")
             }
             contextSources
         }
@@ -387,11 +417,27 @@ struct AutocompleteExperienceView: View {
         }
     }
 
+    /// Why the model's answer is not on screen, so a working model that
+    /// suggested nothing does not look like a broken one.
+    static func explanation(_ reason: CotypingSuppressionReason) -> LocalizedStringKey {
+        switch reason {
+        case .emptyGeneration, .normalizedToEmpty:
+            "The model answered with no text."
+        case .echoesPrecedingText, .duplicatesTrailingText, .promptContextLeak:
+            "The model repeated text it was given, so its answer is hidden."
+        case .placeholderText, .questionContinuation, .unsafeToInsert, .wordCompletionMismatch:
+            "The answer did not fit at the cursor, so it is hidden."
+        case .lowConfidence:
+            "The model was unsure of the next word, so it suggested nothing."
+        }
+    }
+
     private func schedule() {
         task?.cancel()
         topUpTask?.cancel()
         rehearsal.dismiss()
         error = nil
+        emptyReason = nil
         contextUse = nil
         let context = text
         guard !context.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -416,6 +462,7 @@ struct AutocompleteExperienceView: View {
                     rehearsal.present(result.text, after: context,
                                       wordLimit: app.settings.cotypingMaxWords)
                     contextUse = result.use
+                    emptyReason = result.suppression
                 }
             } catch is CancellationError {
             } catch {
@@ -455,6 +502,7 @@ struct AutocompleteExperienceView: View {
         // No suggestion is on screen any more, so there is nothing its
         // context rows could describe.
         contextUse = nil
+        emptyReason = nil
         generating = false
     }
 }

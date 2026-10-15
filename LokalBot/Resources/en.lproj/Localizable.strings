@@ -1224,3 +1224,7 @@
 "The autocomplete server URL must start with http:// or https://." = "The autocomplete server URL must start with http:// or https://.";
 "Autocomplete also sends what you type, with the context you turn on under Writing, to %@." = "Autocomplete also sends what you type, with the context you turn on under Writing, to %@.";
 "Context you turn on here is sent to %@ with what you type." = "Context you turn on here is sent to %@ with what you type.";
+"The model answered with no text." = "The model answered with no text.";
+"The model repeated text it was given, so its answer is hidden." = "The model repeated text it was given, so its answer is hidden.";
+"The answer did not fit at the cursor, so it is hidden." = "The answer did not fit at the cursor, so it is hidden.";
+"The model was unsure of the next word, so it suggested nothing." = "The model was unsure of the next word, so it suggested nothing.";

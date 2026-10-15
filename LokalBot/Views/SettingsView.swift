@@ -174,7 +174,7 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .writing:
-            AutocompleteExperienceView()
+            AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
             cotypingSection
         case .dictation:

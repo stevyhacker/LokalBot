@@ -368,6 +368,29 @@ final class RemoteCotypingEngineTests: XCTestCase {
         }
     }
 
+    func testWritingShowsTheLastProblemUntilASuggestionArrives() async throws {
+        var next: Result<String, Error> = .failure(
+            TextEngineError.httpStatus(code: 401, detail: "Invalid API key", retryAfter: nil))
+        let engine = RemoteCotypingEngine(route: { .server(Self.endpoint(.chat)) }) { _, _ in ScriptedServer(next) }
+        let identity = Self.endpoint(.chat).identity
+
+        _ = try? await engine.generate(Self.request())
+        XCTAssertEqual(engine.problem, CotypingServerProblem(
+            identity: identity, message: "LLM server returned HTTP 401: Invalid API key"))
+
+        next = .success("")
+        _ = try await engine.generate(Self.request())
+        XCTAssertEqual(engine.problem, CotypingServerProblem(identity: identity, message: "m answered with no text."))
+
+        next = .failure(CancellationError())
+        _ = try? await engine.generate(Self.request())
+        XCTAssertEqual(engine.problem?.message, "m answered with no text.", "a newer keystroke is not a problem")
+
+        next = .success("up on the timeline")
+        _ = try await engine.generate(Self.request())
+        XCTAssertNil(engine.problem)
+    }
+
     func testASlowServerIsAbandonedAtTheDeadline() async {
         let engine = RemoteCotypingEngine(route: { .server(Self.endpoint(.chat)) },
                                           deadline: .milliseconds(50)) { _, _ in
@@ -383,6 +406,7 @@ final class RemoteCotypingEngineTests: XCTestCase {
             XCTFail("unexpected \(error)")
         }
         XCTAssertLessThan(Date().timeIntervalSince(started), 10)
+        XCTAssertNotNil(engine.problem, "Writing says the server did not answer in time")
     }
 
     private static func endpoint(_ style: CotypingServerRequestStyle) -> CotypingServerEndpoint {
@@ -415,6 +439,7 @@ private final class ScriptedServer: CotypingCompleting {
 
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
         if let delay { try await Task.sleep(for: delay) }
-        return CotypingNormalizationResult(text: try result.get(), suppression: nil)
+        let text = try result.get()
+        return CotypingNormalizationResult(text: text, suppression: text.isEmpty ? .emptyGeneration : nil)
     }
 }

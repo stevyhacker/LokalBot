@@ -1224,3 +1224,7 @@
 "The autocomplete server URL must start with http:// or https://." = "自动补全服务器地址必须以 http:// 或 https:// 开头。";
 "Autocomplete also sends what you type, with the context you turn on under Writing, to %@." = "自动补全还会把你输入的内容，连同你在“写作”中开启的上下文，发送到 %@。";
 "Context you turn on here is sent to %@ with what you type." = "你在此开启的上下文会连同输入内容一起发送到 %@。";
+"The model answered with no text." = "模型的回答没有文字。";
+"The model repeated text it was given, so its answer is hidden." = "模型重复了给它的文字，因此隐藏了它的回答。";
+"The answer did not fit at the cursor, so it is hidden." = "回答与光标处的文字不衔接，因此已隐藏。";
+"The model was unsure of the next word, so it suggested nothing." = "模型不确定下一个词，因此没有给出建议。";

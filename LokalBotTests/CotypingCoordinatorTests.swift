@@ -8,13 +8,14 @@ import XCTest
 @MainActor
 private final class ScriptedCotypingEngine: CotypingCompleting {
     var result: Result<String, Error> = .success("")
+    var suppression: CotypingSuppressionReason?
     private(set) var requests: [CotypingRequest] = []
     var beforeReturning: (() -> Void)?
 
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
         requests.append(request)
         beforeReturning?()
-        return CotypingNormalizationResult(text: try result.get(), suppression: nil)
+        return CotypingNormalizationResult(text: try result.get(), suppression: suppression)
     }
 }
 
@@ -339,6 +340,34 @@ final class CotypingCoordinatorTests: XCTestCase {
         engine.beforeReturning = { box.value.cotypingUseVisibleContext = false }
         let preview = try await coordinator.preview(precedingText: "I wanted to follow",
                                                     conversation: CotypingRehearsalConversation.sample)
+        XCTAssertEqual(preview, CotypingPreview())
+    }
+
+    /// A key typed into the rehearsal also reaches the live pipeline, whose
+    /// generation moves while a server is still answering.
+    func testKeysTypedIntoTheRehearsalDoNotDropItsSuggestion() async throws {
+        let coordinator = makeCoordinator()
+        engine.result = .success(" up on the timeline")
+        engine.beforeReturning = { coordinator.cancelPendingGenerationWork() }
+        let preview = try await coordinator.preview(precedingText: "I wanted to follow")
+        XCTAssertEqual(preview.text, " up on the timeline")
+        XCTAssertNil(preview.suppression)
+    }
+
+    func testRehearsalSaysWhyAnAnswerBecameNoSuggestion() async throws {
+        let coordinator = makeCoordinator()
+        engine.result = .success("")
+        engine.suppression = .echoesPrecedingText
+        let preview = try await coordinator.preview(precedingText: "I wanted to follow")
+        XCTAssertEqual(preview.text, "")
+        XCTAssertEqual(preview.suppression, .echoesPrecedingText)
+    }
+
+    func testStoppingAutocompleteDropsARehearsalInFlight() async throws {
+        let coordinator = makeCoordinator()
+        engine.result = .success(" up on the timeline")
+        engine.beforeReturning = { coordinator.stop() }
+        let preview = try await coordinator.preview(precedingText: "I wanted to follow")
         XCTAssertEqual(preview, CotypingPreview())
     }
 

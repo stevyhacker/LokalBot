@@ -56,6 +56,10 @@ final class CotypingCoordinator: ObservableObject {
     var session: CotypingSession?
     var acceptedSuggestionBatch = CotypingAcceptedSuggestionBatch()
     var generation: UInt64 = 0
+    /// Moves when context may have been taken back or autocomplete stopped.
+    /// A rehearsal checks this rather than `generation`, which every key moves,
+    /// including keys typed into the rehearsal itself.
+    var contextEpoch: UInt64 = 0
     var debounceTask: Task<Void, Never>?
     var generationTask: Task<Void, Never>?
     var focusPrewarmTask: Task<Void, Never>?

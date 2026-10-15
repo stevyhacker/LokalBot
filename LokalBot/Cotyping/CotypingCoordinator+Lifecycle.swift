@@ -21,6 +21,7 @@ extension CotypingCoordinator {
         let shouldRefreshFocus = isRunning
             && (privacySettingsChanged || appReadPolicyChanged)
         if privacySettingsChanged || appReadPolicyChanged {
+            contextEpoch &+= 1
             cancelPendingGenerationWork()
             acceptedSuggestionBatch.discardLearningRecord()
             clearSuggestion()
@@ -50,6 +51,7 @@ extension CotypingCoordinator {
     }
 
     func forgetLearnedText() async throws {
+        contextEpoch &+= 1
         cancelPendingGenerationWork()
         acceptedSuggestionBatch.discardLearningRecord()
         clearSuggestion()
@@ -63,6 +65,7 @@ extension CotypingCoordinator {
     /// Drop both visible and cached text before source deletion/correction or
     /// permission revocation. Accepted facts are not copied into local learning.
     func invalidateMemoryContext() {
+        contextEpoch &+= 1
         memoryLookup.reset()
         guard CotypingMemoryContext.Policy(settings: settingsProvider()).enabled
                 || !activeMemoryContext.selection.items.isEmpty else { return }
@@ -120,6 +123,7 @@ extension CotypingCoordinator {
     }
 
     func stop(reason: String? = nil) {
+        contextEpoch &+= 1
         cancelPendingGenerationWork()
         clearSuggestion()
         focusRefreshTask?.cancel()

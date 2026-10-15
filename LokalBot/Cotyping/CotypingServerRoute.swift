@@ -312,12 +312,19 @@ struct CotypingServerDraft: Equatable {
     }
 }
 
+/// Why the last request to one server brought no suggestion.
+struct CotypingServerProblem: Equatable, Sendable {
+    /// `CotypingServerEndpoint.identity` of the server it belongs to.
+    var identity: String
+    var message: String
+}
+
 /// Autocomplete on a server: raw text completion where the server offers it,
 /// chat continuation otherwise. Each request takes a slot on the origin's
-/// `RemoteInferenceGate` like Think's requests do, and is never replayed:
-/// a newer keystroke supersedes it anyway.
+/// `RemoteInferenceGate` like Think's requests do, and a failed one is never
+/// replayed: a newer keystroke supersedes it anyway.
 @MainActor
-final class RemoteCotypingEngine: CotypingCompleting {
+final class RemoteCotypingEngine: CotypingCompleting, ObservableObject {
     typealias EngineFactory = @MainActor (CotypingServerEndpoint, _ chat: Bool) -> CotypingCompleting
 
     /// A completion slower than this is no longer worth showing. Matches the
@@ -330,6 +337,9 @@ final class RemoteCotypingEngine: CotypingCompleting {
     /// Servers whose raw route answered as unsupported. With the automatic
     /// style they are asked through chat from then on, until LokalBot quits.
     private(set) var chatOnlyServers: Set<String> = []
+    /// The last request's failure or empty reply, until a request brings a
+    /// suggestion. Writing shows it, since typing elsewhere shows no error.
+    @Published private(set) var problem: CotypingServerProblem?
 
     init(route: @escaping () -> CotypingRoute,
          deadline: Duration = .seconds(RemoteCotypingEngine.deadlineSeconds),
@@ -353,6 +363,33 @@ final class RemoteCotypingEngine: CotypingCompleting {
         case .unavailable(let reason): throw TextEngineError.unavailable(reason)
         case .onDevice: throw TextEngineError.unavailable("Autocomplete runs on this Mac.")
         }
+        do {
+            let result = try await suggest(from: endpoint, request, onPartial)
+            report(result.suppression == .emptyGeneration
+                   ? CotypingServerProblem(identity: endpoint.identity,
+                                           message: "\(endpoint.model) answered with no text.")
+                   : nil)
+            return result
+        } catch {
+            if !(error is CancellationError), (error as? URLError)?.code != .cancelled {
+                report(CotypingServerProblem(
+                    identity: endpoint.identity,
+                    message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription))
+            }
+            throw error
+        }
+    }
+
+    /// Publishes only a change, so a working server does not redraw Settings
+    /// on every suggestion.
+    private func report(_ problem: CotypingServerProblem?) {
+        if self.problem != problem { self.problem = problem }
+    }
+
+    private func suggest(
+        from endpoint: CotypingServerEndpoint, _ request: CotypingRequest,
+        _ onPartial: @escaping @Sendable (CotypingNormalizationResult) -> Void
+    ) async throws -> CotypingNormalizationResult {
         if endpoint.startsWithChat || chatOnlyServers.contains(endpoint.identity) {
             return try await run(endpoint, chat: true, request, onPartial)
         }
@@ -419,10 +456,18 @@ final class RemoteCotypingEngine: CotypingCompleting {
 
 /// Autocomplete through a chat endpoint: the app's autocomplete instruction as the
 /// system message and the rendered prompt as the user message, with thinking off.
-/// The reply budget is at least 32 tokens, so a phrase that runs a little long is
-/// trimmed by the normalizer instead of failing as truncated. An empty reply means
-/// the model had nothing to add, which is an empty suggestion rather than an error.
+/// The reply budget is at least 32 tokens; a reply cut off there keeps the text it
+/// has, which the normalizer trims to a phrase. An empty reply means the model had
+/// nothing to add, which is an empty suggestion rather than an error.
 struct ChatContinuationEngine: TextEngine {
+    /// Room for reasoning a model cannot turn off, on top of the phrase. On
+    /// OpenRouter `z-ai/glm-5.3-flash` always reasons, and on 2026-10-15 a
+    /// 32-token reply ended inside that reasoning with no suggestion.
+    static let reasoningRoomTokens = 2_048
+    /// Models that spent a whole short reply on reasoning, by server and model.
+    /// Asked with reasoning room from then on, until LokalBot quits.
+    private static let reasoningModels = ReasoningModels()
+
     let base: OpenAICompatibleEngine
 
     var displayName: String { base.displayName }
@@ -432,13 +477,40 @@ struct ChatContinuationEngine: TextEngine {
     }
 
     func complete(_ request: CompletionRequest) async throws -> String {
+        let phrase = max(request.maxTokens, 32)
+        let key = "\(base.baseURL.absoluteString)|\(base.model)"
+        guard !Self.reasoningModels.contains(key) else {
+            return try await reply(request, maxTokens: phrase + Self.reasoningRoomTokens)
+        }
+        do {
+            return try await reply(request, maxTokens: phrase)
+        } catch TextEngineError.outputTruncated {
+            Self.reasoningModels.insert(key)
+            lokalbotLog("autocomplete model reasons before replying model=\(base.model); asking with room for it")
+            return try await reply(request, maxTokens: phrase + Self.reasoningRoomTokens)
+        }
+    }
+
+    private func reply(_ request: CompletionRequest, maxTokens: Int) async throws -> String {
         do {
             return try await base.generate(
                 system: PromptTemplates.autocompleteSystem, prompt: request.prompt, context: [],
-                options: TextGenerationOptions(maxTokens: max(request.maxTokens, 32), reasoningBudgetTokens: 0,
-                                               temperature: request.temperature))
+                options: TextGenerationOptions(maxTokens: maxTokens, reasoningBudgetTokens: 0,
+                                               temperature: request.temperature, keepsTruncatedReply: true))
         } catch TextEngineError.badResponse(let detail) where detail.contains("contained no text") {
             return ""
+        } catch TextEngineError.outputTruncated where maxTokens > Self.reasoningRoomTokens {
+            throw TextEngineError.unavailable(
+                "\(base.model) reasoned until its reply ran out and wrote no suggestion. "
+                    + "Choose a model that can answer without reasoning.")
         }
+    }
+
+    private final class ReasoningModels: @unchecked Sendable {
+        private let lock = NSLock()
+        private var keys: Set<String> = []
+
+        func contains(_ key: String) -> Bool { lock.withLock { keys.contains(key) } }
+        func insert(_ key: String) { _ = lock.withLock { keys.insert(key) } }
     }
 }

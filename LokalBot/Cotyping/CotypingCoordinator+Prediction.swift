@@ -611,7 +611,7 @@ extension CotypingCoordinator {
     ) async throws -> CotypingPreview {
         var settings = settingsProvider()
         if let maxWords { settings.cotypingMaxWords = maxWords }
-        let work = generation
+        let epoch = contextEpoch
         var cfg = config
         cfg.maxResponseTokens = settings.cotypingMaxResponseTokens
         cfg.maxResponseWords = settings.cotypingMaxWords
@@ -629,7 +629,7 @@ extension CotypingCoordinator {
             : []
         let memory = sampleOnly ? CotypingMemoryContextProvider.Snapshot.empty
             : await savedContext(for: field, settings: settings)
-        guard !Task.isCancelled, work == generation,
+        guard !Task.isCancelled, epoch == contextEpoch,
               memory.isCurrent(settings: settingsProvider()) else { return CotypingPreview() }
         guard let request = CotypingRequestBuilder.build(
             field: field, config: cfg,
@@ -641,8 +641,8 @@ extension CotypingCoordinator {
             wordPrefixIsValidWord: wordPrefixIsValidWord(for: precedingText)) else {
             return CotypingPreview()
         }
-        let result = try await engine.generate(request).text
-        guard !Task.isCancelled, work == generation,
+        let result = try await engine.generate(request)
+        guard !Task.isCancelled, epoch == contextEpoch,
               memory.isCurrent(settings: settingsProvider()),
               field.visibleContext == nil || settingsProvider().cotypingUseVisibleContext else {
             return CotypingPreview()
@@ -653,7 +653,8 @@ extension CotypingCoordinator {
             memoryContextSearched = searched
         }
         return CotypingPreview(
-            text: result,
+            text: result.text,
+            suppression: result.text.isEmpty ? result.suppression : nil,
             use: CotypingContextUse(
                 visibleText: field.visibleContext?.text != nil,
                 selection: memory.selection,
