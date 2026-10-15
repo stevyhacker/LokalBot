@@ -449,8 +449,9 @@ final class RemoteCotypingEngine: CotypingCompleting, ObservableObject {
             origin: RemoteInferenceGate.origin(for: endpoint.baseURL),
             priority: .interactive,
             purpose: "autocomplete")
-        // A chat reply has no token boundary at the caret, so it is not healed.
-        return CotypingEngine(makeEngine: { gated }, healsCaretBoundary: !chat)
+        // A chat reply has no token boundary at the caret: it is not healed, and the
+        // space a chat model leaves out before a new word is put back.
+        return CotypingEngine(makeEngine: { gated }, healsCaretBoundary: !chat, restoresWordSpace: chat)
     }
 }
 

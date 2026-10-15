@@ -182,9 +182,10 @@ enum CotypingQualityReplay {
                     apiKey: ProcessInfo.processInfo.environment[Engine.apiKeyEnvironmentKey],
                     extraBody: extraBody, sendsLlamaSamplingExtensions: false,
                     chatDialect: .inferred(from: baseURL))
-                // A chat message has no token boundary at the caret, so it is not healed.
+                // A chat message has no token boundary at the caret: it is not healed, and
+                // the space a chat model leaves out before a new word is put back.
                 engine = chat
-                    ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) })
+                    ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) }, restoresWordSpace: true)
                     : CotypingEngine(makeEngine: { remote }, healsCaretBoundary: true)
                 retryLimit = remoteRetryLimit
             }

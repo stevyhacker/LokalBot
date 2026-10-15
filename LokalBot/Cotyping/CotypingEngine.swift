@@ -147,15 +147,20 @@ final class CotypingEngine: CotypingCompleting {
     /// cut text counts. A server cannot be constrained to that prefix, so other
     /// output is suppressed. Off for llama-server, whose prompt stays byte-for-byte.
     private let healsCaretBoundary: Bool
+    /// For chat replies, which have no token at the caret: puts back the space
+    /// a chat model leaves out before a new word (`restoringWordSpace`).
+    private let restoresWordSpace: Bool
 
     init(
         makeEngine: @escaping () async throws -> TextEngine,
         stopRuntime: @escaping () async -> Void = {},
-        healsCaretBoundary: Bool = false
+        healsCaretBoundary: Bool = false,
+        restoresWordSpace: Bool = false
     ) {
         self.makeEngine = makeEngine
         self.stopRuntime = stopRuntime
         self.healsCaretBoundary = healsCaretBoundary
+        self.restoresWordSpace = restoresWordSpace
     }
 
     /// The resolved `TextEngine` is intentionally short-lived, but its
@@ -169,19 +174,23 @@ final class CotypingEngine: CotypingCompleting {
         let engine = try await makeEngine()
         let (completion, requiredPrefix) = completionRequest(for: request)
         let raw = try await engine.complete(completion)
-        return Self.normalize(raw, requiredPrefix: requiredPrefix, for: request)
+        let reply = restoresWordSpace ? Self.restoringWordSpace(raw, for: request) : raw
+        return Self.normalize(reply, requiredPrefix: requiredPrefix, for: request)
     }
 
     func generateStreaming(_ request: CotypingRequest,
                            onPartial: @escaping @Sendable (CotypingNormalizationResult) -> Void) async throws -> CotypingNormalizationResult {
         let engine = try await makeEngine()
         let (completion, requiredPrefix) = completionRequest(for: request)
+        let restoresWordSpace = self.restoresWordSpace
         let raw = try await engine.completeStreaming(completion) { cumulative in
             // Nothing is shown until the healed boundary has been re-typed.
             guard cumulative.count > requiredPrefix.count || requiredPrefix.isEmpty else { return }
-            onPartial(Self.normalize(cumulative, requiredPrefix: requiredPrefix, for: request))
+            let reply = restoresWordSpace ? Self.restoringWordSpace(cumulative, for: request) : cumulative
+            onPartial(Self.normalize(reply, requiredPrefix: requiredPrefix, for: request))
         }
-        return Self.normalize(raw, requiredPrefix: requiredPrefix, for: request)
+        let reply = restoresWordSpace ? Self.restoringWordSpace(raw, for: request) : raw
+        return Self.normalize(reply, requiredPrefix: requiredPrefix, for: request)
     }
 
     private func completionRequest(for request: CotypingRequest) -> (CompletionRequest, requiredPrefix: String) {
@@ -202,6 +211,35 @@ final class CotypingEngine: CotypingCompleting {
             // normalizer still collapses defensively.
             stop: request.isMultiLine ? [] : ["\n"])
         return (completion, requiredPrefix)
+    }
+
+    /// Chat models often leave out the space before a new word: "at a" +
+    /// "higher level" would show as "ahigher level", or not at all once the seam
+    /// guard sees the misspelling. After a whole word, a reply that starts with a
+    /// letter or digit starts a new word, so it gets the space back. Inside a
+    /// word, after a fragment the spell checker does not know ("follo"), when the
+    /// reply restates the word at the caret (the normalizer drops it), and in
+    /// scripts written without spaces, the reply is left as it is.
+    nonisolated static func restoringWordSpace(_ reply: String, for request: CotypingRequest) -> String {
+        guard !request.forceWordContinuation, request.wordPrefixIsValidWord,
+              let last = request.prefixText.last, let first = reply.first,
+              isSpacedWordCharacter(last), isSpacedWordCharacter(first) else { return reply }
+        let word = request.wordPrefixAtCaret.lowercased()
+        if word.count >= 2, reply.lowercased().hasPrefix(word) { return reply }
+        return " " + reply
+    }
+
+    /// A letter or digit of a script that puts spaces between words, so not Han,
+    /// kana, Hangul, Thai, Lao, Myanmar or Khmer.
+    private nonisolated static func isSpacedWordCharacter(_ character: Character) -> Bool {
+        guard character.isLetter || character.isNumber, let scalar = character.unicodeScalars.first else { return false }
+        switch scalar.value {
+        case 0x0E00...0x0EFF, 0x1000...0x109F, 0x1780...0x17FF, 0x2E80...0x9FFF,
+             0xAC00...0xD7AF, 0xF900...0xFAFF, 0xFF00...0xFFEF, 0x20000...0x3FFFF:
+            return false
+        default:
+            return true
+        }
     }
 
     nonisolated static func normalize(_ raw: String, requiredPrefix: String,
