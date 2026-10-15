@@ -58,9 +58,7 @@ struct ModelStackOverviewView: View {
                 coreRow(.think, model: ModelSettingsPresentation.assistantName(app.settings),
                         detail: "Summaries, Ask, and Agent", sheet: .assistant)
                 SettingsSeparator()
-                coreRow(.autocomplete, model: ModelCatalog.entry(
-                    id: app.settings.cotypingBuiltInModelID,
-                    custom: app.settings.customBuiltInModels)?.displayName ?? app.settings.cotypingBuiltInModelID,
+                coreRow(.autocomplete, model: app.settings.cotypingModelDisplayName,
                         detail: "Suggestions as you type", sheet: .autocomplete)
             }
             .padding(.horizontal, 16).padding(.vertical, 14)

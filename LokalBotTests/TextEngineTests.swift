@@ -878,5 +878,19 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(body["top_p"] as? Double, 0.7)
         XCTAssertEqual(body["stop"] as? [String], ["\n"])
         XCTAssertEqual(body["stream"] as? Bool, true)
+        XCTAssertNil(body["provider"])
+    }
+
+    func testOpenRouterRawCompletionCarriesTheProviderDataPolicy() throws {
+        let request = CompletionRequest(prompt: "Thanks for the ", maxTokens: 8, temperature: 0.1, topP: 0.7,
+                                        topK: 20, minP: 0.08, repeatPenalty: 1.05, seed: 7, stop: ["\n"])
+        let url = try XCTUnwrap(URL(string: "https://openrouter.ai/api/v1"))
+        for policy in OpenRouterDataPolicy.allCases {
+            let engine = OpenAICompatibleEngine(
+                baseURL: url, model: "qwen/qwen3.8-27b", apiKey: "key",
+                sendsLlamaSamplingExtensions: false, chatDialect: .openRouter, openRouterDataPolicy: policy)
+            let provider = try XCTUnwrap(engine.completionBody(request, stream: true)["provider"] as? [String: Any])
+            XCTAssertEqual(provider["data_collection"] as? String, policy.providerDataCollectionValue)
+        }
     }
 }

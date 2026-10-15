@@ -1,8 +1,9 @@
 import Foundation
 
 /// Per-completion router between the in-process `LocalLlamaCotypingEngine`
-/// (built-in GGUF on Apple Silicon, flag on) and the existing HTTP
-/// `CotypingEngine` (non-GGUF backends, flag off, or in-process load failure).
+/// (built-in GGUF on Apple Silicon, flag on), the existing HTTP
+/// `CotypingEngine` (non-GGUF backends, flag off, or in-process load failure),
+/// and a server the user chose for autocomplete (`cotypingBackend`).
 /// Conforms to `CotypingCompleting`, so `CotypingCoordinator` is unchanged.
 @MainActor
 final class CotypingEngineSelector: CotypingCompleting {
@@ -15,6 +16,8 @@ final class CotypingEngineSelector: CotypingCompleting {
     static let localRetryCooldown: TimeInterval = 60
 
     private let http: CotypingCompleting
+    /// Serves completions while `cotypingBackend` names a server.
+    private let server: CotypingCompleting?
     private let makeLocal: (String) -> CotypingCompleting
     private let settings: () -> AppSettings
     private let storage: StorageManager
@@ -30,6 +33,9 @@ final class CotypingEngineSelector: CotypingCompleting {
     /// Non-nil while a failure cooldown is active: `localIfEligible()` routes
     /// to HTTP (without rebuilding the local engine) until this instant.
     private var retryLocalAt: Date?
+    /// Set once both on-device routes were released for the server route, so
+    /// the model is freed once per switch rather than checked every keystroke.
+    private var releasedForServer = false
 
     /// Invalidates work that crossed an actor suspension under an older route.
     /// `@MainActor` prevents simultaneous mutation, but async model verification
@@ -59,11 +65,13 @@ final class CotypingEngineSelector: CotypingCompleting {
     /// A local failure clears `local` and starts a cooldown before HTTP runs,
     /// which immediately restores the conservative model-server debounce.
     var debounceProfile: CotypingDebouncePolicy.RuntimeProfile {
-        local != nil && retryLocalAt == nil ? .inProcess : .modelServer
+        guard !Self.usesServer(settings()) else { return .modelServer }
+        return local != nil && retryLocalAt == nil ? .inProcess : .modelServer
     }
 
     init(
         http: CotypingCompleting,
+        server: CotypingCompleting? = nil,
         makeLocal: @escaping (String) -> CotypingCompleting,
         settings: @escaping () -> AppSettings,
         storage: StorageManager,
@@ -73,6 +81,7 @@ final class CotypingEngineSelector: CotypingCompleting {
         }
     ) {
         self.http = http
+        self.server = server
         self.makeLocal = makeLocal
         self.settings = settings
         self.storage = storage
@@ -90,6 +99,37 @@ final class CotypingEngineSelector: CotypingCompleting {
 
     nonisolated static func shouldUseLocal(settings: AppSettings, modelURL: URL?, isAppleSilicon: Bool) -> Bool {
         settings.cotypingInProcessRuntime && isAppleSilicon && modelURL != nil
+    }
+
+    nonisolated static func usesServer(_ settings: AppSettings) -> Bool {
+        settings.cotypingBackend != .onDevice
+    }
+
+    /// The server route when one is selected. Switching to it frees the
+    /// on-device model and stops the dedicated llama-server first, so a model
+    /// nobody uses does not stay resident; nil keeps the on-device routes.
+    private func serverIfSelected() async throws -> CotypingCompleting? {
+        guard unloadOperationsInFlight == 0 else { throw CancellationError() }
+        guard Self.usesServer(settings()) else {
+            releasedForServer = false
+            return nil
+        }
+        guard let server else {
+            throw TextEngineError.unavailable("Autocomplete can't use a server in this build.")
+        }
+        if !releasedForServer || local != nil {
+            let invalidation = invalidateLifecycle()
+            await dropLocalEngine()
+            await http.unload()
+            guard !Task.isCancelled,
+                  unloadOperationsInFlight == 0,
+                  lifecycleGeneration == invalidation,
+                  Self.usesServer(settings()) else { throw CancellationError() }
+            releasedForServer = true
+            retryLocalAt = nil
+            didLogLocalFailure = false
+        }
+        return server
     }
 
     private func localRouteIdentity(for settings: AppSettings) -> LocalRouteIdentity? {
@@ -259,11 +299,17 @@ final class CotypingEngineSelector: CotypingCompleting {
     }
 
     func prewarm() async {
+        // Selecting a server frees the on-device model here, before typing.
+        if Self.usesServer(settings()) {
+            _ = try? await serverIfSelected()
+            return
+        }
         guard let engine = try? await localIfEligible() else { return }
         try? await engine.prewarm()
     }
 
     func prewarm(for request: CotypingRequest) async {
+        guard !Self.usesServer(settings()) else { return }
         guard let engine = try? await localIfEligible() else { return }
         try? await engine.prewarm(for: request)
     }
@@ -279,13 +325,18 @@ final class CotypingEngineSelector: CotypingCompleting {
         // this selector instance to be resident.
         await dropLocalEngine()
         await http.unload()
+        await server?.unload()
         retryLocalAt = nil
         didLogLocalFailure = false
+        releasedForServer = false
     }
 
     /// The model server is streamed even here: its client stops reading at
     /// the same decode boundary as the in-process runtime.
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
+        if let server = try await serverIfSelected() {
+            return try await server.generate(request)
+        }
         guard let engine = try await localIfEligible() else {
             return try await http.generateStreaming(request) { _ in }
         }
@@ -303,6 +354,9 @@ final class CotypingEngineSelector: CotypingCompleting {
         _ request: CotypingRequest,
         onPartial: @escaping @Sendable (CotypingNormalizationResult) -> Void
     ) async throws -> CotypingNormalizationResult {
+        if let server = try await serverIfSelected() {
+            return try await server.generateStreaming(request, onPartial: onPartial)
+        }
         guard let engine = try await localIfEligible() else {
             return try await http.generateStreaming(request, onPartial: onPartial)
         }

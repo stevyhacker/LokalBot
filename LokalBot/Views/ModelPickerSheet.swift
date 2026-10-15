@@ -176,6 +176,13 @@ struct ModelPickerSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ModelSheetHeading(title: "\(role.title) model", subtitle: role.detail)
+            if role == .autocomplete, app.settings.cotypingBackend != .onDevice {
+                Label("Autocomplete runs on a server you chose under Settings → Writing. This model is used when it runs on this Mac again.",
+                      systemImage: "network")
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 24).padding(.bottom, 12)
+            }
             if role == .assistant {
                 // Where Think runs, then that choice's own setup: one place
                 // to choose and configure, with no nested or segmented picks.

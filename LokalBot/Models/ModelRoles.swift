@@ -213,9 +213,7 @@ final class ModelRoles: ObservableObject {
                     ready: readiness.thinkReady,
                     id: settings.summarizerBackend == .builtIn
                         ? settings.builtInModelID : nil),
-                .autocomplete: ggufStatus(
-                    ready: readiness.autocompleteReady,
-                    id: settings.cotypingBuiltInModelID),
+                .autocomplete: autocompleteStatus(settings: settings, ready: readiness.autocompleteReady),
             ])
     }
 
@@ -262,7 +260,8 @@ final class ModelRoles: ObservableObject {
 
     func settingsDidChange(from old: AppSettings, to new: AppSettings) {
         guard ModelReadinessSnapshot.processingReadinessChanged(from: old, to: new)
-                || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID else { return }
+                || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID
+                || old.cotypingRouteFingerprint != new.cotypingRouteFingerprint else { return }
         let selectionChanged = old.transcriptionModel != new.transcriptionModel
         let funASRDirectoryChanged = old.funASRNanoModelDirectory != new.funASRNanoModelDirectory
         let graniteConfigurationChanged = old.graniteSpeechModel != new.graniteSpeechModel
@@ -290,7 +289,8 @@ final class ModelRoles: ObservableObject {
 
     func startCoreModelDownloads(includeAutocomplete: Bool = true) {
         let settings = settings()
-        var ids = includeAutocomplete ? [settings.cotypingBuiltInModelID] : []
+        var ids = includeAutocomplete && settings.cotypingBackend == .onDevice
+            ? [settings.cotypingBuiltInModelID] : []
         if settings.summarizerBackend == .builtIn { ids.append(settings.builtInModelID) }
         for id in ids {
             guard let entry = ModelCatalog.entry(
@@ -402,6 +402,16 @@ final class ModelRoles: ObservableObject {
         } catch {
             preparationErrors[TranscriptionConfiguration(choice, settings())] = error.localizedDescription
         }
+    }
+
+    /// A server route has nothing to download; one that is not set up says why.
+    private func autocompleteStatus(settings: AppSettings, ready: Bool) -> ModelRoleStatus {
+        if case .unavailable(let reason) = settings.cotypingRoute(includingCredentials: false) {
+            return .needsAttention(reason)
+        }
+        return ggufStatus(
+            ready: ready,
+            id: settings.cotypingBackend == .onDevice ? settings.cotypingBuiltInModelID : nil)
     }
 
     private func ggufStatus(ready: Bool, id: String?) -> ModelRoleStatus {

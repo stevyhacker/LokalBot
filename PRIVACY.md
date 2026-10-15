@@ -209,6 +209,28 @@ The app may make these outbound connections:
   prompt each time. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
+- **Optional autocomplete server:** Autocomplete runs on this Mac unless you
+  choose Think's server or another OpenAI-compatible server under Settings →
+  Writing. A server on a loopback address keeps your typing on this Mac. Any
+  other server receives typing only after you approve its exact origin for
+  autocomplete there; an approval for Think does not cover autocomplete, and
+  one for autocomplete does not cover Think. While you type where autocomplete
+  can suggest, each request sends the text before the caret, the window title
+  when **Use app and window context** is on, your writing profile (name,
+  style, languages, and notes), and the API key you configured. While the
+  server is off this Mac, the clipboard, visible text above the field,
+  focused-window text, meeting and work memory, screen-derived memory, and
+  learned examples are not used, whatever their settings say. Secure fields
+  and excluded apps and sites are never read. A server on the internet must
+  use HTTPS. A server on your own network (a private, link-local, or Tailscale
+  address, or a `.local`, `.home.arpa`, `.ts.net`, or single-label name) may
+  use plain HTTP once approved, and Settings warns that LokalBot does not
+  encrypt that traffic. macOS asks for Local Network access the first time
+  LokalBot reaches such a server. Requests use raw text completion, or the
+  server's chat endpoint for hosted chat APIs and for a server that answers
+  that it has no raw route; a request that fails or times out is not
+  repeated. With OpenRouter, the provider data policy chosen for Think
+  applies. The operator of that server controls its privacy terms.
 - **Optional subscription plans:** Think can run on your own ChatGPT or Claude
   plan instead of an API key. Each plan is set up and approved where you
   choose the Think model (Settings → Models → Think), separately from any
@@ -409,7 +431,8 @@ other inputs, sidebars, toolbars, secure fields, credential-bearing snippets,
 and excluded apps/sites do not enter the prompt, and private or incognito
 browser windows are never read. Unknown browser origins abstain. Shared capture exclusions and autocomplete exclusions both apply.
 This setting does not enable screen recording, screenshots, OCR, saved screen
-memory, or external access. Context is processed locally and held only in memory;
+memory, or external access. Context is processed locally and held only in memory,
+and is used only while the completion model runs on this Mac;
 context-grounded acceptances are excluded from saved learning. The setup preview
 never reads the screen: with this setting on, the rehearsal in Settings uses its
 own synthetic sample conversation as the nearby text. The nearby text is read
@@ -442,7 +465,7 @@ use for up to a minute. The text is held in memory for the focused field only
 and forgotten when focus leaves it or moves to another field or window, or when
 this setting or an exclusion changes; a suggestion that used it is then
 discarded. It is never saved, sent, added to screen memory or used for local
-learning, and the completion model runs on this Mac. Once the window has been
+learning, and it is used only while the completion model runs on this Mac. Once the window has been
 read, its text replaces the nearby Accessibility text above.
 
 Some fields, such as text areas in Chrome, do not report where the caret is.

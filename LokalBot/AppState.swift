@@ -212,6 +212,7 @@ final class AppState: ObservableObject {
             || old.excludedScreenDomains != new.excludedScreenDomains
             || old.cotypingUseMeetingMemory != new.cotypingUseMeetingMemory
             || old.cotypingUseScreenMemory != new.cotypingUseScreenMemory
+            || old.cotypingLeavesThisMac != new.cotypingLeavesThisMac
     }
 
     private static func cotypingRuntimeChanged(from old: AppSettings, to new: AppSettings) -> Bool {
@@ -220,6 +221,7 @@ final class AppState: ObservableObject {
             || old.cotypingBuiltInModelID != new.cotypingBuiltInModelID
             || old.cotypingInProcessRuntime != new.cotypingInProcessRuntime
             || old.customBuiltInModels != new.customBuiltInModels
+            || old.cotypingBackend != new.cotypingBackend
     }
 
     private static func dailyMemoryExportChanged(from old: AppSettings,
@@ -746,9 +748,10 @@ final class AppState: ObservableObject {
             }
             return await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
         })
-    /// Cotyping (inline AI autocomplete). Always runs its own model on the
-    /// dedicated `LlamaServer.cotyping` instance so it never thrashes the
-    /// shared summarizer server. Resolved per-completion, so changes apply live.
+    /// Cotyping (inline AI autocomplete). On this Mac it runs its own model on
+    /// the dedicated `LlamaServer.cotyping` instance so it never thrashes the
+    /// shared summarizer server; a chosen server is reached through
+    /// `RemoteCotypingEngine`. Resolved per-completion, so changes apply live.
     private(set) lazy var cotypingEngine = CotypingEngineSelector(
         http: CotypingEngine(
             makeEngine: { [weak self] in
@@ -760,6 +763,7 @@ final class AppState: ObservableObject {
                     purpose: "cotyping")
             },
             stopRuntime: { await LlamaServer.cotyping.stop() }),
+        server: RemoteCotypingEngine(route: { [store = settingsStore] in store.current.cotypingRoute() }),
         makeLocal: { modelPath in
             LocalLlamaCotypingEngine(runtime: .forAutocomplete(), modelPath: modelPath)
         },
@@ -767,7 +771,8 @@ final class AppState: ObservableObject {
         storage: storage)
     private(set) lazy var cotyping = CotypingCoordinator(
         engine: cotypingEngine,
-        settingsProvider: { [store = settingsStore] in store.current },
+        // Context that stays on this Mac is withheld from a server elsewhere.
+        settingsProvider: { [store = settingsStore] in store.current.cotypingEffectiveSettings },
         learningStore: cotypingLearning,
         memoryContextProvider: { [weak self] field, settings in
             guard let self, self.libraryReady,

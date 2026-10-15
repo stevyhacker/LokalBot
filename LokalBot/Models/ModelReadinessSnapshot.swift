@@ -101,6 +101,11 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     }
 
     static func autocompleteReady(_ settings: AppSettings, storage: StorageManager) -> Bool {
+        // A server needs nothing downloaded; it is ready once it is set up.
+        guard settings.cotypingBackend == .onDevice else {
+            if case .server = settings.cotypingRoute(includingCredentials: false) { return true }
+            return false
+        }
         guard let entry = ModelCatalog.entry(
             id: settings.cotypingBuiltInModelID,
             custom: settings.customBuiltInModels) else { return false }
@@ -126,7 +131,7 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     /// still missing on disk. The Transcribe model downloads through its
     /// engine-specific path and is not included — callers name it separately.
     static func missingCoreModelBytes(_ settings: AppSettings, storage: StorageManager) -> Int64 {
-        var ids = [settings.cotypingBuiltInModelID]
+        var ids = settings.cotypingBackend == .onDevice ? [settings.cotypingBuiltInModelID] : []
         if settings.summarizerBackend == .builtIn { ids.append(settings.builtInModelID) }
         return ids.compactMap {
             ModelCatalog.entry(id: $0, custom: settings.customBuiltInModels)
@@ -149,7 +154,10 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         let thinkReady = settings.summarizerBackend == .builtIn
             ? (diskState?.thinkReady ?? thinkReady(settings, storage: storage))
             : thinkReady(settings, storage: storage)
-        let autocompleteReady = diskState?.autocompleteReady ?? autocompleteReady(settings, storage: storage)
+        // A server route reads settings only, so a disk check from older settings can't stand in for it.
+        let autocompleteReady = settings.cotypingBackend == .onDevice
+            ? diskState?.autocompleteReady ?? autocompleteReady(settings, storage: storage)
+            : autocompleteReady(settings, storage: storage)
         var provenance: Provenance
         switch InferencePresentation(settings: settings) {
         case .onDevice: provenance = .local

@@ -1095,6 +1095,10 @@ struct OpenAICompatibleEngine: TextEngine {
             body["repeat_penalty"] = request.repeatPenalty
         }
         if !request.stop.isEmpty { body["stop"] = request.stop }
+        // The same provider data policy as chat: typed text is as private as Think's context.
+        if chatDialect == .openRouter {
+            body["provider"] = ["data_collection": openRouterDataPolicy.providerDataCollectionValue]
+        }
         body.merge(extraBody) { _, new in new }
         return body
     }

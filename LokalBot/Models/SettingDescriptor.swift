@@ -14,6 +14,8 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.appTheme" { return language.localized(settings.appTheme.displayName) }
         if id == "settings.appLanguage" { return language.localized(settings.appLanguage.displayName) }
         if id == "settings.textSize" { return language.localized(settings.textSize.displayName) }
+        if id == "settings.cotypingBackend" { return language.localized(settings.cotypingBackend.title) }
+        if id == "settings.cotypingServerRequestStyle" { return language.localized(settings.cotypingServerRequestStyle.title) }
         guard let data = try? JSONEncoder().encode(settings),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let value = object[String(id.dropFirst("settings.".count))] else { return language.localized("Open details") }
@@ -37,6 +39,11 @@ struct SettingDescriptor: Identifiable {
             return "settings.summarizerBackend"
         }
         if id == "settings.ollamaBaseURL", settings.summarizerBackend != .ollama { return "settings.summarizerBackend" }
+        if ["settings.cotypingServerBaseURL", "settings.cotypingServerModel"].contains(id), settings.cotypingBackend != .server {
+            return "settings.cotypingBackend"
+        }
+        if id == "settings.cotypingThinkServerModel", settings.cotypingBackend != .thinkServer { return "settings.cotypingBackend" }
+        if id == "settings.cotypingServerRequestStyle", settings.cotypingBackend == .onDevice { return "settings.cotypingBackend" }
         if id == "settings.screenshotIntervalMinutes", !settings.effectiveScreenContextCaptureMode.capturesText {
             return "settings.effectiveScreenContextCaptureMode"
         }
@@ -93,6 +100,16 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingEnabled", title: "Enable autocomplete", category: .writing, aliases: "cotypingEnabled"),
         .init(id: "settings.autocompleteStatistics", title: "Autocomplete statistics", category: .writing,
               aliases: "stats usage acceptance accepted words saved time typing speed wpm chart"),
+        .init(id: "settings.cotypingBackend", title: "Run autocomplete", category: .writing,
+              aliases: "autocomplete server remote cloud api openrouter ollama lm studio llama-server tailscale network another computer model"),
+        .init(id: "settings.cotypingServerBaseURL", title: "Autocomplete server URL", category: .writing,
+              aliases: "autocomplete server endpoint remote openrouter lm studio llama-server tailscale"),
+        .init(id: "settings.cotypingServerModel", title: "Autocomplete server model", category: .writing,
+              aliases: "autocomplete remote model id"),
+        .init(id: "settings.cotypingThinkServerModel", title: "Autocomplete model on Think's server", category: .writing,
+              aliases: "autocomplete same model different model ollama openai"),
+        .init(id: "settings.cotypingServerRequestStyle", title: "Autocomplete request type", category: .writing,
+              aliases: "autocomplete text completion chat completions raw"),
         .init(id: "settings.cotypingMultiLine", title: "Allow multi-line suggestions", category: .writing, aliases: "cotypingMultiLine"),
         .init(id: "settings.cotypingAcceptKey", title: "Accept next", category: .writing, aliases: "cotypingAcceptKey"),
         .init(id: "settings.cotypingAcceptGranularity", title: "Each accept takes", category: .writing, aliases: "cotypingAcceptGranularity"),

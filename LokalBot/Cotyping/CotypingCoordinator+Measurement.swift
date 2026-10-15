@@ -22,7 +22,7 @@ extension CotypingCoordinator {
     func noteSuggestionShown(_ session: CotypingSession) {
         guard case .continuation = session.kind else { return }
         let surface = surfaceKey(for: session.field)
-        let shown = ShownSuggestion(surface: surface, model: settingsProvider().cotypingBuiltInModelID)
+        let shown = ShownSuggestion(surface: surface, model: settingsProvider().cotypingStatisticsModelID)
         shownSuggestion = shown
         stats.recordSuggestionShown(surface: shown.surface, model: shown.model)
         guard let started = pendingKeystrokeUptime else { return }
@@ -42,7 +42,7 @@ extension CotypingCoordinator {
         // shown suggestion nothing is marked used, so the share used never
         // counts a suggestion it did not see.
         let shown = shownSuggestion
-            ?? ShownSuggestion(surface: surface, model: settingsProvider().cotypingBuiltInModelID, used: true)
+            ?? ShownSuggestion(surface: surface, model: settingsProvider().cotypingStatisticsModelID, used: true)
         stats.recordSuggestionAccept(
             words: words, characters: charsAccepted, firstOfSuggestion: !shown.used,
             surface: shown.surface, model: shown.model)

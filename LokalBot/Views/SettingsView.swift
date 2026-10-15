@@ -325,10 +325,22 @@ struct SettingsView: View {
     @ViewBuilder private var cotypingSection: some View {
         if shows("Autocomplete", ["cotyping", "autocomplete", "suggestion", "suggestions",
                               "length", "words", "max words", "ghost", "inline",
-                              "completion", "typing"]) {
+                              "completion", "typing", "server", "remote", "cloud",
+                              "openrouter", "tailscale", "api key"]) {
             Section("Autocomplete") {
-                LabeledContent("Autocomplete model") {
-                    Button("Manage in Models…") { app.openSettings(tab: .models) }
+                Picker(selection: $app.settings.cotypingBackend) {
+                    ForEach(CotypingBackend.allCases) { Text(LocalizedStringKey($0.title)).tag($0) }
+                } label: {
+                    SettingsLabel("Run autocomplete",
+                                  help: "On this Mac by default. Think's server, or any other server you choose, such as a hosted API or a model server on another computer, can run it instead.")
+                }
+                .settingTarget("settings.cotypingBackend", selected: app.focusedSettingID)
+                if app.settings.cotypingBackend == .onDevice {
+                    LabeledContent("Autocomplete model") {
+                        Button("Manage in Models…") { app.openSettings(tab: .models) }
+                    }
+                } else {
+                    CotypingServerSettingsView(app: app)
                 }
                 Stepper("Suggestion length: up to \(app.settings.cotypingMaxWords) words",
                         value: $app.settings.cotypingMaxWords, in: 2...50)
@@ -372,6 +384,12 @@ struct SettingsView: View {
             }
             Section("Context") {
                 let context = cotypingContext
+                if app.settings.cotypingLeavesThisMac {
+                    Label("Autocomplete uses a server off this Mac, so the clipboard, text read from the screen, memory, and learned text are not used.",
+                          systemImage: "lock.shield")
+                        .settingsSecondary()
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Toggle("Use app and window context", isOn: $app.settings.cotypingUseAppContext)
                     .settingTarget("settings.cotypingUseAppContext", selected: app.focusedSettingID)
                 Toggle("Use clipboard as temporary context", isOn: $app.settings.cotypingUseClipboard)
@@ -463,6 +481,7 @@ struct SettingsView: View {
                     set: { writingAdvancedExpanded = $0 })) {
                     Toggle("Use fast in-process runtime",
                            isOn: $app.settings.cotypingInProcessRuntime)
+                    .disabled(app.settings.cotypingBackend != .onDevice)
                     .settingTarget("settings.cotypingInProcessRuntime", selected: app.focusedSettingID)
                     Toggle("Match the app font and text color",
                            isOn: $app.settings.cotypingMatchHostStyle)

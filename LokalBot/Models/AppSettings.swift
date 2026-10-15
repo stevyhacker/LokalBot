@@ -553,6 +553,21 @@ struct AppSettings: Codable, Equatable {
     /// `llama-server` path. The HTTP fallback also covers non-GGUF backends and
     /// any in-process load failure regardless of this flag.
     var cotypingInProcessRuntime: Bool = true
+    /// Where autocomplete runs: the model above on this Mac (default), Think's
+    /// own server, or a separate server. See `CotypingRoute`.
+    var cotypingBackend: CotypingBackend = .onDevice
+    /// OpenAI-compatible base URL for `.server`: a cloud API or a model server
+    /// on this Mac or another device on the user's network.
+    var cotypingServerBaseURL: String = ""
+    /// Model ID for `.server`.
+    var cotypingServerModel: String = ""
+    /// Model ID for `.thinkServer`; empty uses Think's own model.
+    var cotypingThinkServerModel: String = ""
+    var cotypingServerRequestStyle: CotypingServerRequestStyle = .automatic
+    /// Origins approved for autocomplete specifically. Separate from
+    /// `approvedRemoteInferenceOrigins`: autocomplete sends what is typed in
+    /// other apps, which approving a server for Think never covered.
+    var approvedRemoteAutocompleteOrigins: [String] = []
     /// Learn from accepted continuation text, encrypted locally. Stores accepted
     /// text plus a short sanitized prefix/context hint for ranking — never full
     /// raw typing streams — and skips secure fields, terminals, and code editors.
@@ -672,9 +687,10 @@ struct AppSettings: Codable, Equatable {
         return cotypingMultiLine ? min(base * 2, 120) : min(base, 120)
     }
 
-    /// Settings the cotyping engine builds its `TextEngine` from. Cotyping always
-    /// runs its own model, so this is a copy pinned to the built-in backend with
-    /// `cotypingBuiltInModelID` (independent of the summarizer's backend/model).
+    /// Settings the on-device cotyping route builds its `TextEngine` from: a
+    /// copy pinned to the built-in backend with `cotypingBuiltInModelID`
+    /// (independent of the summarizer's backend/model). Server routes are
+    /// resolved by `cotypingRoute` instead.
     var cotypingTextEngineSettings: AppSettings {
         var s = self
         s.summarizerBackend = .builtIn
@@ -863,6 +879,12 @@ struct AppSettings: Codable, Equatable {
         case cotypingExtendedContext
         case cotypingBuiltInModelID
         case cotypingInProcessRuntime
+        case cotypingBackend
+        case cotypingServerBaseURL
+        case cotypingServerModel
+        case cotypingThinkServerModel
+        case cotypingServerRequestStyle
+        case approvedRemoteAutocompleteOrigins
         case cotypingUseLocalLearning
         case cotypingLearningExamplesInPrompt
     }
@@ -1056,6 +1078,12 @@ struct AppSettings: Codable, Equatable {
         try c.encode(cotypingExtendedContext, forKey: .cotypingExtendedContext)
         try c.encode(cotypingBuiltInModelID, forKey: .cotypingBuiltInModelID)
         try c.encode(cotypingInProcessRuntime, forKey: .cotypingInProcessRuntime)
+        try c.encode(cotypingBackend, forKey: .cotypingBackend)
+        try c.encode(cotypingServerBaseURL, forKey: .cotypingServerBaseURL)
+        try c.encode(cotypingServerModel, forKey: .cotypingServerModel)
+        try c.encode(cotypingThinkServerModel, forKey: .cotypingThinkServerModel)
+        try c.encode(cotypingServerRequestStyle, forKey: .cotypingServerRequestStyle)
+        try c.encode(approvedRemoteAutocompleteOrigins, forKey: .approvedRemoteAutocompleteOrigins)
         try c.encode(cotypingUseLocalLearning, forKey: .cotypingUseLocalLearning)
         try c.encode(cotypingLearningExamplesInPrompt, forKey: .cotypingLearningExamplesInPrompt)
     }
@@ -1249,6 +1277,14 @@ struct AppSettings: Codable, Equatable {
         cotypingExtendedContext = decode(.cotypingExtendedContext, defaults.cotypingExtendedContext)
         cotypingBuiltInModelID = decode(.cotypingBuiltInModelID, defaults.cotypingBuiltInModelID)
         cotypingInProcessRuntime = decode(.cotypingInProcessRuntime, defaults.cotypingInProcessRuntime)
+        cotypingBackend = decode(.cotypingBackend, defaults.cotypingBackend)
+        cotypingServerBaseURL = decode(.cotypingServerBaseURL, defaults.cotypingServerBaseURL)
+        cotypingServerModel = decode(.cotypingServerModel, defaults.cotypingServerModel)
+        cotypingThinkServerModel = decode(.cotypingThinkServerModel, defaults.cotypingThinkServerModel)
+        cotypingServerRequestStyle = decode(
+            .cotypingServerRequestStyle, defaults.cotypingServerRequestStyle)
+        approvedRemoteAutocompleteOrigins = decode(
+            .approvedRemoteAutocompleteOrigins, defaults.approvedRemoteAutocompleteOrigins)
         cotypingUseLocalLearning = decode(.cotypingUseLocalLearning, defaults.cotypingUseLocalLearning)
         cotypingLearningExamplesInPrompt = min(5, max(1, decode(
             .cotypingLearningExamplesInPrompt, defaults.cotypingLearningExamplesInPrompt)))

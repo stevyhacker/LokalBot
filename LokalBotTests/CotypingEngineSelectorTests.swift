@@ -83,6 +83,40 @@ final class CotypingEngineSelectorTests: XCTestCase {
             settings: s, modelURL: nil, isAppleSilicon: true))
     }
 
+    func testServerRouteFreesOnDeviceRoutesOnceAndUsesServerTiming() throws {
+        var settings = AppSettings()
+        settings.cotypingInProcessRuntime = false
+        settings.cotypingBackend = .server
+        let http = RecordingHTTPEngine()
+        let server = RecordingServerEngine()
+        var builds = 0
+        let selector = CotypingEngineSelector(
+            http: http, server: server,
+            makeLocal: { _ in builds += 1; return RecordingLocalEngine() },
+            settings: { settings },
+            storage: StorageManager(rootURL: FileManager.default.temporaryDirectory
+                .appendingPathComponent("lokalbot-selector-\(UUID().uuidString)", isDirectory: true)),
+            verifyModel: { _, _ in nil })
+        let request = makeMinimalRequestExpectingNoServer()
+
+        XCTAssertEqual(selector.debounceProfile, .modelServer)
+        XCTAssertEqual(try awaitGenerate(selector, request).text, RecordingServerEngine.sentinel)
+        XCTAssertEqual(try awaitGenerate(selector, request).text, RecordingServerEngine.sentinel)
+        XCTAssertEqual(server.generateCalls, 2)
+        XCTAssertEqual(http.generateCalls, 0)
+        XCTAssertEqual(http.unloadCalls, 1, "the autocomplete llama-server stops once per switch, not per keystroke")
+
+        settings.cotypingBackend = .onDevice
+        XCTAssertEqual(try awaitGenerate(selector, request).text, RecordingHTTPEngine.sentinel)
+        settings.cotypingBackend = .thinkServer
+        XCTAssertEqual(try awaitGenerate(selector, request).text, RecordingServerEngine.sentinel)
+        XCTAssertEqual(http.unloadCalls, 2, "switching back to a server frees the on-device route again")
+        XCTAssertEqual(builds, 0)
+
+        awaitUnload(selector)
+        XCTAssertEqual(server.unloadCalls, 1)
+    }
+
     // MARK: - Route-away unload (Fix 1) + decode-failure fallback (Fix 2)
 
     /// FIX 1: when the runtime flag flips OFF the selector must drop its cached
@@ -569,6 +603,19 @@ private final class SuspendedModelVerifier {
         continuations.removeAll()
         suspended.forEach { $0.resume(returning: url) }
     }
+}
+
+/// Stands in for the autocomplete server route.
+@MainActor
+private final class RecordingServerEngine: CotypingCompleting {
+    static let sentinel = "SERVER"
+    private(set) var generateCalls = 0
+    private(set) var unloadCalls = 0
+    func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
+        generateCalls += 1
+        return CotypingNormalizationResult(text: Self.sentinel, suppression: nil)
+    }
+    func unload() async { unloadCalls += 1 }
 }
 
 /// Stands in for the HTTP `CotypingCompleting` and records that it was invoked,

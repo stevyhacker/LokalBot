@@ -171,6 +171,22 @@ targetTemplates:
           inference servers may receive meeting titles and chosen display
           names as context, but never attendee emails.
         LSApplicationCategoryType: public.app-category.productivity
+        NSLocalNetworkUsageDescription: >-
+          LokalBot connects to inference servers you add on your own network,
+          such as a model server on another computer, only after you approve
+          each one. Nothing is sent to other devices otherwise.
+        # Plain HTTP to an approved server on the user's own network.
+        # InferenceEndpointPolicy decides which hosts may be reached at all;
+        # these exceptions only let URLSession load the names it allows.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            home.arpa:
+              NSIncludesSubdomains: true
+              NSExceptionAllowsInsecureHTTPLoads: true
+            ts.net:
+              NSIncludesSubdomains: true
+              NSExceptionAllowsInsecureHTTPLoads: true
         # Sparkle auto-update. SUFeedURL points at the appcast published with
         # each GitHub release; SUPublicEDKey is the ed25519 public key whose
         # private half signs the DMG. AppUpdateManager refuses to start Sparkle

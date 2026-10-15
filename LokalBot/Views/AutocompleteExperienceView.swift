@@ -41,7 +41,22 @@ struct AutocompleteExperienceView: View {
 #if LOKALBOT_UI_TEST_HOST
         if ProcessInfo.processInfo.environment["LOKALBOT_COTYPING_DEMO"] == "1" { return true }
 #endif
+        guard !usesServer else { return serverSetupProblem == nil }
         return selectedModel.flatMap { ModelCatalog.localURL(for: $0, storage: app.storage) } != nil
+    }
+
+    /// Autocomplete runs on a server: nothing to download, only setup to finish.
+    private var usesServer: Bool { app.settings.cotypingBackend != .onDevice }
+
+    /// What to change before the selected server can be used.
+    private var serverSetupProblem: String? {
+        if case .unavailable(let reason) = app.settings.cotypingRoute(includingCredentials: false) { return reason }
+        return nil
+    }
+
+    /// The model suggestions come from, on this Mac or a server.
+    private var modelName: String {
+        usesServer ? app.settings.cotypingModelDisplayName : selectedModel?.displayName ?? "LFM2.5 1.2B Instruct"
     }
 
     private var demoReady: Bool {
@@ -75,7 +90,12 @@ struct AutocompleteExperienceView: View {
                 if app.settings.cotypingEnabled && systemPredictionsOn {
                     systemPredictionsNotice
                 }
-                if !modelReady {
+                if let serverSetupProblem, usesServer {
+                    Label(serverSetupProblem, systemImage: "exclamationmark.triangle")
+                        .font(AppFont.scaled(.callout))
+                        .settingsSecondary()
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if !modelReady {
                     CotypingModelPreparationView(compact: true)
                 }
             }
@@ -157,7 +177,8 @@ struct AutocompleteExperienceView: View {
                 Button("Copy measurements") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(
-                        stats.stats.report(model: selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID),
+                        stats.stats.report(model: usesServer ? app.settings.cotypingModelDisplayName
+                                           : selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID),
                         forType: .string)
                 }
                 Button("Reset") { stats.clear() }
@@ -212,16 +233,21 @@ struct AutocompleteExperienceView: View {
     }
 
     @ViewBuilder private var readiness: some View {
-        MemoryHealthStatus(value: modelReady ? "Model ready" : "Model needed",
+        MemoryHealthStatus(value: usesServer ? (modelReady ? "Server ready" : "Server setup needed")
+                                             : (modelReady ? "Model ready" : "Model needed"),
                            tone: modelReady ? .good : .attention)
-            .help(selectedModel?.displayName ?? "LFM2.5 1.2B Instruct")
+            .help(modelName)
         permissionStatus("Accessibility", .accessibility)
         permissionStatus("Input Monitoring", .inputMonitoring)
     }
 
     private var summaryDetail: String {
-        let model = selectedModel?.displayName ?? "LFM2.5 1.2B Instruct"
-        if app.settings.cotypingEnabled { return "\(model) · suggestions appear as you type in other apps." }
+        if app.settings.cotypingEnabled { return "\(modelName) · suggestions appear as you type in other apps." }
+        if usesServer {
+            return modelReady
+                ? "The server is ready. Turn on autocomplete to start."
+                : "Finish setting up the autocomplete server below to try it."
+        }
         return modelReady
             ? "The model is ready. Turn on autocomplete to start."
             : "Download the Autocomplete model to try it."
