@@ -17,10 +17,13 @@ struct ModelCheckIdentity: Equatable {
             encoder.outputFormatting = .sortedKeys
             let granite = settings.transcriptionModel == .graniteSpeech
                 ? (try? encoder.encode(settings.graniteSpeechModel))?.base64EncodedString() ?? "" : ""
+            let remote = settings.transcriptionModel == .remoteServer
+                ? [settings.remoteTranscriptionBaseURL, settings.remoteTranscriptionModel,
+                   settings.transcriptionPresentation.label] : []
             parts = [settings.transcriptionModel.id, granite,
                      settings.transcriptionModel == .funASRNano ? settings.funASRNanoModelDirectory : "",
                      settings.transcriptionLanguage.rawValue,
-                     settings.transcriptionPrompt]
+                     settings.transcriptionPrompt] + remote
         case .think:
             switch settings.summarizerBackend {
             case .builtIn: parts = [settings.summarizerBackend.rawValue, entryIdentity(settings.builtInModelID)]

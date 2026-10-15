@@ -103,11 +103,13 @@ final class ModelRoles: ObservableObject {
         let id: String
         let granite: GraniteSpeechModelConfiguration?
         let funASRNanoDirectory: String?
+        let remote: RemoteTranscriptionConfiguration?
 
         init(_ choice: TranscriptionModelChoice, _ settings: AppSettings) {
             id = choice.id
             granite = choice == .graniteSpeech ? settings.graniteSpeechModel : nil
             funASRNanoDirectory = choice == .funASRNano ? settings.funASRNanoModelDirectory : nil
+            remote = choice == .remoteServer ? settings.remoteTranscription : nil
         }
     }
 
@@ -169,7 +171,8 @@ final class ModelRoles: ObservableObject {
         self.downloadedTranscriptionModels = downloadedTranscriptionModels ?? { settings in
             TranscriptionModelStore.downloadedChoices(
                 graniteConfiguration: settings.graniteSpeechModel,
-                funASRNanoDirectory: settings.funASRNanoModelDirectory)
+                funASRNanoDirectory: settings.funASRNanoModelDirectory,
+                remoteTranscriptionReady: settings.remoteTranscription.isReady)
         }
         self.onReadinessChanged = onReadinessChanged
         downloadObserver = downloads.$progress

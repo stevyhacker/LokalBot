@@ -27,7 +27,7 @@ enum ModelPickerRole: String, Identifiable {
     }
     var detail: String {
         switch self {
-        case .transcription: "Turn meeting audio into text on this Mac."
+        case .transcription: "Turn meeting audio into text on this Mac or a server you choose."
         case .assistant: "Power summaries, Ask, and Agent."
         case .autocomplete: "Complete text as you type, using a model on this Mac."
         case .dictation: "Compose and rewrite spoken requests before insertion."
@@ -47,6 +47,8 @@ struct ModelSelectionPatch: Equatable {
     var transcription: TranscriptionModelChoice?
     var granite: GraniteSpeechModelConfiguration?
     var funASRNanoDirectory: String?
+    var remoteTranscriptionBaseURL: String?
+    var remoteTranscriptionModel: String?
     var language: TranscriptionLanguage?
     var backend: AppSettings.SummarizerBackend?
     var assistantModelID: String?
@@ -70,6 +72,8 @@ struct ModelSelectionPatch: Equatable {
         if let transcription { next.transcriptionModel = transcription }
         if let granite { next.graniteSpeechModel = granite }
         if let funASRNanoDirectory { next.funASRNanoModelDirectory = funASRNanoDirectory }
+        if let remoteTranscriptionBaseURL { next.remoteTranscriptionBaseURL = remoteTranscriptionBaseURL }
+        if let remoteTranscriptionModel { next.remoteTranscriptionModel = remoteTranscriptionModel }
         if let language { next.transcriptionLanguage = language }
         if let backend { next.summarizerBackend = backend }
         if let assistantModelID { next.builtInModelID = assistantModelID }
@@ -87,6 +91,8 @@ struct ModelSelectionPatch: Equatable {
             transcription: transcription.map { _ in settings.transcriptionModel },
             granite: granite.map { _ in settings.graniteSpeechModel },
             funASRNanoDirectory: funASRNanoDirectory.map { _ in settings.funASRNanoModelDirectory },
+            remoteTranscriptionBaseURL: remoteTranscriptionBaseURL.map { _ in settings.remoteTranscriptionBaseURL },
+            remoteTranscriptionModel: remoteTranscriptionModel.map { _ in settings.remoteTranscriptionModel },
             language: language.map { _ in settings.transcriptionLanguage },
             backend: backend.map { _ in settings.summarizerBackend },
             assistantModelID: assistantModelID.map { _ in settings.builtInModelID },
@@ -191,7 +197,7 @@ enum ModelSettingsPresentation {
 
     static func setupLocation(_ settings: AppSettings) -> String {
         switch InferencePresentation(settings: settings) {
-        case .onDevice: "On this Mac"
+        case .onDevice: settings.transcriptionPresentation.isRemote ? "On-device + remote" : "On this Mac"
         case .remote: "On-device + remote"
         case .blocked: "Connection needs attention"
         }
@@ -270,7 +276,7 @@ enum ModelSettingsPresentation {
         case .whisperLarge: 1_600_000_000
         case .graniteSpeech:
             safeCombinedBytes(granite.model.sizeBytes, granite.projector.sizeBytes)
-        case .cohere, .senseVoice, .gigaamRussian, .funASRNano: nil
+        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .remoteServer: nil
         }
     }
 

@@ -75,7 +75,12 @@ struct ModelChecksSheet: View {
     }
 
     private var disclosure: String {
-        InferencePresentation(settings: app.settings).detail(
+        if case .remote(let host) = app.settings.transcriptionPresentation {
+            return InferencePresentation(settings: app.settings).detail(
+                local: "The Transcribe check sends a built-in spoken sample to \(host). Other checks run on this Mac. No meeting, screen, or clipboard content is used.",
+                remote: "Think sends a short sample prompt to your approved server, and the Transcribe check sends a built-in spoken sample to \(host). Autocomplete is checked on this Mac.")
+        }
+        return InferencePresentation(settings: app.settings).detail(
             local: "Sample audio and text are processed on this Mac. No meeting, screen, or clipboard content is used.",
             remote: "Think sends a short sample prompt to your approved server. Transcription and autocomplete are checked on this Mac.")
     }

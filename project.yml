@@ -158,12 +158,14 @@ targetTemplates:
         CFBundleVersion: "52"
         NSMicrophoneUsageDescription: >-
           LokalBot records your side of meetings from the microphone.
-          Audio stays on this Mac; transcript text is sent off-device only if
-          you explicitly approve a remote inference server.
+          Audio stays on this Mac unless you approve a transcription server;
+          transcript text is sent off-device only if you explicitly approve a
+          remote inference server.
         NSAudioCaptureUsageDescription: >-
           LokalBot records the meeting app's audio output so the other
-          participants are captured. Audio stays on this Mac; transcript text
-          is sent off-device only if you explicitly approve a remote server.
+          participants are captured. Audio stays on this Mac unless you
+          approve a transcription server; transcript text is sent off-device
+          only if you explicitly approve a remote server.
         NSCalendarsFullAccessUsageDescription: >-
           LokalBot reads your calendar to confirm meetings and title
           recordings, and uses attendee names and emails to suggest speaker

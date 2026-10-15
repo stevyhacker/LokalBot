@@ -47,13 +47,13 @@
 		</dict>
 	</dict>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>LokalBot records the meeting app's audio output so the other participants are captured. Audio stays on this Mac; transcript text is sent off-device only if you explicitly approve a remote server.</string>
+	<string>LokalBot records the meeting app's audio output so the other participants are captured. Audio stays on this Mac unless you approve a transcription server; transcript text is sent off-device only if you explicitly approve a remote server.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>LokalBot reads your calendar to confirm meetings and title recordings, and uses attendee names and emails to suggest speaker labels. Emails stay in local meeting metadata. Approved remote inference servers may receive meeting titles and chosen display names as context, but never attendee emails.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>LokalBot connects to inference servers you add on your own network, such as a model server on another computer, only after you approve each one. Nothing is sent to other devices otherwise.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>LokalBot records your side of meetings from the microphone. Audio stays on this Mac; transcript text is sent off-device only if you explicitly approve a remote inference server.</string>
+	<string>LokalBot records your side of meetings from the microphone. Audio stays on this Mac unless you approve a transcription server; transcript text is sent off-device only if you explicitly approve a remote inference server.</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUFeedURL</key>

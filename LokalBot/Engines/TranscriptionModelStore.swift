@@ -44,21 +44,26 @@ struct TranscriptionModelStore {
     static func downloadedChoices(
         environment: Environment = .live,
         graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
-        funASRNanoDirectory: String = ""
+        funASRNanoDirectory: String = "",
+        remoteTranscriptionReady: Bool = false
     ) -> Set<String> {
         Set(TranscriptionModelChoice.allCases.filter {
             isDownloaded(
                 $0,
                 environment: environment,
                 graniteConfiguration: graniteConfiguration,
-                funASRNanoDirectory: funASRNanoDirectory)
+                funASRNanoDirectory: funASRNanoDirectory,
+                remoteTranscriptionReady: remoteTranscriptionReady)
         }.map(\.id))
     }
 
+    /// A transcription server has nothing on disk; it counts as available
+    /// once it is configured and approved (`RemoteTranscriptionConfiguration.isReady`).
     static func isDownloaded(_ choice: TranscriptionModelChoice,
                              environment: Environment = .live,
                              graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
-                             funASRNanoDirectory: String = "") -> Bool {
+                             funASRNanoDirectory: String = "",
+                             remoteTranscriptionReady: Bool = false) -> Bool {
         switch choice {
         case .parakeetUltra:
             return AsrModels.modelsExist(
@@ -103,6 +108,8 @@ struct TranscriptionModelStore {
             return onnxModelExists(model: .senseVoice, environment: environment)
         case .gigaamRussian:
             return onnxModelExists(model: .gigaamRussian, environment: environment)
+        case .remoteServer:
+            return remoteTranscriptionReady
         }
     }
 
@@ -154,6 +161,8 @@ struct TranscriptionModelStore {
         case .gigaamRussian:
             [onnxDirectory(folderName: "sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16",
                            environment: environment)]
+        case .remoteServer:
+            [] // Server settings are not an app-owned cache.
         }
     }
 

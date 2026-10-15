@@ -139,7 +139,12 @@ struct InferenceDisclosure: View {
     let remoteText: String
 
     init(settings: AppSettings, localText: String, remoteText: String) {
-        destination = InferencePresentation(settings: settings)
+        self.init(destination: InferencePresentation(settings: settings),
+                  localText: localText, remoteText: remoteText)
+    }
+
+    init(destination: InferencePresentation, localText: String, remoteText: String) {
+        self.destination = destination
         self.localText = localText
         self.remoteText = remoteText
     }

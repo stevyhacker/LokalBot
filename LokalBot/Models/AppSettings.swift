@@ -140,6 +140,15 @@ struct AppSettings: Codable, Equatable {
     var graniteSpeechModel = GraniteSpeechModelConfiguration.defaultModel
     /// User-owned sherpa-onnx model directory; never copied or deleted by the app.
     var funASRNanoModelDirectory: String = ""
+    /// The OpenAI-style speech-to-text server used when Transcribe is set to
+    /// a transcription server: a cloud provider or a server on another device.
+    var remoteTranscriptionBaseURL: String = ""
+    /// Empty sends no model field, for single-model servers such as whisper.cpp.
+    var remoteTranscriptionModel: String = ""
+    /// Origins the user approved to receive meeting, dictation, and live
+    /// preview audio. Separate from `approvedRemoteInferenceOrigins`:
+    /// approving a Think server never sends it audio.
+    var approvedRemoteTranscriptionOrigins: [String] = []
     var transcriptionLanguage: TranscriptionLanguage = .auto
     var transcriptionPrompt: String = ""
     /// Adds names LokalBot already knows (calendar attendees, names applied
@@ -161,9 +170,48 @@ struct AppSettings: Codable, Equatable {
     var speechSpeed: Double = 1.0
 
     var transcriptionModelDisplayName: String {
-        transcriptionModel == .graniteSpeech
-            ? graniteSpeechModel.displayName
-            : transcriptionModel.displayName
+        switch transcriptionModel {
+        case .graniteSpeech: graniteSpeechModel.displayName
+        case .remoteServer: remoteTranscription.displayName
+        default: transcriptionModel.displayName
+        }
+    }
+
+    var remoteTranscription: RemoteTranscriptionConfiguration {
+        RemoteTranscriptionConfiguration(
+            baseURL: remoteTranscriptionBaseURL,
+            model: remoteTranscriptionModel,
+            approvedOrigins: approvedRemoteTranscriptionOrigins)
+    }
+
+    /// Where the selected Transcribe model sends audio: this Mac for every
+    /// local model, otherwise the transcription server's host.
+    var transcriptionPresentation: InferencePresentation {
+        transcriptionModel.isRemote ? remoteTranscription.presentation : .onDevice
+    }
+
+    var remoteTranscriptionAPIKey: String {
+        get { KeychainSecrets.string(account: Self.remoteTranscriptionAPIKeyAccount) ?? "" }
+        set { KeychainSecrets.setString(newValue, account: Self.remoteTranscriptionAPIKeyAccount) }
+    }
+
+    static let remoteTranscriptionAPIKeyAccount = "remote-transcription-api-key"
+
+    /// The key sent with transcription requests: the transcription server's
+    /// own key, or, when none is saved and the server is the same origin as
+    /// Think's OpenAI-compatible connection, that connection's key, so one
+    /// OpenAI or OpenRouter key serves both. Never sent to another origin.
+    static func remoteTranscriptionRequestKey(transcriptionBaseURL: String,
+                                              thinkBaseURL: String,
+                                              ownKey: String,
+                                              thinkKey: () -> String) -> String {
+        guard ownKey.isEmpty else { return ownKey }
+        let transcription = RemoteTranscriptionConfiguration(
+            baseURL: transcriptionBaseURL, model: "", approvedOrigins: []).origin
+        let think = URL(string: thinkBaseURL.trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap(InferenceEndpointPolicy.origin(for:))
+        guard let transcription, transcription == think else { return "" }
+        return thinkKey()
     }
 
     func transcriptionEngine(
@@ -172,6 +220,17 @@ struct AppSettings: Codable, Equatable {
         let choice = choice ?? transcriptionModel
         if choice == .graniteSpeech {
             return GraniteSpeechEngine.configured(graniteSpeechModel)
+        }
+        if choice == .remoteServer {
+            let transcriptionBaseURL = remoteTranscriptionBaseURL
+            let thinkBaseURL = openAIBaseURL
+            return RemoteTranscriptionEngine(configuration: remoteTranscription, apiKey: {
+                Self.remoteTranscriptionRequestKey(
+                    transcriptionBaseURL: transcriptionBaseURL,
+                    thinkBaseURL: thinkBaseURL,
+                    ownKey: KeychainSecrets.string(account: Self.remoteTranscriptionAPIKeyAccount) ?? "",
+                    thinkKey: { KeychainSecrets.string(account: "openai-compatible-api-key") ?? "" })
+            })
         }
         if choice == .funASRNano { return FunASRNanoEngine(directory: funASRNanoModelDirectory) }
         return choice.engine
@@ -771,6 +830,9 @@ struct AppSettings: Codable, Equatable {
         case textSize
         case transcriptionModel
         case funASRNanoModelDirectory
+        case remoteTranscriptionBaseURL
+        case remoteTranscriptionModel
+        case approvedRemoteTranscriptionOrigins
         case graniteSpeechModel
         case transcriptionLanguage
         case languageHint // legacy key used by builds before typed language selection
@@ -960,6 +1022,9 @@ struct AppSettings: Codable, Equatable {
         try c.encode(textSize, forKey: .textSize)
         try c.encode(transcriptionModel, forKey: .transcriptionModel)
         try c.encode(funASRNanoModelDirectory, forKey: .funASRNanoModelDirectory)
+        try c.encode(remoteTranscriptionBaseURL, forKey: .remoteTranscriptionBaseURL)
+        try c.encode(remoteTranscriptionModel, forKey: .remoteTranscriptionModel)
+        try c.encode(approvedRemoteTranscriptionOrigins, forKey: .approvedRemoteTranscriptionOrigins)
         try c.encode(graniteSpeechModel, forKey: .graniteSpeechModel)
         try c.encode(transcriptionLanguage, forKey: .transcriptionLanguage)
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
@@ -1121,6 +1186,10 @@ struct AppSettings: Codable, Equatable {
         textSize = decode(.textSize, defaults.textSize)
         transcriptionModel = decode(.transcriptionModel, defaults.transcriptionModel)
         funASRNanoModelDirectory = decode(.funASRNanoModelDirectory, defaults.funASRNanoModelDirectory)
+        remoteTranscriptionBaseURL = decode(.remoteTranscriptionBaseURL, defaults.remoteTranscriptionBaseURL)
+        remoteTranscriptionModel = decode(.remoteTranscriptionModel, defaults.remoteTranscriptionModel)
+        approvedRemoteTranscriptionOrigins = decode(
+            .approvedRemoteTranscriptionOrigins, defaults.approvedRemoteTranscriptionOrigins)
         graniteSpeechModel = decode(.graniteSpeechModel, defaults.graniteSpeechModel)
         if c.contains(.transcriptionLanguage) {
             transcriptionLanguage = decode(.transcriptionLanguage, defaults.transcriptionLanguage)

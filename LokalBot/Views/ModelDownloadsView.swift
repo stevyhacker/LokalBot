@@ -52,7 +52,8 @@ struct ModelDownloadsView: View {
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
         TranscriptionModelChoice.allCases.filter { choice in
-            (roles.downloadedTranscriptionModelIDs.contains(choice.id)
+            // A transcription server has no files on this Mac to manage.
+            !choice.isRemote && (roles.downloadedTranscriptionModelIDs.contains(choice.id)
              || roles.transcriptionPreparations[choice.id] != nil || roles.transcriptionErrors[choice.id] != nil)
                 && matches(choice.displayName)
                 && (!unusedOnly || choice != app.settings.transcriptionModel)

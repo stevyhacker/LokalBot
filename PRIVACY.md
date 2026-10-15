@@ -231,6 +231,31 @@ The app may make these outbound connections:
   that it has no raw route; a request that fails or times out is not
   repeated. With OpenRouter, the provider data policy chosen for Think
   applies. The operator of that server controls its privacy terms.
+- **Optional transcription server:** Transcribe can use a speech-to-text
+  server you choose in Settings → Models → Transcribe, such as OpenAI, Groq,
+  OpenRouter, or whisper.cpp on another computer, instead of a model on this
+  Mac. It is off unless you select it. LokalBot then sends that server audio:
+  each meeting track as WAV clips of at most 30 seconds cut at pauses,
+  dictation recordings, the live preview while recording when you turn it on,
+  and the Transcribe model check's built-in spoken sample. Each clip carries
+  the model id, the language hint, and the transcription vocabulary, including
+  names added from your calendar, related meetings, and projects. The server
+  returns text; speaker separation, speech detection, echo cancellation, and
+  voice profiles still run on this Mac. A loopback server stays on your Mac.
+  Any other origin needs its own approval to receive audio, separate from the
+  Think server approval: approving one never approves the other. Internet
+  servers require HTTPS. A server on your own network (private and link-local
+  addresses, including USB networking, `.local` names, and Tailscale
+  `100.64.0.0/10` addresses or `.ts.net` names) may use plain HTTP, and
+  Settings warns that audio then crosses that network unencrypted. Requests
+  may redirect only within the approved origin. An API key you enter is kept
+  in the Keychain and sent only to that server; if you enter none and the
+  server's origin matches the Think OpenAI-compatible server, Think's key is
+  used. Once approved, recordings are transcribed automatically after each
+  meeting without a prompt each time. Revoking the approval in Settings →
+  Models, or choosing an on-device model, stops audio uploads; meetings then
+  wait for transcription. The operator of that server controls its privacy
+  terms and what it keeps.
 - **Optional subscription plans:** Think can run on your own ChatGPT or Claude
   plan instead of an API key. Each plan is set up and approved where you
   choose the Think model (Settings → Models → Think), separately from any

@@ -359,6 +359,12 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
     // MARK: - WAV writer (16 kHz mono 16-bit PCM, what sherpa-onnx expects)
 
     static func writeWav(_ samples: [Float], to url: URL) throws {
+        try wavData(samples).write(to: url, options: .atomic)
+    }
+
+    /// The same WAV in memory, for engines that upload a span instead of
+    /// handing a file to a local runtime.
+    static func wavData(_ samples: [Float]) -> Data {
         let rate = UInt32(sampleRate)
         let dataBytes = samples.count * 2
         func le32(_ v: UInt32) -> Data { withUnsafeBytes(of: v.littleEndian) { Data($0) } }
@@ -381,7 +387,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
             let clamped = max(-1, min(1, sample))
             data.append(le16(UInt16(bitPattern: Int16(clamped * 32767))))
         }
-        try data.write(to: url, options: .atomic)
+        return data
     }
 
     enum EngineError: LocalizedError {

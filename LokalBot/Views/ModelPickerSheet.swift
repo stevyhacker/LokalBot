@@ -26,6 +26,14 @@ struct ModelPickerSheet: View {
     @State private var funASRNanoDirectory: String
     @State private var folderError: String?
     @State private var granite: GraniteSpeechModelConfiguration
+    @State private var remoteTranscriptionURL: String
+    @State private var remoteTranscriptionModel: String
+    /// Typed key, saved to Keychain with Use model. Empty keeps the saved one.
+    @State private var remoteTranscriptionKey = ""
+    @State private var remoteTranscriptionKeySaved: Bool
+    /// Audio approval for the draft server's origin; applied with Use model,
+    /// so Cancel changes nothing.
+    @State private var remoteTranscriptionConsent: Bool
     @State private var query = ""
     @State private var installedOnly = false
     @State private var showingAdvanced = false
@@ -52,6 +60,11 @@ struct ModelPickerSheet: View {
         _claudeConsent = State(initialValue: SubscriptionPlan.claude.isApproved(in: settings))
         _funASRNanoDirectory = State(initialValue: settings.funASRNanoModelDirectory)
         _granite = State(initialValue: settings.graniteSpeechModel)
+        _remoteTranscriptionURL = State(initialValue: settings.remoteTranscriptionBaseURL)
+        _remoteTranscriptionModel = State(initialValue: settings.remoteTranscriptionModel)
+        _remoteTranscriptionKeySaved = State(initialValue: !settings.remoteTranscriptionAPIKey.isEmpty)
+        _remoteTranscriptionConsent = State(initialValue: settings.remoteTranscription.origin
+            .map { settings.approvedRemoteTranscriptionOrigins.contains($0) } ?? false)
     }
 
     private static func assignedID(for role: ModelPickerRole, in settings: AppSettings) -> String {
@@ -80,6 +93,29 @@ struct ModelPickerSheet: View {
             && funASRNanoDirectory.isEmpty && !app.settings.funASRNanoModelDirectory.isEmpty
     }
 
+    /// The server being set up, with its approval as the toggle stands.
+    private var remoteTranscriptionDraft: RemoteTranscriptionConfiguration {
+        var draft = RemoteTranscriptionConfiguration(
+            baseURL: remoteTranscriptionURL.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: remoteTranscriptionModel.trimmingCharacters(in: .whitespacesAndNewlines),
+            approvedOrigins: app.settings.approvedRemoteTranscriptionOrigins)
+        if let origin = draft.origin {
+            draft.approvedOrigins.removeAll { $0 == origin }
+            if remoteTranscriptionConsent { draft.approvedOrigins.append(origin) }
+        }
+        return draft
+    }
+
+    private var editsRemoteTranscription: Bool { role == .transcription && transcription == .remoteServer }
+
+    /// A new key or approval is worth applying even when the server and model
+    /// themselves are unchanged.
+    private var changesRemoteTranscriptionAccess: Bool {
+        editsRemoteTranscription
+            && (!remoteTranscriptionKey.isEmpty
+                || remoteTranscriptionDraft.approvedOrigins != app.settings.approvedRemoteTranscriptionOrigins)
+    }
+
     private var patch: ModelSelectionPatch {
         switch role {
         case .transcription:
@@ -89,6 +125,8 @@ struct ModelPickerSheet: View {
                 funASRNanoDirectory: transcription == .funASRNano
                     || (funASRNanoDirectory.isEmpty && !app.settings.funASRNanoModelDirectory.isEmpty)
                     ? funASRNanoDirectory : nil,
+                remoteTranscriptionBaseURL: transcription == .remoteServer ? remoteTranscriptionDraft.baseURL : nil,
+                remoteTranscriptionModel: transcription == .remoteServer ? remoteTranscriptionDraft.model : nil,
                 language: transcription == .graniteTurbo ? .en : nil)
         case .assistant:
             ModelSelectionPatch(
@@ -107,7 +145,7 @@ struct ModelPickerSheet: View {
 
     private var needsDownload: Bool {
         if role == .transcription {
-            if transcription == .funASRNano { return false }
+            if transcription == .funASRNano || transcription == .remoteServer { return false }
             return !TranscriptionModelStore.isDownloaded(transcription, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)
         }
         return patch.localModelIDs(in: app.settings).contains { id in
@@ -128,6 +166,10 @@ struct ModelPickerSheet: View {
         if clearsFunASRSelection { return nil }
         if role == .transcription, transcription == .funASRNano {
             do { _ = try FunASRNanoModel.load(directory: funASRNanoDirectory) } catch { return error.localizedDescription }
+            return nil
+        }
+        if editsRemoteTranscription {
+            do { _ = try remoteTranscriptionDraft.validatedEndpoint() } catch { return error.localizedDescription }
             return nil
         }
         guard role != .transcription, let selectedEntry else { return nil }
@@ -160,7 +202,12 @@ struct ModelPickerSheet: View {
 
     private var selectedName: String {
         switch role {
-        case .transcription: transcription == .graniteSpeech ? granite.displayName : transcription.displayName
+        case .transcription:
+            switch transcription {
+            case .graniteSpeech: granite.displayName
+            case .remoteServer: remoteTranscriptionDraft.displayName
+            default: transcription.displayName
+            }
         case .assistant: ModelSettingsPresentation.assistantName(patch.applying(to: app.settings))
         case .autocomplete: selectedEntry?.displayName ?? selectedID
         case .dictation: selectedID.isEmpty ? "Think for dictation" : selectedEntry?.displayName ?? selectedID
@@ -224,12 +271,14 @@ struct ModelPickerSheet: View {
                     .accessibilityIdentifier("models.picker.cancel")
                 Button(clearsFunASRSelection ? "Clear selection" : needsDownload ? "Download and use" : "Use model") {
                     approveSelectedPlan()
+                    applyRemoteTranscriptionAccess()
                     setup.apply(patch, title: selectedName)
                     dismiss()
                 }
                 .primaryActionButton()
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !approvesSelectedPlan))
+                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !approvesSelectedPlan
+                                        && !changesRemoteTranscriptionAccess))
                 .accessibilityIdentifier("models.picker.apply")
             }
             .padding(20)
@@ -278,8 +327,11 @@ struct ModelPickerSheet: View {
                             title: choice == .graniteSpeech ? granite.displayName : choice.displayName,
                             detail: transcriptionSize(choice),
                             inUse: choice == app.settings.transcriptionModel,
-                            available: TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
-                            progress: status.progress)
+                            available: TranscriptionModelStore.isDownloaded(
+                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory,
+                                remoteTranscriptionReady: remoteTranscriptionDraft.isReady),
+                            progress: status.progress,
+                            availableLabel: choice.isRemote ? "Set up" : "Downloaded")
                         .tag(choice.id)
                     }
                 } else {
@@ -323,7 +375,9 @@ struct ModelPickerSheet: View {
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
         TranscriptionModelChoice.allCases.filter { choice in
-            let downloaded = TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)
+            let downloaded = TranscriptionModelStore.isDownloaded(
+                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory,
+                remoteTranscriptionReady: remoteTranscriptionDraft.isReady)
             return (!choice.isLegacy || downloaded || choice == app.settings.transcriptionModel)
                 && (!installedOnly || downloaded)
                 && (query.isEmpty || "\(choice.displayName) \(choice.blurb)".localizedCaseInsensitiveContains(query))
@@ -332,6 +386,7 @@ struct ModelPickerSheet: View {
 
     private func transcriptionSize(_ choice: TranscriptionModelChoice) -> String {
         if choice == .funASRNano { return app.settings.appLanguage.localized("Local model folder") }
+        if choice == .remoteServer { return "No download · runs on your server or provider" }
         guard let bytes = ModelSettingsPresentation.estimatedTranscriptionBytes(choice, granite: granite) else {
             return "Download size varies"
         }
@@ -345,6 +400,7 @@ struct ModelPickerSheet: View {
                 .font(.scaled(.body)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if role == .transcription, transcription == .funASRNano { funASRFolderPicker }
+            if editsRemoteTranscription { remoteTranscriptionSetup }
             if let entry = selectedEntry, role != .transcription {
                 let fit = ModelFit.evaluate(modelSizeGB: entry.sizeGB, capability: HardwareCapabilityProbe.current())
                 if let advisory = fit.advisory {
@@ -430,6 +486,106 @@ struct ModelPickerSheet: View {
         } catch {
             folderError = error.localizedDescription
         }
+    }
+
+    private var remoteTranscriptionSetup: some View {
+        let draft = remoteTranscriptionDraft
+        return VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Server URL").font(.scaled(.body).weight(.medium))
+                TextField("https://api.openai.com/v1", text: $remoteTranscriptionURL)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("models.remoteTranscription.url")
+                Text("An OpenAI-style base URL, such as https://api.groq.com/openai/v1, https://openrouter.ai/api/v1, or http://my-pc.example.ts.net:8080/v1. For whisper.cpp's own server, end it with /inference.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                Text("Model ID").font(.scaled(.body).weight(.medium))
+                TextField("whisper-1, whisper-large-v3-turbo, openai/whisper-large-v3", text: $remoteTranscriptionModel)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("models.remoteTranscription.model")
+                Text("Leave empty for a server that runs a single model, such as whisper.cpp.")
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                Text("API key").font(.scaled(.body).weight(.medium))
+                HStack(spacing: 8) {
+                    SecureField(remoteTranscriptionKeySaved ? "Saved in Keychain" : "API key (optional)",
+                                text: $remoteTranscriptionKey)
+                        .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("models.remoteTranscription.apiKey")
+                    if remoteTranscriptionKeySaved {
+                        Button("Forget key") {
+                            app.settings.remoteTranscriptionAPIKey = ""
+                            remoteTranscriptionKeySaved = !app.settings.remoteTranscriptionAPIKey.isEmpty
+                            remoteTranscriptionKey = ""
+                            app.modelChecks.invalidate([.transcribe])
+                        }
+                        .accessibilityIdentifier("models.remoteTranscription.forgetKey")
+                    }
+                }
+                Text(remoteTranscriptionKeySaved
+                     ? "A key is saved in Keychain. Type a new one to replace it when you choose Use model."
+                     : "Saved in Keychain when you choose Use model. Without a key, a server at the same address as Think's connection uses Think's key.")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            remoteTranscriptionAccess(draft)
+        }
+        .font(.scaled(.callout))
+        .onChange(of: draft.origin) {
+            // An approval belongs to one origin. Show the saved choice for a
+            // newly entered server rather than carrying the toggle over.
+            remoteTranscriptionConsent = remoteTranscriptionDraft.origin
+                .map { app.settings.approvedRemoteTranscriptionOrigins.contains($0) } ?? false
+        }
+    }
+
+    @ViewBuilder
+    private func remoteTranscriptionAccess(_ draft: RemoteTranscriptionConfiguration) -> some View {
+        if let endpoint = draft.endpoint, let origin = draft.origin {
+            if InferenceEndpointPolicy.isLoopback(endpoint) {
+                Label("Server on this Mac: audio stays on this Mac.", systemImage: "checkmark.shield.fill")
+            } else if endpoint.scheme?.lowercased() != "https"
+                        && !InferenceEndpointPolicy.permitsUnencrypted(endpoint, allowsPrivateNetworkHTTP: true) {
+                Label("Blocked: a server outside your local network or tailnet must use HTTPS so audio is encrypted in transit.",
+                      systemImage: "lock.slash.fill")
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Audio leaves this Mac · \(endpoint.host ?? origin)", systemImage: "network")
+                        .font(.scaled(.body).weight(.semibold))
+                    Text("Meeting tracks, dictation, and live previews are sent to this server in short speech clips, with your vocabulary and, when that option is on, names LokalBot already knows. Finished meetings are sent automatically without asking each time. Speaker separation stays on this Mac.")
+                        .fixedSize(horizontal: false, vertical: true)
+                    if endpoint.scheme?.lowercased() != "https" {
+                        Label("Plain HTTP: audio crosses your network unencrypted unless the link encrypts it, as Tailscale does.",
+                              systemImage: "lock.open")
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Toggle("Allow sending audio to \(origin)", isOn: $remoteTranscriptionConsent)
+                        .accessibilityIdentifier("models.remoteTranscription.consent")
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: Brand.Radius.row))
+            }
+        } else if draft.isConfigured {
+            Label(RemoteTranscriptionError.invalidURL.localizedDescription, systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Saves the typed key and the audio approval for the chosen server. The
+    /// approval list is replaced as a whole so unchecking revokes the origin.
+    private func applyRemoteTranscriptionAccess() {
+        guard editsRemoteTranscription else { return }
+        let changedAccess = changesRemoteTranscriptionAccess
+        app.settings.approvedRemoteTranscriptionOrigins = remoteTranscriptionDraft.approvedOrigins
+        if !remoteTranscriptionKey.isEmpty {
+            app.settings.remoteTranscriptionAPIKey = remoteTranscriptionKey
+        }
+        if changedAccess { app.modelChecks.invalidate([.transcribe]) }
     }
 
     /// Only the list entry goes: the role assignments and downloaded file
@@ -664,10 +820,11 @@ private struct ModelChoiceRow: View {
     let available: Bool
     let progress: Double?
     var blocked = false
+    var availableLabel = "Downloaded"
 
     private var status: String {
         if inUse { return "In use" }
-        if available { return "Downloaded" }
+        if available { return availableLabel }
         return blocked ? "Needs re-adding" : "Available"
     }
 

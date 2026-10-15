@@ -41,6 +41,7 @@ struct ModelRemoteOverview: View {
     @ObservedObject var app: AppState
     let connections: () -> Void
     @State private var revokingOrigin: String?
+    @State private var revokingTranscriptionOrigin: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -72,6 +73,23 @@ struct ModelRemoteOverview: View {
                     if origin != app.settings.approvedRemoteInferenceOrigins.last { SettingsSeparator() }
                 }
             }
+            if !app.settings.approvedRemoteTranscriptionOrigins.isEmpty {
+                SettingsSeparator()
+                ForEach(app.settings.approvedRemoteTranscriptionOrigins, id: \.self) { origin in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Label(SubscriptionPlan.approvalDisplayName(origin), systemImage: "waveform")
+                                .textSelection(.enabled)
+                            Spacer()
+                            Button("Revoke…") { revokingTranscriptionOrigin = origin }
+                                .accessibilityLabel("Revoke audio access for \(SubscriptionPlan.approvalDisplayName(origin))")
+                        }
+                        Text("Transcription server. Receives meeting and dictation audio, the language hint, and transcription vocabulary, including automatic processing after meetings.")
+                            .font(.scaled(.callout)).settingsSecondary()
+                    }
+                    if origin != app.settings.approvedRemoteTranscriptionOrigins.last { SettingsSeparator() }
+                }
+            }
         }
         .padding(16).settingsPanel()
         .confirmationDialog("Revoke access to \(revokingOrigin.map(SubscriptionPlan.approvalDisplayName) ?? "this server")?",
@@ -84,6 +102,19 @@ struct ModelRemoteOverview: View {
             }
         } message: {
             Text("This also revokes scheduled processing for this origin. Any model using it will require approval again.")
+        }
+        .confirmationDialog(
+            "Stop sending audio to \(revokingTranscriptionOrigin.map(SubscriptionPlan.approvalDisplayName) ?? "this server")?",
+            isPresented: Binding(
+                get: { revokingTranscriptionOrigin != nil },
+                set: { if !$0 { revokingTranscriptionOrigin = nil } })) {
+            Button("Revoke Access", role: .destructive) {
+                guard let origin = revokingTranscriptionOrigin else { return }
+                app.settings.approvedRemoteTranscriptionOrigins.removeAll { $0 == origin }
+                revokingTranscriptionOrigin = nil
+            }
+        } message: {
+            Text("Meetings will wait for transcription until you approve this server again or choose a model on this Mac.")
         }
     }
 }

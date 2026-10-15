@@ -1052,10 +1052,24 @@ struct SettingsView: View {
                                  "delete", "prune", "forever", "keep", "local", "network",
                                  "data", "security", "agents", "mcp", "claude", "cli"]) {
                 Section("Where your data lives") {
-                    InferenceDisclosure(
-                        settings: app.settings,
-                        localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
-                        remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                    if case .remote(let host) = app.settings.transcriptionPresentation {
+                        if InferencePresentation(settings: app.settings) == .onDevice {
+                            InferenceDisclosure(
+                                destination: .remote(host: host),
+                                localText: "",
+                                remoteText: "Meeting and dictation audio is sent to your transcription server. Transcripts and captured context stay on this Mac. Other network access is limited to model downloads, updates, and optional Agent Mode setup.")
+                        } else {
+                            InferenceDisclosure(
+                                settings: app.settings,
+                                localText: "",
+                                remoteText: "Meeting and dictation audio is sent to your transcription server (\(host)). Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                        }
+                    } else {
+                        InferenceDisclosure(
+                            settings: app.settings,
+                            localText: "Audio, transcripts, and captured context stay on this Mac. Network access is limited to model downloads, updates, and optional Agent Mode setup.",
+                            remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
+                    }
                     storageLocationRow
                 }
                 Section("Screen memory retention") {

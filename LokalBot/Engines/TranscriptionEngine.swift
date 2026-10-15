@@ -40,6 +40,8 @@ private func downloadProgressHandler(
 /// (Parakeet, Qwen3-ASR, Whisper, Cohere) plus ONNX-runtime models for languages
 /// those cover poorly — SenseVoice (CJK) and GigaAM (Russian) — via the bundled
 /// sherpa-onnx engine. Fun-ASR-Nano uses a user-selected local ONNX folder.
+/// A transcription server sends audio to a user-configured, approved
+/// OpenAI-style endpoint instead (`RemoteTranscriptionEngine`).
 enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case parakeetUltra = "parakeet-ultra"
     case parakeetV3 = "parakeet-v3"
@@ -53,6 +55,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case senseVoice = "sense-voice"
     case gigaamRussian = "gigaam-russian"
     case cohere = "cohere-transcribe"
+    case remoteServer = "remote-server"
     var id: String { rawValue }
     static let recommended: Self = .qwenASR17B
 
@@ -61,6 +64,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     /// every language Cohere covers is served better by Granite/Qwen/Whisper,
     /// which add language detection, timestamps, and diarization support.
     var isLegacy: Bool { self == .cohere }
+
+    /// Runs on a server the user configures; nothing is downloaded.
+    var isRemote: Bool { self == .remoteServer }
 
     var displayName: String {
         switch self {
@@ -76,6 +82,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: "Fun-ASR-Nano-2512"
         case .senseVoice: "SenseVoice (Chinese/Japanese/Korean)"
         case .gigaamRussian: "GigaAM (Russian)"
+        case .remoteServer: "Transcription server"
         }
     }
 
@@ -97,7 +104,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
     var acceptsVocabularyPrompt: Bool {
         switch self {
-        case .whisperLarge, .qwenASR17B, .qwenASR06B: true
+        case .whisperLarge, .qwenASR17B, .qwenASR06B, .remoteServer: true
         default: false
         }
     }
@@ -123,6 +130,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: "Chinese · English · Japanese · local ONNX model folder"
         case .senseVoice: "Chinese · Japanese · Korean · Cantonese · English (ONNX, downloaded on first use)"
         case .gigaamRussian: "Russian — high accuracy (ONNX, downloaded on first use)"
+        case .remoteServer: "OpenAI-style speech-to-text on a server you choose: OpenAI, Groq, OpenRouter, or whisper.cpp on another device. Sends audio to that server."
         }
     }
 
@@ -140,6 +148,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: FunASRNanoEngine(directory: "")
         case .senseVoice: OnnxTranscriptionEngine.senseVoice
         case .gigaamRussian: OnnxTranscriptionEngine.gigaamRussian
+        // Needs the server settings: `AppSettings.transcriptionEngine(for:)`.
+        case .remoteServer: RemoteTranscriptionEngine(
+            configuration: .init(baseURL: "", model: "", approvedOrigins: []), apiKey: { "" })
         }
     }
 }

@@ -90,7 +90,8 @@ struct GettingStartedCard: View {
         }
         .onAppear {
             modelDownloaded = TranscriptionModelStore.downloadedChoices(
-                graniteConfiguration: app.settings.graniteSpeechModel)
+                graniteConfiguration: app.settings.graniteSpeechModel,
+                remoteTranscriptionReady: app.settings.remoteTranscription.isReady)
                 .contains(app.settings.transcriptionModel.id)
         }
     }
@@ -100,7 +101,9 @@ struct GettingStartedCard: View {
     /// transcription is harmless.
     @ViewBuilder private var modelStep: some View {
         if modelDownloaded {
-            Text("Transcription model ready — recaps run entirely on-device.")
+            Text(app.settings.transcriptionModel.isRemote
+                 ? "Transcription server ready."
+                 : "Transcription model ready — recaps run entirely on-device.")
         } else if preparingModel {
             HStack(spacing: 8) {
                 ProgressView(value: modelProgress).frame(width: 160)
