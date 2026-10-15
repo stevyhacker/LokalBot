@@ -20,6 +20,14 @@ enum CotypingBackend: String, Codable, CaseIterable, Identifiable, Sendable {
         case .server: "Another server"
         }
     }
+
+    var icon: String {
+        switch self {
+        case .onDevice: "desktopcomputer"
+        case .thinkServer: "server.rack"
+        case .server: "network"
+        }
+    }
 }
 
 /// How a server is asked for a continuation.
@@ -128,52 +136,36 @@ extension AppSettings {
                     ? ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines) : override
                 return cotypingServerRoute(
                     url: cotypingConfiguredServerURL, model: model, apiKey: nil,
-                    missingModel: "Choose a model for Think's Ollama server, or name one for autocomplete, under Settings → Writing.")
+                    missingModel: "Choose a model for Think's Ollama server, or name one for autocomplete, under Settings → Models.")
             case .openAICompatible:
                 let model = override.isEmpty
                     ? openAIModel.trimmingCharacters(in: .whitespacesAndNewlines) : override
                 return cotypingServerRoute(
                     url: cotypingConfiguredServerURL, model: model,
                     apiKey: includingCredentials ? openAIAPIKey : nil,
-                    missingModel: "Set a model for Think's server, or name one for autocomplete, under Settings → Writing.")
+                    missingModel: "Set a model for Think's server, or name one for autocomplete, under Settings → Models.")
             case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan:
-                return .unavailable("Think doesn't use a server. Choose another server for autocomplete, or run it on this Mac, under Settings → Writing.")
+                return .unavailable("Think doesn't use a server. Choose another server for autocomplete, or run it on this Mac, under Settings → Models.")
             }
         case .server:
             guard !cotypingServerBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                return .unavailable("Add a server URL for autocomplete under Settings → Writing.")
+                return .unavailable("Add a server URL for autocomplete under Settings → Models.")
             }
             return cotypingServerRoute(
                 url: cotypingConfiguredServerURL,
                 model: cotypingServerModel.trimmingCharacters(in: .whitespacesAndNewlines),
                 apiKey: includingCredentials ? cotypingServerAPIKey : nil,
-                missingModel: "Name the model autocomplete should use on this server under Settings → Writing.")
+                missingModel: "Name the model autocomplete should use on this server under Settings → Models.")
         }
     }
 
     /// True unless autocomplete's prompt stays on this Mac: the on-device
     /// model, or a server on a loopback address. A server that is not set up
-    /// yet counts as off this Mac, so nothing changes once it is.
+    /// yet counts as off this Mac.
     var cotypingLeavesThisMac: Bool {
         guard cotypingBackend != .onDevice else { return false }
         guard let url = cotypingConfiguredServerURL else { return true }
         return !InferenceEndpointPolicy.isLoopback(url)
-    }
-
-    /// Settings the autocomplete pipeline runs under. Off this Mac, the server
-    /// gets only the text before the caret, the app and window context, and
-    /// the writing profile: the clipboard, text read from the screen, saved
-    /// memory and learned examples stay local, so their grants are off here.
-    var cotypingEffectiveSettings: AppSettings {
-        guard cotypingLeavesThisMac else { return self }
-        var settings = self
-        settings.cotypingUseClipboard = false
-        settings.cotypingUseVisibleContext = false
-        settings.cotypingUseWindowText = false
-        settings.cotypingUseMeetingMemory = false
-        settings.cotypingUseScreenMemory = false
-        settings.cotypingUseLocalLearning = false
-        return settings
     }
 
     /// Model ID recorded with autocomplete statistics.
@@ -227,7 +219,7 @@ extension AppSettings {
         } catch InferenceEndpointPolicy.PolicyError.insecureRemoteEndpoint {
             return .unavailable("Autocomplete won't send typing to \(origin) unencrypted. Use HTTPS, or a server on this Mac or your own network.")
         } catch InferenceEndpointPolicy.PolicyError.remoteApprovalRequired {
-            return .unavailable("Approve \(origin) for autocomplete under Settings → Writing before anything you type is sent there.")
+            return .unavailable("Approve \(origin) for autocomplete under Settings → Models before anything you type is sent there.")
         } catch {
             return .unavailable("The autocomplete server URL must start with http:// or https://.")
         }
@@ -241,6 +233,82 @@ extension AppSettings {
             requestStyle: cotypingServerRequestStyle,
             openRouterDataPolicy: openRouterDataPolicy,
             origin: origin))
+    }
+}
+
+/// Where autocomplete runs, as edited in the Models picker. Applied with Use
+/// model, so Cancel changes nothing.
+struct CotypingServerDraft: Equatable {
+    var backend: CotypingBackend
+    var baseURL: String
+    var model: String
+    var thinkServerModel: String
+    var requestStyle: CotypingServerRequestStyle
+    /// A typed key for `.server`, saved to Keychain with Use model. Empty
+    /// keeps the saved one.
+    var apiKey = ""
+    /// Typing approval for the draft server's origin.
+    var approved = false
+
+    init(settings: AppSettings) {
+        backend = settings.cotypingBackend
+        baseURL = settings.cotypingServerBaseURL
+        model = settings.cotypingServerModel
+        thinkServerModel = settings.cotypingThinkServerModel
+        requestStyle = settings.cotypingServerRequestStyle
+        approved = savedApproval(in: settings)
+    }
+
+    /// The settings change Use model makes. The on-device model is assigned
+    /// only when autocomplete runs on this Mac, so a server needs no download.
+    func patch(onDeviceModelID: String) -> ModelSelectionPatch {
+        var patch = ModelSelectionPatch(cotypingBackend: backend)
+        switch backend {
+        case .onDevice:
+            patch.autocompleteModelID = onDeviceModelID
+        case .thinkServer:
+            patch.cotypingThinkServerModel = thinkServerModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            patch.cotypingServerRequestStyle = requestStyle
+        case .server:
+            patch.cotypingServerBaseURL = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            patch.cotypingServerModel = model.trimmingCharacters(in: .whitespacesAndNewlines)
+            patch.cotypingServerRequestStyle = requestStyle
+        }
+        return patch
+    }
+
+    /// The draft server's URL, before approval checks.
+    func serverURL(in settings: AppSettings) -> URL? {
+        patch(onDeviceModelID: settings.cotypingBuiltInModelID).applying(to: settings).cotypingConfiguredServerURL
+    }
+
+    /// The origin the approval belongs to. Nil on this Mac, where nothing
+    /// leaves it and nothing needs approving.
+    func origin(in settings: AppSettings) -> String? {
+        guard let url = serverURL(in: settings), !InferenceEndpointPolicy.isLoopback(url) else { return nil }
+        return InferenceEndpointPolicy.origin(for: url)
+    }
+
+    /// The saved approval for the draft's origin.
+    func savedApproval(in settings: AppSettings) -> Bool {
+        guard let origin = self.origin(in: settings) else { return false }
+        return settings.approvedRemoteAutocompleteOrigins.contains(origin)
+    }
+
+    /// Approved origins with the draft's approval as the checkbox stands.
+    func approvedOrigins(in settings: AppSettings) -> [String] {
+        var origins = settings.approvedRemoteAutocompleteOrigins
+        guard let origin = self.origin(in: settings) else { return origins }
+        origins.removeAll { $0 == origin }
+        if approved { origins.append(origin) }
+        return origins
+    }
+
+    /// Where completions would go with this draft applied. The key is not read.
+    func route(in settings: AppSettings) -> CotypingRoute {
+        var target = patch(onDeviceModelID: settings.cotypingBuiltInModelID).applying(to: settings)
+        target.approvedRemoteAutocompleteOrigins = approvedOrigins(in: settings)
+        return target.cotypingRoute(includingCredentials: false)
     }
 }
 

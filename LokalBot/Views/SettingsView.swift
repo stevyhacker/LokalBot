@@ -325,22 +325,21 @@ struct SettingsView: View {
     @ViewBuilder private var cotypingSection: some View {
         if shows("Autocomplete", ["cotyping", "autocomplete", "suggestion", "suggestions",
                               "length", "words", "max words", "ghost", "inline",
-                              "completion", "typing", "server", "remote", "cloud",
-                              "openrouter", "tailscale", "api key"]) {
+                              "completion", "typing", "server"]) {
             Section("Autocomplete") {
-                Picker(selection: $app.settings.cotypingBackend) {
-                    ForEach(CotypingBackend.allCases) { Text(LocalizedStringKey($0.title)).tag($0) }
-                } label: {
-                    SettingsLabel("Run autocomplete",
-                                  help: "On this Mac by default. Think's server, or any other server you choose, such as a hosted API or a model server on another computer, can run it instead.")
-                }
-                .settingTarget("settings.cotypingBackend", selected: app.focusedSettingID)
-                if app.settings.cotypingBackend == .onDevice {
-                    LabeledContent("Autocomplete model") {
-                        Button("Manage in Models…") { app.openSettings(tab: .models) }
+                LabeledContent("Autocomplete model") {
+                    HStack(spacing: 10) {
+                        Text(app.settings.cotypingModelDisplayName)
+                            .settingsSecondary()
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        // The model, or a server, is chosen in the Models picker.
+                        Button("Change…") {
+                            app.openSettings(tab: .models)
+                            app.focusedSettingID = "settings.cotypingBuiltInModelID"
+                        }
+                        .accessibilityIdentifier("settings.cotypingModel.change")
                     }
-                } else {
-                    CotypingServerSettingsView(app: app)
                 }
                 Stepper("Suggestion length: up to \(app.settings.cotypingMaxWords) words",
                         value: $app.settings.cotypingMaxWords, in: 2...50)
@@ -384,9 +383,8 @@ struct SettingsView: View {
             }
             Section("Context") {
                 let context = cotypingContext
-                if app.settings.cotypingLeavesThisMac {
-                    Label("Autocomplete uses a server off this Mac, so the clipboard, text read from the screen, memory, and learned text are not used.",
-                          systemImage: "lock.shield")
+                if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
+                    Label("Context you turn on here is sent to \(host) with what you type.", systemImage: "network")
                         .settingsSecondary()
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -1071,6 +1069,12 @@ struct SettingsView: View {
                             remoteText: "Audio stays on this Mac. Transcripts and approved context may be sent to your remote Think model (\(app.settings.summarizerBackend.displayName)). Other network access is for models, updates, and optional Agent Mode setup.")
                     }
                     storageLocationRow
+                    if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
+                        Label("Autocomplete also sends what you type, with the context you turn on under Writing, to \(host).",
+                              systemImage: "network")
+                            .settingsSecondary()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Section("Screen memory retention") {
                     RetentionSettingsControls()

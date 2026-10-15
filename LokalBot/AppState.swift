@@ -212,7 +212,6 @@ final class AppState: ObservableObject {
             || old.excludedScreenDomains != new.excludedScreenDomains
             || old.cotypingUseMeetingMemory != new.cotypingUseMeetingMemory
             || old.cotypingUseScreenMemory != new.cotypingUseScreenMemory
-            || old.cotypingLeavesThisMac != new.cotypingLeavesThisMac
     }
 
     private static func cotypingRuntimeChanged(from old: AppSettings, to new: AppSettings) -> Bool {
@@ -771,8 +770,7 @@ final class AppState: ObservableObject {
         storage: storage)
     private(set) lazy var cotyping = CotypingCoordinator(
         engine: cotypingEngine,
-        // Context that stays on this Mac is withheld from a server elsewhere.
-        settingsProvider: { [store = settingsStore] in store.current.cotypingEffectiveSettings },
+        settingsProvider: { [store = settingsStore] in store.current },
         learningStore: cotypingLearning,
         memoryContextProvider: { [weak self] field, settings in
             guard let self, self.libraryReady,

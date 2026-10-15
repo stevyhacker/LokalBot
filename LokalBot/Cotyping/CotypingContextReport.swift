@@ -81,12 +81,8 @@ struct CotypingContextAvailability: Equatable, Sendable {
         screenMemory = Self.screenMemoryState(settings: settings, inventory: inventory)
     }
 
-    /// Screen text, saved memory and the clipboard never go to a server off this Mac.
-    static let pausedForServer = "Paused: autocomplete uses a server off this Mac, and this context stays on this Mac."
-
     private static func visibleTextState(settings: AppSettings, accessibilityGranted: Bool) -> State {
         guard settings.cotypingUseVisibleContext else { return .off }
-        guard !settings.cotypingLeavesThisMac else { return .unavailable(pausedForServer) }
         guard settings.cotypingEnabled else {
             return .unavailable("Unavailable: autocomplete is off.")
         }
@@ -99,7 +95,6 @@ struct CotypingContextAvailability: Equatable, Sendable {
     private static func windowTextState(settings: AppSettings, accessibilityGranted: Bool,
                                         screenRecordingGranted: Bool) -> State {
         guard settings.cotypingUseWindowText else { return .off }
-        guard !settings.cotypingLeavesThisMac else { return .unavailable(pausedForServer) }
         guard settings.cotypingEnabled else {
             return .unavailable("Unavailable: autocomplete is off.")
         }
@@ -114,7 +109,6 @@ struct CotypingContextAvailability: Equatable, Sendable {
 
     private static func meetingMemoryState(settings: AppSettings, inventory: Inventory) -> State {
         guard settings.cotypingUseMeetingMemory else { return .off }
-        guard !settings.cotypingLeavesThisMac else { return .unavailable(pausedForServer) }
         guard inventory.libraryReady else {
             return .unavailable("Unavailable: the library is still loading.")
         }
@@ -129,7 +123,6 @@ struct CotypingContextAvailability: Equatable, Sendable {
 
     private static func screenMemoryState(settings: AppSettings, inventory: Inventory) -> State {
         guard settings.cotypingUseScreenMemory else { return .off }
-        guard !settings.cotypingLeavesThisMac else { return .unavailable(pausedForServer) }
         guard inventory.libraryReady else {
             return .unavailable("Unavailable: the library is still loading.")
         }

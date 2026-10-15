@@ -211,17 +211,19 @@ The app may make these outbound connections:
   cancels pending scheduled work.
 - **Optional autocomplete server:** Autocomplete runs on this Mac unless you
   choose Think's server or another OpenAI-compatible server under Settings →
-  Writing. A server on a loopback address keeps your typing on this Mac. Any
-  other server receives typing only after you approve its exact origin for
-  autocomplete there; an approval for Think does not cover autocomplete, and
-  one for autocomplete does not cover Think. While you type where autocomplete
-  can suggest, each request sends the text before the caret, the window title
-  when **Use app and window context** is on, your writing profile (name,
-  style, languages, and notes), and the API key you configured. While the
-  server is off this Mac, the clipboard, visible text above the field,
-  focused-window text, meeting and work memory, screen-derived memory, and
-  learned examples are not used, whatever their settings say. Secure fields
-  and excluded apps and sites are never read. A server on the internet must
+  Models → Autocomplete. A server on a loopback address keeps your typing on
+  this Mac. Any other server receives typing only after you approve its exact
+  origin for autocomplete there; an approval for Think does not cover
+  autocomplete, and one for autocomplete does not cover Think. Choosing and
+  approving a server is your consent to send it what autocomplete uses, so
+  your Settings → Writing choices apply as set. While you type where
+  autocomplete can suggest, each request sends the text before the caret,
+  your writing profile (name, style, languages, and notes), the API key you
+  configured, and whichever of these you have turned on: the app and window
+  title, the clipboard, visible text above the field, focused-window text,
+  meeting and work memory, screen-derived memory, and learned examples.
+  Settings → Writing → Context names the server they go to. Secure fields and
+  excluded apps and sites are never read. A server on the internet must
   use HTTPS. A server on your own network (a private, link-local, or Tailscale
   address, or a `.local`, `.home.arpa`, `.ts.net`, or single-label name) may
   use plain HTTP once approved, and Settings warns that LokalBot does not
@@ -457,7 +459,7 @@ and excluded apps/sites do not enter the prompt, and private or incognito
 browser windows are never read. Unknown browser origins abstain. Shared capture exclusions and autocomplete exclusions both apply.
 This setting does not enable screen recording, screenshots, OCR, saved screen
 memory, or external access. Context is processed locally and held only in memory,
-and is used only while the completion model runs on this Mac;
+and leaves this Mac only inside requests to an autocomplete server you chose;
 context-grounded acceptances are excluded from saved learning. The setup preview
 never reads the screen: with this setting on, the rehearsal in Settings uses its
 own synthetic sample conversation as the nearby text. The nearby text is read
@@ -489,8 +491,9 @@ changed in the last few seconds, and lines that scrolled out of view can stay in
 use for up to a minute. The text is held in memory for the focused field only
 and forgotten when focus leaves it or moves to another field or window, or when
 this setting or an exclusion changes; a suggestion that used it is then
-discarded. It is never saved, sent, added to screen memory or used for local
-learning, and it is used only while the completion model runs on this Mac. Once the window has been
+discarded. It is never saved, added to screen memory or used for local
+learning, and it leaves this Mac only inside requests to an autocomplete server
+you chose. Once the window has been
 read, its text replaces the nearby Accessibility text above.
 
 Some fields, such as text areas in Chrome, do not report where the caret is.
@@ -506,7 +509,7 @@ field instead.
 
 Autocomplete has separate, off-by-default **Use meeting and work memory** and
 **Use screen-derived work memory** settings. When enabled, it can include up to
-two short, relevant facts from the last 90 days in its local completion prompt.
+two short, relevant facts from the last 90 days in its completion prompt.
 Meeting sources include current notes, summaries, and outcomes with saved
 corrections. With both relevant settings enabled, selected visible excerpts can
 also supply project names for this local lookup; of window text, only the 600
@@ -520,7 +523,8 @@ Overnight review off stops new reviews without withdrawing either grant;
 **Clear work memory** deletes the saved facts. Facts combining meeting and screen
 sources require both autocomplete grants. Unattributed legacy memories are
 excluded. This does not enable new capture, read raw screenshot pixels or OCR,
-grant external-agent access, or send the context to a remote model.
+or grant external-agent access, and the facts reach a remote model only inside
+requests to an autocomplete server you chose.
 
 A saved fact is used only when the writing is about it. Either the writing names
 the fact's source — at least half of the distinctive words of the meeting title

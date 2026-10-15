@@ -246,7 +246,7 @@ struct AutocompleteExperienceView: View {
         if usesServer {
             return modelReady
                 ? "The server is ready. Turn on autocomplete to start."
-                : "Finish setting up the autocomplete server below to try it."
+                : "Finish the server setup under Settings → Models to try it."
         }
         return modelReady
             ? "The model is ready. Turn on autocomplete to start."

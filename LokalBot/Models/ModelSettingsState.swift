@@ -29,7 +29,7 @@ enum ModelPickerRole: String, Identifiable {
         switch self {
         case .transcription: "Turn meeting audio into text on this Mac or a server you choose."
         case .assistant: "Power summaries, Ask, and Agent."
-        case .autocomplete: "Complete text as you type, using a model on this Mac."
+        case .autocomplete: "Complete text as you type, on this Mac or a server you choose."
         case .dictation: "Compose and rewrite spoken requests before insertion."
         }
     }
@@ -57,6 +57,11 @@ struct ModelSelectionPatch: Equatable {
     var chatGPTPlanModel: String?
     var claudePlanModel: String?
     var autocompleteModelID: String?
+    var cotypingBackend: CotypingBackend?
+    var cotypingServerBaseURL: String?
+    var cotypingServerModel: String?
+    var cotypingThinkServerModel: String?
+    var cotypingServerRequestStyle: CotypingServerRequestStyle?
     var dictationModelID: String?
 
     /// Clearing a path needs no runtime. Restoring it through Undo must still
@@ -82,6 +87,11 @@ struct ModelSelectionPatch: Equatable {
         if let chatGPTPlanModel { next.chatGPTPlanModel = chatGPTPlanModel }
         if let claudePlanModel { next.claudePlanModel = claudePlanModel }
         if let autocompleteModelID { next.cotypingBuiltInModelID = autocompleteModelID }
+        if let cotypingBackend { next.cotypingBackend = cotypingBackend }
+        if let cotypingServerBaseURL { next.cotypingServerBaseURL = cotypingServerBaseURL }
+        if let cotypingServerModel { next.cotypingServerModel = cotypingServerModel }
+        if let cotypingThinkServerModel { next.cotypingThinkServerModel = cotypingThinkServerModel }
+        if let cotypingServerRequestStyle { next.cotypingServerRequestStyle = cotypingServerRequestStyle }
         if let dictationModelID { next.dictationCompositionBuiltInModelID = dictationModelID }
         return next
     }
@@ -101,6 +111,11 @@ struct ModelSelectionPatch: Equatable {
             chatGPTPlanModel: chatGPTPlanModel.map { _ in settings.chatGPTPlanModel },
             claudePlanModel: claudePlanModel.map { _ in settings.claudePlanModel },
             autocompleteModelID: autocompleteModelID.map { _ in settings.cotypingBuiltInModelID },
+            cotypingBackend: cotypingBackend.map { _ in settings.cotypingBackend },
+            cotypingServerBaseURL: cotypingServerBaseURL.map { _ in settings.cotypingServerBaseURL },
+            cotypingServerModel: cotypingServerModel.map { _ in settings.cotypingServerModel },
+            cotypingThinkServerModel: cotypingThinkServerModel.map { _ in settings.cotypingThinkServerModel },
+            cotypingServerRequestStyle: cotypingServerRequestStyle.map { _ in settings.cotypingServerRequestStyle },
             dictationModelID: dictationModelID.map { _ in settings.dictationCompositionBuiltInModelID })
     }
 
@@ -169,7 +184,8 @@ enum ModelStackPreset: String, CaseIterable, Identifiable {
             transcription: transcription,
             backend: .builtIn,
             assistantModelID: mainModelID,
-            autocompleteModelID: autocompleteModelID)
+            autocompleteModelID: autocompleteModelID,
+            cotypingBackend: .onDevice)
     }
     static func matching(_ settings: AppSettings) -> Self? {
         allCases.first { $0.patch.matches(settings) }

@@ -57,6 +57,50 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: weights), Data([1, 2, 3]))
     }
 
+    func testAutocompleteServerIsChosenInTheModelPicker() throws {
+        try launch(approved: true)
+        let change = app.buttons["models.stack.change.type"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+
+        let catalog = app.descendants(matching: .any)["models.picker.catalog"]
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5), "Autocomplete opens on the models for this Mac")
+        app.buttons["models.picker.autocomplete.server"].click()
+
+        let url = app.textFields["models.autocompleteServer.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 5))
+        XCTAssertTrue(UITestHarness.waitUntil { !catalog.exists }, "The server setup must replace the model list")
+        let model = app.textFields["models.autocompleteServer.model"]
+        XCTAssertTrue(url.isHittable)
+        XCTAssertTrue(model.isHittable)
+        XCTAssertTrue(app.secureTextFields["models.autocompleteServer.apiKey"].isHittable)
+        let apply = app.buttons["models.picker.apply"]
+        XCTAssertFalse(apply.isEnabled, "A server needs a URL and a model")
+
+        url.click()
+        url.typeText("http://gpu-box.tail1234.ts.net:8080/v1")
+        model.click()
+        model.typeText("qwen3-1.7b")
+        let consent = app.checkBoxes["models.autocompleteServer.consent"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 5))
+        XCTAssertTrue(consent.isHittable)
+        XCTAssertEqual(consent.value as? Int, 0, "Entering a server must not approve sending it typing")
+        XCTAssertFalse(apply.isEnabled, "Typing needs its own approval")
+        consent.click()
+        XCTAssertTrue(UITestHarness.waitUntil { apply.isEnabled }, "An approved tailnet server can be used")
+        capture("models-autocomplete-server")
+
+        apply.click()
+        XCTAssertTrue(app.buttons["models.undo"].waitForExistence(timeout: 5))
+        UITestHarness.scrollTo(change, in: app, within: app.scrollViews["models.content"])
+        change.click()
+        XCTAssertTrue(url.waitForExistence(timeout: 5), "The picker reopens on the chosen server")
+        XCTAssertEqual(url.value as? String, "http://gpu-box.tail1234.ts.net:8080/v1")
+        app.buttons["models.picker.autocomplete.onDevice"].click()
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5), "On this Mac brings the model list back")
+        app.buttons["models.picker.cancel"].click()
+    }
+
     func testRemoteThinkEditorKeepsConsentExplicit() throws {
         try launch(approved: false)
         let configure = app.buttons["models.stack.change.think"]

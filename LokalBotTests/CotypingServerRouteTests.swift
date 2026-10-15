@@ -10,7 +10,6 @@ final class CotypingServerRouteTests: XCTestCase {
         XCTAssertEqual(settings.cotypingBackend, .onDevice)
         XCTAssertEqual(settings.cotypingRoute(includingCredentials: false), .onDevice)
         XCTAssertFalse(settings.cotypingLeavesThisMac)
-        XCTAssertEqual(settings.cotypingEffectiveSettings, settings)
         XCTAssertEqual(settings.cotypingRouteFingerprint, "on-device")
     }
 
@@ -122,8 +121,11 @@ final class CotypingServerRouteTests: XCTestCase {
         XCTAssertFalse(try endpoint("https://openrouter.ai/api/v1", .textCompletion).startsWithChat)
     }
 
-    func testServerOffThisMacGetsOnlyTheTextBeforeTheCaretAndTheProfile() {
+    /// Choosing a server is the user's consent: the context toggles apply as
+    /// set, the same as on this Mac.
+    func testAChosenServerGetsTheContextTheUserTurnedOn() {
         var settings = AppSettings()
+        settings.cotypingEnabled = true
         settings.cotypingUseAppContext = true
         settings.cotypingUseClipboard = true
         settings.cotypingUseVisibleContext = true
@@ -131,39 +133,29 @@ final class CotypingServerRouteTests: XCTestCase {
         settings.cotypingUseMeetingMemory = true
         settings.cotypingUseScreenMemory = true
         settings.cotypingUseLocalLearning = true
-        settings.cotypingUserName = "Ada"
+        let inventory = CotypingContextAvailability.Inventory(recentMeetings: 3, meetingFacts: 2, screenFacts: 2)
+        let onThisMac = CotypingContextAvailability(
+            settings: settings, accessibilityGranted: true, screenRecordingGranted: true, inventory: inventory)
+
         settings.cotypingBackend = .server
         settings.cotypingServerBaseURL = tailnetURL
+        settings.cotypingServerModel = "m"
+        settings.approvedRemoteAutocompleteOrigins = [tailnetOrigin]
         XCTAssertTrue(settings.cotypingLeavesThisMac)
-
-        let effective = settings.cotypingEffectiveSettings
-        XCTAssertFalse(effective.cotypingUseClipboard)
-        XCTAssertFalse(effective.cotypingUseVisibleContext)
-        XCTAssertFalse(effective.cotypingUseWindowText)
-        XCTAssertFalse(effective.cotypingUseMeetingMemory)
-        XCTAssertFalse(effective.cotypingUseScreenMemory)
-        XCTAssertFalse(effective.cotypingUseLocalLearning)
-        XCTAssertTrue(effective.cotypingUseAppContext)
-        XCTAssertEqual(effective.cotypingUserName, "Ada")
-        XCTAssertTrue(settings.cotypingUseWindowText, "the saved choice is kept for when autocomplete returns to this Mac")
-
-        let context = CotypingContextAvailability(
-            settings: settings, accessibilityGranted: true, screenRecordingGranted: true,
-            inventory: .init(recentMeetings: 3, meetingFacts: 2, screenFacts: 2))
-        XCTAssertEqual(context.visibleText, .unavailable(CotypingContextAvailability.pausedForServer))
-        XCTAssertEqual(context.windowText, .unavailable(CotypingContextAvailability.pausedForServer))
-        XCTAssertEqual(context.meetingMemory, .unavailable(CotypingContextAvailability.pausedForServer))
-        XCTAssertEqual(context.screenMemory, .unavailable(CotypingContextAvailability.pausedForServer))
+        let onServer = CotypingContextAvailability(
+            settings: settings, accessibilityGranted: true, screenRecordingGranted: true, inventory: inventory)
+        XCTAssertEqual(onServer, onThisMac)
+        guard case .available = onServer.visibleText, case .available = onServer.windowText,
+              case .available = onServer.meetingMemory, case .available = onServer.screenMemory else {
+            return XCTFail("Context the user turned on is used with the server they chose: \(onServer)")
+        }
     }
 
-    func testServerOnThisMacKeepsLocalContext() {
+    func testServerOnThisMacDoesNotLeaveIt() {
         var settings = AppSettings()
-        settings.cotypingUseClipboard = true
-        settings.cotypingUseWindowText = true
         settings.cotypingBackend = .server
         settings.cotypingServerBaseURL = "http://127.0.0.1:8080/v1"
         XCTAssertFalse(settings.cotypingLeavesThisMac)
-        XCTAssertEqual(settings.cotypingEffectiveSettings, settings)
     }
 
     func testUnfinishedServerSetupCountsAsLeavingTheMac() {
@@ -217,13 +209,89 @@ final class CotypingServerRouteTests: XCTestCase {
         XCTAssertEqual(unknown.cotypingServerRequestStyle, .automatic)
     }
 
-    func testSettingsSearchFindsTheServerSetting() {
-        XCTAssertTrue(SettingDescriptor.all.contains { $0.id == "settings.cotypingBackend" && $0.category == .writing })
+    @MainActor
+    func testSettingsSearchOpensTheAutocompletePicker() {
+        let server = SettingDescriptor.all.first { $0.id == "settings.cotypingBackend" }
+        XCTAssertEqual(server?.category, .models)
+        XCTAssertTrue(SettingDescriptor.search("tailscale").contains { $0.id == "settings.cotypingBackend" })
+        XCTAssertFalse(SettingDescriptor.all.contains { $0.id == "settings.cotypingServerBaseURL" },
+                       "The server fields live in the picker, found through one entry")
+    }
+
+    // MARK: Models picker
+
+    func testPickerSwitchesToAServerWithoutDownloadingAModel() {
         var settings = AppSettings()
-        let url = SettingDescriptor.all.first { $0.id == "settings.cotypingServerBaseURL" }
-        XCTAssertEqual(url?.focusTarget(in: settings), "settings.cotypingBackend")
+        var draft = CotypingServerDraft(settings: settings)
+        XCTAssertEqual(draft.backend, .onDevice)
+        XCTAssertEqual(draft.patch(onDeviceModelID: "m").autocompleteModelID, "m")
+
+        draft.backend = .server
+        draft.baseURL = " \(tailnetURL) "
+        draft.model = "qwen"
+        let patch = draft.patch(onDeviceModelID: settings.cotypingBuiltInModelID)
+        XCTAssertNil(patch.autocompleteModelID)
+        XCTAssertTrue(patch.localModelIDs(in: settings).isEmpty)
+        XCTAssertEqual(draft.origin(in: settings), tailnetOrigin)
+        XCTAssertFalse(draft.approved, "Entering a server does not approve it")
+        guard case .unavailable = draft.route(in: settings) else { return XCTFail("An unapproved server must not be usable") }
+
+        draft.approved = true
+        XCTAssertEqual(draft.approvedOrigins(in: settings), [tailnetOrigin])
+        guard case .server(let endpoint) = draft.route(in: settings) else { return XCTFail("An approved server is usable") }
+        XCTAssertEqual(endpoint.model, "qwen")
+
+        let previous = patch.inverse(in: settings)
+        settings = patch.applying(to: settings)
+        settings.approvedRemoteAutocompleteOrigins = draft.approvedOrigins(in: settings)
+        XCTAssertEqual(settings.cotypingBackend, .server)
+        XCTAssertEqual(settings.cotypingServerBaseURL, tailnetURL)
+        XCTAssertEqual(settings.cotypingRoute(includingCredentials: false), .server(endpoint))
+        XCTAssertEqual(previous.applying(to: settings).cotypingBackend, .onDevice, "Undo returns to this Mac")
+    }
+
+    func testPickerApprovalBelongsToOneOrigin() {
+        var settings = AppSettings()
         settings.cotypingBackend = .server
-        XCTAssertEqual(url?.focusTarget(in: settings), "settings.cotypingServerBaseURL")
+        settings.cotypingServerBaseURL = tailnetURL
+        settings.approvedRemoteAutocompleteOrigins = [tailnetOrigin]
+        var draft = CotypingServerDraft(settings: settings)
+        XCTAssertTrue(draft.approved)
+
+        draft.baseURL = "https://openrouter.ai/api/v1"
+        XCTAssertFalse(draft.savedApproval(in: settings))
+        draft.approved = false
+        XCTAssertEqual(draft.approvedOrigins(in: settings), [tailnetOrigin])
+
+        draft.baseURL = "http://127.0.0.1:8080/v1"
+        draft.model = "m"
+        XCTAssertNil(draft.origin(in: settings), "Nothing to approve on this Mac")
+        guard case .server = draft.route(in: settings) else { return XCTFail("A server on this Mac needs no approval") }
+    }
+
+    func testPickerUsesThinksServerWithAnotherModel() {
+        var settings = AppSettings()
+        settings.summarizerBackend = .ollama
+        settings.ollamaBaseURL = "http://gpu-box.tail1234.ts.net:11434"
+        settings.ollamaModel = "qwen3:8b"
+        var draft = CotypingServerDraft(settings: settings)
+        draft.backend = .thinkServer
+        draft.thinkServerModel = " qwen3:1.7b "
+        let patch = draft.patch(onDeviceModelID: settings.cotypingBuiltInModelID)
+        XCTAssertEqual(patch.cotypingThinkServerModel, "qwen3:1.7b")
+        XCTAssertNil(patch.cotypingServerBaseURL)
+        XCTAssertEqual(draft.origin(in: settings), "http://gpu-box.tail1234.ts.net:11434")
+        draft.approved = true
+        guard case .server(let endpoint) = draft.route(in: settings) else { return XCTFail("Think's approved server is usable") }
+        XCTAssertEqual(endpoint.model, "qwen3:1.7b")
+    }
+
+    func testLocalPresetsBringAutocompleteBackToThisMac() {
+        var settings = ModelStackPreset.recommended.patch.applying(to: AppSettings())
+        XCTAssertEqual(ModelStackPreset.matching(settings), .recommended)
+        settings.cotypingBackend = .server
+        XCTAssertNil(ModelStackPreset.matching(settings))
+        XCTAssertEqual(ModelStackPreset.lightweight.patch.applying(to: settings).cotypingBackend, .onDevice)
     }
 
     // MARK: Helpers
