@@ -121,15 +121,29 @@ enum RemoteTranscriptionError: LocalizedError, Equatable {
     }
 }
 
-/// Transcribes through a `RemoteTranscriptionConfiguration`. Each track is
-/// split into speech spans of at most 30 seconds (whole VAD regions when they
-/// are shorter), and each span is uploaded as a 16 kHz WAV of about 1 MB, so
-/// long meetings stay far below provider upload limits (25 MB) and per-request
-/// timeouts (60 s upstream at OpenRouter). Segments carry span timing, so
-/// speaker regions attribute the same way as Granite and Cohere; word-level
-/// timing is not requested because several providers reject it.
+/// Transcribes through a `RemoteTranscriptionConfiguration`. Neighbouring
+/// speech is packed into windows (`lineWindows`, or `attributionWindows`
+/// before word attribution), and each window is uploaded as a 16 kHz WAV of at
+/// most about 1 MB, so long meetings stay far below provider upload limits
+/// (25 MB) and per-request timeouts (60 s upstream at OpenRouter). Speaker
+/// turns are attributed after transcription with forced-aligned words, as for
+/// Qwen3-ASR: cutting the audio at every turn sent each turn as its own
+/// request, one after another, without the context around it.
+/// Word-level timing is not requested because several providers reject it.
 struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
-    static let maxSegmentSeconds = 30.0
+    /// How neighbouring VAD spans are packed into one request.
+    struct Windowing: Equatable, Sendable {
+        var maxSeconds: TimeInterval
+        var maxGapSeconds: TimeInterval
+    }
+
+    /// Plain transcription (no speaker turns, or the speaker-region fallback):
+    /// one request and one transcript line per window, short enough for the
+    /// speaker-bleed filter to compare (`SpeakerBleedFilter`).
+    static let lineWindows = Windowing(maxSeconds: 15, maxGapSeconds: 2)
+    /// Before word attribution: longer windows give the model more context
+    /// and need fewer requests; the aligner splits them at turns and pauses.
+    static let attributionWindows = Windowing(maxSeconds: 30, maxGapSeconds: 3)
     /// OpenAI rejects audio shorter than 0.1 s, and such slivers hold no words.
     static let minimumSpanSamples = SpeechActivity.spanSampleRate / 10
     static let maximumConcurrentRequests = 3
@@ -147,6 +161,7 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
 
     var displayName: String { configuration.displayName }
     var supportsStreaming: Bool { false }
+    var speakerAttribution: SpeakerAttributionStrategy { .alignedWords }
     var checkpointIdentity: String {
         "remote:\(configuration.endpoint?.absoluteString ?? configuration.baseURL)|\(configuration.trimmedModel)"
     }
@@ -164,12 +179,28 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
     }
 
     func transcribe(audio url: URL, language: String?, prompt: String?) async throws -> Transcript {
+        try await transcribe(audio: url, language: language, prompt: prompt, windowing: Self.lineWindows)
+    }
+
+    func transcribeForWordAttribution(audio url: URL, language: String?, prompt: String?) async throws -> Transcript {
+        try await transcribe(audio: url, language: language, prompt: prompt, windowing: Self.attributionWindows)
+    }
+
+    /// VAD spans packed into request windows. A pause longer than the gap,
+    /// or a window that would outgrow the limit, starts a new window.
+    static func windows(in spans: [SpeechSpan], _ windowing: Windowing) -> [SpeechSpan] {
+        QwenASREngine.merged(spans, maxGap: windowing.maxGapSeconds, maxLength: windowing.maxSeconds)
+    }
+
+    private func transcribe(audio url: URL, language: String?, prompt: String?,
+                            windowing: Windowing) async throws -> Transcript {
         let endpoint = try configuration.validatedEndpoint()
         let key = apiKey()
         let model = configuration.trimmedModel
         let hint = TranscriptionPrompt.normalized(prompt)
         let started = Date()
-        let spans = try await SpeechActivity.shared.spans(in: url, maxSegmentSeconds: Self.maxSegmentSeconds)
+        let speech = try await SpeechActivity.shared.spans(in: url, maxSegmentSeconds: windowing.maxSeconds)
+        let spans = Self.windows(in: speech, windowing)
         let segments = try await Self.segments(
             in: url, spans: spans, maximumConcurrent: Self.maximumConcurrentRequests
         ) { wav in
@@ -179,7 +210,7 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         let elapsed = Date().timeIntervalSince(started)
         let duration = spans.last?.end ?? 0
         lokalbotLog(
-            "remote-asr profile origin=\(configuration.origin ?? "?") spans=\(spans.count) "
+            "remote-asr profile origin=\(configuration.origin ?? "?") speech=\(speech.count) requests=\(spans.count) "
                 + "elapsed=\(String(format: "%.2fs", elapsed)) "
                 + "rtfx=\(String(format: "%.1fx", elapsed > 0 ? duration / elapsed : 0))")
         return Transcript(segments: segments, engine: configuration.transcriptEngine)

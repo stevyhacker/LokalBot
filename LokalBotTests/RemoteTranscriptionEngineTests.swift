@@ -208,6 +208,25 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
                        "Transcription uses gpu-box.tail1234.ts.net. Think runs on this Mac. Autocomplete is also available.")
     }
 
+    func testCoreRolesShowWhereTheServerIs() {
+        var settings = AppSettings()
+        settings.transcriptionModel = .remoteServer
+        settings.remoteTranscriptionBaseURL = "https://openrouter.ai/api/v1"
+        settings.approvedRemoteTranscriptionOrigins = ["https://openrouter.ai"]
+        XCTAssertEqual(ModelSettingsPresentation.transcriptionServerDestination(settings), "OpenRouter · Remote")
+
+        settings.remoteTranscriptionBaseURL = "http://gpu-box.tail1234.ts.net:8080/v1"
+        XCTAssertEqual(ModelSettingsPresentation.transcriptionServerDestination(settings),
+                       "Connection needs attention")
+        settings.approvedRemoteTranscriptionOrigins.append("http://gpu-box.tail1234.ts.net:8080")
+        XCTAssertEqual(ModelSettingsPresentation.transcriptionServerDestination(settings),
+                       "gpu-box.tail1234.ts.net · Remote")
+
+        settings.remoteTranscriptionBaseURL = "http://127.0.0.1:8080/inference"
+        XCTAssertEqual(ModelSettingsPresentation.transcriptionServerDestination(settings),
+                       "On this Mac · Local server")
+    }
+
     // MARK: - Request
 
     func testRequestIsOpenAIStyleMultipart() throws {
@@ -327,6 +346,39 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
     }
 
     // MARK: - Spans
+
+    func testSpeakerTurnsAreAttributedAfterTranscription() {
+        let engine = RemoteTranscriptionEngine(
+            configuration: configuration("https://api.openai.com/v1"), apiKey: { "" })
+        // Cutting at every turn sent each sub-second fragment as its own request.
+        XCTAssertEqual(engine.speakerAttribution, .alignedWords)
+    }
+
+    func testNearbySpeechSharesOneRequest() {
+        let spans = [0.0, 1.5, 3.0].map { SpeechSpan(start: $0, end: $0 + 1, timingPrecision: .span) }
+            + [SpeechSpan(start: 10, end: 12, timingPrecision: .span)]
+
+        let lines = RemoteTranscriptionEngine.windows(in: spans, RemoteTranscriptionEngine.lineWindows)
+
+        XCTAssertEqual(lines.map(\.start), [0, 10], "A pause longer than the gap starts a new request")
+        XCTAssertEqual(lines.map(\.end), [4, 12])
+        XCTAssertEqual(lines.map(\.timingPrecision), [.span, .span])
+    }
+
+    func testWindowsStayWithinTheirLength() {
+        let spans = stride(from: 0.0, to: 120, by: 2).map {
+            SpeechSpan(start: $0, end: $0 + 1.5, timingPrecision: .span)
+        }
+        for windowing in [RemoteTranscriptionEngine.lineWindows, RemoteTranscriptionEngine.attributionWindows] {
+            let windows = RemoteTranscriptionEngine.windows(in: spans, windowing)
+            XCTAssertTrue(windows.allSatisfy { $0.end - $0.start <= windowing.maxSeconds })
+            XCTAssertLessThan(windows.count, spans.count / 3)
+            XCTAssertEqual(windows.first?.start, 0)
+            XCTAssertEqual(windows.last?.end, 119.5)
+        }
+        XCTAssertLessThanOrEqual(RemoteTranscriptionEngine.attributionWindows.maxSeconds, 30,
+                                 "Clips stay far below provider upload limits and timeouts")
+    }
 
     func testSpansUploadAsWavClipsAndKeepTheirTiming() async throws {
         let url = try writeTrack(seconds: 3)

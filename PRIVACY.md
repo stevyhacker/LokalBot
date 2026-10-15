@@ -161,9 +161,9 @@ The app may make these outbound connections:
   publisher's download host. Selected first-use models can download
   automatically; other downloads start when you request them.
   Nemotron speaker diarization, the default on fresh installs, downloads its
-  pinned CoreML model on first use. With Qwen3-ASR, speaker separation
-  also downloads a pinned Qwen3 forced aligner (about 1 GB) that times each word;
-  audio and speaker processing remain on this Mac. Remembering voices remains
+  pinned CoreML model on first use. With Qwen3-ASR or a transcription server,
+  speaker separation also downloads a pinned Qwen3 forced aligner (about 1 GB)
+  that times each word; alignment and speaker processing remain on this Mac. Remembering voices remains
   a separate opt-in and also uses the local Pyannote models.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
@@ -242,8 +242,8 @@ The app may make these outbound connections:
   and the Transcribe model check's built-in spoken sample. Each clip carries
   the model id, the language hint, and the transcription vocabulary, including
   names added from your calendar, related meetings, and projects. The server
-  returns text; speaker separation, speech detection, echo cancellation, and
-  voice profiles still run on this Mac. A loopback server stays on your Mac.
+  returns text; speaker separation, word timing, speech detection, echo
+  cancellation, and voice profiles still run on this Mac. A loopback server stays on your Mac.
   Any other origin needs its own approval to receive audio, separate from the
   Think server approval: approving one never approves the other. Internet
   servers require HTTPS. A server on your own network (private and link-local

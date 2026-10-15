@@ -299,6 +299,13 @@ private struct SidebarPrivacyFooter: View {
 
     private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
 
+    /// Think's server and the transcription server, each named once.
+    private var remoteHosts: [String] {
+        [destination, app.settings.transcriptionPresentation].reduce(into: [String]()) { hosts, presentation in
+            if case .remote(let host) = presentation, !hosts.contains(host) { hosts.append(host) }
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if app.currentMeeting != nil {
@@ -328,10 +335,10 @@ private struct SidebarPrivacyFooter: View {
                     Text("Storage: this Mac").font(.scaled(.callout).weight(.semibold))
                     HStack(spacing: 4) {
                         Text(processingLabel)
-                        if case .remote = destination { StatusDot(color: .orange, size: 5) }
+                        if !remoteHosts.isEmpty { StatusDot(color: .orange, size: 5) }
                     }
                     .font(.scaled(.subheadline)).workspaceSupportingForeground()
-                    if case .remote(let host) = destination {
+                    ForEach(remoteHosts, id: \.self) { host in
                         Text(host).font(.scaled(.subheadline)).workspaceSupportingForeground()
                     }
                 }
@@ -346,10 +353,7 @@ private struct SidebarPrivacyFooter: View {
     }
 
     private var processingLabel: String {
-        switch destination {
-        case .onDevice: "AI: on this Mac"
-        case .remote: "AI: local + remote"
-        case .blocked: "AI: connection blocked"
-        }
+        if case .blocked = destination { return "AI: connection blocked" }
+        return remoteHosts.isEmpty ? "AI: on this Mac" : "AI: local + remote"
     }
 }

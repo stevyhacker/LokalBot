@@ -22,7 +22,7 @@ enum DiarizationModel: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    private static let alignerNote = " With Qwen3-ASR, it also downloads a word aligner (about 1 GB) that matches each word to a voice."
+    private static let alignerNote = " With Qwen3-ASR or a transcription server, it also downloads a word aligner (about 1 GB) that matches each word to a voice."
 
     /// Invalidate partial transcripts when the model, weights, or turn policy changes.
     var checkpointIdentity: String {

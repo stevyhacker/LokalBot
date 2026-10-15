@@ -153,7 +153,7 @@ struct ModelStackOverviewView: View {
         HStack(spacing: 10) {
             Image(systemName: role.settingsIcon)
                 .font(.system(size: 19, weight: .regular)).frame(width: 30, height: 32)
-                .settingsModelIcon(role == .think ? InferencePresentation(settings: app.settings) : .onDevice)
+                .settingsModelIcon(presentation(of: role))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(LocalizedStringKey(role.settingsTitle)).font(.scaled(.body).weight(.semibold))
@@ -164,7 +164,7 @@ struct ModelStackOverviewView: View {
 
     private func modelSummary(_ role: ModelRole, model: String) -> some View {
         let status = snapshot[role]
-        let destination = role == .think ? InferencePresentation(settings: app.settings) : .onDevice
+        let destination = presentation(of: role)
         return VStack(alignment: .leading, spacing: 4) {
             Text(model).font(.scaled(.body).weight(.semibold)).textSelection(.enabled)
             Label(locationLabel(role, status: status), systemImage: destination.icon)
@@ -191,8 +191,11 @@ struct ModelStackOverviewView: View {
                     .lineLimit(2)
                     .accessibilityIdentifier("models.stack.status.\(role.rawValue)")
             } else if destination.isBlocked {
-                Button("Review Connection…", action: connections)
-                    .font(.scaled(.callout)).buttonStyle(.workspaceLink)
+                // The transcription server is set up in its own picker.
+                Button("Review Connection…") {
+                    if role == .transcribe { present(.transcription) } else { connections() }
+                }
+                .font(.scaled(.callout)).buttonStyle(.workspaceLink)
             } else if !status.isReady {
                 Label(status.label, systemImage: status.isWorking ? "arrow.down.circle" : "exclamationmark.circle")
                     .font(.scaled(.callout))
@@ -239,7 +242,19 @@ struct ModelStackOverviewView: View {
         }
     }
 
+    /// Where a role's model runs, for its icon and location badge.
+    private func presentation(of role: ModelRole) -> InferencePresentation {
+        switch role {
+        case .think: InferencePresentation(settings: app.settings)
+        case .transcribe: app.settings.transcriptionPresentation
+        case .autocomplete: .onDevice
+        }
+    }
+
     private func locationLabel(_ role: ModelRole, status: ModelRoleStatus) -> String {
+        if role == .transcribe, app.settings.transcriptionModel.isRemote {
+            return ModelSettingsPresentation.transcriptionServerDestination(app.settings)
+        }
         if role == .think {
             switch app.settings.summarizerBackend {
             case .builtIn: return status.isReady ? "On this Mac · Downloaded" : "On this Mac"

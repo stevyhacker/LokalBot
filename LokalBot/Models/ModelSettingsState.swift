@@ -206,9 +206,23 @@ enum ModelSettingsPresentation {
     static func destination(_ settings: AppSettings) -> String {
         switch InferencePresentation(settings: settings) {
         case .onDevice: "On this Mac"
-        case .remote(let host): host == "openrouter.ai" ? "OpenRouter · Remote" : "\(host) · Remote"
+        case .remote(let host): remote(host)
         case .blocked: "Connection needs attention"
         }
+    }
+
+    /// Where the selected transcription server is, for the Core Roles row.
+    /// A loopback server still runs on this Mac.
+    static func transcriptionServerDestination(_ settings: AppSettings) -> String {
+        switch settings.remoteTranscription.presentation {
+        case .onDevice: "On this Mac · Local server"
+        case .remote(let host): remote(host)
+        case .blocked: "Connection needs attention"
+        }
+    }
+
+    private static func remote(_ host: String) -> String {
+        host == "openrouter.ai" ? "OpenRouter · Remote" : "\(host) · Remote"
     }
 
     static func setupLocation(_ settings: AppSettings) -> String {
