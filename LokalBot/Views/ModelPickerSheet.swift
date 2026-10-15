@@ -34,6 +34,8 @@ struct ModelPickerSheet: View {
     /// Audio approval for the draft server's origin; applied with Use model,
     /// so Cancel changes nothing.
     @State private var remoteTranscriptionConsent: Bool
+    /// The local model to return to from the transcription server pane.
+    @State private var lastLocalTranscriptionID: String
     @State private var query = ""
     @State private var installedOnly = false
     @State private var showingAdvanced = false
@@ -65,6 +67,8 @@ struct ModelPickerSheet: View {
         _remoteTranscriptionKeySaved = State(initialValue: !settings.remoteTranscriptionAPIKey.isEmpty)
         _remoteTranscriptionConsent = State(initialValue: settings.remoteTranscription.origin
             .map { settings.approvedRemoteTranscriptionOrigins.contains($0) } ?? false)
+        _lastLocalTranscriptionID = State(initialValue: settings.transcriptionModel.isRemote
+            ? TranscriptionModelChoice.recommended.id : settings.transcriptionModel.id)
     }
 
     private static func assignedID(for role: ModelPickerRole, in settings: AppSettings) -> String {
@@ -250,6 +254,24 @@ struct ModelPickerSheet: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
+            } else if role == .transcription {
+                HStack(alignment: .top, spacing: 0) {
+                    transcriptionLocationList.frame(width: 228)
+                    Divider()
+                    VStack(alignment: .leading, spacing: 0) {
+                        if transcription.isRemote {
+                            ScrollView {
+                                remoteTranscriptionSetup
+                                    .padding(.horizontal, 24).padding(.bottom, 16)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        } else {
+                            catalog
+                            selectionDetails
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
             } else if showsCatalog {
                 catalog
                 selectionDetails
@@ -327,11 +349,8 @@ struct ModelPickerSheet: View {
                             title: choice == .graniteSpeech ? granite.displayName : choice.displayName,
                             detail: transcriptionSize(choice),
                             inUse: choice == app.settings.transcriptionModel,
-                            available: TranscriptionModelStore.isDownloaded(
-                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory,
-                                remoteTranscriptionReady: remoteTranscriptionDraft.isReady),
-                            progress: status.progress,
-                            availableLabel: choice.isRemote ? "Set up" : "Downloaded")
+                            available: TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
+                            progress: status.progress)
                         .tag(choice.id)
                     }
                 } else {
@@ -374,10 +393,10 @@ struct ModelPickerSheet: View {
     }
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
+        // The transcription server has its own pane, beside the list.
         TranscriptionModelChoice.allCases.filter { choice in
-            let downloaded = TranscriptionModelStore.isDownloaded(
-                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory,
-                remoteTranscriptionReady: remoteTranscriptionDraft.isReady)
+            guard !choice.isRemote else { return false }
+            let downloaded = TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)
             return (!choice.isLegacy || downloaded || choice == app.settings.transcriptionModel)
                 && (!installedOnly || downloaded)
                 && (query.isEmpty || "\(choice.displayName) \(choice.blurb)".localizedCaseInsensitiveContains(query))
@@ -386,7 +405,6 @@ struct ModelPickerSheet: View {
 
     private func transcriptionSize(_ choice: TranscriptionModelChoice) -> String {
         if choice == .funASRNano { return app.settings.appLanguage.localized("Local model folder") }
-        if choice == .remoteServer { return "No download · runs on your server or provider" }
         guard let bytes = ModelSettingsPresentation.estimatedTranscriptionBytes(choice, granite: granite) else {
             return "Download size varies"
         }
@@ -400,7 +418,6 @@ struct ModelPickerSheet: View {
                 .font(.scaled(.body)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if role == .transcription, transcription == .funASRNano { funASRFolderPicker }
-            if editsRemoteTranscription { remoteTranscriptionSetup }
             if let entry = selectedEntry, role != .transcription {
                 let fit = ModelFit.evaluate(modelSizeGB: entry.sizeGB, capability: HardwareCapabilityProbe.current())
                 if let advisory = fit.advisory {
@@ -488,49 +505,64 @@ struct ModelPickerSheet: View {
         }
     }
 
+    /// The transcription server's own pane: the fields get the room the
+    /// local model list would take, with one short hint each.
     private var remoteTranscriptionSetup: some View {
         let draft = remoteTranscriptionDraft
-        return VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Server URL").font(.scaled(.body).weight(.medium))
-                TextField("https://api.openai.com/v1", text: $remoteTranscriptionURL)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("models.remoteTranscription.url")
-                Text("An OpenAI-style base URL, such as https://api.groq.com/openai/v1, https://openrouter.ai/api/v1, or http://my-pc.example.ts.net:8080/v1. For whisper.cpp's own server, end it with /inference.")
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                Text("Model ID").font(.scaled(.body).weight(.medium))
-                TextField("whisper-1, whisper-large-v3-turbo, openai/whisper-large-v3", text: $remoteTranscriptionModel)
-                    .textFieldStyle(.roundedBorder)
-                    .accessibilityIdentifier("models.remoteTranscription.model")
-                Text("Leave empty for a server that runs a single model, such as whisper.cpp.")
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                Text("API key").font(.scaled(.body).weight(.medium))
-                HStack(spacing: 8) {
-                    SecureField(remoteTranscriptionKeySaved ? "Saved in Keychain" : "API key (optional)",
-                                text: $remoteTranscriptionKey)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityIdentifier("models.remoteTranscription.apiKey")
-                    if remoteTranscriptionKeySaved {
-                        Button("Forget key") {
-                            app.settings.remoteTranscriptionAPIKey = ""
-                            remoteTranscriptionKeySaved = !app.settings.remoteTranscriptionAPIKey.isEmpty
-                            remoteTranscriptionKey = ""
-                            app.modelChecks.invalidate([.transcribe])
-                        }
-                        .accessibilityIdentifier("models.remoteTranscription.forgetKey")
+        return VStack(alignment: .leading, spacing: 20) {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 14) {
+                GridRow(alignment: .firstTextBaseline) {
+                    Text("Server URL").gridColumnAlignment(.trailing)
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("https://api.openai.com/v1", text: $remoteTranscriptionURL)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("models.remoteTranscription.url")
+                        Text("Use the provider's /v1 URL, or end with /inference for whisper.cpp.")
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
                     }
                 }
-                Text(remoteTranscriptionKeySaved
-                     ? "A key is saved in Keychain. Type a new one to replace it when you choose Use model."
-                     : "Saved in Keychain when you choose Use model. Without a key, a server at the same address as Think's connection uses Think's key.")
-                    .fixedSize(horizontal: false, vertical: true)
+                GridRow(alignment: .firstTextBaseline) {
+                    Text("Model")
+                    VStack(alignment: .leading, spacing: 4) {
+                        TextField("whisper-1", text: $remoteTranscriptionModel)
+                            .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("models.remoteTranscription.model")
+                        Text("Leave empty if the server runs one model.")
+                            .font(.scaled(.callout)).foregroundStyle(.secondary)
+                    }
+                }
+                GridRow(alignment: .firstTextBaseline) {
+                    Text("API key")
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            SecureField(remoteTranscriptionKeySaved ? "Saved in Keychain" : "Optional",
+                                        text: $remoteTranscriptionKey)
+                                .textFieldStyle(.roundedBorder)
+                                .accessibilityIdentifier("models.remoteTranscription.apiKey")
+                            if remoteTranscriptionKeySaved {
+                                Button("Forget") {
+                                    app.settings.remoteTranscriptionAPIKey = ""
+                                    remoteTranscriptionKeySaved = !app.settings.remoteTranscriptionAPIKey.isEmpty
+                                    remoteTranscriptionKey = ""
+                                    app.modelChecks.invalidate([.transcribe])
+                                }
+                                .accessibilityIdentifier("models.remoteTranscription.forgetKey")
+                            }
+                        }
+                        if usesThinkKey {
+                            Text("Uses your Think key for this server.")
+                                .font(.scaled(.callout)).foregroundStyle(.secondary)
+                        }
+                    }
+                }
             }
+            .font(.scaled(.body))
             remoteTranscriptionAccess(draft)
+            Button("Language & vocabulary…") { showingTranscriptionOptions = true }
+                .font(.scaled(.callout))
+                .accessibilityIdentifier("models.remoteTranscription.options")
         }
-        .font(.scaled(.callout))
+        .padding(.top, 16)
         .onChange(of: draft.origin) {
             // An approval belongs to one origin. Show the saved choice for a
             // newly entered server rather than carrying the toggle over.
@@ -539,31 +571,38 @@ struct ModelPickerSheet: View {
         }
     }
 
+    /// No key of its own yet, and the same origin as Think's server.
+    private var usesThinkKey: Bool {
+        guard !remoteTranscriptionKeySaved, remoteTranscriptionKey.isEmpty,
+              let origin = remoteTranscriptionDraft.origin else { return false }
+        let think = URL(string: app.settings.openAIBaseURL.trimmingCharacters(in: .whitespacesAndNewlines))
+            .flatMap(InferenceEndpointPolicy.origin(for:))
+        return origin == think
+    }
+
     @ViewBuilder
     private func remoteTranscriptionAccess(_ draft: RemoteTranscriptionConfiguration) -> some View {
         if let endpoint = draft.endpoint, let origin = draft.origin {
             if InferenceEndpointPolicy.isLoopback(endpoint) {
-                Label("Server on this Mac: audio stays on this Mac.", systemImage: "checkmark.shield.fill")
+                Label("Runs on this Mac. Audio stays here.", systemImage: "checkmark.shield.fill")
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
             } else if endpoint.scheme?.lowercased() != "https"
                         && !InferenceEndpointPolicy.permitsUnencrypted(endpoint, allowsPrivateNetworkHTTP: true) {
-                Label("Blocked: a server outside your local network or tailnet must use HTTPS so audio is encrypted in transit.",
-                      systemImage: "lock.slash.fill")
-                    .foregroundStyle(.orange)
-                    .fixedSize(horizontal: false, vertical: true)
+                Label("Use HTTPS for a server outside your network or tailnet.", systemImage: "lock.slash.fill")
+                    .font(.scaled(.callout)).foregroundStyle(.orange)
             } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Audio leaves this Mac · \(endpoint.host ?? origin)", systemImage: "network")
-                        .font(.scaled(.body).weight(.semibold))
-                    Text("Meeting tracks, dictation, and live previews are sent to this server in short speech clips, with your vocabulary and, when that option is on, names LokalBot already knows. Finished meetings are sent automatically without asking each time. Speaker separation stays on this Mac.")
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Send audio to \(origin)", isOn: $remoteTranscriptionConsent)
+                        .toggleStyle(.checkbox)
+                        .font(.scaled(.body).weight(.medium))
+                        .accessibilityIdentifier("models.remoteTranscription.consent")
+                    Text("Meetings, dictation, and your vocabulary go to this server, including automatically after each meeting.")
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if endpoint.scheme?.lowercased() != "https" {
-                        Label("Plain HTTP: audio crosses your network unencrypted unless the link encrypts it, as Tailscale does.",
-                              systemImage: "lock.open")
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
+                        Label("Unencrypted HTTP: use it only on your own network or tailnet.", systemImage: "lock.open")
+                            .font(.scaled(.callout)).foregroundStyle(.orange)
                     }
-                    Toggle("Allow sending audio to \(origin)", isOn: $remoteTranscriptionConsent)
-                        .accessibilityIdentifier("models.remoteTranscription.consent")
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -571,7 +610,7 @@ struct ModelPickerSheet: View {
             }
         } else if draft.isConfigured {
             Label(RemoteTranscriptionError.invalidURL.localizedDescription, systemImage: "exclamationmark.triangle")
-                .foregroundStyle(.orange)
+                .font(.scaled(.callout)).foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -680,8 +719,6 @@ struct ModelPickerSheet: View {
         ]
     }
 
-    /// Plain rows with an explicit highlight: the selection reads the same in
-    /// a sheet whether or not its window is key.
     private var providerList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
@@ -703,19 +740,52 @@ struct ModelPickerSheet: View {
     }
 
     private func providerRow(_ provider: ThinkProvider) -> some View {
-        let selected = ThinkProvider(backend) == provider
-        return Button {
+        locationRow(provider.title, icon: provider.icon,
+                    selected: ThinkProvider(backend) == provider,
+                    inUse: provider.backend == app.settings.summarizerBackend,
+                    identifier: "models.picker.provider.\(provider.rawValue)") {
             backend = provider.backend
-        } label: {
+        }
+    }
+
+    /// Where Transcribe runs: a model on this Mac, or a server whose setup
+    /// replaces the model list.
+    private var transcriptionLocationList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            locationRow("On this Mac", icon: "desktopcomputer",
+                        selected: !transcription.isRemote,
+                        inUse: !app.settings.transcriptionModel.isRemote,
+                        identifier: "models.picker.transcription.local") {
+                guard transcription.isRemote else { return }
+                selectedID = lastLocalTranscriptionID
+            }
+            locationRow("Transcription server", icon: "network",
+                        selected: transcription.isRemote,
+                        inUse: app.settings.transcriptionModel.isRemote,
+                        identifier: "models.picker.transcription.server") {
+                guard !transcription.isRemote else { return }
+                lastLocalTranscriptionID = selectedID
+                selectedID = TranscriptionModelChoice.remoteServer.id
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 4)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    /// Plain rows with an explicit highlight: the selection reads the same in
+    /// a sheet whether or not its window is key.
+    private func locationRow(_ title: LocalizedStringKey, icon: String, selected: Bool, inUse: Bool,
+                             identifier: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: 8) {
-                Image(systemName: provider.icon)
+                Image(systemName: icon)
                     .frame(width: 20)
                     .foregroundStyle(selected ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
-                Text(provider.title)
+                Text(title)
                     .font(.scaled(.body).weight(selected ? .semibold : .regular))
                     .lineLimit(1)
                 Spacer(minLength: 4)
-                if provider.backend == app.settings.summarizerBackend {
+                if inUse {
                     Image(systemName: "checkmark")
                         .font(.scaled(.caption).weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -731,7 +801,7 @@ struct ModelPickerSheet: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("models.picker.provider.\(provider.rawValue)")
+        .accessibilityIdentifier(identifier)
     }
 
     private func consent(for plan: SubscriptionPlan) -> Binding<Bool> {
@@ -820,11 +890,10 @@ private struct ModelChoiceRow: View {
     let available: Bool
     let progress: Double?
     var blocked = false
-    var availableLabel = "Downloaded"
 
     private var status: String {
         if inUse { return "In use" }
-        if available { return availableLabel }
+        if available { return "Downloaded" }
         return blocked ? "Needs re-adding" : "Available"
     }
 

@@ -112,6 +112,41 @@ final class ModelsSettingsUITests: XCTestCase {
         capture("models-remote-consent")
     }
 
+    func testTranscriptionServerSetupReplacesTheModelList() throws {
+        try launch(approved: true)
+        let change = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+
+        let catalog = app.descendants(matching: .any)["models.picker.catalog"]
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5), "Transcribe opens on the models for this Mac")
+        app.buttons["models.picker.transcription.server"].click()
+
+        let url = app.textFields["models.remoteTranscription.url"]
+        XCTAssertTrue(url.waitForExistence(timeout: 5))
+        XCTAssertTrue(UITestHarness.waitUntil { !catalog.exists }, "The server setup must replace the model list")
+        XCTAssertTrue(url.isHittable)
+        XCTAssertTrue(app.textFields["models.remoteTranscription.model"].isHittable)
+        XCTAssertTrue(app.secureTextFields["models.remoteTranscription.apiKey"].isHittable)
+        let apply = app.buttons["models.picker.apply"]
+        XCTAssertFalse(apply.isEnabled, "A server needs a URL")
+
+        url.click()
+        url.typeText("http://gpu-box.tail1234.ts.net:8080/v1")
+        let consent = app.checkBoxes["models.remoteTranscription.consent"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 5))
+        XCTAssertTrue(consent.isHittable)
+        XCTAssertEqual(consent.value as? Int, 0, "Entering a server must not approve sending it audio")
+        XCTAssertFalse(apply.isEnabled, "Audio needs its own approval")
+        consent.click()
+        XCTAssertTrue(UITestHarness.waitUntil { apply.isEnabled }, "An approved tailnet server can be used")
+        capture("models-transcription-server")
+
+        app.buttons["models.picker.transcription.local"].click()
+        XCTAssertTrue(catalog.waitForExistence(timeout: 5), "On this Mac brings the model list back")
+        app.buttons["models.picker.cancel"].click()
+    }
+
     func testModelsLayoutAtNarrowAndWideWidths() throws {
         for size in ["1000x700", "1440x900"] {
             for appearance in ["light", "dark"] {
