@@ -120,9 +120,10 @@ enum ChatPrompt {
         return PromptContextSanitizer.sanitize(memory.markdown(), maxCharacters: 6_000)
     }
 
-    /// Lets the model resolve "yesterday" or "last Tuesday". It goes last in
-    /// the system prompt, so the tool list and library overview before it
-    /// stay a reusable cached prefix.
+    /// Lets the model resolve "yesterday" or "last Tuesday". It opens each
+    /// step's instruction, after the cached prefix: Anthropic caches whole
+    /// blocks, so a per-minute line in the system prompt made every new
+    /// message miss the cached system prompt and replayed history.
     static func currentTimeLine(now: Date = Date(), timeZone: TimeZone = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -134,8 +135,7 @@ enum ChatPrompt {
 
     static func systemPrompt(tools: [ChatToolSpec], libraryOverview: String,
                              workMemory: String = "",
-                             inferencePrivacy: String = "Inference uses the selected backend, which may be local or remote. Do not claim that all processing stays on this Mac.",
-                             currentTime: String = "") -> String {
+                             inferencePrivacy: String = "Inference uses the selected backend, which may be local or remote. Do not claim that all processing stays on this Mac.") -> String {
         var lines: [String] = []
         lines.append("""
         You are LokalBot's assistant. You answer questions about the user's \
@@ -197,10 +197,6 @@ enum ChatPrompt {
             so verify with tools before citing it as fact.
             """)
             lines.append(workMemory)
-        }
-        if !currentTime.isEmpty {
-            lines.append("")
-            lines.append(currentTime)
         }
         return lines.joined(separator: "\n")
     }
@@ -602,8 +598,8 @@ struct ChatAgent {
         let system = ChatPrompt.systemPrompt(tools: runner.specs,
                                              libraryOverview: runner.libraryOverview(),
                                              workMemory: workMemory,
-                                             inferencePrivacy: ChatPrompt.inferencePrivacy(for: engine),
-                                             currentTime: ChatPrompt.currentTimeLine(now: now()))
+                                             inferencePrivacy: ChatPrompt.inferencePrivacy(for: engine))
+        let clock = ChatPrompt.currentTimeLine(now: now()) + "\n\n"
         var evidence = initialEvidence
         var transcript: [String] = Self.replayedHistory(
             history, maxMessages: historyWindow, maxCharacters: historyCharacters).map {
@@ -618,7 +614,7 @@ struct ChatAgent {
                 : "Continue. Call another tool (one JSON object) if you still need data, or give your final answer in plain language."
             let output = try await engine.generateStreaming(
                 system: system,
-                prompt: directive + " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.",
+                prompt: clock + directive + " Begin a final prose answer with FINAL_ANSWER: on its own line. Never use this prefix for a tool call.",
                 context: transcript,
                 options: TextGenerationOptions(maxTokens: Self.answerTokens)) { partial in
                     if let answer = ChatPrompt.streamingAnswer(partial) {
@@ -634,7 +630,7 @@ struct ChatAgent {
             if case .answer = action, ChatPrompt.looksLikeToolAttempt(output) {
                 let retried = try await engine.generate(
                     system: system,
-                    prompt: "Your previous reply was not a valid tool call. Reply with exactly one JSON object of the form {\"call\": {\"tool\": \"…\", \"arguments\": { … }}} for the tool you meant to call.",
+                    prompt: clock + "Your previous reply was not a valid tool call. Reply with exactly one JSON object of the form {\"call\": {\"tool\": \"…\", \"arguments\": { … }}} for the tool you meant to call.",
                     context: transcript,
                     schema: ChatPrompt.toolCallSchema(runner.specs),
                     options: TextGenerationOptions(
@@ -666,7 +662,7 @@ struct ChatAgent {
         let finalEvidence = evidence
         let forced = try await engine.generateStreaming(
             system: system,
-            prompt: "Give your final answer now in plain language using the observations above. Begin with FINAL_ANSWER: on its own line. Do not call any more tools. If the observations do not cover everything the user asked, say which part you could not check.",
+            prompt: clock + "Give your final answer now in plain language using the observations above. Begin with FINAL_ANSWER: on its own line. Do not call any more tools. If the observations do not cover everything the user asked, say which part you could not check.",
             context: transcript,
             options: TextGenerationOptions(maxTokens: Self.answerTokens)) { partial in
                 if let answer = ChatPrompt.streamingAnswer(partial) {
