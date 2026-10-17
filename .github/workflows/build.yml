@@ -206,7 +206,7 @@ jobs:
       - name: Save compiler evidence
         background: true
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true
           name: compiler-${{ github.job }}
@@ -219,7 +219,7 @@ jobs:
         run: python3 Scripts/ci/test-products.py pack unit
 
       - name: Upload unit-test products
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: unit-products
@@ -244,7 +244,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: unit-products
           path: .build/transfer
@@ -284,7 +284,7 @@ jobs:
         wait: [workday, audio-recovery]
       - name: Save unit results
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: unit-results
@@ -292,7 +292,7 @@ jobs:
           retention-days: 14
       - name: Keep the failed library
         if: ${{ !cancelled() && steps.workday.outcome == 'failure' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: day-in-the-life

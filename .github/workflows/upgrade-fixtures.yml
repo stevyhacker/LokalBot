@@ -37,7 +37,7 @@ jobs:
       # paths, so the fixture travels as one tarball with its names intact.
       - name: Pack
         run: tar -cf ".build/upgrade/fixture-${{ matrix.version }}.tar" -C ".build/upgrade/${{ matrix.version }}" .
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: upgrade-fixture-${{ matrix.version }}
           path: .build/upgrade/fixture-${{ matrix.version }}.tar
