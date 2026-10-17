@@ -115,7 +115,8 @@ final class AppState: ObservableObject {
     nonisolated static var isUnitTesting: Bool { UITestRuntime.isUnitTesting }
 
     /// UserDefaults flag: the permission onboarding has been shown once. Also
-    /// read by `AppDelegate` to keep the first run windowed.
+    /// read by `AppDelegate` to keep the first run windowed, and by the
+    /// coding-agent reader, which waits for it.
     nonisolated static let onboardingShownKey = "lokalbotv3.onboarding.shown"
 
     @Published private(set) var meetings: [Meeting] = []
@@ -715,10 +716,10 @@ final class AppState: ObservableObject {
         prepareEvidence: { [weak self] day in await self?.codingAgentEvidence.refresh(including: day) },
         onGenerated: { [weak self] day in self?.dayDigestDidChange(on: day) })
     /// Settled Claude Code and Codex work, read into the activity store while
-    /// the person has opted in.
+    /// the person has opted in, and never before setup is finished.
     private(set) lazy var codingAgentEvidence = CodingAgentEvidenceIngestor(
         store: activityStore,
-        configuration: { [store = settingsStore] in .init(settings: store.current) },
+        configuration: { [store = settingsStore] in AppState.codingAgentConfiguration(store.current) },
         mutateEvidence: { [weak self] days, mutation in
             try self?.withPrimaryEvidenceChange(on: days, .revision, mutation)
         },
@@ -1180,7 +1181,6 @@ final class AppState: ObservableObject {
         applyQuickRecallSetting()
         applyDailyMemoryExportSetting()
         applyDayDigestSetting()
-        applyCodingAgentEvidenceSetting()
         applyMemoryRoutineSetting()
         applyDreamingSetting()
         applyHealthCheckSetting()
@@ -1198,6 +1198,9 @@ final class AppState: ObservableObject {
                 WindowAccess.shared.open("onboarding")
             }
         }
+        // After the first-run check: until setup is finished, a new install
+        // reads no coding-agent session (`finishOnboarding` starts it).
+        applyCodingAgentEvidenceSetting()
         // Bring optional system-wide automation up if the user left it enabled
         // and the grants are in place; otherwise it parks itself.
         dictation.applySettings()
@@ -2066,6 +2069,24 @@ final class AppState: ObservableObject {
     /// already saved, like the other capture sources; deletion is explicit.
     func applyCodingAgentEvidenceSetting() {
         codingAgentEvidence.start()
+    }
+
+    /// What the coding-agent reader may read: the settings' choice once setup
+    /// is finished, and nothing on a new install before then.
+    static func codingAgentConfiguration(
+        _ settings: AppSettings, defaults: UserDefaults = .standard
+    ) -> CodingAgentEvidenceIngestor.Configuration {
+        .init(settings: settings, onboardingFinished: defaults.bool(forKey: onboardingShownKey))
+    }
+
+    /// Setup's final step: applies its choices and marks setup finished. A
+    /// new install has read no coding-agent session until now, so reading
+    /// starts here if the person kept it on.
+    func finishOnboarding(applying draft: CaptureSetupDraft) {
+        let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
+        settings = draft.applying(to: settings)
+        UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        if firstFinish && interactive { applyCodingAgentEvidenceSetting() }
     }
 
     /// New settled work usually lands today, before the evening digest.

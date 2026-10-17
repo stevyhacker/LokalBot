@@ -145,6 +145,35 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertTrue(store.codingAgentBursts(in: dayInterval).isEmpty)
     }
 
+    func testANewInstallReadsNoSessionUntilSetupIsFinished() async throws {
+        let store = makeStore()
+        let recorder = ScanRecorder()
+        let now = try date("2026-09-29T15:00:00Z")
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = AppSettings()
+        let ingestor = CodingAgentEvidenceIngestor(
+            store: store,
+            configuration: { AppState.codingAgentConfiguration(settings, defaults: defaults) },
+            scan: { _, first, last, _ in
+                recorder.record(first, last)
+                return CodingAgentDayScan(
+                    interval: DateInterval(start: first, end: last.addingTimeInterval(86_400)), bursts: [],
+                    sessionCount: 0, filesRead: 0, bytesRead: 0, unreadableFiles: [], excludedSessions: 0)
+            },
+            mutateEvidence: { _, body in try body() },
+            now: { now }, calendar: calendar)
+
+        XCTAssertTrue(settings.codingAgentEvidenceEnabled, "reading stays on by default for new installs")
+        await ingestor.refresh(including: try date("2026-09-10T12:00:00Z"))
+        XCTAssertTrue(recorder.ranges.isEmpty, "a digest's refresh reads nothing before setup is finished")
+
+        defaults.set(true, forKey: AppState.onboardingShownKey)
+        await ingestor.refresh()
+        XCTAssertEqual(recorder.ranges.map { $0.0 }, [try date("2026-09-23T00:00:00Z")],
+                       "finishing setup with the default kept starts reading")
+    }
+
     // MARK: - Retention
 
     func testRetentionReviewExpiresAgentRecordsWithScreenText() throws {
@@ -323,6 +352,26 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertNil(CodingAgentEvidenceIngestor.Configuration(settings: settings).retentionDays)
     }
 
+    func testFinishedSetupKeepsTheSavedChoicesOfExistingInstalls() throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: AppState.onboardingShownKey)
+        let saved = try JSONDecoder().decode(AppSettings.self, from: Data(
+            #"{"codingAgentReadsCodex": false, "codingAgentExcludedFolders": "~/Client"}"#.utf8))
+        let configuration = AppState.codingAgentConfiguration(saved, defaults: defaults)
+        XCTAssertEqual(configuration, CodingAgentEvidenceIngestor.Configuration(settings: saved),
+                       "settings alone decide once setup is finished")
+        XCTAssertEqual(configuration.agents, [.claudeCode])
+        XCTAssertEqual(configuration.excludedFolders, ["~/Client"])
+
+        let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertEqual(AppState.codingAgentConfiguration(legacy, defaults: defaults).agents, [.claudeCode, .codex],
+                       "settings saved before setup offered this choice keep reading")
+        var off = saved
+        off.codingAgentEvidenceEnabled = false
+        XCTAssertTrue(AppState.codingAgentConfiguration(off, defaults: defaults).agents.isEmpty)
+    }
+
     func testScannerSplitsASessionAtMidnight() throws {
         let transcript = CodingAgentTranscript(
             agent: .codex, sessionID: "T1", workingDirectory: "/Users/me/Code/App",
@@ -366,6 +415,12 @@ final class CodingAgentEvidenceTests: XCTestCase {
     }
 
     private var dayInterval: DateInterval { DateInterval(start: day, duration: 86_400) }
+
+    /// A defaults suite of its own, so the setup flag never touches the host's.
+    private func isolatedDefaults() throws -> (UserDefaults, String) {
+        let suite = "CodingAgentEvidenceTests.\(UUID().uuidString)"
+        return (try XCTUnwrap(UserDefaults(suiteName: suite)), suite)
+    }
 
     private func makeStore() -> ActivityStore {
         ActivityStore(databaseURL: root.appendingPathComponent("\(UUID().uuidString).sqlite"))

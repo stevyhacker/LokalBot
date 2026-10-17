@@ -43,6 +43,24 @@ final class RedesignContractTests: XCTestCase {
         }
     }
 
+    func testSetupDraftAppliesTheCodingAgentChoiceAndKeepsItsDetails() {
+        var live = AppSettings()
+        live.codingAgentReadsCodex = false
+        live.codingAgentExcludedFolders = "~/Client"
+        var draft = CaptureSetupDraft(settings: live)
+        XCTAssertTrue(draft.codingAgentSessions, "setup starts from the new-install default")
+        draft.codingAgentSessions = false
+        XCTAssertTrue(live.codingAgentEvidenceEnabled, "the draft leaves live settings alone")
+        let applied = draft.applying(to: live)
+        XCTAssertFalse(applied.codingAgentEvidenceEnabled)
+        XCTAssertTrue(applied.enabledCodingAgents.isEmpty)
+        XCTAssertTrue(applied.codingAgentReadsClaudeCode, "per-agent switches belong to Settings")
+        XCTAssertFalse(applied.codingAgentReadsCodex)
+        XCTAssertEqual(applied.codingAgentExcludedFolders, "~/Client")
+        XCTAssertEqual(CaptureSetupDraft(settings: applied).applying(to: applied), applied,
+                       "reopened setup keeps the saved choice")
+    }
+
     func testDayActivityClipsBoundariesAndUnionsOverlaps() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/Paris")!

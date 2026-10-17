@@ -33,6 +33,13 @@ final class CodingAgentEvidenceIngestor {
                 excludedFolders: settings.codingAgentExcludedFolderList,
                 retentionDays: settings.keepOCRTextForever ? nil : settings.retentionDays)
         }
+
+        /// Setup shows this choice, so a new install reads nothing until setup
+        /// is finished. From then on the settings alone decide.
+        init(settings: AppSettings, onboardingFinished: Bool) {
+            self.init(settings: settings)
+            if !onboardingFinished { agents = [] }
+        }
     }
 
     typealias Scan = @Sendable (

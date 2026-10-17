@@ -194,6 +194,7 @@
 "Close find" = "关闭查找";
 "Close search" = "关闭搜索";
 "Coding agent records to remove" = "将删除的编程智能体记录";
+"Coding Agent Sessions" = "编程智能体会话";
 "Coding agent sessions" = "编程智能体会话";
 "Command Palette" = "命令面板";
 "Command Palette…" = "命令面板…";
@@ -688,6 +689,7 @@
 "Previously named voices" = "之前命名的声音";
 "Privacy" = "隐私";
 "Privacy & Data" = "隐私与数据";
+"Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Privacy & Data." = "浏览器的隐私窗口和无痕窗口会像其他窗口一样被采集，除非你在“设置 → 隐私与数据”中排除该浏览器或网站。";
 "Private endpoints only (Recommended)" = "仅使用私有端点（推荐）";
 "Processing" = "处理";
 "Project details" = "项目详情";
@@ -699,6 +701,7 @@
 "Question or search" = "提问或搜索";
 "Quit LokalBot" = "退出 LokalBot";
 "Read coding agent sessions" = "读取编程智能体会话";
+"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "读取你的 Claude Code 和 Codex 会话，让 LokalBot 记住智能体完成的工作。文件留在这台 Mac 上。";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "通过截图读取当前窗口的文字。需要屏幕录制权限；图像和文字都不会保存。";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "通过辅助功能读取可见的界面文字，不保存屏幕截图。";
 "Reads window titles and visible interface text for activity and text-context features." = "读取窗口标题和界面可见文字，用于活动记录和文字上下文功能。";

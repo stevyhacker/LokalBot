@@ -194,6 +194,7 @@
 "Close find" = "Close find";
 "Close search" = "Close search";
 "Coding agent records to remove" = "Coding agent records to remove";
+"Coding Agent Sessions" = "Coding Agent Sessions";
 "Coding agent sessions" = "Coding agent sessions";
 "Command Palette" = "Command Palette";
 "Command Palette…" = "Command Palette…";
@@ -688,6 +689,7 @@
 "Previously named voices" = "Previously named voices";
 "Privacy" = "Privacy";
 "Privacy & Data" = "Privacy & Data";
+"Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Privacy & Data." = "Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Privacy & Data.";
 "Private endpoints only (Recommended)" = "Private endpoints only (Recommended)";
 "Processing" = "Processing";
 "Project details" = "Project details";
@@ -699,6 +701,7 @@
 "Question or search" = "Question or search";
 "Quit LokalBot" = "Quit LokalBot";
 "Read coding agent sessions" = "Read coding agent sessions";
+"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Reads visible interface text through Accessibility; no screenshots are stored.";
 "Reads window titles and visible interface text for activity and text-context features." = "Reads window titles and visible interface text for activity and text-context features.";

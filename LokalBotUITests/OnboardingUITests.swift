@@ -55,6 +55,9 @@ final class OnboardingUITests: XCTestCase {
         let before = UserDefaults(suiteName: defaultsSuiteName!)?.data(forKey: "lokalbotv3.settings")
         assertPage(title: "Choose what to remember", step: 1)
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.meetingMode"].firstMatch.exists)
+        XCTAssertTrue(UITestHarness.toggle("Read coding agent sessions", in: app).exists,
+                      "Setup must offer the coding agent choice before any session is read")
+        XCTAssertTrue(text(containing: "Private and incognito browser windows are captured").exists)
         XCTAssertTrue(text(containing: "applied on the final Review step").exists)
         app.buttons["Continue"].click()
         assertPage(title: "Enable the access you need", step: 2)
@@ -67,6 +70,8 @@ final class OnboardingUITests: XCTestCase {
         app.buttons["Continue"].click()
         assertPage(title: "Review and start", step: 4)
         XCTAssertTrue(app.buttons["onboarding.finish"].exists)
+        XCTAssertTrue(text(containing: "Coding agent sessions").exists,
+                      "Review must list the coding agent choice with the other capture choices")
         app.buttons["Back"].click()
         assertPage(title: "Prepare your workflows", step: 3)
         XCTAssertEqual(UserDefaults(suiteName: defaultsSuiteName!)?.data(forKey: "lokalbotv3.settings"), before,
