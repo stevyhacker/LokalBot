@@ -1,0 +1,28 @@
+#!/bin/bash
+# Render one film from its composition: look → sound events → mix → draft → onetake's verify.
+#   ONETAKE=<onetake checkout> tools/build.sh <pullout|streams|machine|tech> [--final]
+# Needs the narration audio from tools/voice.sh. Drafts are 1920×1080 at 30 fps; --final renders 3840×2160 at 60 fps,
+# only for an accepted cut. Output: <film>/renders/draft.mp4, or final.mp4 with --final (ignored by git; accepted drafts
+# are copied to drafts/).
+set -euo pipefail
+: "${ONETAKE:?set ONETAKE to a checkout of github.com/feitangyuan/onetake (see README)}"
+cd "$(dirname "$0")/.."
+D=${1:?film: pullout, streams, machine or tech}; shift
+PY=(uv run -q --no-project --python 3.12)
+PW=(--with playwright==1.62.0)          # the Playwright release whose Chromium build the render was made with
+case $D in
+  pullout) SHOTS=0,2.85,8.75,10.45,13.75,15.0,16.25,17.85,21.1,22.15,25.45,26.15 ;;
+  streams) SHOTS=0,1.9,4.06,6.74,9.62,12.3,14.16,15.3,16.23,17.14,19.6,24.4,24.9 ;;
+  machine) SHOTS=0,0.55,2.03,3.0,5.64,7.3,9.8,11.06,12.96,14.74,17.4,20.76,21.9,23.05 ;;
+  tech)    SHOTS=0,6.9,9.3,14.0,20.45,27.2,32.85,38.75,41.75,44.95,50.35,55.8 ;;
+  *) echo "unknown film: $D" >&2; exit 2 ;;
+esac
+cp "$ONETAKE/lib/motion.js" "$D/motion.js"
+"${PY[@]}" --with pillow --with numpy --with fonttools --with brotli python "$ONETAKE/scripts/look.py" apply "$D/look.json" "$D/comp.html"
+"${PY[@]}" "${PW[@]}" python tools/dump_events.py "$D/comp.html"
+"${PY[@]}" --with numpy --with scipy python tools/mix.py "$D"
+mkdir -p "$D/renders"
+OUT="$D/renders/draft.mp4"; for a in "$@"; do [ "$a" = --final ] && OUT="$D/renders/final.mp4"; done
+"${PY[@]}" "${PW[@]}" --with numpy --with pillow python "$ONETAKE/scripts/render.py" "$D/comp.html" --out "$OUT" --sfx "$D/mix.wav" "$@"
+"${PY[@]}" "${PW[@]}" --with numpy --with pillow --with scipy --with opencv-python --with matplotlib \
+  python "$ONETAKE/scripts/verify_promo.py" "$OUT" --comp "$D/comp.html" --shots "$SHOTS"

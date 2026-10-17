@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LokalBot · the machine, technical overview</title>
+<style>
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#f3f5f5}
+#c{position:absolute;left:0;top:0;width:1920px;height:1080px}
+#hud{position:absolute;right:14px;bottom:10px;font:13px monospace;color:#c00;display:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<img id="icon" src="../../../Assets/lokalbot-icon.svg" alt="" style="display:none">
+<script src="motion.js"></script>
+<script src="look.js"></script>
+<script src="timeline.js"></script>
+<script>
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+// CONCEPT — the desk machine, as a technical overview. One tabletop machine, seen from above; each part of
+// LokalBot is a station and every beat is the collision that starts the next:
+//   two capture pucks (mic · Core Audio tap) feed the LokalBot robot, whose foot is a recorder → Nemotron splits
+//   voices into speaker lanes → Qwen3-ASR prints a timestamped tape → the Qwen3.5 press (built-in llama.cpp)
+//   ejects the summary →
+//   everything is filed in the SQLite cabinet (FTS5 + Harrier vectors) → the opt-in screen lane reads
+//   accessibility text, falls back to Vision OCR, redacts credentials, seals pixels, expires in 14 days →
+//   search probes both indexes and opens 00:00:26, which plays → the read-only CLI/MCP port switches on →
+//   the camera pulls back over the whole machine on "Your Mac" and the name drops onto the table.
+// Facts: README (Privacy, Local AI, For developers & agents) and DEVELOPMENT.md. Data: Scripts/seed_demo_library.py.
+// Look: LokalBot's light appearance (DesignTokens.swift, Brand.swift) and its icon; SF type like the app and website.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════
+const TLd = window.TL, DUR = TLd.dur, FPS = 30, VO = TLd.vo, MEET = TLd.meet;
+const {clamp, lerp, sstep, ssstep, seg, spring} = OM, E = Object.assign({}, OM.ease, {cubicIn: u => u * u * u, quadIn: u => u * u});
+// Brand.tealFill · Brand.teal (text) · Brand.them · successText · attentionText · recordingText · the icon's mint and slate
+const C = LOOK.color, TEAL = C.accent, TEALT = '#075f55', THEM = C.accent2, THEMT = '#4f6f93', SUCCESS = '#176f2c', ATTN = '#984c00',
+  RED = '#b60012', MINT = '#6ef2dc', MINT2 = '#23c4ae', INK = C.ink, MUTE = C.mute, LINE = C.line, DEEP = C.deep;
+const SYS = '-apple-system, "SF Pro Display", "SF Pro Text", system-ui, sans-serif', MONO = 'ui-monospace, "SF Mono", Menlo, monospace';
+const F = (role, px, w) => role === 'mono' ? `${w || 500} ${px}px ${MONO}` : `${w || (role === 'display' ? 700 : 500)} ${px}px ${SYS}`;
+const TRACK = px => (-0.02 * px).toFixed(1) + 'px';
+const wd = (line, w, n = 0) => { const m = VO[line - 1].words.filter(x => x[0].toLowerCase().replace(/[^a-z0-9]/g, '') === w);
+  const x = n < 0 ? m[m.length + n] : m[n]; if (!x) throw new Error(`no "${w}" in VO line ${line}`); return x[1]; };
+
+// ─────────────────────────────── beats (each on the word it lands on) ───────────────────────────────
+const T = {
+  DROP: [[0.15, 0.45], [0.32, 0.62]],
+  REC: wd(1, 'records'), MIC: wd(1, 'microphone'), SYS: wd(1, 'meeting'), NOBOT: wd(1, 'no'),
+  SPLIT: wd(2, 'tells'), EIGHT: wd(2, 'apart'),
+  PRINT: wd(3, 'transcribes') - 0.3, STAMP: wd(3, 'timestamps'),
+  SLAM: wd(4, 'writes'), EJECT: [wd(4, 'decisions') - 0.1, wd(4, 'action') - 0.1, wd(4, 'items') + 0.1, wd(4, 'items') + 0.32],
+  LANDS: wd(5, 'lands'), KEYWORD: wd(5, 'keyword'), MEANING: wd(5, 'meaning'), HARRIER: wd(5, 'harrier'),
+  OPTIN: wd(6, 'opt'), AX: wd(6, 'accessibility'), OCR: wd(6, 'ocr'),
+  REDACT: wd(7, 'redacted') - 0.1, SEAL: wd(7, 'encrypted'), EXPIRE: wd(7, 'fourteen'),
+  TYPE: VO[7].t - 0.5, PROBE_K: wd(8, 'search'), PROBE_M: wd(8, 'search') + 0.16, RES: wd(8, 'opens'), OPEN: wd(8, 'exact') - 0.08, MOMENT: wd(8, 'moment'),
+  PORT: VO[8].t, CLI: wd(9, 'cli'), MCP: wd(9, 'mcp'), OFF: wd(9, 'off'), ON: wd(9, 'turn'),
+  PULL: [VO[9].t - 0.45, VO[9].t + 1.1], ACCOUNT: wd(10, 'no'), TELEMETRY: wd(10, 'telemetry'), REMOTE: wd(10, 'remote'), APPROVAL: wd(10, 'approval'),
+  NAME: VO[10].t + 0.1, FREE: wd(11, 'free'),
+};
+
+// ─────────────────────────────── the table (world px) ───────────────────────────────
+const MIC = [300, 400], SYSP = [300, 740], ROBOT = {x: 650, y: 430, w: 290, h: 290};
+const SPL = {x: 1180, y: 400, w: 300, h: 340}, ASR = {x: 1640, y: 390, w: 300, h: 360}, MOUTH = 1940;
+const LANE = {you: 520, other: 620};
+const PRESS = {x: 4000, y: 360, w: 360, h: 420};
+const LIB = {x: 2200, y: 1150, w: 900, h: 560};
+const TERM = {x: 1180, y: 1250, w: 800, h: 380}, PORT = [LIB.x - 10, 1440];
+const LEVER = [640, 1840], READER = {x: 1020, y: 1880, w: 280, h: 300}, OCRL = {x: 1040, y: 2330, w: 240, h: 150};
+const REDACT = {x: 1540, y: 1880, w: 240, h: 300}, LOCK = {x: 2060, y: 2200, w: 420, h: 260};
+const SEARCH = {x: 3230, y: 1880, w: 760, h: 96}, TRAY = {x: 3180, y: 2050, w: 1400, h: 300};
+const PLAYER = {x: 3280, y: 1790, w: 1200, h: 560, r: 28};
+const PLATE = {x: 120, y: 190, w: 5240, h: 2440, r: 80}, NETGATE = [PLATE.x + PLATE.w, 1300], REMOTE = {x: 5620, y: 1180, w: 360, h: 240};
+const NAME_AT = [3050, 3080], NAME_PX = 440;
+
+// the transcript tape: Design review turns at their real times, one lane per speaker
+const K = 24;                                       // tape px per second of meeting time
+const TURNS = [
+  {lane: 'you', ts: 0, text: 'I propose Redis for the pub-sub support.'},
+  {lane: 'other', ts: 12, text: 'Agreed on Redis. Open question: do we need…'},
+  {lane: 'you', ts: 26, text: 'I’ll draft the eviction-policy doc by Thursday.'},
+  {lane: 'other', ts: 38, text: 'Please benchmark failover latency…'},
+];
+const who = l => l === 'you' ? {name: 'You', col: TEAL} : {name: 'Other speaker', col: THEM};
+const mmss = s => `00:00:${String(s).padStart(2, '0')}`;
+// tape speed profile (px/s), integrated once at 240 Hz
+const VKEYS = [[0, 0], [T.PRINT, 0], [T.PRINT + 0.1, 420], [VO[2].end - 0.1, 420], [VO[2].end + 0.4, 220], [T.SLAM - 0.25, 220], [T.SLAM - 0.12, 0], [DUR, 0]];
+const vAt = t => { for (let i = 1; i < VKEYS.length; i++) if (t <= VKEYS[i][0]) { const [a, va] = VKEYS[i - 1], [b, vb] = VKEYS[i]; return lerp(va, vb, E.smooth(seg(t, a, b))); } return 0; };
+const BELT = (() => { const n = Math.ceil(DUR * 240) + 2, a = new Float64Array(n); let x = 0; for (let i = 1; i < n; i++) { x += vAt((i - 0.5) / 240) / 240; a[i] = x; } return a; })();
+const belt = t => { const f = clamp(t, 0, DUR) * 240, i = Math.floor(f), k = f - i; return lerp(BELT[i], BELT[Math.min(i + 1, BELT.length - 1)], k); };
+let TW = [];                                        // measured turn widths
+const turnX = (i, t) => MOUTH + belt(t) - TURNS[i].ts * K - TW[i] - 24;
+
+// the summary Qwen3.5 writes (seeded Design review), with its citations
+const CW = 470, CH = 160;
+const CARDS = [
+  {kind: 'DECISION', text: 'Adopt Redis for the caching layer', owner: '', ts: '00:00:00', x: 3560, y: 880},
+  {kind: 'ACTION', text: 'Draft the eviction-policy document by Thursday', owner: 'You', ts: '00:00:26', x: 4060, y: 880},
+  {kind: 'ACTION', text: 'Benchmark failover latency before cluster mode', owner: 'Other speaker', ts: '00:00:38', x: 3560, y: 1070},
+  {kind: 'OPEN QUESTION', text: 'Do we need Redis cluster mode at launch?', owner: '', ts: '00:00:12', x: 4060, y: 1070},
+];
+const DRAWER = {tr: {x: LIB.x + 40, y: LIB.y + 110, w: 400, h: 190}, su: {x: LIB.x + 40, y: LIB.y + 330, w: 400, h: 190}};
+
+// ─────────────────────────────── camera: an operator chasing the cause ───────────────────────────────
+const KEYS = [
+  {t: 0, x: 540, y: 575, zoom: 1.1},
+  {t: T.NOBOT + 0.5, x: 620, y: 590, zoom: 1.06, curve: E.sineInOut},
+  {t: VO[1].t + 0.4, x: 1250, y: 570, zoom: 1.06, curve: E.expoInOut},
+  {t: T.PRINT + 0.4, x: 1900, y: 570, zoom: 0.98, curve: E.expoInOut},
+  {t: VO[2].end + 0.2, x: 2750, y: 580, zoom: 0.86, curve: E.sineInOut},
+  {t: T.SLAM - 0.5, x: 3900, y: 640, zoom: 0.9, curve: E.sineInOut},
+  {t: VO[3].end, x: 4150, y: 820, zoom: 0.86, curve: E.sineInOut},
+  {t: T.LANDS + 0.2, x: 3300, y: 1150, zoom: 0.62, curve: E.expoInOut},
+  {t: T.KEYWORD - 0.4, x: 2680, y: 1430, zoom: 0.98, curve: E.sineInOut},
+  {t: VO[4].end, x: 2700, y: 1430, zoom: 0.98},
+  {t: VO[5].t + 0.5, x: 1100, y: 2020, zoom: 0.9, curve: E.expoInOut},
+  {t: T.OCR - 0.2, x: 1250, y: 2080, zoom: 0.9, curve: E.sineInOut},
+  {t: T.REDACT, x: 1660, y: 2040, zoom: 1.08, curve: E.expoInOut},
+  {t: T.SEAL + 0.2, x: 2150, y: 2200, zoom: 1.0, curve: E.sineInOut},
+  {t: T.TYPE - 0.45, x: 2200, y: 2210, zoom: 1.0},
+  {t: T.TYPE + 0.15, x: 3700, y: 2080, zoom: 0.9, curve: E.expoInOut},
+  {t: T.OPEN + 0.1, x: 3760, y: 2090, zoom: 0.92, curve: E.sineInOut},
+  {t: T.MOMENT + 0.5, x: 3880, y: 2070, zoom: 1.06, curve: E.sineInOut},
+  {t: MEET.end + 0.15, x: 3880, y: 2070, zoom: 1.06},
+  {t: T.PORT + 0.55, x: 1740, y: 1430, zoom: 0.98, curve: E.expoInOut},
+  {t: T.PULL[0], x: 1760, y: 1430, zoom: 0.98, curve: E.sineInOut},
+  {t: T.PULL[1], x: 3050, y: 1760, zoom: 0.29, curve: E.expoInOut},
+];
+const HITS = [[T.DROP[0][1], 6, 9], [T.DROP[1][1], 6, 9], [T.SLAM, 9, 8], [T.REDACT + 0.18, 5, 10], [T.SEAL + 0.3, 4, 10]];
+const handEnv = t => sstep(0.8, 1.4, t) * (1 - sstep(T.PULL[0] - 0.4, T.PULL[0], t)) * (1 - 0.8 * sstep(MEET.t - 0.5, MEET.t, t) * (1 - sstep(MEET.end, MEET.end + 0.4, t)));
+function camAt(t) {
+  const c = OM.camera(t, KEYS), e = handEnv(t) * 3.0;
+  let x = c.x + e * (Math.sin(1.7 * t) + 0.6 * Math.sin(2.9 * t + 1)) / c.zoom, y = c.y + e * (Math.sin(1.3 * t + 2) + 0.5 * Math.sin(3.3 * t)) / c.zoom, rot = c.rot;
+  for (const [th, amp, decay] of HITS) { const s = OM.shake(t, th, {amp, decay, seed: Math.round(th * 100)}); x += s.x / c.zoom; y += s.y / c.zoom; rot += s.rot * 0.3; }
+  return {x, y, zoom: c.zoom, rot};
+}
+
+// ─────────────────────────────── canvas helpers ───────────────────────────────
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+let DPR = 1, CAM, VIEW;
+const mat = M => g.setTransform(M[0] * DPR, M[1] * DPR, M[2] * DPR, M[3] * DPR, M[4] * DPR, M[5] * DPR);
+const screen = () => g.setTransform(DPR, 0, 0, DPR, 0, 0);
+function rr(x, y, w, h, r) { r = Math.max(0, Math.min(r, w / 2, h / 2)); g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function txt(s, x, y, f, col, align = 'left', base = 'alphabetic') { g.font = f; g.fillStyle = col; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
+function lift(h, a = 0.18) { const s = CAM.zoom * DPR; g.shadowColor = `rgba(14,20,28,${a * 0.9})`; g.shadowBlur = Math.min(h * 1.6 * s, 160 * DPR); g.shadowOffsetY = Math.min(h * 0.7 * s, 60 * DPR); g.shadowOffsetX = Math.min(h * 0.25 * s, 20 * DPR); }
+const flat = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetX = 0; g.shadowOffsetY = 0; };
+function block(x, y, w, h, r, h3, fill = '#ffffff') { lift(h3); g.fillStyle = fill; rr(x, y, w, h, r); g.fill(); flat(); g.strokeStyle = 'rgba(14,20,28,0.08)'; g.lineWidth = 1.2 / Math.min(1, CAM.zoom); g.stroke(); }
+const hexA = (h, a) => { const n = parseInt(h.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+function mixC(a, b, k) { const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); const A = p(a), B = p(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], k))).join(',')})`; }
+function station(B, title, sub, h3 = 40) { block(B.x, B.y, B.w, B.h, 26, h3); txt(title, B.x + 26, B.y + 58, F('display', 34), INK); sub.split('\n').forEach((s, i) => txt(s, B.x + 26, B.y + 90 + i * 26, F('mono', 19), MUTE)); }
+function groove(pts, w, col = DEEP) { g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); g.stroke(); }
+function wrapTxt(s, x, y, maxW, f, col, lh) { g.font = f; let line = '', yy = y; for (const w of s.split(' ')) { const n = line ? line + ' ' + w : w; if (g.measureText(n).width > maxW && line) { txt(line, x, yy, f, col); line = w; yy += lh; } else line = n; } if (line) txt(line, x, yy, f, col); }
+function pill(s, x, y, f, bg, fg, e = {op: 1, s: 1}, h = 44) { g.font = f; const w = g.measureText(s).width + h * 0.9; g.save(); g.globalAlpha *= e.op; g.translate(x, y); g.scale(e.s, e.s); lift(8, 0.15); g.fillStyle = bg; rr(-w / 2, -h / 2, w, h, h / 2); g.fill(); flat(); txt(s, 0, h * 0.18, f, fg, 'center'); g.restore(); return w; }
+const pop = (t, t0, o = {}) => OM.popIn(t, t0, Object.assign({rise: 0, s0: 0.6, ds: 0.4, zeta: 0.6, omega: 22}, o));
+
+// ─────────────────────────────── 1 · capture ───────────────────────────────
+function puck(P, dropT, label, file, api, col, t, cueT) {
+  if (t < dropT[0]) return;
+  const k = E.expoIn(seg(t, ...dropT)), im = OM.impact(t, dropT[1], {sqx: 0.08, sqy: 0.08}), s = lerp(1.35, 1, k) * (t >= dropT[1] ? im.sx : 1);
+  g.save(); g.translate(...P); g.scale(s, s); g.globalAlpha = sstep(dropT[0], dropT[0] + 0.12, t);
+  lift(lerp(120, 14, k), 0.2); g.fillStyle = '#ffffff'; g.beginPath(); g.arc(0, 0, 74, 0, 7); g.fill(); flat();
+  g.strokeStyle = LINE; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 56, 0, 7); g.stroke();
+  const live = t >= T.REC; g.fillStyle = live ? RED : '#cfd5d5'; g.beginPath(); g.arc(0, 0, 19 * (live ? 1 + 0.07 * Math.sin(t * 17 + P[1]) : 1), 0, 7); g.fill();
+  g.restore();
+  for (let r = 0; r < 3; r++) { const r0 = T.REC + r * 0.55 + (P === SYSP ? 0.25 : 0); const u = seg(t, r0, r0 + 1.1); if (u > 0 && u < 1 && t < SPLITT()) { g.strokeStyle = hexA(TEAL, 0.4 * (1 - u)); g.lineWidth = 3; g.beginPath(); g.arc(...P, 86 + 200 * E.quadOut(u), 0, 7); g.stroke(); } }
+  const hi = sstep(cueT - 0.05, cueT + 0.2, t) * (1 - sstep(cueT + 1.4, cueT + 1.8, t));
+  const ly = P === MIC ? P[1] - 170 : P[1] + 136;
+  txt(label, P[0], ly, F('display', 30), INK, 'center'); txt(file, P[0], ly + 30, F('mono', 19), hi > 0.3 ? TEALT : MUTE, 'center'); txt(api, P[0], ly + 56, F('mono', 19), hi > 0.3 ? INK : MUTE, 'center');
+}
+const SPLITT = () => T.SPLIT + 0.4;
+function robot(t) {
+  const R = ROBOT, ic = document.getElementById('icon'), k = R.w / 1024, live = t >= T.REC && t < T.PRINT + 1.6;
+  const e = OM.popIn(t, 0.05, {rise: 0, s0: 0.9, ds: 0.1, zeta: 0.6, omega: 18});
+  g.save(); g.translate(R.x + R.w / 2, R.y + R.h / 2); g.scale(e.s, e.s); g.translate(-R.w / 2, -R.h / 2); g.globalAlpha = e.op;
+  lift(30, 0.22); g.fillStyle = '#16202c'; rr(64 * k, 64 * k, 896 * k, 896 * k, 204 * k); g.fill(); flat();
+  g.drawImage(ic, 0, 0, R.w, R.h);
+  if (live) {                                   // the recorder foot's waveform, live
+    g.save(); g.scale(k, k);
+    const fg = g.createLinearGradient(268, 592, 760, 760); fg.addColorStop(0, MINT); fg.addColorStop(1, MINT2);
+    g.fillStyle = fg; g.fillRect(540, 612, 196, 128);
+    [556, 602, 648, 694].forEach((x, i) => { const h = 34 + 70 * Math.abs(Math.sin(t * (7 + i * 1.7) + i)); g.fillStyle = '#0e141c'; rr(x, 676 - h / 2, 26, h, 13); g.fill(); });
+    g.restore();
+  }
+  g.restore();
+  const hi = sstep(T.REC - 0.1, T.REC + 0.3, t) * (1 - sstep(T.PRINT + 1.2, T.PRINT + 1.6, t));
+  if (hi > 0) { g.strokeStyle = hexA(TEAL, 0.55 * hi); g.lineWidth = 4; rr(R.x + 56 * k - 8, R.y + 56 * k - 8, 912 * k + 16, 912 * k + 16, 212 * k + 8); g.stroke(); }
+  txt('LokalBot', R.x + R.w / 2, R.y - 22, F('display', 30), INK, 'center');
+}
+// audio beads flow from both pucks into the splitter; after it, beads take their speaker's colour
+function beads(t) {
+  if (t < T.REC) return;
+  const run = 1 - sstep(T.PRINT + 1.2, T.PRINT + 1.6, t);
+  if (run <= 0) return;
+  const paths = [[[MIC[0] + 80, MIC[1]], [560, MIC[1]], [ROBOT.x - 8, 530], [ROBOT.x + ROBOT.w + 8, 530], [SPL.x - 10, 530]],
+                 [[SYSP[0] + 80, SYSP[1]], [560, SYSP[1]], [ROBOT.x - 8, 610], [ROBOT.x + ROBOT.w + 8, 610], [SPL.x - 10, 610]]];
+  paths.forEach((pts, p) => {
+    for (let k = 0; k < 9; k++) {
+      const u = ((t - T.REC) * 0.55 + k / 9 + p * 0.05) % 1, x = pathAt(pts, u);
+      if (x[0] > ROBOT.x - 4 && x[0] < ROBOT.x + ROBOT.w + 4) continue;              // inside the robot
+      g.globalAlpha = run * sstep(T.REC, T.REC + 0.4, t) * sstep(0, 0.06, u) * (1 - sstep(0.95, 1, u));
+      const bg = g.createLinearGradient(x[0] - 13, x[1] - 13, x[0] + 13, x[1] + 13); bg.addColorStop(0, MINT); bg.addColorStop(1, MINT2);
+      g.fillStyle = bg; lift(6, 0.2); g.beginPath(); g.arc(x[0], x[1], 13, 0, 7); g.fill(); flat();
+      g.fillStyle = INK; for (let j = -1; j <= 1; j++) g.fillRect(x[0] + j * 5 - 1.2, x[1] - (j ? 4 : 7), 2.4, j ? 8 : 14);
+    }
+  });
+  g.globalAlpha = 1;
+  if (t >= T.SPLIT) {                           // speaker lanes out of the splitter into ASR
+    for (const [lane, col] of [['you', TEAL], ['other', THEM]]) for (let k = 0; k < 4; k++) {
+      const u = ((t - T.SPLIT) * 0.8 + k / 4 + (lane === 'other' ? 0.12 : 0)) % 1, x = lerp(SPL.x + SPL.w + 10, ASR.x - 10, u);
+      g.globalAlpha = run * sstep(T.SPLIT, T.SPLIT + 0.3, t) * sstep(0, 0.1, u) * (1 - sstep(0.9, 1, u));
+      g.fillStyle = col; lift(6, 0.2); g.beginPath(); g.arc(x, LANE[lane], 13, 0, 7); g.fill(); flat();
+    }
+    g.globalAlpha = 1;
+  }
+}
+function pathAt(pts, u) { let L = 0; const seg_ = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg_.push(d); L += d; }
+  let d = u * L; for (let i = 1; i < pts.length; i++) { if (d <= seg_[i - 1]) { const k = d / seg_[i - 1]; return [lerp(pts[i - 1][0], pts[i][0], k), lerp(pts[i - 1][1], pts[i][1], k)]; } d -= seg_[i - 1]; } return pts[pts.length - 1]; }
+function noBot(t) {
+  if (t < T.NOBOT - 0.1) return;
+  const e = pop(t, T.NOBOT - 0.05), out = 1 - sstep(VO[1].t + 0.2, VO[1].t + 0.6, t); if (out <= 0) return;
+  g.save(); g.globalAlpha = out; const x = ROBOT.x + ROBOT.w / 2 - 22, y = ROBOT.y + ROBOT.h + 70;
+  const w = pill('    No bot joins the call', x + 22, y, F('text', 28, 600), '#ffffff', INK, e, 64);
+  g.save(); g.translate(x + 22 - w * e.s / 2 + 38 * e.s, y); g.scale(e.s, e.s); g.strokeStyle = RED; g.lineWidth = 3.5; g.beginPath(); g.arc(0, 0, 14, 0, 7); g.moveTo(-10, -10); g.lineTo(10, 10); g.stroke(); g.restore();
+  g.restore();
+}
+
+// ─────────────────────────────── 2 · Nemotron, 3 · Qwen3-ASR ───────────────────────────────
+function splitter(t) {
+  const im = OM.impact(t, T.SPLIT, {sqx: 0.04, sqy: 0.05}); g.save(); g.translate(SPL.x + SPL.w / 2, SPL.y + SPL.h / 2); g.scale(t >= T.SPLIT ? im.sx : 1, t >= T.SPLIT ? im.sy : 1); g.translate(-(SPL.x + SPL.w / 2), -(SPL.y + SPL.h / 2));
+  station(SPL, 'Nemotron 3', 'Core ML · FluidAudio\nwho spoke, when');
+  const cols = [TEAL, THEM, '#8944ab', '#d63a6c', '#d9a400', '#4b44b5', '#8b5e3c', '#1ea2c8'];   // DesignTokens speakers
+  for (let i = 0; i < 8; i++) { const on = t >= T.EIGHT - 0.2 + i * 0.07 ? 1 : (i < 2 && t >= T.SPLIT ? 1 : 0); g.fillStyle = on ? cols[i] : LINE; g.beginPath(); g.arc(SPL.x + 40 + i * 30, SPL.y + 190, 10, 0, 7); g.fill(); }
+  const e8 = pop(t, T.EIGHT + 0.25); if (t >= T.EIGHT + 0.25) { g.save(); g.globalAlpha = e8.op; txt('up to 8 speakers', SPL.x + 26, SPL.y + 240, F('mono', 20), INK); g.restore(); }
+  txt('You', SPL.x + SPL.w + 40, LANE.you - 26, F('mono', 18), TEALT); txt('Other speaker', SPL.x + SPL.w + 40, LANE.other + 44, F('mono', 18), THEMT);
+  g.restore();
+}
+function asrBlock(t) {
+  station(ASR, 'Qwen3-ASR', '1.7B · MLX\n52 languages');
+  g.fillStyle = DEEP; rr(ASR.x - 8, 490, 24, 160, 8); g.fill(); rr(ASR.x + ASR.w - 14, 470, 22, 200, 8); g.fill();
+  const on = sstep(T.PRINT, T.PRINT + 0.2, t) * (1 - sstep(VO[2].end + 0.3, VO[2].end + 0.6, t)); g.fillStyle = on > 0.5 ? TEAL : LINE; g.beginPath(); g.arc(ASR.x + 40, ASR.y + ASR.h - 44, 9, 0, 7); g.fill();
+  txt('on this Mac', ASR.x + 58, ASR.y + ASR.h - 37, F('mono', 19), on > 0.5 ? INK : MUTE);
+}
+function tape(t) {
+  // belt bed from the ASR mouth to the press and beyond
+  g.fillStyle = DEEP; rr(MOUTH - 20, 460, 4600 - MOUTH, 220, 18); g.fill();
+  g.save(); rr(MOUTH - 20, 460, 4600 - MOUTH, 220, 18); g.clip();
+  g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 2; const ph = belt(t) % 48; for (let x = MOUTH - 20 + ph; x < 4600; x += 48) { g.beginPath(); g.moveTo(x, 466); g.lineTo(x, 674); g.stroke(); }
+  g.beginPath(); g.rect(MOUTH, 440, 4800, 260); g.clip();
+  const filed = t >= T.LANDS ? 1 : 0;                               // filing() carries it to the cabinet
+  TURNS.forEach((r, i) => {
+    if (t < T.PRINT) return; const x = turnX(i, t), y = LANE[r.lane], W = pw(i), wc = who(r.lane);
+    if (filed >= 1) return;
+    const stamp = t >= T.STAMP ? Math.exp(-(t - T.STAMP) * 4) : 0;
+    g.save(); g.globalAlpha = 1 - filed; lift(8, 0.14); g.fillStyle = '#ffffff'; rr(x, y - 26, W, 52, 12); g.fill(); flat();
+    g.fillStyle = wc.col; rr(x, y - 26, 8, 52, 4); g.fill();
+    txt(mmss(r.ts), x + 22, y + 8, F('mono', 20), stamp > 0.05 ? mixC(MUTE, TEAL, Math.min(1, stamp * 1.5)) : MUTE);
+    txt(r.text, x + 22 + TSW + 14, y + 8, F('text', 24), INK); g.restore();
+  });
+  g.restore();
+}
+let TSW = 0; const pw = i => TW[i] + TSW + 50;
+
+// ─────────────────────────────── 4 · the Qwen3.5 press, the backend dial ───────────────────────────────
+function press(t) {
+  const P = PRESS, down = t >= T.SLAM - 0.08 && t < T.SLAM + 0.35, im = OM.impact(t, T.SLAM, {sqx: 0.05, sqy: 0.07});
+  const h = down ? 6 : 70 * (t < T.SLAM ? 1 - 0.4 * sstep(T.SLAM - 0.5, T.SLAM - 0.08, t) : 0.1 + 0.9 * sstep(T.SLAM + 0.35, T.SLAM + 0.9, t));
+  g.save(); g.translate(P.x + P.w / 2, P.y + P.h / 2); const s = (down ? 0.97 : 1) * (t >= T.SLAM ? im.sx : 1); g.scale(s, s); g.translate(-(P.x + P.w / 2), -(P.y + P.h / 2));
+  block(P.x, P.y, P.w, P.h, 30, h);
+  txt('Qwen3.5', P.x + 30, P.y + 66, F('display', 40), INK); txt('4B · Q4_K_M', P.x + 30, P.y + 100, F('mono', 20), MUTE); txt('llama.cpp · localhost', P.x + 30, P.y + 128, F('mono', 20), MUTE);
+  g.fillStyle = down ? TEAL : DEEP; rr(P.x + 30, P.y + P.h - 70, P.w - 60, 26, 13); g.fill();
+  g.restore();
+}
+function card(c, i, t) {
+  const te = T.EJECT[i]; if (t < te) return;
+  const P0 = {x: PRESS.x + PRESS.w / 2 - CW / 2, y: PRESS.y + PRESS.h - CH};
+  let pos = OM.hop(t, te, te + 0.42, P0, c, {height: 90}), h = 10 + 60 * Math.sin(Math.PI * seg(t, te, te + 0.42)), sc = 1;
+  const f0 = T.LANDS + 0.1 + i * 0.09, f1 = f0 + 0.55;                 // filed into the summaries drawer
+  if (t >= f0) { const D = DRAWER.su; pos = OM.hop(t, f0, f1, c, {x: D.x + 30 + i * 8, y: D.y + 20 + i * 6}, {height: 220}); h = 10 + 120 * Math.sin(Math.PI * seg(t, f0, f1)); sc = lerp(1, 0.72, E.cubicInOut(seg(t, f0, f1))); if (t > f1 + 0.05) return; }
+  const land = OM.impact(t, te + 0.42, {sqx: 0.05, sqy: 0.06});
+  g.save(); g.translate(pos.x + CW / 2, pos.y + CH / 2); g.scale(land.sx * sc, land.sy * sc); g.translate(-CW / 2, -CH / 2);
+  lift(h, 0.18); g.fillStyle = '#ffffff'; rr(0, 0, CW, CH, 18); g.fill(); flat();
+  txt(c.kind, 24, 38, F('mono', 19), c.kind === 'ACTION' ? TEALT : c.kind === 'DECISION' ? SUCCESS : ATTN);
+  wrapTxt(c.text, 24, 74, CW - 48, F('text', 25, 600), INK, 31);
+  if (c.owner) txt(c.owner, 24, CH - 20, F('text', 19), MUTE);
+  g.font = F('mono', 19); const cw = g.measureText(c.ts).width + 24; g.strokeStyle = TEAL; g.lineWidth = 2; rr(CW - 24 - cw, CH - 44, cw, 30, 15); g.stroke(); txt(c.ts, CW - 24 - cw / 2, CH - 23, F('mono', 19), TEAL, 'center');
+  g.restore();
+}
+
+// ─────────────────────────────── 5 · the SQLite cabinet ───────────────────────────────
+const TOKENS = ['cluster', 'eviction', 'failover', 'redis', 'thursday'];
+function cabinet(t) {
+  const L = LIB; block(L.x, L.y, L.w, L.h, 30, 50);
+  txt('lokalbotv3.sqlite', L.x + 40, L.y + 64, F('display', 36), INK); txt('local library · under your macOS account', L.x + 40, L.y + 94, F('mono', 18), MUTE);
+  for (const [key, label] of [['tr', 'transcripts'], ['su', 'summaries']]) { const D = DRAWER[key]; g.fillStyle = DEEP; rr(D.x, D.y, D.w, D.h, 16); g.fill(); txt(label, D.x + 18, D.y + D.h - 16, F('mono', 18), MUTE); }
+  // filed contents
+  const fl = sstep(T.LANDS + 0.2, T.LANDS + 0.9, t);
+  if (fl > 0) { g.globalAlpha = fl; for (let i = 0; i < 4; i++) { g.fillStyle = '#ffffff'; rr(DRAWER.tr.x + 20 + i * 8, DRAWER.tr.y + 18 + i * 22, 300, 30, 8); g.fill(); g.fillStyle = [TEAL, THEM, TEAL, THEM][i]; g.fillRect(DRAWER.tr.x + 20 + i * 8, DRAWER.tr.y + 18 + i * 22, 5, 30); }
+    for (let i = 0; i < 4; i++) { g.fillStyle = '#ffffff'; rr(DRAWER.su.x + 20 + i * 8, DRAWER.su.y + 18 + i * 22, 300, 30, 8); g.fill(); } g.globalAlpha = 1; }
+  // the two indexes
+  const X = L.x + 480, P1 = {x: X, y: L.y + 110, w: 380, h: 190}, P2 = {x: X, y: L.y + 330, w: 380, h: 190};
+  const kOn = sstep(T.KEYWORD - 0.1, T.KEYWORD + 0.2, t), mOn = sstep(T.MEANING - 0.1, T.MEANING + 0.2, t);
+  for (const [P, on, title] of [[P1, kOn, 'FTS5 · keywords'], [P2, mOn, 'Harrier 0.6B · vectors']]) { g.fillStyle = on > 0.5 ? '#ffffff' : DEEP; rr(P.x, P.y, P.w, P.h, 16); g.fill(); g.strokeStyle = on > 0.5 ? TEAL : 'transparent'; g.lineWidth = 2.5; g.stroke(); txt(title, P.x + 18, P.y + 36, F('mono', 20), on > 0.5 ? INK : MUTE); }
+  TOKENS.forEach((w, i) => { const e = pop(t, T.KEYWORD + i * 0.08); if (t < T.KEYWORD + i * 0.08) return; g.save(); g.globalAlpha = e.op; txt(w, P1.x + 18 + (i % 3) * 122, P1.y + 86 + Math.floor(i / 3) * 44, F('mono', 22), INK); g.restore(); });
+  // Harrier stamps a vector onto each chunk
+  const hs = OM.impact(t, T.HARRIER, {sqx: 0.06, sqy: 0.08}), hb = sstep(T.MEANING - 0.2, T.MEANING + 0.1, t);
+  if (hb > 0) { g.save(); g.globalAlpha = hb * (1 - sstep(T.HARRIER + 1.2, T.HARRIER + 1.6, t)); g.translate(P2.x + P2.w - 70, P2.y - 20 + (t < T.HARRIER ? -30 * (1 - seg(t, T.MEANING, T.HARRIER)) : 0)); g.scale(hs.sx, hs.sy); block(-60, -30, 120, 60, 12, t < T.HARRIER ? 40 : 6); txt('embed', 0, 8, F('mono', 20), INK, 'center'); g.restore(); }
+  for (let r = 0; r < 4; r++) { if (t < T.HARRIER + r * 0.1) continue; const e = pop(t, T.HARRIER + r * 0.1);
+    for (let b = 0; b < 16; b++) { const v = 0.3 + 0.7 * Math.abs(Math.sin(r * 3.1 + b * 1.7)); g.globalAlpha = e.op; g.fillStyle = mixC('#dfe5e5', r % 2 ? THEM : TEAL, v); g.fillRect(P2.x + 18 + b * 21, P2.y + 58 + r * 30, 16, 20); } g.globalAlpha = 1; }
+  // the agent port on the cabinet's side (used in 7)
+  g.fillStyle = DEEP; rr(PORT[0] - 26, PORT[1] - 40, 40, 80, 12); g.fill();
+}
+
+// ─────────────────────────────── 6 · the opt-in screen lane ───────────────────────────────
+const WINS = [
+  {app: 'Slack · #engineering', text: 'Redis failover benchmark is booked for Thursday with the search team’s load harness.', mode: 'ax'},
+  {app: 'Notion · Q3 planning doc', text: 'Postgres migration timeline, Q3 priorities, onboarding first.', mode: 'ocr'},
+  {app: 'Terminal', text: 'export API_TOKEN=demo-token-0000 && make release', mode: 'secret'},   // an obvious placeholder, not a real key format
+];
+const WIN_W = 440, WIN_H = 150;
+function screenLane(t) {
+  groove([[260, 2030], [LOCK.x + LOCK.w + 40, 2030]], 40);
+  groove([[REDACT.x + REDACT.w / 2, REDACT.y], [REDACT.x + REDACT.w / 2, LIB.y + LIB.h + 20]], 20);
+  const on = clamp(spring(t - T.OPTIN, 0.6, 20), -0.05, 1.08);
+  // the lever: opt-in
+  const [lx, ly] = LEVER; txt('Save screen text', lx, ly - 64, F('mono', 22), on > 0.5 ? INK : MUTE, 'center'); txt('off by default', lx, ly + 72, F('mono', 18), MUTE, 'center');
+  g.fillStyle = DEEP; rr(lx - 70, ly - 34, 140, 68, 34); g.fill(); g.save(); lift(14, 0.22); g.fillStyle = on > 0.5 ? TEAL : '#ffffff'; g.beginPath(); g.arc(lx - 36 + 72 * clamp(on, 0, 1.05), ly, 28, 0, 7); g.fill(); flat(); g.restore();
+  station(READER, 'Accessibility', 'visible text first'); station(OCRL, 'Vision OCR', 'fallback', 24);
+  const ocr = sstep(T.OCR - 0.1, T.OCR + 0.2, t) * (1 - sstep(T.OCR + 1.4, T.OCR + 1.8, t));
+  if (ocr > 0) { g.strokeStyle = hexA(TEAL, ocr); g.lineWidth = 4; rr(OCRL.x - 6, OCRL.y - 6, OCRL.w + 12, OCRL.h + 12, 26); g.stroke(); }
+  const axOn = sstep(T.AX - 0.1, T.AX + 0.2, t) * (1 - sstep(T.OCR - 0.2, T.OCR, t)); if (axOn > 0) { g.strokeStyle = hexA(TEAL, axOn); g.lineWidth = 4; rr(READER.x - 6, READER.y - 6, READER.w + 12, READER.h + 12, 30); g.stroke(); }
+  // redaction stamp
+  const im = OM.impact(t, T.REDACT + 0.18, {sqx: 0.05, sqy: 0.08}), dn = t >= T.REDACT + 0.1 && t < T.REDACT + 0.35;
+  g.save(); g.translate(REDACT.x + REDACT.w / 2, REDACT.y + REDACT.h / 2); if (t >= T.REDACT + 0.18) g.scale(im.sx, im.sy); g.translate(-(REDACT.x + REDACT.w / 2), -(REDACT.y + REDACT.h / 2));
+  station(REDACT, 'Redact', 'credential rules', dn ? 4 : 40); g.fillStyle = dn ? INK : DEEP; rr(REDACT.x + 26, REDACT.y + REDACT.h - 66, REDACT.w - 52, 26, 13); g.fill(); g.restore();
+  // the lockbox: pixels sealed, 14-day clock
+  const sealed = sstep(T.SEAL, T.SEAL + 0.25, t);
+  block(LOCK.x, LOCK.y, LOCK.w, LOCK.h, 28, 40); txt('AES-GCM', LOCK.x + 28, LOCK.y + 60, F('display', 34), INK); txt('per-install Keychain key', LOCK.x + 28, LOCK.y + 92, F('mono', 18), MUTE);
+  g.save(); g.translate(LOCK.x + LOCK.w - 70, LOCK.y + 64); g.strokeStyle = sealed > 0.5 ? TEAL : MUTE; g.lineWidth = 5; g.beginPath(); g.arc(0, -8 - 10 * (1 - sealed), 16, Math.PI, 0); g.stroke(); g.fillStyle = sealed > 0.5 ? TEAL : MUTE; rr(-22, -8, 44, 34, 6); g.fill(); g.restore();
+  const exp = sstep(T.EXPIRE - 0.1, T.EXPIRE + 0.3, t), days = Math.round(lerp(0, 14, E.cubicOut(seg(t, T.EXPIRE - 0.1, T.EXPIRE + 0.6))));
+  if (exp > 0) { g.save(); g.globalAlpha = exp; g.fillStyle = DEEP; rr(LOCK.x + 28, LOCK.y + 130, LOCK.w - 56, 90, 16); g.fill();
+    for (let d = 0; d < 14; d++) { g.fillStyle = d < days ? TEAL : '#ffffff'; rr(LOCK.x + 44 + d * 25, LOCK.y + 150, 19, 19, 4); g.fill(); }
+    txt('expires after 14 days · default', LOCK.x + 44, LOCK.y + 204, F('mono', 19), INK); g.restore(); }
+  // windows travel the lane once the lever is on
+  WINS.forEach((w, i) => windowCard(w, i, t));
+}
+const SLOT_W = 470, RC = READER.x + READER.w / 2 - WIN_W / 2, DC = REDACT.x + REDACT.w / 2 - WIN_W / 2;
+const HEAD = () => [[T.OPTIN, -200], [T.AX, RC], [T.OCR - 0.35, RC + SLOT_W], [T.REDACT - 0.1, DC + 2 * SLOT_W], [T.SEAL + 0.9, DC + 2 * SLOT_W + 900]];
+function headX(t) { const K_ = HEAD(); if (t <= K_[0][0]) return K_[0][1]; for (let i = 1; i < K_.length; i++) if (t <= K_[i][0]) return lerp(K_[i - 1][1], K_[i][1], E.cubicInOut(seg(t, K_[i - 1][0], K_[i][0]))); return K_[K_.length - 1][1]; }
+function windowCard(w, i, t) {
+  if (t < T.OPTIN) return;
+  const x = headX(t) - i * SLOT_W; if (x < -WIN_W) return;
+  let y = 2030 - WIN_H / 2;
+  if (w.mode === 'ocr') y += 205 * sstep(T.OCR - 0.3, T.OCR, t) * (1 - sstep(T.OCR + 0.9, T.OCR + 1.3, t));   // down to the OCR lens and back
+  const gone = sstep(LOCK.x - 120, LOCK.x + 160, x), sealed = sstep(LOCK.x - 260, LOCK.x - 60, x);
+  if (gone >= 1) return;
+  const S = 1 - 0.55 * gone;
+  g.save(); g.globalAlpha = sstep(-WIN_W, 160, x) * (1 - gone); g.translate(x + WIN_W / 2, y + WIN_H / 2); g.scale(S, S); g.translate(-WIN_W / 2, -WIN_H / 2);
+  lift(10, 0.16); g.fillStyle = '#ffffff'; rr(0, 0, WIN_W, WIN_H, 16); g.fill(); flat();
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, k) => { g.fillStyle = c; g.beginPath(); g.arc(20 + k * 16, 20, 5, 0, 7); g.fill(); });
+  txt(w.app, 78, 26, F('mono', 18), MUTE);
+  const read = x >= RC - 10 && (w.mode !== 'ocr' || t >= T.OCR + 0.05), red = w.mode === 'secret' && t >= T.REDACT + 0.18;
+  g.save(); rr(0, 0, WIN_W, WIN_H, 16); g.clip();
+  if (w.mode === 'secret') { const pre = 'export API_TOKEN=', key = 'demo-token-0000', post = ' && make release', f = F('text', 22, 500);
+    g.font = f; const px = g.measureText(pre).width, kw = g.measureText(key).width; txt(pre, 20, 72, f, read ? INK : '#9aa5a8');
+    if (red) { g.fillStyle = INK; rr(21 + px, 54, kw + 4, 24, 4); g.fill(); txt(post, 25 + px + kw, 72, f, INK); } else txt(key + post, 20 + px, 72, f, read ? INK : '#9aa5a8'); }
+  else wrapTxt(w.text, 20, 72, WIN_W - 40, F('text', 22, 500), read ? INK : '#9aa5a8', 28);
+  if (read) { g.fillStyle = hexA(TEAL, 0.12); g.fillRect(16, 52, WIN_W - 32, w.mode === 'secret' ? 28 : 58); }
+  if (sealed > 0) { g.fillStyle = hexA('#0e141c', 0.55 * sealed); g.fillRect(0, 0, WIN_W, WIN_H); }
+  g.restore(); g.restore();
+}
+// read text climbs the groove into the library while pixels roll on to the lockbox
+function textToLibrary(t) {
+  for (let k = 0; k < 3; k++) { const t0 = T.REDACT + 0.4 + k * 0.35, u = seg(t, t0, t0 + 0.9); if (u <= 0 || u >= 1) continue;
+    const x = REDACT.x + REDACT.w / 2, y = lerp(REDACT.y - 10, LIB.y + LIB.h + 10, E.cubicInOut(u)); g.globalAlpha = sstep(0, 0.1, u) * (1 - sstep(0.9, 1, u));
+    lift(6, 0.2); g.fillStyle = '#ffffff'; rr(x - 46, y - 14, 92, 28, 8); g.fill(); flat(); g.fillStyle = hexA(TEAL, 0.5); g.fillRect(x - 34, y - 3, 68, 6); g.globalAlpha = 1; }
+}
+// the transcript tape is filed into the cabinet
+function filing(t) {
+  if (t < T.LANDS || t > T.LANDS + 1.0) return;
+  TURNS.forEach((r, i) => { const t0 = T.LANDS + i * 0.07, t1 = t0 + 0.7; if (t > t1 + 0.05) return;
+    const A = {x: turnX(i, T.LANDS), y: LANE[r.lane] - 26}, B = {x: DRAWER.tr.x + 20 + i * 8, y: DRAWER.tr.y + 18 + i * 22};
+    const p = OM.hop(t, t0, t1, A, B, {height: 260}), sc = lerp(1, 0.5, E.cubicInOut(seg(t, t0, t1))), W = pw(i);
+    g.save(); g.translate(p.x, p.y); g.scale(sc, sc); lift(10 + 80 * Math.sin(Math.PI * seg(t, t0, t1)), 0.16); g.fillStyle = '#ffffff'; rr(0, 0, W, 52, 12); g.fill(); flat();
+    g.fillStyle = who(r.lane).col; rr(0, 0, 8, 52, 4); g.fill(); txt(mmss(r.ts), 22, 34, F('mono', 20), MUTE); txt(r.text, 22 + TSW + 14, 34, F('text', 24), INK); g.restore(); });
+}
+
+// ─────────────────────────────── 7 · search, the moment ───────────────────────────────
+const RESULTS = [
+  {kind: 'ACTION · Design review', text: 'Draft the eviction-policy document by Thursday', ts: '00:00:26', col: TEALT},
+  {kind: 'TRANSCRIPT · You', text: 'I’ll draft the eviction-policy doc by Thursday.', ts: '00:00:26', col: TEALT},
+  {kind: 'SCREEN TEXT · Slack', text: 'Redis failover benchmark is booked for Thursday…', ts: '11:26 AM', col: INK},
+];
+function search(t) {
+  const S = SEARCH; block(S.x, S.y, S.w, S.h, 24, 30);
+  g.strokeStyle = TEAL; g.lineWidth = 4; g.beginPath(); g.arc(S.x + 50, S.y + 46, 16, 0, 7); g.stroke(); g.beginPath(); g.moveTo(S.x + 62, S.y + 58); g.lineTo(S.x + 74, S.y + 70); g.stroke();
+  const ty = OM.typeOn(t, T.TYPE, 'Thursday', {cps: 15}); txt(ty.str || 'Search', S.x + 96, S.y + 62, F('text', 40, ty.str ? 600 : 400), ty.str ? INK : '#a3adb0');
+  g.fillStyle = DEEP; rr(TRAY.x, TRAY.y, TRAY.w, TRAY.h, 26); g.fill(); txt('RESULTS · keyword + meaning, fused', TRAY.x + 24, TRAY.y - 16, F('mono', 20), MUTE);
+  // the two probes run up into the indexes
+  for (const [t0, x1, lab] of [[T.PROBE_K, LIB.x + 480 + 190, 'FTS5'], [T.PROBE_M, LIB.x + 480 + 190, 'vectors']]) {
+    const k = E.expoOut(seg(t, t0, t0 + 0.45)), a = 1 - sstep(T.OPEN, T.OPEN + 0.3, t); if (k <= 0 || a <= 0) continue;
+    const y1 = lab === 'FTS5' ? LIB.y + 300 : LIB.y + LIB.h - 40, x0 = S.x + (lab === 'FTS5' ? 180 : 320);
+    g.strokeStyle = hexA(lab === 'FTS5' ? TEAL : THEM, a); g.lineWidth = 5; g.setLineDash([14, 10]); g.lineDashOffset = -t * 60; g.beginPath(); g.moveTo(x0, S.y); g.lineTo(lerp(x0, x1, k), lerp(S.y, y1, k)); g.stroke(); g.setLineDash([]);
+  }
+  RESULTS.forEach((r, i) => {
+    const t0 = T.RES + i * 0.12; if (t < t0) return; const e = OM.popIn(t, t0, {rise: 0, s0: 1.2, ds: -0.2, zeta: 0.55, omega: 20});
+    if (i === 1 && t >= T.OPEN) return;
+    const x = TRAY.x + 30 + i * 455, y = TRAY.y + 40;
+    g.save(); g.globalAlpha = e.op; g.translate(x + 210, y + 110); g.scale(e.s, e.s); g.translate(-210, -110);
+    lift(10, 0.16); g.fillStyle = '#ffffff'; rr(0, 0, 420, 220, 18); g.fill(); flat();
+    txt(r.kind, 22, 38, F('mono', 18), r.col); wrapTxt(r.text, 22, 80, 376, F('text', 25, 600), INK, 32);
+    g.font = F('mono', 19); const cw = g.measureText(r.ts).width + 24; g.strokeStyle = TEAL; g.lineWidth = 2; rr(398 - cw, 170, cw, 30, 15); g.stroke(); txt(r.ts, 398 - cw / 2, 191, F('mono', 19), TEAL, 'center');
+    g.restore();
+  });
+}
+function player(t) {
+  if (t < T.OPEN) return;
+  const A = {x: TRAY.x + 30 + 455, y: TRAY.y + 40, w: 420, h: 220, r: 18};
+  const B = OM.morphRect(t, T.OPEN, T.OPEN + 0.5, A, PLAYER, {curve: E.expoOut});
+  const out = sstep(T.PORT - 0.2, T.PORT + 0.3, t); if (out >= 1) return;
+  g.save(); g.globalAlpha = 1 - out; lift(40 * B.k + 10, 0.2); g.fillStyle = '#ffffff'; rr(B.x, B.y, B.w, B.h, B.r); g.fill(); flat();
+  const c = sstep(0.4, 0.9, B.k); if (c > 0) { g.save(); rr(B.x, B.y, B.w, B.h, B.r); g.clip(); g.globalAlpha *= c; g.translate(B.x, B.y); g.scale(B.w / PLAYER.w, B.h / PLAYER.h);
+    txt('Design review', 50, 80, F('display', 40), INK); txt('Zoom · Transcript · You', 50, 116, F('mono', 20), MUTE); txt('00:00:26', 1150, 80, F('mono', 34), TEAL, 'right');
+    const NB = MEET.bars.length, x0 = 50, x1 = 1150, pitch = (x1 - x0) / NB, cy = 250, kp = clamp((t - MEET.t) / MEET.dur, 0, 1);
+    for (let i = 0; i < NB; i++) { const h = 62 * MEET.bars[i], on = (i + 0.5) / NB <= kp; g.fillStyle = on ? TEAL : '#dde3e3'; rr(x0 + pitch * (i + 0.5) - 4, cy - h, 8, 2 * h, 4); g.fill(); }
+    const jump = sstep(T.MOMENT, T.MOMENT + 0.25, t), px = t >= MEET.t ? lerp(x0, x1, kp) : lerp(x0 + 420, x0, jump);
+    g.fillStyle = INK; g.fillRect(px - 1.5, cy - 84, 3, 168); g.beginPath(); g.arc(px, cy - 86, 7, 0, 7); g.fill();
+    g.font = F('text', 40, 600); let xx = 50; const sp = g.measureText(' ').width;
+    MEET.text.split(' ').forEach((s, i) => { const w0 = MEET.words[Math.min(i + (i > 3 ? 1 : 0), MEET.words.length - 1)][1], on = t >= w0; txt(s, xx, 420, F('text', 40, 600), on ? INK : '#b9c2c4'); g.font = F('text', 40, 600); xx += g.measureText(s).width + sp; });
+    g.restore(); }
+  g.restore();
+}
+
+// ─────────────────────────────── 8 · the read-only agent port ───────────────────────────────
+const TERM_LINES = ['{"meeting": "Design review", "at": "00:00:26",', ' "text": "I’ll draft the eviction-policy doc by Thursday."}', '{"meeting": "Engineering standup", "at": "00:00:20", …}'];
+function agents(t) {
+  const on = clamp(spring(t - T.ON, 0.6, 20), -0.05, 1.08), vis = sstep(T.PORT - 0.2, T.PORT + 0.3, t) * (1 - sstep(T.PULL[1], T.PULL[1] + 0.4, t) * 0);
+  // switch on the cabinet's side
+  const sx = PORT[0] - 90, sy = PORT[1] - 150;
+  txt('Agent access', sx, sy - 52, F('mono', 20), on > 0.5 ? INK : MUTE, 'center'); txt(on > 0.5 ? 'read-only' : 'off by default', sx, sy + 64, F('mono', 18), on > 0.5 ? TEAL : MUTE, 'center');
+  g.fillStyle = DEEP; rr(sx - 60, sy - 28, 120, 56, 28); g.fill(); g.save(); lift(10, 0.2); g.fillStyle = on > 0.5 ? TEAL : '#ffffff'; g.beginPath(); g.arc(sx - 30 + 60 * clamp(on, 0, 1.05), sy, 22, 0, 7); g.fill(); flat(); g.restore();
+  // the cable lights only once it is on, and only outward
+  const cab = [[PORT[0] - 26, PORT[1]], [TERM.x + TERM.w + 10, PORT[1]]];
+  groove(cab, 12, on > 0.5 ? TEAL : DEEP);
+  if (on > 0.5) { for (let k = 0; k < 4; k++) { const u = ((t - T.ON) * 1.4 + k / 4) % 1; g.fillStyle = '#ffffff'; g.beginPath(); g.arc(lerp(cab[0][0], cab[1][0], u), PORT[1], 6, 0, 7); g.fill(); } }
+  if (t < T.CLI - 0.2) return;
+  const e = OM.popIn(t, T.CLI - 0.2, {rise: 30}); g.save(); g.globalAlpha = e.op * vis; g.translate(0, e.dy);
+  lift(30, 0.25); g.fillStyle = '#0e141c'; rr(TERM.x, TERM.y, TERM.w, TERM.h, 22); g.fill(); flat();
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, k) => { g.fillStyle = c; g.beginPath(); g.arc(TERM.x + 28 + k * 20, TERM.y + 26, 6, 0, 7); g.fill(); });
+  const cmd = OM.typeOn(t, T.CLI, 'lokalbot-cli search "Thursday"', {cps: 30});
+  txt('$ ' + cmd.str, TERM.x + 30, TERM.y + 84, F('mono', 24), '#e8f0f2');
+  const mcp = OM.popIn(t, T.MCP, {rise: 10}); if (t >= T.MCP) { g.globalAlpha = e.op * vis * mcp.op; ['list_meetings', 'get_meeting', 'search_meetings', 'ask_library'].forEach((s, i) => { g.strokeStyle = '#3a4a55'; g.lineWidth = 1.5; g.font = F('mono', 18); const w = g.measureText(s).width + 22; const x = TERM.x + 30 + [0, 180, 350, 560][i]; rr(x, TERM.y + 112, w, 32, 8); g.stroke(); txt(s, x + 11, TERM.y + 134, F('mono', 18), '#a9bcc4'); }); txt('MCP · stdio', TERM.x + TERM.w - 30, TERM.y + 34, F('mono', 18), '#7f95a0', 'right'); g.globalAlpha = e.op * vis; }
+  if (t >= T.ON + 0.15) TERM_LINES.forEach((l, i) => { if (t >= T.ON + 0.15 + i * 0.12) txt(l, TERM.x + 30, TERM.y + 200 + i * 40, F('mono', 20), i < 2 ? MINT : '#7f95a0'); });
+  else if (t >= T.OFF) txt('access is off — turn it on in Settings → Privacy & Data', TERM.x + 30, TERM.y + 200, F('mono', 20), '#7f95a0');
+  g.restore();
+}
+
+// ─────────────────────────────── 9 · "Your Mac", the network gate, the name ───────────────────────────────
+function plate(t) {
+  const a = sstep(T.PULL[0] + 0.3, T.PULL[1], t); if (a <= 0) return;
+  g.save(); g.globalAlpha = a; g.strokeStyle = INK; g.lineWidth = 10; g.setLineDash([60, 34]); rr(PLATE.x, PLATE.y, PLATE.w, PLATE.h, PLATE.r); g.stroke(); g.setLineDash([]);
+  g.drawImage(document.getElementById('icon'), PLATE.x + 40, PLATE.y - 190, 160, 160); txt('YOUR MAC', PLATE.x + 230, PLATE.y - 60, F('display', 110), INK);
+  // the one gate out: remote servers only after you approve their origin
+  const [gx, gy] = NETGATE; g.fillStyle = C.ground; g.fillRect(gx - 20, gy - 120, 40, 240); block(gx - 40, gy - 150, 80, 300, 24, 30);
+  const ok = t >= T.APPROVAL; const lk = sstep(T.REMOTE - 0.1, T.REMOTE + 0.3, t);
+  block(REMOTE.x, REMOTE.y, REMOTE.w, REMOTE.h, 28, 30); txt('remote server', REMOTE.x + 30, REMOTE.y + 80, F('display', 44), INK); txt('optional', REMOTE.x + 30, REMOTE.y + 130, F('mono', 32), MUTE);
+  if (lk > 0) { g.globalAlpha = a * lk; g.strokeStyle = ok ? TEAL : MUTE; g.lineWidth = 16; g.setLineDash(ok ? [] : [30, 24]); g.beginPath(); g.moveTo(gx + 40, gy); g.lineTo(REMOTE.x - 10, gy); g.stroke(); g.setLineDash([]);
+    pill(ok ? '✓  approved' : 'needs approval', (gx + REMOTE.x) / 2 + 10, gy - 90, F('text', 44, 600), ok ? TEAL : '#ffffff', ok ? '#ffffff' : INK, pop(t, T.REMOTE), 84); }
+  g.restore();
+}
+let NAME_W = 0;
+const TILES = [['No account', () => T.ACCOUNT], ['No telemetry', () => T.TELEMETRY], ['Free and open source', () => T.FREE]];
+function ending(t) {
+  g.font = F('text', 90, 600); const ws = TILES.map(([s]) => g.measureText(s).width + 120), gap = 80, tot = ws.reduce((a, b) => a + b, 0) + gap * 2; let tx = NAME_AT[0] - tot / 2;
+  TILES.forEach(([s, tf], i) => { const t0 = tf(); const w = ws[i]; if (t >= t0) { const e = OM.popIn(t, t0, {rise: 0, s0: 1.25, ds: -0.25, zeta: 0.5, omega: 20});
+    g.save(); g.globalAlpha = e.op; g.translate(tx + w / 2, NAME_AT[1] + 300); g.scale(e.s, e.s); lift(40 * (e.s - 1) * 4 + 14, 0.18);
+    g.fillStyle = i === 2 ? TEAL : '#ffffff'; rr(-w / 2, -80, w, 160, 80); g.fill(); flat(); txt(s, 0, 31, F('text', 90, 600), i === 2 ? '#ffffff' : INK, 'center'); g.restore(); } tx += w + gap; });
+  if (t < T.NAME) return;
+  const IC = NAME_PX * 1.05, lockW = IC + 60 + NAME_W, ie = OM.popIn(t, T.NAME - 0.1, {rise: 0, s0: 0.5, ds: 0.5, zeta: 0.55, omega: 16});
+  g.save(); g.globalAlpha = ie.op; g.translate(NAME_AT[0] - lockW / 2 + IC / 2, NAME_AT[1] - NAME_PX * 0.36); g.scale(ie.s, ie.s); lift(30, 0.22);
+  g.fillStyle = '#16202c'; rr(-IC * 0.4375, -IC * 0.4375, IC * 0.875, IC * 0.875, IC * 0.2); g.fill(); flat(); g.drawImage(document.getElementById('icon'), -IC / 2, -IC / 2, IC, IC); g.restore();
+  g.font = F('display', NAME_PX); g.letterSpacing = TRACK(NAME_PX); let x = NAME_AT[0] - lockW / 2 + IC + 60;
+  [...'LokalBot'].forEach((ch, i) => { const d = OM.letterDrop(t, T.NAME, i, {stagger: 0.05, dist: 260}); const w = g.measureText(ch).width;
+    if (d.op > 0) { g.save(); g.globalAlpha = d.op; g.translate(x + w / 2, NAME_AT[1] + d.y); g.scale(d.sx, d.sy); lift(60 * (1 - d.k) + 16, 0.2); g.fillStyle = INK; g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillText(ch, 0, 0); flat(); g.restore(); } x += w; });
+  g.letterSpacing = '0px';
+}
+
+// ─────────────────────────────── the table + seek ───────────────────────────────
+function table(t) {
+  screen(); g.fillStyle = C.ground; g.fillRect(0, 0, 1920, 1080);
+  const L = OM.lattice(CAM, {depth: 1.2, spacing: 60, px: 1.5}); mat(L.matrix); g.fillStyle = '#dde3e3';
+  for (let y = L.y0; y <= L.y1; y += L.spacing) for (let x = L.x0; x <= L.x1; x += L.spacing) { g.beginPath(); g.arc(x, y, L.r, 0, 7); g.fill(); }
+  mat(VIEW);
+  groove([[MIC[0] + 70, MIC[1]], [560, MIC[1]], [ROBOT.x, 530]], 30); groove([[SYSP[0] + 70, SYSP[1]], [560, SYSP[1]], [ROBOT.x, 610]], 30);
+  groove([[ROBOT.x + ROBOT.w, 530], [SPL.x - 6, 530]], 30); groove([[ROBOT.x + ROBOT.w, 610], [SPL.x - 6, 610]], 30);
+  txt('mic.m4a', ROBOT.x + ROBOT.w + 40, 500, F('mono', 17), MUTE); txt('system.m4a', ROBOT.x + ROBOT.w + 40, 660, F('mono', 17), MUTE);
+  groove([[SPL.x + SPL.w, LANE.you], [ASR.x, LANE.you]], 28); groove([[SPL.x + SPL.w, LANE.other], [ASR.x, LANE.other]], 28);
+  groove([[PRESS.x + PRESS.w / 2, PRESS.y + PRESS.h], [PRESS.x + PRESS.w / 2, 870]], 26);
+  groove([[LIB.x + LIB.w, LIB.y + 200], [3500, LIB.y + 200], [3500, 1000]], 26);
+  groove([[SEARCH.x + 250, SEARCH.y], [LIB.x + 670, LIB.y + LIB.h]], 18);
+}
+function seek(t) {
+  CAM = camAt(t); VIEW = OM.view(CAM);
+  table(t);
+  puck(MIC, T.DROP[0], 'Microphone', 'mic.m4a', 'AVAudioEngine', TEAL, t, T.MIC);
+  puck(SYSP, T.DROP[1], 'Meeting app', 'system.m4a', 'Core Audio process tap', TEAL, t, T.SYS);
+  robot(t);
+  beads(t); noBot(t); splitter(t); asrBlock(t); tape(t);
+  cabinet(t); filing(t); screenLane(t); textToLibrary(t); search(t);
+  press(t);
+  CARDS.forEach((c, i) => card(c, i, t));
+  agents(t); player(t);
+  plate(t); ending(t);
+  document.getElementById('hud').textContent = 't=' + t.toFixed(3) + '  z=' + CAM.zoom.toFixed(2);
+  return Promise.resolve();
+}
+
+// ─────────────────────────────── contract ───────────────────────────────
+window.__meta = {dur: DUR, fps: FPS, w: 1920, h: 1080, inFrame: {press: [T.SLAM - 0.3, T.SLAM + 0.5], cabinet: [T.KEYWORD, VO[4].end], player: [T.MOMENT + 0.6, MEET.end], mark: [T.NAME + 0.8, DUR, 'whole']}};
+function boxes(t) {
+  const V = OM.view(camAt(t)), P = b => OM.projectBox(V, b), o = {};
+  o.mic = P({x: MIC[0] - 74, y: MIC[1] - 74, w: 148, h: 148}); o.splitter = P(SPL); o.asr = P(ASR); o.press = P(PRESS);
+  o.cabinet = P(LIB); o.reader = P(READER); o.lock = P(LOCK); o.search = P(SEARCH); o.term = P(TERM);
+  TURNS.forEach((r, i) => { if (t >= T.PRINT && t < T.LANDS + 0.25) o['turn' + i] = P({x: turnX(i, t), y: LANE[r.lane] - 26, w: pw(i), h: 52}); });
+  CARDS.forEach((c, i) => { if (t >= T.EJECT[i] && t < T.LANDS) { const h = OM.hop(t, T.EJECT[i], T.EJECT[i] + 0.42, {x: PRESS.x + PRESS.w / 2 - CW / 2, y: PRESS.y + PRESS.h - CH}, c, {height: 90}); o['card' + i] = P({x: h.x, y: h.y, w: CW, h: CH}); } });
+  if (t >= T.OPEN && t < T.PORT + 0.3) o.player = P(OM.morphRect(t, T.OPEN, T.OPEN + 0.5, {x: TRAY.x + 485, y: TRAY.y + 40, w: 420, h: 220}, PLAYER, {curve: E.expoOut}));
+  if (t >= T.NAME + 0.8) { const lw = NAME_PX * 1.05 + 60 + NAME_W; o.mark = P({x: NAME_AT[0] - lw / 2, y: NAME_AT[1] - NAME_PX * 0.9, w: lw, h: NAME_PX}); }
+  return o;
+}
+window.__track = t => { const b = boxes(t), o = {}; for (const [k, v] of Object.entries(b)) o[k] = {x: v.x, y: v.y, w: v.w, h: v.h, op: 1}; return o; };
+window.__motion = (t0, t1) => {
+  let d = OM.screenTravel(camAt(t0), camAt(t1), camAt((t0 + t1) / 2)) + Math.abs(belt(t1) - belt(t0)) * camAt(t0).zoom;
+  const A = boxes(t0), B = boxes(t1); for (const k of Object.keys(A)) if (B[k]) d = Math.max(d, Math.abs(A[k].x - B[k].x) + Math.abs(A[k].w - B[k].w), Math.abs(A[k].y - B[k].y) + Math.abs(A[k].h - B[k].h));
+  return d;
+};
+window.__curves = () => { const hz = 240, n = Math.ceil(DUR * hz), v = []; for (let i = 0; i < n; i++) v.push(+(vAt(i / hz) / 420).toFixed(4)); return {hz, belt: v}; };
+window.__events = () => {
+  const ev = [], at = (t, kind, wx = null, v = 1) => { const c = camAt(t), x = wx == null ? 960 : OM.project(OM.view(c), wx, 540)[0]; ev.push({t: +t.toFixed(3), kind, pan: clamp((x - 960) / 960, -1, 1), v}); };
+  at(T.DROP[0][1], 'thud', MIC[0]); at(T.DROP[1][1], 'thud', SYSP[0], 0.8); at(T.REC, 'roll', 600); at(T.NOBOT, 'tile', 850, 0.8);
+  at(T.SPLIT, 'hit', SPL.x); for (let i = 0; i < 8; i++) at(T.EIGHT - 0.2 + i * 0.07, 'type', SPL.x + 100, 0.5);
+  at(T.PRINT, 'hit', ASR.x, 0.7); TURNS.forEach((_, i) => at(T.PRINT + 0.3 + i * 0.45, 'type', MOUTH, 0.7)); at(T.STAMP, 'lamp', MOUTH + 400);
+  at(T.SLAM, 'slam', PRESS.x); T.EJECT.forEach((e, i) => { at(e, 'eject', PRESS.x); at(e + 0.42, 'land', CARDS[i].x, 0.8); });
+  at(T.REC, 'lamp', ROBOT.x + 140, 0.6);
+  at(T.LANDS, 'pull'); for (let i = 0; i < 4; i++) at(T.LANDS + 0.65 + i * 0.09, 'land', LIB.x + 200, 0.6); at(T.KEYWORD, 'lamp', LIB.x + 670, 0.8); at(T.HARRIER, 'hit', LIB.x + 800, 0.8);
+  at(T.OPTIN, 'lever', LEVER[0]); at(T.AX, 'lamp', READER.x); at(T.OCR, 'lamp', OCRL.x, 0.7); at(T.REDACT + 0.18, 'slam', REDACT.x, 0.55); at(T.SEAL + 0.1, 'lever', LOCK.x, 0.8); at(T.EXPIRE, 'tick', LOCK.x);
+  for (let i = 0; i < 8; i++) at(T.TYPE + i / 15, 'key', SEARCH.x + 200 + i * 40, 0.7); at(T.PROBE_K, 'probe', LIB.x + 600); at(T.PROBE_M, 'probe', LIB.x + 600, 0.8); RESULTS.forEach((_, i) => at(T.RES + i * 0.12, 'row', TRAY.x + 200 + i * 455, i));
+  at(T.OPEN, 'click', TRAY.x + 700); at(T.MOMENT + 0.1, 'lamp', PLAYER.x + 300, 0.7);
+  at(T.PORT, 'pull'); for (let i = 0; i < 12; i++) at(T.CLI + i / 30 * 2.2, 'key', TERM.x + 200 + i * 20, 0.5); at(T.ON, 'lever', PORT[0] - 90);
+  at(T.PULL[0], 'pull'); at(T.ACCOUNT, 'tile', 2000, 0.8); at(T.TELEMETRY, 'tile', 2700, 0.8); at(T.REMOTE, 'lamp', NETGATE[0], 0.6); at(T.APPROVAL, 'click', NETGATE[0], 0.8);
+  for (let i = 0; i < 8; i++) at(T.NAME + i * 0.05 + 0.12, 'letter', 2760, 0.5 + 0.5 * (i % 2)); at(T.FREE, 'tile', 3300, 1);
+  return {T, events: ev.sort((a, b) => a.t - b.t)};
+};
+
+// ─────────────────────────────── ready ───────────────────────────────
+function measure() {
+  g.setTransform(1, 0, 0, 1, 0, 0); g.font = F('text', 24); TW = TURNS.map(r => g.measureText(r.text).width); g.font = F('mono', 20); TSW = g.measureText('00:00:00').width;
+  g.font = F('display', NAME_PX); g.letterSpacing = TRACK(NAME_PX); NAME_W = g.measureText('LokalBot').width; g.letterSpacing = '0px';
+}
+const decode = el => el.complete && el.naturalWidth ? Promise.resolve() : new Promise(r => { el.onload = r; el.onerror = r; });
+window.__ready = Promise.all([LOOK.ready, document.fonts.ready, decode(document.getElementById('icon'))]).then(() => { DPR = window.devicePixelRatio || 1; cv.width = 1920 * DPR; cv.height = 1080 * DPR; measure(); return seek(0); });
+window.__seek = async t => { await seek(t); return true; };
+const q = new URLSearchParams(location.search);
+if (q.has('hud')) document.getElementById('hud').style.display = 'block';
+if (q.has('t')) __ready.then(() => seek(parseFloat(q.get('t'))));
+if (q.has('play')) __ready.then(() => { const t0 = performance.now(); (function loop() { seek(((performance.now() - t0) / 1000) % DUR); requestAnimationFrame(loop); })(); });
+</script>
+</body>
+</html>
