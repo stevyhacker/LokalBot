@@ -168,5 +168,6 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.resourceMonitor", title: "Resource monitor", category: .advanced, aliases: "cpu ram memory footprint"),
         .init(id: "settings.agentAccess", title: "External meeting access", category: .privacy, aliases: "mcp claude coding agent CLI"),
         .init(id: "settings.screenMemoryAccess", title: "External screen access", category: .privacy, aliases: "mcp screen memory agent"),
+        .init(id: "settings.settingsControlAccess", title: "External settings access", category: .privacy, aliases: "cli terminal agent configure settings control"),
     ]
 }

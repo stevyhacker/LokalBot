@@ -80,8 +80,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // to avoid a window-flash, so for a manual open we explicitly bring the
         // window back up as a regular, Dock-visible app. `wasLaunchedAtLogin`
         // is only reliable here in `applicationDidFinishLaunching`.
+        // `lokalbot-cli` starting the app for a terminal request counts as a
+        // background launch too: the person asked for a setting, not a window.
         if lokalbotLaunchesMenuBarOnly() {
-            if LaunchAtLogin.wasLaunchedAtLogin {
+            if LaunchAtLogin.wasLaunchedAtLogin || AppControlProtocol.isBackgroundLaunch() {
                 DispatchQueue.main.async { DockPolicy.beginLaunchSuppression() }
             } else {
                 DispatchQueue.main.async { WindowAccess.shared.open("main") }

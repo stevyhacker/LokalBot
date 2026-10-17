@@ -375,6 +375,10 @@ targets:
       - path: LokalBot/Models/PeopleCuration.swift
       - path: LokalBot/Services/MeetingOutcomeStore.swift
       - path: LokalBot/Support/OutcomeProse.swift
+      # `config search` ranks like Settings search; the app-control client
+      # probes the library instance lock before starting the app.
+      - path: LokalBot/Support/SettingsSearchRanker.swift
+      - path: LokalBot/Support/LibraryInstanceLock.swift
     dependencies:
       - package: ArgumentParser
         product: ArgumentParser

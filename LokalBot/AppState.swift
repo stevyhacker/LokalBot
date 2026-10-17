@@ -565,6 +565,16 @@ final class AppState: ObservableObject {
     /// access: enabling one capability never grants the other.
     private(set) lazy var screenMemoryAccess = ScreenMemoryAccessManager(
         gate: ScreenMemoryAccessGate(root: storage.rootURL))
+    /// Terminal settings access is a third, separate grant. Its control
+    /// socket exists only while the grant is on.
+    private(set) lazy var settingsControl = SettingsControlAccessManager(
+        gate: SettingsControlGate(root: storage.rootURL),
+        makeHandler: { [weak self] in
+            guard let self else { return { _ in .failure(.appNotRunning("LokalBot is shutting down.")) } }
+            let handler = AppControlHandler(app: self, gate: SettingsControlGate(root: self.storage.rootURL))
+            return { request in await handler.handle(request) }
+        },
+        onError: { [weak self] message in self?.lastError = message })
     private(set) lazy var quickRecallHotKey: QuickRecallHotKeyController = {
         let controller = QuickRecallHotKeyController()
         controller.onInvoke = { WindowAccess.shared.open("quick-recall") }
@@ -1177,6 +1187,7 @@ final class AppState: ObservableObject {
         // Resume the wake watcher when the Privacy marker was left enabled.
         agentAccess.start()
         screenMemoryAccess.start()
+        settingsControl.start()
         applyQuickRecallSetting()
         applyDailyMemoryExportSetting()
         applyDayDigestSetting()
@@ -1420,6 +1431,7 @@ final class AppState: ObservableObject {
             guard recording.prepareForTermination() else { return false }
             interactive = false
             settingsStore.flush()
+            settingsControl.stop()
             let pendingCotypingRuntimeTask = self.cotypingRuntimeTask
             pendingCotypingRuntimeTask?.cancel()
             await pendingCotypingRuntimeTask?.value

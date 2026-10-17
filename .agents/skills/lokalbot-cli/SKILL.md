@@ -1,6 +1,6 @@
 ---
 name: lokalbot-cli
-description: Retrieve meeting or screen-memory evidence from LokalBot when the user asks about their recorded work.
+description: Retrieve meeting or screen-memory evidence from LokalBot when the user asks about their recorded work, or look up how LokalBot is configured.
 ---
 
 # LokalBot CLI Skill
@@ -77,6 +77,26 @@ lokalbot-cli path
 lokalbot-cli path latest
 cd "$(lokalbot-cli path latest)"
 ```
+
+## Settings and status
+
+Use these when the user asks how LokalBot is set up, why something is or isn't happening (recording, capture, models), or wants a setting changed.
+
+```bash
+lokalbot-cli config search "dark mode"           # find a setting's key by plain words
+lokalbot-cli config describe autoRecordMode      # type, allowed values, tier
+lokalbot-cli config get autoRecordMode
+lokalbot-cli config list --changed --table
+lokalbot-cli config list --category privacy
+lokalbot-cli status                              # version, recording, permissions, agent access
+lokalbot-cli open settings dictationShortcut     # show the user that control in LokalBot
+```
+
+`search`, `describe`, and `config schema` work any time. `list`, `get`, `status`, and `open` need the separate "Allow external agents to change LokalBot settings" toggle in LokalBot → Settings → Privacy. If a command returns `[settings_access_disabled]`, explain that setting and let the user choose. They start LokalBot in the background when it isn't running; pass `--no-launch` when the user doesn't want it started.
+
+The CLI cannot change settings yet. When the user wants a change, run `open settings <key>` and let them make it in LokalBot. Never write LokalBot's preferences with `defaults write`, and never create or edit files in its `control/` folder: a partial preferences write silently resets other settings (it can turn automatic recording on), and the running app overwrites it anyway.
+
+In `describe` output, tier `consent` marks settings that widen what LokalBot captures, reads, records, or sends when turned on. Treat them as the user's decision.
 
 ## MCP alternative (and ask_library)
 

@@ -58,6 +58,7 @@
 "All retained history" = "All retained history";
 "All three core models will run on this Mac." = "All three core models will run on this Mac.";
 "Allow Once" = "Allow Once";
+"Allow external agents to change LokalBot settings" = "Allow external agents to change LokalBot settings";
 "Allow external agents to read screen memory" = "Allow external agents to read screen memory";
 "Allow external agents to read your meeting library" = "Allow external agents to read your meeting library";
 "Allow multi-line suggestions" = "Allow multi-line suggestions";
@@ -337,6 +338,7 @@
 "External agents" = "External agents";
 "External meeting access" = "External meeting access";
 "External screen access" = "External screen access";
+"External settings access" = "External settings access";
 "Failed" = "Failed";
 "Feature" = "Feature";
 "Files…" = "Files…";
@@ -453,6 +455,7 @@
 "Legacy rule · review" = "Legacy rule · review";
 "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default." = "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.";
 "Lets dictation and cotyping detect their global keyboard shortcuts." = "Lets dictation and cotyping detect their global keyboard shortcuts.";
+"Lets lokalbot-cli read your settings and app status, open Settings at a setting, and start LokalBot in the background. Separate from meeting and screen access. Off by default." = "Lets lokalbot-cli read your settings and app status, open Settings at a setting, and start LokalBot in the background. Separate from meeting and screen access. Off by default.";
 "Library" = "Library";
 "Library location" = "Library location";
 "Light" = "Light";

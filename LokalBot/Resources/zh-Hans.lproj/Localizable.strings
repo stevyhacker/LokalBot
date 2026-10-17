@@ -58,6 +58,7 @@
 "All retained history" = "所有保留的历史";
 "All three core models will run on this Mac." = "三个核心模型都会在这台 Mac 上运行。";
 "Allow Once" = "允许一次";
+"Allow external agents to change LokalBot settings" = "允许外部智能体更改 LokalBot 设置";
 "Allow external agents to read screen memory" = "允许外部智能体读取屏幕记忆";
 "Allow external agents to read your meeting library" = "允许外部智能体读取会议资料库";
 "Allow multi-line suggestions" = "允许多行建议";
@@ -337,6 +338,7 @@
 "External agents" = "外部智能体";
 "External meeting access" = "外部会议访问";
 "External screen access" = "外部屏幕访问";
+"External settings access" = "外部设置访问";
 "Failed" = "失败";
 "Feature" = "功能";
 "Files…" = "文件…";
@@ -453,6 +455,7 @@
 "Legacy rule · review" = "旧版规则 · 请检查";
 "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default." = "允许 MCP 客户端和 lokalbot-cli 技能（Claude、Cursor 等）列出、读取、搜索会议并就会议提问。仅支持只读和本机访问，默认关闭。";
 "Lets dictation and cotyping detect their global keyboard shortcuts." = "允许听写和自动补全检测各自的全局快捷键。";
+"Lets lokalbot-cli read your settings and app status, open Settings at a setting, and start LokalBot in the background. Separate from meeting and screen access. Off by default." = "允许 lokalbot-cli 读取你的设置和应用状态、在“设置”中打开指定设置项，并在后台启动 LokalBot。与会议和屏幕访问相互独立。默认关闭。";
 "Library" = "资料库";
 "Library location" = "资料库位置";
 "Light" = "浅色";

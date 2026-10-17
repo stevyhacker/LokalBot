@@ -1084,6 +1084,8 @@ struct SettingsView: View {
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
                     ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
+                    SettingsControlAccessToggleRow(manager: app.settingsControl)
+                    .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
                 }
             }
 
@@ -1409,6 +1411,19 @@ private struct AgentAccessToggleRow: View {
                 SettingsLabel("Allow external agents to read your meeting library",
                               help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
             }
+        }
+    }
+}
+
+private struct SettingsControlAccessToggleRow: View {
+    @ObservedObject var manager: SettingsControlAccessManager
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { manager.isEnabled },
+            set: { manager.setEnabled($0) })) {
+            SettingsLabel("Allow external agents to change LokalBot settings",
+                          help: "Lets lokalbot-cli read your settings and app status, open Settings at a setting, and start LokalBot in the background. Separate from meeting and screen access. Off by default.")
         }
     }
 }

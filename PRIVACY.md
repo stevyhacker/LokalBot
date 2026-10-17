@@ -369,6 +369,18 @@ meeting access does not enable screen-memory access, or vice versa. A connected
 MCP client may transmit tool inputs and results under that client's own privacy
 terms.
 
+A third, separate toggle, **Allow external agents to change LokalBot settings**,
+lets `lokalbot-cli config`, `status`, and `open` read your LokalBot settings and
+app status from the running app, and open Settings at a setting. They talk to the
+app over a local socket in the library's private `control/` folder that exists
+only while the toggle is on and accepts only your macOS user. Settings can
+include your writing profile, digest instructions, and folder paths; server URLs
+are shown without user names, passwords, or query strings, and API keys are
+never returned. When LokalBot is not running, these commands start it in the
+background, which also starts the capture and schedules you have turned on.
+This toggle grants no meeting-library or screen-memory access, and neither of
+those grants it. These commands do not change settings.
+
 **Open in Claude** and **Open in Codex**, in a meeting's More menu, start a new
 conversation in that installed app with the meeting's title, summary, and as much
 of its transcript as fits already typed into the composer. LokalBot hands the
