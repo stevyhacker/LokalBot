@@ -27,6 +27,7 @@ struct TodayView: View {
                 digestSection
                 if let dream { previousDayCard(dream) }
                 if !gettingStartedDismissed { GettingStartedCard() }
+                GitHubStarCard(store: app.githubStar)
             }
             .padding(.horizontal, LBTokens.Metric.detailPadding)
             .padding(.top, 8)
@@ -150,6 +151,9 @@ struct TodayView: View {
             referenceDate: date,
             latest: app.latestDreamReport,
             store: app.dreamStore)
+        // Showing Today counts as a day of use, including in a window left
+        // open past midnight.
+        app.githubStar.recordActiveDay(date)
     }
 
     // MARK: Now

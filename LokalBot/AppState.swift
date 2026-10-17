@@ -660,6 +660,8 @@ final class AppState: ObservableObject {
         thinkExecution: thinkExecution,
         speakerIdentity: speakerIdentity,
         automationReadiness: ProcessingPipeline.defaultAutomationReadiness)
+    /// Today's one-time GitHub star request and the permanent links to it.
+    private(set) lazy var githubStar = GitHubStarPromptStore.live(libraryRoot: storage.rootURL)
     /// Canonical state machine for Transcribe, Think, and Autocomplete.
     private(set) lazy var modelRoles = ModelRoles(
         settings: { [store = settingsStore] in store.current },
@@ -1079,6 +1081,9 @@ final class AppState: ObservableObject {
                 self.reindexEmbeddingInBackground(meeting)
             }
             self.primaryEvidenceDidChange(for: meeting)
+        }
+        pipeline.onSummaryCompleted = { [weak self] _ in
+            self?.githubStar.recordSummaryCompleted()
         }
         if needsSynchronousLibrary {
             searchIndex.reindexAll(meetings, storage: storage)

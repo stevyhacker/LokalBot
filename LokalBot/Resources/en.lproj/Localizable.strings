@@ -4,6 +4,7 @@
 "2. Review action owners" = "2. Review action owners";
 "A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them." = "A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them.";
 "A newly granted permission may require a relaunch. Finish setup first; relaunch from Settings if the feature remains unavailable." = "A newly granted permission may require a relaunch. Finish setup first; relaunch from Settings if the feature remains unavailable.";
+"About" = "About";
 "Accept next" = "Accept next";
 "Accept punctuation with the word" = "Accept punctuation with the word";
 "Accepted" = "Accepted";
@@ -472,6 +473,7 @@
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots.";
 "LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot detects meeting apps automatically, or start a recording now.";
+"LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot is free and built by one person. A GitHub star helps others find it.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot manages this model and rebuilds the local index when it changes.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot never sends this. Copy it into your mail or chat app to send it yourself.";
 "Looks done?" = "Looks done?";
@@ -581,6 +583,7 @@
 "No transcript speakers are available yet." = "No transcript speakers are available yet.";
 "None yet" = "None yet";
 "Not connected" = "Not connected";
+"Not now" = "Not now";
 "Not Yet" = "Not Yet";
 "Not ready" = "Not ready";
 "Not recording" = "Not recording";
@@ -625,6 +628,7 @@
 "Open in results" = "Open in results";
 "Open latest meeting" = "Open latest meeting";
 "Open meeting" = "Open meeting";
+"Open source" = "Open source";
 "Open the current recording" = "Open the current recording";
 "Open this capture in Timeline" = "Open this capture in Timeline";
 "Open this moment in Timeline" = "Open this moment in Timeline";
@@ -906,6 +910,7 @@
 "Speech recognition runs on this Mac. No screen context or rewrite model is used." = "Speech recognition runs on this Mac. No screen context or rewrite model is used.";
 "Speech speed" = "Speech speed";
 "Speed" = "Speed";
+"Star on GitHub" = "Star on GitHub";
 "Start" = "Start";
 "Start (seconds)" = "Start (seconds)";
 "Start Dictation" = "Start Dictation";

@@ -219,6 +219,10 @@ final class ProcessingPipeline: ObservableObject {
     var onArtifactsWillChange: ((Meeting) throws -> Void)?
     /// Fired after transcript/summary files land on disk (search re-index).
     var onArtifactsWritten: ((Meeting) -> Void)?
+    /// Fired when a job that saved a complete summary finishes. Unlike
+    /// `onArtifactsWritten`, failed, partial, and transcript-only jobs never
+    /// fire it.
+    var onSummaryCompleted: ((Meeting) -> Void)?
 
     init(storage: StorageManager, jobStore: PipelineJobStore? = nil,
          settings: @escaping () -> AppSettings,
@@ -621,6 +625,7 @@ final class ProcessingPipeline: ObservableObject {
         }
         let queueSeconds = max(0, Date().timeIntervalSince(job.enqueuedAt))
         var transcriptWrittenThisJob = false
+        var summaryWrittenThisJob = false
         var notifiedArtifactsWillChange = false
         do {
             try await yieldToCapture(meetingID: meeting.id)
@@ -832,6 +837,7 @@ final class ProcessingPipeline: ObservableObject {
                     MeetingSummaryGenerator.removeCheckpoint(in: folder)
                     MeetingOutcomesGenerator.removeCheckpoint(in: folder)
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
+                    summaryWrittenThisJob = true
                     if !revokedMeetingIDs.contains(meeting.id) {
                         await budget.saveMetrics(in: folder, outcome: "complete")
                     }
@@ -857,6 +863,7 @@ final class ProcessingPipeline: ObservableObject {
             stages[meeting.id] = nil
             if !revokedMeetingIDs.contains(meeting.id) {
                 onArtifactsWritten?(meeting)
+                if summaryWrittenThisJob { onSummaryCompleted?(meeting) }
             }
         } catch {
             guard !revokedMeetingIDs.contains(meeting.id) else { return }

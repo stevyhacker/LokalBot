@@ -4,6 +4,7 @@
 "2. Review action owners" = "2. 确认行动项负责人";
 "A domain excludes its subdomains too. A URL with a path excludes that URL prefix. Existing rules are kept until you remove them." = "排除域名时也会排除其子域名。带路径的网址会排除以其为前缀的网址。现有规则会保留，直到你将其移除。";
 "A newly granted permission may require a relaunch. Finish setup first; relaunch from Settings if the feature remains unavailable." = "新授予的权限可能需要重启后生效。请先完成设置；若功能仍不可用，可在设置中重新启动。";
+"About" = "关于";
 "Accept next" = "接受下一段";
 "Accept punctuation with the word" = "接受单词时一并接受标点";
 "Accepted" = "已接受";
@@ -472,6 +473,7 @@
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "本地模型在这台 Mac 上处理数据。每个远程服务器都需单独授权，上下文才可离开本机。";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "包含日志、健康报告、不含密钥的设置和资料库数量统计。绝不包含会议音频、转写、笔记或屏幕截图。";
 "LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot 会自动检测会议应用，你也可以立即开始录制。";
+"LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot 免费使用，由一人独立开发。在 GitHub 上加个星标，能帮助更多人发现它。";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot 管理此模型，并在模型更改时重建本地索引。";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot 不会发送此内容。请复制到邮件或聊天应用中自行发送。";
 "Looks done?" = "是否已完成？";
@@ -581,6 +583,7 @@
 "No transcript speakers are available yet." = "转写中暂时没有可用的说话人。";
 "None yet" = "暂无";
 "Not connected" = "未连接";
+"Not now" = "以后再说";
 "Not Yet" = "暂不";
 "Not ready" = "未就绪";
 "Not recording" = "未在录制";
@@ -625,6 +628,7 @@
 "Open in results" = "在结果中打开";
 "Open latest meeting" = "打开最近的会议";
 "Open meeting" = "打开会议";
+"Open source" = "开源";
 "Open the current recording" = "打开当前录制";
 "Open this capture in Timeline" = "在时间线中打开此采集";
 "Open this moment in Timeline" = "在时间线中打开此时刻";
@@ -906,6 +910,7 @@
 "Speech recognition runs on this Mac. No screen context or rewrite model is used." = "语音识别在本机运行，不使用屏幕上下文或改写模型。";
 "Speech speed" = "语速";
 "Speed" = "速度";
+"Star on GitHub" = "在 GitHub 上加星标";
 "Start" = "开始";
 "Start (seconds)" = "开始（秒）";
 "Start Dictation" = "开始听写";

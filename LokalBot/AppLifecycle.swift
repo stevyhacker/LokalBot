@@ -102,6 +102,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// A day counts toward the GitHub star request when LokalBot becomes the
+    /// active app, not when it only runs in the menu bar after a login launch.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Self.appState?.githubStar.recordActiveDay()
+    }
+
     /// Reopening the app (Finder/Launchpad relaunch, Dock click) brings the main
     /// window back: nothing on screen → open it; visible but buried behind other
     /// apps' windows → raise it. Returning true keeps AppKit's default

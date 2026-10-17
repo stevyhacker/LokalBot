@@ -405,6 +405,7 @@ struct MenuBarView: View {
                     .padding(.horizontal, 8).padding(.vertical, 6)
             }
             Divider().padding(.vertical, 4)
+            menuAction("Star on GitHub", icon: "star") { app.githubStar.openRepository() }
             menuAction("Quit LokalBot", icon: "power") { NSApp.terminate(nil) }
         }
         .buttonStyle(.plain)

@@ -168,7 +168,7 @@ struct SettingsView: View {
     @ViewBuilder private func sections(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .general:
-            generalSection; updatesSection
+            generalSection; updatesSection; aboutSection
         case .recording:
             meetingsSection; processingSection; summarizationSection
         case .dayMemory:
@@ -1136,6 +1136,19 @@ struct SettingsView: View {
                 }
             }
 
+    }
+
+    /// The repository opens in the default browser; LokalBot itself sends nothing.
+    private var aboutSection: some View {
+        Section("About") {
+            LabeledContent {
+                Button("Star on GitHub") { app.githubStar.openRepository() }
+                    .accessibilityIdentifier("settings.githubStar")
+            } label: {
+                SettingsLabel("Open source",
+                              help: "LokalBot is free and built by one person. A GitHub star helps others find it.")
+            }
+        }
     }
 
     @ViewBuilder private var systemSection: some View {
