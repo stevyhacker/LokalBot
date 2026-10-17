@@ -161,6 +161,7 @@
 "Choose actions to change together" = "选择要批量修改的行动项";
 "Choose daily memory export folder" = "选择每日记忆导出文件夹";
 "Choose day" = "选择日期";
+"Choose meeting note export folder" = "选择会议笔记导出文件夹";
 "Choose routine output folder" = "选择例行任务输出文件夹";
 "Choose sources and result filters" = "选择来源和结果筛选条件";
 "Choose sources to include with your next message. Screen pixels are never attached." = "选择下一条消息要附带的来源。不会附加屏幕图像。";
@@ -333,6 +334,7 @@
 "Export Diagnostics…" = "导出诊断信息…";
 "Export Markdown" = "导出 Markdown";
 "Export a daily memory note" = "导出每日记忆笔记";
+"Export a note for each meeting" = "为每个会议导出一篇笔记";
 "Export result" = "导出结果";
 "External agents" = "外部智能体";
 "External meeting access" = "外部会议访问";
@@ -412,6 +414,7 @@
 "Images to remove" = "将删除的图像";
 "In progress" = "进行中";
 "Include saved moments" = "包含已保存时刻";
+"Include the transcript" = "包含转录文本";
 "Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time." = "包含定时每日摘要和夜间回顾；这些任务可向此来源发送活动标题、采集的屏幕文字、会议证据和保留的回顾记忆，而不会每次询问。";
 "Increase Text Size" = "放大文字";
 "Input Monitoring" = "输入监控";
@@ -505,6 +508,7 @@
 "Meeting details" = "会议详情";
 "Meeting library" = "会议资料库";
 "Meeting models" = "会议模型";
+"Meeting note export" = "会议笔记导出";
 "Meeting notes" = "会议笔记";
 "Meeting notes, transcripts, and actions will look like this." = "会议笔记、转写和行动项将以此大小显示。";
 "Meeting playback" = "会议回放";
@@ -1093,6 +1097,7 @@
 "Workspace navigation" = "工作区导航";
 "Write" = "写作";
 "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten." = "每天写入一个未加密的 Markdown 文件，包含摘要、会议链接、应用用时和已保存时刻。Mac 睡眠期间错过的日期会稍后补写。绝不覆盖现有的非 LokalBot 内容。";
+"Writes one unencrypted Markdown note per meeting, including meetings already recorded, to a folder you choose, such as an Obsidian vault. Each note has the summary, action items as you corrected them, and the people and tracked projects involved. A note you edit, move, or delete is yours: LokalBot leaves it alone." = "为每个会议写入一篇未加密的 Markdown 笔记（包括已录制的会议），保存到你选择的文件夹，例如 Obsidian 库。每篇笔记包含摘要、经你更正的行动项，以及涉及的人员和跟踪的项目。你编辑、移动或删除的笔记归你所有：LokalBot 不会再改动它。";
 "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included." = "在所选时间将时间线摘要写入本地日志，并在午夜后补齐前一天的日志，以包含较晚的活动。";
 "Writing" = "写作";
 "Writing for the focused app" = "正在为当前应用撰写内容";

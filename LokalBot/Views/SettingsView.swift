@@ -170,7 +170,7 @@ struct SettingsView: View {
         case .general:
             generalSection; updatesSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection
+            meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .writing:
@@ -677,6 +677,46 @@ struct SettingsView: View {
                         .accessibilityLabel("My microphone is me")
                         .accessibilityIdentifier("settings.microphoneIsUser")
                     SpeakerIdentitySettingsControls()
+                }
+            }
+
+    }
+
+    @ViewBuilder private var meetingNoteExportSection: some View {
+            if shows("Meeting note export", ["export", "obsidian", "logseq", "markdown", "vault",
+                                             "notes", "transcript", "folder"]) {
+                Section("Meeting note export") {
+                    Toggle(isOn: Binding(
+                        get: { app.settings.meetingNoteExportEnabled },
+                        set: { enabled in
+                            app.settings.meetingNoteExportEnabled = enabled
+                            if enabled && app.settings.meetingNoteExportFolder.isEmpty {
+                                chooseMeetingNoteExportFolder()
+                            }
+                        })) {
+                        SettingsLabel("Export a note for each meeting",
+                                      help: "Writes one unencrypted Markdown note per meeting, including meetings already recorded, to a folder you choose, such as an Obsidian vault. Each note has the summary, action items as you corrected them, and the people and tracked projects involved. A note you edit, move, or delete is yours: LokalBot leaves it alone.")
+                    }
+                    .settingTarget("settings.meetingNoteExportEnabled", selected: app.focusedSettingID)
+                    if app.settings.meetingNoteExportEnabled {
+                        Picker("Format", selection: $app.settings.meetingNoteExportFormat) {
+                            ForEach(AppSettings.DailyMemoryExportFormat.allCases) { format in
+                                Text(LocalizedStringKey(format.rawValue)).tag(format)
+                            }
+                        }
+                        .settingTarget("settings.meetingNoteExportFormat", selected: app.focusedSettingID)
+                        Toggle("Include the transcript", isOn: $app.settings.meetingNoteExportIncludesTranscript)
+                            .settingTarget("settings.meetingNoteExportIncludesTranscript", selected: app.focusedSettingID)
+                        LabeledContent("Folder") {
+                            Button(app.settings.meetingNoteExportFolder.isEmpty
+                                   ? "Choose…"
+                                   : URL(fileURLWithPath: app.settings.meetingNoteExportFolder).lastPathComponent) {
+                                chooseMeetingNoteExportFolder()
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Brand.teal)
+                        }
+                    }
                 }
             }
 
@@ -1317,6 +1357,28 @@ struct SettingsView: View {
                 return
             }
             app.settings.dailyMemoryExportFolder = url.path
+        }
+    }
+
+    private func chooseMeetingNoteExportFolder() {
+        let panel = NSOpenPanel()
+        panel.title = app.settings.appLanguage.localized("Choose meeting note export folder")
+        panel.prompt = app.settings.appLanguage.localized("Choose")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        if !app.settings.meetingNoteExportFolder.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: app.settings.meetingNoteExportFolder)
+        }
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else {
+                if app.settings.meetingNoteExportFolder.isEmpty {
+                    app.settings.meetingNoteExportEnabled = false
+                }
+                return
+            }
+            app.settings.meetingNoteExportFolder = url.path
         }
     }
 

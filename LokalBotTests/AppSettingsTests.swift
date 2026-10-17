@@ -574,6 +574,28 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.dailyMemoryExportHour, 23)
     }
 
+    func testMeetingNoteExportIsOffByDefaultAndRoundTrips() throws {
+        let legacy = try JSONDecoder().decode(
+            AppSettings.self, from: Data(#"{"autoTranscribe":false}"#.utf8))
+        XCTAssertFalse(legacy.meetingNoteExportEnabled)
+        XCTAssertEqual(legacy.meetingNoteExportFolder, "")
+        XCTAssertEqual(legacy.meetingNoteExportFormat, .markdown)
+        XCTAssertTrue(legacy.meetingNoteExportIncludesTranscript)
+
+        var settings = AppSettings()
+        settings.meetingNoteExportEnabled = true
+        settings.meetingNoteExportFolder = "/tmp/My Vault/Meetings"
+        settings.meetingNoteExportFormat = .obsidian
+        settings.meetingNoteExportIncludesTranscript = false
+        let decoded = try JSONDecoder().decode(
+            AppSettings.self, from: JSONEncoder().encode(settings))
+
+        XCTAssertTrue(decoded.meetingNoteExportEnabled)
+        XCTAssertEqual(decoded.meetingNoteExportFolder, "/tmp/My Vault/Meetings")
+        XCTAssertEqual(decoded.meetingNoteExportFormat, .obsidian)
+        XCTAssertFalse(decoded.meetingNoteExportIncludesTranscript)
+    }
+
     func testLegacySettingsKeepScreenMemoryAutomationOff() throws {
         let settings = try JSONDecoder().decode(
             AppSettings.self, from: Data(#"{"autoTranscribe":false}"#.utf8))

@@ -33,6 +33,10 @@ struct SettingDescriptor: Identifiable {
            ["settings.useCalendarTitles", "settings.requireCalendarForBrowser",
             "settings.useCalendarAgenda"].contains(id) { return "settings.calendarDetectionEnabled" }
         if !settings.dailyMemoryExportEnabled, id == "settings.dailyMemoryExportFormat" { return "settings.dailyMemoryExportEnabled" }
+        if !settings.meetingNoteExportEnabled,
+           ["settings.meetingNoteExportFormat", "settings.meetingNoteExportIncludesTranscript"].contains(id) {
+            return "settings.meetingNoteExportEnabled"
+        }
         if !settings.memoryRoutinesEnabled, id == "settings.memoryRoutineWeekday" { return "settings.memoryRoutinesEnabled" }
         if ["settings.openAIBaseURL", "settings.openAIModel"].contains(id), settings.summarizerBackend != .openAICompatible {
             return "settings.summarizerBackend"
@@ -125,6 +129,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.autoSummarize", title: "Summarize automatically after transcription", category: .recording, aliases: "autoSummarize"),
         .init(id: "settings.echoCancellation", title: "Remove the other side from your microphone track", category: .recording, aliases: "echoCancellation"),
         .init(id: "settings.noteTemplate", title: "Notes template", category: .recording, aliases: "noteTemplate"),
+        .init(id: "settings.meetingNoteExportEnabled", title: "Export a note for each meeting", category: .recording, aliases: "meetingNoteExportEnabled obsidian logseq markdown vault meeting notes export folder"),
+        .init(id: "settings.meetingNoteExportFormat", title: "Format", category: .recording, aliases: "meetingNoteExportFormat obsidian logseq markdown meeting notes"),
+        .init(id: "settings.meetingNoteExportIncludesTranscript", title: "Include the transcript", category: .recording, aliases: "meetingNoteExportIncludesTranscript meeting notes export transcript"),
         .init(id: "settings.summaryLanguage", title: "Notes language", category: .recording, aliases: "summaryLanguage"),
         .init(id: "settings.trackingEnabled", title: "Track app & window activity", category: .dayMemory, aliases: "trackingEnabled"),
         .init(id: "settings.effectiveScreenContextCaptureMode", title: "Screen context", category: .dayMemory, aliases: "effectiveScreenContextCaptureMode"),

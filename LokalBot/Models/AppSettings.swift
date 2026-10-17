@@ -363,6 +363,16 @@ struct AppSettings: Codable, Equatable {
     /// refreshed. The scheduler clamps decoded values defensively.
     var dailyMemoryExportHour: Int = 18
 
+    // MARK: - Meeting note export
+
+    /// Optional, local-only: one Markdown note per meeting in a folder the
+    /// person picks, in the same formats as the daily note. An empty folder
+    /// keeps the export parked.
+    var meetingNoteExportEnabled: Bool = false
+    var meetingNoteExportFolder: String = ""
+    var meetingNoteExportFormat: DailyMemoryExportFormat = .markdown
+    var meetingNoteExportIncludesTranscript: Bool = true
+
     // MARK: - Dreaming
 
     /// Overnight retrospective: after `dreamingHour`, once the Mac is on AC
@@ -880,6 +890,10 @@ struct AppSettings: Codable, Equatable {
         case dailyMemoryExportFolder
         case dailyMemoryExportFormat
         case dailyMemoryExportHour
+        case meetingNoteExportEnabled
+        case meetingNoteExportFolder
+        case meetingNoteExportFormat
+        case meetingNoteExportIncludesTranscript
         case dreamingEnabled
         case dreamingHour
         case dreamingFirstEligibleDayKey
@@ -1076,6 +1090,10 @@ struct AppSettings: Codable, Equatable {
         try c.encode(dailyMemoryExportFolder, forKey: .dailyMemoryExportFolder)
         try c.encode(dailyMemoryExportFormat, forKey: .dailyMemoryExportFormat)
         try c.encode(min(23, max(0, dailyMemoryExportHour)), forKey: .dailyMemoryExportHour)
+        try c.encode(meetingNoteExportEnabled, forKey: .meetingNoteExportEnabled)
+        try c.encode(meetingNoteExportFolder, forKey: .meetingNoteExportFolder)
+        try c.encode(meetingNoteExportFormat, forKey: .meetingNoteExportFormat)
+        try c.encode(meetingNoteExportIncludesTranscript, forKey: .meetingNoteExportIncludesTranscript)
         try c.encode(dreamingEnabled, forKey: .dreamingEnabled)
         try c.encode(min(23, max(0, dreamingHour)), forKey: .dreamingHour)
         try c.encodeIfPresent(
@@ -1262,6 +1280,14 @@ struct AppSettings: Codable, Equatable {
             .dailyMemoryExportFormat, defaults.dailyMemoryExportFormat)
         dailyMemoryExportHour = min(
             23, max(0, decode(.dailyMemoryExportHour, defaults.dailyMemoryExportHour)))
+        meetingNoteExportEnabled = decode(
+            .meetingNoteExportEnabled, defaults.meetingNoteExportEnabled)
+        meetingNoteExportFolder = decode(
+            .meetingNoteExportFolder, defaults.meetingNoteExportFolder)
+        meetingNoteExportFormat = decode(
+            .meetingNoteExportFormat, defaults.meetingNoteExportFormat)
+        meetingNoteExportIncludesTranscript = decode(
+            .meetingNoteExportIncludesTranscript, defaults.meetingNoteExportIncludesTranscript)
         dreamingEnabled = decode(.dreamingEnabled, defaults.dreamingEnabled)
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)

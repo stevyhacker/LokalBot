@@ -161,6 +161,7 @@
 "Choose actions to change together" = "Choose actions to change together";
 "Choose daily memory export folder" = "Choose daily memory export folder";
 "Choose day" = "Choose day";
+"Choose meeting note export folder" = "Choose meeting note export folder";
 "Choose routine output folder" = "Choose routine output folder";
 "Choose sources and result filters" = "Choose sources and result filters";
 "Choose sources to include with your next message. Screen pixels are never attached." = "Choose sources to include with your next message. Screen pixels are never attached.";
@@ -333,6 +334,7 @@
 "Export Diagnostics…" = "Export Diagnostics…";
 "Export Markdown" = "Export Markdown";
 "Export a daily memory note" = "Export a daily memory note";
+"Export a note for each meeting" = "Export a note for each meeting";
 "Export result" = "Export result";
 "External agents" = "External agents";
 "External meeting access" = "External meeting access";
@@ -412,6 +414,7 @@
 "Images to remove" = "Images to remove";
 "In progress" = "In progress";
 "Include saved moments" = "Include saved moments";
+"Include the transcript" = "Include the transcript";
 "Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time." = "Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.";
 "Increase Text Size" = "Increase Text Size";
 "Input Monitoring" = "Input Monitoring";
@@ -505,6 +508,7 @@
 "Meeting details" = "Meeting details";
 "Meeting library" = "Meeting library";
 "Meeting models" = "Meeting models";
+"Meeting note export" = "Meeting note export";
 "Meeting notes" = "Meeting notes";
 "Meeting notes, transcripts, and actions will look like this." = "Meeting notes, transcripts, and actions will look like this.";
 "Meeting playback" = "Meeting playback";
@@ -1093,6 +1097,7 @@
 "Workspace navigation" = "Workspace navigation";
 "Write" = "Write";
 "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten." = "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten.";
+"Writes one unencrypted Markdown note per meeting, including meetings already recorded, to a folder you choose, such as an Obsidian vault. Each note has the summary, action items as you corrected them, and the people and tracked projects involved. A note you edit, move, or delete is yours: LokalBot leaves it alone." = "Writes one unencrypted Markdown note per meeting, including meetings already recorded, to a folder you choose, such as an Obsidian vault. Each note has the summary, action items as you corrected them, and the people and tracked projects involved. A note you edit, move, or delete is yours: LokalBot leaves it alone.";
 "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included." = "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included.";
 "Writing" = "Writing";
 "Writing for the focused app" = "Writing for the focused app";

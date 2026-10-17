@@ -48,18 +48,30 @@ enum MeetingSummaryOutcomeSynchronizer {
             controlling: template == .meeting ? [decisionsHeading, actionItemsHeading] : [actionItemsHeading])
     }
 
+    /// The summary with its action list replaced by `lines`. Meeting note
+    /// exports use it to show corrections and completed actions, which
+    /// `summary.md` does not record.
+    static func replacingActionItems(in summary: String, with lines: [String]) -> String {
+        replacing([MarkdownBlock(heading: actionItemsHeading, lines: [actionItemsHeading, ""] + lines)],
+                  in: summary)
+    }
+
     private static func synchronize(
         _ summary: String,
         outcomes: MeetingOutcomes,
         controlling controlledHeadings: [String]
     ) -> String {
-        let controlledSet = Set(controlledHeadings)
-        let rendered = controlledHeadings.map { heading in
+        replacing(controlledHeadings.map { heading in
             MarkdownBlock(
                 heading: heading,
                 lines: renderSection(heading, outcomes: outcomes))
-        }
+        }, in: summary)
+    }
 
+    /// Puts `rendered` where the first of its sections was, dropping the
+    /// summary's own copies; sections the summary lacks are appended.
+    private static func replacing(_ rendered: [MarkdownBlock], in summary: String) -> String {
+        let controlledSet = Set(rendered.compactMap(\.heading))
         let sourceBlocks = parseBlocks(summary)
         var result: [MarkdownBlock] = []
         var inserted = false

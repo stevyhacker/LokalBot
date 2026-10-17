@@ -176,6 +176,9 @@ final class AppState: ObservableObject {
                 if Self.dailyMemoryExportChanged(from: oldValue, to: settings) {
                     applyDailyMemoryExportSetting()
                 }
+                if Self.meetingNoteExportChanged(from: oldValue, to: settings) {
+                    applyMeetingNoteExportSetting()
+                }
                 if Self.dayDigestChanged(from: oldValue, to: settings) {
                     applyDayDigestSetting()
                 }
@@ -229,6 +232,14 @@ final class AppState: ObservableObject {
             || old.dailyMemoryExportFolder != new.dailyMemoryExportFolder
             || old.dailyMemoryExportFormat != new.dailyMemoryExportFormat
             || old.dailyMemoryExportHour != new.dailyMemoryExportHour
+    }
+
+    private static func meetingNoteExportChanged(from old: AppSettings,
+                                                 to new: AppSettings) -> Bool {
+        old.meetingNoteExportEnabled != new.meetingNoteExportEnabled
+            || old.meetingNoteExportFolder != new.meetingNoteExportFolder
+            || old.meetingNoteExportFormat != new.meetingNoteExportFormat
+            || old.meetingNoteExportIncludesTranscript != new.meetingNoteExportIncludesTranscript
     }
 
     /// The custom prompt is deliberately absent: it is read fresh from
@@ -571,6 +582,12 @@ final class AppState: ObservableObject {
         return controller
     }()
     private let dailyMemoryExportScheduler = DailyMemoryExportScheduler()
+    /// Notes are written while processing is idle, so a meeting's note is not
+    /// written half-finished and rewritten moments later.
+    private lazy var meetingNoteExport = MeetingNoteExportScheduler(
+        canRun: { [weak self] in self?.pipeline.hasActiveWork == false })
+    /// People and Projects choices change the names notes link to.
+    private var meetingNoteCurationObserver: AnyCancellable?
     private(set) lazy var memoryRoutines = MemoryRoutineScheduler(
         storageRoot: storage.rootURL,
         databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
@@ -1179,6 +1196,7 @@ final class AppState: ObservableObject {
         screenMemoryAccess.start()
         applyQuickRecallSetting()
         applyDailyMemoryExportSetting()
+        applyMeetingNoteExportSetting()
         applyDayDigestSetting()
         applyCodingAgentEvidenceSetting()
         applyMemoryRoutineSetting()
@@ -1443,6 +1461,7 @@ final class AppState: ObservableObject {
             screenshots.stop()
             quickRecallHotKey.stop()
             dailyMemoryExportScheduler.stop()
+            meetingNoteExport.stop()
             memoryRoutines.stop()
             dreaming.stop()
             chat.stop()
@@ -1851,6 +1870,7 @@ final class AppState: ObservableObject {
         guard !days.isEmpty else { return }
         dayDigest.reconsiderEvidence(for: days)
         dailyMemoryExportScheduler.reconsider(days: days)
+        meetingNoteExport.reconsider()
         memoryRoutines.reconsiderEvidence()
         // Meetings feed later days' comparison windows; screen, activity, and
         // coding-agent evidence is read only for its own day. Treating a
@@ -2057,6 +2077,38 @@ final class AppState: ObservableObject {
                 // folder, or one they edited. It stays as it is, and no later
                 // export touches it, so there is nothing to report.
             }
+        } onError: { [weak self] message in
+            self?.lastError = message
+        }
+    }
+
+    func applyMeetingNoteExportSetting() {
+        let snapshot = settings
+        let folder = snapshot.meetingNoteExportFolder
+        let format: DailyMemoryExportKind = switch snapshot.meetingNoteExportFormat {
+        case .markdown: .markdown
+        case .obsidian: .obsidian
+        case .logseq: .logseq
+        }
+        let includesTranscript = snapshot.meetingNoteExportIncludesTranscript
+        let configuration = MeetingNoteExportScheduler.Configuration(
+            enabled: snapshot.meetingNoteExportEnabled,
+            destinationID: folder.isEmpty ? "" : "\(folder)|\(format.rawValue)|\(includesTranscript)")
+        let storageRoot = storage.rootURL
+        if meetingNoteCurationObserver == nil {
+            meetingNoteCurationObserver = peopleStore.$curation.dropFirst().map { _ in () }
+                .merge(with: projectStore.$curation.dropFirst().map { _ in () })
+                .sink { [weak self] in
+                    self?.meetingNoteExport.reconsider()
+                }
+        }
+        meetingNoteExport.configure(configuration) { previous in
+            try MeetingNoteExportService(root: storageRoot).export(
+                MeetingNoteExportConfiguration(
+                    destinationDirectory: URL(fileURLWithPath: folder, isDirectory: true),
+                    format: format,
+                    includesTranscript: includesTranscript),
+                previous: previous)
         } onError: { [weak self] message in
             self?.lastError = message
         }

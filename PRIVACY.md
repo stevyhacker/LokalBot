@@ -24,8 +24,8 @@ LokalBot can store the following under its Application Support directory:
 - permission-gated visible screen text and encrypted screenshots;
 - separately opted-in, encrypted meeting-speaker evidence and confirmed local
   voice profiles;
-- saved screen moments, optional unencrypted daily-memory exports, and optional
-  routine drafts at folders you choose;
+- saved screen moments, optional unencrypted daily-memory and meeting note
+  exports, and optional routine drafts at folders you choose;
 - records of local coding-agent sessions (Claude Code and Codex), on by
   default;
 - opt-in Agent Mode sessions and the agent runtime; and
@@ -99,8 +99,9 @@ it. Edited and legacy unsigned journals are user-owned files and remain there
 until you remove them. Saved Ask conversations and Agent history also
 have independent lifetimes: delete conversations in Ask or use **Clear saved
 Agent history**. Source expiry does not erase text already copied into those
-conversations. Daily-memory exports and routine outputs remain in your chosen
-folders until removed. Disabling these features stops future runs; it does not
+conversations. Daily-memory exports, meeting note exports, and routine outputs
+remain in your chosen folders until removed; deleting a meeting does not delete
+its exported note. Disabling these features stops future runs; it does not
 delete those existing copies.
 
 Browser meeting detection checks the Meet document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
@@ -383,9 +384,15 @@ Private and incognito browser windows are captured like any other window, so
 add a browser or site to the exclusions to keep it out. Detected credentials,
 payment card numbers, and IBANs are redacted and
 cause the associated pixel payload to be dropped; no detector is perfect, so
-exclude any source whose content should never be retained. Daily-memory exports
-and routine outputs are ordinary unencrypted Markdown files written only to
-folders you choose and remain there until you remove them. Routines have fixed
+exclude any source whose content should never be retained. Daily-memory exports,
+meeting note exports, and routine outputs are ordinary unencrypted Markdown files
+written only to folders you choose and remain there until you remove them. A
+meeting note holds the meeting's summary, action items, the names of the people
+and tracked projects involved, and, unless you turn it off, the transcript;
+detected credentials are redacted before it is written. Turning meeting note
+export on writes notes for meetings already recorded too. LokalBot refreshes a
+note only while it is unchanged since LokalBot wrote it, and does not write a
+meeting again after you edit, move, or delete its note. Routines have fixed
 local read scopes and cannot run scripts, contact services, send messages, or
 modify source meetings.
 
