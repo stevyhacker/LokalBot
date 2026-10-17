@@ -1,0 +1,98 @@
+name: Rust desktop
+on:
+  pull_request:
+    paths: ['Desktop/**', '.github/workflows/desktop.yml']
+  push:
+    branches: [master, codex/gpui-linux-windows]
+    paths: ['Desktop/**', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      LOKALBOT_BUILD_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+    defaults:
+      run:
+        working-directory: Desktop
+    steps:
+      - uses: actions/checkout@v4
+        if: runner.os != 'Windows'
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: Desktop
+          persist-credentials: false
+      # Git for Windows validates excluded macOS ':' paths even in sparse mode.
+      # Export only the portable tree without checking out the full Git index.
+      - name: Export Windows source at the requested revision
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        env:
+          DESKTOP_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          git init .
+          git remote add origin "https://github.com/$env:GITHUB_REPOSITORY.git"
+          git fetch --no-tags --depth=1 origin $env:DESKTOP_SOURCE_REVISION
+          if ($LASTEXITCODE -ne 0) { throw "Source fetch failed" }
+          git update-ref HEAD $env:DESKTOP_SOURCE_REVISION
+          $archive = Join-Path $env:RUNNER_TEMP 'lokalbot-desktop-source.tar'
+          git archive --format=tar --prefix=Desktop/ --output=$archive HEAD:Desktop
+          if ($LASTEXITCODE -ne 0) { throw "Source export failed" }
+          tar -xf $archive
+          if ($LASTEXITCODE -ne 0) { throw "Source extraction failed" }
+          git show HEAD:LICENSE > LICENSE
+      - name: Linux development dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libdbus-1-dev libxcb1-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libfontconfig1-dev libssl-dev libclang-dev mesa-vulkan-drivers xvfb xdotool ffmpeg tesseract-ocr python3-pyatspi gir1.2-gtk-3.0
+      - name: Pinned Rust
+        shell: bash
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: Desktop -> target
+          cache-on-failure: true
+      - name: Format
+        run: cargo fmt --check
+      - name: Core regression tests
+        run: cargo test --locked --no-default-features
+      - name: Native lint
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Native application and CLI
+        run: cargo build --locked --release
+      - name: CPU transcription runtime
+        run: python scripts/bootstrap-whisper.py --build
+      - name: Package
+        run: python scripts/package.py
+      - name: Extracted package smoke
+        run: python scripts/verify-package.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lokalbot-${{ runner.os }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: Desktop/dist/*
+          if-no-files-found: error
+      - name: Linux native UI smoke
+        if: runner.os == 'Linux'
+        run: python scripts/verify-package.py --ui
+      - uses: actions/upload-artifact@v4
+        if: always() && runner.os == 'Linux'
+        with:
+          name: native-ui-${{ github.event.pull_request.head.sha || github.sha }}
+          include-hidden-files: true
+          path: |
+            Desktop/screenshots/*.png
+            Desktop/.preview-session/app.log
+            Desktop/.preview-session/xvfb.log
+            Desktop/.eval/ui-report.json
+            Desktop/.eval/capture-report.json
