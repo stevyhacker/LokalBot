@@ -15,6 +15,14 @@ DOMAIN=me.dotenv.LokalBot
 
 git -C "$ROOT_DIR" show "v$VERSION:Scripts/seed_demo_library.py" > "$WORK/seed.py"
 python3 "$WORK/seed.py" "$LIB"
+# Releases with About you seed it as plaintext; a real library holds it
+# sealed with the chat key, so seal it with the fixture's key.
+if [[ -f "$LIB/memory/personal-model.json" ]]; then
+  swift "$ROOT_DIR/Scripts/upgrade-fixtures/seal.swift" \
+    "$(python3 "$ROOT_DIR/Scripts/upgrade-fixtures/settings.py" key chat-key)" \
+    "$LIB/memory/personal-model.json" "$LIB/memory/personal-model.json.enc"
+  rm "$LIB/memory/personal-model.json"
+fi
 
 defaults delete "$DOMAIN" >/dev/null 2>&1 || true
 SETTINGS=$(python3 "$ROOT_DIR/Scripts/upgrade-fixtures/settings.py" "$VERSION")

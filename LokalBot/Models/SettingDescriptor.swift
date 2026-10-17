@@ -72,6 +72,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.stopDebounceSeconds", title: "Wait before stopping", category: .recording, aliases: "stop debounce delay seconds audio"),
         .init(id: "settings.cotypingDebounceMs", title: "Pause before suggesting", category: .writing, aliases: "autocomplete delay latency milliseconds"),
         .init(id: "settings.screenshotIntervalMinutes", title: "Idle capture interval", category: .dayMemory, aliases: "screenshot frequency fallback minutes"),
+        .init(id: "settings.personalLearningEnabled", title: "Learn about me from my meetings and work", category: .dayMemory, aliases: "learn about me automatic facts goals profile overnight typing coding agents work memory"),
+        .init(id: "settings.personalLearningFromDictation", title: "Learn from my dictation", category: .dayMemory, aliases: "about you learn dictation dictated speech voice typing messages review"),
+        .init(id: "settings.askMemoryEnabled", title: "Remember what I tell Ask", category: .dayMemory, aliases: "about you remember memory facts preferences goals principles values personal profile"),
         .init(id: "settings.summarizerBackend", title: "Think model backend", category: .models, aliases: "main llm remote processing destination inference think summarization apple ollama openai chatgpt claude subscription plan"),
         .init(id: "settings.openAIBaseURL", title: "OpenAI-compatible server URL", category: .models, aliases: "remote processing endpoint host base URL"),
         .init(id: "settings.openAIModel", title: "OpenAI-compatible model", category: .models, aliases: "remote inference model name"),
@@ -168,5 +171,6 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.resourceMonitor", title: "Resource monitor", category: .advanced, aliases: "cpu ram memory footprint"),
         .init(id: "settings.agentAccess", title: "External meeting access", category: .privacy, aliases: "mcp claude coding agent CLI"),
         .init(id: "settings.screenMemoryAccess", title: "External screen access", category: .privacy, aliases: "mcp screen memory agent"),
+        .init(id: "settings.personalContextAccess", title: "External personal context access", category: .privacy, aliases: "mcp agent about you personal context share facts preferences goals principles"),
     ]
 }

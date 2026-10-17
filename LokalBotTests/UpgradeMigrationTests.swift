@@ -71,6 +71,36 @@ final class UpgradeMigrationTests: XCTestCase {
 
     /// Every release's chats (plain files from its seed, or sealed ones the
     /// app wrote) must still open with today's chat store.
+    /// About you is sealed with the chat key, as each release wrote it.
+    /// Releases before it have no file; the first fixture with one is the
+    /// release after 0.10.7.
+    @MainActor
+    func testAboutYouFromEveryReleaseStillLoads() throws {
+        var checked = 0
+        for fixture in try fixtures() {
+            let version = fixture.lastPathComponent
+            let memory = fixture.appendingPathComponent("library/memory")
+            let hasFile = ["personal-model.json.enc", "personal-model.json"].contains {
+                FileManager.default.fileExists(atPath: memory.appendingPathComponent($0).path)
+            }
+            guard hasFile else { continue }
+            let root = try copyLibrary(fixture)
+            defer { try? FileManager.default.removeItem(at: root) }
+            let store = PersonalModelStore(root: root, encryptionKey: { self.key("chat-key") })
+            let model = try store.load()
+            XCTAssertFalse(model.claims.isEmpty, version)
+            XCTAssertTrue(model.claims.allSatisfy { !$0.text.isEmpty }, version)
+            let controller = PersonalModelController(store: store)
+            XCTAssertNil(controller.loadError, version)
+            XCTAssertTrue(controller.usableClaims().allSatisfy { $0.status == .confirmed }, version)
+            XCTAssertTrue(controller.suggestions.allSatisfy { $0.status == .proposed }, version)
+            checked += 1
+        }
+        if checked == 0 {
+            throw XCTSkip("No release fixture has About you data yet; the first is the release after 0.10.7.")
+        }
+    }
+
     @MainActor
     func testChatsFromEveryReleaseStillLoad() throws {
         for fixture in try fixtures() {

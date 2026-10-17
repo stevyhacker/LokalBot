@@ -77,6 +77,11 @@ final class DictationCoordinator: ObservableObject {
     private let onBusy: () -> Void
     private let onError: (String) -> Void
     private let onMicPermissionDenied: () -> Void
+    /// Spoken words (not Compose's draft) and the app they went to, for
+    /// About you → Learn from my dictation. Called only while that is on,
+    /// after a paste into an identified field that passes the exclusions.
+    private let onDictatedForLearning: (_ spokenText: String, _ appName: String) -> Void
+    private var learningReadTask: Task<Void, Never>?
     private let focusSnapshotExecutor: DictationFocusSnapshotExecutor
     private let recorder: MicRecorder
     private let inputMonitor = DictationInputMonitor()
@@ -130,6 +135,7 @@ final class DictationCoordinator: ObservableObject {
         onBusy: @escaping () -> Void,
         onError: @escaping (String) -> Void,
         onMicPermissionDenied: @escaping () -> Void = {},
+        onDictatedForLearning: @escaping (_ spokenText: String, _ appName: String) -> Void = { _, _ in },
         focusSnapshotExecutor: DictationFocusSnapshotExecutor = .shared,
         memoryContextProvider: @escaping (CotypingField, AppSettings) async -> CotypingMemoryContextProvider.Snapshot = { _, _ in .empty },
         screenContextProvider: @escaping (
@@ -156,6 +162,7 @@ final class DictationCoordinator: ObservableObject {
         self.onBusy = onBusy
         self.onError = onError
         self.onMicPermissionDenied = onMicPermissionDenied
+        self.onDictatedForLearning = onDictatedForLearning
         self.focusSnapshotExecutor = focusSnapshotExecutor
         inputMonitor.triggerModeProvider = { [weak self] in
             self?.settingsProvider().dictationTriggerMode ?? .pushToTalk
@@ -771,7 +778,10 @@ final class DictationCoordinator: ObservableObject {
             let insertedInto = deliveryTarget
             switch delivery {
             case .inserted:
-                if let insertedInto { checkInsertion(of: text, into: insertedInto, excludedApps: config.excludedAppList) }
+                if let insertedInto {
+                    checkInsertion(of: text, into: insertedInto, excludedApps: config.excludedAppList)
+                    keepForLearning(spokenText, into: insertedInto)
+                }
             case .copied, .displayed:
                 break
             case .notDelivered(let check):
@@ -931,6 +941,36 @@ final class DictationCoordinator: ObservableObject {
             guard !Task.isCancelled, let self else { return }
             lokalbotLog("dictation paste was not found in the target field")
             self.showDeliveryNotice(text)
+        }
+    }
+
+    /// Reads the pasted-into window's title and page address once, and hands
+    /// the spoken words on only if they pass the same exclusions as nearby
+    /// text. Anything unreadable keeps nothing.
+    private func keepForLearning(_ spokenText: String, into target: DictationDeliveryTarget) {
+        learningReadTask?.cancel()
+        // The stored settings: the dictation provider also builds vocabulary.
+        guard settingsStore.current.learnsFromDictation, target.focusIdentityKey?.isEmpty == false else { return }
+        let appName = NSRunningApplication(processIdentifier: target.processID)?.localizedName ?? ""
+        learningReadTask = Task { [weak self] in
+            let surface = await Self.readLearningSurface(in: target)
+            guard !Task.isCancelled, let self, let surface else { return }
+            let settings = self.settingsStore.current
+            guard settings.learnsFromDictation, DictationLearningPolicy.permits(
+                appName: appName, bundleID: target.bundleID, surface: surface,
+                excludedApps: settings.excludedAppList,
+                excludedDomains: settings.excludedScreenDomainList) else { return }
+            self.onDictatedForLearning(spokenText, appName)
+        }
+    }
+
+    nonisolated private static func readLearningSurface(in target: DictationDeliveryTarget) async
+        -> DictationLearningSurface? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: CotypingAXHelper.dictationLearningSurface(
+                    processID: target.processID, focusIdentityKey: target.focusIdentityKey))
+            }
         }
     }
 

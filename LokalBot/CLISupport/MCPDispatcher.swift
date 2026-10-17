@@ -4,6 +4,14 @@ import Foundation
 struct MCPDispatcher {
     static let supportedProtocolVersions = ["2024-11-05", "2025-03-26", "2025-06-18"]
 
+    /// Sent with `initialize` so clients that surface server instructions
+    /// tell the model to orient itself before asking the user.
+    static let instructions = """
+        LokalBot is the user's local memory of their meetings, screen, and what they shared about \
+        themselves. At the start of a session, call get_briefing. Before asking the user about past \
+        work, decisions, commitments, or where something stands, search LokalBot first.
+        """
+
     var provider: LibraryToolProvider
     var serverVersion: String
 
@@ -32,6 +40,7 @@ struct MCPDispatcher {
                     "name": "lokalbot",
                     "version": .string(serverVersion),
                 ]),
+                "instructions": .string(Self.instructions),
             ]))
         case "tools/list":
             return MCPResponse.success(id: id, result: .object([

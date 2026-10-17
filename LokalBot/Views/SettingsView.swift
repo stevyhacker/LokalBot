@@ -172,7 +172,7 @@ struct SettingsView: View {
         case .recording:
             meetingsSection; processingSection; summarizationSection
         case .dayMemory:
-            dayTrackingSection; routinesSection; dreamingSection
+            dayTrackingSection; routinesSection; dreamingSection; aboutYouSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -1028,6 +1028,15 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var aboutYouSection: some View {
+        if shows("About you", ["about", "you", "remember", "memory", "facts", "preferences", "goals",
+                               "principles", "values", "personal", "profile", "forget"]) {
+            Section("About you") {
+                AboutYouSettings(personalModel: app.personalModel, access: app.personalContextAccess)
+            }
+        }
+    }
+
     private func dreamMemoryPinRow(
         title: String,
         detail: String,
@@ -1084,6 +1093,8 @@ struct SettingsView: View {
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
                     ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
+                    PersonalContextAccessToggleRow(manager: app.personalContextAccess)
+                    .settingTarget("settings.personalContextAccess", selected: app.focusedSettingID)
                 }
             }
 
@@ -1408,6 +1419,39 @@ private struct AgentAccessToggleRow: View {
                 set: { manager.setEnabled($0) })) {
                 SettingsLabel("Allow external agents to read your meeting library",
                               help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
+            }
+        }
+    }
+}
+
+private struct PersonalContextAccessToggleRow: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var manager: PersonalContextAccessManager
+
+    var body: some View {
+        Group {
+            Toggle(isOn: Binding(
+                get: { manager.isEnabled },
+                set: { manager.setEnabled($0) })) {
+                SettingsLabel("Allow external agents to read what I shared about myself",
+                              help: "Separate, read-only access to the About you items you mark Share with agents. Nothing else in About you is readable.")
+            }
+            .accessibilityIdentifier("settings.personalContextAccess")
+            if manager.isEnabled {
+                LabeledContent {
+                    Button("Choose items…") {
+                        app.settingsTab = .dayMemory
+                        app.focusedSettingID = "settings.askMemoryEnabled"
+                    }
+                    .buttonStyle(.workspaceLink)
+                } label: {
+                    SettingsLabel(manager.sharedCount == 1 ? "1 item shared"
+                                                           : "\(manager.sharedCount) items shared",
+                                  help: "Agents get the most relevant shared items for their task, at most 12 at a time.")
+                }
+            }
+            if let error = manager.lastError {
+                Text(error).workspaceTextRole(.warning)
             }
         }
     }

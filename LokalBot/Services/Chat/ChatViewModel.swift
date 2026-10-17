@@ -43,6 +43,18 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
     var isPending: Bool
     /// The turn failed (engine unreachable, no model, …) — rendered as an error.
     var isError: Bool
+    /// Set on the assistant turn that answers a "Remember …" message: the
+    /// statement was saved (or refused) without calling a model. These pairs
+    /// stay out of model history; the personal-context block carries them.
+    var rememberReceipt: RememberReceipt?
+    /// Personal claims supplied to the model for this answer, so the answer
+    /// can show what it was given. Nil on older turns and when none were used.
+    var usedClaimIDs: [UUID]?
+
+    struct RememberReceipt: Equatable, Codable, Sendable {
+        /// The saved claim, or nil when the statement was refused.
+        var claimID: UUID?
+    }
 
     init(id: UUID = UUID(), role: ChatRole, text: String,
          createdAt: Date = Date(), activity: [Activity] = [],
@@ -50,7 +62,8 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
          dayScopeKey: String? = nil, createdAtIsEstimated: Bool = false,
          attachedScreenDayKeys: [String] = [],
          meetingIDs: Set<UUID>? = nil, screenSnapshotIDs: Set<Int64>? = nil,
-         isPending: Bool = false, isError: Bool = false) {
+         isPending: Bool = false, isError: Bool = false,
+         rememberReceipt: RememberReceipt? = nil, usedClaimIDs: [UUID]? = nil) {
         self.id = id; self.role = role; self.text = text
         self.createdAt = createdAt; self.createdAtIsEstimated = createdAtIsEstimated
         self.activity = activity; self.sourceScopes = sourceScopes
@@ -61,12 +74,13 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
         legacyScopeIsAmbiguous = false
         sourceScopeSchemaVersion = Self.currentSourceScopeSchemaVersion
         self.isPending = isPending; self.isError = isError
+        self.rememberReceipt = rememberReceipt; self.usedClaimIDs = usedClaimIDs
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, role, text, createdAt, createdAtIsEstimated, activity, sourceScopes
         case dayScope, attachedScreenDayKeys, sourceScopeSchemaVersion, meetingIDs, screenSnapshotIDs
-        case legacyScopeIsAmbiguous, isError
+        case legacyScopeIsAmbiguous, isError, rememberReceipt, usedClaimIDs
     }
 
     static let legacyCreatedAtFallback = Date.distantPast
@@ -103,6 +117,8 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
         isError = try c.decodeIfPresent(Bool.self, forKey: .isError) ?? false
         meetingIDs = try c.decodeIfPresent(Set<UUID>.self, forKey: .meetingIDs)
         screenSnapshotIDs = try c.decodeIfPresent(Set<Int64>.self, forKey: .screenSnapshotIDs)
+        rememberReceipt = try c.decodeIfPresent(RememberReceipt.self, forKey: .rememberReceipt)
+        usedClaimIDs = try c.decodeIfPresent([UUID].self, forKey: .usedClaimIDs)
         isPending = false
     }
 
@@ -128,6 +144,8 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
             try c.encode(true, forKey: .legacyScopeIsAmbiguous)
         }
         if isError { try c.encode(isError, forKey: .isError) }
+        try c.encodeIfPresent(rememberReceipt, forKey: .rememberReceipt)
+        if let usedClaimIDs, !usedClaimIDs.isEmpty { try c.encode(usedClaimIDs, forKey: .usedClaimIDs) }
     }
 }
 
@@ -462,6 +480,11 @@ final class ChatViewModel: ObservableObject {
     /// Re-read per send so an overnight dream lands in the next question
     /// without restarting the app. Empty when dreaming is off or has nothing.
     private let workMemory: () -> String
+    /// What the person told LokalBot about themselves. Nil in contexts that
+    /// don't offer it (tests, previews).
+    let personalModel: PersonalModelController?
+    /// Settings → Day Memory → About you → "Remember what I tell Ask".
+    private let askMemoryEnabled: () -> Bool
     private var task: Task<Void, Never>?
     private struct RetryPayload {
         var prompt: String
@@ -483,11 +506,15 @@ final class ChatViewModel: ObservableObject {
 
     init(makeEngine: @escaping () async throws -> TextEngine, tools: ChatToolRunner,
          store: ChatStore, workMemory: @escaping () -> String = { "" },
+         personalModel: PersonalModelController? = nil,
+         askMemoryEnabled: @escaping () -> Bool = { true },
          deferHistoryLoading: Bool = false) {
         self.makeEngine = makeEngine
         self.tools = tools
         self.store = store
         self.workMemory = workMemory
+        self.personalModel = personalModel
+        self.askMemoryEnabled = askMemoryEnabled
         let initialLoad = deferHistoryLoading ? ChatStore.LoadReport() : store.loadAllReport()
         let saved = initialLoad.conversations
         if let latest = saved.first {
@@ -546,6 +573,19 @@ final class ChatViewModel: ObservableObject {
         let visibleText = trimmedDisplay.flatMap { $0.isEmpty ? nil : $0 } ?? text
         draft = ""
 
+        // "Remember …" is saved locally without a model call. The visible
+        // text is what the person typed (a date scope may prefix the hidden
+        // prompt); with an attached screen it stays a question about it.
+        if attachedScreenIDs.isEmpty, askMemoryEnabled(), let personalModel,
+           let statement = RememberIntent.parse(visibleText) {
+            discardRetryPayloads(for: messages)
+            remember(statement, visibleText: visibleText, personalModel: personalModel,
+                     sourceScopes: sourceScopes, dayScopeKey: dayScopeKey,
+                     attachedScreenDayKeys: attachedScreenDayKeys,
+                     meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
+            return
+        }
+
         // A new question supersedes any failed turn in this conversation.
         // Discard its transient hidden prompt (which may contain attached OCR)
         // before retaining the new turn's retry payload.
@@ -599,6 +639,45 @@ final class ChatViewModel: ObservableObject {
                 attachedScreenIDs: attachedScreenIDs,
                 meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
         }
+    }
+
+    private func remember(
+        _ statement: String,
+        visibleText: String,
+        personalModel: PersonalModelController,
+        sourceScopes: Set<AskSourceScope>,
+        dayScopeKey: String?,
+        attachedScreenDayKeys: [String],
+        meetingIDs: Set<UUID>?, screenSnapshotIDs: Set<Int64>?
+    ) {
+        let orderedScopes = AskSourceScope.allCases.filter(sourceScopes.contains)
+        let sentAt = Date()
+        let question = ChatMessage(
+            role: .user, text: visibleText, createdAt: sentAt,
+            sourceScopes: orderedScopes, dayScopeKey: dayScopeKey,
+            attachedScreenDayKeys: attachedScreenDayKeys,
+            meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs)
+        messages.append(question)
+        let receipt: ChatMessage
+        switch personalModel.remember(
+            statement, origin: .said(conversationID: currentID, messageID: question.id)) {
+        case .success(let claim):
+            receipt = ChatMessage(
+                role: .assistant, text: claim.text, createdAt: sentAt,
+                sourceScopes: orderedScopes, dayScopeKey: dayScopeKey,
+                attachedScreenDayKeys: attachedScreenDayKeys,
+                meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs,
+                rememberReceipt: .init(claimID: claim.id))
+        case .failure(let error):
+            receipt = ChatMessage(
+                role: .assistant, text: error.localizedDescription, createdAt: sentAt,
+                sourceScopes: orderedScopes, dayScopeKey: dayScopeKey,
+                attachedScreenDayKeys: attachedScreenDayKeys,
+                meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs,
+                rememberReceipt: .init(claimID: nil))
+        }
+        messages.append(receipt)
+        persist()
     }
 
     /// Cancel an in-flight response.
@@ -699,6 +778,7 @@ final class ChatViewModel: ObservableObject {
         }
         failedDeletionID = nil
         unsavedConversationIDs.remove(id)
+        personalModel?.retractLearned(fromConversation: id)
         updatePersistenceError()
         if isLoadingHistory { deletedDuringHydration.insert(id) }
         let deletedMessages = deletingCurrent
@@ -839,6 +919,7 @@ final class ChatViewModel: ObservableObject {
                 guard let user = pendingUser else { continue }
                 if !message.isPending,
                    !message.isError,
+                   message.rememberReceipt == nil,
                    historyPairAllowed(
                     user,
                     allowedScopes: allowedScopes,
@@ -979,6 +1060,21 @@ final class ChatViewModel: ObservableObject {
             if scopes == AskSourceScope.defaults, dayScopeKey == nil, meetingIDs == nil, screenSnapshotIDs == nil {
                 agent.workMemory = workMemory()
             }
+            // The person's own statements carry no source evidence, so unlike
+            // work memory they apply to scoped questions too. Learned claims
+            // came from meetings and follow the work-memory boundary.
+            var usedClaimIDs: [UUID] = []
+            if askMemoryEnabled(), let personalModel {
+                let unscoped = scopes == AskSourceScope.defaults && dayScopeKey == nil
+                    && meetingIDs == nil && screenSnapshotIDs == nil
+                let recentUserTurns = history.filter { $0.role == .user }.suffix(2).map(\.text)
+                let selection = PersonalContextBuilder.select(
+                    claims: personalModel.usableClaims(includeEvidenceBacked: unscoped),
+                    question: latest,
+                    recentUserTurns: recentUserTurns)
+                agent.personalContext = selection.block
+                usedClaimIDs = selection.claims.map(\.id)
+            }
             let answer = try await agent.respond(history: history, latest: latest) { [weak self] event in
                 self?.apply(event, to: assistantID)
             }
@@ -988,7 +1084,9 @@ final class ChatViewModel: ObservableObject {
                 $0.createdAt = Date()
                 $0.createdAtIsEstimated = false
                 $0.isPending = false
+                $0.usedClaimIDs = usedClaimIDs.isEmpty ? nil : usedClaimIDs
             }
+            personalModel?.markUsed(Set(usedClaimIDs))
             retryPayloads[assistantID] = nil
         } catch is CancellationError {
             _ = finalizeInterruptedTurn(assistantID)

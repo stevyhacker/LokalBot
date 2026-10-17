@@ -12,6 +12,7 @@ Key facts:
 - Optional backends: Apple Intelligence (macOS 26+), Ollama, and OpenAI-compatible servers. A non-local server must be explicitly approved before it receives meeting or workday context.
 - Workday memory: day tracking starts with app names and window titles only. Saved screen text and encrypted screenshots are opt-in; screenshots are deleted after 14 days by default.
 - Also includes: hold-to-talk dictation (⌥ Space), optional local autocomplete, Markdown/Obsidian/Logseq export, and a read-only CLI and MCP server that stay off until Agent Access is enabled.
+- About you: an encrypted list of facts, preferences, goals, and principles about the user, from "Remember …" in Ask, items added in Settings, and what it learns overnight from the user's own words in meetings and typed requests. Ask uses it; agents can read only items the user shares, under a separate permission.
 - Not supported: importing existing audio files; syncing between devices.
 
 ## Product

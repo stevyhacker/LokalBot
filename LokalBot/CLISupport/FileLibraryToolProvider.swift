@@ -5,6 +5,7 @@ import Foundation
 struct FileLibraryToolProvider: LibraryToolProvider {
     var gate: AgentAccessGate
     var screenGate: ScreenMemoryAccessGate
+    var personalGate: PersonalContextAccessGate
     var screenReader: any ScreenMemoryReading
     var now: () -> Date
     var ask: (String) async -> ToolResult
@@ -12,12 +13,14 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     init(
         gate: AgentAccessGate,
         screenGate: ScreenMemoryAccessGate? = nil,
+        personalGate: PersonalContextAccessGate? = nil,
         screenReader: (any ScreenMemoryReading)? = nil,
         now: @escaping () -> Date = Date.init,
         ask: @escaping (String) async -> ToolResult
     ) {
         self.gate = gate
         self.screenGate = screenGate ?? ScreenMemoryAccessGate(root: gate.root)
+        self.personalGate = personalGate ?? PersonalContextAccessGate(root: gate.root)
         self.screenReader = screenReader ?? SQLiteScreenMemoryReader(
             databaseURL: gate.root.appendingPathComponent("lokalbotv3.sqlite"))
         self.now = now
@@ -34,6 +37,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
 
     var tools: [ToolDefinition] {
         [
+            Briefing.definition,
             ToolDefinition(
                 name: "list_meetings",
                 description: "List recorded meetings, newest first. Returns id, title, date, and duration for each.",
@@ -211,6 +215,7 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                     ],
                     "required": ["snapshot_id"],
                 ]),
+            PersonalContextTool.definition,
         ]
     }
 
@@ -254,6 +259,10 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             return getAppUsage(arguments)
         case "get_screenshot_detail":
             return getScreenshotDetail(arguments)
+        case PersonalContextTool.name:
+            return getPersonalContext(arguments)
+        case Briefing.toolName:
+            return .text(briefing())
         default:
             return .error(
                 .unknownTool,
@@ -269,6 +278,62 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
         "get_screenshot_detail",
     ]
+
+    /// Never refused: with no grants it still says which permissions are off,
+    /// so an agent learns what it could ask for. Each section checks its own
+    /// grant inside `Briefing`.
+    func briefing() -> String {
+        Briefing.render(Briefing.Context(
+            root: gate.root,
+            meetingAccess: gate.isAuthorized(),
+            screenGate: screenGate,
+            personalGate: personalGate,
+            screenReader: screenReader,
+            now: now()))
+    }
+
+    /// Independent of meeting and screen access, and of Agent Mode
+    /// capabilities: only the Personal context marker and its projection.
+    private func getPersonalContext(_ arguments: JSONValue?) -> ToolResult {
+        guard personalGate.isEnabled else {
+            return .error(.personalContextDisabled, PersonalContextTool.disabledMessage)
+        }
+        guard let task = arguments?["task"]?.stringValue else {
+            return .error(.invalidArguments, "\(PersonalContextTool.name) requires a \"task\" string.")
+        }
+        var kinds: [String]?
+        if let raw = arguments?["kinds"] {
+            guard case .array(let values) = raw else {
+                return .error(.invalidArguments, "\"kinds\" must be an array of strings.")
+            }
+            var parsed: [String] = []
+            for value in values {
+                guard let kind = value.stringValue else {
+                    return .error(.invalidArguments, "\"kinds\" must be an array of strings.")
+                }
+                parsed.append(kind)
+            }
+            kinds = parsed
+        }
+        var maxItems: Int?
+        if let raw = arguments?["max_items"] {
+            guard let value = raw.intValue else {
+                return .error(.invalidArguments,
+                              "\"max_items\" must be an integer between 1 and \(PersonalContextTool.maximumItems).")
+            }
+            maxItems = value
+        }
+        switch PersonalContextTool.report(task: task, kinds: kinds, maxItems: maxItems, gate: personalGate) {
+        case .success(let report):
+            return .text(PersonalContextTool.json(report))
+        case .failure(.disabled):
+            return .error(.personalContextDisabled, PersonalContextTool.disabledMessage)
+        case .failure(.unavailable):
+            return .error(.personalContextUnavailable, PersonalContextTool.unavailableMessage)
+        case .failure(.invalid(let message)):
+            return .error(.invalidArguments, message)
+        }
+    }
 
     private func listMeetings(_ arguments: JSONValue?) -> ToolResult {
         do {

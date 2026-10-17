@@ -45,7 +45,7 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective October 2, 2026</p>
+      <p class="eyebrow">Effective October 15, 2026</p>
       <h1>Privacy Policy</h1>
       <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service.</p>
     </header>
@@ -59,16 +59,22 @@
         <li>downloaded speech, embedding, and language models;</li>
         <li>permission-gated app/window activity, screenshots, and locally extracted text;</li>
         <li>records of local Claude Code and Codex sessions for the day digest (requests, commits, pull requests, and changed file names; never tool output or file contents), on by default and removable in Settings → Day Memory;</li>
-        <li>opt-in Agent Mode sessions and runtime files; and</li>
+        <li>opt-in Agent Mode sessions and runtime files;</li>
+        <li>an encrypted About you list of facts, preferences, goals, and principles about you; and</li>
         <li>preferences, diagnostic logs, and encryption keys.</li>
       </ul>
-      <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Overnight reviews and the remembered projects and goals are kept after screen text expires; Settings → Overnight review → Clear work memory deletes them. Dictation scratch audio is deleted after transcription by default.</p>
+      <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Overnight reviews, the one-line week and month summaries made from them for agents, and the remembered projects and goals are kept after screen text expires; Settings → Overnight review → Clear work memory deletes them. Dictation scratch audio is deleted after transcription by default. Dictated text is not kept unless you turn on Learn from my dictation (below).</p>
+
+      <h2>About you</h2>
+      <p>About you holds what you tell LokalBot about yourself: messages that start with “Remember …” in Ask, and items you add in Settings → Day Memory → About you. With <strong>Learn about me from my meetings and work</strong>, which is on by default, LokalBot also learns from your own words after each overnight review. It reads your microphone lines from that day's meetings, the requests you typed to Claude Code or Codex, and your Ask questions. Only lines with first-person words such as “I” or “my” go to your Think model, and other people's words never do. Up to three items a night come from this. Facts and goals you said in meetings are saved; preferences and anything from your typing wait for your review; principles and values are never learned. Each learned item shows the line it came from.</p>
+      <p><strong>Learn from my dictation</strong> is off by default. While it is on, LokalBot keeps the words you dictate into other apps, encrypted, until that night's learning reads them, and never more than two days. It keeps only the words you spoke, only when they were pasted into a field it could identify, and skips excluded apps and websites, private windows, and password fields. Items from dictation always wait for your review. Turning it off deletes what is kept.</p>
+      <p>Items are encrypted with the key that protects your Ask history. Ask adds the relevant ones to each question, so an approved remote Think server receives them with the question. Deleting or correcting the meeting, conversation, or agent session an item came from removes it, unless you chose to keep it. You can edit or forget any item, or turn learning off, in Settings → Day Memory.</p>
 
       <h2>When LokalBot uses the network</h2>
       <ul>
         <li><strong>Models:</strong> model metadata and files from Hugging Face or a publisher's download host. Selected first-use models can download automatically.</li>
         <li><strong>Updates:</strong> the public GitHub Releases appcast and a signed update when you check or enable automatic checks.</li>
-        <li><strong>Optional remote inference:</strong> an Ollama or OpenAI-compatible URL you configure. Loopback stays on your Mac. A non-loopback origin must be explicitly approved before it receives meeting, workday, or agent context.</li>
+        <li><strong>Optional remote inference:</strong> an Ollama or OpenAI-compatible URL you configure. Loopback stays on your Mac. A non-loopback origin must be explicitly approved before it receives meeting, workday, About you, or agent context.</li>
         <li><strong>Optional Agent Mode:</strong> setup downloads its pinned runtime. Commands you approve can access files or the network with your macOS user permissions.</li>
       </ul>
       <p>Those services receive ordinary connection metadata such as IP address and request headers. LokalBot adds no advertising identifier and does not use those requests for tracking. A remote server's operator controls its own privacy terms.</p>
@@ -78,7 +84,7 @@
       <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting. You can switch to automatic recording or turn auto-record off. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
 
       <h2>External-agent access</h2>
-      <p>The bundled CLI and MCP interface are read-only and refuse library access until you enable Agent Access under Settings → Privacy. An enabled external tool runs as your macOS user, so connect only tools you trust.</p>
+      <p>The bundled CLI and MCP interface are read-only and refuse library access until you enable Agent Access under Settings → Privacy. Screen memory and About you each need their own, separate permission there; turning on one never turns on another. With <strong>Allow external agents to read what I shared about myself</strong> on, agents can read only the About you items you mark Share with agents, at most 12 at a time, never the rest. The start-of-session briefing (<code>get_briefing</code>, <code>lokalbot-cli brief</code>) follows the same grants: with all of them off it only lists which are off, and each part, such as your open action items, current projects and goals, recent coding-agent sessions, or the overnight-review timeline, appears only under the permissions that cover its sources. An enabled external tool runs as your macOS user, and a connected AI client may send what it reads under its own privacy terms, so connect only tools you trust.</p>
 
       <h2>Deletion, security, and changes</h2>
       <p>You can delete meetings in the app or remove LokalBot's Application Support directory. No software can promise absolute security. Report vulnerabilities through the private process in the <a href="https://github.com/stevyhacker/lokalbot/blob/master/SECURITY.md">security policy</a>. Material policy changes will update this date and appear in release notes.</p>

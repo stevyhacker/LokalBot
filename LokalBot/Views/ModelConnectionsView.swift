@@ -286,7 +286,7 @@ struct ModelConnectionsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Remote processing · \(url.host ?? origin)", systemImage: "network")
                         .font(AppFont.scaled(.body).weight(.semibold))
-                    Text("Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.")
+                    Text("Think may send meeting transcripts, screen text, what you told Ask to remember about you, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.")
                         .workspaceTextRole(.trust)
                         .fixedSize(horizontal: false, vertical: true)
                     Toggle("Allow sending context to \(origin)",

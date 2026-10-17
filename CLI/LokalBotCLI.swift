@@ -12,11 +12,13 @@ struct LokalBotCLI: AsyncParsableCommand {
             Agent CLI). Output defaults to JSON; pass --table for plain text.
             """,
         subcommands: [
+            BriefCommand.self,
             ListCommand.self,
             GetCommand.self,
             SearchCommand.self,
             ActionsCommand.self,
             PeopleCommand.self,
+            PersonalContextCommand.self,
             PathCommand.self,
             MCPCommand.self,
             InstallSkillCommand.self,

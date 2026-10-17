@@ -290,6 +290,18 @@ private struct EditorialTurn: View {
     }
 
     @ViewBuilder private var assistantBlock: some View {
+        if let receipt = message.rememberReceipt {
+            if let personalModel = model.personalModel {
+                RememberReceiptCard(message: message, receipt: receipt, personalModel: personalModel)
+            } else {
+                Text(message.text).foregroundStyle(.secondary)
+            }
+        } else {
+            answerBlock
+        }
+    }
+
+    @ViewBuilder private var answerBlock: some View {
         let parsed = ChatCitationParser.extract(message.text)
         VStack(alignment: .leading, spacing: 10) {
             if isStoppedTurn {
@@ -365,6 +377,10 @@ private struct EditorialTurn: View {
                 answerActions(copyText: parsed.display, allowsSpeech: true)
                 if !parsed.citations.isEmpty {
                     EvidenceDisclosure(citations: parsed.citations)
+                }
+                if let claimIDs = message.usedClaimIDs, !claimIDs.isEmpty,
+                   let personalModel = model.personalModel {
+                    PersonalContextDisclosure(claimIDs: claimIDs, personalModel: personalModel)
                 }
             }
         }
@@ -657,6 +673,112 @@ private struct EditorialTurn: View {
 }
 
 /// One compact evidence disclosure matching inline `[n]` references in the answer.
+/// The reply to a "Remember …" message: saved locally, no model involved.
+private struct RememberReceiptCard: View {
+    @EnvironmentObject var app: AppState
+    let message: ChatMessage
+    let receipt: ChatMessage.RememberReceipt
+    @ObservedObject var personalModel: PersonalModelController
+
+    var body: some View {
+        let claim = receipt.claimID.flatMap { personalModel.claim(id: $0) }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                Image(systemName: receipt.claimID == nil ? "exclamationmark.circle"
+                                  : claim == nil ? "minus.circle" : "checkmark.circle")
+                    .foregroundStyle(receipt.claimID == nil ? AnyShapeStyle(Brand.error)
+                                     : AnyShapeStyle(Brand.teal))
+                    .frame(width: 14)
+                Text(receipt.claimID == nil ? "Not remembered"
+                     : claim == nil ? "Remembered, then forgotten" : "Remembered")
+                    .font(AppFont.scaled(.callout).weight(.semibold))
+            }
+            .foregroundStyle(Color.primary.opacity(0.68))
+            Text(claim?.text ?? message.text)
+                .foregroundStyle(claim == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+            if let claim {
+                HStack(spacing: 10) {
+                    Menu {
+                        ForEach(PersonalClaim.Kind.allCases, id: \.self) { kind in
+                            Button(kind.displayName) { personalModel.update(claim.id, kind: kind) }
+                        }
+                    } label: {
+                        Label(claim.kind.displayName, systemImage: claim.kind.systemImage)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    .help("Change what kind of thing this is")
+                    .accessibilityIdentifier("chat.remember.kind")
+                    Button("Undo") { personalModel.forget([claim.id]) }
+                        .accessibilityIdentifier("chat.remember.undo")
+                    Button("Manage…") { openAboutYou() }
+                }
+                .buttonStyle(.borderless)
+                .font(AppFont.scaled(.callout))
+            } else if receipt.claimID == nil {
+                Button("Manage…") { openAboutYou() }
+                    .buttonStyle(.borderless)
+                    .font(AppFont.scaled(.callout))
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: Brand.Radius.row))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.remember.receipt")
+    }
+
+    private func openAboutYou() {
+        app.openSettings(tab: .dayMemory)
+        app.focusedSettingID = "settings.askMemoryEnabled"
+    }
+}
+
+/// Lists what the person told LokalBot that went into this answer.
+private struct PersonalContextDisclosure: View {
+    @EnvironmentObject var app: AppState
+    let claimIDs: [UUID]
+    @ObservedObject var personalModel: PersonalModelController
+    @State private var isExpanded = false
+
+    var body: some View {
+        WorkspaceDisclosure(
+            isExpanded: $isExpanded,
+            identifier: "chat.personalContext",
+            style: .compact) {
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(claimIDs, id: \.self) { id in
+                    if let claim = personalModel.claim(id: id) {
+                        Label {
+                            Text(claim.text).fixedSize(horizontal: false, vertical: true)
+                        } icon: {
+                            Image(systemName: claim.kind.systemImage).foregroundStyle(Brand.teal)
+                        }
+                    } else {
+                        Label("Forgotten since this answer", systemImage: "minus.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Button("Manage what LokalBot remembers…") {
+                    app.openSettings(tab: .dayMemory)
+                    app.focusedSettingID = "settings.askMemoryEnabled"
+                }
+                .buttonStyle(.borderless)
+                .padding(.top, 4)
+            }
+            .font(AppFont.scaled(.callout))
+        } label: {
+            Label(claimIDs.count == 1 ? "Used 1 thing you told LokalBot"
+                                      : "Used \(claimIDs.count) things you told LokalBot",
+                  systemImage: "person.crop.circle.badge.checkmark")
+                .font(AppFont.scaled(.body))
+        }
+        .accessibilityIdentifier("chat.personalContext")
+    }
+}
+
 private struct EvidenceDisclosure: View {
     @EnvironmentObject var app: AppState
     let citations: [ChatCitation]

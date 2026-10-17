@@ -973,7 +973,7 @@
 "These are captured window titles. Expand a title to inspect the activity behind it." = "These are captured window titles. Expand a title to inspect the activity behind it.";
 "These choices are applied on the final Review step." = "These choices are applied on the final Review step.";
 "Think" = "Think";
-"Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time." = "Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.";
+"Think may send meeting transcripts, screen text, what you told Ask to remember about you, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time." = "Think may send meeting transcripts, screen text, what you told Ask to remember about you, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.";
 "Think model" = "Think model";
 "Think model backend" = "Think model backend";
 "Think processing budget" = "Think processing budget";
@@ -1155,6 +1155,15 @@
 "Your subscription" = "Your subscription";
 "Server" = "Server";
 "In use" = "In use";
+"About you" = "About you";
+"Remember what I tell Ask" = "Remember what I tell Ask";
+"Remembered" = "Remembered";
+"Not remembered" = "Not remembered";
+"Share with agents" = "Share with agents";
+"Share with Agents" = "Share with Agents";
+"Stop Sharing with Agents" = "Stop Sharing with Agents";
+"Allow external agents to read what I shared about myself" = "Allow external agents to read what I shared about myself";
+"Choose items…" = "Choose items…";
 "Statistics" = "Statistics";
 "Autocomplete statistics" = "Autocomplete statistics";
 "Period" = "Period";
@@ -1196,6 +1205,10 @@
 "Clear Statistics" = "Clear Statistics";
 "Deletes the daily and monthly counts. Usage and timing measurements are kept." = "Deletes the daily and monthly counts. Usage and timing measurements are kept.";
 "Counted on this Mac while you type in other apps: suggestions shown and accepted, the characters you type yourself where autocomplete works, and the pauses between them, by day, kind of app and model. No text, app names or window titles are kept. Time saved is the keystrokes you did not type at your measured speed, not counting time spent reading suggestions." = "Counted on this Mac while you type in other apps: suggestions shown and accepted, the characters you type yourself where autocomplete works, and the pauses between them, by day, kind of app and model. No text, app names or window titles are kept. Time saved is the keystrokes you did not type at your measured speed, not counting time spent reading suggestions.";
+"Learn about me from my meetings and work" = "Learn about me from my meetings and work";
+"Learn from my dictation" = "Learn from my dictation";
+"Keep" = "Keep";
+"Keep Even If the Meeting Is Deleted" = "Keep Even If the Meeting Is Deleted";
 "CPU" = "CPU";
 "Memory" = "Memory";
 "Models loaded" = "Models loaded";
@@ -1204,6 +1217,9 @@
 "%@ of RAM" = "%@ of RAM";
 "Updates every 2 seconds and counts LokalBot and its helpers. External Ollama and Apple Intelligence models aren't counted." = "Updates every 2 seconds and counts LokalBot and its helpers. External Ollama and Apple Intelligence models aren't counted.";
 "Diagnostics include logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Diagnostics include logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots.";
+
+"Keep Even If the Conversation Is Deleted" = "Keep Even If the Conversation Is Deleted";
+"Keep Even If the Source Is Deleted" = "Keep Even If the Source Is Deleted";
 "Autocomplete server" = "Autocomplete server";
 "Think's server" = "Think's server";
 "Another server" = "Another server";

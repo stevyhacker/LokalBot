@@ -973,7 +973,7 @@
 "These are captured window titles. Expand a title to inspect the activity behind it." = "这些是采集的窗口标题。展开标题可查看背后的活动。";
 "These choices are applied on the final Review step." = "这些选择将在最后的确认步骤生效。";
 "Think" = "思考";
-"Think may send meeting transcripts, screen text, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time." = "使用相关功能时，思考模型可能向此服务器发送会议转写、屏幕文字、智能体上下文和沿用其配置的听写请求。定时每日摘要和夜间回顾也在此运行，可发送活动标题、采集的屏幕文字、会议证据和保留的回顾记忆，而不会每次询问。";
+"Think may send meeting transcripts, screen text, what you told Ask to remember about you, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time." = "使用相关功能时，思考模型可能向此服务器发送会议转写、屏幕文字、你让 Ask 记住的关于你的信息、智能体上下文和沿用其配置的听写请求。定时每日摘要和夜间回顾也在此运行，可发送活动标题、采集的屏幕文字、会议证据和保留的回顾记忆，而不会每次询问。";
 "Think model" = "思考模型";
 "Think model backend" = "思考模型后端";
 "Think processing budget" = "思考模型处理预算";
@@ -1155,6 +1155,15 @@
 "Your subscription" = "你的订阅";
 "Server" = "服务器";
 "In use" = "使用中";
+"About you" = "关于你";
+"Remember what I tell Ask" = "记住我告诉 Ask 的内容";
+"Remembered" = "已记住";
+"Not remembered" = "未记住";
+"Share with agents" = "与智能体共享";
+"Share with Agents" = "与智能体共享";
+"Stop Sharing with Agents" = "停止与智能体共享";
+"Allow external agents to read what I shared about myself" = "允许外部智能体读取我共享的个人信息";
+"Choose items…" = "选择条目…";
 "Statistics" = "统计";
 "Autocomplete statistics" = "自动补全统计";
 "Period" = "时间范围";
@@ -1196,6 +1205,10 @@
 "Clear Statistics" = "清除统计";
 "Deletes the daily and monthly counts. Usage and timing measurements are kept." = "删除每日和每月的计数。“用量与耗时”中的测量数据会保留。";
 "Counted on this Mac while you type in other apps: suggestions shown and accepted, the characters you type yourself where autocomplete works, and the pauses between them, by day, kind of app and model. No text, app names or window titles are kept. Time saved is the keystrokes you did not type at your measured speed, not counting time spent reading suggestions." = "在你于其他应用中输入时，于本机统计：显示和采用的建议、你在自动补全可用的位置自己输入的字符数及按键间隔，按天、应用类型和模型分别记录。不保存任何文字、应用名称或窗口标题。节省的时间按你实测的输入速度计算你少按的键，不含阅读建议的时间。";
+"Learn about me from my meetings and work" = "从我的会议和工作中了解我";
+"Learn from my dictation" = "从我的口述中学习";
+"Keep" = "保留";
+"Keep Even If the Meeting Is Deleted" = "即使删除会议也保留";
 "CPU" = "CPU";
 "Memory" = "内存";
 "Models loaded" = "已加载模型";
@@ -1204,6 +1217,9 @@
 "%@ of RAM" = "占内存的 %@";
 "Updates every 2 seconds and counts LokalBot and its helpers. External Ollama and Apple Intelligence models aren't counted." = "每 2 秒更新，统计 LokalBot 及其辅助进程。外部 Ollama 和 Apple Intelligence 模型不计入。";
 "Diagnostics include logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "诊断信息包含日志、健康报告、不含密钥的设置和资料库数量统计。绝不包含会议音频、转写、笔记或屏幕截图。";
+
+"Keep Even If the Conversation Is Deleted" = "即使删除对话也保留";
+"Keep Even If the Source Is Deleted" = "即使删除来源也保留";
 "Autocomplete server" = "自动补全服务器";
 "Think's server" = "Think 的服务器";
 "Another server" = "其他服务器";

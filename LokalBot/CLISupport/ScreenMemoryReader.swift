@@ -116,6 +116,20 @@ struct ScreenMemoryTimeline: Codable, Equatable {
     }
 }
 
+/// One saved coding-agent burst, reduced to what an agent briefing shows:
+/// where the work happened and what came out of it, never the prompts,
+/// replies, or file contents.
+struct ScreenMemoryAgentSession: Equatable, Sendable {
+    var agent: String
+    var project: String
+    var title: String
+    var start: Date
+    /// One coding-agent session is stored as several activity bursts.
+    var sessionID: String
+    var pullRequests: [String]
+    var actionCount: Int
+}
+
 struct ScreenMemoryAppUsage: Codable, Equatable, Sendable {
     var app: String
     var durationSeconds: TimeInterval
@@ -204,6 +218,9 @@ struct ScreenMemoryDaySummary: Codable, Equatable, Sendable {
 
 /// Read-only query seam shared by MCP and the canonical daily evidence loader.
 protocol ScreenMemoryReading {
+    /// Saved Claude Code and Codex bursts that began in the interval,
+    /// newest first.
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession]
     func search(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit]
     func timeline(from start: Date, to end: Date, limit: Int) throws -> ScreenMemoryTimeline
     func recentActivity(since: Date, limit: Int) throws -> [ScreenMemoryActivityBlock]
@@ -222,8 +239,50 @@ protocol ScreenMemoryReading {
 /// Opens LokalBot's SQLite store in `SQLITE_OPEN_READONLY` mode for every
 /// request. It never creates or migrates schema and never exposes screenshot
 /// file paths or decrypted pixels.
+extension ScreenMemoryReading {
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession] { [] }
+}
+
 struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     var databaseURL: URL
+
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession] {
+        try withConnection { connection in
+            guard try connection.tableExists("coding_agent_bursts") else { return [] }
+            let rows = try connection.query("""
+                SELECT start, payload FROM coding_agent_bursts
+                WHERE start >= ?1 AND start < ?2 ORDER BY start DESC, id LIMIT ?3
+                """, bindings: [
+                    .double(start.timeIntervalSince1970),
+                    .double(end.timeIntervalSince1970),
+                    .int64(Int64(limit)),
+                ]) { row -> ScreenMemoryAgentSession? in
+                guard let payload = try? JSONSerialization.jsonObject(
+                    with: Data(Self.text(row, 1).utf8)) as? [String: Any],
+                      let rawAgent = payload["agent"] as? String else { return nil }
+                // Runs started by a schedule, not the person (as in
+                // `CodingAgentBurst.isScheduledRun`), aren't their recent work.
+                let prompts = payload["prompts"] as? [String] ?? []
+                if !prompts.isEmpty && prompts.allSatisfy({
+                    $0.hasPrefix("Scheduled automation:") || $0.hasPrefix("Scheduled task:")
+                }) { return nil }
+                let agent: String
+                switch rawAgent {
+                case "claude-code": agent = "Claude Code"
+                case "codex": agent = "Codex"
+                default: agent = rawAgent
+                }
+                return ScreenMemoryAgentSession(
+                    agent: agent, project: payload["project"] as? String ?? "",
+                    title: payload["title"] as? String ?? "",
+                    start: Date(timeIntervalSince1970: sqlite3_column_double(row, 0)),
+                    sessionID: payload["sessionID"] as? String ?? "",
+                    pullRequests: payload["pullRequests"] as? [String] ?? [],
+                    actionCount: (payload["actions"] as? [Any])?.count ?? 0)
+            }
+            return rows.compactMap { $0 }
+        }
+    }
 
     init(databaseURL: URL = SessionLookup.storageRootURL
         .appendingPathComponent("lokalbotv3.sqlite")) {

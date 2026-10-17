@@ -11,6 +11,9 @@ Also seeds:
                          them to .enc) — the latest one shows an answered
                          question with [meeting:ID@M:SS] citation markers
   - activity_blocks      several weekdays of day-timeline data
+  - memory/personal-model.json  plaintext About you items covering every origin
+                         (the app re-encrypts the file on its next save;
+                         upgrade fixtures seal it with their test chat key)
 
 Usage:
     python3 Scripts/seed_demo_library.py [--reset] [--profile PROFILE] <storage-root>
@@ -25,7 +28,7 @@ for a directory previously marked as a LokalBot demo library.
 Point the app at <storage-root> via LOKALBOT_STORAGE_ROOT. See
 Scripts/capture-screenshots.sh for the full capture flow.
 """
-import argparse, json, math, os, random, re, shutil, sqlite3, struct, subprocess, sys, time, uuid, wave, zlib
+import argparse, hashlib, json, math, os, random, re, shutil, sqlite3, struct, subprocess, sys, time, uuid, wave, zlib
 from datetime import date, datetime, timezone, timedelta
 
 ENGINE = "on-device demo"
@@ -392,6 +395,73 @@ def seed_chats(root, now):
     for convo in (redis, sso):
         with open(os.path.join(chats, f"{convo['id']}.json"), "w") as f:
             json.dump(convo, f, indent=2)
+
+
+def seed_about_you(root, now):
+    """Plaintext About you items, one per origin the app can store: stated in
+    Settings, said in Ask, learned from a meeting line, a typed-request
+    suggestion, a dictation suggestion, and a work-memory suggestion, plus a
+    tombstone and a work
+    sighting. PersonalModelStore reads plaintext and seals it on its next
+    save, so the screenshot library and upgrade fixtures need no key."""
+    memory = os.path.join(root, "memory")
+    os.makedirs(memory, exist_ok=True)
+
+    def day(dt):
+        return dt.astimezone().date().isoformat()
+
+    def provenance(kind, source_id, day_key):
+        return {"sources": [{"kind": kind, "id": source_id, "dayKey": day_key}],
+                "revision": 0, "includesUnattributedContext": False}
+
+    review_day = day(now - timedelta(minutes=70))
+    northwind_day = day(now - timedelta(days=2))
+    first_seen = day(now - timedelta(days=15))
+
+    def claim(id_, kind, text, origin, created, **extra):
+        out = {"id": id_, "kind": kind, "text": text, "origin": origin, "alwaysUse": False,
+               "sharing": "lokalBotOnly", "status": "confirmed", "authority": "stated",
+               "createdAt": iso(created), "updatedAt": iso(created)}
+        out.update(extra)
+        return out
+
+    model = {
+        "version": 1,
+        "claims": [
+            claim("bbbbbbb1-0000-4000-8000-000000000001", "principle",
+                  "I don't take work that requires relocating my family.",
+                  {"added": {}}, now - timedelta(days=6), sharing="agents"),
+            claim("bbbbbbb1-0000-4000-8000-000000000002", "preference",
+                  "Answer in bullet points, amounts in EUR.",
+                  {"said": {"conversationID": "aaaaaaa1-0000-4000-8000-000000000001",
+                            "messageID": "aaaaaaa1-0000-4000-8000-000000000101"}},
+                  now - timedelta(days=3), alwaysUse=True),
+            claim("bbbbbbb1-0000-4000-8000-000000000003", "fact", "I own the caching layer design.",
+                  {"learned": {"meetingID": DESIGN_REVIEW, "dayKey": review_day}},
+                  now - timedelta(minutes=30), authority="learned",
+                  evidence=provenance("meeting", DESIGN_REVIEW, review_day),
+                  quote="Let's lock the caching layer. I propose Redis for the pub-sub support."),
+            claim("bbbbbbb1-0000-4000-8000-000000000004", "preference", "I prefer small pull requests.",
+                  {"typed": {"source": {"codingAgent": {"name": "Claude Code"}}, "dayKey": review_day}},
+                  now - timedelta(minutes=20), status="proposed", authority="learned",
+                  evidence=provenance("screenDay", review_day, review_day),
+                  quote="I prefer small pull requests, so split this change into two PRs."),
+            claim("bbbbbbb1-0000-4000-8000-000000000006", "preference", "I prefer to get the agenda the day before.",
+                  {"typed": {"source": {"dictation": {"app": "Slack"}}, "dayKey": review_day}},
+                  now - timedelta(minutes=15), status="proposed", authority="learned",
+                  quote="Hi Marko, could you send the agenda the day before? I prefer to read it ahead of the call."),
+            claim("bbbbbbb1-0000-4000-8000-000000000005", "goal", "Ship the Northwind SSO rollout this quarter.",
+                  {"workMemory": {"dayKey": first_seen}},
+                  now - timedelta(minutes=10), status="proposed", authority="learned",
+                  evidence=provenance("meeting", NORTHWIND, northwind_day)),
+        ],
+        "tombstones": [{"key": hashlib.sha256(b"i live in berlin").hexdigest(),
+                        "createdAt": iso(now - timedelta(days=1))}],
+        "workSightings": [{"key": "goal:" + hashlib.sha256(b"ship the northwind sso rollout this quarter").hexdigest(),
+                           "firstDayKey": first_seen}],
+    }
+    with open(os.path.join(memory, "personal-model.json"), "w") as f:
+        json.dump(model, f, indent=2)
 
 
 def seed_journal(root):
@@ -1315,6 +1385,7 @@ def main():
     for mm in build(now):
         write_meeting(root, mm)
     seed_chats(root, now)
+    seed_about_you(root, now)
     seed_journal(root)
     seed_activity(root)
     print(f"Seeded demo library at {root} "

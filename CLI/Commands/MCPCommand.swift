@@ -11,9 +11,12 @@ struct MCPCommand: AsyncParsableCommand {
               claude mcp add lokalbot -- \
                 /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
 
-            Meeting tools: list_meetings, get_meeting, search_meetings,
-            ask_library. Screen-memory tools: search_screen, get_timeline,
+            Start with get_briefing: what LokalBot holds and which
+            permissions are on, in one read. Meeting tools: list_meetings,
+            get_meeting, search_meetings, ask_library. Screen-memory tools: search_screen, get_timeline,
             get_recent_activity, get_app_usage, get_screenshot_detail.
+            Personal context: get_personal_context, under its own Privacy
+            toggle, returns only About you items the user shared.
             Read tools work with the app closed; ask_library needs the app
             running (it answers with the local model on localhost:17872).
 

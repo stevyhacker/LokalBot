@@ -225,13 +225,16 @@ enum AskIntent {
 }
 
 /// What Return does in Ask. Keywords open the highlighted result and never
-/// start inference; a question asks through the same path as Command-Return,
-/// unless the person picked a result with the arrow keys first.
+/// start inference; a question or a "Remember …" statement goes through the
+/// same path as Command-Return, unless the person picked a result with the
+/// arrow keys first.
 enum AskReturnAction: Equatable {
     case openResult, ask, none
 
     static func resolve(query: String, resultCount: Int, pickedWithKeyboard: Bool) -> Self {
-        if !pickedWithKeyboard, AskIntent.isQuestion(query) { return .ask }
+        if !pickedWithKeyboard, AskIntent.isQuestion(query) || RememberIntent.parse(query) != nil {
+            return .ask
+        }
         return resultCount > 0 ? .openResult : .none
     }
 }

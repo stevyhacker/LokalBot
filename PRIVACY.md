@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 2, 2026
+Effective: October 15, 2026
 
 LokalBot is a local-first macOS application. It has no LokalBot account,
 analytics service, advertising SDK, or telemetry backend. The project does not
@@ -28,7 +28,9 @@ LokalBot can store the following under its Application Support directory:
   routine drafts at folders you choose;
 - records of local coding-agent sessions (Claude Code and Codex), on by
   default;
-- opt-in Agent Mode sessions and the agent runtime; and
+- opt-in Agent Mode sessions and the agent runtime;
+- facts, preferences, goals, and principles you ask Ask to remember about
+  you, encrypted; and
 - preferences, diagnostic logs, and encryption keys.
 
 Fresh installs select activity-only day tracking. Visible text and encrypted
@@ -39,7 +41,9 @@ captured text, screenshot titles, URLs, and document names follow the same
 retention unless you explicitly choose to keep screen text and metadata forever.
 Activity titles expire on the configured schedule even with that exception;
 app names and duration totals remain. Saved moments remain until you unsave or delete them. Dictation scratch
-audio is deleted after transcription by default. You can delete an individual
+audio is deleted after transcription by default. Dictated text is not kept,
+except briefly for learning while **Learn from my dictation** is on (see About
+you below). You can delete an individual
 meeting in the app or remove the entire LokalBot Application Support directory.
 
 **Read coding agent sessions** is on by default and can be turned off in
@@ -80,7 +84,13 @@ entries. Scheduled retention is not a deletion for this purpose: when screen
 text, activity titles, or coding-agent records expire, the Dream reports and
 work memory derived from them remain, so they can outlast the screen-retention
 window. **Clear work memory** under Settings → Overnight review deletes every
-report and all work memory, including pinned entries. Older memory without
+report and all work memory, including pinned entries. After a review, and only
+while screen-memory agent access is on, LokalBot also condenses up to three
+finished weeks or months of reports into one line each, kept in the library's
+`dreams/rollups` folder for the agent briefing. It uses the same Think model and
+approved-server rule as the review. A line records which reports it came from:
+deleting or rebuilding one of those reports deletes the line, and Clear work
+memory deletes them all. Older memory without
 source attribution is conservatively retracted when its sources are deleted or
 corrected. If cleanup fails, a durable revocation record blocks that memory
 from further use until cleanup succeeds. Exported copies remain where you saved
@@ -96,7 +106,70 @@ either: like Dream reports, a day's journal outlasts the screen text, titles,
 and agent sessions it was written from, so it can hold text that has since
 expired. Delete a day's journal from the library's `journal` folder to remove
 it. Edited and legacy unsigned journals are user-owned files and remain there
-until you remove them. Saved Ask conversations and Agent history also
+until you remove them.
+
+**About you** (Settings → Day Memory) holds what you tell Ask to remember
+about yourself: messages that start with "Remember …" in Ask or Quick Recall,
+and items you add there. With **Learn about me from my meetings and work**
+(on by default, part of the overnight review) it also learns about you.
+After each review, LokalBot sends your own words from that day to your Think
+model. That means your transcript lines from meetings, the requests you
+typed to Claude Code or Codex (only while **Read coding agent sessions** is
+on), the questions you asked in Ask, and, only with **Learn from my
+dictation** on, what you dictated into other apps. Only lines with first-person words
+such as "I" or "my" are sent, at most 40 lines (15 of them typed) and 6,000
+characters, plus what About you already holds. Other speakers' lines are
+never sent, nor your lines from a microphone several people shared. This
+follows the same approved-server rule as the overnight review. Up to three
+items a night come from this. Facts and goals from meetings are saved and
+used without review. Preferences, and anything learned from what you typed
+or dictated, wait for you to keep or dismiss them. A goal or project the overnight
+review's work memory has kept for two weeks, and seen in the last week, is
+also suggested for review; that step makes no model call. Principles and
+values are never learned. Each learned item must come from one of your lines, shows
+that line, and is labelled as learned wherever it is used. When the model
+words an item in another language than your line (for example an English
+item from a Serbian line), LokalBot compares their meaning with its local
+embedding model, which needs semantic search. Nothing is downloaded for
+this, and nothing leaves your Mac. An item it isn't sure of waits for your
+review even if it is a fact or goal. Deleting or
+correcting what it came from removes it: the meeting, the day's saved agent
+sessions, the evidence behind a work-memory item, or the Ask conversation.
+The exception is an item you chose to keep with **Keep Even If the … Is
+Deleted**. Forgetting a learned item, or dismissing a
+suggestion, keeps a one-way hash for 180 days so the same text isn't
+learned again. Unreviewed suggestions are dropped after 14 days.
+
+**Learn from my dictation** is off by default and needs the learning setting
+above. While it is on, LokalBot keeps the words you dictate into other apps
+until that night's learning pass reads them, and never more than two days.
+It keeps only what you spoke, never a Compose draft, and only when the text
+was pasted into a field it could identify. Excluded apps and websites,
+private and incognito windows, password fields, LokalBot itself, and browser
+pages whose address it can't read are skipped. To check that, it reads the
+window title and page address once, right after the paste, and keeps neither.
+Card numbers and IBANs are redacted first. At most 200 dictations are kept,
+in `memory/dictation-for-learning.json.enc`, encrypted with the same key as
+About you. The learning pass deletes them once it has read their day; a
+dictation that is also a request you sent to a coding agent is read only
+once. Items found there always wait for your review and stay until you
+forget them, since the dictated words are already gone. Turning the setting
+off, or Forget everything, deletes what is kept.
+The items are AES-GCM encrypted with the same per-install key as
+saved Ask conversations, in the library's `memory` folder. Each Ask question
+includes the relevant items in its prompt to your Think model, which may be
+an approved remote server. A question limited to some sources or days gets
+only items you stated, not learned ones.
+The answer lists the items it was given. External agents can read only items
+you mark **Share with agents**, and only while the separate personal-context
+grant described under External-agent access is on. Agent Mode, Autocomplete,
+notes, exports, and diagnostics never get them.
+Turning off **Remember what I tell Ask** stops saving and using them and
+keeps what is saved; **Forget**, **Forget everything…**, or Undo on the Ask
+reply deletes them. Deleting the conversation a "Remember …" message came
+from keeps the item. Like conversations, they have an independent lifetime.
+
+Saved Ask conversations and Agent history also
 have independent lifetimes: delete conversations in Ask or use **Clear saved
 Agent history**. Source expiry does not erase text already copied into those
 conversations. Daily-memory exports and routine outputs remain in your chosen
@@ -172,8 +245,8 @@ The app may make these outbound connections:
   also run a manual check.
 - **Optional remote inference:** an Ollama or OpenAI-compatible URL that you
   configure. Loopback URLs stay on your Mac. Before a non-loopback server can
-  receive meeting, workday, or agent context, LokalBot requires approval for
-  that exact origin. Native inference requests may redirect only within that
+  receive meeting, workday, About you, or agent context, LokalBot requires
+  approval for that exact origin. Native inference requests may redirect only within that
   origin; Agent inference rejects redirects entirely. Configure the final
   endpoint URL when a server redirects. The operator of that server controls
   its privacy terms.
@@ -368,6 +441,32 @@ clamped to the granted period and out-of-scope ids appear missing. Enabling
 meeting access does not enable screen-memory access, or vice versa. A connected
 MCP client may transmit tool inputs and results under that client's own privacy
 terms.
+
+**Allow external agents to read what I shared about myself** is a third,
+independent grant, off by default. It covers only the About you items you mark
+**Share with agents**. Neither meeting nor screen access implies it, and Agent
+Mode's own session access doesn't either. While it is on, LokalBot keeps a
+plaintext copy of exactly those items, with their kind, text, and dates, in the
+library's `control/personal-context.json` (mode 0600) so the CLI can read them
+without the encryption key. The copy is rewritten whenever you edit, unshare,
+or forget an item. It is deleted when you turn the grant off, and when LokalBot
+can't read About you. `get_personal_context` and `lokalbot-cli personal-context`
+return at most 12 items, the most relevant to the agent's stated task.
+
+`get_briefing` and `lokalbot-cli brief` give an agent one short overview to
+start a session with. With every grant off they still answer, but say only
+which grants are off and how to turn them on, not how much the library holds.
+Each other part needs the grant that covers its source. Shared About you items
+need the About you grant. The meeting count, the newest meeting's title, and
+your own open action items need meeting access. Current projects and goals from
+the overnight review need meeting access for meeting sources and screen access,
+within its history profile, for screen, activity, and digest sources; entries
+without source records are left out. Recent Claude Code and Codex session
+titles, projects, and pull-request counts need screen access and cover at most
+the last seven days. The review timeline, a sentence or two per recent day and
+one line per earlier week and month, needs both meeting and screen access and
+stays within the screen history profile. While a deletion is still being
+cleaned up, work memory and the timeline are left out.
 
 **Open in Claude** and **Open in Codex**, in a meeting's More menu, start a new
 conversation in that installed app with the meeting's title, summary, and as much
@@ -597,7 +696,9 @@ same focused field once or a few times within about a second, to confirm the tex
 arrived. It reads only the exact field the text was pasted into, identified when
 dictation started, and never a secure field; when that field could not be
 identified, nothing is read back. The read is compared in memory and discarded; nothing from it is saved,
-logged or sent anywhere. Apps on the shared exclusion list are not read, and a
+logged or sent anywhere. With **Learn from my dictation** on, it also reads
+that window's title and page address once, under the same rules, to apply
+the exclusions described under About you. Apps on the shared exclusion list are not read, and a
 field that cannot be read is left unchecked. When the text is missing, the
 dictation overlay offers to copy it. The chosen dictation microphone is stored as
 a device identifier in Settings.

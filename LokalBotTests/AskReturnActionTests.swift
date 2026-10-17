@@ -15,6 +15,13 @@ final class AskReturnActionTests: XCTestCase {
         XCTAssertFalse(AskIntent.isQuestion("redis cluster"))
         XCTAssertFalse(AskIntent.isQuestion("what"))
         XCTAssertFalse(AskIntent.isQuestion("redis?"))
+    }
+
+    func testRememberStatementAsksInsteadOfOpeningAResult() {
+        XCTAssertEqual(AskReturnAction.resolve(query: "Remember that Maya is my manager",
+                                               resultCount: 4, pickedWithKeyboard: false), .ask)
+        XCTAssertEqual(AskReturnAction.resolve(query: "Remember that Maya is my manager",
+                                               resultCount: 4, pickedWithKeyboard: true), .openResult)
         XCTAssertFalse(AskIntent.isQuestion("PR-1234"))
         XCTAssertFalse(AskIntent.isQuestion("  "))
         XCTAssertFalse(AskIntent.isQuestion("whatever happened"))
