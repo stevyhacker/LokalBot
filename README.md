@@ -18,6 +18,8 @@ Free and open source. No account. Nothing joins your calls.
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-2ea043)](LICENSE)
 [![MCP: read-only server](https://img.shields.io/badge/MCP-read--only%20server-8250df)](#for-developers--agents)
 
+**English** · [简体中文](README.zh-CN.md)
+
 [Features](#features) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Agents & CLI](#for-developers--agents) · [Website](https://www.lokalbot.com/)
 
 <picture>
