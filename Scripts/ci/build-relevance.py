@@ -5,8 +5,8 @@ Build's checks are required, so the workflow always runs and reports them. A
 pull request that changes only documentation, the website, marketing assets,
 video or distribution notes skips the compile and tests; GitHub reports a job
 skipped by its condition as passing. Everything else builds, including the
-files the app bundles (PRIVACY.md, LICENSE, THIRD_PARTY_NOTICES.md and the
-CLI skill) and Benchmarks/, which unit tests read. Pushes, schedules,
+files the app bundles (PRIVACY.md, LICENSE, LICENSES/, THIRD_PARTY_NOTICES.md
+and the CLI skill) and Benchmarks/, which unit tests read. Pushes, schedules,
 dispatches and calls always build.
 """
 import importlib.util

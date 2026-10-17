@@ -21,7 +21,8 @@ class BuildRelevanceTests(unittest.TestCase):
         ]))
 
     def test_bundled_files_benchmarks_code_and_ci_build(self):
-        for path in ["PRIVACY.md", "LICENSE", "THIRD_PARTY_NOTICES.md", ".agents/skills/lokalbot-cli/SKILL.md",
+        for path in ["PRIVACY.md", "LICENSE", "LICENSES/AGPL-3.0.txt", "THIRD_PARTY_NOTICES.md",
+                     ".agents/skills/lokalbot-cli/SKILL.md",
                      "Benchmarks/Cotyping/heldout.jsonl", "LokalBot/AppState.swift", "LokalBotTests/X.swift",
                      "CLI/main.swift", "project.yml", "Scripts/unit-tests.sh", ".github/workflows/build.yml",
                      "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"]:

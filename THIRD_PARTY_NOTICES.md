@@ -18,6 +18,7 @@ the vendor fetch scripts, and `AgentRuntimeManifest`.
 | swift-argument-parser, swift-log, SwiftNIO and related Apple Swift packages | Apache-2.0 | https://github.com/apple |
 | MLX Swift | MIT | https://github.com/ml-explore/mlx-swift |
 | mlx-audio Granite 5 inference and audio frontend (adapted to Swift) | MIT | https://github.com/Blaizzy/mlx-audio/tree/0d3ad3c58220a0ceb4b09b07734b7ba07439d420/mlx_audio/stt/models/granite_speech5_ctc |
+| Cotabby (portions of the Autocomplete engine, ported and modified) | AGPL-3.0 | https://github.com/FuJacob/cotabby |
 | Hugging Face Swift libraries | Apache-2.0 | https://github.com/huggingface |
 | Hummingbird and related packages | Apache-2.0 | https://github.com/hummingbird-project |
 | EventSource | MIT | https://github.com/mattt/EventSource |
@@ -35,6 +36,44 @@ to the license shown by its publisher; review that license before downloading
 or using a model, especially in a commercial setting. LFM's terms include a
 commercial-use revenue threshold and redistribution notice obligations; users
 outside those terms must obtain a separate license from Liquid AI.
+
+## Cotabby (GNU AGPL v3.0)
+
+Parts of LokalBot's Autocomplete engine were ported from Cotabby, copyright the
+Cotabby authors (https://github.com/FuJacob/cotabby), and have been modified for
+LokalBot since 23 June 2026. Those parts remain under the GNU Affero General
+Public License version 3. Its full text is in `LICENSES/AGPL-3.0.txt` and ships
+in the app bundle beside this notice.
+
+Section 13 of both GPL-3.0 and AGPL-3.0 permits combining code under the two
+licenses into one work. LokalBot's own code stays under GPL-3.0, and AGPL-3.0's
+section 13 requirements on interaction through a network apply to the
+combination as such. The complete corresponding source is published at
+https://github.com/stevyhacker/LokalBot.
+
+Each file that contains ported Cotabby code starts with a header naming Cotabby
+and the date LokalBot's modifications began:
+
+- `LokalBot/Cotyping/CotypingAXGeometryResolver.swift` (the `AXBoundsForRange` lookup)
+- `LokalBot/Cotyping/CotypingAXHelper.swift`
+- `LokalBot/Cotyping/CotypingBrowserDomain.swift`
+- `LokalBot/Cotyping/CotypingClipboardContext.swift`
+- `LokalBot/Cotyping/CotypingCoordinator.swift`
+- `LokalBot/Cotyping/CotypingEmoji.swift`
+- `LokalBot/Cotyping/CotypingFieldStyle.swift`
+- `LokalBot/Cotyping/CotypingFocusTracker.swift`
+- `LokalBot/Cotyping/CotypingInputMonitor.swift`
+- `LokalBot/Cotyping/CotypingInserter.swift`
+- `LokalBot/Cotyping/CotypingMacro.swift`
+- `LokalBot/Cotyping/CotypingMidWord.swift`
+- `LokalBot/Cotyping/CotypingPrefixWindow.swift`
+- `LokalBot/Cotyping/CotypingPromptRenderer.swift`
+- `LokalBot/Cotyping/CotypingRenderMode.swift`
+- `LokalBot/Cotyping/CotypingSeamGuard.swift`
+- `LokalBot/Cotyping/CotypingSpellChecker.swift`
+- `LokalBot/Cotyping/CotypingSurfaceContext.swift`
+- `LokalBot/Cotyping/CotypingTextNormalizer.swift`
+- `LokalBot/Cotyping/CotypingTypo.swift`
 
 ## MIT License
 

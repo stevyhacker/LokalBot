@@ -105,6 +105,13 @@ targetTemplates:
           copyFiles:
             destination: resources
             subpath: Legal
+      # Autocomplete code ported from Cotabby keeps its AGPL-3.0 terms, so the
+      # license text ships beside the notice that names those files.
+      - path: LICENSES/AGPL-3.0.txt
+        buildPhase:
+          copyFiles:
+            destination: resources
+            subpath: Legal
     dependencies:
       - package: FluidAudio
       - package: WhisperKit
