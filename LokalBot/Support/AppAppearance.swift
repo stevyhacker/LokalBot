@@ -230,6 +230,8 @@ struct AppLanguageRoot<Content: View>: View {
     @ObservedObject var settingsStore: SettingsStore
 
     var body: some View {
-        content.environment(\.locale, settingsStore.current.appLanguage.locale)
+        content
+            .environment(\.locale, settingsStore.current.appLanguage.locale)
+            .environment(\.layoutDirection, settingsStore.current.appLanguage.isRightToLeft ? .rightToLeft : .leftToRight)
     }
 }

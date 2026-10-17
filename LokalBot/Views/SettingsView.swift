@@ -272,7 +272,7 @@ struct SettingsView: View {
                 Section("Appearance") {
                     Picker(selection: $app.settings.appLanguage) {
                         ForEach(AppLanguage.allCases) { language in
-                            Text(LocalizedStringKey(language.displayName)).tag(language)
+                            Text(verbatim: language.pickerLabel(in: app.settings.appLanguage)).tag(language)
                         }
                     } label: {
                         SettingsLabel("App language", help: "Changes the interface immediately. Transcription and notes languages are set separately.")

@@ -51,6 +51,26 @@ final class OnboardingUITests: XCTestCase {
         assertPage(title: "Enable the Access You Need", step: 2)
     }
 
+    func testRightToLeftLanguagesKeepTheCurrentOnboardingStep() {
+        UITestHarness.selectSegment("English", pickerIdentifier: "onboarding.appLanguage", in: app)
+        app.buttons["Continue"].click()
+        let languages = [
+            ("ar", "العربية", "تفعيل الوصول الذي تحتاجه"),
+            ("ar-EG", "مصري", "فعّل الصلاحيات اللي محتاجها"),
+            ("ur", "اردو", "درکار رسائی فعال کریں")
+        ]
+        for (identifier, nativeName, title) in languages {
+            UITestHarness.selectSegment(nativeName, pickerIdentifier: "onboarding.appLanguage", in: app)
+            XCTAssertTrue(text(containing: title).waitForExistence(timeout: 6))
+            let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            screenshot.name = "onboarding-permissions-\(identifier)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        UITestHarness.selectSegment("English", pickerIdentifier: "onboarding.appLanguage", in: app)
+        assertPage(title: "Enable the Access You Need", step: 2)
+    }
+
     func testWizardExplainsDayMemoryDefaultsAndPermissionGates() {
         let before = UserDefaults(suiteName: defaultsSuiteName!)?.data(forKey: "lokalbotv3.settings")
         assertPage(title: "Choose what to remember", step: 1)

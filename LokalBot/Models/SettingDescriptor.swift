@@ -12,7 +12,7 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.generationBudgetPreset" { return settings.generationBudgetPreset.displayName }
         if id == "settings.thinkReasoningLevel" { return settings.thinkReasoningLevel.displayName }
         if id == "settings.appTheme" { return language.localized(settings.appTheme.displayName) }
-        if id == "settings.appLanguage" { return language.localized(settings.appLanguage.displayName) }
+        if id == "settings.appLanguage" { return settings.appLanguage.pickerLabel(in: language) }
         if id == "settings.textSize" { return language.localized(settings.textSize.displayName) }
         if id == "settings.cotypingBackend" { return language.localized(settings.cotypingBackend.title) }
         guard let data = try? JSONEncoder().encode(settings),
@@ -89,7 +89,9 @@ struct SettingDescriptor: Identifiable {
               aliases: "run autocomplete remote cloud api key url openrouter ollama lm studio llama-server tailscale network another computer think's server request type"),
         .init(id: "settings.menuBarOnly", title: "Menu bar only (hide Dock icon)", category: .general, aliases: "menuBarOnly"),
         .init(id: "settings.appTheme", title: "Theme", category: .general, aliases: "appearance dark mode light mode color scheme"),
-        .init(id: "settings.appLanguage", title: "App language", category: .general, aliases: "interface language English Chinese 中文 简体中文 语言 界面"),
+        .init(id: "settings.appLanguage", title: "App language", category: .general, aliases: "interface language English Chinese Hindi Spanish Arabic French Bengali Portuguese Indonesian Urdu "
+                + "Russian German Japanese Nigerian Pidgin Egyptian Arabic Marathi Vietnamese Telugu Swahili Hausa Korean 中文 简体中文 语言 界面 "
+                + AppLanguage.allCases.map(\.displayName).joined(separator: " ")),
         .init(id: "settings.textSize", title: "Text size", category: .general, aliases: "font size larger text smaller text zoom readability"),
         .init(id: "settings.quickRecallEnabled", title: "Enable the system-wide Ask shortcut", category: .general, aliases: "quickRecallEnabled"),
         .init(id: "settings.quickRecallShortcut", title: "Ask shortcut", category: .general, aliases: "quick recall hotkey keyboard key combination change"),

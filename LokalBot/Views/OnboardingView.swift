@@ -86,7 +86,7 @@ struct OnboardingView: View {
             HStack {
                 Picker("App language", selection: $app.settings.appLanguage) {
                     ForEach(AppLanguage.allCases) { language in
-                        Text(LocalizedStringKey(language.displayName)).tag(language)
+                        Text(verbatim: language.pickerLabel(in: app.settings.appLanguage)).tag(language)
                     }
                 }
                 .labelsHidden()
