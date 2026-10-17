@@ -304,6 +304,12 @@ struct AppSettings: Codable, Equatable {
     var quickRecallEnabled: Bool = false
     /// The key combination that opens Ask from any app.
     var quickRecallShortcut: DictationShortcut = .quickRecallDefault
+    /// A system-wide shortcut that reads the text selected in the frontmost
+    /// app and offers local AI actions on it. Off by default for the same
+    /// reason as Ask's shortcut, and because it reads another app's text.
+    var selectionActionsEnabled: Bool = false
+    /// The key combination that opens selection actions from any app.
+    var selectionActionsShortcut: DictationShortcut = .selectionActionsDefault
 
     // MARK: - Day digest
 
@@ -869,6 +875,8 @@ struct AppSettings: Codable, Equatable {
         case keepOCRTextForever
         case quickRecallEnabled
         case quickRecallShortcut
+        case selectionActionsEnabled
+        case selectionActionsShortcut
         case dayDigestAutoEnabled
         case dayDigestHour
         case dayDigestCustomPrompt
@@ -1065,6 +1073,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(keepOCRTextForever, forKey: .keepOCRTextForever)
         try c.encode(quickRecallEnabled, forKey: .quickRecallEnabled)
         try c.encode(quickRecallShortcut, forKey: .quickRecallShortcut)
+        try c.encode(selectionActionsEnabled, forKey: .selectionActionsEnabled)
+        try c.encode(selectionActionsShortcut, forKey: .selectionActionsShortcut)
         try c.encode(dayDigestAutoEnabled, forKey: .dayDigestAutoEnabled)
         try c.encode(min(23, max(0, dayDigestHour)), forKey: .dayDigestHour)
         try c.encode(dayDigestCustomPrompt, forKey: .dayDigestCustomPrompt)
@@ -1244,6 +1254,10 @@ struct AppSettings: Codable, Equatable {
         let storedQuickRecallShortcut = decode(.quickRecallShortcut, defaults.quickRecallShortcut)
         quickRecallShortcut = storedQuickRecallShortcut.quickRecallProblem == nil
             ? storedQuickRecallShortcut : defaults.quickRecallShortcut
+        selectionActionsEnabled = decode(.selectionActionsEnabled, defaults.selectionActionsEnabled)
+        let storedSelectionActionsShortcut = decode(.selectionActionsShortcut, defaults.selectionActionsShortcut)
+        selectionActionsShortcut = storedSelectionActionsShortcut.quickRecallProblem == nil
+            ? storedSelectionActionsShortcut : defaults.selectionActionsShortcut
         dayDigestAutoEnabled = decode(.dayDigestAutoEnabled, defaults.dayDigestAutoEnabled)
         dayDigestHour = min(23, max(0, decode(.dayDigestHour, defaults.dayDigestHour)))
         dayDigestCustomPrompt = decode(.dayDigestCustomPrompt, defaults.dayDigestCustomPrompt)

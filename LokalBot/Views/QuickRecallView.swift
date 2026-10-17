@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Compact system-wide search and assistant surface. Typing keeps local recall
-/// explicit Ask opens a reviewed draft, while Return reveals the selected source.
+/// Compact system-wide search, command, and assistant surface. Typing keeps
+/// local recall and matching app commands instant; explicit Ask opens a
+/// reviewed draft, while Return reveals the selected source or runs the command.
 struct QuickRecallView: View {
     @EnvironmentObject private var app: AppState
 
@@ -115,7 +116,7 @@ private struct QuickRecallContent: View {
                     .foregroundStyle(.tint)
             }
             TextField(
-                showingConversation ? "Ask a follow-up…" : "Search your memory…",
+                showingConversation ? "Ask a follow-up…" : "Search memory or run a command…",
                 text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 22))
@@ -165,7 +166,7 @@ private struct QuickRecallContent: View {
             ContentUnavailableView {
                 Label("Ask anything", systemImage: "sparkle.magnifyingglass")
             } description: {
-                Text("Type to search meetings, screens, and saved moments. Return opens a result; Ask is a separate action.")
+                Text("Type to search meetings, screens, and saved moments, or to run a command like Record now. Return opens a result; Ask is a separate action.")
                     .frame(maxWidth: 420)
             } actions: {
                 VStack(spacing: 7) {
@@ -262,9 +263,26 @@ private struct QuickRecallContent: View {
         }
 
         return [
+            QuickRecallSection(id: "commands", title: "Commands", rows: commandRows),
             QuickRecallSection(id: "screen", title: "Screens", rows: screens),
             QuickRecallSection(id: "meetings", title: "Meetings", rows: meetings),
         ].filter { !$0.rows.isEmpty }
+    }
+
+    /// Commands lead the list, so a typed command runs on Return like a
+    /// launcher. Only a few show, and only when each word starts a word of
+    /// the command, so memory searches keep their results in view.
+    private var commandRows: [QuickRecallRowModel] {
+        guard !showingConversation, !trimmedQuery.isEmpty else { return [] }
+        return PaletteCommandFilter.filter(commands, query: trimmedQuery, matching: .wordPrefix)
+            .prefix(Self.commandLimit)
+            .map(QuickRecallRowModel.command)
+    }
+
+    private static let commandLimit = 4
+
+    private var commands: [PaletteCommand] {
+        PaletteCommandCatalog.commands(app: app, source: "quick-recall", inWorkspace: false)
     }
 
     private var rows: [QuickRecallRowModel] {
@@ -350,9 +368,25 @@ private struct QuickRecallContent: View {
             app.openScreenSnapshot(snapshotID)
         case .meeting(let hit):
             app.openSearchHit(hit)
+        case .command(let id):
+            runCommand(id)
+            return
         }
         WindowAccess.shared.open("main")
         dismiss()
+    }
+
+    private func runCommand(_ id: String) {
+        guard let command = commands.first(where: { $0.id == id }) else { return }
+        dismiss()
+        switch command.placement {
+        case .workspace:
+            command.action()
+            WindowAccess.shared.open("main")
+        case .background:
+            // Recording and dictation act on the app the person came from.
+            app.returnFocusToShortcutSource(then: command.action)
+        }
     }
 
     private func ask(_ question: String, usingResults: Bool = true) {

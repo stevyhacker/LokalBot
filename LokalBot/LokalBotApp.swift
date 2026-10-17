@@ -293,7 +293,7 @@ struct LokalBotApp: App {
                 .keyboardShortcut("k", modifiers: [.command])
 
                 Button(app.settings.appLanguage.localized("Ask…")) {
-                    WindowAccess.shared.open("quick-recall")
+                    app.openQuickRecall()
                 }
             }
             CommandGroup(before: .textEditing) {
@@ -335,6 +335,17 @@ struct LokalBotApp: App {
 
         Window(app.settings.appLanguage.localized("Ask"), id: "quick-recall") {
             QuickRecallView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
+        Window(app.settings.appLanguage.localized("Selection actions"), id: "selection-actions") {
+            SelectionActionsView()
                 .environmentObject(app)
                 .brandTinted()
                 .appTextSizeRoot(app.settings.textSize)

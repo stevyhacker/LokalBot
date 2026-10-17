@@ -141,6 +141,7 @@
 "Captures encrypted visuals for day memory. Only used in Text + visual context mode; system-audio capture does not use this permission." = "为工作记忆采集加密图像。仅在“文字与视觉上下文”模式下使用；系统音频采集不使用此权限。";
 "Change the Ask shortcut" = "更改问答快捷键";
 "Change the dictation shortcut" = "更改听写快捷键";
+"Change the selection actions shortcut" = "更改选区操作快捷键";
 "Changes the interface immediately. Transcription and notes languages are set separately." = "立即切换界面语言。转写和笔记的语言需单独设置。";
 "Change…" = "更改…";
 "Check Setup…" = "检查配置…";
@@ -152,6 +153,7 @@
 "Chinese (Mandarin)" = "中文（普通话）";
 "Choose" = "选择";
 "Choose All statuses to review completed and deferred actions." = "选择“所有状态”以查看已完成和已推迟的行动项。";
+"Choose an action or describe what to do…" = "选择操作，或描述要做的事…";
 "Choose App…" = "选择应用…";
 "Choose Folder…" = "选择文件夹…";
 "Choose What to Remember" = "选择要记住的内容";
@@ -178,9 +180,20 @@
 "Clear search" = "清除搜索";
 "Clear search filters" = "清除搜索筛选";
 "Clear selection" = "清除选择";
+"Describe what to write…" = "描述要写的内容…";
 "Dictation already uses this shortcut. Choose another." = "听写已在使用此快捷键。请选择其他快捷键。";
+"Draft a reply with my memory" = "结合我的记忆起草回复";
+"Enable the selection actions shortcut" = "启用选区操作快捷键";
+"Explain with my memory" = "结合我的记忆解释";
+"Fix spelling and grammar" = "修正拼写和语法";
+"From your memory" = "来自你的记忆";
 "Hold the modifiers and press a key, like ⌃⇧ Space." = "请按住修饰键再按一个按键，例如 ⌃⇧ Space。";
+"Improve writing" = "润色文字";
+"Insert" = "插入";
 "macOS already uses this shortcut. Choose another." = "macOS 已在使用此快捷键。请选择其他快捷键。";
+"Make friendlier" = "改写得更友好";
+"Make more professional" = "改写得更专业";
+"Make shorter" = "改写得更简短";
 "Model folder selection cleared" = "已清除模型文件夹选择";
 "Clear settings search" = "清除设置搜索";
 "Clear the result-type filter" = "清除结果类型筛选";
@@ -605,6 +618,7 @@
 "Only system activity or raw context was captured. You can still inspect it below." = "仅采集到系统活动或原始上下文。你仍可在下方查看。";
 "Only unused" = "仅未使用";
 "Open" = "打开";
+"Open Accessibility Settings" = "打开辅助功能设置";
 "Open Ask with this query and its matching sources" = "使用此问题和匹配来源打开问答";
 "Open Capture" = "打开采集";
 "Open Keyboard Settings" = "打开键盘设置";
@@ -750,6 +764,7 @@
 "Rename" = "重命名";
 "Rename…" = "重命名…";
 "Repair Agent Mode" = "修复智能体模式";
+"Replace Selection" = "替换选区";
 "Replace…" = "替换…";
 "Require a calendar match for browser auto-recording" = "仅自动录制与日历匹配的浏览器会议";
 "Reset" = "重置";
@@ -832,6 +847,7 @@
 "Screen metadata records to clear" = "将清除的屏幕元数据记录";
 "Search" = "搜索";
 "Search Agent tasks" = "搜索智能体任务";
+"Search memory or run a command…" = "搜索记忆或运行命令…";
 "Search Tasks" = "搜索任务";
 "Search actions and meetings" = "搜索行动项和会议";
 "Search and conversation" = "搜索与对话";
@@ -860,6 +876,9 @@
 "Select any part and press ⌘C to copy" = "选择任意内容并按 ⌘C 复制";
 "Select text and press Command-C to copy" = "选择文字并按 Command-C 复制";
 "Selected models have not been checked yet." = "尚未检查所选模型。";
+"Selection actions" = "选区操作";
+"Selection actions already use this shortcut. Choose another." = "选区操作已在使用此快捷键。请选择其他快捷键。";
+"Selection actions shortcut" = "选区操作快捷键";
 "Send next" = "下一条发送";
 "Send now" = "立即发送";
 "Separate voices by speaker" = "区分不同说话人的声音";
@@ -940,6 +959,7 @@
 "Suggested Names" = "建议姓名";
 "Suggests text as you type" = "输入时提供文字建议";
 "Summarization" = "摘要";
+"Summarize" = "总结";
 "Summarize automatically after transcription" = "转写完成后自动生成摘要";
 "Summary" = "摘要";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design." = "将内置命令行工具链接至 ~/.local/bin/lokalbot-cli，并将技能链接至 ~/.agents/skills 和 ~/.claude/skills。工具仅支持只读操作。";
@@ -1016,6 +1036,7 @@
 "Transcription language" = "转写语言";
 "Transcription model ready — recaps run entirely on-device." = "转写模型已就绪，回顾完全在本机运行。";
 "Transcription vocabulary" = "转写词汇";
+"Translate to English" = "翻译成英文";
 "Treats speech from this Mac's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items." = "将此 Mac 麦克风录到的语音视为你的发言，让你的承诺优先列入会议行动项。多人共用麦克风时（例如会议室中）请关闭。重新生成会议摘要可更新行动项。";
 "Trigger" = "触发方式";
 "Try Again" = "再试一次";
@@ -1052,6 +1073,7 @@
 "Use invitation agendas" = "使用邀请中的议程";
 "Use light or dark windows regardless of the system setting, or follow it." = "选择浅色、深色窗口，或跟随系统设置。";
 "Use meeting and work memory" = "使用会议和工作记忆";
+"Use my memory for typed instructions" = "输入的指令使用我的记忆";
 "Use nearby messages and labels to suggest relevant replies. Processed locally, never saved; capture exclusions apply and private browser windows are skipped." = "根据附近的消息和标签建议相关回复。在本机处理且不会保存；遵守采集排除规则，并跳过浏览器隐私窗口。";
 "Use on speakers, where the other side reaches your microphone and would be transcribed twice. Also cleans meetings already recorded." = "使用扬声器时开启，避免对方的声音传入麦克风后被重复转写。也会处理已录制的会议。";
 "Use screen-derived work memory" = "使用来自屏幕的工作记忆";
@@ -1092,6 +1114,7 @@
 "Workspace content" = "工作区内容";
 "Workspace navigation" = "工作区导航";
 "Write" = "写作";
+"Write with your memory" = "结合你的记忆写作";
 "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten." = "每天写入一个未加密的 Markdown 文件，包含摘要、会议链接、应用用时和已保存时刻。Mac 睡眠期间错过的日期会稍后补写。绝不覆盖现有的非 LokalBot 内容。";
 "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included." = "在所选时间将时间线摘要写入本地日志，并在午夜后补齐前一天的日志，以包含较晚的活动。";
 "Writing" = "写作";

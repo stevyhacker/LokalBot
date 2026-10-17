@@ -17,6 +17,8 @@ final class QuickRecallUITests: XCTestCase {
             // below still drives real typing; the result/restore tests avoid a
             // race among eight per-character debounce tasks on hosted Macs.
             environment["LOKALBOT_QUICK_RECALL_QUERY"] = "failover"
+        } else if name.contains("testTypedCommandLeadsTheResults") {
+            environment["LOKALBOT_QUICK_RECALL_QUERY"] = "record"
         }
         let launch = try UITestHarness.launch(
             storageRoot: fixture.root,
@@ -43,6 +45,13 @@ final class QuickRecallUITests: XCTestCase {
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.descendants(matching: .any)["detail.title"].firstMatch.waitForExistence(timeout: 6))
         XCTAssertFalse(app.staticTexts["chat.message.user"].exists)
+    }
+
+    func testTypedCommandLeadsTheResults() {
+        XCTAssertEqual(input.value as? String, "record")
+        let command = app.buttons["quickRecall.row.command.record"]
+        XCTAssertTrue(command.waitForExistence(timeout: 8), "a typed command is offered in the system-wide window")
+        XCTAssertFalse(app.buttons["quickRecall.row.command.dictation"].exists)
     }
 
     func testClearReturnsToAskEmptyState() {

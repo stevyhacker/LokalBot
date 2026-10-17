@@ -10,6 +10,8 @@ struct QuickRecallRowModel: Identifiable {
     enum Destination {
         case screen(Int64)
         case meeting(SearchIndex.Hit)
+        /// A `PaletteCommand` id.
+        case command(String)
     }
 
     let id: String
@@ -79,6 +81,20 @@ struct QuickRecallRowModel: Identifiable {
             captureCount: 1,
             isSaved: false,
             destination: .meeting(hit))
+    }
+
+    static func command(_ command: PaletteCommand) -> Self {
+        .init(
+            id: "command.\(command.id)",
+            icon: command.icon,
+            appName: nil,
+            title: command.title,
+            subtitle: command.subtitle,
+            snippet: nil,
+            timestamp: nil,
+            captureCount: 1,
+            isSaved: false,
+            destination: .command(command.id))
     }
 
     /// Saved keyword matches lead the Screens group. Use their own matching

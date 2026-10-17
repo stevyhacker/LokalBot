@@ -199,6 +199,29 @@ enum CotypingAXHelper {
             selection: selection)
     }
 
+    /// The focused element's selected text, read once because the person
+    /// pressed the selection actions shortcut. Nil without Accessibility
+    /// access, for a secure field, or when nothing is selected. WebKit and
+    /// Chromium report a web page's selection as a text-marker range.
+    static func selectedTextForSelectionAction(maxCharacters: Int) -> String? {
+        guard isTrusted, let element = focusedElement() else { return nil }
+        let isSecure = CotypingSecureFieldDetector.isSecure(
+            role: stringAttribute(element, kAXRoleAttribute as String),
+            subrole: stringAttribute(element, kAXSubroleAttribute as String),
+            roleDescription: stringAttribute(element, kAXRoleDescriptionAttribute as String),
+            title: stringAttribute(element, kAXTitleAttribute as String),
+            descriptionLabel: stringAttribute(element, kAXDescriptionAttribute as String))
+        guard !isSecure else { return nil }
+        var text = stringAttribute(element, kAXSelectedTextAttribute as String) ?? ""
+        if text.isEmpty,
+           Set(parameterizedAttributeNames(on: element)).contains(stringForMarkerRangeAttribute as String),
+           let range = copyOpaqueAttribute(selectedTextMarkerRangeAttribute, on: element) {
+            text = stringForMarkerRange(range, on: element) ?? ""
+        }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return text.count > maxCharacters ? String(text.prefix(maxCharacters)) : text
+    }
+
     /// The bounded text before the caret in the field a dictation was pasted
     /// into, to confirm the text arrived. Nil when another field has focus or
     /// the field cannot be read; the caller then makes no claim either way.

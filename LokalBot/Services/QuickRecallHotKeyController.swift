@@ -1,11 +1,16 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Registers LokalBot's opt-in, system-wide Quick Recall shortcut without an
-/// event tap. Carbon hot keys work while another app is focused and do not read
-/// or retain any other keyboard input.
+/// Registers one of LokalBot's opt-in, system-wide shortcuts (Ask, selection
+/// actions) without an event tap. Carbon hot keys work while another app is
+/// focused and do not read or retain any other keyboard input.
 @MainActor
 final class QuickRecallHotKeyController {
+    /// Each controller registers under its own identifier, so several can be
+    /// active at once and each handler ignores the others' presses.
+    nonisolated static let askIdentifier: UInt32 = 1
+    nonisolated static let selectionActionsIdentifier: UInt32 = 2
+
     var onInvoke: (() -> Void)?
 
     /// True while Settings records a new shortcut, so the current one reaches
@@ -15,7 +20,7 @@ final class QuickRecallHotKeyController {
     }
 
     private static let signature: OSType = 0x4C425152 // "LBQR"
-    private static let identifier: UInt32 = 1
+    private let identifier: UInt32
 
     /// The shortcut Ask should answer to, or nil when it is off.
     private var shortcut: DictationShortcut?
@@ -23,6 +28,10 @@ final class QuickRecallHotKeyController {
     private(set) var registeredShortcut: DictationShortcut?
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
+
+    init(identifier: UInt32 = QuickRecallHotKeyController.askIdentifier) {
+        self.identifier = identifier
+    }
 
     /// Registers `shortcut`, replacing the previous one, or unregisters for
     /// nil. Returns false when the system refuses the combination; Ask then
@@ -44,7 +53,7 @@ final class QuickRecallHotKeyController {
         var reference: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(
             signature: Self.signature,
-            id: Self.identifier)
+            id: identifier)
         let status = RegisterEventHotKey(
             UInt32(keyCode),
             Self.carbonModifiers(wanted.modifiers),
@@ -58,13 +67,18 @@ final class QuickRecallHotKeyController {
         return true
     }
 
-    /// Why `candidate` cannot open Ask, or nil.
+    /// Why `candidate` cannot be a system-wide shortcut, or nil. Pass the
+    /// other global shortcuts that are not being edited.
     static func problem(
         for candidate: DictationShortcut,
-        dictationShortcut: DictationShortcut
+        dictationShortcut: DictationShortcut,
+        askShortcut: DictationShortcut? = nil,
+        selectionActionsShortcut: DictationShortcut? = nil
     ) -> DictationShortcut.Problem? {
         if let problem = candidate.quickRecallProblem { return problem }
         if candidate == dictationShortcut { return .usedByDictation }
+        if candidate == askShortcut { return .usedByAsk }
+        if candidate == selectionActionsShortcut { return .usedBySelectionActions }
         if isSystemShortcut(candidate) { return .usedBySystem }
         return nil
     }
@@ -119,7 +133,7 @@ final class QuickRecallHotKeyController {
             &hotKeyID)
         guard status == noErr,
               hotKeyID.signature == Self.signature,
-              hotKeyID.id == Self.identifier else {
+              hotKeyID.id == identifier else {
             return OSStatus(eventNotHandledErr)
         }
         onInvoke?()

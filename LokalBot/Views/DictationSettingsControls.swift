@@ -19,7 +19,9 @@ struct DictationSettingsControls: View {
                     accessibilityIdentifier: "settings.dictationShortcut",
                     changeHelp: "Change the dictation shortcut",
                     validate: { candidate in
-                        candidate.problem ?? (candidate == app.settings.quickRecallShortcut ? .usedByAsk : nil)
+                        candidate.problem
+                            ?? (candidate == app.settings.quickRecallShortcut ? .usedByAsk : nil)
+                            ?? (candidate == app.settings.selectionActionsShortcut ? .usedBySelectionActions : nil)
                     },
                     onRecordingChanged: { app.setShortcutRecording($0) })
             }

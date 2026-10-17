@@ -141,6 +141,7 @@
 "Captures encrypted visuals for day memory. Only used in Text + visual context mode; system-audio capture does not use this permission." = "Captures encrypted visuals for day memory. Only used in Text + visual context mode; system-audio capture does not use this permission.";
 "Change the Ask shortcut" = "Change the Ask shortcut";
 "Change the dictation shortcut" = "Change the dictation shortcut";
+"Change the selection actions shortcut" = "Change the selection actions shortcut";
 "Changes the interface immediately. Transcription and notes languages are set separately." = "Changes the interface immediately. Transcription and notes languages are set separately.";
 "Change…" = "Change…";
 "Check Setup…" = "Check Setup…";
@@ -152,6 +153,7 @@
 "Chinese (Mandarin)" = "Chinese (Mandarin)";
 "Choose" = "Choose";
 "Choose All statuses to review completed and deferred actions." = "Choose All statuses to review completed and deferred actions.";
+"Choose an action or describe what to do…" = "Choose an action or describe what to do…";
 "Choose App…" = "Choose App…";
 "Choose Folder…" = "Choose Folder…";
 "Choose What to Remember" = "Choose What to Remember";
@@ -178,9 +180,20 @@
 "Clear search" = "Clear search";
 "Clear search filters" = "Clear search filters";
 "Clear selection" = "Clear selection";
+"Describe what to write…" = "Describe what to write…";
 "Dictation already uses this shortcut. Choose another." = "Dictation already uses this shortcut. Choose another.";
+"Draft a reply with my memory" = "Draft a reply with my memory";
+"Enable the selection actions shortcut" = "Enable the selection actions shortcut";
+"Explain with my memory" = "Explain with my memory";
+"Fix spelling and grammar" = "Fix spelling and grammar";
+"From your memory" = "From your memory";
 "Hold the modifiers and press a key, like ⌃⇧ Space." = "Hold the modifiers and press a key, like ⌃⇧ Space.";
+"Improve writing" = "Improve writing";
+"Insert" = "Insert";
 "macOS already uses this shortcut. Choose another." = "macOS already uses this shortcut. Choose another.";
+"Make friendlier" = "Make friendlier";
+"Make more professional" = "Make more professional";
+"Make shorter" = "Make shorter";
 "Model folder selection cleared" = "Model folder selection cleared";
 "Clear settings search" = "Clear settings search";
 "Clear the result-type filter" = "Clear the result-type filter";
@@ -605,6 +618,7 @@
 "Only system activity or raw context was captured. You can still inspect it below." = "Only system activity or raw context was captured. You can still inspect it below.";
 "Only unused" = "Only unused";
 "Open" = "Open";
+"Open Accessibility Settings" = "Open Accessibility Settings";
 "Open Ask with this query and its matching sources" = "Open Ask with this query and its matching sources";
 "Open Capture" = "Open Capture";
 "Open Keyboard Settings" = "Open Keyboard Settings";
@@ -750,6 +764,7 @@
 "Rename" = "Rename";
 "Rename…" = "Rename…";
 "Repair Agent Mode" = "Repair Agent Mode";
+"Replace Selection" = "Replace Selection";
 "Replace…" = "Replace…";
 "Require a calendar match for browser auto-recording" = "Require a calendar match for browser auto-recording";
 "Reset" = "Reset";
@@ -832,6 +847,7 @@
 "Screen metadata records to clear" = "Screen metadata records to clear";
 "Search" = "Search";
 "Search Agent tasks" = "Search Agent tasks";
+"Search memory or run a command…" = "Search memory or run a command…";
 "Search Tasks" = "Search Tasks";
 "Search actions and meetings" = "Search actions and meetings";
 "Search and conversation" = "Search and conversation";
@@ -860,6 +876,9 @@
 "Select any part and press ⌘C to copy" = "Select any part and press ⌘C to copy";
 "Select text and press Command-C to copy" = "Select text and press Command-C to copy";
 "Selected models have not been checked yet." = "Selected models have not been checked yet.";
+"Selection actions" = "Selection actions";
+"Selection actions already use this shortcut. Choose another." = "Selection actions already use this shortcut. Choose another.";
+"Selection actions shortcut" = "Selection actions shortcut";
 "Send next" = "Send next";
 "Send now" = "Send now";
 "Separate voices by speaker" = "Separate voices by speaker";
@@ -940,6 +959,7 @@
 "Suggested Names" = "Suggested Names";
 "Suggests text as you type" = "Suggests text as you type";
 "Summarization" = "Summarization";
+"Summarize" = "Summarize";
 "Summarize automatically after transcription" = "Summarize automatically after transcription";
 "Summary" = "Summary";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design." = "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design.";
@@ -1016,6 +1036,7 @@
 "Transcription language" = "Transcription language";
 "Transcription model ready — recaps run entirely on-device." = "Transcription model ready — recaps run entirely on-device.";
 "Transcription vocabulary" = "Transcription vocabulary";
+"Translate to English" = "Translate to English";
 "Treats speech from this Mac's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items." = "Treats speech from this Mac's microphone as yours, so your commitments lead each meeting's action items. Turn off when several people share this microphone, such as in a meeting room. Summarize a meeting again to update its action items.";
 "Trigger" = "Trigger";
 "Try Again" = "Try Again";
@@ -1052,6 +1073,7 @@
 "Use invitation agendas" = "Use invitation agendas";
 "Use light or dark windows regardless of the system setting, or follow it." = "Use light or dark windows regardless of the system setting, or follow it.";
 "Use meeting and work memory" = "Use meeting and work memory";
+"Use my memory for typed instructions" = "Use my memory for typed instructions";
 "Use nearby messages and labels to suggest relevant replies. Processed locally, never saved; capture exclusions apply and private browser windows are skipped." = "Use nearby messages and labels to suggest relevant replies. Processed locally, never saved; capture exclusions apply and private browser windows are skipped.";
 "Use on speakers, where the other side reaches your microphone and would be transcribed twice. Also cleans meetings already recorded." = "Use on speakers, where the other side reaches your microphone and would be transcribed twice. Also cleans meetings already recorded.";
 "Use screen-derived work memory" = "Use screen-derived work memory";
@@ -1092,6 +1114,7 @@
 "Workspace content" = "Workspace content";
 "Workspace navigation" = "Workspace navigation";
 "Write" = "Write";
+"Write with your memory" = "Write with your memory";
 "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten." = "Writes one unencrypted Markdown file per day with the digest, meeting links, app time, and saved moments. A day missed while your Mac was asleep is written later. Existing non-LokalBot content is never overwritten.";
 "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included." = "Writes the Timeline digest to your local journal at the chosen time, then finalizes yesterday after midnight so late activity is included.";
 "Writing" = "Writing";

@@ -339,8 +339,8 @@ grant optional permissions until you approve them:
   attendee has no display name, People uses the name suggested from a company
   address ("dragan@…" becomes "Dragan"); the address itself is not shown.
 - Accessibility for browser-meeting detection, Autocomplete (the Cotyping
-  engine), dictation insertion, visible-text context, and approved agent
-  interaction.
+  engine), dictation insertion, selection actions, visible-text context, and
+  approved agent interaction.
 - Screen Recording when visual screen context is selected. Meeting-speaker
   observation uses Accessibility only and does not require Screen Recording.
   When it is already granted, Autocomplete also uses it to place suggestions
@@ -601,6 +601,26 @@ logged or sent anywhere. Apps on the shared exclusion list are not read, and a
 field that cannot be read is left unchecked. When the text is missing, the
 dictation overlay offers to copy it. The chosen dictation microphone is stored as
 a device identifier in Settings.
+
+Selection actions are off by default (Settings → General → Shortcut). When
+enabled, pressing their shortcut reads the text selected in the frontmost app
+once, through Accessibility. Apps on the shared exclusion list and secure
+fields are not read. When an app does not expose its selection that way,
+LokalBot sends that app ⌘C, reads the copied text, and restores the previous
+clipboard (marked as generated, so clipboard managers skip the restored copy).
+The app's own copy may still be recorded by a clipboard manager, as any copy
+you make would be, and a password manager's concealed copy is never read. The
+selection, the instruction, and the result are held in memory while the panel
+is open and are never saved or logged. Built-in rewrites send only the
+selection and the instruction to the Think model. Actions marked “with my
+memory”, and typed instructions unless you turn that off in the panel, also
+search your meetings the way Ask does and add the matching excerpts and
+Overnight review's work memory to the prompt; the panel lists the meetings
+used. The configured local Think model keeps all of this on the Mac; an
+approved remote Think endpoint receives the prompt. Replacing the selection
+or inserting at the cursor first checks that the same field still has focus
+with the same selection, never pastes into a secure field, and otherwise
+copies the result to the clipboard instead.
 
 Optional media pause uses macOS
 Automation for audible supported players and browsers. It pauses finite

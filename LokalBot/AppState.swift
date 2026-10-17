@@ -171,6 +171,10 @@ final class AppState: ObservableObject {
                     || settings.quickRecallShortcut != oldValue.quickRecallShortcut {
                     applyQuickRecallSetting(replacing: oldValue.quickRecallShortcut)
                 }
+                if settings.selectionActionsEnabled != oldValue.selectionActionsEnabled
+                    || settings.selectionActionsShortcut != oldValue.selectionActionsShortcut {
+                    applySelectionActionsSetting(replacing: oldValue.selectionActionsShortcut)
+                }
                 // UI retention reductions are reviewed and executed explicitly.
                 // Changing a preference must not trigger an unreviewed cleanup.
                 if Self.dailyMemoryExportChanged(from: oldValue, to: settings) {
@@ -567,9 +571,42 @@ final class AppState: ObservableObject {
         gate: ScreenMemoryAccessGate(root: storage.rootURL))
     private(set) lazy var quickRecallHotKey: QuickRecallHotKeyController = {
         let controller = QuickRecallHotKeyController()
-        controller.onInvoke = { WindowAccess.shared.open("quick-recall") }
+        controller.onInvoke = { [weak self] in self?.openQuickRecall() }
         return controller
     }()
+    /// The app in front when a system-wide shortcut opened a LokalBot panel,
+    /// so a command that acts in place can hand focus back to it.
+    var shortcutSourceApplication: NSRunningApplication?
+    private(set) lazy var selectionActionsHotKey: QuickRecallHotKeyController = {
+        let controller = QuickRecallHotKeyController(
+            identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
+        controller.onInvoke = { [weak self] in self?.selectionActions.invoke() }
+        return controller
+    }()
+    /// AI actions on text selected in other apps. Runs on the Think model,
+    /// so remote inference keeps its per-origin approval.
+    private(set) lazy var selectionActions = SelectionActionsController(dependencies: .init(
+        capture: { [weak self] in
+            await SelectionCapture.capture(excludedApps: self?.settings.excludedAppList ?? [])
+        },
+        makeEngine: { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: .interactive, purpose: "selection action")
+        },
+        memory: { [weak self] query in
+            await self?.selectionMemoryContext(query: query) ?? .empty
+        },
+        deliver: { text, capture in
+            await SelectionDelivery.deliver(text, capture: capture)
+        },
+        copy: { text in SelectionDelivery.copy(text) },
+        returnFocus: { source in
+            guard let application = NSRunningApplication(processIdentifier: source.processID) else { return }
+            Task { await FocusReturn.activate(application) }
+        },
+        openPanel: { WindowAccess.shared.open("selection-actions") },
+        report: { [weak self] message in self?.lastError = message }))
     private let dailyMemoryExportScheduler = DailyMemoryExportScheduler()
     private(set) lazy var memoryRoutines = MemoryRoutineScheduler(
         storageRoot: storage.rootURL,
@@ -842,6 +879,16 @@ final class AppState: ObservableObject {
             downloads: ModelDownloadManager.shared)
     }
 
+    /// Read-only tools over the live meeting list and search indexes, shared
+    /// by Ask and selection actions' memory lookup.
+    private(set) lazy var libraryTools = MeetingChatTools(
+        meetings: { [weak self] in self?.meetings ?? [] },
+        storage: storage,
+        searchIndex: searchIndex,
+        embeddingIndex: embeddingIndex,
+        activityStore: activityStore,
+        settings: { [store = settingsStore] in store.current })
+
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
     /// and a tool-calling agent over the live meeting list + search indexes.
     private(set) lazy var chat = ChatViewModel(
@@ -852,13 +899,7 @@ final class AppState: ObservableObject {
                 priority: .interactive,
                 purpose: "chat")
         },
-        tools: MeetingChatTools(
-            meetings: { [weak self] in self?.meetings ?? [] },
-            storage: storage,
-            searchIndex: searchIndex,
-            embeddingIndex: embeddingIndex,
-            activityStore: activityStore,
-            settings: { [store = settingsStore] in store.current }),
+        tools: libraryTools,
         store: ChatStore(rootURL: storage.rootURL),
         workMemory: { [weak self] in
             guard let self else { return "" }
@@ -1178,6 +1219,7 @@ final class AppState: ObservableObject {
         agentAccess.start()
         screenMemoryAccess.start()
         applyQuickRecallSetting()
+        applySelectionActionsSetting()
         applyDailyMemoryExportSetting()
         applyDayDigestSetting()
         applyCodingAgentEvidenceSetting()
@@ -1442,6 +1484,8 @@ final class AppState: ObservableObject {
             sampler.stop()
             screenshots.stop()
             quickRecallHotKey.stop()
+            selectionActionsHotKey.stop()
+            selectionActions.stop()
             dailyMemoryExportScheduler.stop()
             memoryRoutines.stop()
             dreaming.stop()
@@ -2015,10 +2059,15 @@ final class AppState: ObservableObject {
     /// combination reaches the recorder, including one that is already taken.
     func setShortcutRecording(_ recording: Bool) {
         dictation.setShortcutRecording(recording)
-        // Ask's hot key is only registered on the interactive launch path.
+        // Ask's and selection actions' hot keys are only registered on the
+        // interactive launch path.
         guard interactive else { return }
         quickRecallHotKey.isSuspended = recording
-        if !recording { applyQuickRecallSetting() }
+        selectionActionsHotKey.isSuspended = recording
+        if !recording {
+            applyQuickRecallSetting()
+            applySelectionActionsSetting()
+        }
     }
 
     func applyDailyMemoryExportSetting() {

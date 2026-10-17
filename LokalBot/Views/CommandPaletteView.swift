@@ -60,110 +60,26 @@ struct CommandPaletteView: View {
     /// Everything the palette can do, computed live from app state. Commands,
     /// plus recent meetings when idle; typed queries add one handoff row into
     /// Ask — the palette stays a command surface, Ask is the search surface.
-    private var results: [PaletteItem] {
-        let dictationTitle: String
-        let dictationIcon: String
-        if app.dictation.isStarting {
-            dictationTitle = "Cancel dictation"
-            dictationIcon = "xmark.circle"
-        } else {
-            switch app.dictation.state {
-            case .idle:
-                dictationTitle = "Start dictation"
-                dictationIcon = "mic.badge.plus"
-            case .recording:
-                dictationTitle = "Stop & compose dictation"
-                dictationIcon = "stop.circle.fill"
-            case .transcribing, .composing:
-                dictationTitle = "Cancel dictation"
-                dictationIcon = "xmark.circle"
-            }
-        }
-        var actions: [PaletteItem] = [
-            .init(id: "record", icon: app.isRecording ? "stop.circle.fill" : "record.circle",
-                  title: app.isRecording ? "Stop recording" : "Record now",
-                  subtitle: "Recording", action: {
-                app.isRecording ? app.stopRecording()
-                                : app.startRecording(context: app.recordingContext(for: app.detector.activeApp), source: "palette")
-            }),
-            .init(id: "nav.today", icon: "sun.max", title: "Go to Today",
-                  subtitle: "Home", action: { app.navSection = .today }),
-            .init(id: "nav.actions", icon: "checklist", title: "Review all actions",
-                  subtitle: "Today", action: { app.openActions() }),
-            .init(id: "nav.timeline", icon: "calendar.day.timeline.left", title: "Go to Timeline",
-                  subtitle: "Library", action: { app.navSection = .timeline }),
-            .init(id: "nav.meetings", icon: "waveform.circle", title: "Go to Meetings",
-                  subtitle: "Library", action: { app.navSection = .meetings }),
-            .init(id: "followUp", icon: "arrowshape.turn.up.right", title: "Draft follow-up for latest meeting",
-                  subtitle: "Meetings", action: {
-                if let meeting = app.latestMeetingWithOutcomes { app.draftFollowUp(for: meeting) }
-            }),
-            .init(id: "nav.people", icon: "person.2", title: "Go to People",
-                  subtitle: "Library", action: { app.navSection = .people }),
-            .init(id: "nav.projects", icon: "folder", title: "Go to Projects",
-                  subtitle: "Library", action: { app.navSection = .projects }),
-            .init(id: "nav.ask", icon: "sparkle.magnifyingglass", title: "Go to Ask",
-                  subtitle: "Library", action: { app.openAsk() }),
-            .init(id: "dictation", icon: dictationIcon,
-                  title: dictationTitle,
-                  subtitle: "Automation", action: { app.dictation.toggle(source: "palette") }),
-            .init(id: "nav.dictation", icon: "mic.badge.plus",
-                  title: app.settings.dictationEnabled ? "Go to Dictation (on)" : "Go to Dictation (off)",
-                  subtitle: "Write", action: { app.openType(.dictation) }),
-            .init(id: "nav.cotyping", icon: "text.cursor",
-                  title: app.settings.cotypingEnabled ? "Go to Autocomplete (on)" : "Go to Autocomplete (off)",
-                  subtitle: "Write", action: { app.openType(.cotyping) }),
-            .init(id: "nav.agent", icon: "wand.and.sparkles", title: "Go to Agent",
-                  subtitle: "Automation", action: { app.navSection = .agent }),
-            .init(id: "nav.models", icon: "brain", title: "Go to Models",
-                  subtitle: "Settings", action: { app.openSettings(tab: .models) }),
-            .init(id: "nav.settings", icon: "gearshape", title: "Go to Settings",
-                  subtitle: "Settings", action: { app.openSettings() })
-        ]
-        if app.navSection == .agent {
-            actions += [
-                .init(id: "agent.new", icon: "square.and.pencil", title: "New Agent task", subtitle: "⌘N", action: { app.agentSessions.addSession() }),
-                .init(id: "agent.search", icon: "magnifyingglass", title: "Search Agent tasks", subtitle: "⌘⇧F", action: { app.agentSessions.searchRequest += 1 }),
-                .init(id: "agent.find", icon: "text.magnifyingglass", title: "Find in this task", subtitle: "⌘F", action: { app.agentSessions.findRequest += 1 }),
-                .init(id: "agent.results", icon: "sidebar.right", title: "Toggle results and sources", subtitle: "⌘⌥B", action: { app.agentSessions.resultsRequest += 1 })
-            ]
-        }
-        // Translate app commands before adding user-owned task/meeting titles.
-        actions = actions.map { item in
-            PaletteItem(id: item.id, icon: item.icon,
-                        title: app.settings.appLanguage.localized(item.title),
-                        subtitle: app.settings.appLanguage.localized(item.subtitle),
-                        searchAliases: item.title + " " + item.subtitle, action: item.action)
-        }
-        if app.navSection == .agent {
-            actions += app.agentSessions.orderedTasks.filter { !$0.record.isArchived }.prefix(30).map { task in
-                PaletteItem(id: "agent.task.\(task.id)", icon: "text.bubble", title: task.title,
-                            subtitle: "Agent task · \(task.controller.workspaceDisplayName)", action: { app.agentSessions.select(task.id) })
-            }
-        }
-        let q = query.trimmingCharacters(in: .whitespaces).lowercased()
+    private var results: [PaletteCommand] {
+        let actions = PaletteCommandCatalog.commands(app: app, source: "palette", inWorkspace: true)
+        let q = query.trimmingCharacters(in: .whitespaces)
         // Empty query: commands + recent meetings (quick navigation).
         guard !q.isEmpty else {
             let recents = app.meetings.prefix(8).map { meeting in
-                PaletteItem(id: "meeting.\(meeting.id.uuidString)", icon: "waveform",
-                            title: meeting.title,
-                            subtitle: "Open · \(meeting.appName) · \(meeting.displayDuration)",
-                            action: { app.openMeeting(meeting.id) })
+                PaletteCommand(id: "meeting.\(meeting.id.uuidString)", icon: "waveform",
+                               title: meeting.title,
+                               subtitle: "Open · \(meeting.appName) · \(meeting.displayDuration)",
+                               action: { app.openMeeting(meeting.id) })
             }
             return actions + recents
         }
         // Non-empty query: matching commands, then a single handoff into Ask
         // (spec §2.3: the palette's meeting-search rows hand off to Ask).
-        let tokens = q.split(separator: " ").map(String.init)
-        let matched = actions.filter { item in
-            let hay = (item.title + " " + item.subtitle + " " + item.searchAliases).lowercased()
-            return tokens.allSatisfy { hay.contains($0) }
-        }
-        let raw = query.trimmingCharacters(in: .whitespaces)
-        let handoff = PaletteItem(id: "ask.handoff", icon: "sparkle.magnifyingglass",
-                                  title: "Search “\(raw)” in Ask",
-                                  subtitle: "Ask",
-                                  action: { app.openAsk(query: raw) })
+        let matched = PaletteCommandFilter.filter(actions, query: q, matching: .substring)
+        let handoff = PaletteCommand(id: "ask.handoff", icon: "sparkle.magnifyingglass",
+                                     title: "Search “\(q)” in Ask",
+                                     subtitle: "Ask",
+                                     action: { app.openAsk(query: q) })
         return matched + [handoff]
     }
 
@@ -177,23 +93,14 @@ struct CommandPaletteView: View {
         run(results[selection])
     }
 
-    private func run(_ item: PaletteItem) {
+    private func run(_ item: PaletteCommand) {
         item.action()
         dismiss()
     }
 }
 
-private struct PaletteItem: Identifiable {
-    let id: String
-    let icon: String
-    let title: String
-    let subtitle: String
-    var searchAliases: String = ""
-    let action: () -> Void
-}
-
 private struct PaletteRow: View {
-    let item: PaletteItem
+    let item: PaletteCommand
     let selected: Bool
 
     var body: some View {

@@ -312,11 +312,33 @@ struct SettingsView: View {
                             changeHelp: "Change the Ask shortcut",
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
-                                    for: candidate, dictationShortcut: app.settings.dictationShortcut)
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
                     .settingTarget("settings.quickRecallShortcut", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.selectionActionsEnabled) {
+                        SettingsLabel("Enable the selection actions shortcut",
+                                      help: "Select text in any app and press \(app.settings.selectionActionsShortcut.displayLabel) to rewrite, translate, summarize, or answer it with your Think model. "
+                                        + "Actions marked “with my memory” also search your meetings. LokalBot reads the selection only when you press the shortcut, skips excluded apps and password fields, and keeps nothing. "
+                                        + "Apps that hide their selection from Accessibility are copied with ⌘C, then your clipboard is restored.")
+                    }
+                    .settingTarget("settings.selectionActionsEnabled", selected: app.focusedSettingID)
+                    LabeledContent("Selection actions shortcut") {
+                        ShortcutRecorder(
+                            shortcut: $app.settings.selectionActionsShortcut,
+                            defaultShortcut: .selectionActionsDefault,
+                            accessibilityIdentifier: "settings.selectionActionsShortcut",
+                            changeHelp: "Change the selection actions shortcut",
+                            validate: { candidate in
+                                QuickRecallHotKeyController.problem(
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    askShortcut: app.settings.quickRecallShortcut)
+                            },
+                            onRecordingChanged: { app.setShortcutRecording($0) })
+                    }
+                    .settingTarget("settings.selectionActionsShortcut", selected: app.focusedSettingID)
                 }
             }
 

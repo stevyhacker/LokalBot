@@ -397,7 +397,7 @@ struct MenuBarView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.vertical, 4)
-            menuAction("Ask", icon: "sparkle.magnifyingglass") { WindowAccess.shared.open("quick-recall") }
+            menuAction("Ask", icon: "sparkle.magnifyingglass") { app.openQuickRecall() }
             menuAction("Open LokalBot", icon: "macwindow") { WindowAccess.shared.open("main") }
             menuAction("Settings…", icon: "gearshape") { app.openSettings() }
             if app.settings.trackingEnabled {
