@@ -316,7 +316,7 @@
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Les téléchargements passent par le fournisseur du modèle. Ils n’envoient pas le contenu de vos réunions. Les modèles déjà téléchargés sont conservés.";
 "Draft Follow-up…" = "Rédiger un suivi…";
 "Drop an audio or video file to import it." = "Déposez un fichier audio ou vidéo pour l’importer.";
-"Drop to import" = "Déposer pour importer";
+"Drop to import" = "Déposez pour importer";
 "Draft follow-up for latest meeting" = "Rédiger un suivi de la dernière réunion";
 "Due" = "Échéance";
 "Due date as agreed" = "Date d’échéance convenue";
@@ -431,7 +431,7 @@
 "Image zoom" = "Zoom de l’image";
 "Images to remove" = "Images à supprimer";
 "Import" = "Importer";
-"Import a recording" = "Importer un enregistrement";
+"Import a recording" = "Importez un enregistrement";
 "Import an audio or video recording" = "Importer un enregistrement audio ou vidéo";
 "Import Recording" = "Importer un enregistrement";
 "Import Recording…" = "Importer un enregistrement…";

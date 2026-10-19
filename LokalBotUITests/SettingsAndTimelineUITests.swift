@@ -88,6 +88,14 @@ final class SettingsUITests: XCTestCase {
         ])
     }
 
+    func testTraditionalChineseItalianAndSerbianRender() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("zh-Hant", "繁體中文", "主題", "App 語言"),
+            ("it", "Italiano", "Tema", "Lingua dell’app"),
+            ("sr-Latn", "Srpski (latinica)", "Tema", "Jezik aplikacije")
+        ])
+    }
+
     private func assertInterfaceLanguagesRenderAndPersist(_ languages: [(String, String, String, String)]) throws {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         for (identifier, nativeName, theme, languageLabel) in languages {

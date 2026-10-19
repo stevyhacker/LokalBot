@@ -315,7 +315,7 @@
 "Downloading…" = "Descargando…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Las descargas usan el proveedor del modelo. No envían el contenido de tus reuniones. Los modelos ya descargados se conservan.";
 "Draft Follow-up…" = "Redactar seguimiento…";
-"Drop an audio or video file to import it." = "Suelta un archivo de audio o video para importarlo.";
+"Drop an audio or video file to import it." = "Suelta un archivo de audio o vídeo para importarlo.";
 "Drop to import" = "Suelta para importar";
 "Draft follow-up for latest meeting" = "Redactar seguimiento de la última reunión";
 "Due" = "Vencimiento";
@@ -431,8 +431,8 @@
 "Image zoom" = "Zoom de imagen";
 "Images to remove" = "Imágenes que se eliminarán";
 "Import" = "Importar";
-"Import a recording" = "Importar una grabación";
-"Import an audio or video recording" = "Importar una grabación de audio o video";
+"Import a recording" = "Importa una grabación";
+"Import an audio or video recording" = "Importar una grabación de audio o vídeo";
 "Import Recording" = "Importar grabación";
 "Import Recording…" = "Importar grabación…";
 "Importing %@…" = "Importando %@…";
@@ -499,7 +499,7 @@
 "Local journal" = "Diario local";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Los modelos locales procesan en este Mac. Cada servidor remoto requiere su propia aprobación antes de que el contexto pueda salir del Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Registros, informes de estado, ajustes sin secretos y recuentos de la biblioteca. Nunca audio de reuniones, transcripciones, notas ni capturas de pantalla.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot detecta apps de reuniones automáticamente, o puedes iniciar una grabación ahora. También puedes soltar aquí un archivo de audio o video.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot detecta apps de reuniones automáticamente, o puedes iniciar una grabación ahora. También puedes soltar aquí un archivo de audio o vídeo.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot es gratuito y lo desarrolla una sola persona. Una estrella en GitHub ayuda a que otros lo encuentren.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot administra este modelo y reconstruye el índice local cuando cambia.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot nunca envía esto. Cópialo en tu app de correo o chat para enviarlo tú.";

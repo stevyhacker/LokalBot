@@ -315,7 +315,7 @@
 "Downloading…" = "डाउनलोड होत आहे…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "डाउनलोड मॉडेल प्रदात्याकडून होतात. ते तुमच्या बैठकीचा आशय पाठवत नाहीत. आधी डाउनलोड केलेले मॉडेल राखले जातात.";
 "Draft Follow-up…" = "पाठपुराव्याचा मसुदा लिहा…";
-"Drop an audio or video file to import it." = "आयात करण्यासाठी ऑडिओ किंवा व्हिडिओ फाइल येथे सोडा.";
+"Drop an audio or video file to import it." = "आयात करण्यासाठी ऑडिओ किंवा व्हिडिओ फाइल ओढून सोडा.";
 "Drop to import" = "आयात करण्यासाठी सोडा";
 "Draft follow-up for latest meeting" = "नवीनतम बैठकीच्या पाठपुराव्याचा मसुदा लिहा";
 "Due" = "देय";
@@ -499,7 +499,7 @@
 "Local journal" = "स्थानिक जर्नल";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "स्थानिक मॉडेल या Mac वर प्रक्रिया करतात. संदर्भ Mac बाहेर जाण्याआधी प्रत्येक रिमोट सर्व्हरला स्वतंत्र मंजुरी आवश्यक असते.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "लॉग, स्थिती अहवाल, गुपितांशिवाय सेटिंग्ज आणि लायब्ररीतील संख्या. बैठकीचा ऑडिओ, प्रतिलेखन, नोंदी किंवा स्क्रीनशॉट कधीही नाहीत.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot बैठक अ‍ॅप्स आपोआप ओळखतो, किंवा आता रेकॉर्डिंग सुरू करा. तुम्ही येथे ऑडिओ किंवा व्हिडिओ फाइलही सोडू शकता.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot बैठक अ‍ॅप्स आपोआप ओळखतो, किंवा आता रेकॉर्डिंग सुरू करा. तुम्ही ऑडिओ किंवा व्हिडिओ फाइल येथे ओढून सोडूही शकता.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot मोफत आहे आणि ते एकाच व्यक्तीने बनवले आहे. GitHub वरील एक स्टार इतरांना ते शोधायला मदत करतो.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot हे मॉडेल व्यवस्थापित करतो आणि ते बदलल्यावर स्थानिक निर्देशांक पुन्हा तयार करतो.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot हे कधीही पाठवत नाही. स्वतः पाठवण्यासाठी ते तुमच्या मेल किंवा चॅट अ‍ॅपमध्ये कॉपी करा.";

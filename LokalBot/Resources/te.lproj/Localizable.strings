@@ -315,7 +315,7 @@
 "Downloading…" = "డౌన్‌లోడ్ అవుతోంది…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "డౌన్‌లోడ్‌లు మోడల్ ప్రొవైడర్ నుంచి జరుగుతాయి. అవి మీ సమావేశ విషయాన్ని పంపవు. ఇప్పటికే డౌన్‌లోడ్ చేసిన మోడళ్లు అలాగే ఉంటాయి.";
 "Draft Follow-up…" = "ఫాలో-అప్ ముసాయిదా రాయండి…";
-"Drop an audio or video file to import it." = "దిగుమతి చేయడానికి ఆడియో లేదా వీడియో ఫైల్‌ను ఇక్కడ వదలండి.";
+"Drop an audio or video file to import it." = "దిగుమతి చేయడానికి ఆడియో లేదా వీడియో ఫైల్‌ను లాగి వదలండి.";
 "Drop to import" = "దిగుమతి చేయడానికి వదలండి";
 "Draft follow-up for latest meeting" = "తాజా సమావేశ ఫాలో-అప్ ముసాయిదా రాయండి";
 "Due" = "గడువు";
@@ -499,7 +499,7 @@
 "Local journal" = "స్థానిక జర్నల్";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "స్థానిక మోడళ్లు ఈ Macలో ప్రాసెస్ చేస్తాయి. సందర్భం Mac బయటకు వెళ్లే ముందు ప్రతి రిమోట్ సర్వర్‌కు ప్రత్యేక ఆమోదం అవసరం.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "లాగ్‌లు, స్థితి నివేదికలు, రహస్యాలు లేని సెట్టింగ్‌లు, లైబ్రరీ లెక్కలు. సమావేశ ఆడియో, ట్రాన్స్‌క్రిప్ట్‌లు, నోట్స్ లేదా స్క్రీన్‌షాట్‌లు ఎప్పుడూ ఉండవు.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot సమావేశ యాప్‌లను స్వయంచాలకంగా గుర్తిస్తుంది, లేదా ఇప్పుడే రికార్డింగ్ ప్రారంభించండి. మీరు ఇక్కడ ఆడియో లేదా వీడియో ఫైల్‌ను కూడా వదలవచ్చు.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot సమావేశ యాప్‌లను స్వయంచాలకంగా గుర్తిస్తుంది, లేదా ఇప్పుడే రికార్డింగ్ ప్రారంభించండి. మీరు ఇక్కడ ఆడియో లేదా వీడియో ఫైల్‌ను కూడా లాగి వదలవచ్చు.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot ఉచితం, దీన్ని ఒక్క వ్యక్తే రూపొందించారు. GitHubలో ఒక స్టార్ ఇతరులు దీన్ని కనుగొనడంలో సహాయపడుతుంది.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot ఈ మోడల్‌ను నిర్వహిస్తుంది, అది మారినప్పుడు స్థానిక సూచికను మళ్లీ నిర్మిస్తుంది.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot దీన్ని ఎప్పుడూ పంపదు. మీరే పంపడానికి మీ మెయిల్ లేదా చాట్ యాప్‌లో కాపీ చేయండి.";

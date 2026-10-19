@@ -183,6 +183,71 @@ final class AskLibraryEngineTests: XCTestCase {
         XCTAssertTrue(result.text.hasPrefix("[app_not_running]"))
     }
 
+    // MARK: - Reply drafts and CLI output
+
+    func testReplyDraftsFromTheMeetingsTheMessageMatches() async throws {
+        let client = MockChatClient(healthyScript: [true], completion: .success("We went with Redis."))
+        let outcome = await makeEngine(client: client)
+            .draftReply(to: "Did you pick a caching layer yet?", instruction: "keep it short")
+        guard case .answered(let draft, let citations) = outcome else {
+            return XCTFail("expected a draft, got \(outcome)")
+        }
+        XCTAssertEqual(draft, "We went with Redis.", "the draft carries no Sources list")
+        XCTAssertEqual(citations.map(\.title), ["Cache planning"])
+
+        let messages = try XCTUnwrap(client.completedMessages.first)
+        XCTAssertTrue(messages.first?["content"]?.contains("Draft the user's reply") ?? false)
+        let request = try XCTUnwrap(messages.last?["content"])
+        XCTAssertTrue(request.contains("Message to reply to:\n<<<\nDid you pick a caching layer yet?\n>>>"))
+        XCTAssertTrue(request.contains("The user also asks: keep it short"))
+        XCTAssertTrue(request.contains("Redis"), "the matching meeting is in the context")
+    }
+
+    func testReplyWithNothingInTheMeetingsIsNotDrafted() async {
+        let client = MockChatClient(healthyScript: [true])
+        let outcome = await makeEngine(client: client).draftReply(to: "Lunch on Friday?")
+        guard case .notFound(let text) = outcome else { return XCTFail("expected not found, got \(outcome)") }
+        XCTAssertTrue(text.contains("did not draft"))
+        XCTAssertTrue(client.completedMessages.isEmpty, "no model call without meeting context")
+    }
+
+    func testReplyNeedsAccessAndAMessage() async {
+        let engine = makeEngine(client: MockChatClient())
+        let empty = await engine.draftReply(to: "  \n ")
+        XCTAssertEqual(empty, .failed(.invalidArguments, "A reply needs the message being answered."))
+        gate.disable()
+        let refused = await engine.draftReply(to: "Did you pick a caching layer yet?")
+        guard case .failed(.accessDisabled, _) = refused else { return XCTFail("expected access_disabled") }
+    }
+
+    func testAnswerKeepsSourcesSeparateForTheCLI() async throws {
+        let client = MockChatClient(healthyScript: [true])
+        let outcome = await makeEngine(client: client).answer("What did we decide about caching?")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(outcome.json.utf8)) as? [String: Any])
+        XCTAssertEqual(json["status"] as? String, "answered")
+        XCTAssertEqual(json["text"] as? String, "mock answer")
+        XCTAssertNil(json["code"])
+        let sources = try XCTUnwrap(json["sources"] as? [[String: String]])
+        XCTAssertEqual(sources, [["meeting_id": "aaaaaaaa", "title": "Cache planning", "date": "2026-05-28"]])
+        XCTAssertFalse(outcome.isFailure)
+        XCTAssertEqual(outcome.plainText, outcome.toolResult.text, "--table matches ask_library")
+        XCTAssertTrue(outcome.plainText.contains("Sources:\n- Cache planning (2026-05-28, id aaaaaaaa)"))
+    }
+
+    func testCLIReportsFailuresWithTheirCode() throws {
+        let outcome = AskLibraryOutcome.failed(.appNotRunning, "Open LokalBot and try again.")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(outcome.json.utf8)) as? [String: Any])
+        XCTAssertEqual(json["status"] as? String, "error")
+        XCTAssertEqual(json["code"] as? String, "app_not_running")
+        XCTAssertEqual(json["text"] as? String, "Open LokalBot and try again.")
+        XCTAssertTrue(outcome.isFailure)
+        XCTAssertEqual(outcome.plainText, "[app_not_running] Open LokalBot and try again.")
+
+        let notFound = AskLibraryOutcome.notFound("Nothing matched.")
+        XCTAssertFalse(notFound.isFailure)
+        XCTAssertTrue(notFound.json.contains("\"status\" : \"not_found\""))
+    }
+
     @MainActor
     func testClientBaseURLMatchesLlamaServerPort() {
         XCTAssertEqual(

@@ -5,10 +5,14 @@ import XCTest
 final class AppLanguageTests: XCTestCase {
     func testSystemLanguageUsesSupportedPreferencesAndFallsBackToEnglish() {
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-Hans-CN", "en"]), "zh-Hans")
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-TW"]), "zh-Hans")
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-TW"]), "zh-Hant")
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["fr-FR", "zh_CN"]), "fr")
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["en-GB", "zh-Hans"]), "en")
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["it-IT"]), "en")
+        // Dutch, Croatian, and Bosnian have no catalog; Croatian and Bosnian are
+        // not folded into Serbian.
+        for unsupported in ["nl-NL", "hr-HR", "bs-BA"] {
+            XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [unsupported]), "en", unsupported)
+        }
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: []), "en")
     }
 
@@ -18,12 +22,16 @@ final class AppLanguageTests: XCTestCase {
                         "ur-Arab-PK": "ur", "arz": "ar-EG",
                         "ru-RU": "ru", "de-AT": "de", "ja-JP": "ja", "pcm-NG": "pcm",
                         "mr-IN": "mr", "vi-VN": "vi", "te-IN": "te", "sw-KE": "sw", "ha-Latn-NG": "ha",
-                        "ko-KR": "ko", "ko_KP": "ko", "ko-Hang-KR": "ko"]
+                        "ko-KR": "ko", "ko_KP": "ko", "ko-Hang-KR": "ko",
+                        "it-IT": "it", "it_CH": "it",
+                        "zh-Hant-TW": "zh-Hant", "zh-Hant-CN": "zh-Hant", "zh-HK": "zh-Hant", "zh_MO": "zh-Hant",
+                        "zh-Hans-HK": "zh-Hans", "zh-SG": "zh-Hans", "zh-Hans-CN": "zh-Hans",
+                        "sr-Latn-RS": "sr-Latn", "sr-Cyrl-RS": "sr-Latn", "sr-ME": "sr-Latn", "cnr-ME": "sr-Latn"]
         for (variant, expected) in variants {
             XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [variant]), expected)
             XCTAssertEqual(AppLanguage.matching(Locale(identifier: variant)).rawValue, expected)
         }
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["it-IT", "ur-PK", "en"]), "ur")
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["nl-NL", "ur-PK", "en"]), "ur")
     }
 
     func testArabicVarietiesAndUrduUseRightToLeftLayout() {

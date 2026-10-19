@@ -431,8 +431,8 @@
 "Image zoom" = "تكبير الصورة";
 "Images to remove" = "الصور المطلوب إزالتها";
 "Import" = "استيراد";
-"Import a recording" = "استيراد تسجيل";
-"Import an audio or video recording" = "استيراد تسجيل صوتي أو فيديو";
+"Import a recording" = "استورد تسجيلًا";
+"Import an audio or video recording" = "استيراد تسجيل صوت أو فيديو";
 "Import Recording" = "استيراد تسجيل";
 "Import Recording…" = "استيراد تسجيل…";
 "Importing %@…" = "جارٍ استيراد %@…";
@@ -499,7 +499,7 @@
 "Local journal" = "يوميات محلية";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "تعالج النماذج المحلية البيانات على هذا الـ Mac. ويتطلب كل خادم بعيد موافقة مستقلة قبل أن يغادر السياق جهاز Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "السجلات وتقارير السلامة والإعدادات دون الأسرار وإحصاءات المكتبة. لا تتضمن مطلقًا أصوات الاجتماعات أو تفريغاتها النصية أو ملاحظاتها أو لقطات الشاشة.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "يكتشف LokalBot تطبيقات الاجتماعات تلقائيًا، أو يمكنك بدء تسجيل الآن. يمكنك أيضًا إفلات ملف صوت أو فيديو هنا.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "يكتشف LokalBot تطبيقات الاجتماعات تلقائيًا، أو يمكنك بدء تسجيل الآن. ويمكنك أيضًا إفلات ملف صوت أو فيديو هنا.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot مجاني ومن تطوير شخص واحد. تساعد نجمة على GitHub الآخرين على العثور عليه.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "يدير LokalBot هذا النموذج ويعيد إنشاء الفهرس المحلي عند تغييره.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "لا يرسل LokalBot هذا مطلقًا. انسخه إلى تطبيق البريد أو الدردشة وأرسله بنفسك.";

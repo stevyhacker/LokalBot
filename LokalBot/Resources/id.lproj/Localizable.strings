@@ -315,7 +315,7 @@
 "Downloading…" = "Mengunduh…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Unduhan menggunakan penyedia model. Konten rapat Anda tidak dikirim. Model yang sudah diunduh tetap disimpan.";
 "Draft Follow-up…" = "Buat Draf Tindak Lanjut…";
-"Drop an audio or video file to import it." = "Letakkan file audio atau video untuk mengimpornya.";
+"Drop an audio or video file to import it." = "Lepaskan file audio atau video untuk mengimpornya.";
 "Drop to import" = "Lepaskan untuk mengimpor";
 "Draft follow-up for latest meeting" = "Buat draf tindak lanjut untuk rapat terakhir";
 "Due" = "Tenggat";
@@ -499,7 +499,7 @@
 "Local journal" = "Jurnal lokal";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Model lokal memproses di Mac ini. Setiap server jarak jauh memerlukan persetujuannya sendiri sebelum konteks dapat meninggalkan Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Log, laporan kesehatan, pengaturan tanpa rahasia, dan jumlah item pustaka. Tidak pernah mencakup audio rapat, transkrip, catatan, atau tangkapan layar.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot mendeteksi aplikasi rapat secara otomatis, atau mulai rekaman sekarang. Anda juga dapat meletakkan file audio atau video di sini.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot mendeteksi aplikasi rapat secara otomatis, atau mulai rekaman sekarang. Anda juga dapat melepaskan file audio atau video di sini.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot gratis dan dibuat oleh satu orang. Bintang di GitHub membantu orang lain menemukannya.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot mengelola model ini dan membangun ulang indeks lokal saat model berubah.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot tidak pernah mengirim ini. Salin ke aplikasi email atau percakapan untuk mengirimnya sendiri.";

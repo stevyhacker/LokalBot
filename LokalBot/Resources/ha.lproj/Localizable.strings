@@ -315,8 +315,8 @@
 "Downloading…" = "Ana saukewa…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Ana saukewa daga mai samar da samfuri. Ba a aika abin da ke cikin taronka ba. Samfuran da aka riga aka sauke suna nan.";
 "Draft Follow-up…" = "Rubuta daftarin bibiyar taro…";
-"Drop an audio or video file to import it." = "Jefa fayil ɗin sauti ko bidiyo don shigo da shi.";
-"Drop to import" = "Jefa don shigo da shi";
+"Drop an audio or video file to import it." = "Saki fayil na sauti ko bidiyo don shigo da shi.";
+"Drop to import" = "Saki don shigo da shi";
 "Draft follow-up for latest meeting" = "Rubuta daftarin bibiyar taro na ƙarshe";
 "Due" = "Wa'adi";
 "Due date as agreed" = "Kwanan wa'adin da aka amince";
@@ -499,7 +499,7 @@
 "Local journal" = "Kundin rana na gida";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Samfuran gida suna sarrafawa a wannan Mac. Kowane sabar nesa yana buƙatar nasa amincewa kafin mahalli ya bar Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Kundin aiki, rahoton lafiya, saituna ba tare da sirri ba, da adadin ɗakin ajiya. Ba sa haɗa sautin taro, rubutun magana, bayanin kula, ko hoton allo.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot yana gano manhajojin taro kai tsaye, ko ka fara rikodi yanzu. Hakanan za ka iya jefa fayil ɗin sauti ko bidiyo a nan.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot yana gano manhajojin taro kai tsaye, ko ka fara rikodi yanzu. Za ka iya kuma saki fayil na sauti ko bidiyo a nan.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot kyauta ne kuma mutum ɗaya ne ya gina shi. Tauraro a GitHub yana taimaka wa wasu su same shi.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot yana sarrafa wannan samfuri kuma yana sake gina fihirisar gida idan ya canja.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot ba ya aika wannan. Kwafa shi zuwa manhajar imel ko hira ka aika da kanka.";

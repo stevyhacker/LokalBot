@@ -315,8 +315,8 @@
 "Downloading…" = "Загрузка…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Загрузка идёт от провайдера модели. Содержимое встреч не отправляется. Уже скачанные модели сохраняются.";
 "Draft Follow-up…" = "Подготовить письмо по итогам…";
-"Drop an audio or video file to import it." = "Перетащите сюда аудио- или видеофайл, чтобы импортировать его.";
-"Drop to import" = "Отпустите для импорта";
+"Drop an audio or video file to import it." = "Перетащите аудио- или видеофайл, чтобы импортировать его.";
+"Drop to import" = "Отпустите, чтобы импортировать";
 "Draft follow-up for latest meeting" = "Подготовить письмо по итогам последней встречи";
 "Due" = "Срок";
 "Due date as agreed" = "Согласованный срок";
@@ -431,9 +431,9 @@
 "Image zoom" = "Масштаб изображения";
 "Images to remove" = "Изображения для удаления";
 "Import" = "Импортировать";
-"Import a recording" = "Импортировать запись";
+"Import a recording" = "Импортируйте запись";
 "Import an audio or video recording" = "Импортировать аудио- или видеозапись";
-"Import Recording" = "Импорт записи";
+"Import Recording" = "Импортировать запись";
 "Import Recording…" = "Импортировать запись…";
 "Importing %@…" = "Импорт %@…";
 "In progress" = "Выполняется";
@@ -499,7 +499,7 @@
 "Local journal" = "Локальный журнал";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Локальные модели обрабатывают данные на этом Mac. Каждый удалённый сервер требует отдельного разрешения, прежде чем контекст сможет покинуть Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Журналы, отчёты о состоянии, настройки без секретов и счётчики библиотеки. Никогда не аудио встреч, расшифровки, заметки или снимки экрана.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot автоматически обнаруживает приложения встреч. Вы также можете начать запись сейчас. Или перетащите сюда аудио- или видеофайл.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot автоматически обнаруживает приложения встреч. Вы также можете начать запись сейчас. Кроме того, сюда можно перетащить аудио- или видеофайл.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot бесплатен и создан одним человеком. Звезда на GitHub помогает другим найти его.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot управляет этой моделью и перестраивает локальный индекс при её смене.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot никогда не отправляет это. Скопируйте в почту или чат и отправьте самостоятельно.";

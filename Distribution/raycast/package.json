@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "lokalbot",
   "title": "LokalBot",
-  "description": "Find what you said or saw on your Mac. Search LokalBot meeting transcripts and summaries from Raycast.",
+  "description": "Find what you said or saw on your Mac. Search your LokalBot meetings, ask about them, and draft replies from what was said.",
   "icon": "icon.png",
   "author": "stevan_bogosavljevic",
   "categories": [
@@ -22,6 +22,34 @@
           "placeholder": "Search meetings…",
           "type": "text",
           "required": true
+        }
+      ]
+    },
+    {
+      "name": "ask-lokalbot",
+      "title": "Ask LokalBot",
+      "description": "Answer a question from your meetings with LokalBot's local model, listing the meetings it used.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "question",
+          "placeholder": "What did we decide about…",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "draft-reply",
+      "title": "Draft Reply",
+      "description": "Draft your reply to the selected message from what your meetings say, ready to paste.",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "instruction",
+          "placeholder": "Extra direction",
+          "type": "text",
+          "required": false
         }
       ]
     },

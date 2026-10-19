@@ -230,11 +230,18 @@ by total speakers (first and second language users) in the 2026 Ethnologue ranki
 ([methodology](https://shop.ethnologue.com/products/2026-ethnologue-200),
 [public ranking table](https://en.wikipedia.org/w/index.php?title=List_of_languages_by_total_number_of_speakers&oldid=1380301586)).
 The ranking counts Nigerian Pidgin and Egyptian Arabic separately, so both have
-full catalogs. Korean (`ko`, 한국어) is also available, bringing the total to 21.
+full catalogs. Korean (`ko`, 한국어), Traditional Chinese (`zh-Hant`, 繁體中文),
+Italian (`it`), and Serbian in Latin script (`sr-Latn`, Srpski (latinica)) are also
+available, bringing the total to 24.
 Egyptian Arabic uses the `ar-EG` catalog when explicitly selected, or when
 Follow System encounters the language code `arz`. System `ar-EG` and other
 `ar-*` preferences mean Arabic with a region and use Modern Standard Arabic.
-Nigerian Pidgin uses `pcm`. Chinese retains Simplified Chinese. Portuguese uses broadly
+Nigerian Pidgin uses `pcm`. Chinese preferences with the Traditional script, or
+with a Taiwan, Hong Kong, or Macau region and no explicit Simplified script, use
+Traditional Chinese with Taiwan terminology; other Chinese preferences use
+Simplified Chinese. Serbian in either script and Montenegrin (`cnr`) use the
+ekavian Latin Serbian catalog; Croatian and Bosnian are separate languages and
+fall back to English. Portuguese uses broadly
 understandable Brazilian terminology for both Brazilian and European locales.
 
 Follow System selects the first supported macOS language preference, including
@@ -327,7 +334,7 @@ Everything lives in **Settings**, organized into searchable categories:
 
 ## Agent CLI & MCP
 
-`lokalbot-cli` (ArgumentParser, embedded in `Contents/Helpers/`) gives coding agents read-only access to the meeting library via `list` / `get` / `search` / `actions` / `people` / `path`, and to app settings and status via `config` / `status` / `open`. `actions` and `people` share the app's outcome projection, thread clustering, due-date resolution, and People rules (the CLI target compiles those model files). JSON by default, `--table` for humans. Settings → Advanced → Agent CLI (or `lokalbot-cli install-skill`) symlinks the binary to `~/.local/bin/lokalbot-cli` and the bundled skill to `~/.agents/skills/lokalbot-cli/`.
+`lokalbot-cli` (ArgumentParser, embedded in `Contents/Helpers/`) gives coding agents read-only access to the meeting library via `list` / `get` / `search` / `actions` / `people` / `path`, plus `ask` and `reply`, which answer a question or draft a reply to a message with the app's local model through the same `AskLibraryEngine` path as `ask_library` (the Raycast extension in `Distribution/raycast/` uses them), and to app settings and status via `config` / `status` / `open`. `actions` and `people` share the app's outcome projection, thread clustering, due-date resolution, and People rules (the CLI target compiles those model files). JSON by default, `--table` for humans. Settings → Advanced → Agent CLI (or `lokalbot-cli install-skill`) symlinks the binary to `~/.local/bin/lokalbot-cli` and the bundled skill to `~/.agents/skills/lokalbot-cli/`.
 
 The same binary is an **MCP server**: `lokalbot-cli mcp` speaks MCP over stdio. Meeting tools are `list_meetings` / `get_meeting` / `search_meetings` / `ask_library` / `get_action_items` / `list_people` / `get_person`; people tools return names only, never attendee addresses. Independently gated screen tools are `search_screen` / `get_timeline` / `get_recent_activity` / `get_app_usage` / `get_screenshot_detail`; they use a query-only SQLite connection and return captured text/metadata, never decrypted pixels or file paths. `get_personal_context` (CLI: `personal-context`) returns About you items the user shared, ranked for the agent's task. `get_briefing` (CLI: `brief`, listed first, and named in the `initialize` result's `instructions`) is the start-of-session overview built by `Briefing` in CLISupport: a capability index that is shown even with every grant off, then shared About you items, the user's open action items, work-memory projects and goals (each source kind needs its grant, unattributed entries are skipped, and everything waits while `.dream-revocation-pending.json` exists), coding-agent sessions from `coding_agent_bursts`, and a review timeline: days from `dreams/*.json`, then week and month lines from `dreams/rollups/`, clamped to the screen profile and capped at 12,000 characters. `DreamRollupService` writes those lines after each overnight review (at most three a night, only while screen access is on); each records a SHA-256 stamp of its reviews' days and `generatedAt`, so a deleted or regenerated review makes it stale. Stale lines are never shown, and `DreamStore.invalidateReport` deletes them. The server reads stdin with `read(2)`, so a client that keeps stdin open gets each reply immediately. The screen marker stores one of three profiles: today, rolling seven days, or all retained history; every query is clamped and out-of-scope detail ids appear missing. LokalBot does not upload library content, but an external MCP client may transmit tool inputs and results under its own privacy terms.
 
@@ -417,7 +424,7 @@ Legacy migration never replaces an existing current database, including an empty
 repository/
 ├── project.yml                            # XcodeGen manifest: LokalBot + LokalBot Dev + tests + lokalbot-cli
 ├── Scripts/                               # fetch-llama, e2e, ui-tests, DMG + appcast release tooling
-├── CLI/                                   # lokalbot-cli ArgumentParser entry + Commands/ (list/get/search/path/mcp/install-skill)
+├── CLI/                                   # lokalbot-cli ArgumentParser entry + Commands/ (list/get/search/ask/reply/path/mcp/install-skill)
 ├── .agents/skills/lokalbot-cli/SKILL.md   # bundled into the app, symlinked on install
 └── LokalBot/
     ├── LokalBotApp.swift   # @main: Window + MenuBarExtra + Settings scenes, headless flags

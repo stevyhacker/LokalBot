@@ -315,7 +315,7 @@
 "Downloading…" = "ডাউনলোড হচ্ছে…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "ডাউনলোডের জন্য মডেলের সেবাদাতার সঙ্গে সংযোগ হয়। এতে আপনার মিটিংয়ের বিষয়বস্তু পাঠানো হয় না। আগে ডাউনলোড করা মডেলগুলো রাখা হয়।";
 "Draft Follow-up…" = "ফলো-আপের খসড়া লিখুন…";
-"Drop an audio or video file to import it." = "আমদানি করতে একটি অডিও বা ভিডিও ফাইল এখানে ছাড়ুন।";
+"Drop an audio or video file to import it." = "আমদানি করতে একটি অডিও বা ভিডিও ফাইল টেনে এনে ছাড়ুন।";
 "Drop to import" = "আমদানি করতে ছাড়ুন";
 "Draft follow-up for latest meeting" = "সর্বশেষ মিটিংয়ের ফলো-আপের খসড়া লিখুন";
 "Due" = "নির্ধারিত সময়";
@@ -431,11 +431,11 @@
 "Image zoom" = "ছবির জুম";
 "Images to remove" = "সরিয়ে ফেলার ছবি";
 "Import" = "আমদানি করুন";
-"Import a recording" = "একটি রেকর্ডিং আমদানি করুন";
+"Import a recording" = "রেকর্ডিং আমদানি করুন";
 "Import an audio or video recording" = "অডিও বা ভিডিও রেকর্ডিং আমদানি করুন";
 "Import Recording" = "রেকর্ডিং আমদানি করুন";
 "Import Recording…" = "রেকর্ডিং আমদানি করুন…";
-"Importing %@…" = "%@ আমদানি করা হচ্ছে…";
+"Importing %@…" = "%@ আমদানি হচ্ছে…";
 "In progress" = "চলছে";
 "Include saved moments" = "সংরক্ষিত মুহূর্ত যুক্ত করুন";
 "Include the transcript" = "প্রতিলিপি যুক্ত করুন";
@@ -499,7 +499,7 @@
 "Local journal" = "স্থানীয় জার্নাল";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "স্থানীয় মডেল এই Mac-এ প্রক্রিয়া করে। প্রসঙ্গ Mac ছাড়ার আগে প্রতিটি দূরবর্তী সার্ভারের জন্য আলাদা অনুমোদন প্রয়োজন।";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "লগ, অবস্থার প্রতিবেদন, গোপন তথ্যবিহীন সেটিংস ও লাইব্রেরির সংখ্যা। কখনোই মিটিংয়ের অডিও, প্রতিলিপি, নোট বা স্ক্রিনশট নয়।";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot স্বয়ংক্রিয়ভাবে মিটিং অ্যাপ শনাক্ত করে, অথবা এখনই রেকর্ডিং শুরু করুন। আপনি এখানে একটি অডিও বা ভিডিও ফাইলও ছাড়তে পারেন।";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot স্বয়ংক্রিয়ভাবে মিটিং অ্যাপ শনাক্ত করে, অথবা এখনই রেকর্ডিং শুরু করুন। আপনি এখানে একটি অডিও বা ভিডিও ফাইলও টেনে এনে ছাড়তে পারেন।";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot বিনামূল্যের এবং একজন ব্যক্তির তৈরি। GitHub-এ একটি স্টার অন্যদের এটি খুঁজে পেতে সাহায্য করে।";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot এই মডেল পরিচালনা করে এবং এটি বদলালে স্থানীয় সূচি আবার তৈরি করে।";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot এটি কখনো পাঠায় না। নিজে পাঠাতে আপনার মেইল বা চ্যাট অ্যাপে কপি করুন।";

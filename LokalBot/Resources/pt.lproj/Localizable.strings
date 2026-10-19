@@ -431,7 +431,7 @@
 "Image zoom" = "Zoom da imagem";
 "Images to remove" = "Imagens a remover";
 "Import" = "Importar";
-"Import a recording" = "Importar uma gravação";
+"Import a recording" = "Importe uma gravação";
 "Import an audio or video recording" = "Importar uma gravação de áudio ou vídeo";
 "Import Recording" = "Importar gravação";
 "Import Recording…" = "Importar gravação…";
@@ -499,7 +499,7 @@
 "Local journal" = "Diário local";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Os modelos locais processam neste Mac. Cada servidor remoto exige sua própria aprovação antes que o contexto possa sair do Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Logs, relatórios de integridade, ajustes sem segredos e contagens da biblioteca. Nunca áudio de reuniões, transcrições, notas nem capturas de tela.";
-"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "O LokalBot detecta apps de reuniões automaticamente, ou você pode iniciar uma gravação agora. Você também pode soltar um arquivo de áudio ou vídeo aqui.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "O LokalBot detecta apps de reuniões automaticamente, ou você pode iniciar uma gravação agora. Você também pode soltar aqui um arquivo de áudio ou vídeo.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "O LokalBot é gratuito e feito por uma única pessoa. Uma estrela no GitHub ajuda outras pessoas a encontrá-lo.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "O LokalBot gerencia este modelo e reconstrói o índice local quando ele muda.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "O LokalBot nunca envia isto. Copie para seu app de e-mail ou chat para enviar por conta própria.";

@@ -60,6 +60,16 @@ lokalbot-cli search "auth refactor" --table --limit 20
 
 A meeting matches when it contains every word, in any order, ignoring case and accents; when none does, the closest partial matches follow. Words of up to three letters or digits (`API`, `Q3`) match only whole words. Quote an exact phrase inside the query (`'"auth refactor"'`) to match only that phrase. Transcript hits include a `timestamp` (HH:MM:SS) so the user can jump to that moment in the in-app player.
 
+## Answers and reply drafts
+
+```bash
+lokalbot-cli ask "What did we decide about the caching layer?"
+lokalbot-cli reply "Did you pick a caching layer yet?" --instruction "keep it short"
+pbpaste | lokalbot-cli reply
+```
+
+`ask` is the command-line form of `ask_library` (below): LokalBot's local model answers from the matching meetings. `reply` drafts the user's reply to a message they received from what the matching meetings say, without inventing facts; a message no meeting matches gets no draft. Both need the LokalBot app running, and the first call after a cold start can take up to a minute. JSON by default: `{"status", "text", "sources"}`, where `status` is `answered`, `not_found`, or `error` (with a `code` such as `access_disabled`); errors also exit with status 1. Show a draft to the user before sending it anywhere.
+
 ## Action items
 
 ```bash

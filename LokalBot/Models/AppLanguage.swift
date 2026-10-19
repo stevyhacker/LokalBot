@@ -6,6 +6,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
     case english = "en"
     case simplifiedChinese = "zh-Hans"
+    case traditionalChinese = "zh-Hant"
     case hindi = "hi"
     case spanish = "es"
     case arabic = "ar"
@@ -25,6 +26,8 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case swahili = "sw"
     case hausa = "ha"
     case korean = "ko"
+    case italian = "it"
+    case serbianLatin = "sr-Latn"
 
     var id: String { rawValue }
 
@@ -34,6 +37,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         case .system: "Follow System"
         case .english: "English"
         case .simplifiedChinese: "简体中文"
+        case .traditionalChinese: "繁體中文"
         case .hindi: "हिन्दी"
         case .spanish: "Español"
         case .arabic: "العربية"
@@ -53,6 +57,8 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         case .swahili: "Kiswahili"
         case .hausa: "Hausa"
         case .korean: "한국어"
+        case .italian: "Italiano"
+        case .serbianLatin: "Srpski (latinica)"
         }
     }
 
@@ -63,6 +69,7 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         case .system: "Follow System"
         case .english: "English"
         case .simplifiedChinese: "Simplified Chinese"
+        case .traditionalChinese: "Traditional Chinese"
         case .hindi: "Hindi"
         case .spanish: "Spanish"
         case .arabic: "Arabic"
@@ -82,6 +89,8 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         case .swahili: "Swahili"
         case .hausa: "Hausa"
         case .korean: "Korean"
+        case .italian: "Italian"
+        case .serbianLatin: "Serbian (Latin)"
         }
     }
 
@@ -89,8 +98,20 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         guard self == .system else { return rawValue }
         for language in preferredLanguages {
             let code = language.replacingOccurrences(of: "_", with: "-").lowercased()
-            if code == "zh" || code.hasPrefix("zh-") { return "zh-Hans" }
-            let base = String(code.split(separator: "-").first ?? "")
+            let parts = code.split(separator: "-").map(String.init)
+            let base = parts.first ?? ""
+            if base == "zh" {
+                // The Traditional script, or Taiwan, Hong Kong, or Macau without an
+                // explicit Simplified script, selects Traditional Chinese.
+                let subtags = parts.dropFirst()
+                let traditional = subtags.contains("hant")
+                    || (!subtags.contains("hans") && subtags.contains { ["tw", "hk", "mo"].contains($0) })
+                return traditional ? Self.traditionalChinese.rawValue : Self.simplifiedChinese.rawValue
+            }
+            // Serbian in either script, and Montenegrin, use the Latin Serbian catalog.
+            if base == "sr" || base == "cnr" {
+                return Self.serbianLatin.rawValue
+            }
             // A system ar-EG preference is Arabic with region Egypt, not a
             // dialect choice. Only the language code arz selects Egyptian Arabic.
             if base == "arz" {
