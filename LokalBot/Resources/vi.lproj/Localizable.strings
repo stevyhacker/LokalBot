@@ -315,6 +315,8 @@
 "Downloading…" = "Đang tải xuống…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Tải xuống qua nhà cung cấp mô hình. Không gửi nội dung cuộc họp của bạn. Mô hình đã tải được giữ lại.";
 "Draft Follow-up…" = "Soạn nội dung theo dõi…";
+"Drop an audio or video file to import it." = "Thả tệp âm thanh hoặc video để nhập.";
+"Drop to import" = "Thả để nhập";
 "Draft follow-up for latest meeting" = "Soạn nội dung theo dõi cho cuộc họp gần nhất";
 "Due" = "Hạn";
 "Due date as agreed" = "Ngày đến hạn đã thống nhất";
@@ -428,6 +430,12 @@
 "Image space recovered" = "Dung lượng ảnh đã thu hồi";
 "Image zoom" = "Thu phóng ảnh";
 "Images to remove" = "Ảnh cần xóa";
+"Import" = "Nhập";
+"Import a recording" = "Nhập bản ghi âm";
+"Import an audio or video recording" = "Nhập bản ghi âm thanh hoặc video";
+"Import Recording" = "Nhập bản ghi âm";
+"Import Recording…" = "Nhập bản ghi âm…";
+"Importing %@…" = "Đang nhập %@…";
 "In progress" = "Đang thực hiện";
 "Include saved moments" = "Bao gồm khoảnh khắc đã lưu";
 "Include the transcript" = "Bao gồm bản chép lời";
@@ -491,7 +499,7 @@
 "Local journal" = "Nhật ký cục bộ";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Mô hình cục bộ xử lý trên Mac này. Mỗi máy chủ từ xa cần được phê duyệt riêng trước khi ngữ cảnh có thể rời Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Nhật ký, báo cáo tình trạng, cài đặt không chứa bí mật và số lượng mục trong thư viện. Không bao giờ gồm âm thanh cuộc họp, bản chép lời, ghi chú hay ảnh chụp màn hình.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot tự động phát hiện ứng dụng họp, hoặc bạn có thể bắt đầu ghi ngay.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot tự động phát hiện ứng dụng họp, hoặc bạn có thể bắt đầu ghi ngay. Bạn cũng có thể thả tệp âm thanh hoặc video vào đây.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot miễn phí và do một người xây dựng. Một lượt gắn sao trên GitHub giúp người khác tìm thấy ứng dụng.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot quản lý mô hình này và xây dựng lại chỉ mục cục bộ khi mô hình thay đổi.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot không bao giờ gửi nội dung này. Sao chép vào ứng dụng email hoặc trò chuyện để tự gửi.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "Máy chủ tương thích OpenAI";
 "Opening Session…" = "Đang mở phiên…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "Mở đúng bảng Cài đặt và hiển thị hàng ứng dụng LokalBot có thể kéo.";
+"or record a meeting — it appears in the list automatically." = "hoặc ghi âm một cuộc họp — cuộc họp tự động xuất hiện trong danh sách.";
 "Original Wording" = "Cách diễn đạt gốc";
 "Original wording or YYYY-MM-DD" = "Cách diễn đạt gốc hoặc YYYY-MM-DD";
 "Other activity" = "Hoạt động khác";
@@ -737,7 +746,6 @@
 "Reconnect" = "Kết nối lại";
 "Record Capture Trace (60 s)" = "Ghi dấu vết thu thập (60 giây)";
 "Record Now" = "Ghi ngay";
-"Record a meeting — it appears in the list automatically." = "Ghi âm một cuộc họp — cuộc họp tự động xuất hiện trong danh sách.";
 "Record automatically" = "Tự động ghi âm";
 "Record now" = "Ghi ngay";
 "Record your side of each call." = "Ghi lại phần nói của bạn trong mỗi cuộc gọi.";

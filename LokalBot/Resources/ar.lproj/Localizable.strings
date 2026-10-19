@@ -315,6 +315,8 @@
 "Downloading…" = "جارٍ التنزيل…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "تُجرى التنزيلات عبر مزوّد النموذج. ولا تُرسِل محتوى اجتماعاتك. تُحفَظ النماذج المنزّلة مسبقًا.";
 "Draft Follow-up…" = "صياغة متابعة…";
+"Drop an audio or video file to import it." = "أفلِت ملف صوت أو فيديو لاستيراده.";
+"Drop to import" = "أفلِت للاستيراد";
 "Draft follow-up for latest meeting" = "صياغة متابعة لأحدث اجتماع";
 "Due" = "الاستحقاق";
 "Due date as agreed" = "تاريخ الاستحقاق المتفق عليه";
@@ -428,6 +430,12 @@
 "Image space recovered" = "مساحة الصور المستردة";
 "Image zoom" = "تكبير الصورة";
 "Images to remove" = "الصور المطلوب إزالتها";
+"Import" = "استيراد";
+"Import a recording" = "استيراد تسجيل";
+"Import an audio or video recording" = "استيراد تسجيل صوتي أو فيديو";
+"Import Recording" = "استيراد تسجيل";
+"Import Recording…" = "استيراد تسجيل…";
+"Importing %@…" = "جارٍ استيراد %@…";
 "In progress" = "قيد التنفيذ";
 "Include saved moments" = "تضمين اللحظات المحفوظة";
 "Include the transcript" = "تضمين التفريغ النصي";
@@ -491,7 +499,7 @@
 "Local journal" = "يوميات محلية";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "تعالج النماذج المحلية البيانات على هذا الـ Mac. ويتطلب كل خادم بعيد موافقة مستقلة قبل أن يغادر السياق جهاز Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "السجلات وتقارير السلامة والإعدادات دون الأسرار وإحصاءات المكتبة. لا تتضمن مطلقًا أصوات الاجتماعات أو تفريغاتها النصية أو ملاحظاتها أو لقطات الشاشة.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "يكتشف LokalBot تطبيقات الاجتماعات تلقائيًا، أو يمكنك بدء تسجيل الآن.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "يكتشف LokalBot تطبيقات الاجتماعات تلقائيًا، أو يمكنك بدء تسجيل الآن. يمكنك أيضًا إفلات ملف صوت أو فيديو هنا.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot مجاني ومن تطوير شخص واحد. تساعد نجمة على GitHub الآخرين على العثور عليه.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "يدير LokalBot هذا النموذج ويعيد إنشاء الفهرس المحلي عند تغييره.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "لا يرسل LokalBot هذا مطلقًا. انسخه إلى تطبيق البريد أو الدردشة وأرسله بنفسك.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "خادم متوافق مع OpenAI";
 "Opening Session…" = "جارٍ فتح الجلسة…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "يفتح لوحة الإعدادات المناسبة ويعرض صف تطبيق LokalBot قابلًا للسحب.";
+"or record a meeting — it appears in the list automatically." = "أو سجّل اجتماعًا — سيظهر في القائمة تلقائيًا.";
 "Original Wording" = "الصياغة الأصلية";
 "Original wording or YYYY-MM-DD" = "الصياغة الأصلية أو YYYY-MM-DD";
 "Other activity" = "نشاط آخر";
@@ -737,7 +746,6 @@
 "Reconnect" = "إعادة الاتصال";
 "Record Capture Trace (60 s)" = "تسجيل تتبّع الالتقاط (60 ثانية)";
 "Record Now" = "سجّل الآن";
-"Record a meeting — it appears in the list automatically." = "سجّل اجتماعًا — سيظهر في القائمة تلقائيًا.";
 "Record automatically" = "التسجيل تلقائيًا";
 "Record now" = "سجّل الآن";
 "Record your side of each call." = "سجّل جانبك من كل مكالمة.";

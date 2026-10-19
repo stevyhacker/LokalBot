@@ -315,6 +315,8 @@
 "Downloading…" = "ダウンロード中…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "ダウンロードにはモデルの提供元を使います。会議の内容は送信しません。既存のダウンロード済みモデルは保持されます。";
 "Draft Follow-up…" = "フォローアップの下書き…";
+"Drop an audio or video file to import it." = "音声ファイルまたはビデオファイルをドロップしてインポートします。";
+"Drop to import" = "ドロップしてインポート";
 "Draft follow-up for latest meeting" = "最新の会議のフォローアップを下書き";
 "Due" = "期限";
 "Due date as agreed" = "合意した期限";
@@ -428,6 +430,12 @@
 "Image space recovered" = "回収した画像の容量";
 "Image zoom" = "画像のズーム";
 "Images to remove" = "削除する画像";
+"Import" = "インポート";
+"Import a recording" = "録音をインポート";
+"Import an audio or video recording" = "音声またはビデオの録音をインポート";
+"Import Recording" = "録音をインポート";
+"Import Recording…" = "録音をインポート…";
+"Importing %@…" = "%@をインポート中…";
 "In progress" = "進行中";
 "Include saved moments" = "保存した場面を含める";
 "Include the transcript" = "文字起こしを含める";
@@ -491,7 +499,7 @@
 "Local journal" = "ローカルジャーナル";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "ローカルモデルはこのMac上で処理します。コンテキストをMacの外に送信するには、リモートサーバーごとに承認が必要です。";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "ログ、健全性レポート、秘密情報を除いた設定、ライブラリの件数です。会議の音声、文字起こし、メモ、スクリーンショットは含みません。";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBotは会議アプリを自動検出します。今すぐ録音を開始することもできます。";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBotは会議アプリを自動検出します。今すぐ録音を開始することもできます。ここに音声ファイルやビデオファイルをドロップすることもできます。";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBotは無料で、一人の開発者が作っています。GitHubのスターは、ほかの人がLokalBotを見つける手助けになります。";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBotがこのモデルを管理し、変更時にローカルインデックスを再構築します。";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBotはこれを送信しません。メールやチャットアプリにコピーして、自分で送信してください。";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "OpenAI互換サーバー";
 "Opening Session…" = "セッションを開いています…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "該当する設定パネルを開き、ドラッグできるLokalBotアプリの行を表示します。";
+"or record a meeting — it appears in the list automatically." = "または会議を録音すると、自動的に一覧に表示されます。";
 "Original Wording" = "元の文言";
 "Original wording or YYYY-MM-DD" = "元の文言またはYYYY-MM-DD";
 "Other activity" = "その他のアクティビティ";
@@ -737,7 +746,6 @@
 "Reconnect" = "再接続";
 "Record Capture Trace (60 s)" = "キャプチャトレースを記録（60秒）";
 "Record Now" = "今すぐ録音";
-"Record a meeting — it appears in the list automatically." = "会議を録音すると自動的に一覧に表示されます。";
 "Record automatically" = "自動録音";
 "Record now" = "今すぐ録音";
 "Record your side of each call." = "各通話で自分の声を録音します。";

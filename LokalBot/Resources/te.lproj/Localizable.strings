@@ -315,6 +315,8 @@
 "Downloading…" = "డౌన్‌లోడ్ అవుతోంది…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "డౌన్‌లోడ్‌లు మోడల్ ప్రొవైడర్ నుంచి జరుగుతాయి. అవి మీ సమావేశ విషయాన్ని పంపవు. ఇప్పటికే డౌన్‌లోడ్ చేసిన మోడళ్లు అలాగే ఉంటాయి.";
 "Draft Follow-up…" = "ఫాలో-అప్ ముసాయిదా రాయండి…";
+"Drop an audio or video file to import it." = "దిగుమతి చేయడానికి ఆడియో లేదా వీడియో ఫైల్‌ను ఇక్కడ వదలండి.";
+"Drop to import" = "దిగుమతి చేయడానికి వదలండి";
 "Draft follow-up for latest meeting" = "తాజా సమావేశ ఫాలో-అప్ ముసాయిదా రాయండి";
 "Due" = "గడువు";
 "Due date as agreed" = "అంగీకరించిన గడువు తేదీ";
@@ -428,6 +430,12 @@
 "Image space recovered" = "చిత్రాల నుంచి తిరిగి పొందిన స్థలం";
 "Image zoom" = "చిత్రం జూమ్";
 "Images to remove" = "తీసివేయాల్సిన చిత్రాలు";
+"Import" = "దిగుమతి చేయండి";
+"Import a recording" = "రికార్డింగ్‌ను దిగుమతి చేయండి";
+"Import an audio or video recording" = "ఆడియో లేదా వీడియో రికార్డింగ్‌ను దిగుమతి చేయండి";
+"Import Recording" = "రికార్డింగ్‌ను దిగుమతి చేయండి";
+"Import Recording…" = "రికార్డింగ్‌ను దిగుమతి చేయండి…";
+"Importing %@…" = "%@ దిగుమతి అవుతోంది…";
 "In progress" = "కొనసాగుతోంది";
 "Include saved moments" = "సేవ్ చేసిన క్షణాలను చేర్చండి";
 "Include the transcript" = "ట్రాన్స్‌క్రిప్ట్‌ను చేర్చండి";
@@ -491,7 +499,7 @@
 "Local journal" = "స్థానిక జర్నల్";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "స్థానిక మోడళ్లు ఈ Macలో ప్రాసెస్ చేస్తాయి. సందర్భం Mac బయటకు వెళ్లే ముందు ప్రతి రిమోట్ సర్వర్‌కు ప్రత్యేక ఆమోదం అవసరం.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "లాగ్‌లు, స్థితి నివేదికలు, రహస్యాలు లేని సెట్టింగ్‌లు, లైబ్రరీ లెక్కలు. సమావేశ ఆడియో, ట్రాన్స్‌క్రిప్ట్‌లు, నోట్స్ లేదా స్క్రీన్‌షాట్‌లు ఎప్పుడూ ఉండవు.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot సమావేశ యాప్‌లను స్వయంచాలకంగా గుర్తిస్తుంది, లేదా ఇప్పుడే రికార్డింగ్ ప్రారంభించండి.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot సమావేశ యాప్‌లను స్వయంచాలకంగా గుర్తిస్తుంది, లేదా ఇప్పుడే రికార్డింగ్ ప్రారంభించండి. మీరు ఇక్కడ ఆడియో లేదా వీడియో ఫైల్‌ను కూడా వదలవచ్చు.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot ఉచితం, దీన్ని ఒక్క వ్యక్తే రూపొందించారు. GitHubలో ఒక స్టార్ ఇతరులు దీన్ని కనుగొనడంలో సహాయపడుతుంది.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot ఈ మోడల్‌ను నిర్వహిస్తుంది, అది మారినప్పుడు స్థానిక సూచికను మళ్లీ నిర్మిస్తుంది.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot దీన్ని ఎప్పుడూ పంపదు. మీరే పంపడానికి మీ మెయిల్ లేదా చాట్ యాప్‌లో కాపీ చేయండి.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "OpenAI అనుకూల సర్వర్";
 "Opening Session…" = "సెషన్ తెరుస్తోంది…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "సరైన సెట్టింగ్‌ల ప్యానెల్ తెరిచి, లాగగల LokalBot యాప్ వరుసను చూపిస్తుంది.";
+"or record a meeting — it appears in the list automatically." = "లేదా సమావేశాన్ని రికార్డ్ చేయండి — అది జాబితాలో స్వయంచాలకంగా కనిపిస్తుంది.";
 "Original Wording" = "అసలు పదాలు";
 "Original wording or YYYY-MM-DD" = "అసలు పదాలు లేదా YYYY-MM-DD";
 "Other activity" = "ఇతర కార్యకలాపం";
@@ -737,7 +746,6 @@
 "Reconnect" = "మళ్లీ కనెక్ట్ చేయండి";
 "Record Capture Trace (60 s)" = "సంగ్రహ ట్రేస్ రికార్డ్ చేయండి (60 s)";
 "Record Now" = "ఇప్పుడే రికార్డ్ చేయండి";
-"Record a meeting — it appears in the list automatically." = "సమావేశాన్ని రికార్డ్ చేయండి — అది జాబితాలో స్వయంచాలకంగా కనిపిస్తుంది.";
 "Record automatically" = "స్వయంచాలకంగా రికార్డ్ చేయండి";
 "Record now" = "ఇప్పుడే రికార్డ్ చేయండి";
 "Record your side of each call." = "ప్రతి కాల్‌లో మీ వైపు ఆడియో రికార్డ్ చేయండి.";

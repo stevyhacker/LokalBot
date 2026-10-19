@@ -315,6 +315,8 @@
 "Downloading…" = "Wird heruntergeladen…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Downloads erfolgen beim Modellanbieter. Dabei werden keine Besprechungsinhalte gesendet. Bereits heruntergeladene Modelle bleiben erhalten.";
 "Draft Follow-up…" = "Nachbereitung entwerfen…";
+"Drop an audio or video file to import it." = "Lege eine Audio- oder Videodatei ab, um sie zu importieren.";
+"Drop to import" = "Zum Importieren ablegen";
 "Draft follow-up for latest meeting" = "Nachbereitung der letzten Besprechung entwerfen";
 "Due" = "Fällig";
 "Due date as agreed" = "Vereinbartes Fälligkeitsdatum";
@@ -428,6 +430,12 @@
 "Image space recovered" = "Freigegebener Bildspeicher";
 "Image zoom" = "Bildzoom";
 "Images to remove" = "Zu entfernende Bilder";
+"Import" = "Importieren";
+"Import a recording" = "Aufnahme importieren";
+"Import an audio or video recording" = "Audio- oder Videoaufnahme importieren";
+"Import Recording" = "Aufnahme importieren";
+"Import Recording…" = "Aufnahme importieren…";
+"Importing %@…" = "%@ wird importiert…";
 "In progress" = "In Bearbeitung";
 "Include saved moments" = "Gespeicherte Momente einbeziehen";
 "Include the transcript" = "Transkript einbeziehen";
@@ -491,7 +499,7 @@
 "Local journal" = "Lokales Journal";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Lokale Modelle verarbeiten Daten auf diesem Mac. Jeder externe Server benötigt eine eigene Genehmigung, bevor Kontext den Mac verlassen darf.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Protokolle, Zustandsberichte, Einstellungen ohne Geheimnisse und Bibliothekszählwerte. Niemals Besprechungsaudio, Transkripte, Notizen oder Bildschirmfotos.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot erkennt Besprechungs-Apps automatisch. Du kannst auch jetzt eine Aufnahme starten.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot erkennt Besprechungs-Apps automatisch. Du kannst auch jetzt eine Aufnahme starten. Außerdem kannst du hier eine Audio- oder Videodatei ablegen.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot ist kostenlos und wird von einer einzelnen Person entwickelt. Ein GitHub-Stern hilft anderen, es zu finden.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot verwaltet dieses Modell und erstellt den lokalen Index bei einem Wechsel neu.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot sendet dies nie. Kopiere es in deine E-Mail- oder Chat-App und sende es selbst.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "OpenAI-kompatibler Server";
 "Opening Session…" = "Sitzung wird geöffnet…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "Öffnet den passenden Einstellungsbereich und zeigt eine ziehbare Zeile für die LokalBot-App.";
+"or record a meeting — it appears in the list automatically." = "oder nimm eine Besprechung auf — sie erscheint automatisch in der Liste.";
 "Original Wording" = "Ursprüngliche Formulierung";
 "Original wording or YYYY-MM-DD" = "Ursprüngliche Formulierung oder YYYY-MM-DD";
 "Other activity" = "Andere Aktivität";
@@ -737,7 +746,6 @@
 "Reconnect" = "Erneut verbinden";
 "Record Capture Trace (60 s)" = "Aufzeichnungsspur erfassen (60 s)";
 "Record Now" = "Jetzt aufnehmen";
-"Record a meeting — it appears in the list automatically." = "Nimm eine Besprechung auf — sie erscheint automatisch in der Liste.";
 "Record automatically" = "Automatisch aufnehmen";
 "Record now" = "Jetzt aufnehmen";
 "Record your side of each call." = "Nimm deine Seite jedes Gesprächs auf.";

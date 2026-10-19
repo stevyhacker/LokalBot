@@ -315,6 +315,8 @@
 "Downloading…" = "डाउनलोड हो रहा है…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "डाउनलोड मॉडल प्रदाता से होते हैं। उनसे आपकी मीटिंग की सामग्री नहीं भेजी जाती। पहले से डाउनलोड किए गए मॉडल बने रहते हैं।";
 "Draft Follow-up…" = "फ़ॉलो-अप का मसौदा बनाएँ…";
+"Drop an audio or video file to import it." = "आयात करने के लिए कोई ऑडियो या वीडियो फ़ाइल यहाँ छोड़ें।";
+"Drop to import" = "आयात करने के लिए छोड़ें";
 "Draft follow-up for latest meeting" = "नवीनतम मीटिंग के फ़ॉलो-अप का मसौदा बनाएँ";
 "Due" = "नियत";
 "Due date as agreed" = "सहमति के अनुसार नियत तारीख़";
@@ -428,6 +430,12 @@
 "Image space recovered" = "चित्रों से खाली हुआ स्थान";
 "Image zoom" = "चित्र ज़ूम";
 "Images to remove" = "हटाने के लिए चित्र";
+"Import" = "आयात करें";
+"Import a recording" = "रिकॉर्डिंग आयात करें";
+"Import an audio or video recording" = "ऑडियो या वीडियो रिकॉर्डिंग आयात करें";
+"Import Recording" = "रिकॉर्डिंग आयात करें";
+"Import Recording…" = "रिकॉर्डिंग आयात करें…";
+"Importing %@…" = "%@ आयात किया जा रहा है…";
 "In progress" = "जारी है";
 "Include saved moments" = "सहेजे गए क्षण शामिल करें";
 "Include the transcript" = "लिप्यंतरण शामिल करें";
@@ -491,7 +499,7 @@
 "Local journal" = "स्थानीय जर्नल";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "स्थानीय मॉडल इसी Mac पर प्रोसेस करते हैं। संदर्भ Mac से बाहर भेजने से पहले हर रिमोट सर्वर के लिए अलग स्वीकृति ज़रूरी है।";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "लॉग, स्थिति रिपोर्ट, गोपनीय जानकारी रहित सेटिंग्स और लाइब्रेरी की गिनती। मीटिंग ऑडियो, लिप्यंतरण, नोट या स्क्रीनशॉट कभी नहीं।";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot मीटिंग ऐप अपने-आप पहचानता है, या अभी रिकॉर्डिंग शुरू करें।";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot मीटिंग ऐप अपने-आप पहचानता है, या अभी रिकॉर्डिंग शुरू करें। आप यहाँ कोई ऑडियो या वीडियो फ़ाइल भी छोड़ सकते हैं।";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot मुफ़्त है और इसे एक व्यक्ति ने बनाया है। GitHub पर एक स्टार से दूसरों को इसे खोजने में मदद मिलती है।";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot इस मॉडल को प्रबंधित करता है और इसके बदलने पर स्थानीय इंडेक्स फिर बनाता है।";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot इसे कभी नहीं भेजता। खुद भेजने के लिए इसे अपने मेल या चैट ऐप में कॉपी करें।";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "OpenAI के साथ संगत सर्वर";
 "Opening Session…" = "सत्र खुल रहा है…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "सेटिंग्स का सही पैनल खोलता है और LokalBot ऐप की खींचने योग्य पंक्ति दिखाता है।";
+"or record a meeting — it appears in the list automatically." = "या मीटिंग रिकॉर्ड करें — वह सूची में अपने-आप दिखाई देती है।";
 "Original Wording" = "मूल शब्द";
 "Original wording or YYYY-MM-DD" = "मूल शब्द या YYYY-MM-DD";
 "Other activity" = "अन्य गतिविधि";
@@ -737,7 +746,6 @@
 "Reconnect" = "फिर कनेक्ट करें";
 "Record Capture Trace (60 s)" = "कैप्चर ट्रेस रिकॉर्ड करें (60 s)";
 "Record Now" = "अभी रिकॉर्ड करें";
-"Record a meeting — it appears in the list automatically." = "मीटिंग रिकॉर्ड करें — वह सूची में अपने-आप दिखाई देती है।";
 "Record automatically" = "अपने-आप रिकॉर्ड करें";
 "Record now" = "अभी रिकॉर्ड करें";
 "Record your side of each call." = "हर कॉल में अपनी तरफ़ की आवाज़ रिकॉर्ड करें।";

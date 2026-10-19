@@ -315,6 +315,8 @@
 "Downloading…" = "Inapakua…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Upakuaji hutumia mtoa modeli. Hautumi maudhui ya mikutano yako. Modeli zilizopakuliwa tayari hubaki.";
 "Draft Follow-up…" = "Andika Rasimu ya Ufuatiliaji…";
+"Drop an audio or video file to import it." = "Dondosha faili ya sauti au video ili kuiingiza.";
+"Drop to import" = "Dondosha ili kuingiza";
 "Draft follow-up for latest meeting" = "Andika rasimu ya ufuatiliaji wa mkutano wa karibuni";
 "Due" = "Inahitajika";
 "Due date as agreed" = "Tarehe ya mwisho iliyokubaliwa";
@@ -428,6 +430,12 @@
 "Image space recovered" = "Nafasi iliyorejeshwa kutoka picha";
 "Image zoom" = "Ukuzaji wa picha";
 "Images to remove" = "Picha za kuondoa";
+"Import" = "Ingiza";
+"Import a recording" = "Ingiza rekodi";
+"Import an audio or video recording" = "Ingiza rekodi ya sauti au video";
+"Import Recording" = "Ingiza Rekodi";
+"Import Recording…" = "Ingiza Rekodi…";
+"Importing %@…" = "Inaingiza %@…";
 "In progress" = "Inaendelea";
 "Include saved moments" = "Jumuisha matukio yaliyohifadhiwa";
 "Include the transcript" = "Jumuisha nakala ya sauti";
@@ -491,7 +499,7 @@
 "Local journal" = "Shajara ya ndani";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Modeli za ndani huchakata kwenye Mac hii. Kila seva ya mbali inahitaji idhini yake kabla muktadha haujaondoka kwenye Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Rekodi, ripoti za hali, mipangilio bila siri na hesabu za maktaba. Kamwe si sauti za mikutano, nakala za sauti, maelezo au picha za skrini.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot hutambua programu za mikutano kiotomatiki, au unaweza kuanza kurekodi sasa.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot hutambua programu za mikutano kiotomatiki, au unaweza kuanza kurekodi sasa. Unaweza pia kudondosha faili ya sauti au video hapa.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot ni bure na imetengenezwa na mtu mmoja. Nyota kwenye GitHub huwasaidia wengine kuipata.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot husimamia modeli hii na kujenga upya faharasa ya ndani inapobadilika.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot haitumi hili kamwe. Nakili kwenye programu yako ya barua pepe au gumzo ili ulitume mwenyewe.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "Seva inayooana na OpenAI";
 "Opening Session…" = "Inafungua Kipindi…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "Hufungua paneli sahihi ya Mipangilio na kuonyesha safu ya programu ya LokalBot unayoweza kuburuta.";
+"or record a meeting — it appears in the list automatically." = "au rekodi mkutano — utaonekana kwenye orodha kiotomatiki.";
 "Original Wording" = "Maneno ya Asili";
 "Original wording or YYYY-MM-DD" = "Maneno ya asili au YYYY-MM-DD";
 "Other activity" = "Shughuli nyingine";
@@ -737,7 +746,6 @@
 "Reconnect" = "Unganisha tena";
 "Record Capture Trace (60 s)" = "Rekodi Ufuatiliaji wa Kunasa (sekunde 60)";
 "Record Now" = "Rekodi Sasa";
-"Record a meeting — it appears in the list automatically." = "Rekodi mkutano — utaonekana kwenye orodha kiotomatiki.";
 "Record automatically" = "Rekodi kiotomatiki";
 "Record now" = "Rekodi sasa";
 "Record your side of each call." = "Rekodi upande wako wa kila simu.";

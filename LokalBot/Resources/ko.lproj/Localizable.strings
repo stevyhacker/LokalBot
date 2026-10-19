@@ -315,6 +315,8 @@
 "Downloading…" = "다운로드 중…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "다운로드는 모델 제공자를 통해 이루어집니다. 회의 내용은 전송하지 않습니다. 이미 다운로드한 모델은 유지됩니다.";
 "Draft Follow-up…" = "후속 메시지 초안 작성…";
+"Drop an audio or video file to import it." = "오디오 또는 비디오 파일을 놓으면 가져옵니다.";
+"Drop to import" = "놓아서 가져오기";
 "Draft follow-up for latest meeting" = "최근 회의의 후속 메시지 초안 작성";
 "Due" = "마감";
 "Due date as agreed" = "합의된 마감일";
@@ -428,6 +430,12 @@
 "Image space recovered" = "확보한 이미지 저장 공간";
 "Image zoom" = "이미지 확대/축소";
 "Images to remove" = "삭제할 이미지";
+"Import" = "가져오기";
+"Import a recording" = "녹음 가져오기";
+"Import an audio or video recording" = "오디오 또는 비디오 녹음 가져오기";
+"Import Recording" = "녹음 가져오기";
+"Import Recording…" = "녹음 가져오기…";
+"Importing %@…" = "%@ 가져오는 중…";
 "In progress" = "진행 중";
 "Include saved moments" = "저장한 순간 포함";
 "Include the transcript" = "전사문 포함";
@@ -491,7 +499,7 @@
 "Local journal" = "로컬 일지";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "로컬 모델은 이 Mac에서 처리합니다. 맥락 정보가 Mac 외부로 전송되려면 각 원격 서버에 대한 개별 승인이 필요합니다.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "로그, 상태 보고서, 비밀 정보가 제외된 설정, 라이브러리 항목 수를 포함합니다. 회의 오디오, 전사문, 노트, 스크린샷은 절대 포함하지 않습니다.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot이 회의 앱을 자동으로 감지합니다. 지금 직접 녹음을 시작할 수도 있습니다.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot이 회의 앱을 자동으로 감지합니다. 지금 직접 녹음을 시작할 수도 있습니다. 여기에 오디오 또는 비디오 파일을 놓아도 됩니다.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot은 무료이며 한 사람이 만들고 있습니다. GitHub 스타는 다른 사람들이 LokalBot을 찾는 데 도움이 됩니다.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot이 이 모델을 관리하며, 모델이 변경되면 로컬 색인을 다시 구성합니다.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot은 이 내용을 절대 전송하지 않습니다. 직접 보내려면 메일이나 채팅 앱에 복사하세요.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "OpenAI 호환 서버";
 "Opening Session…" = "세션 여는 중…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "해당 설정 패널을 열고 드래그할 수 있는 LokalBot 앱 항목을 표시합니다.";
+"or record a meeting — it appears in the list automatically." = "또는 회의를 녹음하면 목록에 자동으로 표시됩니다.";
 "Original Wording" = "원래 표현";
 "Original wording or YYYY-MM-DD" = "원래 표현 또는 YYYY-MM-DD";
 "Other activity" = "기타 활동";
@@ -737,7 +746,6 @@
 "Reconnect" = "다시 연결";
 "Record Capture Trace (60 s)" = "캡처 추적 기록(60초)";
 "Record Now" = "지금 녹음";
-"Record a meeting — it appears in the list automatically." = "회의를 녹음하면 목록에 자동으로 표시됩니다.";
 "Record automatically" = "자동으로 녹음";
 "Record now" = "지금 녹음";
 "Record your side of each call." = "각 통화에서 내 쪽 소리를 녹음합니다.";

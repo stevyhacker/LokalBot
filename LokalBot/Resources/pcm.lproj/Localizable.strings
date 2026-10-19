@@ -315,6 +315,8 @@
 "Downloading…" = "Dey download…";
 "Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept." = "Downloads dey come from model provider. Dem no dey send your meeting content. Models wey don download go remain.";
 "Draft Follow-up…" = "Draft Follow-up…";
+"Drop an audio or video file to import it." = "Drop audio or video file make e import am.";
+"Drop to import" = "Drop am make e import";
 "Draft follow-up for latest meeting" = "Draft follow-up for the latest meeting";
 "Due" = "Due";
 "Due date as agreed" = "Due date wey una agree";
@@ -428,6 +430,12 @@
 "Image space recovered" = "Space wey images free up";
 "Image zoom" = "Image zoom";
 "Images to remove" = "Images wey you wan remove";
+"Import" = "Import";
+"Import a recording" = "Import recording";
+"Import an audio or video recording" = "Import audio or video recording";
+"Import Recording" = "Import Recording";
+"Import Recording…" = "Import Recording…";
+"Importing %@…" = "E dey import %@…";
 "In progress" = "E dey go on";
 "Include saved moments" = "Include moments wey save";
 "Include the transcript" = "Include the transcript";
@@ -491,7 +499,7 @@
 "Local journal" = "Journal for this Mac";
 "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac." = "Local models dey process for this Mac. Each remote server need im own approval before context fit leave the Mac.";
 "Logs, health reports, settings without secrets, and library counts. Never meeting audio, transcripts, notes, or screenshots." = "Logs, health reports, settings wey no contain secrets, and library counts. No meeting audio, transcripts, notes, or screenshots, ever.";
-"LokalBot detects meeting apps automatically, or start a recording now." = "LokalBot dey detect meeting apps by itself, or you fit start recording now.";
+"LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here." = "LokalBot dey detect meeting apps by itself, or you fit start recording now. You fit also drop audio or video file for here.";
 "LokalBot is free and built by one person. A GitHub star helps others find it." = "LokalBot na free and na one person build am. GitHub star dey help other people find am.";
 "LokalBot manages this model and rebuilds the local index when it changes." = "LokalBot dey manage this model and build the local index again when e change.";
 "LokalBot never sends this. Copy it into your mail or chat app to send it yourself." = "LokalBot no ever send this one. Copy am enter your mail or chat app make you send am yourself.";
@@ -658,6 +666,7 @@
 "OpenAI-compatible server" = "Server wey follow OpenAI format";
 "Opening Session…" = "Dey Open Session…";
 "Opens the correct Settings pane and shows a draggable LokalBot app row." = "E dey open the right Settings panel and show LokalBot app row wey you fit drag.";
+"or record a meeting — it appears in the list automatically." = "or record meeting — e go show for list by itself.";
 "Original Wording" = "Original Words";
 "Original wording or YYYY-MM-DD" = "Original words or YYYY-MM-DD";
 "Other activity" = "Other activity";
@@ -737,7 +746,6 @@
 "Reconnect" = "Connect again";
 "Record Capture Trace (60 s)" = "Record Capture Trace (60 seconds)";
 "Record Now" = "Record Now";
-"Record a meeting — it appears in the list automatically." = "Record meeting — e go show for list by itself.";
 "Record automatically" = "Record by itself";
 "Record now" = "Record now";
 "Record your side of each call." = "Record your own side for each call.";
