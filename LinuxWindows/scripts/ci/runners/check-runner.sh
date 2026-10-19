@@ -15,11 +15,15 @@ fi
 for dir in config data cache state; do
   mkdir -p "$RUNNER_TEMP/xdg/$dir"
 done
+# The app's single-instance socket lives in XDG_RUNTIME_DIR, which must be
+# private to its owner.
+mkdir -p -m 700 "$RUNNER_TEMP/xdg/runtime"
 {
   echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"
   echo "XDG_DATA_HOME=$RUNNER_TEMP/xdg/data"
   echo "XDG_CACHE_HOME=$RUNNER_TEMP/xdg/cache"
   echo "XDG_STATE_HOME=$RUNNER_TEMP/xdg/state"
+  echo "XDG_RUNTIME_DIR=$RUNNER_TEMP/xdg/runtime"
 } >>"$GITHUB_ENV"
 
 target=${CARGO_TARGET_DIR:?the runner sets CARGO_TARGET_DIR in its .env}
