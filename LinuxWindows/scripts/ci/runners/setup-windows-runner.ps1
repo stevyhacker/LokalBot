@@ -115,14 +115,12 @@ try {
 $service = Get-Service "actions.runner.*.$Name"
 
 Write-Host '== job environment'
-# Jobs keep a warm target directory instead of restoring a cache. Git's bin
-# comes before System32 so `bash` is Git Bash rather than WSL; Git's usr\bin
-# stays off PATH because its link.exe would shadow the MSVC linker.
+# Jobs keep a warm target directory instead of restoring a cache. The Windows
+# runner reads .env (not .path, which only the Linux service script reads),
+# so PATH goes there. Git's bin comes before System32 so `bash` is Git Bash
+# rather than WSL; Git's usr\bin stays off PATH because its link.exe would
+# shadow the MSVC linker.
 $rootSlash = $Root.Replace('\', '/')
-$jobEnv = @(
-  "CARGO_HOME=$Root\cargo",
-  "RUSTUP_HOME=$Root\rustup",
-  "CARGO_TARGET_DIR=$rootSlash/t")
 $jobPath = @(
   "$Root\cargo\bin",
   'C:\Program Files\PowerShell\7',
@@ -135,8 +133,12 @@ $jobPath = @(
   "$env:SystemRoot\System32\Wbem",
   "$env:SystemRoot\System32\WindowsPowerShell\v1.0",
   "$env:SystemRoot\System32\OpenSSH") -join ';'
+$jobEnv = @(
+  "CARGO_HOME=$Root\cargo",
+  "RUSTUP_HOME=$Root\rustup",
+  "CARGO_TARGET_DIR=$rootSlash/t",
+  "PATH=$jobPath")
 Set-Content -LiteralPath (Join-Path $runnerDir '.env') -Value $jobEnv -Encoding ascii
-Set-Content -LiteralPath (Join-Path $runnerDir '.path') -Value $jobPath -Encoding ascii -NoNewline
 
 Write-Host '== Tailscale block'
 # With an unrestricted service SID in the service's token (inherited by the
