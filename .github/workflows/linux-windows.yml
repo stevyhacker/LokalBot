@@ -234,11 +234,17 @@ jobs:
           key: windows-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
           restore-keys: windows-cargo-
 
+      - name: Clear old build timings
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $target "cargo-timings")
+
       - name: Test
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked --timings
 
       - name: Build release
-        run: cargo build --release --locked -p lokalbot-app -p lokalbot-cli
+        run: cargo build --release --locked -p lokalbot-app -p lokalbot-cli --timings
 
       - name: Package
         shell: bash
@@ -254,9 +260,9 @@ jobs:
         shell: pwsh
         run: |
           cargo build --release --locked -p lokalbot-app -p lokalbot-engine -p lokalbot-platform `
-            --example autocomplete_probe --example screen_capture --example screen_text
+            --example autocomplete_probe --example screen_capture --example screen_text --timings
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cargo build --release --locked -p lokalbot-update --bin lokalbot-update-feed
+          cargo build --release --locked -p lokalbot-update --bin lokalbot-update-feed --timings
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
           $bin = Join-Path $env:RUNNER_TEMP "desktop-bin"
@@ -282,6 +288,22 @@ jobs:
         with:
           name: windows-screenshots
           path: ${{ runner.temp }}/screenshots
+          retention-days: 14
+
+      - name: Collect build timings
+        if: always()
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          $out = Join-Path $env:RUNNER_TEMP "cargo-timings"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Get-ChildItem (Join-Path $target "cargo-timings") -Filter "cargo-timing-*.html" -ErrorAction SilentlyContinue | Copy-Item -Destination $out
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: windows-cargo-timings
+          path: ${{ runner.temp }}/cargo-timings
           retention-days: 14
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
