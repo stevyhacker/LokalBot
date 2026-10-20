@@ -7,14 +7,16 @@ cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 # Self-hosted CI runners keep a warm target directory elsewhere.
 TARGET=${CARGO_TARGET_DIR:-target}
-cargo build --release --locked -p lokalbot-app -p lokalbot-cli
+# CI may package another profile's build; release archives use release.
+PROFILE=${BUILD_PROFILE:-release}
+cargo build --profile "$PROFILE" --locked -p lokalbot-app -p lokalbot-cli
 mkdir -p dist
 case "$(uname -s)" in
   Linux)
     NAME="LokalBot-$VERSION-linux-x86_64"
     STAGE="dist/$NAME"
     rm -rf "$STAGE" && mkdir -p "$STAGE/icons"
-    cp "$TARGET/release/lokalbot" "$TARGET/release/lokalbot-cli" "$STAGE/"
+    cp "$TARGET/$PROFILE/lokalbot" "$TARGET/$PROFILE/lokalbot-cli" "$STAGE/"
     cp packaging/linux/com.lokalbot.LokalBot.desktop packaging/linux/install.sh "$STAGE/"
     cp packaging/icons/lokalbot-*.png "$STAGE/icons/"
     cp ../LICENSE "$STAGE/LICENSE" 2>/dev/null || true
@@ -30,7 +32,7 @@ case "$(uname -s)" in
     NAME="LokalBot-$VERSION-windows-x86_64"
     STAGE="dist/$NAME"
     rm -rf "$STAGE" && mkdir -p "$STAGE"
-    cp "$TARGET/release/lokalbot.exe" "$TARGET/release/lokalbot-cli.exe" "$STAGE/"
+    cp "$TARGET/$PROFILE/lokalbot.exe" "$TARGET/$PROFILE/lokalbot-cli.exe" "$STAGE/"
     cp ../LICENSE "$STAGE/LICENSE.txt" 2>/dev/null || true
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     mkdir -p "$STAGE/LICENSES" && cp ../LICENSES/AGPL-3.0.txt "$STAGE/LICENSES/"

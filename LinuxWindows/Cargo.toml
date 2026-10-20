@@ -58,3 +58,11 @@ opt-level = 1
 lto = "thin"
 codegen-units = 4
 strip = true
+
+# The Windows CI job on a self-hosted runner: release optimizations without
+# cross-crate LTO, so each crate's machine code is generated once and shared
+# by every program the job links. Release archives keep [profile.release].
+[profile.ci]
+inherits = "release"
+lto = false
+codegen-units = 16

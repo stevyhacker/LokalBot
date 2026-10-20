@@ -202,6 +202,8 @@ jobs:
     needs: [pick, source]
     runs-on: ${{ fromJSON(needs.pick.outputs.windows) }}
     timeout-minutes: 75
+    env:
+      BUILD_PROFILE: ${{ needs.pick.outputs.windows-self-hosted == 'true' && 'ci' || 'release' }}
     steps:
       # The repository's macOS fixtures use names with ':' that Git for Windows
       # refuses to check out, so this job gets the Rust workspace as an archive.
@@ -275,7 +277,7 @@ jobs:
       - name: Build release
         shell: pwsh
         run: |
-          cargo build --release --locked --timings `
+          cargo build --profile $env:BUILD_PROFILE --locked --timings `
             -p lokalbot-app -p lokalbot-cli -p lokalbot-update -p lokalbot-engine -p lokalbot-platform `
             --bin lokalbot --bin lokalbot-cli --bin lokalbot-update-feed `
             --example autocomplete_probe --example screen_capture --example screen_text
@@ -284,7 +286,7 @@ jobs:
         shell: pwsh
         run: |
           $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
-          Get-FileHash (Join-Path $target "release\lokalbot.exe"), (Join-Path $target "release\lokalbot-cli.exe") |
+          Get-FileHash (Join-Path $target "$env:BUILD_PROFILE\lokalbot.exe"), (Join-Path $target "$env:BUILD_PROFILE\lokalbot-cli.exe") |
             ForEach-Object { "$($_.Hash) $($_.Path)" } | Tee-Object (Join-Path $env:RUNNER_TEMP "release-hashes.txt")
 
       - name: Package
@@ -295,7 +297,7 @@ jobs:
         shell: pwsh
         run: |
           $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
-          $after = Get-FileHash (Join-Path $target "release\lokalbot.exe"), (Join-Path $target "release\lokalbot-cli.exe") |
+          $after = Get-FileHash (Join-Path $target "$env:BUILD_PROFILE\lokalbot.exe"), (Join-Path $target "$env:BUILD_PROFILE\lokalbot-cli.exe") |
             ForEach-Object { "$($_.Hash) $($_.Path)" }
           $before = Get-Content (Join-Path $env:RUNNER_TEMP "release-hashes.txt")
           $after
@@ -314,12 +316,12 @@ jobs:
           $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
           $bin = Join-Path $env:RUNNER_TEMP "desktop-bin"
           New-Item -ItemType Directory -Force (Join-Path $bin "examples"), (Join-Path $bin "update") | Out-Null
-          Copy-Item (Join-Path $target "release\lokalbot.exe") $bin
+          Copy-Item (Join-Path $target "$env:BUILD_PROFILE\lokalbot.exe") $bin
           foreach ($name in "autocomplete_probe", "screen_capture", "screen_text") {
-            Copy-Item (Join-Path $target "release\examples\$name.exe") (Join-Path $bin "examples")
+            Copy-Item (Join-Path $target "$env:BUILD_PROFILE\examples\$name.exe") (Join-Path $bin "examples")
           }
           # The update check installs the packaged archive and updates it.
-          Copy-Item (Join-Path $target "release\lokalbot-update-feed.exe") (Join-Path $bin "update")
+          Copy-Item (Join-Path $target "$env:BUILD_PROFILE\lokalbot-update-feed.exe") (Join-Path $bin "update")
           Copy-Item dist\LokalBot-*-windows-x86_64.zip (Join-Path $bin "update")
 
       # The desktop checks take over the screen, so on a self-hosted runner
