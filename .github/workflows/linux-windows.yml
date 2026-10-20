@@ -203,13 +203,6 @@ jobs:
     runs-on: ${{ fromJSON(needs.pick.outputs.windows) }}
     timeout-minutes: 75
     steps:
-      # A self-hosted runner keeps its workspace between jobs.
-      - name: Clear the last job's files
-        if: runner.environment == 'self-hosted'
-        working-directory: ${{ github.workspace }}
-        shell: pwsh
-        run: Get-ChildItem -Force | Remove-Item -Recurse -Force
-
       # The repository's macOS fixtures use names with ':' that Git for Windows
       # refuses to check out, so this job gets the Rust workspace as an archive.
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
@@ -218,9 +211,24 @@ jobs:
           path: ${{ runner.temp }}
 
       - name: Extract sources
+        if: runner.environment == 'github-hosted'
         working-directory: ${{ github.workspace }}
         shell: pwsh
         run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+
+      # A self-hosted runner keeps its workspace and warm target between jobs.
+      # Only files that differ from the last job's get a new time, so cargo
+      # rebuilds just the crates that changed.
+      - name: Update sources
+        if: runner.environment == 'self-hosted'
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP "src"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $src
+          New-Item -ItemType Directory $src | Out-Null
+          tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $src
+          & (Join-Path $src "LinuxWindows\scripts\ci\runners\sync-sources.ps1") -From $src -To $env:GITHUB_WORKSPACE
 
       - name: Check the self-hosted runner
         if: runner.environment == 'self-hosted'
@@ -260,12 +268,39 @@ jobs:
       - name: Test
         run: cargo test --workspace --locked --timings
 
+      # One build for the release programs and the desktop-check programs, so
+      # the examples compile and link while lokalbot-app does. Examples bring
+      # in dev-dependencies, which add no feature to anything the release
+      # programs use: package.sh's own release build finds nothing to do.
       - name: Build release
-        run: cargo build --release --locked -p lokalbot-app -p lokalbot-cli --timings
+        shell: pwsh
+        run: |
+          cargo build --release --locked --timings `
+            -p lokalbot-app -p lokalbot-cli -p lokalbot-update -p lokalbot-engine -p lokalbot-platform `
+            --bin lokalbot --bin lokalbot-cli --bin lokalbot-update-feed `
+            --example autocomplete_probe --example screen_capture --example screen_text
+
+      - name: Record the release programs (experiment)
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          Get-FileHash (Join-Path $target "release\lokalbot.exe"), (Join-Path $target "release\lokalbot-cli.exe") |
+            ForEach-Object { "$($_.Hash) $($_.Path)" } | Tee-Object (Join-Path $env:RUNNER_TEMP "release-hashes.txt")
 
       - name: Package
         shell: bash
         run: scripts/package.sh
+
+      - name: Compare the release programs (experiment)
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          $after = Get-FileHash (Join-Path $target "release\lokalbot.exe"), (Join-Path $target "release\lokalbot-cli.exe") |
+            ForEach-Object { "$($_.Hash) $($_.Path)" }
+          $before = Get-Content (Join-Path $env:RUNNER_TEMP "release-hashes.txt")
+          $after
+          if (Compare-Object $before $after) { throw "package.sh rebuilt the release programs" }
+          Write-Host "package.sh's release build left both programs as the combined build made them."
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
@@ -273,14 +308,9 @@ jobs:
           path: LinuxWindows/dist/*.zip*
           retention-days: 14
 
-      - name: Build the desktop-check programs
+      - name: Collect the desktop-check programs
         shell: pwsh
         run: |
-          cargo build --release --locked -p lokalbot-app -p lokalbot-engine -p lokalbot-platform `
-            --example autocomplete_probe --example screen_capture --example screen_text --timings
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cargo build --release --locked -p lokalbot-update --bin lokalbot-update-feed --timings
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
           $bin = Join-Path $env:RUNNER_TEMP "desktop-bin"
           New-Item -ItemType Directory -Force (Join-Path $bin "examples"), (Join-Path $bin "update") | Out-Null
