@@ -271,13 +271,14 @@ jobs:
         run: cargo test --workspace --locked --timings
 
       # One build for the release programs and the desktop-check programs, so
-      # the examples compile and link while lokalbot-app does. Examples bring
-      # in dev-dependencies, which add no feature to anything the release
-      # programs use: package.sh's own release build finds nothing to do.
+      # they share every library and link side by side. lokalbot-update gets
+      # the features lokalbot-app asks for, not its defaults, and the examples'
+      # dev-dependencies add none, so package.sh's own release build finds
+      # nothing to do.
       - name: Build release
         shell: pwsh
         run: |
-          cargo build --profile $env:BUILD_PROFILE --locked --timings `
+          cargo build --profile $env:BUILD_PROFILE --locked --timings --no-default-features --features lokalbot-update/client `
             -p lokalbot-app -p lokalbot-cli -p lokalbot-update -p lokalbot-engine -p lokalbot-platform `
             --bin lokalbot --bin lokalbot-cli --bin lokalbot-update-feed `
             --example autocomplete_probe --example screen_capture --example screen_text
