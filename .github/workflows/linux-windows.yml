@@ -22,6 +22,10 @@ on:
       - "LokalBot/Models/AppLanguage.swift"
       - ".github/workflows/linux-windows.yml"
   workflow_dispatch:
+    inputs:
+      touch:
+        description: "Timing experiment: give these sources a fresh mtime on the PC (all, app or none)"
+        default: all
 
 concurrency:
   group: linux-windows-${{ github.ref }}
@@ -222,6 +226,19 @@ jobs:
         if: runner.environment == 'self-hosted'
         shell: pwsh
         run: ./scripts/ci/runners/check-runner.ps1
+
+      # Timing experiment only: makes cargo rebuild these workspace crates,
+      # as a new commit does, whatever the dispatched commit's time.
+      - name: Refresh source times (experiment)
+        if: runner.environment == 'self-hosted' && inputs.touch != '' && inputs.touch != 'none'
+        shell: pwsh
+        env:
+          TOUCH: ${{ inputs.touch }}
+        run: |
+          $dir = if ($env:TOUCH -eq 'app') { 'crates\lokalbot-app' } else { 'crates' }
+          $now = Get-Date
+          Get-ChildItem -Recurse -File $dir | ForEach-Object { $_.LastWriteTime = $now }
+          Write-Host "Touched $dir"
 
       - name: Cache cargo
         if: runner.environment == 'github-hosted'
