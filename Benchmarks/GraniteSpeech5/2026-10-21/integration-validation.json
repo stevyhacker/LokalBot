@@ -1,0 +1,129 @@
+{
+  "recordedAtUtc": "2026-10-21T17:51:14.163107+00:00",
+  "baseCommit": "0f86a74491ca9c24e64174aefc65f9bd4ac16228",
+  "sourceState": "uncommitted task changes over a pre-existing mixed working tree",
+  "sourceHashes": {
+    "LokalBot/Engines/GraniteSpeechEngine.swift": "748ea718f0b84e347a11d9912922d1fef992221e8a56dfe9c112b2c9d78f3e03",
+    "LokalBot/Engines/TranscriptionEngine.swift": "532ad3261b7882e892dc146769e9eae2cbdf69207456ad50b712ebe16595fc80",
+    "LokalBot/Engines/TranscriptionModelStore.swift": "5f0ff72abcd290882a5cab64d587ca1af38681024bc113fff7e8871c625e117c",
+    "LokalBot/Models/GraniteSpeechModelConfiguration.swift": "fc28127b53e9a188f25e21a0a3ee92135dfb90d820801cde21228ef97e12751e",
+    "LokalBot/Models/ModelSettingsState.swift": "58f7f4729256df30b2047d17d6d10fafe866c461613beb4e815d9ad53ba74855",
+    "LokalBot/CLISupport/SettingRegistry.swift": "766219234282224e361c7c686ed7570374eb4c0d76b019bdf0cc3eae8a6ed4b6",
+    "LokalBot/Models/TranscriptionVocabulary.swift": "c066227c63ac64d7f86cd6e95a2e3527eb61874f9fdfbe32d3e9729d4073033c",
+    "LokalBotTests/GraniteSpeechModelConfigurationTests.swift": "c6939ba98a72e6d324b6cf0be785f656bfcc91830bd63ff58caba769efc06a2b",
+    "LokalBotTests/TranscriptionModelStoreTests.swift": "b7e9d8e78e55f11b94fc208c1d0b67be9cbce71088822bd3bf29978ec2dd00b3",
+    "LokalBotTests/ModelRoleNamingTests.swift": "5357d605f5a775e68d3fb7a181c8d9da04edbf9cbe9a03725d2553d6d8bf217b"
+  },
+  "modelRepository": "ibm-granite/granite-speech-5.0-2b-GGUF",
+  "modelRevision": "df3833f5e22e7d51c3f5dfedd4726260f7ec7cb5",
+  "modelArtifacts": [
+    {
+      "path": "granite-speech-5.0-2b-Q8_0.gguf",
+      "sizeBytes": 1956155104,
+      "sha256": "4972786fa455b71ee1f020e8ae1b147ca6cd2b1e5b0818048011d7f1da242790"
+    },
+    {
+      "path": "mmproj-model-f16.gguf",
+      "sizeBytes": 1159354752,
+      "sha256": "c0d108e1a3cf345b22c411245fc2762319f1c6b6e56bb15bdffe748c9342ca7d"
+    }
+  ],
+  "unitTests": {
+    "result": "Passed",
+    "totalTestCount": 80,
+    "passedTests": 80,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "runtimeWarnings": []
+  },
+  "unitTestGroups": [
+    "GraniteSpeechModelConfigurationTests",
+    "TranscriptionModelStoreTests",
+    "ModelCatalogTests",
+    "SettingRegistryTests",
+    "ModelSettingsTests",
+    "ModelStorageCopyTests"
+  ],
+  "nativeSmoke": {
+    "result": "passed",
+    "scope": "native server smoke; not an accuracy or latency benchmark",
+    "modelRevision": "df3833f5e22e7d51c3f5dfedd4726260f7ec7cb5",
+    "runtimePin": "llama.cpp v0.7.0 / b11669",
+    "runtimeSha256": "e01425df8974ccb771efc3fd77df9f00e7987de65e17dd51dadfa6b67fa40ce2",
+    "audio": "LokalBot/Resources/ModelChecks/speech.wav",
+    "audioSha256": "3cdc969bbb33433c38b7356c61686c8ecfa817a0b86e8f27a2e2cdde4e604fd5",
+    "preparationSeconds": 5.671740375000809,
+    "calls": [
+      {
+        "vocabulary": null,
+        "text": "During this meeting we need to review the release schedule and confirm who will handle the remaining work. The audio preview should continue displaying what the speaker says even when the sentence is longer.",
+        "elapsedSeconds": 0.5964265830007207
+      },
+      {
+        "vocabulary": "LokalBot, release schedule",
+        "text": "During this meeting we need to review the release schedule and confirm who will handle the remaining work the audio preview should continue displaying what the speaker says even when the sentence is long",
+        "elapsedSeconds": 0.30989812499683467
+      }
+    ]
+  },
+  "swiftLint": {
+    "result": "passed",
+    "command": "swiftlint lint --strict --quiet --no-cache"
+  },
+  "hostedUiTests": "not run; relevant changes are not committed/pushed",
+  "localUiTestsRun": false,
+  "installed": false,
+  "released": false,
+  "newRegressionTests": [
+    {
+      "name": "testSpeech5IsPinnedQ8WithItsOwnProjectorAndCache()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    },
+    {
+      "name": "testSpeech5SelectionPersistsIndependentlyOfCustomGranite41()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    },
+    {
+      "name": "testSpeech5VocabularyIsBoundedAndEmptyHintsKeepTheDefaultTask()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    },
+    {
+      "name": "testSpeech5VocabularyRequestKeepsTaskLanguageAndAuthentication()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    },
+    {
+      "name": "testDeletingGranite41LeavesSpeech5Downloaded()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    },
+    {
+      "name": "testSpeech5RequiresItsOwnCompleteCacheAndDeletionPreserves41()",
+      "result": "Passed",
+      "nodeType": "Test Case"
+    }
+  ],
+  "pullRequestPreparation": {
+    "baseCommit": "39763a50e5c9d976bc2caa357540f07f6612f31b",
+    "scope": "Feature-only patch applied on current master; earlier local test evidence above predates this base.",
+    "hostedChecks": "Pending PR submission; use the PR check runs for exact-revision status.",
+    "sourceHashes": {
+      "LokalBot/Engines/GraniteSpeechEngine.swift": "748ea718f0b84e347a11d9912922d1fef992221e8a56dfe9c112b2c9d78f3e03",
+      "LokalBot/Engines/TranscriptionEngine.swift": "532ad3261b7882e892dc146769e9eae2cbdf69207456ad50b712ebe16595fc80",
+      "LokalBot/Engines/TranscriptionModelStore.swift": "5f0ff72abcd290882a5cab64d587ca1af38681024bc113fff7e8871c625e117c",
+      "LokalBot/Models/GraniteSpeechModelConfiguration.swift": "fc28127b53e9a188f25e21a0a3ee92135dfb90d820801cde21228ef97e12751e",
+      "LokalBot/Models/ModelSettingsState.swift": "58f7f4729256df30b2047d17d6d10fafe866c461613beb4e815d9ad53ba74855",
+      "LokalBot/CLISupport/SettingRegistry.swift": "ee01eb1e55f82b3a87d2ddc31aa29ccc41362cfb310c372f1a5ff029d82995d2",
+      "LokalBot/Models/TranscriptionVocabulary.swift": "c066227c63ac64d7f86cd6e95a2e3527eb61874f9fdfbe32d3e9729d4073033c",
+      "LokalBotTests/GraniteSpeechModelConfigurationTests.swift": "c6939ba98a72e6d324b6cf0be785f656bfcc91830bd63ff58caba769efc06a2b",
+      "LokalBotTests/TranscriptionModelStoreTests.swift": "b7e9d8e78e55f11b94fc208c1d0b67be9cbce71088822bd3bf29978ec2dd00b3",
+      "LokalBotTests/ModelRoleNamingTests.swift": "5357d605f5a775e68d3fb7a181c8d9da04edbf9cbe9a03725d2553d6d8bf217b"
+    },
+    "hostedUiTest": "ModelsSettingsUITests/testGraniteSpeech5IsOfferedAndCancelKeepsTheCurrentModel",
+    "hostedUiTestSourceSha256": "7c8e0e507cec18984e82cb835aa5b9d1b1a62841271ab775479da079dd7de791",
+    "swiftLint": "passed in isolated checkout: swiftlint lint --strict --quiet --no-cache"
+  }
+}

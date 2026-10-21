@@ -46,6 +46,20 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
             sizeBytes: 1_159_354_752,
             sha256: "0d3615076cbe1d35c3f60c43a60a4047b3e2eeee1b2c233580be60186faab5c5"))
 
+    /// IBM recommends Q8 for 5.0 accuracy; keep the existing 4.1 selection
+    /// and its Q4 cache unchanged.
+    static let speech5 = GraniteSpeechModelConfiguration(
+        uncheckedRepository: "ibm-granite/granite-speech-5.0-2b-GGUF",
+        revision: "df3833f5e22e7d51c3f5dfedd4726260f7ec7cb5",
+        model: Artifact(
+            path: "granite-speech-5.0-2b-Q8_0.gguf",
+            sizeBytes: 1_956_155_104,
+            sha256: "4972786fa455b71ee1f020e8ae1b147ca6cd2b1e5b0818048011d7f1da242790"),
+        projector: Artifact(
+            path: "mmproj-model-f16.gguf",
+            sizeBytes: 1_159_354_752,
+            sha256: "c0d108e1a3cf345b22c411245fc2762319f1c6b6e56bb15bdffe748c9342ca7d"))
+
     let repository: String
     let revision: String
     let model: Artifact
@@ -98,6 +112,8 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
 
     var isDefault: Bool { self == Self.defaultModel }
 
+    var supportsVocabularyPrompt: Bool { repository == Self.speech5.repository }
+
     var quantization: String {
         let leaf = (model.path as NSString).lastPathComponent
         let stem = (leaf as NSString).deletingPathExtension
@@ -105,8 +121,12 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
     }
 
     var displayName: String {
-        let modelName = repository == Self.defaultModel.repository
-            ? "Granite Speech 4.1 2B" : repository
+        let modelName: String
+        switch repository {
+        case Self.defaultModel.repository: modelName = "Granite Speech 4.1 2B"
+        case Self.speech5.repository: modelName = "Granite Speech 5.0 2B"
+        default: modelName = repository
+        }
         return "\(modelName) · \(quantization)"
     }
 

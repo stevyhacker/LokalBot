@@ -19,6 +19,35 @@ final class ModelsSettingsUITests: XCTestCase {
         fixture?.cleanUp()
     }
 
+    func testGraniteSpeech5IsOfferedAndCancelKeepsTheCurrentModel() throws {
+        try launch(approved: true)
+        let change = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+        let currentDetails = app.staticTexts["2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"]
+        XCTAssertTrue(currentDetails.waitForExistence(timeout: 5), "Qwen remains the initial selection")
+
+        let search = app.textFields["models.picker.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.click()
+        search.typeText("Granite Speech 5.0 2B")
+        let choice = app.descendants(matching: .any).matching(
+            NSPredicate(format: "label BEGINSWITH %@", "Granite Speech 5.0 2B")).firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        choice.click()
+        let details = app.staticTexts["3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"]
+        XCTAssertTrue(details.waitForExistence(timeout: 5))
+        let apply = app.buttons["models.picker.apply"]
+        XCTAssertTrue(apply.isEnabled)
+        XCTAssertEqual(apply.label, "Download and use", "The optional model must be downloaded before activation")
+        capture("models-granite-speech5-option")
+
+        app.buttons["models.picker.cancel"].click()
+        change.click()
+        XCTAssertTrue(currentDetails.waitForExistence(timeout: 5), "Cancel must preserve the selected model")
+        app.buttons["models.picker.cancel"].click()
+    }
+
     func testFunASRFolderClearCanBeCancelledAndPersistsWhenSaved() throws {
         let model = fixture.root.appendingPathComponent("user-model", isDirectory: true)
         try FileManager.default.createDirectory(at: model, withIntermediateDirectories: true)
