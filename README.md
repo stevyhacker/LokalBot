@@ -26,10 +26,7 @@ Free and open source. No account. Nothing joins your calls.
 
 [Features](#features) · [Windows & Linux](#windows-and-linux) · [Compare](#how-it-compares) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Agents & CLI](#for-developers--agents) · [Website](https://www.lokalbot.com/)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" />
-  <img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot in use, in three looping scenes. One search for &quot;pricing&quot; finds a pricing sheet and a competitor's pricing page seen on screen, and the meeting where the price was set. Clicking the decision &quot;$15 per seat, billed annually&quot; in that meeting's summary opens the transcript at the line where it was said. Asking &quot;What did we decide on pricing?&quot; returns the answer with its sources from the meeting." />
-</picture>
+<img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot in use, in five looping scenes from one meeting where launch pricing was set. One search for &quot;pricing&quot; finds a pricing sheet and a competitor's pricing page seen on screen, and the meeting. Clicking the decision &quot;$15 per seat, billed annually&quot; opens the transcript at the line where it was said. Asking &quot;What did we decide on pricing?&quot; returns the answer with its sources. In TextEdit, after typing &quot;the Team plan will be $15&quot;, autocomplete suggests &quot;per seat, billed annually.&quot; from the meeting, and Tab accepts it. Then a spoken request, &quot;Write a one-line team update with the launch pricing&quot;, is dictated into TextEdit as an update with the free plan and the $15 price." />
 
 <sub>The real app, recorded with fictional demo data.</sub>
 

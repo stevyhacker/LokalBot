@@ -15,6 +15,10 @@
     {"take": "recall", "from": 0.4, "to": 5.4, "caption": "One search for what you saw and heard",
      "crop": [0, 30, 660, 482], "radius": 21, "scale": 1.1},
     {"take": "meeting", "from": 0.3, "to": 4.8, "caption": "Every decision links to where it was said"},
-    {"take": "ask", "from": 0.3, "to": 4.8, "caption": "Ask questions, get answers with sources"}
+    {"take": "ask", "from": 0.3, "to": 4.8, "caption": "Ask questions, get answers with sources"},
+    {"take": "autocomplete", "from": 7.6, "to": 13.4, "hold": 1.0,
+     "caption": "Autocomplete finishes it from the meeting", "crop": [0, 34, 660, 120], "scale": 1.35},
+    {"take": "dictation", "from": 3.0, "to": 9.0, "hold": 1.6,
+     "caption": "Say what you need; dictation writes it", "crop": [0, 34, 590, 120], "scale": 1.5}
   ]
 }

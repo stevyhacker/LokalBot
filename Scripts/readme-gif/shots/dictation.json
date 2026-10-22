@@ -1,9 +1,9 @@
 {
   "bundle": "com.apple.TextEdit",
   "title": "team-update.txt",
-  "size": [900, 420],
+  "size": [600, 190],
   "settle": 1.2,
-  "park": [1040, 560],
+  "park": [720, 300],
   "pre": 0.6,
   "post": 2.0,
   "also": ["me.dotenv.LokalBot"],

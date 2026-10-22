@@ -3,7 +3,7 @@
 #
 #   Scripts/readme-gif/build.sh <takes-dir> [out-dir]   (default out-dir: Assets/hero)
 #
-# Writes lokalbot-demo-light.gif and lokalbot-demo-dark.gif. Needs ffmpeg and gifsicle.
+# Writes lokalbot-demo-<appearance>.gif for each of APPEARANCES (default "light dark"). Needs ffmpeg and gifsicle.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 TAKES=$(cd "$1" && pwd)

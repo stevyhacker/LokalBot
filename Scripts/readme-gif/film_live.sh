@@ -68,7 +68,7 @@ document() {  # document <take>: the file each take types into
 opening() {  # opening <take>: the first line, a blank line, and the space the typed line is styled from
   case $1 in
     autocomplete) printf 'Hi all,\n\n ' ;;
-    dictation) printf 'Team update\n\n ' ;;
+    dictation) printf ' ' ;;
   esac
 }
 
