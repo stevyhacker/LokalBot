@@ -120,10 +120,18 @@ struct ModelTranscriptionOptionsSheet: View {
             VStack(alignment: .leading, spacing: 18) {
                 Text(app.settings.transcriptionModelDisplayName).font(.scaled(.body).weight(.semibold))
                 Picker("Language", selection: $app.settings.transcriptionLanguage) {
-                    ForEach(TranscriptionLanguage.allCases) { Text(LocalizedStringKey($0.displayName)).tag($0) }
+                    ForEach(TranscriptionLanguage.allCases) { language in
+                        Text(LocalizedStringKey(language.displayName)).tag(language)
+                            .disabled(!app.settings.transcriptionModel.isLanguageSelectable(language))
+                    }
                 }
-                .disabled(app.settings.transcriptionModel == .graniteTurbo)
+                .accessibilityIdentifier("settings.transcriptionLanguage")
                 .settingTarget("settings.transcriptionLanguage", selected: app.focusedSettingID)
+                if let message = app.settings.transcriptionModel.languageSelectionMessage(for: app.settings.transcriptionLanguage) {
+                    Text(LocalizedStringKey(message))
+                        .font(.scaled(.callout)).foregroundStyle(.secondary)
+                        .accessibilityIdentifier("models.transcription.languageSupport")
+                }
                 if app.settings.transcriptionModel == .graniteTurbo {
                     Text("This model supports English only and does not use vocabulary prompts.")
                         .font(.scaled(.callout)).foregroundStyle(.secondary)

@@ -249,6 +249,18 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertTrue(text.hasSuffix("\r\n--B--\r\n"))
     }
 
+    func testUkrainianHintReachesOpenAIAndWhisperCppRequests() throws {
+        let language = try XCTUnwrap(TranscriptionLanguage(rawValue: "uk"))
+        for base in ["http://127.0.0.1:8080/v1", "http://127.0.0.1:8080/inference"] {
+            let request = RemoteTranscriptionEngine.makeRequest(
+                endpoint: try configuration(base).validatedEndpoint(), apiKey: "", model: "large-v3-turbo", boundary: "B",
+                wav: OnnxTranscriptionEngine.wavData([0]), language: language.code, prompt: nil)
+            let text = String(decoding: try XCTUnwrap(request.httpBody), as: UTF8.self)
+            XCTAssertTrue(text.contains("name=\"language\"\r\n\r\nuk\r\n"), base)
+            XCTAssertFalse(text.contains("\r\nru\r\n"), base)
+        }
+    }
+
     func testSingleModelServerGetsNoModelKeyOrLanguage() throws {
         let request = RemoteTranscriptionEngine.makeRequest(
             endpoint: try endpoint(), apiKey: "", model: "", boundary: "B",

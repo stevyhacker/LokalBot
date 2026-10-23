@@ -13,6 +13,7 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
     case pt
     case ptPT = "pt-PT"
     case ru
+    case uk
     case ar
     case hi
     case it
@@ -34,7 +35,7 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
     /// auto detection reads it as Croatian (Benchmarks/QwenSpanLength).
     static let transcriptionSupported: [LanguageCode] = [
         .en, .de, .es, .fr, .it, .nl, .pt, .pl, .sv, .da, .no, .tr,
-        .ru, .sr, .zh, .yue, .ja, .ko, .ar, .hi, .th, .vi,
+        .ru, .uk, .sr, .zh, .yue, .ja, .ko, .ar, .hi, .th, .vi,
     ]
 
     static let summaryPresets: [LanguageCode] = [
@@ -56,6 +57,7 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
         case .pt: return "Portuguese (Brazil)"
         case .ptPT: return "Portuguese (Portugal)"
         case .ru: return "Russian"
+        case .uk: return "Ukrainian"
         case .ar: return "Arabic"
         case .hi: return "Hindi"
         case .it: return "Italian"
