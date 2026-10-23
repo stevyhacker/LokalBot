@@ -122,7 +122,7 @@ struct ModelTranscriptionOptionsSheet: View {
                 Picker("Language", selection: $app.settings.transcriptionLanguage) {
                     ForEach(TranscriptionLanguage.allCases) { language in
                         Text(LocalizedStringKey(language.displayName)).tag(language)
-                            .disabled(!app.settings.transcriptionModel.isLanguageSelectable(language))
+                            .selectionDisabled(!app.settings.transcriptionModel.isLanguageSelectable(language))
                     }
                 }
                 .accessibilityIdentifier("settings.transcriptionLanguage")
