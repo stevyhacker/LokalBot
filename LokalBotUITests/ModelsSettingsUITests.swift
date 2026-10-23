@@ -41,7 +41,9 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertEqual(picker.value as? String, "Ukrainian", "Changing model must not reset the saved language")
         let explanation = app.staticTexts["models.transcription.languageSupport"]
         XCTAssertTrue(explanation.waitForExistence(timeout: 5))
-        XCTAssertTrue(explanation.label.contains("does not support Ukrainian"))
+        // macOS exposes SwiftUI static text through value on some SDKs.
+        let explanationText = explanation.label + " " + (explanation.value as? String ?? "")
+        XCTAssertTrue(explanationText.contains("does not support Ukrainian"), explanationText)
         capture("models-ukrainian-unsupported")
         picker.click()
         let ukrainian = app.menuItems["Ukrainian"]
