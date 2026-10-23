@@ -44,6 +44,10 @@ marker into the real library.
 
 Use `Video/lokalbot-readme-30s/filming/` as the harness:
 
+The shared `filming-host.patch` in that folder was refreshed for current
+master in this change; the previous hunk predated the reduce-motion environment
+value and no longer applied.
+
 ```sh
 # in a throwaway source copy, with the filming patch applied
 LOKALBOT_STORAGE_ROOT="$lib" LOKALBOT_FILM_HIDE_SIDEBAR=1 \

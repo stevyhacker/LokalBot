@@ -21,6 +21,9 @@ the app takes run through the UI Test Host and must execute on an authorized
 macOS runner, and the terminal take needs a live agent session. The plan is
 reproducible end to end; a draft PR is the checkpoint before the shoot.
 
+The shared filming patch under `Video/lokalbot-readme-30s/filming/` now applies
+to current master again, so the harness builds without a manual hunk fix.
+
 The finished file belongs at `Assets/videos/lokalbot-agent-proof.mp4`, with a
 matching poster and `.vtt`. Generated media stays out of git until the cut is
 approved.

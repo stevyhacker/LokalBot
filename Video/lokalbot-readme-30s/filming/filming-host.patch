@@ -1,8 +1,8 @@
 diff --git a/LokalBot/AppLifecycle.swift b/LokalBot/AppLifecycle.swift
-index d88402e..8434d45 100644
+index 6717609..b5c809a 100644
 --- a/LokalBot/AppLifecycle.swift
 +++ b/LokalBot/AppLifecycle.swift
-@@ -68,6 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
+@@ -71,6 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
  #endif
              openUITestWindow(app: app)
              forceActivateForUITests()
@@ -12,7 +12,7 @@ index d88402e..8434d45 100644
              return
          }
          // Menu-bar-only *start* is gated on HOW we launched. Only a login
-@@ -499,6 +502,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
+@@ -586,6 +589,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
  final class MeetingFindWindow: NSWindow {
      var meetingFindAction: (() -> Bool)?
  
@@ -26,20 +26,7 @@ index d88402e..8434d45 100644
  #if LOKALBOT_UI_TEST_HOST
      override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
          // Self-captures rasterize the native frame view, including portions
-diff --git a/LokalBot/Views/MainWindowView.swift b/LokalBot/Views/MainWindowView.swift
-index e2df815..b016636 100644
---- a/LokalBot/Views/MainWindowView.swift
-+++ b/LokalBot/Views/MainWindowView.swift
-@@ -8,7 +8,7 @@ struct MainWindowView: View {
-     @Environment(\.openWindow) private var openWindow
-     @Environment(\.colorScheme) private var colorScheme
-     /// Native sidebar toggle and restored visibility share the same binding.
--    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
-+    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = ProcessInfo.processInfo.environment["LOKALBOT_FILM_HIDE_SIDEBAR"] == nil
-     @State private var pendingDelete: Set<Meeting.ID>?
-     /// Shared by Timeline's chronology and bounded context panel.
-     @StateObject private var capture = CaptureModel()
-diff --git a/film-src/LokalBot/Support/FilmDirector.swift b/LokalBot/Support/FilmDirector.swift
+diff --git a/LokalBot/Support/FilmDirector.swift b/LokalBot/Support/FilmDirector.swift
 new file mode 100644
 index 0000000..16d0a65
 --- /dev/null
@@ -384,3 +371,16 @@ index 0000000..16d0a65
 +    }
 +}
 +#endif
+diff --git a/LokalBot/Views/MainWindowView.swift b/LokalBot/Views/MainWindowView.swift
+index 95a34a9..7cbefd7 100644
+--- a/LokalBot/Views/MainWindowView.swift
++++ b/LokalBot/Views/MainWindowView.swift
+@@ -9,7 +9,7 @@ struct MainWindowView: View {
+     @Environment(\.colorScheme) private var colorScheme
+     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+     /// Native sidebar toggle and restored visibility share the same binding.
+-    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
++    @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = ProcessInfo.processInfo.environment["LOKALBOT_FILM_HIDE_SIDEBAR"] == nil
+     @State private var pendingDelete: Set<Meeting.ID>?
+     /// Shared by Timeline's chronology and bounded context panel.
+     @StateObject private var capture = CaptureModel()
