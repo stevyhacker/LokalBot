@@ -7,6 +7,19 @@ music: none
 
 # Storyboard
 
+## Look
+
+- Deep gradient stage (`#070b11` to `#0e1622`) with a teal top-left and
+  indigo bottom-right glow, fine noise, and a soft shadow under the card.
+- Footage sits in a 1680×945 rounded card (30 px radius, 1 px light border)
+  with 120 px side margins. The app content is the hero; no browser chrome.
+- A 23 px caption pill floats under each card: "Design review · 23 Oct 2026",
+  "one search · the exact line", "read-only MCP · citations",
+  "00:38 · the line it came from", "same library · ready to use".
+- Title beats run 3 s with a 4% slow push and a teal rule; scenes fade for
+  0.25 s in and out. The close holds for 9 s.
+- Narration is OpenAI `cedar` at 1.05×.
+
 | # | Time (s) | Picture | Source |
 | - | --- | --- | --- |
 | 1 | 0.0–3.0 | Hook card: "Your agent can read the code." | type |
