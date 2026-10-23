@@ -99,5 +99,5 @@ terminal history, secrets, or real project paths.
 - The timestamp-click take did not navigate in the filming host; the cut uses
   the transcript search for the cited 00:38 line instead. Re-test the click on
   the next shoot.
-- The rough cut uses OpenAI TTS (`onyx`, 1.1×). Eleven v4 is the project
+- The rough cut uses OpenAI TTS (`cedar`, 1.05×). Eleven v4 is the project
   voice but its key is over quota; re-check before publishing.

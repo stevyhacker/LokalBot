@@ -19,7 +19,7 @@ agent need my meetings?*
 Script and storyboard are ready for review. A 52-second rough cut was recorded
 on 23 October 2026 at the operator's request and lives in `renders/` (ignored
 by git): the real UI Test Host takes at 1.5×, a real agent session recorded
-with `asciinema`, and an OpenAI TTS (`onyx`) narration. Generated media is
+with `asciinema`, and an OpenAI TTS (`cedar`) narration. Generated media is
 not committed.
 
 The shared filming patch under `Video/lokalbot-readme-30s/filming/` now applies
