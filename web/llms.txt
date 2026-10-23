@@ -1,6 +1,6 @@
 # LokalBot
 
-> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service.
+> The work memory your AI agent can't get from your repo. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and lets Claude Code, Codex, and any MCP client ask what was decided — with citations back to the exact transcript line. Processing runs locally by default, with no account, analytics, or hosted AI service.
 
 Key facts:
 

@@ -4,10 +4,10 @@
 
 # LokalBot
 
-**Your personal context engine.**
+**The work memory your AI agent can't get from your repo.**
 
-Private meeting notes, workday recall, dictation, and autocomplete—with AI that runs on your computer.<br />
-Your AI agents can search it too, from Claude Code, Codex, or any MCP client.<br />
+LokalBot records your meetings without a bot and keeps the transcripts, decisions, and reasons on your Mac.<br />
+Claude Code, Codex, and any MCP client can ask what was decided, why, and what was deferred — with a citation back to the exact line.<br />
 Free and open source. No account. Nothing joins your calls.
 
 [![Download LokalBot for macOS](https://img.shields.io/badge/%E2%80%82Download%20for%20macOS%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
@@ -226,7 +226,13 @@ On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Par
 
 ## For developers & agents
 
-The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default. Enable meeting-library access in **Settings → Privacy & Data**, then install the CLI from **Settings → Advanced → Agent CLI**.
+The app bundles **`lokalbot-cli`**, a read-only interface to your meeting library and a stdio **Model Context Protocol (MCP)** server. Access is off by default.
+
+1. Install the app: `brew install --cask stevyhacker/tap/lokalbot`.
+2. In LokalBot, enable **Settings → Privacy & Data → Allow external agents to read your meeting library**.
+3. Connect the agent: `claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp`.
+
+Ask it what was decided in a meeting. It gets the decision, the reasoning, and a citation back to the transcript line rather than a guess.
 
 <div align="center"><img src="Assets/cli-demo.svg" alt="Animated terminal session: lokalbot-cli lists meetings as a table, searches transcripts for redis and returns JSON, then prints the latest meeting summary" width="720" /></div>
 
@@ -238,14 +244,10 @@ lokalbot-cli mcp
 
 Without a PATH installation, use `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli` on Mac. On Windows and Linux, **Settings → Advanced → Agent CLI** installs it too; see [Coding agents](LinuxWindows/README.md#coding-agents) for where it goes and how to add it to your PATH. There the CLI has the read-only commands and every MCP tool; `ask`, `reply`, and the setup and configuration commands are Mac only.
 
-Connect Claude Code with one command, or install the [Claude Code plugin](Distribution/claude-plugin/README.md):
-
-```bash
-# macOS
-claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp
-# Windows and Linux, with lokalbot-cli on your PATH
-claude mcp add lokalbot -- lokalbot-cli mcp
-```
+On Windows and Linux, with `lokalbot-cli` on your PATH, the same one-liner is
+`claude mcp add lokalbot -- lokalbot-cli mcp`. Other MCP clients can launch the
+same binary. The [Claude Code plugin](Distribution/claude-plugin/README.md)
+packages the recall command for Claude Code.
 
 Screen-memory MCP tools require separate permission scoped to today, the last seven days, or all retained history. They return text and metadata, not decrypted screenshots. External clients may send results to their own model providers.
 

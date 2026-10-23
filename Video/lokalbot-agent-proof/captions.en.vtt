@@ -1,0 +1,31 @@
+WEBVTT
+
+00:00.000 --> 00:04.000
+Your agent can read the code.
+
+00:04.000 --> 00:08.000
+It can't read the meeting.
+
+00:08.000 --> 00:17.000
+This decision lives in a transcript, not a repo.
+Redis, for pub-sub. Cluster mode, deferred.
+
+00:17.000 --> 00:24.000
+LokalBot keeps that meeting on your Mac,
+and gives your agent a way in.
+
+00:24.000 --> 00:32.000
+Ask why Redis, and whether the cache
+should start in cluster mode.
+
+00:32.000 --> 00:42.000
+It searches the meeting, then answers
+with the line it came from.
+One click, and you're at 00:38.
+
+00:42.000 --> 00:50.000
+Then it drafts the eviction note
+with those decisions already in it.
+
+00:50.000 --> 01:00.000
+Local. Cited. No account. LokalBot.
