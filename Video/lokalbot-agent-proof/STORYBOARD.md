@@ -93,7 +93,11 @@ terminal history, secrets, or real project paths.
 
 ## Open items
 
-- App takes require an authorized macOS runner; the local UI-automation rule
-  still applies.
-- The terminal take needs a live agent session. This branch does not ship a
-  recording, only the reproducible plan.
+- The app takes and the terminal run were recorded on 23 October 2026 on the
+  operator's Mac at their explicit request, overriding the runner default for
+  this preview.
+- The timestamp-click take did not navigate in the filming host; the cut uses
+  the transcript search for the cited 00:38 line instead. Re-test the click on
+  the next shoot.
+- The rough cut uses macOS `say` (Daniel) for timing. Replace it with the
+  Eleven v4 voice before publishing.

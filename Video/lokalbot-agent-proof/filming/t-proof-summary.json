@@ -1,0 +1,1 @@
+{"take":"t-proof-summary","start_delay":4,"settle":0.8,"tail":0.8,"actions":[{"wait":1.2},{"move":[700,430],"after":0.6},{"wait":2.6}]}
