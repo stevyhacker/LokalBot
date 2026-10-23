@@ -33,7 +33,7 @@ music: none
 | 9 | 29.6–33.9 | Citation close-up, 00:38 | transcript still |
 | 10 | 33.9–42.6 | Terminal Q2, three decisions | `q2` |
 | 11 | 42.6–46.5 | Meeting-list detail, 18 meetings | summary still |
-| 12 | 46.5–50.4 | Three chips | type on stage |
+| 12 | 46.5–50.4 | Three.js memory field: 18 cards, core, beam; "Read-only. Cited." | `agent-proof-motion` 5.4–9.6 s |
 | 13 | 50.4–60.0 | End card | type + icon |
 
 No fabricated UI or model output. Cursor and click ripples are editorial

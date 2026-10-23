@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>LokalBot — memory field</title>
+<style>
+  html,body{margin:0;height:100%;background:#070b11;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;color:#f6f8f9}
+  #stage{position:fixed;inset:0}
+  canvas{display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 40%,rgba(0,0,0,.55) 100%)}
+  .copy{position:fixed;left:96px;bottom:96px;width:920px;box-sizing:border-box;padding:36px 140px 36px 0;background:linear-gradient(90deg,rgba(7,11,17,.94) 0%,rgba(7,11,17,.72) 58%,transparent 100%)}
+  .eyebrow{font-size:15px;letter-spacing:.22em;text-transform:uppercase;color:#8fa3b6;margin-bottom:18px}
+  .line{font-size:60px;line-height:1.04;letter-spacing:-.02em;font-weight:600}
+  .line em{font-style:normal;color:#2dd4bf}
+  .sub{margin-top:16px;font-size:22px;color:#9fb0c0}
+  .act{position:absolute;left:0;bottom:0;opacity:0}
+  .chips{display:flex;gap:12px;margin-top:26px}
+  .chip{white-space:nowrap;border:1px solid rgba(255,255,255,.14);background:rgba(14,20,28,.72);border-radius:999px;padding:10px 18px;font-size:15px;color:#c9d5df}
+</style>
+<script src="./node_modules/gsap/dist/gsap.min.js"></script>
+<script type="importmap">
+{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div class="vignette"></div>
+<div class="copy">
+  <div class="act" id="act1">
+    <div class="eyebrow">The local library</div>
+    <div class="line">Eighteen meetings.<br><em>One memory.</em></div>
+    <div class="sub">Every decision, kept on this Mac.</div>
+  </div>
+  <div class="act" id="act2">
+    <div class="eyebrow">Agent access</div>
+    <div class="line">Read-only.<br><em>Cited.</em></div>
+    <div class="chips"><div class="chip">MCP</div><div class="chip">no account</div><div class="chip">local by default</div></div>
+  </div>
+  <div class="act" id="act3">
+    <div class="eyebrow">LokalBot</div>
+    <div class="line">Your agent can<br>read the meeting.</div>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+const W = 1920, H = 1080;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x070b11);
+scene.fog = new THREE.FogExp2(0x070b11, 0.028);
+
+const camera = new THREE.PerspectiveCamera(34, W / H, 0.1, 120);
+camera.position.set(0, 4.2, 24);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(1);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+document.getElementById('stage').appendChild(renderer.domElement);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(W, H), 0.62, 0.7, 0.62);
+composer.addPass(bloom);
+
+// soft stage glow
+const glowGeo = new THREE.PlaneGeometry(70, 70);
+const glowMat = new THREE.MeshBasicMaterial({ color: 0x0d1722, transparent: true, opacity: 1 });
+const glow = new THREE.Mesh(glowGeo, glowMat);
+glow.position.set(0, 0, -18);
+scene.add(glow);
+
+scene.add(new THREE.AmbientLight(0xbcd7e8, 1.1));
+const key = new THREE.PointLight(0x2dd4bf, 22, 40, 2);
+key.position.set(4, 6, 9);
+scene.add(key);
+const rim = new THREE.PointLight(0x6366f1, 28, 44, 2);
+rim.position.set(-9, -4, -8);
+scene.add(rim);
+
+const titles = ['Design review','Engineering standup','Q3 roadmap','Design system sync','Customer call — Northwind','1:1 with Maya','Sprint planning','Search outage postmortem','iOS hiring debrief','Acme integration kickoff','API deprecation plan','Weekly all-hands','Onboarding workshop','1:1 with Maya','SSO security review','Budget review Q3','Launch retro v0.9','Sales demo — Globex'];
+
+function cardTexture(title){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 300;
+  const d = c.getContext('2d');
+  d.fillStyle = 'rgba(12,18,26,0.92)'; d.fillRect(0,0,512,300);
+  d.strokeStyle = 'rgba(120,220,210,0.35)'; d.lineWidth = 3; d.strokeRect(2,2,508,296);
+  d.fillStyle = '#2dd4bf'; d.fillRect(32,40,8,8);
+  d.fillStyle = '#e8eef3'; d.font = '600 26px -apple-system, Helvetica'; d.fillText(title, 54, 52);
+  d.fillStyle = '#7f93a6'; d.font = '17px SFMono-Regular, Menlo, monospace'; d.fillText('23 OCT 2026  ·  25 MIN', 32, 92);
+  d.strokeStyle = 'rgba(255,255,255,0.08)'; d.beginPath(); d.moveTo(32,116); d.lineTo(480,116); d.stroke();
+  d.fillStyle = 'rgba(180,198,212,0.55)';
+  const lines = [0.82, 0.64, 0.73, 0.48];
+  lines.forEach((w,i)=>{ d.fillRect(32, 142 + i*34, 448*w, 9); });
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  return tex;
+}
+
+const group = new THREE.Group();
+scene.add(group);
+const cards = [];
+const N = 18;
+for (let i=0;i<N;i++){
+  const a = (i/(N-1) - 0.5) * 2.15;
+  const radius = 8.2;
+  const x = Math.sin(a) * radius;
+  const z = Math.cos(a) * radius;
+  const y = Math.sin(i*0.8) * 1.2;
+  const geo = new THREE.PlaneGeometry(2.5, 1.45);
+  const mat = new THREE.MeshBasicMaterial({ map: cardTexture(titles[i % titles.length]), transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  m.lookAt(x*2, y, z*2);
+  m.userData = { baseY: y, phase: i*0.7 };
+  group.add(m);
+  cards.push(m);
+}
+// highlighted card, front and center
+const hero = cards[0];
+hero.position.set(1.4, 0.35, 9.4);
+hero.lookAt(1.4, 0.35, 18);
+hero.scale.setScalar(1.06);
+hero.material.opacity = 1;
+
+// core
+const core = new THREE.Mesh(
+  new THREE.IcosahedronGeometry(1.15, 2),
+  new THREE.MeshBasicMaterial({ color: 0x2dd4bf, wireframe: true, transparent: true, opacity: 0 })
+);
+scene.add(core);
+const coreGlow = new THREE.Mesh(
+  new THREE.SphereGeometry(1.65, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0, blending: THREE.AdditiveBlending })
+);
+scene.add(coreGlow);
+
+// ambient particles
+const pcount = 900;
+const pgeo = new THREE.BufferGeometry();
+const parr = new Float32Array(pcount*3);
+const pseed = new Float32Array(pcount);
+for (let i=0;i<pcount;i++){
+  const r = 3 + Math.random()*12;
+  const th = Math.random()*Math.PI*2;
+  parr[i*3] = Math.cos(th)*r;
+  parr[i*3+1] = (Math.random()-0.5)*9;
+  parr[i*3+2] = Math.sin(th)*r;
+  pseed[i] = Math.random();
+}
+pgeo.setAttribute('position', new THREE.BufferAttribute(parr,3));
+const pmat = new THREE.PointsMaterial({ color: 0x6f8fa8, size: 0.035, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false });
+const points = new THREE.Points(pgeo, pmat);
+scene.add(points);
+
+// beam from hero card to core
+const beamCurve = new THREE.QuadraticBezierCurve3(
+  new THREE.Vector3(1.4, 0.35, 9.2),
+  new THREE.Vector3(0, 3.6, 4.0),
+  new THREE.Vector3(0, 0, 0)
+);
+const tube = new THREE.Mesh(
+  new THREE.TubeGeometry(beamCurve, 64, 0.012, 8, false),
+  new THREE.MeshBasicMaterial({ color: 0x2dd4bf, transparent: true, opacity: 0, blending: THREE.AdditiveBlending })
+);
+scene.add(tube);
+
+// data packets along the beam
+const packets = [];
+for (let i=0;i<26;i++){
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 8), new THREE.MeshBasicMaterial({ color: 0xbffcf1, transparent: true, opacity: 0 }));
+  scene.add(m); packets.push(m);
+}
+
+// timeline for DOM
+const tl = gsap.timeline({ paused: true });
+tl.to('#act1', { opacity: 1, duration: 0.8 }, 0.6)
+  .to('#act1', { opacity: 0, duration: 0.6 }, 4.0)
+  .to('#act2', { opacity: 1, duration: 0.8 }, 4.9)
+  .to('#act2', { opacity: 0, duration: 0.6 }, 8.2)
+  .to('#act3', { opacity: 1, duration: 0.9 }, 9.2);
+
+const clock = { t: 0 };
+function smooth(x){ return x*x*(3-2*x); }
+
+window.renderAt = (t) => {
+  clock.t = t;
+  const p = Math.min(1, t/12);
+
+  // camera move: wide, orbit right, settle
+  const orbit = t < 4 ? 0 : (t-4)/8;
+  const ang = -0.15 + 0.35 * smooth(Math.min(1, orbit));
+  const radius = 26 - 6 * smooth(Math.min(1, t/12));
+  camera.position.set(Math.sin(ang)*radius*0.45, 4.2 - 1.4*smooth(Math.min(1,t/12)), Math.cos(ang)*radius);
+  camera.lookAt(0, -0.1, 0);
+
+  // cards float and fade in
+  cards.forEach((c,i)=>{
+    const appear = smooth(Math.min(1, Math.max(0, (t - i*0.08)/0.9)));
+    c.material.opacity = i===0 ? 1 : 0.72 * appear;
+    c.position.y = c.userData.baseY + Math.sin(t*0.9 + c.userData.phase)*0.06;
+    if (i!==0) c.scale.setScalar(0.94 + 0.06*appear);
+  });
+  hero.position.y = 0.35 + Math.sin(t*1.1)*0.05;
+  hero.material.opacity = 1;
+
+  // core + beam reveal
+  const coreIn = smooth(Math.min(1, Math.max(0, (t-2.2)/1.2)));
+  core.material.opacity = 0.55 * coreIn;
+  coreGlow.material.opacity = 0.06 * coreIn * (0.7 + 0.3*Math.sin(t*2.2));
+  core.rotation.y = t*0.25; core.rotation.x = t*0.12;
+  core.scale.setScalar(1 + 0.04*Math.sin(t*2.0));
+
+  const beamIn = smooth(Math.min(1, Math.max(0, (t-4.6)/0.9)));
+  tube.material.opacity = 0.9 * beamIn;
+  packets.forEach((m,i)=>{
+    const prog = ((t*0.22 + i/26) % 1);
+    const pos = beamCurve.getPoint(prog);
+    m.position.copy(pos);
+    m.material.opacity = beamIn * (0.25 + 0.75*Math.sin(prog*Math.PI));
+  });
+
+  points.rotation.y = t*0.018;
+  points.material.opacity = 0.35 + 0.2*coreIn;
+
+  bloom.strength = 0.5 + 0.35*beamIn;
+  composer.render();
+  tl.seek(t);
+  return true;
+};
+
+window.ready = true;
+</script>
+</body>
+</html>

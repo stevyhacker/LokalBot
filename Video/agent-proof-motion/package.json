@@ -1,0 +1,16 @@
+{
+  "name": "agent-proof-motion",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "dependencies": {
+    "gsap": "^3.13.0",
+    "playwright": "^1.49.1",
+    "three": "^0.180.0"
+  }
+}

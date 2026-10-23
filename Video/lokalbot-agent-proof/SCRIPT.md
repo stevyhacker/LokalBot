@@ -17,7 +17,7 @@ the reading time.
 | 0:30–0:34 | Citation close-up on 00:38 | Design review. 00:38. |
 | 0:34–0:42 | Second prompt; three caching decisions | Then it lists the decisions, ready to use. |
 | 0:42–0:46 | Detail of the meeting list | Eighteen meetings. One local library. |
-| 0:46–0:50 | Three chips: local library / read-only MCP / no account | Read-only. No account. |
+| 0:46–0:50 | Three.js memory field; read-only, cited | Read-only. No account. |
 | 0:50–1:00 | End card: icon, install lines | LocalBot. Install with Homebrew. Connect with one command. |
 
 ## Terminal take — exact content

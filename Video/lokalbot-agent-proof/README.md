@@ -20,8 +20,8 @@ Script and storyboard are ready for review. A 60-second director's cut was
 recorded on 23 October 2026 at the operator's request and lives in `renders/`
 (ignored by git): thirteen shots, real UI Test Host takes at 1.5× in rounded
 cards, a wide-to-close camera move through the meeting, motivated crossfades,
-a real agent session recorded with `asciinema`, and an OpenAI TTS (`cedar`)
-narration. Generated media is not committed.
+a real agent session recorded with `asciinema`, a Three.js memory-field
+insert (`Video/agent-proof-motion/`), and an OpenAI TTS (`cedar`) narration. Generated media is not committed.
 
 The shared filming patch under `Video/lokalbot-readme-30s/filming/` now applies
 to current master again, so the harness builds without a manual hunk fix.
