@@ -1,5 +1,5 @@
 ---
-duration: 60
+duration: 52
 format: 1920x1080
 fps: 30
 music: none
@@ -9,14 +9,14 @@ music: none
 
 | # | Time (s) | Picture | Source |
 | - | --- | --- | --- |
-| 1 | 0.0–4.0 | Code editor, `cache = redis` selected; 4% push-in over four seconds | editor capture |
-| 2 | 4.0–8.0 | Hard cut to the transcript: "I propose Redis for the pub-sub support." Cursor rests on the line | `t-transcript` (00:00 line) |
-| 3 | 8.0–17.0 | Meeting workspace, Design review. The Redis decision and the deferred cluster decision are both visible; slow pan from summary to decisions | `t-meeting` (index 0, summary) |
-| 4 | 17.0–24.0 | Pull back to the full window; badge "read-only MCP · citations" lands bottom-left | same take, hold |
-| 5 | 24.0–32.0 | Terminal at 18 pt, Claude Code prompt; question typed live | terminal take, 0:00–0:08 of the run |
-| 6 | 32.0–42.0 | Tool calls resolve in the transcript pane; answer streams; cursor opens the 00:38 citation | terminal take, 0:08–0:18 |
-| 7 | 42.0–50.0 | Second prompt; the eviction note appears with three bullets | terminal take, 0:18–0:26 |
-| 8 | 50.0–60.0 | End card: icon, install lines, "Local. Cited. No account." | type + `assets/lokalbot-icon.svg` |
+| 1 | 0.0–3.0 | Hook card: "Your agent can read the code." | type |
+| 2 | 3.0–6.0 | Hook card: "It can't read the meeting." | type |
+| 3 | 6.0–10.0 | Transcript search for "failover"; the 00:38 line highlights | `t-transcript` at 1.5× |
+| 4 | 10.0–17.0 | Meeting workspace, Design review; Redis and deferred-cluster decisions held | `t-meeting` at 1.5× + 3.4 s hold |
+| 5 | 17.0–25.7 | Terminal: question, tool calls, answer with citations | `q1` at 1.5× + 3.1 s hold |
+| 6 | 25.7–33.9 | Citation close-up; slow push-in on the 00:38 line | still from `t-transcript` |
+| 7 | 33.9–43.1 | Second prompt; three caching decisions | `q2` at 1.5× + 2.9 s hold |
+| 8 | 43.1–52.1 | End card: icon, install lines, "Local. Cited. No account." | type + icon |
 
 No fabricated UI or model output. Cursor and click ripples are editorial
 overlays placed at positions from the recorder's `*.events.json`.
@@ -99,5 +99,5 @@ terminal history, secrets, or real project paths.
 - The timestamp-click take did not navigate in the filming host; the cut uses
   the transcript search for the cited 00:38 line instead. Re-test the click on
   the next shoot.
-- The rough cut uses macOS `say` (Daniel) for timing. Replace it with the
-  Eleven v4 voice before publishing.
+- The rough cut uses OpenAI TTS (`onyx`, 1.1×). Eleven v4 is the project
+  voice but its key is over quota; re-check before publishing.

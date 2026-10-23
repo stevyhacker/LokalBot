@@ -1,18 +1,19 @@
-# Script — 60 seconds
+# Script — 52-second preview
 
 Voice: dry, conversational, one idea per line. No hype. Read at about 145 wpm
-with a beat after each full stop.
+with a beat after each full stop. Screen footage runs at 1.5×; the holds carry
+the reading time.
 
 | Time | Picture | Voiceover |
 | --- | --- | --- |
-| 0:00–0:04 | Code editor, cursor on `cache = redis`; slow push-in | Your agent can read the code. |
-| 0:04–0:08 | Hard cut to the transcript line, "I propose Redis for the pub-sub support." | It can't read the meeting. |
-| 0:08–0:17 | Meeting workspace: the Redis decision and the deferred cluster decision | This decision lives in a transcript, not a repo. Redis, for pub-sub. Cluster mode, deferred. |
-| 0:17–0:24 | LokalBot meeting view pulls back; the read-only MCP badge appears | LokalBot keeps that meeting on your Mac, and gives your agent a way in. |
-| 0:24–0:32 | Terminal: the question is typed into Claude Code | Ask why Redis, and whether the cache should start in cluster mode. |
-| 0:32–0:42 | Tool calls resolve; the answer streams; cursor opens the citation | It searches the meeting, then answers with the line it came from. One click, and you're at 00:38. |
-| 0:42–0:50 | Second prompt; the eviction-policy draft appears | Then it drafts the eviction note with those decisions already in it. |
-| 0:50–1:00 | End card: icon, install lines, "Local. Cited. No account." | Local. Cited. No account. LokalBot. |
+| 0:00–0:03 | Code editor, cursor on `cache = redis`; push-in | Your agent can read the code. |
+| 0:03–0:06 | Hard cut to the transcript line, "I propose Redis for the pub-sub support." | It can't read the meeting. |
+| 0:06–0:10 | Transcript search for "failover"; the 00:38 line highlights | This decision lives in a transcript, not a repo. Redis, for pub-sub. Cluster mode, deferred. |
+| 0:10–0:17 | Meeting workspace: the Redis and deferred-cluster decisions; hold | LokalBot keeps that meeting on your Mac, and gives your agent a way in. |
+| 0:17–0:25 | Terminal: question, tool calls, answer with citations | Ask why Redis, and whether the cache should start in cluster mode. It answers with the line it came from. |
+| 0:25–0:34 | Citation close-up: "Please benchmark failover latency…" | Design review. 00:38. |
+| 0:34–0:43 | Second prompt; the three caching decisions appear | Then it lists the decisions, ready to use. |
+| 0:43–0:52 | End card: icon, install lines, "Local. Cited. No account." | Local. Cited. No account. LokalBot. |
 
 ## Terminal take — exact content
 
