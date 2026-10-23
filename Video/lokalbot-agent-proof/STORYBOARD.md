@@ -1,5 +1,5 @@
 ---
-duration: 52
+duration: 60
 format: 1920x1080
 fps: 30
 music: none
@@ -16,20 +16,25 @@ music: none
 - A 23 px caption pill floats under each card: "Design review · 23 Oct 2026",
   "one search · the exact line", "read-only MCP · citations",
   "00:38 · the line it came from", "same library · ready to use".
-- Title beats run 3 s with a 4% slow push and a teal rule; scenes fade for
-  0.25 s in and out. The close holds for 9 s.
+- Title beats run 3 s with a slow push and a teal rule. Scenes are joined by
+  0.3 s crossfades; the close holds for 9.6 s.
 - Narration is OpenAI `cedar` at 1.05×.
 
 | # | Time (s) | Picture | Source |
 | - | --- | --- | --- |
-| 1 | 0.0–3.0 | Hook card: "Your agent can read the code." | type |
-| 2 | 3.0–6.0 | Hook card: "It can't read the meeting." | type |
-| 3 | 6.0–10.0 | Transcript search for "failover"; the 00:38 line highlights | `t-transcript` at 1.5× |
-| 4 | 10.0–17.0 | Meeting workspace, Design review; Redis and deferred-cluster decisions held | `t-meeting` at 1.5× + 3.4 s hold |
-| 5 | 17.0–25.7 | Terminal: question, tool calls, answer with citations | `q1` at 1.5× + 3.1 s hold |
-| 6 | 25.7–33.9 | Citation close-up; slow push-in on the 00:38 line | still from `t-transcript` |
-| 7 | 33.9–43.1 | Second prompt; three caching decisions | `q2` at 1.5× + 2.9 s hold |
-| 8 | 43.1–52.1 | End card: icon, install lines, "Local. Cited. No account." | type + icon |
+| 1 | 0.0–2.9 | Cold open: "Your agent can read the code." | title card |
+| 2 | 2.9–5.6 | "It can't read the meeting." | title card |
+| 3 | 5.6–8.9 | Transcript search; 00:38 appears | `t-transcript` |
+| 4 | 8.9–11.8 | Push-in; 00:38 boxed | transcript still |
+| 5 | 11.8–15.1 | Design review wide; push | summary still |
+| 6 | 15.1–18.4 | Redis decision boxed | summary still |
+| 7 | 18.4–21.3 | Open question boxed | summary still |
+| 8 | 21.3–29.6 | Terminal Q1, cited answer | `q1` |
+| 9 | 29.6–33.9 | Citation close-up, 00:38 | transcript still |
+| 10 | 33.9–42.6 | Terminal Q2, three decisions | `q2` |
+| 11 | 42.6–46.5 | Meeting-list detail, 18 meetings | summary still |
+| 12 | 46.5–50.4 | Three chips | type on stage |
+| 13 | 50.4–60.0 | End card | type + icon |
 
 No fabricated UI or model output. Cursor and click ripples are editorial
 overlays placed at positions from the recorder's `*.events.json`.

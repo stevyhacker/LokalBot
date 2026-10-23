@@ -16,12 +16,12 @@ agent need my meetings?*
 
 ## Status
 
-Script and storyboard are ready for review. A 52-second rough cut was recorded
-on 23 October 2026 at the operator's request and lives in `renders/` (ignored
-by git): the real UI Test Host takes at 1.5×, framed in rounded cards on a
-gradient stage with caption pills and slow title pushes, a real agent session
-recorded with `asciinema`, and an OpenAI TTS (`cedar`) narration. Generated
-media is not committed.
+Script and storyboard are ready for review. A 60-second director's cut was
+recorded on 23 October 2026 at the operator's request and lives in `renders/`
+(ignored by git): thirteen shots, real UI Test Host takes at 1.5× in rounded
+cards, a wide-to-close camera move through the meeting, motivated crossfades,
+a real agent session recorded with `asciinema`, and an OpenAI TTS (`cedar`)
+narration. Generated media is not committed.
 
 The shared filming patch under `Video/lokalbot-readme-30s/filming/` now applies
 to current master again, so the harness builds without a manual hunk fix.

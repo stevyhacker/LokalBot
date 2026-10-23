@@ -1,4 +1,4 @@
-# Script — 52-second preview
+# Script — 60-second director's cut
 
 Voice: dry, conversational, one idea per line. No hype. Read at about 145 wpm
 with a beat after each full stop. Screen footage runs at 1.5×; the holds carry
@@ -6,14 +6,19 @@ the reading time.
 
 | Time | Picture | Voiceover |
 | --- | --- | --- |
-| 0:00–0:03 | Code editor, cursor on `cache = redis`; push-in | Your agent can read the code. |
-| 0:03–0:06 | Hard cut to the transcript line, "I propose Redis for the pub-sub support." | It can't read the meeting. |
-| 0:06–0:10 | Transcript search for "failover"; the 00:38 line highlights | This decision lives in a transcript, not a repo. Redis, for pub-sub. Cluster mode, deferred. |
-| 0:10–0:17 | Meeting workspace: the Redis and deferred-cluster decisions; hold | LokalBot keeps that meeting on your Mac, and gives your agent a way in. |
-| 0:17–0:25 | Terminal: question, tool calls, answer with citations | Ask why Redis, and whether the cache should start in cluster mode. It answers with the line it came from. |
-| 0:25–0:34 | Citation close-up: "Please benchmark failover latency…" | Design review. 00:38. |
-| 0:34–0:43 | Second prompt; the three caching decisions appear | Then it lists the decisions, ready to use. |
-| 0:43–0:52 | End card: icon, install lines, "Local. Cited. No account." | Local. Cited. No account. LokalBot. |
+| 0:00–0:03 | Cold open on the stage; kinetic title | Your agent can read the code. |
+| 0:03–0:06 | Second title beat; teal accent on "can't" | It can't read the meeting. |
+| 0:06–0:09 | Transcript search for "failover"; the 00:38 line comes up | This decision lives in a transcript, not a repo. |
+| 0:09–0:12 | Push-in on the 00:38 line, boxed | — |
+| 0:12–0:15 | Meeting workspace, Design review; slow push | LocalBot keeps that meeting on your Mac. |
+| 0:15–0:18 | The Redis decision boxed | And gives your agent a way in. |
+| 0:18–0:21 | The open question boxed: "cluster mode?" | Redis, for pub-sub. Cluster mode, deferred. |
+| 0:21–0:30 | Terminal: question, tool calls, cited answer | Ask why Redis, and whether the cache should start in cluster mode. It answers with the line it came from. |
+| 0:30–0:34 | Citation close-up on 00:38 | Design review. 00:38. |
+| 0:34–0:42 | Second prompt; three caching decisions | Then it lists the decisions, ready to use. |
+| 0:42–0:46 | Detail of the meeting list | Eighteen meetings. One local library. |
+| 0:46–0:50 | Three chips: local library / read-only MCP / no account | Read-only. No account. |
+| 0:50–1:00 | End card: icon, install lines | LocalBot. Install with Homebrew. Connect with one command. |
 
 ## Terminal take — exact content
 
