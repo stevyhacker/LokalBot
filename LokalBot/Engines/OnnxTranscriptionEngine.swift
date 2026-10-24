@@ -72,6 +72,8 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
     static let sampleRate = 16_000
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        let choice: TranscriptionModelChoice = model == .senseVoice ? .senseVoice : .gigaamRussian
+        try choice.validateLanguage(language)
         let runtime = try SherpaOnnxRuntime.installedRuntime(executableName: "sherpa-onnx-offline")
         let modelDir = try await preparedModelDir()
         let modelFile = try Self.locateModel(in: modelDir)

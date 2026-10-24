@@ -131,6 +131,8 @@ actor QwenASREngine: TranscriptionEngine {
 
     private func transcribe(audio url: URL, language: String?, prompt: String?,
                             windows: WordAttributionWindows?) async throws -> Transcript {
+        let choice: TranscriptionModelChoice = variant == .accuracy ? .qwenASR17B : .qwenASR06B
+        try choice.validateLanguage(language)
         activeUses += 1
         defer { finishUse() }
         try await prepare()

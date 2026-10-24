@@ -134,7 +134,7 @@ struct ModelPickerSheet: View {
                     ? funASRNanoDirectory : nil,
                 remoteTranscriptionBaseURL: transcription == .remoteServer ? remoteTranscriptionDraft.baseURL : nil,
                 remoteTranscriptionModel: transcription == .remoteServer ? remoteTranscriptionDraft.model : nil,
-                language: transcription == .graniteTurbo ? .en : nil)
+                language: transcription.languageOverrideOnSelection(current: app.settings.transcriptionLanguage))
         case .assistant:
             ModelSelectionPatch(
                 backend: backend,
