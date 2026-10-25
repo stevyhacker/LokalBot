@@ -1,0 +1,42 @@
+﻿{
+    "completedCases":  30,
+    "note":  "Only completed cases are scored. Any in-flight case was interrupted by the user-requested stop, not recorded as a model failure.",
+    "utc":  "2026-10-23T10:59:37.1805127Z",
+    "completedIds":  [
+                         "P40-yes",
+                         "P13-yes",
+                         "P22-yes",
+                         "P11-yes",
+                         "P21-no",
+                         "P16-no",
+                         "P26-no",
+                         "P22-no",
+                         "P47-no",
+                         "P31-no",
+                         "P51-yes",
+                         "P29-no",
+                         "P07-no",
+                         "P18-yes",
+                         "P06-no",
+                         "P49-yes",
+                         "P40-no",
+                         "P55-yes",
+                         "P34-yes",
+                         "P38-yes",
+                         "P05-yes",
+                         "P15-no",
+                         "P42-yes",
+                         "P01-no",
+                         "P50-yes",
+                         "P10-yes",
+                         "P37-no",
+                         "P24-yes",
+                         "P19-yes",
+                         "P52-no"
+                     ],
+    "stoppedProcessIds":  [
+                              9052,
+                              19016
+                          ],
+    "status":  "stopped_at_user_request"
+}

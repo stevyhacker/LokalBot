@@ -1,0 +1,1 @@
+PASS: 30 unique responses in frozen-order prefix; 17 complete semantic decisions; original inputs unchanged; execution/source/weight hashes verified; smoke and numerical checks passed; explicit user-stop receipt; no full-run completion claim.

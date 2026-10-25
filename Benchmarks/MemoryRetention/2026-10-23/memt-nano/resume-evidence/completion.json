@@ -1,0 +1,37 @@
+﻿{
+    "status":  "complete",
+    "observedUtc":  "2026-10-25T08:41:31.3987799Z",
+    "activeBenchmarkProcesses":  0,
+    "responses":  120,
+    "uniqueIds":  120,
+    "rawSha256":  "3c12cad54f1bb820d61c387c61e4e394784d5cf13385542ea61ec04ee2ce6800",
+    "completeMarker":  {
+                           "value":  "1792917653.5176191",
+                           "PSPath":  "C:\\Users\\stevy\\memt-retention-20261023\\results\\COMPLETE",
+                           "PSParentPath":  "C:\\Users\\stevy\\memt-retention-20261023\\results",
+                           "PSChildName":  "COMPLETE",
+                           "PSDrive":  {
+                                           "CurrentLocation":  "Users\\stevy",
+                                           "Name":  "C",
+                                           "Provider":  "Microsoft.PowerShell.Core\\FileSystem",
+                                           "Root":  "C:\\",
+                                           "Description":  "",
+                                           "MaximumSize":  null,
+                                           "Credential":  "System.Management.Automation.PSCredential",
+                                           "DisplayRoot":  null
+                                       },
+                           "PSProvider":  {
+                                              "ImplementingType":  "Microsoft.PowerShell.Commands.FileSystemProvider",
+                                              "HelpFile":  "System.Management.Automation.dll-Help.xml",
+                                              "Name":  "FileSystem",
+                                              "PSSnapIn":  "Microsoft.PowerShell.Core",
+                                              "ModuleName":  "Microsoft.PowerShell.Core",
+                                              "Module":  null,
+                                              "Description":  "",
+                                              "Capabilities":  52,
+                                              "Home":  "C:\\Users\\stevy",
+                                              "Drives":  "C D E"
+                                          },
+                           "ReadCount":  1
+                       }
+}
