@@ -1,0 +1,164 @@
+{
+  "arm": "memt-nano-nf4-offload",
+  "label": "MemT-1.0-Nano",
+  "repo": "MemTensor/MemT-1.0-Nano",
+  "revision": "30fe0b22422c4cc4c87475f98db5c8baa5c1a902",
+  "quantization": "Experimental NF4 experts (block 64, no double quantization); BF16 dense and native-memory weights",
+  "weights": [
+    {
+      "file": "memt_block.safetensors",
+      "bytes": 901870672,
+      "sha256": "7bd0a677391c225767d0a268d3aa23ae3f83c2fb3781b3336e17da6ba8309d10"
+    },
+    {
+      "file": "model-00001-of-00026.safetensors",
+      "bytes": 3835692392,
+      "sha256": "2a7e2d472aa223fb8ac427cbf31f52954a4d80d22c894ef204918e2924b08cfb"
+    },
+    {
+      "file": "model-00002-of-00026.safetensors",
+      "bytes": 552235168,
+      "sha256": "50577d889396c8543c19486db53a51e8be2ad45837122e54993a10b43e306d1e"
+    },
+    {
+      "file": "model-00003-of-00026.safetensors",
+      "bytes": 3357898360,
+      "sha256": "8f7d72178d3f4431864978e5bcfa4c6cb1c204bc00590644d90bb19d6d522eeb"
+    },
+    {
+      "file": "model-00004-of-00026.safetensors",
+      "bytes": 3370808712,
+      "sha256": "12d7db38689ba3c8af74b23ef8523eca41e0cd95db870583d0663a3ee8a6bd60"
+    },
+    {
+      "file": "model-00005-of-00026.safetensors",
+      "bytes": 3357898360,
+      "sha256": "a836047305d0f7a7b50f0815d09d5c03ec03d59ec2c763fcdc4bf7e9936bf902"
+    },
+    {
+      "file": "model-00006-of-00026.safetensors",
+      "bytes": 3959424904,
+      "sha256": "c9080d718e9c5f9e337443225aa417d4c24d00ae7995d76ee3f1cc296b557d15"
+    },
+    {
+      "file": "model-00007-of-00026.safetensors",
+      "bytes": 1096788232,
+      "sha256": "e8c05e23131b1dd45a455ec38cfac7db14667358268623c3938d00cf3e959a68"
+    },
+    {
+      "file": "model-00008-of-00026.safetensors",
+      "bytes": 3946842008,
+      "sha256": "4b6a6d495053089f4a80e7cbc82e848fba44e2c0c60122233d8fdff79fa7b296"
+    },
+    {
+      "file": "model-00009-of-00026.safetensors",
+      "bytes": 1096460848,
+      "sha256": "a31a954bb72d1c714e751bf0aabf2ff533f5a509693ebf7dd22ad6e90be46f67"
+    },
+    {
+      "file": "model-00010-of-00026.safetensors",
+      "bytes": 3946841992,
+      "sha256": "246560e66570fe746653b8443e245dc334c9b8b831ea43d2d9f1b7d98623994e"
+    },
+    {
+      "file": "model-00011-of-00026.safetensors",
+      "bytes": 1096460752,
+      "sha256": "7180392817fe3ecb3a27a1da43b7ff22c1a94806bac49975f9f122c3126df675"
+    },
+    {
+      "file": "model-00012-of-00026.safetensors",
+      "bytes": 3409971080,
+      "sha256": "043fb525f6625c2f2acb75e65a9959ee3fa7b6e3fdd2034b5cfe1859b01d3cfb"
+    },
+    {
+      "file": "model-00013-of-00026.safetensors",
+      "bytes": 1633331664,
+      "sha256": "33a20fb20a21379bf43c84a43105f9c0cc35bd50d740b1c302dcbe4b700f5425"
+    },
+    {
+      "file": "model-00014-of-00026.safetensors",
+      "bytes": 3422553872,
+      "sha256": "be823e33c5cb6120ad3769d081f34a2449dc2358041fca7c29d636c1ba19130d"
+    },
+    {
+      "file": "model-00015-of-00026.safetensors",
+      "bytes": 1633659224,
+      "sha256": "a89d547c6f9d0b535ee5ea2f2478f163089539f3f0dd330cb23d278a19d76123"
+    },
+    {
+      "file": "model-00016-of-00026.safetensors",
+      "bytes": 3946842136,
+      "sha256": "69fc3ae0316482288afdcdd0b9eb7d626703ae26f7567e89aa3fc8d1ffd4ff5b"
+    },
+    {
+      "file": "model-00017-of-00026.safetensors",
+      "bytes": 1096460608,
+      "sha256": "e356e3943cf3852b76bb8992e674f3256013e27d54b78e8250514151cdc29637"
+    },
+    {
+      "file": "model-00018-of-00026.safetensors",
+      "bytes": 3946841992,
+      "sha256": "9e5e63fd1cc7d6848330c1fa363dfcb661bbc2ac87e672d0e28b71c9cb7f3c7f"
+    },
+    {
+      "file": "model-00019-of-00026.safetensors",
+      "bytes": 1096460808,
+      "sha256": "708644ad34f1de727bf484f396944d8ec628645d52c183e9a992e65671685e21"
+    },
+    {
+      "file": "model-00020-of-00026.safetensors",
+      "bytes": 3409971072,
+      "sha256": "ca083a1d1aa64f8e8a785998f543a43374f13436dc85d396eee4e72c7a84e1ae"
+    },
+    {
+      "file": "model-00021-of-00026.safetensors",
+      "bytes": 1633331744,
+      "sha256": "ada4ae48f3d48fe01b4c53f2f82bce25e798a9631fd33959c881156fef2ccbce"
+    },
+    {
+      "file": "model-00022-of-00026.safetensors",
+      "bytes": 3370808752,
+      "sha256": "def207fb42d7db31efb512755557763c23233c6e4d4c433027cb5102a7bce2f7"
+    },
+    {
+      "file": "model-00023-of-00026.safetensors",
+      "bytes": 3357898392,
+      "sha256": "864d52ca7768a36f514069222e8de8626264ae124097ba8fcce5b5da2c6e2ed7"
+    },
+    {
+      "file": "model-00024-of-00026.safetensors",
+      "bytes": 3370808752,
+      "sha256": "391acd27420cdce5935ff18152423c70620d19dac3c39a5ef1a81d369f82d737"
+    },
+    {
+      "file": "model-00025-of-00026.safetensors",
+      "bytes": 2759146312,
+      "sha256": "1860f20d0f301e6c9e8b7797328cb3de244ef1b6d2d682f27a6193650035fc4d"
+    },
+    {
+      "file": "model-00026-of-00026.safetensors",
+      "bytes": 1615875128,
+      "sha256": "9cc7fc893a4f3826496a50df75e99befcd56861be7a677c6b901c97e02dd3b2b"
+    }
+  ],
+  "baseline_inputs": {
+    "frozen.json": "54e89abe34685dcc8617e8a956ef0c9094834ea86fee83db8d2f186e4dfd3eb8",
+    "cases.json": "907997632a42fd2afff07629f265bfd5f623957ea736b4e4ff7a998393e33a08",
+    "prompts.json": "a436434cccd82a793e8053c83a7321de877f049cbb916edae96da634fe64dc38",
+    "schema.json": "8ee95fd53f191f21d5e7368191b94a9687e297a2829dcf7a43a3cf7df4c5aeac",
+    "score.py": "1da13d7068e889d3da757571d91e0c03cc185bf65494afbc1cd2b07ee0a06a6c"
+  },
+  "source_files": {
+    "model-api.json": "2c044f26fc16bfd73b3965a7e1a6e69c858f42e5ebb16204b02fde36a29b99b2",
+    "tokenizer_config.json": "8f284f2f91e30c20d0c39d623c01ba651a65221fde7e00e3b198d71b31ed5a7e",
+    "config.json": "e426893d98fa69b46466b310b8f1c683c81939a01e18e7e2d51ee92782b4efef",
+    "configuration_memt.py": "1fa524a4896924df78627d617e78f44af6e92a5adf20e9fa9df6e5da7eff14dc",
+    "generation_config.json": "4faa1c9f200697e66395089681c75bca4003839c91196658ed4561ced69ec4a3",
+    "README.md": "b72df84b5c281b1b9cd629ec745c275df09a980f838a8eefe74a1e7252d63d05",
+    "chat_template.jinja": "d6cc1c4e994066e9ce723ae10625584cd801f859ff8c85e03d80f012f7ebc2af",
+    "modeling_memt.py": "b7a989249d651c62908383bc9a18ece91700c3ef590305753d700612263a5c8e",
+    "model.safetensors.index.json": "e5e1f48621d891159c9f58a11c9ef145985ed69d78e1b4f18f4f8d58ed82612b"
+  },
+  "prepared_utc": "2026-10-23T09:31:04.660760+00:00",
+  "status": "adapter_preparation_no_benchmark_inference_yet"
+}

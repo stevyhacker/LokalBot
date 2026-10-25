@@ -1,0 +1,27 @@
+﻿{
+    "observedUtc":  "2026-10-25T07:36:47.4202266Z",
+    "cpu":  [
+                {
+                    "Name":  "13th Gen Intel(R) Core(TM) i5-13400F",
+                    "NumberOfCores":  10,
+                    "NumberOfLogicalProcessors":  16
+                }
+            ],
+    "gpu":  [
+                {
+                    "Name":  "Parsec Virtual Display Adapter",
+                    "DriverVersion":  "0.45.0.0"
+                },
+                {
+                    "Name":  "AMD Radeon RX 6600 XT",
+                    "DriverVersion":  "32.0.21045.16010"
+                }
+            ],
+    "os":  {
+               "Caption":  "Microsoft Windows 11 Pro",
+               "Version":  "10.0.26300",
+               "BuildNumber":  "26300",
+               "TotalVisibleMemorySize":  33382632
+           },
+    "note":  "Read-only hardware snapshot during the resumed run."
+}

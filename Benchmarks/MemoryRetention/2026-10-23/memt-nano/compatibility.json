@@ -1,0 +1,63 @@
+{
+  "kind": "compatibility_probe_not_benchmark",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "checks": {
+    "packages": {
+      "ok": true,
+      "result": {
+        "torch": "2.11.0+rocm7.13.0",
+        "transformers": "5.12.1",
+        "accelerate": "1.15.0",
+        "safetensors": "0.8.0",
+        "bitsandbytes": "0.50.2",
+        "lm-format-enforcer": "0.11.3"
+      }
+    },
+    "device": {
+      "ok": true,
+      "result": {
+        "torch": "2.11.0+rocm7.13.0",
+        "hip": "7.13.99004",
+        "available": true,
+        "name": "AMD Radeon RX 6600 XT",
+        "total_memory": 8573157376,
+        "free_memory": 8426061824
+      }
+    },
+    "fp32_matmul": {
+      "ok": true,
+      "result": {
+        "dtype": "float32",
+        "value": 16.0
+      }
+    },
+    "fp16_matmul": {
+      "ok": true,
+      "result": {
+        "dtype": "float16",
+        "value": 16.0
+      }
+    },
+    "bf16_matmul": {
+      "ok": true,
+      "result": {
+        "dtype": "bfloat16",
+        "value": 16.0
+      }
+    },
+    "standard_4bit_memory_estimate": {
+      "ok": true,
+      "result": {
+        "parameters": 35111542048,
+        "packed_expert_parameters_before": 32212254720,
+        "packed_expert_parameters_after_standard_bnb": 32212254720,
+        "unquantized_packed_expert_bf16_bytes": 64424509440,
+        "note": "Meta tensors only. This is a memory estimate, not a checkpoint load or inference result."
+      }
+    },
+    "nf4_gpu_linear": {
+      "ok": false,
+      "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\stevy\\memt-retention-20261023\\compatibility_probe.py\", line 16, in check\n    report[\"checks\"][name] = {\"ok\": True, \"result\": action()}\n                                                    ^^^^^^^^\n  File \"C:\\Users\\stevy\\memt-retention-20261023\\compatibility_probe.py\", line 82, in isolated_quantized_linear\n    raise RuntimeError(json.dumps({\"returncode\": result.returncode,\nRuntimeError: {\"returncode\": 1, \"stdout\": \"\", \"stderr\": \"Could not detect ROCm GPU architecture: [WinError 2] The system cannot find the file specified\\n\\nROCm GPU architecture detection failed despite ROCm being available.\\n                \\nNo prebuilt binary for ROCm 7.13, loading ROCm 7.2 instead. Set BNB_ROCM_VERSION to override.\\nW1023 11:43:01.210000 10264 .venv\\\\Lib\\\\site-packages\\\\torch\\\\utils\\\\flop_counter.py:29] triton not found; flop counting will not work for triton kernels\\nError invalid device function at line 74 in file D:/a/bitsandbytes/bitsandbytes/csrc/ops.cu\\n\"}\n"
+    }
+  }
+}

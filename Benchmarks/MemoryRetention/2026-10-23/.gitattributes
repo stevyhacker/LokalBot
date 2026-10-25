@@ -1,0 +1,4 @@
+# Preserve exact bytes used by evidence hashes, including Windows CRLF files.
+chart-data.csv -text whitespace=trailing-space,space-before-tab,cr-at-eol
+results/*.log -text whitespace=trailing-space,space-before-tab,cr-at-eol
+memt-nano/** -text whitespace=trailing-space,space-before-tab,cr-at-eol
