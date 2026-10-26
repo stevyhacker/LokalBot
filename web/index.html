@@ -16,15 +16,15 @@
   <meta property="og:url" content="https://www.lokalbot.com/" />
   <meta property="og:title" content="LokalBot — Your personal context engine" />
   <meta property="og:description" content="Search your meetings and, if you turn it on, what you saw on screen. Free and open source. Runs locally by default." />
-  <meta property="og:image" content="https://www.lokalbot.com/assets/og-ai-team.png" />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
   <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="675" />
-  <meta property="og:image:alt" content="The little AI team inside LokalBot: the local models that power it, arranged around a meeting transcript. Every model runs on your computer." />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="The local models behind LokalBot, from speaker separation to screen text, arranged around a meeting summary. Every model runs on your computer." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="LokalBot — Your personal context engine" />
   <meta name="twitter:description" content="Search your meetings and, if you turn it on, what you saw on screen. A free, open-source app for Mac, with Windows and Linux in alpha, that runs locally by default." />
-  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-ai-team.png" />
-  <meta name="twitter:image:alt" content="The local models that power LokalBot, from speaker separation to screen text, arranged around a meeting transcript." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
+  <meta name="twitter:image:alt" content="The local models behind LokalBot, from speaker separation to screen text, arranged around a meeting summary. Every model runs on your computer." />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
@@ -66,12 +66,15 @@
         "operatingSystem": ["macOS 15.0 or later on Apple Silicon", "Windows 10 or 11, x64 (alpha)", "Linux x86_64 (alpha)"],
         "featureList": [
           "Bot-free meeting recording of your microphone and the meeting app's audio on separate tracks",
+          "Speakers you name are recognized in later meetings",
           "On-device transcription with Qwen3-ASR, Parakeet, Whisper, or, on Mac, Granite Speech",
           "Local meeting summaries, decisions, and action items",
           "One search across meetings, saved moments, and optional screen text",
           "Day tracking that starts with app and window activity only; screen text and encrypted screenshots are opt-in",
-          "System-wide dictation with a hold-to-talk shortcut",
-          "Optional local writing autocomplete",
+          "System-wide dictation with a hold-to-talk shortcut, with recent dictations kept to copy again",
+          "Optional local autocomplete that can draw on the message you are answering and on your meetings",
+          "Selection actions on Mac: rewrite, translate, or draft a reply from what your meetings say",
+          "Personal Context on Mac: facts, preferences, goals, and principles that agents read only when you share them",
           "Read-only CLI and MCP access for approved local agents"
         ],
         "downloadUrl": "https://github.com/stevyhacker/lokalbot/releases/latest",
@@ -91,7 +94,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-10-20",
+        "dateModified": "2026-10-26",
         "image": "https://www.lokalbot.com/assets/screens/quick-recall.png",
         "screenshot": "https://www.lokalbot.com/assets/screens/quick-recall.png",
         "sameAs": [
@@ -165,6 +168,14 @@
           },
           {
             "@type": "Question",
+            "name": "Which languages does it support?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Transcription covers 52 languages and dialects with the default Qwen3-ASR model, and alternatives such as SenseVoice for Chinese, Japanese, and Korean are available in Settings. Meeting notes are written in the meeting's language unless you choose another, and the app itself is translated into 24 languages. On Mac, autocomplete also keeps up in German, French, Italian, Spanish, and more."
+            }
+          },
+          {
+            "@type": "Question",
             "name": "Is LokalBot free?",
             "acceptedAnswer": {
               "@type": "Answer",
@@ -223,9 +234,9 @@
   <main>
     <section class="hero home-hero" aria-labelledby="hero-title">
       <div class="hero__copy">
-        <a class="home-badge" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">
-          <span class="home-badge__tag">Latest release</span>
-          <span class="home-badge__text">See what’s new in LokalBot</span>
+        <a class="home-badge" href="blog/windows-and-linux-alpha">
+          <span class="home-badge__tag">New</span>
+          <span class="home-badge__text">LokalBot for Windows and Linux, in alpha</span>
           <i class="ph ph-arrow-right" aria-hidden="true"></i>
         </a>
         <p class="eyebrow">On-device work memory</p>
@@ -284,6 +295,7 @@
           <p class="eyebrow">Meetings</p>
           <h2 class="section__title">What did we agree on?</h2>
           <p>Find the decision and jump to the part of the call where it was discussed. Record both sides without a bot joining the meeting.</p>
+          <p class="home-example__detail">Name a speaker once, and LokalBot recognizes their voice in later meetings.</p>
           <a class="home-text-link" href="record-both-sides-mac-meeting-without-bot">How recording works</a>
         </div>
         <figure class="home-shot">
@@ -340,23 +352,52 @@
       <header class="section__head">
         <h2 class="section__title" id="writing-title">A hand with the writing, too.</h2>
       </header>
-      <div class="home-writing__grid">
-        <article class="tile">
-          <i class="ph ph-waveform tile__icon" aria-hidden="true"></i>
-          <h3>Talk instead of typing</h3>
-          <p>Hold <kbd>⌥ Space</kbd> (<kbd>Alt+Space</kbd> on Windows and Linux), say what you want to write, and release. The words appear at your cursor. Dictation runs on your computer.</p>
-        </article>
+      <div class="home-writing__grid home-writing__grid--four">
         <article class="tile">
           <i class="ph ph-keyboard tile__icon" aria-hidden="true"></i>
           <h3>Finish the sentence</h3>
-          <p>Optional autocomplete suggests the next words as you type. Press <kbd>Tab</kbd> to accept. It uses a dedicated local model by default.</p>
+          <p>Optional autocomplete suggests how your sentence ends, and <kbd>Tab</kbd> takes the next word. It reads the message you're answering and, if you let it, what was decided in your meetings. On Mac it also writes in German, French, Italian, Spanish, and more.</p>
+          <a class="home-text-link" href="blog/autocomplete-that-knows-your-meetings">How autocomplete works</a>
+        </article>
+        <article class="tile">
+          <i class="ph ph-waveform tile__icon" aria-hidden="true"></i>
+          <h3>Talk instead of typing</h3>
+          <p>Hold <kbd>⌥ Space</kbd> (<kbd>Alt+Space</kbd> on Windows and Linux), say what you want to write, and release. The words appear at your cursor. Dictation runs on your computer, and your recent dictations are kept so you can copy one again.</p>
+        </article>
+        <article class="tile">
+          <i class="ph ph-translate tile__icon" aria-hidden="true"></i>
+          <h3>Rewrite what you selected</h3>
+          <p>On Mac, select text in any app and press <kbd>⌃⇧ W</kbd> to fix the grammar, shorten it, or translate it. <strong>Draft a reply with my memory</strong> writes a reply that uses what your meetings actually say.</p>
         </article>
         <article class="tile">
           <i class="ph ph-file-text tile__icon" aria-hidden="true"></i>
           <h3>Draft the follow-up</h3>
-          <p>Turn a meeting into a follow-up draft or a weekly work log. Local routines save drafts to a folder you choose. You review and send them.</p>
+          <p>Turn a meeting into a follow-up draft that you review and send. On Mac, also keep a note for every meeting in your Obsidian or Logseq folder and get weekly work logs.</p>
         </article>
       </div>
+    </section>
+
+    <section class="section home-platforms" id="windows-linux" aria-labelledby="platforms-title">
+      <header class="section__head">
+        <p class="eyebrow">Windows and Linux (alpha)</p>
+        <h2 class="section__title" id="platforms-title">Not only on Mac.</h2>
+        <p class="section__lead">A native app for Windows 10 and 11 and for Linux has the same pages and reads the same library, so a library moves between computers. Meetings, transcription, Ask, search, day memory, dictation, autocomplete, and agent access all work.</p>
+      </header>
+      <div class="home-platforms__shots">
+        <figure class="home-shot">
+          <a class="home-image-link" href="assets/blog/linux-meetings.webp" target="_blank" rel="noopener" aria-label="Open the full-size Linux screenshot">
+            <img src="assets/blog/linux-meetings.webp" width="1600" height="1000" alt="LokalBot on Linux showing a meeting's recap, action items with timestamps, and decisions, next to a list of recent meetings." loading="lazy" decoding="async" />
+          </a>
+          <figcaption>Meetings on Linux.</figcaption>
+        </figure>
+        <figure class="home-shot">
+          <a class="home-image-link" href="assets/screens/windows-today.webp" target="_blank" rel="noopener" aria-label="Open the full-size Windows screenshot">
+            <img src="assets/screens/windows-today.webp" width="1440" height="900" alt="LokalBot on Windows showing Today, with open actions and the day digest." loading="lazy" decoding="async" />
+          </a>
+          <figcaption>Today on Windows.</figcaption>
+        </figure>
+      </div>
+      <p class="home-platforms__note">It's an alpha: the Windows build isn't code-signed yet, Wayland support is partial, and a few Mac features haven't been ported. On Linux, the <code>.deb</code>, and the <code>.rpm</code> on Fedora, add the LokalBot repository, so <code>apt</code> or <code>dnf</code> keeps it updated. <a href="blog/windows-and-linux-alpha">What works and what's missing</a></p>
     </section>
 
     <section class="section home-agents" id="agents" aria-labelledby="agents-title">
@@ -367,6 +408,7 @@
         <ul class="home-agents__facts">
           <li><i class="ph ph-lock-key" aria-hidden="true"></i><span><strong>Read-only.</strong> Agents can search and read your library. They can't change it.</span></li>
           <li><i class="ph ph-shield-check" aria-hidden="true"></i><span><strong>Off until you turn it on</strong> in Settings. Screen memory needs its own permission.</span></li>
+          <li><i class="ph ph-seal-check" aria-hidden="true"></i><span><strong>Personal Context, only if you share it.</strong> On Mac, agents can also read the facts, preferences, goals, and principles you choose to share, under a separate permission.</span></li>
           <li><i class="ph ph-terminal-window" aria-hidden="true"></i><span><strong>Your agent, your provider.</strong> Results go to the agent's model provider, so connect only clients you trust.</span></li>
         </ul>
       </div>
@@ -377,7 +419,7 @@
 <span class="c-op"># Or search from any shell or agent</span>
 <span class="c-prompt">$</span> lokalbot-cli search <span class="c-str">"database decision"</span>
 <span class="c-prompt">$</span> lokalbot-cli actions <span class="c-flag">--owner</span> me</pre>
-        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="https://github.com/stevyhacker/lokalbot/blob/master/Distribution/claude-plugin/README.md" target="_blank" rel="noopener">Claude Code plugin</a></p>
+        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="https://github.com/stevyhacker/lokalbot/blob/master/Distribution/claude-plugin/README.md" target="_blank" rel="noopener">Claude Code plugin</a> <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">Raycast extension</a></p>
       </div>
     </section>
 
@@ -385,7 +427,7 @@
       <header class="section__head">
         <p class="eyebrow">Under the hood</p>
         <h2 class="section__title" id="how-title">How it works.</h2>
-        <p class="section__lead">A 25-second look at the local models that do the work: Nemotron tells speakers apart, Qwen3-ASR transcribes, Qwen3.5 summarizes, EmbeddingGemma 2 searches by meaning, Apple Vision reads screen text if you opt in, and Gemma 4 E2B finishes your sentences. About 9.6 GB of model files if you use every role, all on your Mac. Windows and Linux run the same jobs with their own local models, about 4 GB by default.</p>
+        <p class="section__lead">A 25-second look at the local models that do the work: Nemotron tells speakers apart, Qwen3-ASR transcribes, Qwen3.5 summarizes, EmbeddingGemma 2 searches by meaning, Apple Vision reads screen text if you opt in, and Gemma 4 E2B finishes your sentences. About 9.6 GB of model files if you use every role, all on your Mac. Windows and Linux run the same jobs with their own local models, about 4 GB by default, on a Vulkan GPU, the CPU, or an NVIDIA GPU with CUDA (experimental).</p>
       </header>
       <figure class="home-demo__video">
         <video class="hero__demo" controls playsinline preload="none" poster="assets/lokalbot-ai-team-poster.webp" width="1920" height="1080" aria-label="How LokalBot works in 25 seconds: the little AI team inside your Mac, with local models for speaker separation, transcription, summaries, semantic search, opt-in screen text, and autocomplete.">
@@ -447,6 +489,36 @@
       <p class="home-compare__note">Competitor details were last verified on September 24, 2026, and on October 1, 2026 for Apple Notes, Meetily, and Wispr Flow. <a href="guides#compare">All comparisons</a></p>
     </section>
 
+    <section class="section home-blog" id="latest-posts" aria-labelledby="latest-posts-title">
+      <header class="section__head">
+        <p class="eyebrow">Blog</p>
+        <h2 class="section__title" id="latest-posts-title">Latest from the blog.</h2>
+      </header>
+      <div class="guide-card-grid">
+        <!-- LATEST-POSTS:START (generated by Scripts/render_web.py) -->
+        <a class="guide-card blog-card" href="/blog/recall-vs-restraint-memory-benchmark">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-23">October 23, 2026</time> · Benchmark</span>
+          <strong>Recall vs. restraint: which local models know when not to save a memory</strong>
+          <span>A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.</span>
+          <span class="guide-card__meta">6 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/windows-and-linux-alpha">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-20">October 20, 2026</time> · Release</span>
+          <strong>LokalBot is on Windows and Linux, in alpha</strong>
+          <span>LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.</span>
+          <span class="guide-card__meta">5 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/porting-to-windows-and-linux-with-agents">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-20">October 20, 2026</time> · Build notes</span>
+          <strong>How the Windows and Linux port was built</strong>
+          <span>The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up.</span>
+          <span class="guide-card__meta">3 min read</span>
+        </a>
+        <!-- LATEST-POSTS:END -->
+      </div>
+      <p class="home-blog__more"><a href="blog">All posts</a> &middot; <a href="blog/feed.xml">Atom feed</a></p>
+    </section>
+
     <section class="section download home-download" id="download" aria-labelledby="download-title">
       <div class="download__panel">
         <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="64" height="64" />
@@ -456,9 +528,9 @@
           <i class="ph ph-apple-logo" aria-hidden="true"></i>
           Download for Mac
         </a>
-        <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh, or install the .deb, .rpm or Arch package from the release page.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Install the .deb, or the .rpm on Fedora, and apt or dnf keeps it updated. The release page also has an Arch package and an archive with ./install.sh.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
         <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
-        <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup, and local processing can work offline afterward.</p>
+        <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup, and local processing can work offline afterward. <strong>Try a sample meeting</strong> to see a transcript and notes before you record anything.</p>
         <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="support">Setup help and feedback</a></p>
       </div>
     </section>
@@ -479,6 +551,10 @@
         <details class="qa">
           <summary>Can I choose my own models?<i class="ph ph-plus" aria-hidden="true"></i></summary>
           <p>Yes. Start with the built-in local models, choose another downloaded model, or connect Ollama, an OpenAI-compatible server, or, on Mac, Apple Intelligence. Summaries and chat can also run on your own ChatGPT or Claude plan, with no API key. A remote server or plan gets context only after you approve it. Transcription, summaries, and autocomplete have their own model choices. See the <a href="local-transcription-models-mac">transcription model guide</a> and <a href="offline-meeting-transcription-mac">offline setup guide</a>.</p>
+        </details>
+        <details class="qa">
+          <summary>Which languages does it support?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Transcription covers 52 languages and dialects with the default Qwen3-ASR model, and alternatives such as SenseVoice for Chinese, Japanese, and Korean are available in Settings. Meeting notes are written in the meeting's language unless you choose another, and the app itself is translated into 24 languages. On Mac, autocomplete also keeps up in German, French, Italian, Spanish, and more.</p>
         </details>
         <details class="qa">
           <summary>Is LokalBot free?<i class="ph ph-plus" aria-hidden="true"></i></summary>
