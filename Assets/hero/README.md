@@ -1,45 +1,48 @@
 # README hero
 
 The root [README](../../README.md) opens with [lokalbot-demo-light.gif](lokalbot-demo-light.gif),
-a 30-second loop of one fictional story: a team set launch pricing on a call,
-and the decision turns up wherever it is needed. Five scenes: a Quick Recall
-search for "pricing" that finds screen text and the meeting, a summary decision
-that opens the transcript at its source line, an Ask answer with its sources,
+a 30-second loop of seven features and an end card, each with its own fictional
+example: a Quick Recall search for "demo presentation" that finds Keynote and
+Mail screen text and two meetings; a meeting summary whose action-item citation
+opens the transcript at that line; an Ask answer whose citation does the same;
 autocomplete in TextEdit finishing "the Team plan will be $15" with "per seat,
-billed annually.", and a dictated request ("Write a short team update with
-the launch pricing.") written into TextEdit with that price. There is one
-light version for both appearances.
+billed annually." from a meeting; a dictated request written into TextEdit as
+a team update; a Timeline work session opening with its evidence; and the
+People page switching from Maya to Leo. The end card names the features not
+shown. There is one light version for both appearances.
 
-Each scene is a recording of a real window driven by real keyboard and
-pointer events; the window's pixels are unchanged apart from cropping and
-scaling. The caption above each scene, the footer, and the ring drawn where a
-click landed were added afterwards. The library is the fictional one in
-`Scripts/readme-gif/seed_library.py`. All recordings were made on
-**October 22, 2026** from the `v0.11.2` release commit
-[`749987d`](https://github.com/stevyhacker/lokalbot/tree/749987d60be964dcbf154707e225ae3fcc95d0cf),
-with a temporary library and settings suite. The installed app's library and
-settings were not used, and no UI tests were run.
+Every scene is a recording of a real window driven by real keyboard and
+pointer events. Window pixels are only cropped, scaled, or retimed by whole
+frames: Quick Recall's typing plays at 2.5× and the dictation scene's Compose
+wait at 2×. The caption band, step dots, cursor, click ripple and keycaps were
+drawn afterwards at the recorded times and positions. The installed app's
+library and settings were not used, and no UI tests were run.
 
-- **First three scenes:** the LokalBot UI Test Host, built with
-  `CODE_SIGNING_ALLOWED=NO`. It suppresses capture and inference, so the
-  transcript, summary, decisions and the Ask answer are fixtures; the search
-  results are the app's own search over the library.
-- **Autocomplete and dictation:** a filming copy of the same release whose
-  only change makes the suggestion panel visible to screen capture
-  (`build_filming_app.sh`). These are live: the suggestion comes from Gemma 4
-  E2B with meeting memory, and dictation is Parakeet TDT 0.6B v3 transcribing
-  a macOS voice (Samantha) through the built-in microphone, then Compose with
-  Qwen3.5 4B. TextEdit types plain text in its default monospace font.
-  The dictation scene includes the live recording/transcription and Compose
-  overlay before the result appears. TextEdit uses one uniform default font
-  so autocomplete aligns with the typed line.
+- **Search, meeting, Ask, Timeline and People:** the LokalBot UI Test Host
+  built from `master` at
+  [`5a53f66`](https://github.com/stevyhacker/lokalbot/tree/5a53f6668650703dd63e890810ad0065bc868e8c)
+  with `CODE_SIGNING_ALLOWED=NO` and the filming-only patch in
+  `Video/lokalbot-readme-hero/filming/`, recorded on **October 26, 2026**. It
+  suppresses capture and inference, so transcripts, summaries and the Ask
+  answer are fixtures; the search results are the app's own search over the
+  library. The library is `Scripts/seed_demo_library.py --profile studio`,
+  seeded with every meeting on the local clock.
+- **Autocomplete and dictation:** cut from the previous version of this file
+  (at `43d72b9`), recorded on **October 22, 2026** by `Scripts/readme-gif/`
+  from a filming copy of the `v0.11.2` release commit
+  [`749987d`](https://github.com/stevyhacker/lokalbot/tree/749987d60be964dcbf154707e225ae3fcc95d0cf)
+  whose only change makes the suggestion panel visible to screen capture.
+  These are live: the suggestion comes from Gemma 4 E2B with meeting memory,
+  and dictation is Parakeet TDT 0.6B v3 transcribing a macOS voice (Samantha)
+  through the built-in microphone, then Compose with Qwen3.5 4B. The partial
+  transcript shown while dictating is the model's unedited live output.
 
-[Scripts/readme-gif/README.md](../../Scripts/readme-gif/README.md) explains how
-to record and rebuild it.
+[Video/lokalbot-readme-hero/README.md](../../Video/lokalbot-readme-hero/README.md)
+explains how to film and rebuild it.
 
 | File | Dimensions | Length | Bytes | SHA-256 |
 | --- | --- | --- | --- | --- |
-| `lokalbot-demo-light.gif` | 1840 × 1344 | 30.2 s at 20 fps | 1,583,832 | `29ccf35b39563c58c16e733df763631662503012412b3251ccb7a91eb8cfb84e` |
+| `lokalbot-demo-light.gif` | 1412 × 1020 | 30.0 s at 15 fps | 1,639,980 | `8f8cb7b7bc0fd882be560a80b5ad17ebc5b051164026d26153854069dbf48f6a` |
 
 ## Still composite
 

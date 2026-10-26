@@ -4,6 +4,12 @@ Records the LokalBot UI Test Host and builds the looping hero GIFs in
 `Assets/hero/` (light and dark). What the published files show and which
 revision they came from is in [Assets/hero/README.md](../../Assets/hero/README.md).
 
+The published hero is now composed by
+[Video/lokalbot-readme-hero](../../Video/lokalbot-readme-hero/README.md), which
+reuses the live autocomplete and dictation scenes from the loop this pipeline
+built at `43d72b9`. Running `build.sh` here replaces
+`Assets/hero/lokalbot-demo-light.gif` with this pipeline's own five-scene loop.
+
 | File | Role |
 | --- | --- |
 | `seed_library.py` | Writes the fictional library: a team sets launch pricing on a call after seeing a competitor's page and a pricing sheet. Reuses the writers in `Scripts/seed_demo_library.py`. |

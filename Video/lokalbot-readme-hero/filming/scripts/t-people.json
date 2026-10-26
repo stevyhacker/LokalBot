@@ -1,0 +1,1 @@
+{"take":"t-people","start_delay":4,"settle":0.6,"tail":1.6,"actions":[{"wait":1.0},{"move":[90,238],"after":0.4},{"click":[90,238],"after":2.0}]}
