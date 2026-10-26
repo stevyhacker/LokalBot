@@ -777,6 +777,32 @@ final class MainWindowUITests: XCTestCase {
         }, "calendar attendee was not saved as the speaker alias")
     }
 
+    /// The name field also searches the suggestions: Return fills in the top
+    /// match, and a second Return saves it.
+    func testSpeakerRenameReturnFillsInTopSuggestion() {
+        openLibrary()
+        selectMeeting(fixture.designReview)
+        UITestHarness.selectSegment("Transcript", pickerIdentifier: "meeting.contentTabs", in: app)
+        let speaker = app.buttons["transcript.segment.1.speaker"]
+        UITestHarness.scrollTo(speaker, in: app)
+        XCTAssertTrue(speaker.waitForExistence(timeout: 3))
+        speaker.click()
+        let name = app.textFields["speaker.rename.name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 3))
+        name.click()
+        name.typeKey("a", modifierFlags: .command)
+        name.typeText("marko")
+        XCTAssertTrue(UITestHarness.waitUntil { !self.identified("speaker.rename.calendarCandidate.0").exists },
+                      "Typing a name must filter out suggestions that don't match")
+        name.typeText("\r")
+        XCTAssertEqual(name.value as? String, "Marko Marković")
+        XCTAssertTrue(identified("speaker.rename.calendarCandidate.0").waitForExistence(timeout: 3),
+                      "Filling in a match shows every suggestion again")
+        name.typeText("\r")
+        XCTAssertTrue(UITestHarness.waitUntil { speaker.label.contains("Marko Marković") },
+                      "Return after filling in a match must save it")
+    }
+
     func testLongTranscriptSpeakerNameStaysInsideItsColumn() {
         openLibrary()
         selectMeeting(fixture.designReview)

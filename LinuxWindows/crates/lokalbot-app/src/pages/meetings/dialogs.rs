@@ -3,7 +3,7 @@
 
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
-use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
 use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -367,16 +367,29 @@ impl NameSpeakerSheet {
                 &meeting,
                 &transcript,
                 &speaker.key,
-                window,
-                cx,
             );
-            if let Some(query) = &suggestions.query {
-                cx.subscribe(
-                    query,
-                    |_, _, _: &gpui_kit::component::input::InputEvent, cx| cx.notify(),
-                )
-                .detach();
-            }
+            // Typing searches the suggestions; Enter fills in the top match,
+            // then saves.
+            cx.subscribe_in(
+                &name,
+                window,
+                |this: &mut Self, input, event: &InputEvent, window, cx| match event {
+                    InputEvent::Change => {
+                        this.suggestions.query = input.read(cx).value().to_string();
+                        cx.notify();
+                    }
+                    InputEvent::PressEnter { .. } => {
+                        let name = input.read(cx).value().to_string();
+                        if let Some(index) = this.suggestions.return_choice(&name) {
+                            this.choose_suggestion(index, window, cx);
+                        } else if !name.trim().is_empty() {
+                            this.save(Some(name), window, cx);
+                        }
+                    }
+                    _ => {}
+                },
+            )
+            .detach();
             Self {
                 data,
                 meeting,
@@ -461,6 +474,7 @@ impl NameSpeakerSheet {
         };
         let name = choice.name.clone().unwrap_or_default();
         self.suggestions.selected = choice.calendar.as_ref().map(|guest| guest.id.clone());
+        self.suggestions.query.clear();
         self.name
             .update(cx, |input, cx| input.set_value(name, window, cx));
         cx.notify();
