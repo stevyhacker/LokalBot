@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "هل تريد تجاهل كل الاقتراحات؟";
 "LokalBot won't suggest them again." = "لن يقترحها LokalBot مرة أخرى.";
 "Open in %@" = "فتح في %@";
+"%lld project" = "%lld مشروع";
+"%lld projects" = "المشاريع: %lld";
+"Other projects" = "مشاريع أخرى";
+"%lld PR opened" = "%lld طلب دمج مفتوح";
+"%lld PRs opened" = "طلبات الدمج المفتوحة: %lld";
+"%lld merged" = "المدموجة: %lld";
+"%lld commit" = "%lld إيداع";
+"%lld commits" = "الإيداعات: %lld";
+"Agent work" = "عمل الوكلاء";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "ما طلبته من Claude Code وCodex خلال هذه الجلسة، وما سُجّل أنهما فعلاه.";
+"Merged #%lld" = "تم دمج #%lld";
+"Merged a pull request" = "تم دمج طلب الدمج";

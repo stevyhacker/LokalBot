@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "అన్ని సూచనలను విస్మరించాలా?";
 "LokalBot won't suggest them again." = "LokalBot వీటిని మళ్లీ సూచించదు.";
 "Open in %@" = "%@ లో తెరవండి";
+"%lld project" = "%lld ప్రాజెక్ట్";
+"%lld projects" = "%lld ప్రాజెక్ట్‌లు";
+"Other projects" = "ఇతర ప్రాజెక్ట్‌లు";
+"%lld PR opened" = "%lld PR తెరవబడింది";
+"%lld PRs opened" = "%lld PRలు తెరవబడ్డాయి";
+"%lld merged" = "విలీనం: %lld";
+"%lld commit" = "%lld కమిట్";
+"%lld commits" = "%lld కమిట్‌లు";
+"Agent work" = "ఏజెంట్ల పని";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "ఈ సెషన్‌లో మీరు Claude Code, Codex‌లను ఏమి అడిగారు, అవి ఏమి చేసినట్లు నమోదైంది.";
+"Merged #%lld" = "#%lld విలీనం చేయబడింది";
+"Merged a pull request" = "పుల్ రిక్వెస్ట్ విలీనం చేయబడింది";

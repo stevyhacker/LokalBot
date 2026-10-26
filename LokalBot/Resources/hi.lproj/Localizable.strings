@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "सभी सुझाव खारिज करें?";
 "LokalBot won't suggest them again." = "LokalBot इन्हें दोबारा नहीं सुझाएगा।";
 "Open in %@" = "%@ में खोलें";
+"%lld project" = "%lld प्रोजेक्ट";
+"%lld projects" = "%lld प्रोजेक्ट";
+"Other projects" = "अन्य प्रोजेक्ट";
+"%lld PR opened" = "%lld PR खोला गया";
+"%lld PRs opened" = "%lld PR खोले गए";
+"%lld merged" = "मर्ज किए गए: %lld";
+"%lld commit" = "%lld कमिट";
+"%lld commits" = "%lld कमिट";
+"Agent work" = "एजेंट का काम";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "इस सत्र में आपने Claude Code और Codex से क्या कहा, और रिकॉर्ड के अनुसार उन्होंने क्या किया।";
+"Merged #%lld" = "#%lld मर्ज किया गया";
+"Merged a pull request" = "पुल रिक्वेस्ट मर्ज किया गया";

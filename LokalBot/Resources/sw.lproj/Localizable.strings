@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Ondoa mapendekezo yote?";
 "LokalBot won't suggest them again." = "LokalBot haitayapendekeza tena.";
 "Open in %@" = "Fungua kwenye %@";
+"%lld project" = "Mradi %lld";
+"%lld projects" = "Miradi %lld";
+"Other projects" = "Miradi mingine";
+"%lld PR opened" = "PR %lld imefunguliwa";
+"%lld PRs opened" = "PR %lld zimefunguliwa";
+"%lld merged" = "zimeunganishwa: %lld";
+"%lld commit" = "Commit %lld";
+"%lld commits" = "Commit %lld";
+"Agent work" = "Kazi ya mawakala";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Ulichoomba Claude Code na Codex wakati wa kipindi hiki, na kile kilichorekodiwa kuwa walifanya.";
+"Merged #%lld" = "#%lld imeunganishwa";
+"Merged a pull request" = "Pull request imeunganishwa";

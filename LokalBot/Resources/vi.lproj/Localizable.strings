@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Bỏ qua tất cả gợi ý?";
 "LokalBot won't suggest them again." = "LokalBot sẽ không gợi ý lại chúng.";
 "Open in %@" = "Mở trong %@";
+"%lld project" = "%lld dự án";
+"%lld projects" = "%lld dự án";
+"Other projects" = "Dự án khác";
+"%lld PR opened" = "Đã mở %lld PR";
+"%lld PRs opened" = "Đã mở %lld PR";
+"%lld merged" = "đã gộp: %lld";
+"%lld commit" = "%lld commit";
+"%lld commits" = "%lld commit";
+"Agent work" = "Công việc của tác nhân";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Những gì bạn yêu cầu Claude Code và Codex trong phiên này, và những gì được ghi nhận là chúng đã làm.";
+"Merged #%lld" = "Đã gộp #%lld";
+"Merged a pull request" = "Đã gộp pull request";

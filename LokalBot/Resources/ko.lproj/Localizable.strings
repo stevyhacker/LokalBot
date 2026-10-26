@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "모든 제안을 무시할까요?";
 "LokalBot won't suggest them again." = "LokalBot이 다시 제안하지 않습니다.";
 "Open in %@" = "%@에서 열기";
+"%lld project" = "프로젝트 %lld개";
+"%lld projects" = "프로젝트 %lld개";
+"Other projects" = "기타 프로젝트";
+"%lld PR opened" = "PR %lld개 열림";
+"%lld PRs opened" = "PR %lld개 열림";
+"%lld merged" = "병합 %lld개";
+"%lld commit" = "커밋 %lld개";
+"%lld commits" = "커밋 %lld개";
+"Agent work" = "에이전트 작업";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "이 세션 동안 Claude Code와 Codex에 요청한 내용과 기록된 작업입니다.";
+"Merged #%lld" = "#%lld 병합됨";
+"Merged a pull request" = "풀 리퀘스트 병합됨";

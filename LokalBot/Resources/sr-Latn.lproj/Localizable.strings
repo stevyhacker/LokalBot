@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Odbaciti sve predloge?";
 "LokalBot won't suggest them again." = "LokalBot ih više neće predlagati.";
 "Open in %@" = "Otvori u %@";
+"%lld project" = "%lld projekat";
+"%lld projects" = "Projekti: %lld";
+"Other projects" = "Ostali projekti";
+"%lld PR opened" = "%lld PR otvoren";
+"%lld PRs opened" = "Otvoreni PR-ovi: %lld";
+"%lld merged" = "spojeno: %lld";
+"%lld commit" = "%lld komit";
+"%lld commits" = "Komiti: %lld";
+"Agent work" = "Rad agenata";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Šta ste tražili od Claude Code-a i Codexa tokom ove sesije i šta je zabeleženo da su uradili.";
+"Merged #%lld" = "Spojen #%lld";
+"Merged a pull request" = "Pull request spojen";
