@@ -579,9 +579,9 @@ chat with a prompt already typed in. The prompt holds the action's text, owner,
 due date, and status; the meeting's title, start time, and LokalBot meeting ID;
 and the paths on this Mac of the meeting's summary, your notes, and its
 transcript. An action that came up in several meetings lists up to five of them.
-LokalBot hands the prompt only to that agent on this Mac, through Claude Code's
-`claude-cli://` link (or the Claude app's Code tab until that link is set up) or
-the Codex app's `codex://` link. Nothing is sent until you press Enter or Send
+LokalBot hands the prompt only to that agent on this Mac: to the Claude app's
+Code tab, or to Claude Code in a terminal through its `claude-cli://` link when
+the Claude app isn't installed, or to the Codex app through its `codex://` link. Nothing is sent until you press Enter or Send
 there. Once you do, the prompt goes to Anthropic or OpenAI, and the agent can
 open the listed files with its own file access and permission prompts and send
 what it reads too, under that agent's terms. LokalBot can't limit what the agent

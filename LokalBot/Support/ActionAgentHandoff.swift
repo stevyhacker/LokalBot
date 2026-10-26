@@ -14,13 +14,14 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
     static let promptCharacterLimit = 5_000
 
     enum Route: Equatable {
+        /// `claude://code/new`: a new session in the Claude app's Code tab.
+        case claudeDesktop
         /// `claude-cli://open`: Claude Code in a new window of the terminal
         /// it last ran in. Claude Code registers this handler itself after
         /// the first prompt of an interactive session.
         case claudeCodeTerminal
-        /// `claude://code/new`: a new session in the Claude app's Code tab.
-        case claudeDesktop
-        /// `codex://new`: a new chat in the Codex app.
+        /// `codex://new`: a new chat in the Codex app. The Codex CLI has no
+        /// documented way to fill a prompt without sending it.
         case codexApp
 
         /// Each route's documented link. None sets a working folder, so the
@@ -28,18 +29,18 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
         func url(prompt: String) -> URL? {
             let value = ExternalAgentHandoff.encodeQueryValue(prompt)
             return switch self {
-            case .claudeCodeTerminal: URL(string: "claude-cli://open?q=\(value)")
             case .claudeDesktop: URL(string: "claude://code/new?q=\(value)")
+            case .claudeCodeTerminal: URL(string: "claude-cli://open?q=\(value)")
             case .codexApp: URL(string: "codex://new?prompt=\(value)")
             }
         }
     }
 
-    /// The first route something on this Mac handles, or nil. `handler`
-    /// returns the app registered for a link.
+    /// The first route something on this Mac handles, or nil. A desktop app
+    /// wins over the terminal. `handler` returns the app registered for a link.
     func route(handler: (URL) -> URL?) -> Route? {
         let routes: [(String, Route)] = switch self {
-        case .claudeCode: [("claude-cli://open", .claudeCodeTerminal), ("claude://code/new", .claudeDesktop)]
+        case .claudeCode: [("claude://code/new", .claudeDesktop), ("claude-cli://open", .claudeCodeTerminal)]
         case .codex: [("codex://new", .codexApp)]
         }
         return routes.first { URL(string: $0.0).flatMap(handler) != nil }?.1

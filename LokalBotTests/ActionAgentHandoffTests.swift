@@ -10,10 +10,10 @@ final class ActionAgentHandoffTests: XCTestCase {
 
     // MARK: Detection
 
-    func testClaudeCodePrefersItsTerminalLinkThenTheClaudeApp() {
+    func testClaudeCodePrefersTheClaudeAppThenItsTerminalLink() {
         let both = handlers(["claude-cli", "claude"])
-        XCTAssertEqual(ActionAgentHandoff.claudeCode.route(handler: both), .claudeCodeTerminal)
-        XCTAssertEqual(ActionAgentHandoff.claudeCode.route(handler: handlers(["claude"])), .claudeDesktop)
+        XCTAssertEqual(ActionAgentHandoff.claudeCode.route(handler: both), .claudeDesktop)
+        XCTAssertEqual(ActionAgentHandoff.claudeCode.route(handler: handlers(["claude-cli"])), .claudeCodeTerminal)
         XCTAssertNil(ActionAgentHandoff.claudeCode.route(handler: handlers(["codex"])))
     }
 
