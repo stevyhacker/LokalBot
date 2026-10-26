@@ -1452,3 +1452,4 @@
 "Shared" = "ভাগ করা";
 "Dismiss all suggestions?" = "সব প্রস্তাব সরিয়ে দেবেন?";
 "LokalBot won't suggest them again." = "LokalBot এগুলো আর প্রস্তাব করবে না।";
+"Open in %@" = "%@-এ খুলুন";

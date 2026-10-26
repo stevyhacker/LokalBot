@@ -1452,3 +1452,4 @@
 "Shared" = "共有中";
 "Dismiss all suggestions?" = "すべての提案を却下しますか？";
 "LokalBot won't suggest them again." = "LokalBotはこれらを再び提案しません。";
+"Open in %@" = "%@ で開く";
