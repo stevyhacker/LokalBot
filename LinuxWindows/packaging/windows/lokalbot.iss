@@ -61,6 +61,8 @@ Source: "{#SourceDir}\lokalbot-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\LICENSES\*"; DestDir: "{app}\LICENSES"; Flags: ignoreversion recursesubdirs
+; The Visual C++ runtime LokalBot copies beside llama-server.exe, which needs it.
+Source: "{#SourceDir}\vc-runtime\*"; DestDir: "{app}\vc-runtime"; Flags: ignoreversion
 
 [Icons]
 ; LokalBot looks for this exact shortcut to show notifications under its own name.
@@ -83,5 +85,6 @@ Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AppId}"; Flags: dontcreat
 [UninstallDelete]
 ; Old executables an in-place update renamed aside.
 Type: files; Name: "{app}\*.old"
-; License texts an in-place update added.
+; License texts and the Visual C++ runtime an in-place update added.
 Type: filesandordirs; Name: "{app}\LICENSES"
+Type: filesandordirs; Name: "{app}\vc-runtime"

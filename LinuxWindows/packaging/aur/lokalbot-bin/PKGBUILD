@@ -14,11 +14,13 @@ arch=('x86_64')
 url='https://www.lokalbot.com'
 license=('GPL-3.0-only' 'AGPL-3.0-only')
 # The binaries need glibc 2.39. They link ALSA, xcb and xkbcommon, and load
-# Vulkan and the Wayland client at run time.
+# Vulkan and the Wayland client at run time. The llama.cpp runtime the app
+# downloads links libgomp (OpenMP).
 depends=(
   'glibc>=2.39'
   'libgcc'
   'libstdc++'
+  'libgomp'
   'alsa-lib'
   'libxcb'
   'libxkbcommon'

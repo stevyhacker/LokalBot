@@ -52,7 +52,9 @@ Environment problems found along the way, outside the CUDA code: upstream
 `llama-server` needs `libgomp.so.1` (OpenMP) on Linux and the Microsoft Visual
 C++ 2015–2022 runtime on Windows. A minimal container and a fresh Windows
 Server image had neither, so every backend, CPU included, failed to start until
-they were installed.
+they were installed. The Linux packages now depend on libgomp, the Windows
+archive and installer carry the Visual C++ runtime for each `llama-server.exe`,
+and a start that still fails names what to install.
 
 ## RTX 5090: review fixes, older driver and matched timings — 2026-10-22
 

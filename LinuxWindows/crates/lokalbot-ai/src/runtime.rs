@@ -163,6 +163,18 @@ const SERVER_BINARY: &str = if cfg!(windows) {
     "llama-server"
 };
 
+/// The folder beside `lokalbot.exe` that holds [`VC_RUNTIME_DLLS`]
+/// (scripts/package.sh). lokalbot-update's `install.rs` names it too.
+pub const VC_RUNTIME_DIR: &str = "vc-runtime";
+/// The Microsoft Visual C++ runtime DLLs upstream's Windows builds import.
+/// Windows without the Visual C++ Redistributable has none of them, so each
+/// runtime gets the bundled copies beside its `llama-server.exe`.
+const VC_RUNTIME_DLLS: [&str; 3] = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
+const VC_REDIST_URL: &str = "https://aka.ms/vc14/vc_redist.x64.exe";
+/// STATUS_DLL_NOT_FOUND: Windows found no file for a DLL the program
+/// imports. The process exits with it before printing anything.
+const STATUS_DLL_NOT_FOUND: i32 = 0xC000_0135_u32 as i32;
+
 // ------------------------------------------------------------------- roles
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -502,6 +514,8 @@ impl Installer {
                 perms.set_mode(perms.mode() | 0o755);
                 std::fs::set_permissions(&server, perms)?;
             }
+            // Before any GPU check: a missing system library fails every one.
+            check_loads(&server)?;
             let (cuda_libraries, cuda_unverified) = if let Some(build) = cuda_build {
                 let (libraries, checked) = self.prepare_cuda(&server, build, cancel, progress)?;
                 // A GPU filled by another app fails only the final check. Keep
@@ -802,6 +816,10 @@ fn find_file(dir: &Path, name: &str, depth: usize) -> Option<PathBuf> {
 fn server_command(binary: &Path) -> Command {
     let mut command = Command::new(binary);
     if let Some(dir) = binary.parent() {
+        #[cfg(windows)]
+        if let Some(bundled) = bundled_vc_runtime() {
+            deploy_vc_runtime(&bundled, dir);
+        }
         command.current_dir(dir);
         let extra = if cuda::is_runtime_dir(dir) {
             cuda::library_dirs()
@@ -825,6 +843,108 @@ fn configure_library_path(command: &mut Command, server_dir: &Path, extra: Vec<P
     }
     if let Ok(value) = std::env::join_paths(paths) {
         command.env(key, value);
+    }
+}
+
+/// The Visual C++ runtime the Windows packages carry beside `lokalbot.exe`.
+#[cfg(windows)]
+fn bundled_vc_runtime() -> Option<PathBuf> {
+    let dir = std::env::current_exe().ok()?.parent()?.join(VC_RUNTIME_DIR);
+    dir.is_dir().then_some(dir)
+}
+
+/// Copies the bundled Visual C++ runtime beside the server in `server_dir`,
+/// Microsoft's app-local deployment: Windows loads it before any copy in
+/// System32, so the server needs no Visual C++ Redistributable and never runs
+/// against an older one. A copy that differs from the bundled one (after an
+/// update) is replaced; one a running server holds is replaced at a later start.
+#[cfg(any(windows, test))]
+fn deploy_vc_runtime(bundled: &Path, server_dir: &Path) {
+    for name in VC_RUNTIME_DLLS {
+        let Ok(bytes) = std::fs::read(bundled.join(name)) else {
+            continue;
+        };
+        let target = server_dir.join(name);
+        if std::fs::read(&target).is_ok_and(|current| current == bytes) {
+            continue;
+        }
+        let staged = server_dir.join(format!("{name}.new"));
+        let placed =
+            std::fs::write(&staged, &bytes).and_then(|()| std::fs::rename(&staged, &target));
+        if let Err(err) = placed {
+            let _ = std::fs::remove_file(&staged);
+            log::info!("llama.cpp: kept the current {name} beside llama-server: {err}");
+        }
+    }
+}
+
+/// `%SystemRoot%\System32`.
+fn system32() -> PathBuf {
+    std::env::var_os("SystemRoot")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(r"C:\Windows"))
+        .join("System32")
+}
+
+/// Whether Windows finds every Visual C++ runtime DLL for a server in
+/// `server_dir`, beside it or installed in System32. Other systems need none.
+fn vc_runtime_found(server_dir: &Path) -> bool {
+    cfg!(not(windows))
+        || VC_RUNTIME_DLLS
+            .iter()
+            .all(|name| server_dir.join(name).is_file() || system32().join(name).is_file())
+}
+
+/// What to install when the system could not load llama-server at all. The
+/// Linux loader names the library on stderr; Windows only exits with
+/// [`STATUS_DLL_NOT_FOUND`], and `vc_runtime_found` tells whether the Visual
+/// C++ runtime, the one DLL set outside the runtime folder it needs, is there.
+fn missing_library(code: Option<i32>, output: &str, vc_runtime_found: bool) -> Option<String> {
+    if code == Some(STATUS_DLL_NOT_FOUND) {
+        return Some(if vc_runtime_found {
+            "Windows could not find a DLL that llama-server needs (error 0xC0000135). Delete the llama.cpp runtime under Settings → Models and download it again.".into()
+        } else {
+            format!(
+                "llama-server needs the Microsoft Visual C++ Redistributable (x64), which isn't installed. Install it from {VC_REDIST_URL}, then try again."
+            )
+        });
+    }
+    // "…/llama-server: error while loading shared libraries: libgomp.so.1:
+    // cannot open shared object file: No such file or directory"
+    let library = output
+        .lines()
+        .find_map(|line| {
+            let (_, rest) = line.split_once("error while loading shared libraries: ")?;
+            Some(rest.split_once(':').map_or(rest, |(name, _)| name).trim())
+        })
+        .filter(|name| !name.is_empty())?;
+    let packages = match library {
+        "libgomp.so.1" => " (libgomp1 on Debian, Ubuntu and openSUSE; libgomp on Fedora and Arch)",
+        "libvulkan.so.1" => {
+            " (libvulkan1 on Debian and Ubuntu, vulkan-loader on Fedora, vulkan-icd-loader on Arch)"
+        }
+        _ => "",
+    };
+    Some(format!(
+        "llama-server needs {library}, which isn't installed. Install the package that provides it{packages}, then try again."
+    ))
+}
+
+/// [`missing_library`] for the server at `binary`.
+fn missing_library_for(binary: &Path, code: Option<i32>, output: &str) -> Option<String> {
+    missing_library(code, output, binary.parent().is_some_and(vc_runtime_found))
+}
+
+/// Fails with what to install when the system cannot load `binary`, so setup
+/// never records a runtime that cannot start.
+fn check_loads(binary: &Path) -> Result<()> {
+    let mut command = server_command(binary);
+    command.arg("--version");
+    let out = process::run_capture(command, Duration::from_secs(20))?;
+    let output = format!("{}\n{}", out.stdout, out.stderr);
+    match missing_library_for(binary, out.status.and_then(|s| s.code()), &output) {
+        Some(message) => Err(AiError::ServerStart(message).into()),
+        None => Ok(()),
     }
 }
 
@@ -878,10 +998,7 @@ fn supported_flags(help: &str) -> Vec<String> {
 fn vulkan_loader_present() -> bool {
     #[cfg(windows)]
     {
-        let root = std::env::var_os("SystemRoot")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
-        root.join("System32").join("vulkan-1.dll").is_file()
+        system32().join("vulkan-1.dll").is_file()
     }
     #[cfg(not(windows))]
     {
@@ -909,6 +1026,12 @@ fn probe_gpu(binary: &Path, backend: LlamaBackend) -> Result<GpuDevice> {
     command.arg("--list-devices");
     let out = process::run_capture(command, Duration::from_secs(30))?;
     if !out.status.is_some_and(|s| s.success()) {
+        let output = format!("{}\n{}", out.stdout, out.stderr);
+        if let Some(message) =
+            missing_library_for(binary, out.status.and_then(|s| s.code()), &output)
+        {
+            return Err(anyhow!(message));
+        }
         return Err(anyhow!(
             "{} device detection failed or timed out: {}",
             backend.label(),
@@ -1552,7 +1675,8 @@ impl ServerInner {
             backend.label()
         );
 
-        let failure = |summary: &str, tail: &Mutex<OutputTail>| -> anyhow::Error {
+        // `code`: the exit code of a server that exited during startup.
+        let failure = |summary: &str, code: Option<i32>, tail: &Mutex<OutputTail>| {
             // Let the reader catch the last lines of an exited process.
             for _ in 0..10 {
                 if tail.lock().finished {
@@ -1568,11 +1692,14 @@ impl ServerInner {
                     tail.lines.join(" | ")
                 );
             }
-            let message = match tail.reason() {
-                Some(reason) => format!("{summary}: {reason}"),
-                None => summary.to_string(),
+            let message = match missing_library_for(binary, code, &tail.lines.join("\n")) {
+                Some(missing) => missing,
+                None => match tail.reason() {
+                    Some(reason) => format!("{summary}: {reason}"),
+                    None => summary.to_string(),
+                },
             };
-            AiError::ServerStart(message).into()
+            anyhow::Error::from(AiError::ServerStart(message))
         };
         // Loading a large model can take a while. On GPUs without prebuilt
         // CUDA kernels the driver first compiles PTX, ~50 s on a Titan Xp;
@@ -1584,9 +1711,13 @@ impl ServerInner {
         };
         for _ in 0..attempts {
             std::thread::sleep(Duration::from_millis(500));
-            if !matches!(child.try_wait(), Ok(None)) {
-                remove_marker_if(paths, self.port, pid);
-                return Err(failure("llama-server exited during startup", &tail));
+            match child.try_wait() {
+                Ok(None) => {}
+                exited => {
+                    remove_marker_if(paths, self.port, pid);
+                    let code = exited.ok().flatten().and_then(|status| status.code());
+                    return Err(failure("llama-server exited during startup", code, &tail));
+                }
             }
             if health(self.port, &token) {
                 if backend == LlamaBackend::Cuda {
@@ -1602,6 +1733,7 @@ impl ServerInner {
                         remove_marker_if(paths, self.port, pid);
                         return Err(failure(
                             "CUDA server did not confirm any model layers on the GPU",
+                            None,
                             &tail,
                         ));
                     }
@@ -1632,7 +1764,11 @@ impl ServerInner {
         }
         process::stop_child(&mut child, Duration::from_secs(2));
         remove_marker_if(paths, self.port, pid);
-        Err(failure("server did not become healthy in time", &tail))
+        Err(failure(
+            "server did not become healthy in time",
+            None,
+            &tail,
+        ))
     }
 
     /// Deals with a helper recorded on this port. A healthy one with the same
@@ -2520,6 +2656,168 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let binary = fake_gpu_server(dir.path(), 1);
         assert!(probe_gpu(&binary, LlamaBackend::Cuda).is_err());
+    }
+
+    const MISSING_GOMP: &str = "llama-server needs libgomp.so.1, which isn't installed. Install the package that provides it (libgomp1 on Debian, Ubuntu and openSUSE; libgomp on Fedora and Arch), then try again.";
+
+    /// What the dynamic loader prints for llama-server without libgomp1.
+    #[cfg(unix)]
+    const MISSING_GOMP_SERVER: &str = "#!/bin/sh\necho \"$0: error while loading shared libraries: libgomp.so.1: cannot open shared object file: No such file or directory\" >&2\nexit 127\n";
+
+    #[test]
+    fn missing_system_libraries_say_what_to_install() {
+        assert_eq!(STATUS_DLL_NOT_FOUND, -1_073_741_515);
+        let redist = missing_library(Some(STATUS_DLL_NOT_FOUND), "", false).unwrap();
+        assert_eq!(
+            redist,
+            "llama-server needs the Microsoft Visual C++ Redistributable (x64), which isn't installed. Install it from https://aka.ms/vc14/vc_redist.x64.exe, then try again."
+        );
+        // With the Visual C++ runtime in place, a DLL of the runtime folder is gone.
+        let other = missing_library(Some(STATUS_DLL_NOT_FOUND), "", true).unwrap();
+        assert!(
+            other.contains("0xC0000135") && other.contains("download it again"),
+            "{other}"
+        );
+
+        // From b11669 in an ubuntu:24.04 container without libgomp1.
+        let loader = "/root/.local/share/LokalBot/runtimes/llama-cpp/b11669-ubuntu-x64/llama-b11669/llama-server: error while loading shared libraries: libgomp.so.1: cannot open shared object file: No such file or directory";
+        assert_eq!(
+            missing_library(Some(127), loader, true).as_deref(),
+            Some(MISSING_GOMP)
+        );
+        assert_eq!(
+            missing_library(
+                Some(127),
+                "x: error while loading shared libraries: libfoo.so.3: cannot open shared object file",
+                true
+            )
+            .as_deref(),
+            Some(
+                "llama-server needs libfoo.so.3, which isn't installed. Install the package that provides it, then try again."
+            )
+        );
+        assert!(
+            missing_library(
+                None,
+                "a: error while loading shared libraries: libvulkan.so.1: x",
+                true
+            )
+            .unwrap()
+            .contains("vulkan-icd-loader on Arch")
+        );
+
+        // Other failures keep llama-server's own reason.
+        assert_eq!(
+            missing_library(Some(1), "error: failed to load model 'x.gguf'", false),
+            None
+        );
+        assert_eq!(missing_library(None, "", false), None);
+    }
+
+    #[test]
+    fn bundled_vc_runtime_is_placed_and_refreshed_beside_the_server() {
+        let dir = tempfile::tempdir().unwrap();
+        let bundled = dir.path().join(VC_RUNTIME_DIR);
+        let server = dir.path().join("runtime");
+        std::fs::create_dir_all(&bundled).unwrap();
+        std::fs::create_dir_all(&server).unwrap();
+        for name in VC_RUNTIME_DLLS {
+            std::fs::write(bundled.join(name), format!("{name} 14.44")).unwrap();
+        }
+        let read = |name: &str| std::fs::read_to_string(server.join(name)).unwrap();
+
+        deploy_vc_runtime(&bundled, &server);
+        for name in VC_RUNTIME_DLLS {
+            assert_eq!(read(name), format!("{name} 14.44"));
+        }
+        // An update brings a newer runtime.
+        std::fs::write(bundled.join("msvcp140.dll"), "msvcp140.dll 14.51").unwrap();
+        deploy_vc_runtime(&bundled, &server);
+        assert_eq!(read("msvcp140.dll"), "msvcp140.dll 14.51");
+        assert_eq!(read("vcruntime140.dll"), "vcruntime140.dll 14.44");
+        let mut names: Vec<String> = std::fs::read_dir(&server)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        assert_eq!(names, VC_RUNTIME_DLLS);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn setup_names_a_missing_system_library_and_installs_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
+        let installer = &manager.shared.installer;
+        let asset = asset(LlamaBackend::Cpu).unwrap();
+        seed_archive(
+            &installer.root().join(".downloads"),
+            asset,
+            &[(SERVER_BINARY, MISSING_GOMP_SERVER.as_bytes())],
+        );
+        let error = installer
+            .download_and_unpack(asset, &AtomicBool::new(false), &mut |_, _| {})
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            format!("Local LLM server failed to start: {MISSING_GOMP}")
+        );
+        assert!(installer.record(LlamaBackend::Cpu).is_none());
+        assert!(!installer.folder(asset).exists());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn startup_failure_names_a_missing_system_library() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
+        // A free port, so this test never binds a release port.
+        let port = std::net::TcpListener::bind("127.0.0.1:0")
+            .unwrap()
+            .local_addr()
+            .unwrap()
+            .port();
+        let server = ServerInner {
+            role: Role::Main,
+            port,
+            installer: manager.shared.installer.clone(),
+            state: Mutex::new(ServerState {
+                phase: Phase::Stopped,
+                leases: 0,
+                idle_since: None,
+                desired: None,
+            }),
+            changed: Condvar::new(),
+        };
+        let binary = dir.path().join(SERVER_BINARY);
+        std::fs::write(&binary, MISSING_GOMP_SERVER).unwrap();
+        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let record = InstallRecord {
+            build: LLAMA_BUILD.into(),
+            asset: "test".into(),
+            sha256: String::new(),
+            backend: LlamaBackend::Cpu,
+            server: SERVER_BINARY.into(),
+            version: String::new(),
+            flags: Vec::new(),
+            probe: PROBE_VERSION,
+            cuda_libraries: None,
+            cuda_unverified: false,
+        };
+        let Err(error) = server.launch(
+            "test",
+            Path::new("test.gguf"),
+            LlamaBackend::Cpu,
+            &record,
+            &binary,
+        ) else {
+            panic!("a server without libgomp started");
+        };
+        assert_eq!(
+            error.to_string(),
+            format!("Local LLM server failed to start: {MISSING_GOMP}")
+        );
     }
 
     #[test]

@@ -35,6 +35,7 @@ these files. namcap's remaining warnings on the built package are expected:
 | --- | --- |
 | `Unused shared library '/usr/lib64/ld-linux-x86-64.so.2'` | Both binaries import `__tls_get_addr` from the loader; namcap misses it. |
 | `Dependency included, but may not be needed ('vulkan-icd-loader')`, `('wayland')` | The app loads `libvulkan.so.1` and `libwayland-client.so.0` with `dlopen`, so they are not in its `NEEDED` list. |
+| `Dependency included, but may not be needed ('libgomp')` | The llama.cpp runtime the app downloads links `libgomp.so.1`; the app itself doesn't. |
 
 ## Updating
 
