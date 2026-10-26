@@ -627,13 +627,13 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-10-20",
+        "updated": "2026-10-26",
     },
     {
         "slug": "benchmarks",
         "eyebrow": "Benchmarks",
         "h1": "LokalBot local model benchmarks",
         "description": "Measured speech recognition, speaker diarization, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.",
-        "updated": "2026-10-20",
+        "updated": "2026-10-26",
     },
 ]

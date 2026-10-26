@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Render LokalBot's comparison pages, guides, and sitemap.
+"""Render LokalBot's comparison pages, guides, blog, and sitemap.
 
 Generated HTML stays checked in under web/. Hosting remains fully static and
 nothing runs at deploy time.
 
 To change a page:
-1. edit the relevant *_pages.py content or *.template.html markup
+1. edit the relevant *_pages.py or blog_posts.py content or *.template.html markup
    (footer.partial.html is shared by every generated page)
 2. run `python3 Scripts/render_web.py`
 3. commit the regenerated files under web/
@@ -22,12 +22,14 @@ import html
 import json
 import re
 import sys
+import textwrap
 from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from comparison_pages import LOKALBOT_UPDATED, PAGES, VERIFIED  # noqa: E402
 from guide_pages import GUIDES, GUIDES_INDEX, REFERENCES  # noqa: E402
+from blog_posts import BLOG_INDEX, POSTS  # noqa: E402
 
 TOKEN_OPEN = "{{"
 
@@ -35,6 +37,7 @@ CHECK_ICON = '<i class="ph ph-check" aria-hidden="true"></i>'
 
 SITE = "https://www.lokalbot.com"
 OG_IMAGE = f"{SITE}/assets/og-image.png"
+BLOG_ID = f"{SITE}/blog#blog"
 # Publish date of the original guides; a guide added later sets "published".
 GUIDES_PUBLISHED = "2026-07-13"
 
@@ -50,11 +53,11 @@ ORGANIZATION = {
 # Hand-written pages outside the generator, with the date each last changed.
 # Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
-    "": "2026-10-22",
-    "privacy": "2026-10-21",
-    "terms": "2026-10-20",
-    "support": "2026-10-20",
-    "enshittification-proof": "2026-10-20",
+    "": "2026-10-26",
+    "privacy": "2026-10-26",
+    "terms": "2026-10-26",
+    "support": "2026-10-26",
+    "enshittification-proof": "2026-10-26",
 }
 
 
@@ -136,8 +139,9 @@ def fill_template(template: str, replacements: dict[str, str], label: str) -> st
 def render_footer(partial: str) -> str:
     """The shared footer, with a Compare link for every comparison page."""
 
+    # Root-relative, because blog posts are served one level down at /blog/<slug>.
     links = "\n".join(
-        f'      <a href="{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>'
+        f'      <a href="/{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>'
         for page in PAGES
     )
     return fill_template(partial, {"{{COMPARE_LINKS}}": links}, "Footer").rstrip("\n")
@@ -381,10 +385,172 @@ def render_guides_index(template: str, footer: str) -> str:
     return fill_template(template, replacements, "Guides")
 
 
+def post_updated(post: dict) -> str:
+    return post.get("updated", post["published"])
+
+
+def blog_updated() -> str:
+    return max(post_updated(post) for post in POSTS)
+
+
+def post_byline(post: dict) -> str:
+    parts = [f'<time datetime="{post["published"]}">{long_date(post["published"])}</time>']
+    if post_updated(post) != post["published"]:
+        parts.append(f'Updated <time datetime="{post_updated(post)}">{long_date(post_updated(post))}</time>')
+    parts.append(post["read_time"])
+    return " · ".join(parts)
+
+
+def render_post_cards(posts: list[dict]) -> str:
+    return "\n".join(
+        f'        <a class="guide-card blog-card" href="/blog/{post["slug"]}">\n'
+        f'          <span class="guide-card__eyebrow"><time datetime="{post["published"]}">{long_date(post["published"])}</time> · {post["eyebrow"]}</span>\n'
+        f'          <strong>{post["h1"]}</strong>\n'
+        f'          <span>{post["description"]}</span>\n'
+        f'          <span class="guide-card__meta">{post["read_time"]}</span>\n'
+        "        </a>"
+        for post in posts
+    )
+
+
+def blog_posting(post: dict) -> dict:
+    url = f"{SITE}/blog/{post['slug']}"
+    return {
+        "@type": "BlogPosting",
+        "@id": f"{url}#post",
+        "headline": post["h1"],
+        "description": post["description"],
+        "datePublished": post["published"],
+        "dateModified": post_updated(post),
+        "url": url,
+        "mainEntityOfPage": url,
+        "image": OG_IMAGE,
+        "author": ORGANIZATION,
+        "publisher": ORGANIZATION,
+        "isPartOf": {"@id": BLOG_ID},
+    }
+
+
+def post_structured_data(post: dict) -> str:
+    url = f"{SITE}/blog/{post['slug']}"
+    return json_ld(
+        [
+            blog_posting(post),
+            breadcrumb_list([("Home", f"{SITE}/"), ("Blog", f"{SITE}/blog"), (post["h1"], url)]),
+        ]
+    )
+
+
+def blog_index_structured_data() -> str:
+    url = f"{SITE}/blog"
+    return json_ld(
+        [
+            {
+                "@type": "Blog",
+                "@id": BLOG_ID,
+                "url": url,
+                "name": "LokalBot Blog",
+                "description": BLOG_INDEX["description"],
+                "dateModified": blog_updated(),
+                "isPartOf": {"@id": f"{SITE}/#website"},
+                "publisher": {"@id": ORGANIZATION["@id"]},
+                "blogPost": [
+                    {
+                        "@type": "BlogPosting",
+                        "headline": post["h1"],
+                        "url": f"{SITE}/blog/{post['slug']}",
+                        "datePublished": post["published"],
+                    }
+                    for post in POSTS
+                ],
+            },
+            breadcrumb_list([("Home", f"{SITE}/"), ("Blog", url)]),
+        ]
+    )
+
+
+def render_blog_index(template: str, footer: str) -> str:
+    replacements = {
+        "{{TITLE}}": BLOG_INDEX["title"],
+        "{{META_DESCRIPTION}}": BLOG_INDEX["description"],
+        "{{STRUCTURED_DATA}}": blog_index_structured_data(),
+        "{{H1}}": BLOG_INDEX["h1"],
+        "{{LEAD}}": BLOG_INDEX["lead"],
+        "{{POST_CARDS}}": render_post_cards(POSTS),
+        "{{FOOTER}}": footer,
+    }
+    return fill_template(template, replacements, "Blog")
+
+
+def render_blog_post(template: str, post: dict, footer: str) -> str:
+    others = [other for other in POSTS if other["slug"] != post["slug"]][:3]
+    replacements = {
+        "{{SLUG}}": post["slug"],
+        "{{TITLE}}": f"{post['title']} — LokalBot Blog",
+        "{{META_DESCRIPTION}}": post["description"],
+        "{{PUBLISHED_DATE}}": post["published"],
+        "{{UPDATED_DATE}}": post_updated(post),
+        "{{EYEBROW}}": post["eyebrow"],
+        "{{H1}}": post["h1"],
+        "{{LEAD}}": post["lead"],
+        "{{BYLINE}}": post_byline(post),
+        "{{BODY}}": post["body"].strip(),
+        "{{MORE_POSTS}}": render_post_cards(others),
+        "{{STRUCTURED_DATA}}": post_structured_data(post),
+        "{{FOOTER}}": footer,
+    }
+    return fill_template(template, replacements, "Blog post")
+
+
+def absolute_urls(fragment: str) -> str:
+    """Root-relative links and images, made absolute for feed readers."""
+
+    return re.sub(r'(href|src)="/(?!/)', rf'\1="{SITE}/', fragment)
+
+
+def render_feed() -> str:
+    """An Atom feed of every post with its full text."""
+
+    def text(value: str) -> str:
+        return html.escape(value, quote=False)
+
+    entries = []
+    for post in POSTS:
+        url = f"{SITE}/blog/{post['slug']}"
+        content = absolute_urls(textwrap.dedent(post["body"]).strip())
+        entries.append(
+            "  <entry>\n"
+            f"    <title>{text(post['h1'])}</title>\n"
+            f'    <link href="{url}" />\n'
+            f"    <id>{url}</id>\n"
+            f"    <published>{post['published']}T00:00:00Z</published>\n"
+            f"    <updated>{post_updated(post)}T00:00:00Z</updated>\n"
+            f"    <summary>{text(post['description'])}</summary>\n"
+            f'    <content type="html">{text(content)}</content>\n'
+            "  </entry>"
+        )
+    return (
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<feed xmlns="http://www.w3.org/2005/Atom">\n'
+        "  <title>LokalBot Blog</title>\n"
+        f"  <subtitle>{text(BLOG_INDEX['description'])}</subtitle>\n"
+        f'  <link href="{SITE}/blog/feed.xml" rel="self" type="application/atom+xml" />\n'
+        f'  <link href="{SITE}/blog" rel="alternate" type="text/html" />\n'
+        f"  <id>{SITE}/blog</id>\n"
+        f"  <updated>{blog_updated()}T00:00:00Z</updated>\n"
+        f"  <author><name>LokalBot project</name><uri>{SITE}/</uri></author>\n"
+        f"  <icon>{SITE}/assets/lokalbot-icon-512.png</icon>\n"
+        + "\n".join(entries)
+        + "\n</feed>\n"
+    )
+
+
 def render_sitemap() -> str:
     pages = [
         ("", STATIC_PAGES[""]),
         ("guides", guides_index_updated()),
+        ("blog", blog_updated()),
+        *((f"blog/{post['slug']}", post_updated(post)) for post in POSTS),
         *((guide["slug"], guide.get("updated", GUIDES_PUBLISHED)) for guide in GUIDES),
         *((reference["slug"], reference["updated"]) for reference in REFERENCES),
         *((path, updated) for path, updated in STATIC_PAGES.items() if path),
@@ -442,6 +608,8 @@ def main() -> int:
         "compare": scripts_dir / "compare.template.html",
         "guide": scripts_dir / "guide.template.html",
         "guides": scripts_dir / "guides.template.html",
+        "blog": scripts_dir / "blog.template.html",
+        "blog_post": scripts_dir / "blog_post.template.html",
         "footer": scripts_dir / "footer.partial.html",
     }
     for template_path in template_paths.values():
@@ -468,8 +636,14 @@ def main() -> int:
     generated_pages.extend(
         [
             (web_dir / "guides.html", render_guides_index(templates["guides"], footer)),
+            (web_dir / "blog.html", render_blog_index(templates["blog"], footer)),
+            (web_dir / "blog" / "feed.xml", render_feed()),
             (web_dir / "sitemap.xml", render_sitemap()),
         ]
+    )
+    generated_pages.extend(
+        (web_dir / "blog" / f"{post['slug']}.html", render_blog_post(templates["blog_post"], post, footer))
+        for post in POSTS
     )
 
     stale = []
@@ -479,6 +653,7 @@ def main() -> int:
             if on_disk != rendered:
                 stale.append(output_path)
             continue
+        output_path.parent.mkdir(exist_ok=True)
         output_path.write_text(rendered, encoding="utf-8")
         print(f"Rendered {output_path.relative_to(repo_root())}")
 
