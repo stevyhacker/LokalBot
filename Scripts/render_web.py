@@ -424,7 +424,7 @@ def blog_posting(post: dict) -> dict:
         "dateModified": post_updated(post),
         "url": url,
         "mainEntityOfPage": url,
-        "image": OG_IMAGE,
+        "image": f"{SITE}/assets/blog/og/{post['slug']}.png",
         "author": ORGANIZATION,
         "publisher": ORGANIZATION,
         "isPartOf": {"@id": BLOG_ID},
@@ -638,6 +638,14 @@ def main() -> int:
     web_dir = repo_root() / "web"
     if not web_dir.is_dir():
         raise SystemExit(f"Output directory does not exist: {web_dir}")
+
+    missing_images = [
+        post["slug"] for post in POSTS if not (web_dir / "assets" / "blog" / "og" / f"{post['slug']}.png").is_file()
+    ]
+    if missing_images:
+        raise SystemExit(
+            f"Missing share images for: {', '.join(missing_images)}. Run `python3 Scripts/render_social_images.py`."
+        )
 
     generated_pages = [
         (web_dir / f"{page['slug']}.html", render_page(templates["compare"], page, footer))

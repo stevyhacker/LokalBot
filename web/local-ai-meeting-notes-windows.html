@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local AI Meeting Notes on Windows — Bot-Free and Open Source</title>
+  <meta name="description" content="Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/local-ai-meeting-notes-windows" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/local-ai-meeting-notes-windows" />
+  <meta property="og:title" content="Local AI Meeting Notes on Windows — Bot-Free and Open Source" />
+  <meta property="og:description" content="Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Local AI Meeting Notes on Windows — Bot-Free and Open Source" />
+  <meta name="twitter:description" content="Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Windows","description":"Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-10-26","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-windows","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Windows","item":"https://www.lokalbot.com/local-ai-meeting-notes-windows"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-windows#faq","mainEntity":[{"@type":"Question","name":"Why does Windows warn me before LokalBot opens?","acceptedAnswer":{"@type":"Answer","text":"The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first."}},{"@type":"Question","name":"Does a bot join my Teams or Zoom calls?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."}},{"@type":"Question","name":"Do I need administrator rights?","acceptedAnswer":{"@type":"Answer","text":"No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#guide">Skip to guide</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="guide">
+    <header class="guide-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Windows</span></nav>
+      <p class="eyebrow">Windows</p>
+      <h1>Local AI meeting notes on Windows</h1>
+      <p class="guide-hero__lead">LokalBot records both sides of a Teams, Zoom, or Meet call without a bot, transcribes and summarizes it with models on your PC, and keeps every meeting searchable. Here is what works on Windows and how to install it.</p>
+      <p class="guide-byline"><time datetime="2026-10-26">Updated October 26, 2026</time> · 5 min read</p>
+    </header>
+
+    <article class="guide-article">
+<h2>What works on Windows</h2>
+        <p>LokalBot for Windows is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app and reads the same library format, so a library recorded on a Mac opens on Windows. It's an alpha.</p>
+        <ul>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your PC's audio through WASAPI loopback, so nothing joins the call. On Windows the second track is everything your PC plays, not one app. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3, SenseVoice, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
+          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and on-device OCR.</li>
+          <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
+          <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
+          <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
+        </ul>
+
+        <h2>Install without admin rights</h2>
+        <p>Run <code>LokalBot-&lt;version&gt;-windows-x86_64-setup.exe</code> from the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. It installs for your user into <code>%LOCALAPPDATA%\Programs\LokalBot</code>, without administrator rights, and adds a Start menu shortcut and an Installed apps entry. Uninstalling keeps your library. A portable zip is in the same release.</p>
+        <p>The app isn't code-signed yet, so SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>. Updates are signed: LokalBot checks for a new version once a day, verifies the download's signature, and installs it only when you choose <strong>Install and Relaunch</strong>. A winget package is in review.</p>
+
+        <h2>Models and hardware</h2>
+        <p>LokalBot needs Windows 10 or 11 on x64. On first launch it downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU, including AMD Radeon and Intel graphics, or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing on an NVIDIA L4, CUDA read a long prompt into Qwen3.5 4B 32% faster than Vulkan. See the <a href="system-requirements">system requirements</a>.</p>
+
+        <h2>What's not there yet</h2>
+        <ul>
+          <li>Code signing, so SmartScreen will warn until it's in place.</li>
+          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
+        </ul>
+    </article>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Questions about this guide</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>Why does Windows warn me before LokalBot opens?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first.</p>
+        </details>
+        <details class="qa">
+          <summary>Does a bot join my Teams or Zoom calls?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording.</p>
+        </details>
+        <details class="qa">
+          <summary>Do I need administrator rights?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="guide-related" aria-labelledby="related-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="related-title">Related LokalBot guides</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="system-requirements">
+          <span class="guide-card__eyebrow">Compatibility</span>
+          <strong>LokalBot system requirements</strong>
+          <span>Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.</span>
+        </a>
+        <a class="guide-card" href="local-ai-meeting-notes-linux">
+          <span class="guide-card__eyebrow">Linux</span>
+          <strong>Local AI meeting notes on Linux</strong>
+          <span>Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.</span>
+        </a>
+        <a class="guide-card" href="claude-code-codex-meeting-notes">
+          <span class="guide-card__eyebrow">Agents and MCP</span>
+          <strong>How do I let Claude Code or Codex search my meeting notes?</strong>
+          <span>Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>
