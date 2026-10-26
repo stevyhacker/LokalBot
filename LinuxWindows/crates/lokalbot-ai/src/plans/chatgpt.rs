@@ -14,6 +14,8 @@
 //! Think requests go to OpenAI's Responses API with `store: false` and
 //! `stream: true`. The token-sharing route rejects sampling and output-cap
 //! fields, so neither temperature nor `max_output_tokens` is ever sent.
+//! Agent Mode reaches the same API through [`relay`], which holds the tokens
+//! for the agent runtime.
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -531,6 +533,16 @@ pub fn install_store(store: Arc<dyn Store>) {
 #[derive(Default)]
 pub struct MemoryStore {
     items: Mutex<HashMap<String, String>>,
+}
+
+impl MemoryStore {
+    /// A store holding one signed-in session.
+    pub fn signed_in(credentials: &Credentials) -> Self {
+        let store = Self::default();
+        let text = serde_json::to_string(credentials).expect("credentials serialize");
+        store.items.lock().insert(CREDENTIALS_ACCOUNT.into(), text);
+        store
+    }
 }
 
 impl Store for MemoryStore {
@@ -1669,6 +1681,8 @@ pub fn context_tokens(model: &str) -> u32 {
         128_000
     }
 }
+
+pub mod relay;
 
 #[cfg(test)]
 mod tests;

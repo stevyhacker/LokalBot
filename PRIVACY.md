@@ -927,9 +927,11 @@ platform differences:
     Reading OpenRouter's endpoint list for the model's context window sends
     only the model id, with no API key and no content.
   - The ChatGPT and Claude plans each need their own approval, separate from
-    any API-server approval for the same company, and Agent Mode does not use
-    them. ChatGPT sign-in returns to a listener on `127.0.0.1` (port 1455, or
-    a free port when that one is taken). Its tokens, app registration and
+    any API-server approval for the same company. Agent Mode can use the
+    ChatGPT plan through the same per-task relay on `127.0.0.1` as on macOS,
+    so the agent runtime never holds the plan's tokens; it can't use the
+    Claude plan. ChatGPT sign-in returns to a listener on `127.0.0.1` (port
+    1455, or a free port when that one is taken). Its tokens, app registration and
     random per-install id are kept only in the system credential store,
     split across several entries where an entry is small; without a
     credential store the sign-in fails before your browser opens, and nothing
