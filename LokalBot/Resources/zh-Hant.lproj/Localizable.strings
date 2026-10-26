@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "若要使用你自己的 Google Cloud 專案：請啟用 Gmail API，建立類型為「電腦版應用程式」的 OAuth 用戶端並發布，接著下載其 JSON 檔案，並在這裡選擇該檔案。之後新的登入會使用你的用戶端，而不是 LokalBot 的用戶端。";
 "Use LokalBot's Client" = "使用 LokalBot 的用戶端";
 "Use your own Google OAuth client" = "使用你自己的 Google OAuth 用戶端";
+"%lld project" = "%lld 個專案";
+"%lld projects" = "%lld 個專案";
+"Other projects" = "其他專案";
+"%lld PR opened" = "已開啟 %lld 個 PR";
+"%lld PRs opened" = "已開啟 %lld 個 PR";
+"%lld merged" = "已合併 %lld 個";
+"%lld commit" = "%lld 次提交";
+"%lld commits" = "%lld 次提交";
+"Agent work" = "智慧體工作";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "你在此工作時段向 Claude Code 和 Codex 提出的要求，以及記錄到的操作。";
+"Merged #%lld" = "已合併 #%lld";
+"Merged a pull request" = "已合併提取要求";

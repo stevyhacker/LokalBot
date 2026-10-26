@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "নিজের Google Cloud প্রকল্পের জন্য: Gmail API চালু করুন, “Desktop app” ধরনের একটি OAuth ক্লায়েন্ট তৈরি করুন, সেটি প্রকাশ করুন, তারপর তার JSON ফাইল ডাউনলোড করে এখানে বেছে নিন। এরপর নতুন সাইন-ইনে LokalBot-এর ক্লায়েন্টের বদলে আপনার ক্লায়েন্ট ব্যবহার হবে।";
 "Use LokalBot's Client" = "LokalBot-এর ক্লায়েন্ট ব্যবহার করুন";
 "Use your own Google OAuth client" = "নিজের Google OAuth ক্লায়েন্ট ব্যবহার করুন";
+"%lld project" = "%lldটি প্রকল্প";
+"%lld projects" = "%lldটি প্রকল্প";
+"Other projects" = "অন্যান্য প্রকল্প";
+"%lld PR opened" = "%lldটি PR খোলা হয়েছে";
+"%lld PRs opened" = "%lldটি PR খোলা হয়েছে";
+"%lld merged" = "মার্জ হয়েছে: %lld";
+"%lld commit" = "%lldটি কমিট";
+"%lld commits" = "%lldটি কমিট";
+"Agent work" = "এজেন্টের কাজ";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "এই সেশনে আপনি Claude Code ও Codex-কে কী করতে বলেছেন এবং রেকর্ড অনুযায়ী তারা কী করেছে।";
+"Merged #%lld" = "#%lld মার্জ হয়েছে";
+"Merged a pull request" = "পুল রিকোয়েস্ট মার্জ হয়েছে";

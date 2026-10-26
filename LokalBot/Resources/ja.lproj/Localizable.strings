@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "ご自身の Google Cloud プロジェクトを使う場合は、Gmail API を有効にし、種類が「デスクトップ アプリ」の OAuth クライアントを作成して公開し、JSON ファイルをダウンロードしてここで選択してください。以降の新しいサインインでは、LokalBot のクライアントではなくご自身のクライアントが使われます。";
 "Use LokalBot's Client" = "LokalBot のクライアントを使用";
 "Use your own Google OAuth client" = "自分の Google OAuth クライアントを使用";
+"%lld project" = "プロジェクト %lld 件";
+"%lld projects" = "プロジェクト %lld 件";
+"Other projects" = "その他のプロジェクト";
+"%lld PR opened" = "PR %lld 件をオープン";
+"%lld PRs opened" = "PR %lld 件をオープン";
+"%lld merged" = "マージ %lld 件";
+"%lld commit" = "コミット %lld 件";
+"%lld commits" = "コミット %lld 件";
+"Agent work" = "エージェントの作業";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "このセッション中に Claude Code と Codex に依頼した内容と、記録されている実行内容です。";
+"Merged #%lld" = "#%lld をマージ";
+"Merged a pull request" = "プルリクエストをマージ";

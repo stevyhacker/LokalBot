@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "మీ సొంత Google Cloud ప్రాజెక్ట్ కోసం: Gmail APIని ప్రారంభించండి, “Desktop app” రకం OAuth క్లయింట్‌ను సృష్టించి ప్రచురించండి, దాని JSON ఫైల్‌ను డౌన్‌లోడ్ చేసి, ఇక్కడ ఎంచుకోండి. ఆ తర్వాత కొత్త సైన్ ఇన్‌లు LokalBot క్లయింట్‌కు బదులుగా మీ క్లయింట్‌ను ఉపయోగిస్తాయి.";
 "Use LokalBot's Client" = "LokalBot క్లయింట్‌ను ఉపయోగించండి";
 "Use your own Google OAuth client" = "మీ సొంత Google OAuth క్లయింట్‌ను ఉపయోగించండి";
+"%lld project" = "%lld ప్రాజెక్ట్";
+"%lld projects" = "%lld ప్రాజెక్ట్‌లు";
+"Other projects" = "ఇతర ప్రాజెక్ట్‌లు";
+"%lld PR opened" = "%lld PR తెరవబడింది";
+"%lld PRs opened" = "%lld PRలు తెరవబడ్డాయి";
+"%lld merged" = "విలీనం: %lld";
+"%lld commit" = "%lld కమిట్";
+"%lld commits" = "%lld కమిట్‌లు";
+"Agent work" = "ఏజెంట్ల పని";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "ఈ సెషన్‌లో మీరు Claude Code, Codex‌లను ఏమి అడిగారు, అవి ఏమి చేసినట్లు నమోదైంది.";
+"Merged #%lld" = "#%lld విలీనం చేయబడింది";
+"Merged a pull request" = "పుల్ రిక్వెస్ట్ విలీనం చేయబడింది";

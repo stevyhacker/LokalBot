@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "Dành cho dự án Google Cloud của riêng bạn: bật Gmail API, tạo ứng dụng khách OAuth loại “Ứng dụng dành cho máy tính”, phát hành ứng dụng, tải tệp JSON xuống rồi chọn tệp đó tại đây. Sau đó, các lần đăng nhập mới sẽ dùng ứng dụng khách của bạn thay vì của LokalBot.";
 "Use LokalBot's Client" = "Dùng ứng dụng khách của LokalBot";
 "Use your own Google OAuth client" = "Dùng ứng dụng khách Google OAuth của riêng bạn";
+"%lld project" = "%lld dự án";
+"%lld projects" = "%lld dự án";
+"Other projects" = "Dự án khác";
+"%lld PR opened" = "Đã mở %lld PR";
+"%lld PRs opened" = "Đã mở %lld PR";
+"%lld merged" = "đã gộp: %lld";
+"%lld commit" = "%lld commit";
+"%lld commits" = "%lld commit";
+"Agent work" = "Công việc của tác nhân";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Những gì bạn yêu cầu Claude Code và Codex trong phiên này, và những gì được ghi nhận là chúng đã làm.";
+"Merged #%lld" = "Đã gộp #%lld";
+"Merged a pull request" = "Đã gộp pull request";

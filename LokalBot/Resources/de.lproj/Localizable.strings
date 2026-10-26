@@ -1480,3 +1480,15 @@
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "Für dein eigenes Google-Cloud-Projekt: Aktiviere die Gmail API, erstelle einen OAuth-Client vom Typ „Desktop-App“, veröffentliche die App, lade die JSON-Datei des Clients herunter und wähle sie hier aus. Neue Anmeldungen nutzen dann deinen Client statt des Clients von LokalBot.";
 "Use LokalBot's Client" = "Client von LokalBot verwenden";
 "Use your own Google OAuth client" = "Eigenen Google-OAuth-Client verwenden";
+"%lld project" = "%lld Projekt";
+"%lld projects" = "%lld Projekte";
+"Other projects" = "Andere Projekte";
+"%lld PR opened" = "%lld PR eröffnet";
+"%lld PRs opened" = "%lld PRs eröffnet";
+"%lld merged" = "zusammengeführt: %lld";
+"%lld commit" = "%lld Commit";
+"%lld commits" = "%lld Commits";
+"Agent work" = "Arbeit der Agenten";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Worum du Claude Code und Codex in dieser Sitzung gebeten hast und was sie nachweislich getan haben.";
+"Merged #%lld" = "#%lld zusammengeführt";
+"Merged a pull request" = "Pull Request zusammengeführt";
