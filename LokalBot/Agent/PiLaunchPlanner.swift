@@ -76,6 +76,10 @@ enum PiLaunchPlanner {
         environment["LOKALBOT_LLM_MODEL"] = endpoint.model
         environment["LOKALBOT_LLM_CTX"] = String(endpoint.contextTokens)
         environment["LOKALBOT_LLM_REASONING_DIALECT"] = endpoint.reasoningDialect.rawValue
+        environment["LOKALBOT_LLM_API"] = endpoint.api.rawValue
+        // A plan relay is on this Mac; the model is not. The extension's
+        // environment section says who serves it.
+        environment["LOKALBOT_LLM_SERVED_BY"] = endpoint.plan.map { "\($0.providerName) on the user's \($0.title)" }
         // The host rewrites this file when the Agent reasoning level changes;
         // the extension reads it for every model request. Absent: Automatic.
         environment["LOKALBOT_LLM_REASONING_FILE"] = reasoningLevelFile?.path

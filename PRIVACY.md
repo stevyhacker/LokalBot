@@ -410,7 +410,8 @@ The app may make these outbound connections:
   and Dream runs, and the provider's terms for your account apply to it.
   Requests count toward that plan's usage limits; when a limit is reached,
   requests stop with a message and are never moved to another provider.
-  Agent Mode, follow-up drafts, and pre-meeting briefs don't use a plan.
+  Agent Mode can use the ChatGPT plan but not the Claude plan; follow-up
+  drafts and pre-meeting briefs don't use a plan.
   - **ChatGPT plan** uses OpenAI's Sign in with ChatGPT for open-source apps.
     Sign-in opens `auth.openai.com` in your browser and returns to a listener
     on `127.0.0.1` that accepts only that redirect. LokalBot receives your
@@ -418,8 +419,14 @@ The app may make these outbound connections:
     conversations, and stores the session tokens, its app registration, and a
     random per-Mac id in the Keychain. Think requests go to OpenAI's Responses
     API at `api.openai.com` with storage turned off; listing your plan's models
-    sends only the token. Signing out asks OpenAI to revoke the session and
-    clears its tokens; you can also disconnect LokalBot in ChatGPT settings.
+    sends only the token. Agent Mode tasks reach the same API through a relay
+    LokalBot runs on `127.0.0.1` for each task: the agent runtime sends its
+    requests there with a random key for that task, and LokalBot adds the plan
+    token, so the runtime and the commands it runs never hold your ChatGPT
+    tokens. Those requests carry the task's conversation, attached context, and
+    tool results, as with any Agent Mode model. Signing out asks OpenAI to
+    revoke the session and clears its tokens; you can also disconnect LokalBot
+    in ChatGPT settings.
   - **Claude plan** runs the Claude Code you installed and signed in to
     yourself (`claude -p`), unmodified. LokalBot never reads, stores, or
     forwards your Claude credentials and never offers a Claude login of its

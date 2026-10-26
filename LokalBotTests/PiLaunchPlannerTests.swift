@@ -91,6 +91,29 @@ final class PiLaunchPlannerTests: XCTestCase {
         XCTAssertNil(makePlan().environment["LOKALBOT_LLM_REASONING_FILE"])
     }
 
+    func testEnvironmentNamesTheWireAPIAndWhoServesAPlan() {
+        let local = makePlan().environment
+        XCTAssertEqual(local["LOKALBOT_LLM_API"], "openai-completions")
+        XCTAssertNil(local["LOKALBOT_LLM_SERVED_BY"])
+        var relay = endpoint
+        relay.api = .responses
+        relay.plan = .chatGPT
+        let plan = PiLaunchPlanner.plan(
+            bun: URL(fileURLWithPath: "/rt/bun/bun"),
+            piCLI: URL(fileURLWithPath: "/rt/cli.js"),
+            extensionDirectory: URL(fileURLWithPath: "/app/Resources/pi/lokalbot-extension"),
+            skillDirectory: nil,
+            sessionDirectory: URL(fileURLWithPath: "/store/agent/sessions"),
+            workspace: URL(fileURLWithPath: "/work"),
+            endpoint: relay,
+            helpersDirectory: nil,
+            baseEnvironment: ["LOKALBOT_LLM_SERVED_BY": "inherited"]).environment
+        XCTAssertEqual(plan["LOKALBOT_LLM_API"], "openai-responses")
+        XCTAssertEqual(plan["LOKALBOT_LLM_SERVED_BY"], "OpenAI on the user's ChatGPT plan")
+        XCTAssertNil(makePlan(inheritedEnvironment: ["LOKALBOT_LLM_SERVED_BY": "inherited"])
+            .environment["LOKALBOT_LLM_SERVED_BY"], "a local server must not inherit a plan's label")
+    }
+
     func testAPIKeyIsPassedWhenPresent() {
         XCTAssertEqual(makePlan(apiKey: "sk-test").environment["LOKALBOT_LLM_API_KEY"], "sk-test")
     }

@@ -894,9 +894,15 @@ struct ModelPickerSheet: View {
                 ready: plan == .chatGPT ? $chatGPTReady : $claudeReady,
                 chatGPTAccount: chatGPTAccount)
                 .id(plan)
-            Text("Requests count toward your \(plan.title)'s usage. Agent Mode can't use a plan yet.")
-                .font(.scaled(.callout)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            Group {
+                if plan == .chatGPT {
+                    Text("Requests count toward your \(plan.title)'s usage, including Agent Mode tasks.")
+                } else {
+                    Text("Requests count toward your \(plan.title)'s usage. Agent Mode can't use this plan yet.")
+                }
+            }
+            .font(.scaled(.callout)).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.top, 4)
     }
