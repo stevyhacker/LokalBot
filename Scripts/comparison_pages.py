@@ -22,7 +22,7 @@ VERIFIED = "2026-10-26"
 
 # When LokalBot's own facts on these pages last changed (not the competitors').
 # It moves dateModified and the sitemap's lastmod, but not "Last verified".
-LOKALBOT_UPDATED = "2026-10-20"
+LOKALBOT_UPDATED = "2026-10-26"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
@@ -260,7 +260,7 @@ PAGES = [
             ("Writing autocomplete", LB_COTYPING, NO),
             ("License", "GPLv3 — every fork's improvements stay open", "MIT for the community app; enterprise components are commercially licensed"),
             ("Direction", "Independent, local by default", "Maintained as the community notetaker; the team now builds Char"),
-            ("Platforms", LB_PLATFORM, "macOS, Windows, and Linux; iOS and Android in beta"),
+            ("Platforms", LB_PLATFORM, "macOS; Windows, Linux, iOS, and Android in beta"),
         ],
         "competitor_pick_title": "Pick Hyprnote if&hellip;",
         "competitor_pick_sub": "A kindred project with different choices — all defensible.",
@@ -302,7 +302,7 @@ PAGES = [
             ("Speaker separation", f"{CHECK}On your computer, on by default", "Pro only"),
             ("Ask across meetings", f"{CHECK}Cited answers that link back to the transcript and audio", "Not yet — listed as coming soon for Pro"),
             ("Connect AI tools", LB_AGENTS, "Pro only — MCP, webhooks, and a CLI"),
-            ("Transcribe existing files", f"{CROSS}No — LokalBot transcribes what it records", f"{CHECK}Imports audio and video files, and can re-transcribe them"),
+            ("Transcribe existing files", f"{CHECK}Import audio and video recordings as meetings", f"{CHECK}Imports audio and video files, and can re-transcribe them"),
             ("Usage analytics", "None — no analytics service or telemetry", "Optional; off by default on new installs"),
             ("System-wide dictation", LB_DICTATION, NO),
             ("Day timeline", LB_TIMELINE, NO),
@@ -314,7 +314,7 @@ PAGES = [
         "competitor_pick_title": "Pick Meetily if&hellip;",
         "competitor_pick_sub": "A popular open-source notetaker with a big community.",
         "competitor_pick_items": [
-            "You want to transcribe audio files you already have",
+            "You're on Windows and want a release that isn't an alpha",
             "You prefer the MIT license, or want a paid tier with vendor support",
             "Your team wants a self-hosted Enterprise deployment",
         ],
@@ -334,6 +334,56 @@ PAGES = [
         "disclaimer": "Meetily is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on its public site, pricing, and repository",
     },
     {
+        "slug": "lokalbot-vs-openwhispr",
+        "title": "LokalBot vs OpenWhispr: open-source meeting notes and dictation compared",
+        "description": "Compare OpenWhispr and LokalBot, two open-source apps for dictation and bot-free meeting notes: local and cloud defaults, what's free, agent access, and platforms.",
+        "og_title": "LokalBot vs OpenWhispr — open-source meeting notes and dictation",
+        "og_description": "Both are open source and record meetings without a bot. They differ on cloud defaults, what's free, agent access, and platforms.",
+        "h1": "LokalBot vs OpenWhispr",
+        "competitor_name": "OpenWhispr",
+        "competitor_column": "OpenWhispr",
+        "published": "2026-10-26",
+        "lead": "OpenWhispr is a popular open-source app for dictation and meeting notes, under the MIT license. Like LokalBot, it records your microphone and system audio without a bot and can transcribe and summarize on your device. Its setup recommends OpenWhispr Cloud, though, and device sync, its MCP server, and team features come with paid plans. LokalBot runs on your computer by default, keeps every feature free in one GPLv3 app, and remembers more of your workday than meetings.",
+        "table_rows": [
+            ("Meeting capture", f"{CHECK}Bot-free microphone + system audio; detects meetings and asks before recording", f"{CHECK}Bot-free microphone + system audio; suggests recording on microphone activity or a calendar event, and asks first"),
+            ("Default processing", f"{CHECK}On your computer; a remote server gets context only after you approve it", "Setup recommends OpenWhispr Cloud; on-device transcription is an option you choose"),
+            ("Transcription", f"{CHECK}{LB_ASR}", f"{CHECK}On your device with Orukeet (a Parakeet fine-tune), Whisper, and others, or cloud providers"),
+            ("Summaries", f"{CHECK}llama.cpp built in — works with no keys and no setup", f"{CHECK}Built-in llama.cpp models, a local server such as Ollama, your own keys, or OpenWhispr Cloud"),
+            ("Speaker separation", f"{CHECK}On your computer, on by default; names carry into later meetings", f"{CHECK}On your device, up to 8 speakers; names carry into later meetings"),
+            ("Ask across meetings", f"{CHECK}Cited answers that link back to the transcript and audio", f"{CHECK}A chat agent that searches, reads, and edits your notes"),
+            ("Connect AI tools", LB_AGENTS, "A hosted MCP server on paid plans that sees notes synced to its cloud; a local CLI for free"),
+            ("Transcribe existing files", f"{CHECK}Import audio and video recordings as meetings", f"{CHECK}Files, batch uploads, and YouTube links"),
+            ("System-wide dictation", LB_DICTATION, f"{CHECK}Hotkeys for dictation, a voice assistant, translation, and meetings"),
+            ("Day timeline", LB_TIMELINE, NO),
+            ("Writing autocomplete", LB_COTYPING, NO),
+            ("Where your notes live", f"{CHECK}A local library on your computer; there is no LokalBot cloud", "Locally; cloud backup, sync, and sharing on paid plans"),
+            ("License", "GPLv3 — every feature in one open repository", "MIT; its cloud and MCP server are hosted services"),
+            ("Price", "Free", "Free, with limits on cloud use · Pro $8/mo · Business $16 per user/mo · Enterprise custom"),
+            ("Platforms", LB_PLATFORM, "macOS 12+ (Apple Silicon and Intel), Windows 10+ x64, and Linux x86-64; iPhone and iPad"),
+        ],
+        "competitor_pick_title": "Pick OpenWhispr if&hellip;",
+        "competitor_pick_sub": "A dictation-first app with optional cloud extras.",
+        "competitor_pick_items": [
+            "Dictation is your main job: a voice assistant, translation, per-app tone, and snippets",
+            "You want it on an iPhone, an iPad, or an Intel Mac too",
+            "You'd like optional cloud sync, note sharing, and team spaces",
+        ],
+        "lokal_pick_sub": "Local by default, and more than meetings.",
+        "lokal_pick_items": [
+            "You want everything on your computer unless you approve a server",
+            "You want AI tools to read your library through a free, local, read-only MCP server",
+            "You want a day timeline, screen recall, and autocomplete in the same app",
+            "Copyleft matters: GPLv3 keeps every fork's improvements open",
+        ],
+        "faq": [
+            ("Is OpenWhispr local?", "It can be. Choose on-device transcription and a built-in local model, and your audio stays on your computer. Its setup recommends OpenWhispr Cloud, though, and transcription is chosen separately for dictation, meetings, and file uploads, so check each one. LokalBot runs on your computer by default and asks before any context goes to a remote server."),
+            ("How do AI agents reach each one?", "OpenWhispr's MCP server is hosted: it needs a paid plan with cloud backup turned on and sees only notes synced to its cloud. Its local CLI is free. LokalBot's read-only CLI and MCP server run on your computer, read your local library, and are free; you turn them on in Settings."),
+            ("Which one runs on Linux?", 'Both. OpenWhispr ships AppImage, .deb, .rpm, and .tar.gz builds for x86-64 Linux. LokalBot\'s Linux app is in alpha, with .deb, .rpm, and Arch packages and updates through apt and dnf; see <a href="local-ai-meeting-notes-linux">local AI meeting notes on Linux</a>.'),
+        ],
+        "cta_title": "Local by default, nothing gated.",
+        "disclaimer": "OpenWhispr is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on its public site, documentation, pricing, and repository",
+    },
+    {
         "slug": "lokalbot-vs-macwhisper",
         "title": "LokalBot vs MacWhisper: local transcription on Mac compared",
         "description": "Compare MacWhisper's file transcription and dictation with LokalBot's free, open-source Mac app for bot-free meeting notes, dictation, and day recall.",
@@ -345,7 +395,7 @@ PAGES = [
         "published": "2026-09-24",
         "lead": "MacWhisper is the go-to Mac app for transcribing files: drag in an interview, lecture, or podcast and get text back, on-device. It also records calls without a bot and offers dictation. LokalBot overlaps on meetings and dictation but is built around recall rather than files — meeting notes with local summaries, a searchable library, and a day timeline. LokalBot is free and open source; MacWhisper has a free version and a one-time Pro license.",
         "table_rows": [
-            ("Transcribe existing files", f"{CROSS}No — LokalBot transcribes what it records", f"{CHECK}Drag and drop audio or video; export subtitles and documents"),
+            ("Transcribe existing files", f"{CHECK}Import audio and video recordings as meetings; no subtitle export", f"{CHECK}Drag and drop audio or video; export subtitles and documents"),
             ("Meeting capture", f"{CHECK}Auto-detected, bot-free microphone + system-audio tracks, summarized locally", f"{CHECK}Records Zoom, Teams, Webex, Skype, and Discord calls without a bot"),
             ("Where transcription runs", LB_ASR, "On your Mac, with a choice of local models"),
             ("AI summaries", f"{CHECK}llama.cpp built in; Ollama or OpenAI-compatible servers only if you approve them", "Connects to OpenAI, Anthropic, Google Gemini, xAI, Ollama, and other providers"),

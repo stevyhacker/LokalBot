@@ -7,6 +7,10 @@ it and links to the original instead of copying it.
 
 Bodies are served from /blog/<slug>, so every internal link and image path
 must be root-relative ("/benchmarks", "/assets/blog/...").
+
+Each post needs a share image at web/assets/blog/og/<slug>.png. After adding
+a post or changing its title, run `python3 Scripts/render_social_images.py
+--only <slug>` before render_web.py.
 """
 
 # Head and structured-data copy for web/blog.html.
