@@ -1068,7 +1068,7 @@ struct OpenAICompatibleEngine: TextEngine {
     nonisolated static func supportsOpenAIReasoningEffort(model: String) -> Bool {
         let name = model.lowercased()
         return name.hasPrefix("o1") || name.hasPrefix("o3") || name.hasPrefix("o4")
-            || name.hasPrefix("gpt-5")
+            || name.hasPrefix("gpt-5") || name.hasPrefix("gpt-6")
     }
 
     /// A reasoning level the user chose can be one the selected model does

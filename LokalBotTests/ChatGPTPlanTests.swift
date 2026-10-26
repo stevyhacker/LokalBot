@@ -575,6 +575,24 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertNil(body["text"])
     }
 
+    /// GPT-6.1 Sol used to have no known levels, so the High the user chose
+    /// was dropped and every plan request ran at the model's default.
+    func testGPT6RequestsCarryTheChosenLevel() throws {
+        func effort(_ model: String, _ level: ThinkReasoningLevel, taskBudget: Int? = nil) throws -> String? {
+            let request = try engine(level: level, model: model).makeRequest(
+                system: "", prompt: "Hi", context: [], schema: nil,
+                options: taskBudget.map { .init(reasoningBudgetTokens: $0) }, accessToken: "t")
+            return (try body(request)["reasoning"] as? [String: Any])?["effort"] as? String
+        }
+        XCTAssertEqual(try effort("gpt-6.1-sol", .high), "high")
+        XCTAssertEqual(try effort("gpt-6.1-sol", .max), "max")
+        XCTAssertEqual(try effort("gpt-6.1-sol", .high, taskBudget: 0), "low", "6.1 Sol rejects none")
+        XCTAssertEqual(try effort("gpt-6-luna", .high, taskBudget: 0), "none")
+        XCTAssertNil(try effort("gpt-6.1-sol", .automatic))
+        XCTAssertEqual(engine(model: "gpt-6.1-sol").minimumStructuredOutputTokens, 2_048,
+                       "reasoning cannot be switched off")
+    }
+
     func testRejectsNonStrictSchemaBeforeSpendingPlanUsage() {
         XCTAssertThrowsError(try engine().makeRequest(
             system: "", prompt: "Hi", context: [], schema: ["type": "object", "properties": ["a": ["type": "string"]]],

@@ -1665,6 +1665,9 @@ pub fn context_tokens(model: &str) -> u32 {
     let name = model.to_lowercase();
     if name.starts_with("gpt-4.1") {
         1_000_000
+    } else if name.starts_with("gpt-6") {
+        // Every GPT-6 model takes at most 922K input tokens of a 1.05M window.
+        922_000
     } else {
         128_000
     }
