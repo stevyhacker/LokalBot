@@ -21,6 +21,15 @@ use crate::screen::{AgentSession, ScreenReader};
 use crate::session::{Session, day_key};
 
 pub const TOOL_NAME: &str = "get_briefing";
+
+/// What the briefing tells the agent to call next: MCP tools for
+/// `get_briefing`, `lokalbot-cli` commands for `brief`, so an agent that can
+/// only run a shell isn't pointed at tools it can't reach.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Vocabulary {
+    Mcp,
+    Cli,
+}
 pub const MAXIMUM_CHARACTERS: usize = 12_000;
 pub const DESCRIPTION: &str = "Call this first in every session. Returns what LokalBot knows that this session may use: which sources are available and the user's open action items. A library that came from a Mac also carries what the user shared about themselves, current projects and goals, and recent coding-agent work. Check it, and search LokalBot, before asking the user about past work or decisions.";
 
@@ -36,7 +45,13 @@ fn short_day(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local).format("%a %b %-d").to_string()
 }
 
-pub fn render(session: &Session, meeting_access: bool, now: DateTime<Utc>) -> String {
+pub fn render(
+    session: &Session,
+    meeting_access: bool,
+    now: DateTime<Utc>,
+    vocabulary: Vocabulary,
+) -> String {
+    let cli = vocabulary == Vocabulary::Cli;
     let scope = screen_access_scope(&session.paths);
     let cutoff = scope.and_then(|s| match s {
         ScreenScope::Today => Some(crate::session::today_start()),
@@ -71,10 +86,15 @@ pub fn render(session: &Session, meeting_access: bool, now: DateTime<Utc>) -> St
         let own: Vec<&Meeting> = meetings.iter().filter(|m| m.is_own_work()).collect();
         match own.iter().max_by_key(|m| m.started_at) {
             Some(newest) => lines.push(format!(
-                "- Meetings: on. {} recorded, newest \"{}\" ({}). Tools: search_meetings, get_meeting, list_meetings, get_action_items, list_people, get_person, and ask_library while the app runs.",
+                "- Meetings: on. {} recorded, newest \"{}\" ({}). {}",
                 own.len(),
                 clean(&newest.title, 80),
-                day_key(newest.started_at)
+                day_key(newest.started_at),
+                if cli {
+                    "Commands: search, get, list, actions, and people."
+                } else {
+                    "Tools: search_meetings, get_meeting, list_meetings, get_action_items, list_people, get_person, and ask_library while the app runs."
+                }
             )),
             None => lines.push("- Meetings: on, none recorded yet.".into()),
         }
@@ -95,7 +115,12 @@ pub fn render(session: &Session, meeting_access: bool, now: DateTime<Utc>) -> St
                 ScreenScope::RetainedHistory => "all retained history",
             };
             lines.push(format!(
-                "- Screen memory: on, {window}. Tools: search_screen, get_timeline, get_recent_activity, get_app_usage, get_screenshot_detail."
+                "- Screen memory: on, {window}. {}",
+                if cli {
+                    "No lokalbot-cli command searches it."
+                } else {
+                    "Tools: search_screen, get_timeline, get_recent_activity, get_app_usage, get_screenshot_detail."
+                }
             ));
         }
         None => lines.push("- Screen memory: off. The user can turn on Settings → Privacy & Data → \"Allow external agents to read screen memory\".".into()),
@@ -103,9 +128,14 @@ pub fn render(session: &Session, meeting_access: bool, now: DateTime<Utc>) -> St
     if personal_on {
         match &projection {
             Some(p) => lines.push(format!(
-                "- Personal Context: on, {} shared {}. Tool: get_personal_context.",
+                "- Personal Context: on, {} shared {}. {}",
                 p.claims.len(),
-                if p.claims.len() == 1 { "item" } else { "items" }
+                if p.claims.len() == 1 { "item" } else { "items" },
+                if cli {
+                    "Command: personal-context."
+                } else {
+                    "Tool: get_personal_context."
+                }
             )),
             None => lines.push(
                 "- Personal Context: on, but this library holds no shared items. Only the Mac app writes them."
@@ -182,7 +212,11 @@ pub fn render(session: &Session, meeting_access: bool, now: DateTime<Utc>) -> St
     {
         sections.push(agents);
     }
-    sections.push("For more: search_meetings and get_meeting for what was said, get_action_items for commitments, search_screen and get_timeline for what was on screen, get_personal_context for what the user shared about themselves. Cite meetings by title and date from tool results, not from this briefing.".into());
+    sections.push(if cli {
+        "For more, run lokalbot-cli: search and get for what was said, list --include summary for several meetings' summaries at once, actions for commitments, personal-context --task for what the user shared about themselves. Cite meetings by title and date from command results, not from this briefing.".into()
+    } else {
+        "For more: search_meetings and get_meeting for what was said, list_meetings with include \"summary\" for several meetings' summaries at once, get_action_items for commitments, search_screen and get_timeline for what was on screen, get_personal_context for what the user shared about themselves. Cite meetings by title and date from tool results, not from this briefing.".into()
+    });
     let text = sections.join("\n\n");
     if text.chars().count() <= MAXIMUM_CHARACTERS {
         return text;

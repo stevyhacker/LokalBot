@@ -175,7 +175,22 @@ On Linux, `freetype-sys` compiles its bundled FreeType (FreeType License or
 GPL-2.0-or-later) only when the build machine has no FreeType of its own; the
 release builds contain no FreeType code. Libraries the programs load from the
 system at run time (the C and C++ runtimes, ALSA, X11 and Wayland libraries,
-the Vulkan loader) are not distributed with LokalBot.
+the Vulkan loader) are not distributed with LokalBot, apart from the Visual C++
+runtime below.
+
+### Microsoft Visual C++ runtime (Windows)
+
+The Windows archive and installer include `msvcp140.dll`, `vcruntime140.dll`
+and `vcruntime140_1.dll` from the Microsoft Visual C++ Redistributable,
+unmodified, in the `vc-runtime` folder. LokalBot's own programs link the C
+runtime statically and don't use them: it copies them beside each
+`llama-server.exe` it downloads, so llama.cpp also runs where the Visual C++
+Redistributable isn't installed. They are Copyright (c) Microsoft Corporation
+and are distributed as Distributable Code under the Microsoft Visual Studio
+license terms (https://learn.microsoft.com/visualstudio/releases/2022/redistribution),
+not under LokalBot's license. Anyone who distributes them further must keep
+them unmodified and bind the people they distribute them to under terms that
+protect them at least as much as Microsoft's own terms.
 
 ### Assets compiled into the app
 
@@ -216,6 +231,13 @@ revision.
 It runs the text models with llama.cpp's `llama-server` (MIT), downloaded from
 the ggml-org release named in `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`,
 and Agent Mode with Bun and pi, as in the table at the top.
+
+The optional Linux/Windows CUDA backend uses NVIDIA's CUDA Runtime, cuBLAS and
+cuBLASLt under the [NVIDIA CUDA Toolkit license](https://docs.nvidia.com/cuda/eula/index.html).
+Compatible system libraries are reused when available. Otherwise LokalBot
+downloads the companion archive from the same pinned llama.cpp release into its
+own runtime folder. The NVIDIA GPU driver remains installed and managed by the
+user's operating system; it is not included in LokalBot's downloads.
 
 ## MIT License
 

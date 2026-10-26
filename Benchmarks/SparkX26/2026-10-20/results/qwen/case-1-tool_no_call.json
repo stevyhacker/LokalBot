@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "Hello!"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 3,
+    "prompt_tokens": 488,
+    "total_tokens": 491,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 488,
+    "prompt_ms": 2225.567,
+    "prompt_per_token_ms": 4.560588114754099,
+    "prompt_per_second": 219.26996581095963,
+    "predicted_n": 3,
+    "predicted_ms": 111.82,
+    "predicted_per_token_ms": 55.91,
+    "predicted_per_second": 17.885888034340905
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "Hello!"
+        }
+      }
+    ],
+    "created": 1792527767,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 3,
+      "prompt_tokens": 488,
+      "total_tokens": 491,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-FSfsVxnDUYKya2PapgrJyjTV87aIAcwU",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 488,
+      "prompt_ms": 2225.567,
+      "prompt_per_token_ms": 4.560588114754099,
+      "prompt_per_second": 219.26996581095963,
+      "predicted_n": 3,
+      "predicted_ms": 111.82,
+      "predicted_per_token_ms": 55.91,
+      "predicted_per_second": 17.885888034340905
+    }
+  },
+  "wall_seconds": 2.3413451397791505,
+  "memory": {
+    "samples": 12,
+    "peak_rss_bytes": 7650471936,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_no_call",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "native_calls": [],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

@@ -257,6 +257,8 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 embeddings_ready: status.embeddings_ready,
                 screen_text_ready: status.screen_text_ready,
                 runtime_backend: status.runtime_backend.map(SharedString::from),
+                runtime_needs_check: status.runtime_needs_check,
+                runtime_storage: status.runtime_storage,
             };
             data.sample_models_changed(cx);
         }

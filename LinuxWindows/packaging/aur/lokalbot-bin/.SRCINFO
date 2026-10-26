@@ -9,6 +9,7 @@ pkgbase = lokalbot-bin
 	depends = glibc>=2.39
 	depends = libgcc
 	depends = libstdc++
+	depends = libgomp
 	depends = alsa-lib
 	depends = libxcb
 	depends = libxkbcommon

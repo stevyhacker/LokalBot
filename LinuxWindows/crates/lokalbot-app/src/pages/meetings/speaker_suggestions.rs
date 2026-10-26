@@ -1,17 +1,18 @@
 //! Suggested names in Name Speaker (`MeetingSpeakerRenameSheet`): the
 //! meeting's calendar guests and name hints. Choosing a guest keeps its
 //! opaque identity with the name (`speakerCalendarIdentityIDs`), so same-named
-//! guests stay apart; attendance alone never names a voice.
+//! guests stay apart; attendance alone never names a voice. Typing in the
+//! name input searches the suggestions.
 
+use std::cell::Cell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
-use gpui_kit::component::input::{Input, InputState};
 use gpui_kit::component::v_flex;
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Context, Entity, FontWeight, InteractiveElement as _,
-    IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
-    Window, div, px,
+    AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, ParentElement as _,
+    Pixels, SharedString, StatefulInteractiveElement as _, Styled as _, canvas, div, px,
 };
 use lokalbot_core::calendar::{SpeakerSuggestion, SuggestionSource};
 use lokalbot_core::{Meeting, Transcript};
@@ -21,8 +22,7 @@ use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// Longer lists get a search field.
-const SEARCH_THRESHOLD: usize = 3;
+const LIST_MAX_HEIGHT: f32 = 220.;
 
 pub(crate) struct SpeakerSuggestions {
     pub choices: Vec<SpeakerSuggestion>,
@@ -30,17 +30,15 @@ pub(crate) struct SpeakerSuggestions {
     pub selected: Option<String>,
     /// Guests already given to another voice in this meeting.
     assigned_elsewhere: HashSet<String>,
-    pub query: Option<Entity<InputState>>,
+    /// The name as last typed, which searches the suggestions. A choice
+    /// clears it, so the whole list shows again.
+    pub query: String,
+    /// The tallest the list has been, so filtering never shrinks the sheet.
+    list_height: Rc<Cell<Pixels>>,
 }
 
 impl SpeakerSuggestions {
-    pub fn new(
-        meeting: &Meeting,
-        transcript: &Transcript,
-        speaker_key: &str,
-        window: &mut Window,
-        cx: &mut App,
-    ) -> Self {
+    pub fn new(meeting: &Meeting, transcript: &Transcript, speaker_key: &str) -> Self {
         let guests = lokalbot_core::calendar::resolved_meeting_identities(meeting);
         let hints = meeting.participant_name_hints.clone().unwrap_or_default();
         let choices = SpeakerSuggestion::choices(&guests, &hints);
@@ -54,20 +52,12 @@ impl SpeakerSuggestions {
             .filter(|(key, _)| key.as_str() != speaker_key)
             .map(|(_, id)| id.clone())
             .collect();
-        let query = (choices.len() > SEARCH_THRESHOLD).then(|| {
-            cx.new(|cx| {
-                InputState::new(window, cx).placeholder(crate::i18n::placeholder(
-                    "Search suggested names",
-                    window,
-                    cx,
-                ))
-            })
-        });
         Self {
             choices,
             selected,
             assigned_elsewhere,
-            query,
+            query: String::new(),
+            list_height: Rc::new(Cell::new(px(0.))),
         }
     }
 
@@ -77,26 +67,83 @@ impl SpeakerSuggestions {
         self.selected.clone()
     }
 
+    fn is_chosen(&self, choice: &SpeakerSuggestion, name: &str) -> bool {
+        match &self.selected {
+            Some(id) => choice
+                .calendar
+                .as_ref()
+                .is_some_and(|guest| &guest.id == id),
+            None => {
+                choice.calendar.is_none()
+                    && choice.name.as_deref().map(SpeakerSuggestion::name_key)
+                        == Some(SpeakerSuggestion::name_key(name))
+            }
+        }
+    }
+
+    /// Matches for the typed name. The chosen guest stays listed while its
+    /// name is edited, since saving keeps that guest.
+    fn visible(&self, name: &str) -> Vec<usize> {
+        let query = self.query.trim();
+        (0..self.choices.len())
+            .filter(|&index| {
+                let choice = &self.choices[index];
+                query.is_empty() || choice.matches(query) || self.is_chosen(choice, name)
+            })
+            .collect()
+    }
+
+    /// The top match not already chosen, which Enter fills in. With none,
+    /// Enter saves the name as typed.
+    pub fn return_choice(&self, name: &str) -> Option<usize> {
+        let query = self.query.trim();
+        if query.is_empty() {
+            return None;
+        }
+        (0..self.choices.len()).find(|&index| {
+            let choice = &self.choices[index];
+            choice.matches(query) && !self.is_chosen(choice, name)
+        })
+    }
+
     pub fn render(&self, name: &str, cx: &mut Context<NameSpeakerSheet>) -> Option<AnyElement> {
         if self.choices.is_empty() {
             return None;
         }
         let lb = cx.lb().clone();
-        let query = self
-            .query
-            .as_ref()
-            .map(|q| q.read(cx).value().to_string())
-            .unwrap_or_default();
-        let visible: Vec<(usize, &SpeakerSuggestion)> = self
-            .choices
-            .iter()
-            .enumerate()
-            .filter(|(_, choice)| query.trim().is_empty() || choice.matches(&query))
-            .collect();
-        let mut list = v_flex().gap(px(6.));
-        for (index, choice) in &visible {
-            list = list.child(self.row(*index, choice, name, cx));
+        let visible = self.visible(name);
+        let return_choice = self.return_choice(name);
+        let height = self.list_height.clone();
+        let measure = canvas(
+            move |bounds, window, _| {
+                if bounds.size.height > height.get() {
+                    height.set(bounds.size.height);
+                    window.request_animation_frame();
+                }
+            },
+            |_, _, _, _| {},
+        )
+        .absolute()
+        .size_full();
+        let mut list = v_flex().relative().gap(px(6.)).child(measure);
+        for &index in &visible {
+            let choice = &self.choices[index];
+            list = list.child(self.row(index, choice, name, return_choice == Some(index), cx));
         }
+        if visible.is_empty() {
+            list = list.child(
+                div()
+                    .text_size(ty::SECONDARY)
+                    .text_color(lb.text_secondary)
+                    .child(lokalbot_i18n::tr("No suggested names match this search.")),
+            );
+        }
+        let max_height = px(LIST_MAX_HEIGHT);
+        let min_height = if self.list_height.get() > max_height {
+            max_height
+        } else {
+            self.list_height.get()
+        };
         Some(
             v_flex()
                 .gap(px(8.))
@@ -113,22 +160,14 @@ impl SpeakerSuggestions {
                         .text_color(lb.text_secondary)
                         .child(crate::ui::text::paragraph(lokalbot_i18n::tr("Listen, choose a name, then save. These sources suggest names; attendance does not identify a voice."))),
                 )
-                .when_some(self.query.clone(), |this, query| this.child(Input::new(&query)))
                 .child(
                     div()
                         .id("speaker-suggestions")
-                        .max_h(px(220.))
+                        .min_h(min_height)
+                        .max_h(max_height)
                         .overflow_y_scroll()
                         .child(list),
                 )
-                .when(visible.is_empty(), |this| {
-                    this.child(
-                        div()
-                            .text_size(ty::SECONDARY)
-                            .text_color(lb.text_secondary)
-                            .child(lokalbot_i18n::tr("No suggested names match this search.")),
-                    )
-                })
                 .when(self.choices.iter().any(|c| c.calendar.is_some()), |this| {
                     this.child(
                         div()
@@ -146,20 +185,11 @@ impl SpeakerSuggestions {
         index: usize,
         choice: &SpeakerSuggestion,
         name: &str,
+        is_return_choice: bool,
         cx: &mut Context<NameSpeakerSheet>,
     ) -> AnyElement {
         let lb = cx.lb().clone();
-        let selected = match &self.selected {
-            Some(id) => choice
-                .calendar
-                .as_ref()
-                .is_some_and(|guest| &guest.id == id),
-            None => {
-                choice.calendar.is_none()
-                    && choice.name.as_deref().map(SpeakerSuggestion::name_key)
-                        == Some(SpeakerSuggestion::name_key(name))
-            }
-        };
+        let selected = self.is_chosen(choice, name);
         let elsewhere = choice
             .calendar
             .as_ref()
@@ -219,7 +249,20 @@ impl SpeakerSuggestions {
                                     lb.text_secondary
                                 },
                             ))
-                            .child(div().text_size(ty::BODY).text_color(lb.text).child(title)),
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_size(ty::BODY)
+                                    .text_color(lb.text)
+                                    .child(title),
+                            )
+                            .when(is_return_choice, |this| {
+                                this.child(ui::icon(
+                                    Ico::CornerDownLeft,
+                                    px(13.),
+                                    lb.text_secondary,
+                                ))
+                            }),
                     )
                     .child(h_flex().gap(px(6.)).flex_wrap().children(badges))
                     .when_some(
@@ -249,5 +292,69 @@ impl SpeakerSuggestions {
                 cx.listener(move |sheet, _, window, cx| sheet.choose_suggestion(index, window, cx)),
             )
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lokalbot_core::CalendarParticipantIdentity;
+
+    fn suggestions(selected: Option<&str>) -> SpeakerSuggestions {
+        let guests = [
+            CalendarParticipantIdentity::new("ana", Some("Ana"), Some("ana.petrovic@example.com"))
+                .unwrap(),
+            CalendarParticipantIdentity::new("marko", Some("Marko Marković"), None).unwrap(),
+        ];
+        SpeakerSuggestions {
+            choices: SpeakerSuggestion::choices(&guests, &["Matt".to_string()]),
+            selected: selected.map(str::to_string),
+            assigned_elsewhere: HashSet::new(),
+            query: String::new(),
+            list_height: Rc::new(Cell::new(px(0.))),
+        }
+    }
+
+    #[test]
+    fn typing_filters_and_enter_fills_in_the_top_match() {
+        let mut list = suggestions(None);
+        assert_eq!(
+            list.visible("Ana"),
+            [0, 1, 2],
+            "an untyped name shows every suggestion"
+        );
+        assert_eq!(list.return_choice("Ana"), None);
+
+        list.query = "mark".into();
+        assert_eq!(list.visible("mark"), [1]);
+        assert_eq!(list.return_choice("mark"), Some(1));
+    }
+
+    #[test]
+    fn enter_saves_when_nothing_new_matches() {
+        let mut list = suggestions(None);
+        list.query = "Hernan".into();
+        assert!(list.visible("Hernan").is_empty());
+        assert_eq!(list.return_choice("Hernan"), None);
+
+        // A typed hint name is already that suggestion, so Enter saves it.
+        list.query = "matt".into();
+        assert_eq!(list.return_choice("matt"), None);
+    }
+
+    #[test]
+    fn the_chosen_guest_stays_listed_while_its_name_is_edited() {
+        let mut list = suggestions(Some("ana"));
+        list.query = "Ana Petrović".into();
+        assert_eq!(list.visible("Ana Petrović"), [0]);
+        assert_eq!(
+            list.return_choice("Ana Petrović"),
+            None,
+            "Enter saves the longer name instead of filling in \"Ana\" again"
+        );
+
+        list.query = "Matt".into();
+        assert_eq!(list.visible("Matt"), [0, 2]);
+        assert_eq!(list.return_choice("Matt"), Some(2));
     }
 }

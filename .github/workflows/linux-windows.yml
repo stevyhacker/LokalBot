@@ -166,7 +166,7 @@ jobs:
           bin="${CARGO_TARGET_DIR:-target}/release/lokalbot"
           root="$RUNNER_TEMP/library"
           LOKALBOT_STORAGE_ROOT="$root" "$bin" --seed-demo
-          pages="today meetings timeline people projects ask agent settings"
+          pages="today meetings timeline people projects ask agent settings settings-models"
           CAPTURE_WAIT=10 scripts/ci/capture-linux.sh "$bin" "$root" "$RUNNER_TEMP/screenshots" $pages
           python3 -c "import json,sys; p=sys.argv[1]; s=json.load(open(p)) if __import__('os').path.exists(p) else {}; s['appTheme']='dark'; json.dump(s, open(p,'w'))" "$root/settings.json"
           CAPTURE_WAIT=10 CAPTURE_SUFFIX=-dark scripts/ci/capture-linux.sh "$bin" "$root" "$RUNNER_TEMP/screenshots" today meetings ask

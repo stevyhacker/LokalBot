@@ -1,0 +1,9 @@
+arm,label,quantization,language,cases,gold,recalled,unwanted,proposals,empty_cases,clean_empty,decision_correct,perfect,errors,kind_errors,format_errors,pairs,pairs_perfect
+qwen35-4b,Qwen3.5 4B,Q4_K_M,en,96,52,30,3,33,44,42,73,72,0,0,0,48,27
+qwen35-4b,Qwen3.5 4B,Q4_K_M,sr,24,13,8,2,10,11,10,19,10,0,0,10,12,0
+qwen35-9b,Qwen3.5 9B,Q4_K_M,en,96,52,37,5,42,44,40,78,77,0,0,0,48,32
+qwen35-9b,Qwen3.5 9B,Q4_K_M,sr,24,13,12,2,14,11,9,21,9,0,0,14,12,0
+hy-memory-q4,Hy-Memory 30B-A3B,Official Q4_K_M,en,96,52,52,76,126,44,0,37,32,0,1,3,48,1
+hy-memory-q4,Hy-Memory 30B-A3B,Official Q4_K_M,sr,24,13,13,25,37,11,0,9,4,0,0,29,12,0
+lfm25-24b,LFM2.5 24B-A2B,QAD Q4_0,en,96,52,40,53,92,44,10,51,44,0,4,2,48,7
+lfm25-24b,LFM2.5 24B-A2B,QAD Q4_0,sr,24,13,8,37,44,11,0,4,3,0,1,30,12,0

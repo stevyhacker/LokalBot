@@ -10,6 +10,14 @@ enum Briefing {
     static let toolName = "get_briefing"
     static let maximumCharacters = 12_000
 
+    /// What the briefing tells the agent to call next: MCP tools for
+    /// `get_briefing`, `lokalbot-cli` commands for `brief`, so an agent that
+    /// can only run a shell isn't pointed at tools it can't reach.
+    enum Vocabulary {
+        case mcp
+        case cli
+    }
+
     struct Context {
         var root: URL
         var meetingAccess: Bool
@@ -18,6 +26,7 @@ enum Briefing {
         var screenReader: any ScreenMemoryReading
         var now: Date
         var calendar: Calendar = .current
+        var vocabulary: Vocabulary = .mcp
     }
 
     static var definition: ToolDefinition {
@@ -66,10 +75,19 @@ enum Briefing {
            let timeline = timeline(context, cutoffDay: cutoffDay) {
             sections.append(timeline)
         }
-        sections.append("For more: search_meetings and get_meeting for what was said, get_action_items for "
-            + "commitments, search_screen and get_timeline for what was on screen, get_personal_context for "
-            + "what the user shared about themselves. Cite meetings by title and date from tool results, "
-            + "not from this briefing.")
+        switch context.vocabulary {
+        case .mcp:
+            sections.append("For more: search_meetings and get_meeting for what was said, list_meetings with "
+                + "include \"summary\" for several meetings' summaries at once, get_action_items for "
+                + "commitments, search_screen and get_timeline for what was on screen, get_personal_context for "
+                + "what the user shared about themselves. Cite meetings by title and date from tool results, "
+                + "not from this briefing.")
+        case .cli:
+            sections.append("For more, run lokalbot-cli: search and get for what was said, list --include "
+                + "summary for several meetings' summaries at once, actions for commitments, personal-context "
+                + "--task for what the user shared about themselves. Cite meetings by title and date from "
+                + "command results, not from this briefing.")
+        }
         let text = sections.joined(separator: "\n\n")
         guard text.count > maximumCharacters else { return text }
         return String(text.prefix(maximumCharacters - 40)) + "\n…(briefing cut at its size limit)"
@@ -80,14 +98,17 @@ enum Briefing {
     private static func capabilities(_ context: Context, meetings: [Meeting],
                                      screenScope: ScreenMemoryAccessProfile.Scope?,
                                      projection: PersonalContextProjection?) -> String {
+        let cli = context.vocabulary == .cli
         var lines = ["## What you can ask LokalBot"]
         if context.meetingAccess {
             let own = meetings.filter(\.isOwnWork)
             if let newest = own.max(by: { $0.startedAt < $1.startedAt }) {
                 lines.append("- Meetings: on. \(own.count) recorded, newest \"\(clean(newest.title, 80))\" "
-                    + "(\(DreamRollupFormat.dayKey(newest.startedAt, calendar: context.calendar))). Tools: "
-                    + "search_meetings, get_meeting, list_meetings, get_action_items, list_people, get_person, "
-                    + "and ask_library while the app runs.")
+                    + "(\(DreamRollupFormat.dayKey(newest.startedAt, calendar: context.calendar))). "
+                    + (cli
+                        ? "Commands: search, get, list, actions, people, and ask while the app runs."
+                        : "Tools: search_meetings, get_meeting, list_meetings, get_action_items, list_people, "
+                            + "get_person, and ask_library while the app runs."))
             } else {
                 lines.append("- Meetings: on, none recorded yet.")
             }
@@ -106,8 +127,11 @@ enum Briefing {
             case .recentWeek: window = "the last 7 days"
             case .retainedHistory: window = "all retained history"
             }
-            lines.append("- Screen memory: on, \(window). Tools: search_screen, get_timeline, "
-                + "get_recent_activity, get_app_usage, get_screenshot_detail.")
+            lines.append("- Screen memory: on, \(window). "
+                + (cli
+                    ? "No lokalbot-cli command searches it."
+                    : "Tools: search_screen, get_timeline, get_recent_activity, get_app_usage, "
+                        + "get_screenshot_detail."))
         } else {
             lines.append("- Screen memory: off. The user can turn on Settings → Privacy → \"Allow external agents "
                 + "to read screen memory\".")
@@ -115,7 +139,8 @@ enum Briefing {
         if context.personalGate.isEnabled {
             if let projection {
                 lines.append("- Personal Context: on, \(projection.claims.count) shared "
-                    + "\(projection.claims.count == 1 ? "item" : "items"). Tool: get_personal_context.")
+                    + "\(projection.claims.count == 1 ? "item" : "items"). "
+                    + (cli ? "Command: personal-context." : "Tool: get_personal_context."))
             } else {
                 lines.append("- Personal Context: on, but LokalBot hasn't written the shared items yet.")
             }

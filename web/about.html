@@ -36,7 +36,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -63,7 +63,7 @@
               <tr><td>Platform</td><td>macOS 15.0 or later on Apple Silicon (M1 or later). In alpha: Windows 10 or 11 (x64) and Linux (x86_64, glibc 2.39 or later)</td></tr>
               <tr><td>Price</td><td>Free, with no account or paid tier</td></tr>
               <tr><td>License</td><td><a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GNU GPL v3</a></td></tr>
-              <tr><td>Install</td><td>Mac: <a href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg" data-download-alt>LokalBot.dmg</a> from GitHub Releases, or <code>brew install --cask stevyhacker/tap/lokalbot</code>. Windows: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">the installer</a> or the portable zip, not code-signed yet. Linux: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">the archive</a> and its <code>install.sh</code>, or the .deb, .rpm or Arch package from the same release</td></tr>
+              <tr><td>Install</td><td>Mac: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">the DMG</a> from GitHub Releases, or <code>brew install --cask stevyhacker/tap/lokalbot</code>. Windows: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">the installer</a> or the portable zip, not code-signed yet. Linux: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">the archive</a> and its <code>install.sh</code>, or the .deb, .rpm or Arch package from the same release</td></tr>
               <tr><td>Updates</td><td>Signed in-app updates from GitHub Releases (Sparkle on Mac), installed only when you choose</td></tr>
               <tr><td>Where data lives</td><td>On your computer: LokalBot's Application Support folder on a Mac, <code>%LOCALAPPDATA%\LokalBot</code> on Windows, <code>~/.local/share/LokalBot</code> on Linux</td></tr>
               <tr><td>Default speech model</td><td>Qwen3-ASR 1.7B on Mac (52 languages and dialects), since version 0.8.1; Qwen3-ASR 0.6B on Windows and Linux</td></tr>
@@ -156,9 +156,9 @@
         <p class="eyebrow">Try it locally</p>
         <h2 class="section__title">Your personal context engine.</h2>
         <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg" data-download><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
         <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
-        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg" data-download-alt>macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>
@@ -197,6 +197,7 @@
       <h3>Project</h3>
       <a href="about">About</a>
       <a href="/guides">Guides</a>
+      <a href="blog">Blog</a>
       <a href="benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>

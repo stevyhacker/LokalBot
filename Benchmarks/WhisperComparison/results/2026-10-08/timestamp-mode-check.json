@@ -1,0 +1,31 @@
+{
+  "comparison": "Same clips and weights, segment versus word timestamp mode. Text counts only; no private transcript text.",
+  "english": [
+    {
+      "id": "english-mic-1",
+      "segmentModeWords": 23,
+      "wordModeWords": 14,
+      "editsBetweenModes": 15
+    },
+    {
+      "id": "english-mic-2",
+      "segmentModeWords": 22,
+      "wordModeWords": 20,
+      "editsBetweenModes": 3
+    },
+    {
+      "id": "english-system-1",
+      "segmentModeWords": 44,
+      "wordModeWords": 46,
+      "editsBetweenModes": 3
+    },
+    {
+      "id": "english-system-2",
+      "segmentModeWords": 40,
+      "wordModeWords": 15,
+      "editsBetweenModes": 27
+    }
+  ],
+  "initialSegmentModeControlWER": 249.15254237288136,
+  "finalWordModeControlWER": 0.0
+}

@@ -94,9 +94,10 @@ pub fn tools() -> Vec<Value> {
         ),
         tool(
             "list_meetings",
-            "List recorded meetings, newest first. Returns id, title, date, and duration for each.",
+            "List recorded meetings, newest first. Returns id, title, date, and duration for each; include \"summary\" adds each meeting's summary, so one call covers several meetings.",
             json!({"type": "object", "properties": {
-                "limit": {"type": "integer", "description": "Maximum meetings to return (default 20)."},
+                "limit": {"type": "integer", "description": format!("Maximum meetings to return (default 20; with summaries default {}, at most {}).", session::DEFAULT_SUMMARY_LIST_COUNT, session::MAXIMUM_SUMMARY_LIST_COUNT)},
+                "include": {"type": "string", "description": format!("\"summary\" adds each meeting's summary. The summaries share {} characters; a cut one has summary_truncated, and get_meeting reads it whole.", session::LIST_SUMMARY_BUDGET)},
                 "since": {"type": "string", "description": "Only meetings on or after this local calendar day (YYYY-MM-DD)."},
                 "query": {"type": "string", "description": "Case-insensitive title substring filter."},
             }}),
@@ -318,7 +319,12 @@ impl Provider {
     }
 
     pub fn briefing(&self) -> String {
-        briefing::render(&self.session, self.meetings_authorized(), self.now())
+        briefing::render(
+            &self.session,
+            self.meetings_authorized(),
+            self.now(),
+            briefing::Vocabulary::Mcp,
+        )
     }
 
     pub fn call(&self, name: &str, arguments: &Value) -> ToolResult {
@@ -376,6 +382,22 @@ impl Provider {
     }
 
     fn list_meetings(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {
+        let include = arguments
+            .get("include")
+            .and_then(Value::as_str)
+            .unwrap_or_default();
+        let include_summary = session::list_includes_summary(include).map_err(|err| {
+            ToolResult::error(
+                ToolErrorCode::InvalidArguments,
+                &match err {
+                    session::ListIncludeError::Transcript => "list_meetings doesn't include transcripts. Read one meeting's with get_meeting.".to_string(),
+                    session::ListIncludeError::Unknown(values) => format!(
+                        "Unknown include value(s): {}. list_meetings takes \"summary\".",
+                        values.join(", ")
+                    ),
+                },
+            )
+        })?;
         let mut meetings = self.session.meetings().map_err(read_failure)?;
         if let Some(query) = arguments
             .get("query")
@@ -398,11 +420,21 @@ impl Provider {
             let start = day_bounds(day).0;
             meetings.retain(|m| m.started_at >= start);
         }
-        let limit = bounded(arguments, "limit", 20, 1000)? as usize;
+        let limit = if include_summary {
+            bounded(
+                arguments,
+                "limit",
+                session::DEFAULT_SUMMARY_LIST_COUNT as i64,
+                session::MAXIMUM_SUMMARY_LIST_COUNT as i64,
+            )?
+        } else {
+            bounded(arguments, "limit", 20, 1000)?
+        } as usize;
         meetings.truncate(limit);
         Ok(ToolResult::text(&session::list_json(
             &self.session,
             &meetings,
+            include_summary,
         )))
     }
 

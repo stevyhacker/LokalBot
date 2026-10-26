@@ -1,0 +1,17 @@
+{
+  "bundle": "me.dotenv.LokalBot.uitesthost",
+  "size": [660, 512],
+  "settle": 1.5,
+  "park": [780, 260],
+  "pre": 0.9,
+  "post": 0.5,
+  "setup": [{"focus": {"id": "quickRecall.input"}}],
+  "actions": [
+    {"type": "pricing", "cps": 7},
+    {"wait": 1.5},
+    {"key": "down"},
+    {"wait": 0.5},
+    {"key": "down"},
+    {"wait": 1.3}
+  ]
+}

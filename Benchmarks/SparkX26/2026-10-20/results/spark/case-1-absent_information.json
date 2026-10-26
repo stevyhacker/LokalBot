@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"launch_date\": null, \"search_owner\": null, \"approved_budget\": null}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 23,
+    "prompt_tokens": 112,
+    "total_tokens": 135,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 112,
+    "prompt_ms": 580.666,
+    "prompt_per_token_ms": 5.184517857142858,
+    "prompt_per_second": 192.881966569422,
+    "predicted_n": 23,
+    "predicted_ms": 1359.393,
+    "predicted_per_token_ms": 61.79059090909091,
+    "predicted_per_second": 16.183693751549406
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"launch_date\": null, \"search_owner\": null, \"approved_budget\": null}"
+        }
+      }
+    ],
+    "created": 1792527383,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 23,
+      "prompt_tokens": 112,
+      "total_tokens": 135,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-NaOH8TsWKzSNYHH7HPkahLutglJdLI4E",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 112,
+      "prompt_ms": 580.666,
+      "prompt_per_token_ms": 5.184517857142858,
+      "prompt_per_second": 192.881966569422,
+      "predicted_n": 23,
+      "predicted_ms": 1359.393,
+      "predicted_per_token_ms": 61.79059090909091,
+      "predicted_per_second": 16.183693751549406
+    }
+  },
+  "wall_seconds": 1.9593356591649354,
+  "memory": {
+    "samples": 10,
+    "peak_rss_bytes": 6330003456,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "absent_information",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 3,
+    "total_fields": 3,
+    "wrong": {}
+  }
+}

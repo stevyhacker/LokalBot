@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-09",
+  "host": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": 51539607552,
+    "macOS": "27.0.1",
+    "architecture": "arm64"
+  },
+  "appSourceCommitAtInspection": "32381e9f8e8137c95d1b94984549a62cdb004aab",
+  "runtimeRevisions": {
+    "speech-swift": "33f42bc0d48efa5baf39f2531f52c333d92e519a",
+    "FluidAudio": "0b1f46289fe27d95b5e66ad8be46e64f5ee02ae7",
+    "mlx-swift": "19601207e9a0de51e03ee6ec0c3c5f3784275075"
+  },
+  "needleSourceInspected": "ef3cf7543204d99878c0dd913a05f6a506da4be8",
+  "fleursRevision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+  "amiAssetRevision": "46f28f2503e2ec48f8867a84eef356c70476beab",
+  "baselineCopiesVerified": {
+    "parakeetFiles": 18,
+    "qwenFiles": 6
+  },
+  "batchConditions": 97,
+  "repeatsPerEngine": 3,
+  "engineOrder": [
+    "parakeet",
+    "qwen",
+    "whistle"
+  ],
+  "timing": "entire engine call on preloaded 16kHz float PCM; per-clip median of three passes; second pass reversed",
+  "memory": "time -l maximum RSS and footprint; MLX peak allocation recorded separately; not total system/ANE/GPU memory",
+  "privacy": {
+    "fixtures": "public and synthetic only",
+    "inferenceNetwork": "deny network* with sandbox-exec; EPERM verified",
+    "pythonNeedleSDKUsed": false,
+    "libraryWrites": false,
+    "installedAppChanged": false
+  },
+  "limitations": [
+    "97 conditions include repeated audio in perturbation/hint cases; 44 primary English clips, 810 reference words",
+    "eight clips per additional language; Serbian unsupported by Whistle",
+    "other user builds and model processes active; timings are not idle-machine or battery tests",
+    "engine only; excludes app VAD, language voting, diarization, forced alignment and UI",
+    "stream supplied faster than real time; first commit measured in audio time",
+    "loading/warmup have unequal compilation/cache histories and are not comparable cold-start estimates"
+  ]
+}

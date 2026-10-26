@@ -460,9 +460,7 @@ fn download_ranged(
         }
         return Err(err);
     }
-    if cancel.load(Ordering::Relaxed) {
-        return Err(AiError::Cancelled.into());
-    }
+    crate::error::check_cancelled(cancel)?;
     if completed.len() != byte_ranges.len() {
         bail!(
             "Download failed: assembled {} bytes for a {total}-byte file.",
@@ -519,9 +517,7 @@ fn fetch_part(
     let mut received = 0u64;
     let result = (|| -> Result<()> {
         loop {
-            if cancel.load(Ordering::Relaxed) {
-                return Err(AiError::Cancelled.into());
-            }
+            crate::error::check_cancelled(cancel)?;
             let n = match reader.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(n) => n,
@@ -607,9 +603,7 @@ fn download_single(
     let mut reader = response.body_mut().as_reader();
     let mut buffer = vec![0u8; CHUNK];
     loop {
-        if cancel.load(Ordering::Relaxed) {
-            return Err(AiError::Cancelled.into());
-        }
+        crate::error::check_cancelled(cancel)?;
         let n = match reader.read(&mut buffer) {
             Ok(0) => break,
             Ok(n) => n,
@@ -644,8 +638,8 @@ pub fn sha256_file(path: &Path, cancel: Option<&AtomicBool>) -> Result<String> {
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; 1024 * 1024];
     loop {
-        if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
-            return Err(AiError::Cancelled.into());
+        if let Some(cancel) = cancel {
+            crate::error::check_cancelled(cancel)?;
         }
         let n = file.read(&mut buffer)?;
         if n == 0 {

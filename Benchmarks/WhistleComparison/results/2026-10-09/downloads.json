@@ -1,0 +1,50 @@
+[
+  {
+    "repo": "Cactus-Compute/whistle",
+    "revision": "b358ddadd89b7a713b5aa131f23032d3cca1b251",
+    "file": "whistle.cact",
+    "bytes": 16919407,
+    "sha256": "b6e02f048568ac5d01a2042556c658061e699acbc0aa2a1439f52f3d461dffeb",
+    "verifiedLFS": true
+  },
+  {
+    "repo": "Cactus-Compute/whistle",
+    "revision": "b358ddadd89b7a713b5aa131f23032d3cca1b251",
+    "file": "LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "verifiedLFS": false
+  },
+  {
+    "repo": "Cactus-Compute/needle3",
+    "revision": "2ae11323dc000f5e70c49f7403efa6af12ba9e67",
+    "file": "macos-arm64/needle",
+    "bytes": 1089896,
+    "sha256": "342fa2c6f140e702354a99c4201c9057535ec908eed35c7382e911a19d1d2724",
+    "verifiedLFS": true
+  },
+  {
+    "repo": "Cactus-Compute/needle3",
+    "revision": "2ae11323dc000f5e70c49f7403efa6af12ba9e67",
+    "file": "macos-arm64/libneedle.a",
+    "bytes": 1534232,
+    "sha256": "98da47c15e1065b4cdc7ddc55e825be78414d4586832db3becaeded39a373df4",
+    "verifiedLFS": true
+  },
+  {
+    "repo": "Cactus-Compute/needle3",
+    "revision": "2ae11323dc000f5e70c49f7403efa6af12ba9e67",
+    "file": "macos-arm64/needle.h",
+    "bytes": 4306,
+    "sha256": "914bbd00423939b02fc349f91cdb7c12531b3f5bb7105b743e0e93c7e409d7b1",
+    "verifiedLFS": false
+  },
+  {
+    "repo": "Cactus-Compute/needle3",
+    "revision": "2ae11323dc000f5e70c49f7403efa6af12ba9e67",
+    "file": "LICENSE",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "verifiedLFS": false
+  }
+]

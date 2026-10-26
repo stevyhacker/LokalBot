@@ -1,0 +1,234 @@
+{
+  "date": "2026-10-08",
+  "qualityCaveat": "Real-meeting references are existing Qwen3-ASR output, not human ground truth. Disagreement is not accuracy. Only the synthetic control has a known script.",
+  "sample": {
+    "meetingClips": 8,
+    "meetingSeconds": 112.0825,
+    "controlSeconds": 17.708375
+  },
+  "process": {
+    "current-turbo": {
+      "loadSeconds": 12.676910042762756,
+      "maxRSSBytes": 1330036736,
+      "peakFootprintBytes": 296453320,
+      "completedRows": 13
+    },
+    "full-large-v3": {
+      "loadSeconds": 20.514569997787476,
+      "maxRSSBytes": 1885011968,
+      "peakFootprintBytes": 521143616,
+      "completedRows": 13
+    },
+    "stage-turbo-S": {
+      "loadSeconds": 54.3584258339979,
+      "maxRSSBytes": 1645477888,
+      "peakFootprintBytes": 2631667816,
+      "completedRows": 13
+    }
+  },
+  "meetingThroughput": [
+    {
+      "model": "current-turbo",
+      "clips": 8,
+      "audioSeconds": 112.0825,
+      "decodeSeconds": 11.445755004882812,
+      "realtimeFactor": 9.792495117376275
+    },
+    {
+      "model": "full-large-v3",
+      "clips": 8,
+      "audioSeconds": 112.0825,
+      "decodeSeconds": 45.54678702354431,
+      "realtimeFactor": 2.460821219772575
+    },
+    {
+      "model": "stage-turbo-S",
+      "clips": 8,
+      "audioSeconds": 112.0825,
+      "decodeSeconds": 6.479373330999806,
+      "realtimeFactor": 17.298354991177057
+    }
+  ],
+  "results": [
+    {
+      "model": "current-turbo",
+      "group": "bcms",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 7.388706922531128,
+      "realtimeFactor": 7.623695267737518,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 61.935483870967744,
+      "referenceWords": 155,
+      "nonLatinLetters": 1,
+      "emptyClips": 0,
+      "segmentTimingViolations": 0
+    },
+    {
+      "model": "current-turbo",
+      "group": "bcms",
+      "language": "bs",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 6.065894961357117,
+      "realtimeFactor": 9.286222455028716,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 48.38709677419355,
+      "referenceWords": 155,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 1
+    },
+    {
+      "model": "current-turbo",
+      "group": "control",
+      "language": "auto",
+      "clips": 1,
+      "audioSeconds": 17.708375,
+      "decodeSeconds": 1.21787691116333,
+      "realtimeFactor": 14.540365153227805,
+      "metric": "synthetic_script_WER",
+      "wordEditPercent": 0.0,
+      "referenceWords": 59,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 0
+    },
+    {
+      "model": "current-turbo",
+      "group": "english",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 55.75325,
+      "decodeSeconds": 4.057048082351685,
+      "realtimeFactor": 13.742319259791074,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 11.678832116788321,
+      "referenceWords": 137,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 0
+    },
+    {
+      "model": "full-large-v3",
+      "group": "bcms",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 33.114806056022644,
+      "realtimeFactor": 1.701029137984497,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 52.25806451612903,
+      "referenceWords": 155,
+      "nonLatinLetters": 152,
+      "emptyClips": 0,
+      "segmentTimingViolations": 1
+    },
+    {
+      "model": "full-large-v3",
+      "group": "bcms",
+      "language": "bs",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 27.58360481262207,
+      "realtimeFactor": 2.0421279373254406,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 50.32258064516129,
+      "referenceWords": 155,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 1
+    },
+    {
+      "model": "full-large-v3",
+      "group": "control",
+      "language": "auto",
+      "clips": 1,
+      "audioSeconds": 17.708375,
+      "decodeSeconds": 4.31101393699646,
+      "realtimeFactor": 4.107705347001883,
+      "metric": "synthetic_script_WER",
+      "wordEditPercent": 0.0,
+      "referenceWords": 59,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 0
+    },
+    {
+      "model": "full-large-v3",
+      "group": "english",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 55.75325,
+      "decodeSeconds": 12.431980967521667,
+      "realtimeFactor": 4.484663397221601,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 9.489051094890511,
+      "referenceWords": 137,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 0
+    },
+    {
+      "model": "stage-turbo-S",
+      "group": "bcms",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 4.195309457005351,
+      "realtimeFactor": 13.426721098235342,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 56.774193548387096,
+      "referenceWords": 155,
+      "nonLatinLetters": 18,
+      "emptyClips": 0,
+      "segmentTimingViolations": 4
+    },
+    {
+      "model": "stage-turbo-S",
+      "group": "bcms",
+      "language": "bs",
+      "clips": 4,
+      "audioSeconds": 56.32925,
+      "decodeSeconds": 3.8489593340054853,
+      "realtimeFactor": 14.634929889316343,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 54.193548387096776,
+      "referenceWords": 155,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 4
+    },
+    {
+      "model": "stage-turbo-S",
+      "group": "control",
+      "language": "auto",
+      "clips": 1,
+      "audioSeconds": 17.708375,
+      "decodeSeconds": 0.9693669170010253,
+      "realtimeFactor": 18.26797953326611,
+      "metric": "synthetic_script_WER",
+      "wordEditPercent": 0.0,
+      "referenceWords": 59,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 1
+    },
+    {
+      "model": "stage-turbo-S",
+      "group": "english",
+      "language": "auto",
+      "clips": 4,
+      "audioSeconds": 55.75325,
+      "decodeSeconds": 2.284063873994455,
+      "realtimeFactor": 24.409672003829147,
+      "metric": "disagreement_with_saved_ASR",
+      "wordEditPercent": 39.416058394160586,
+      "referenceWords": 137,
+      "nonLatinLetters": 0,
+      "emptyClips": 0,
+      "segmentTimingViolations": 4
+    }
+  ]
+}

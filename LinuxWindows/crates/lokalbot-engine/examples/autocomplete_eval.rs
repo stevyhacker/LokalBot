@@ -6,7 +6,7 @@
 //!
 //! ```sh
 //! cargo run -p lokalbot-engine --example autocomplete_eval -- <scratch dir> \
-//!     [--backend auto|cpu|vulkan] [--model <catalog id>] [--debounce <ms>] [--key-ms <ms>]
+//!     [--backend auto|cpu|vulkan|cuda] [--model <catalog id>] [--debounce <ms>] [--key-ms <ms>]
 //! ```
 //!
 //! The scratch directory must be empty or an earlier run's. Each case focuses
@@ -240,7 +240,7 @@ fn main() -> Result<()> {
         .map(PathBuf::from)
     else {
         bail!(
-            "usage: autocomplete_eval <scratch dir> [--backend auto|cpu|vulkan] [--model id] [--debounce ms] [--key-ms ms]"
+            "usage: autocomplete_eval <scratch dir> [--backend auto|cpu|vulkan|cuda] [--model id] [--debounce ms] [--key-ms ms]"
         );
     };
     let backend = flag("--backend").unwrap_or_else(|| "auto".into());

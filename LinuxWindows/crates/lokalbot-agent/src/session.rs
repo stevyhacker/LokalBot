@@ -17,7 +17,8 @@ use std::sync::Arc;
 use parking_lot::RwLock;
 use uuid::Uuid;
 
-use lokalbot_core::settings::ReasoningLevel;
+use lokalbot_ai::plans::chatgpt::relay::Relay;
+use lokalbot_core::settings::{ReasoningLevel, SubscriptionPlan};
 use lokalbot_core::{Library, Settings};
 
 use crate::archive;
@@ -104,6 +105,8 @@ pub struct Launched {
     pub client: RpcClient<RequestTag>,
     pub process: Option<Arc<PiProcess>>,
     pub lease: Option<lokalbot_ai::Lease>,
+    /// The ChatGPT plan relay pi talks to; it stops when dropped.
+    pub relay: Option<Relay>,
     /// The scoped `lokalbot-cli` grant to revoke when the task stops.
     pub capability: Option<String>,
     pub endpoint: LlmEndpoint,
@@ -296,11 +299,14 @@ pub struct AgentSession {
 
     last_submitted_prompt: Option<QueuedPrompt>,
     connected_endpoint: Option<String>,
+    connected_plan: Option<SubscriptionPlan>,
     policy: ApprovalPolicy,
     folder: TranscriptFolder,
     client: Option<RpcClient<RequestTag>>,
     process: Option<Arc<PiProcess>>,
     lease: Option<lokalbot_ai::Lease>,
+    /// Runs from launch until shutdown or failure, like the lease.
+    relay: Option<Relay>,
     capability: Option<String>,
     next_request_id: u64,
     launch_mode: LaunchMode,
@@ -354,11 +360,13 @@ impl AgentSession {
             approval_mode,
             last_submitted_prompt: None,
             connected_endpoint: None,
+            connected_plan: None,
             policy: ApprovalPolicy::new(approval_mode, protected),
             folder: TranscriptFolder::default(),
             client: None,
             process: None,
             lease: None,
+            relay: None,
             capability: None,
             next_request_id: 0,
             launch_mode: LaunchMode::Fresh,
@@ -620,7 +628,7 @@ impl AgentSession {
         self.active_session_file = None;
         self.model_context = None;
         self.reset_approval_policy();
-        self.lease = None;
+        self.release_model_connection();
         let _ = std::fs::remove_file(&self.reasoning_level_file);
         self.written_reasoning_level = None;
         self.reasoning_choices = None;
@@ -634,7 +642,7 @@ impl AgentSession {
         self.cancel_pending_approvals();
         self.revoke_capability();
         self.client = None;
-        self.lease = None;
+        self.release_model_connection();
         let _ = std::fs::remove_file(&self.reasoning_level_file);
         let process = self.process.take();
         if let Some(process) = &process {
@@ -819,6 +827,14 @@ impl AgentSession {
             let settings = self.env.settings();
             if let Some(reason) = remote_block(base, &settings) {
                 self.composer_error = Some(reason);
+                return false;
+            }
+            // The relay's loopback URL passes the origin check; the plan has
+            // its own approval.
+            if let Some(plan) = self.connected_plan
+                && !plan.is_approved(&settings)
+            {
+                self.composer_error = Some(plan.approval_required_message());
                 return false;
             }
         }
@@ -1191,9 +1207,11 @@ impl AgentSession {
         let settings = self.env.settings();
         self.model_context = Some(ModelContext::from_endpoint(&launched.endpoint, &settings));
         self.connected_endpoint = Some(launched.endpoint.base_url.clone());
+        self.connected_plan = launched.endpoint.plan;
         self.client = Some(launched.client.clone());
         self.process = launched.process;
         self.lease = launched.lease;
+        self.relay = launched.relay;
         self.capability = launched.capability;
         self.recovery_action = None;
         if launched.reports_session_file {
@@ -1531,6 +1549,12 @@ impl AgentSession {
         }
     }
 
+    /// Releases the built-in model's lease and stops the plan relay.
+    fn release_model_connection(&mut self) {
+        self.lease = None;
+        self.relay = None;
+    }
+
     fn reset_approval_policy(&mut self) {
         // Session allowances end at lifecycle boundaries; the mode is an app
         // preference and survives closing or resuming a task.
@@ -1571,7 +1595,7 @@ impl AgentSession {
         }
         self.folder.append_notice(&message, true);
         self.publish();
-        self.lease = None;
+        self.release_model_connection();
         match old_process {
             Some(process) => {
                 let inbox = self.inbox.clone();
@@ -1606,7 +1630,7 @@ impl AgentSession {
         self.model_context = None;
         self.reset_approval_policy();
         self.revoke_capability();
-        self.lease = None;
+        self.release_model_connection();
         self.state = SessionState::Failed(error.message().to_string());
         self.recovery_action = Some(match error {
             LaunchError::Configuration(_) => RecoveryAction::OpenModels,
@@ -1651,6 +1675,7 @@ fn discard(launched: Launched, env: &AgentEnvironment) {
     }
     let process = launched.process;
     drop(launched.lease);
+    drop(launched.relay);
     if let Some(process) = process {
         let _ = std::thread::Builder::new()
             .name("lokalbot-pi-stop".into())

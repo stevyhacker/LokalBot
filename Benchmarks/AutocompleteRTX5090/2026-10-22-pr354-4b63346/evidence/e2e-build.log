@@ -1,0 +1,3 @@
+   Compiling lokalbot-ai v0.11.2 (/workspace/lokalbot/LinuxWindows/crates/lokalbot-ai)
+    Finished `release` profile [optimized] target(s) in 12.33s
+  Executable tests/e2e_runtime.rs (target/release/deps/e2e_runtime-0302f124d8ce4db7)

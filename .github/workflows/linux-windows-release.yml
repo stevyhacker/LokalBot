@@ -104,7 +104,8 @@ jobs:
         run: NFPM="$RUNNER_TEMP/nfpm" scripts/package-linux-distros.sh
 
       # Each package installs in a clean container with its declared
-      # dependencies, and every library the app links or loads resolves.
+      # dependencies, and every library the app links or loads resolves, as
+      # does libgomp, which the llama.cpp runtime it downloads links.
       - name: Check the packages install
         working-directory: LinuxWindows/dist
         run: |
@@ -112,7 +113,7 @@ jobs:
             test -x /usr/bin/lokalbot
             test -f /usr/share/applications/com.lokalbot.LokalBot.desktop
             if ldd /usr/bin/lokalbot | grep "not found"; then exit 1; fi
-            for lib in libvulkan.so.1 libwayland-client.so.0; do ldconfig -p | grep -q "$lib" || { echo "missing $lib"; exit 1; }; done
+            for lib in libvulkan.so.1 libwayland-client.so.0 libgomp.so.1; do ldconfig -p | grep -q "$lib" || { echo "missing $lib"; exit 1; }; done
             /usr/bin/lokalbot-cli --help > /dev/null'
           docker run --rm -v "$PWD:/d" ubuntu:24.04 bash -c \
             "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /d/LokalBot-*-linux-amd64.deb > /dev/null && $check"

@@ -125,6 +125,33 @@ final class BriefingTests: XCTestCase {
         XCTAssertTrue(text.contains("Draft the synthetic caching memo"), text)
     }
 
+    /// `lokalbot-cli brief` runs in a shell, so it names commands, not MCP
+    /// tools; everything else matches `get_briefing`.
+    func testBriefNamesCLICommandsWhereGetBriefingNamesTools() throws {
+        try enableAll(scope: .retainedHistory)
+        let tools = render()
+        let commands = render(vocabulary: .cli)
+        XCTAssertTrue(commands.contains(
+            ". Commands: search, get, list, actions, people, and ask while the app runs."), commands)
+        XCTAssertTrue(commands.contains(
+            "- Screen memory: on, all retained history. No lokalbot-cli command searches it."), commands)
+        XCTAssertTrue(commands.contains("1 shared item. Command: personal-context."), commands)
+        XCTAssertTrue(commands.contains("For more, run lokalbot-cli: search and get for what was said, "
+            + "list --include summary for several meetings' summaries at once,"), commands)
+        for tool in ["search_meetings", "get_meeting", "list_meetings", "get_action_items", "get_person",
+                     "ask_library", "search_screen", "get_timeline", "get_personal_context"] {
+            XCTAssertFalse(commands.contains(tool), "\(tool) in:\n\(commands)")
+        }
+        XCTAssertTrue(tools.contains(". Tools: search_meetings, get_meeting, list_meetings,"), tools)
+        XCTAssertTrue(tools.contains("list_meetings with include \"summary\" for several meetings' summaries"), tools)
+
+        let toolLines = tools.components(separatedBy: "\n")
+        let commandLines = commands.components(separatedBy: "\n")
+        XCTAssertEqual(toolLines.count, commandLines.count)
+        let differing = zip(commandLines, toolLines).filter { $0 != $1 }.map { String($0.0.prefix(16)) }
+        XCTAssertEqual(differing, ["- Meetings: on. ", "- Screen memory:", "- Personal Conte", "For more, run lo"])
+    }
+
     func testProviderAdvertisesBriefingFirstAndAnswersWithoutGrants() async throws {
         let fixed: Date = now
         let provider = FileLibraryToolProvider(
@@ -134,6 +161,8 @@ final class BriefingTests: XCTestCase {
         let result = await provider.call(name: "get_briefing", arguments: nil)
         XCTAssertFalse(result.isError, result.text)
         XCTAssertTrue(result.text.contains("Meetings: off"), result.text)
+        XCTAssertTrue(result.text.contains("For more: search_meetings"), result.text)
+        XCTAssertTrue(provider.briefing(vocabulary: .cli).contains("For more, run lokalbot-cli:"))
     }
 
     func testSQLiteReaderReadsCodingAgentSessionsInTheWindow() throws {
@@ -164,13 +193,13 @@ final class BriefingTests: XCTestCase {
 
     // MARK: - Fixtures
 
-    private func render() -> String {
+    private func render(vocabulary: Briefing.Vocabulary = .mcp) -> String {
         Briefing.render(Briefing.Context(
             root: root,
             meetingAccess: AgentAccessGate(root: root).isAuthorized(environment: [:], now: now),
             screenGate: ScreenMemoryAccessGate(root: root),
             personalGate: PersonalContextAccessGate(root: root),
-            screenReader: reader, now: now, calendar: calendar))
+            screenReader: reader, now: now, calendar: calendar, vocabulary: vocabulary))
     }
 
     private func enableAll(scope: ScreenMemoryAccessProfile.Scope) throws {

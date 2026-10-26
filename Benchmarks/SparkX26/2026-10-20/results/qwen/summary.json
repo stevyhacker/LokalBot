@@ -1,0 +1,324 @@
+{
+  "model": "models/Qwen3.5-4B-Q4_K_M.gguf",
+  "repeats": 1,
+  "temperature": 0,
+  "tool_thinking": false,
+  "extraction_thinking": false,
+  "startup_seconds": 1.6084495056420565,
+  "groups": {
+    "extraction": {
+      "passed": 8,
+      "total": 12,
+      "median_seconds": 2.8568077192176133,
+      "total_seconds": 36.774386029690504,
+      "correct_fields": 38,
+      "total_fields": 43,
+      "json_valid": 12,
+      "errors": 0,
+      "truncated": 0
+    },
+    "long_context": {
+      "passed": 1,
+      "total": 1,
+      "median_seconds": 120.03173583792523,
+      "total_seconds": 120.03173583792523,
+      "correct_fields": 6,
+      "total_fields": 6,
+      "json_valid": 1,
+      "errors": 0,
+      "truncated": 0
+    },
+    "tools": {
+      "passed": 6,
+      "total": 6,
+      "median_seconds": 4.184629877563566,
+      "total_seconds": 24.887999549973756,
+      "correct_fields": 0,
+      "total_fields": 0,
+      "json_valid": 0,
+      "errors": 0,
+      "truncated": 0
+    }
+  },
+  "multi_step": {
+    "id": "multi_step_meeting_answer",
+    "group": "multi_step",
+    "steps": [
+      {
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "search_meetings",
+                "arguments": "{\"query\":\"Atlas\",\"limit\":1}"
+              },
+              "id": "2j9ArHkzle55s3RAHierxhN0OfEy94bi"
+            }
+          ]
+        },
+        "finish_reason": "tool_calls",
+        "usage": {
+          "completion_tokens": 39,
+          "prompt_tokens": 505,
+          "total_tokens": 544,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 505,
+          "prompt_ms": 2104.775,
+          "prompt_per_token_ms": 4.167871287128713,
+          "prompt_per_second": 239.93063391573918,
+          "predicted_n": 39,
+          "predicted_ms": 2256.927,
+          "predicted_per_token_ms": 59.39281578947369,
+          "predicted_per_second": 16.837053214392842
+        },
+        "raw": {
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "search_meetings",
+                      "arguments": "{\"query\":\"Atlas\",\"limit\":1}"
+                    },
+                    "id": "2j9ArHkzle55s3RAHierxhN0OfEy94bi"
+                  }
+                ]
+              }
+            }
+          ],
+          "created": 1792527782,
+          "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+          "system_fingerprint": "b0-unknown",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 39,
+            "prompt_tokens": 505,
+            "total_tokens": 544,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "id": "chatcmpl-Bc7K3mCCn6zuWoCCzGEa6737jfzLLYH1",
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 505,
+            "prompt_ms": 2104.775,
+            "prompt_per_token_ms": 4.167871287128713,
+            "prompt_per_second": 239.93063391573918,
+            "predicted_n": 39,
+            "predicted_ms": 2256.927,
+            "predicted_per_token_ms": 59.39281578947369,
+            "predicted_per_second": 16.837053214392842
+          }
+        },
+        "wall_seconds": 4.365773997269571,
+        "memory": {
+          "samples": 22,
+          "peak_rss_bytes": 7651065856,
+          "peak_physical_footprint_bytes": null
+        }
+      },
+      {
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_meeting",
+                "arguments": "{\"meeting_id\":\"A-210\"}"
+              },
+              "id": "YJB4QeTEwf6WNFJDhkm1Sycm0KHKCdvU"
+            }
+          ]
+        },
+        "finish_reason": "tool_calls",
+        "usage": {
+          "completion_tokens": 32,
+          "prompt_tokens": 631,
+          "total_tokens": 663,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 631,
+          "prompt_ms": 2617.067,
+          "prompt_per_token_ms": 4.147491283676704,
+          "prompt_per_second": 241.10960858090374,
+          "predicted_n": 32,
+          "predicted_ms": 1754.266,
+          "predicted_per_token_ms": 56.589225806451616,
+          "predicted_per_second": 17.671208357227467
+        },
+        "raw": {
+          "choices": [
+            {
+              "finish_reason": "tool_calls",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                  {
+                    "type": "function",
+                    "function": {
+                      "name": "read_meeting",
+                      "arguments": "{\"meeting_id\":\"A-210\"}"
+                    },
+                    "id": "YJB4QeTEwf6WNFJDhkm1Sycm0KHKCdvU"
+                  }
+                ]
+              }
+            }
+          ],
+          "created": 1792527786,
+          "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+          "system_fingerprint": "b0-unknown",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 32,
+            "prompt_tokens": 631,
+            "total_tokens": 663,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "id": "chatcmpl-BmX80CZQ03eX6M10PXw8zkwKz7PKDaJQ",
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 631,
+            "prompt_ms": 2617.067,
+            "prompt_per_token_ms": 4.147491283676704,
+            "prompt_per_second": 241.10960858090374,
+            "predicted_n": 32,
+            "predicted_ms": 1754.266,
+            "predicted_per_token_ms": 56.589225806451616,
+            "predicted_per_second": 17.671208357227467
+          }
+        },
+        "wall_seconds": 4.376027958933264,
+        "memory": {
+          "samples": 22,
+          "peak_rss_bytes": 7703965696,
+          "peak_physical_footprint_bytes": null
+        }
+      },
+      {
+        "message": {
+          "role": "assistant",
+          "content": "From the latest Atlas meeting (ID: A-210), we agreed to launch Atlas on **September 25, 2026** (timestamp: 00:12), and **Ana** will send the onboarding checklist (timestamp: 00:38)."
+        },
+        "finish_reason": "stop",
+        "usage": {
+          "completion_tokens": 63,
+          "prompt_tokens": 767,
+          "total_tokens": 830,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 767,
+          "prompt_ms": 3319.373,
+          "prompt_per_token_ms": 4.327735332464146,
+          "prompt_per_second": 231.06773478003225,
+          "predicted_n": 63,
+          "predicted_ms": 3546.358,
+          "predicted_per_token_ms": 57.199322580645166,
+          "predicted_per_second": 17.482724530349163
+        },
+        "raw": {
+          "choices": [
+            {
+              "finish_reason": "stop",
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "From the latest Atlas meeting (ID: A-210), we agreed to launch Atlas on **September 25, 2026** (timestamp: 00:12), and **Ana** will send the onboarding checklist (timestamp: 00:38)."
+              }
+            }
+          ],
+          "created": 1792527793,
+          "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+          "system_fingerprint": "b0-unknown",
+          "object": "chat.completion",
+          "usage": {
+            "completion_tokens": 63,
+            "prompt_tokens": 767,
+            "total_tokens": 830,
+            "prompt_tokens_details": {
+              "cached_tokens": 0
+            }
+          },
+          "id": "chatcmpl-bBYoVycB384JDPiwoy8IIOLm6KVPPzNY",
+          "timings": {
+            "cache_n": 0,
+            "prompt_n": 767,
+            "prompt_ms": 3319.373,
+            "prompt_per_token_ms": 4.327735332464146,
+            "prompt_per_second": 231.06773478003225,
+            "predicted_n": 63,
+            "predicted_ms": 3546.358,
+            "predicted_per_token_ms": 57.199322580645166,
+            "predicted_per_second": 17.482724530349163
+          }
+        },
+        "wall_seconds": 6.870956670958549,
+        "memory": {
+          "samples": 34,
+          "peak_rss_bytes": 7704186880,
+          "peak_physical_footprint_bytes": null
+        }
+      }
+    ],
+    "used": [
+      {
+        "name": "search_meetings",
+        "args": {
+          "query": "Atlas",
+          "limit": 1
+        }
+      },
+      {
+        "name": "read_meeting",
+        "args": {
+          "meeting_id": "A-210"
+        }
+      }
+    ],
+    "answer": "From the latest Atlas meeting (ID: A-210), we agreed to launch Atlas on **September 25, 2026** (timestamp: 00:12), and **Ana** will send the onboarding checklist (timestamp: 00:38).",
+    "xml_adapter_used_diagnostic_only": false,
+    "content_correct": true,
+    "path_correct": true,
+    "passed_native": true,
+    "wall_seconds": 15.612758627161384
+  },
+  "memory": {
+    "samples": 995,
+    "peak_rss_bytes": 7704186880,
+    "peak_physical_footprint_bytes": null
+  },
+  "load_average": [
+    8.98583984375,
+    7.15234375,
+    4.60400390625
+  ]
+}

@@ -1,0 +1,2 @@
+{"take":"t-recall","start_delay":4,"settle":0.6,"tail":1.0,"setup":[{"click":[150,62],"after":0.3}],
+ "actions":[{"wait":0.5},{"type":"demo presentation","cps":9,"after":1.2},{"key":"down","after":0.9}]}

@@ -14,7 +14,7 @@ pub mod view;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 
 use anyhow::Result;
 use chrono::Local;
@@ -146,11 +146,7 @@ struct Job<'e, 'a> {
 }
 
 fn cancelled(cancel: Option<&AtomicBool>) -> Result<()> {
-    if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
-        Err(AiError::Cancelled.into())
-    } else {
-        Ok(())
-    }
+    cancel.map_or(Ok(()), crate::error::check_cancelled)
 }
 
 /// The generator with explicit options.

@@ -1,0 +1,83 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"release_notes_owner\": \"Marko\", \"release_notes_due\": \"by Friday\", \"download_totals_owner\": null}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 33,
+    "prompt_tokens": 172,
+    "total_tokens": 205,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 172,
+    "prompt_ms": 802.712,
+    "prompt_per_token_ms": 4.66693023255814,
+    "prompt_per_second": 214.27361245378168,
+    "predicted_n": 33,
+    "predicted_ms": 1969.983,
+    "predicted_per_token_ms": 61.56196875,
+    "predicted_per_second": 16.243794997215712
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"release_notes_owner\": \"Marko\", \"release_notes_due\": \"by Friday\", \"download_totals_owner\": null}"
+        }
+      }
+    ],
+    "created": 1792527371,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 33,
+      "prompt_tokens": 172,
+      "total_tokens": 205,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-adnREiZL2aSQJjajLL0CpwK5Ff9OHNgx",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 172,
+      "prompt_ms": 802.712,
+      "prompt_per_token_ms": 4.66693023255814,
+      "prompt_per_second": 214.27361245378168,
+      "predicted_n": 33,
+      "predicted_ms": 1969.983,
+      "predicted_per_token_ms": 61.56196875,
+      "predicted_per_second": 16.243794997215712
+    }
+  },
+  "wall_seconds": 2.782126935198903,
+  "memory": {
+    "samples": 14,
+    "peak_rss_bytes": 6108385280,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "owner_acceptance",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": false,
+    "json_valid": true,
+    "correct_fields": 2,
+    "total_fields": 3,
+    "wrong": {
+      "release_notes_due": {
+        "expected": "Friday",
+        "actual": "by Friday"
+      }
+    }
+  }
+}

@@ -410,7 +410,8 @@ The app may make these outbound connections:
   and Dream runs, and the provider's terms for your account apply to it.
   Requests count toward that plan's usage limits; when a limit is reached,
   requests stop with a message and are never moved to another provider.
-  Agent Mode, follow-up drafts, and pre-meeting briefs don't use a plan.
+  Agent Mode can use the ChatGPT plan but not the Claude plan; follow-up
+  drafts and pre-meeting briefs don't use a plan.
   - **ChatGPT plan** uses OpenAI's Sign in with ChatGPT for open-source apps.
     Sign-in opens `auth.openai.com` in your browser and returns to a listener
     on `127.0.0.1` that accepts only that redirect. LokalBot receives your
@@ -418,8 +419,14 @@ The app may make these outbound connections:
     conversations, and stores the session tokens, its app registration, and a
     random per-Mac id in the Keychain. Think requests go to OpenAI's Responses
     API at `api.openai.com` with storage turned off; listing your plan's models
-    sends only the token. Signing out asks OpenAI to revoke the session and
-    clears its tokens; you can also disconnect LokalBot in ChatGPT settings.
+    sends only the token. Agent Mode tasks reach the same API through a relay
+    LokalBot runs on `127.0.0.1` for each task: the agent runtime sends its
+    requests there with a random key for that task, and LokalBot adds the plan
+    token, so the runtime and the commands it runs never hold your ChatGPT
+    tokens. Those requests carry the task's conversation, attached context, and
+    tool results, as with any Agent Mode model. Signing out asks OpenAI to
+    revoke the session and clears its tokens; you can also disconnect LokalBot
+    in ChatGPT settings.
   - **Claude plan** runs the Claude Code you installed and signed in to
     yourself (`claude -p`), unmodified. LokalBot never reads, stores, or
     forwards your Claude credentials and never offers a Claude login of its
@@ -572,6 +579,22 @@ conversation in that installed app with the meeting's title, summary, and as muc
 of its transcript as fits already typed into the composer. LokalBot hands the
 text only to that app on this Mac; it is sent only if you press Send there, under
 that app's privacy terms. This does not enable Agent Access.
+
+**Open in Claude Code** and **Open in Codex**, in an action item's menu on the
+meeting page, in Actions, and on Today, start a new Claude Code session or Codex
+chat with a prompt already typed in. The prompt holds the action's text, owner,
+due date, and status; the meeting's title, start time, and LokalBot meeting ID;
+and the paths on this Mac of the meeting's summary, your notes, and its
+transcript. An action that came up in several meetings lists up to five of them.
+LokalBot hands the prompt only to that agent on this Mac: to the Claude app's
+Code tab, or to Claude Code in a terminal through its `claude-cli://` link when
+the Claude app isn't installed, or to the Codex app through its `codex://` link. Nothing is sent until you press Enter or Send
+there. Once you do, the prompt goes to Anthropic or OpenAI, and the agent can
+open the listed files with its own file access and permission prompts and send
+what it reads too, under that agent's terms. LokalBot can't limit what the agent
+reads. This does not enable Agent Access. Claude Code and Codex record these
+sessions like any other, so LokalBot reads them back as coding-agent evidence
+while **Read coding agent sessions** is on.
 
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
@@ -920,9 +943,11 @@ platform differences:
     Reading OpenRouter's endpoint list for the model's context window sends
     only the model id, with no API key and no content.
   - The ChatGPT and Claude plans each need their own approval, separate from
-    any API-server approval for the same company, and Agent Mode does not use
-    them. ChatGPT sign-in returns to a listener on `127.0.0.1` (port 1455, or
-    a free port when that one is taken). Its tokens, app registration and
+    any API-server approval for the same company. Agent Mode can use the
+    ChatGPT plan through the same per-task relay on `127.0.0.1` as on macOS,
+    so the agent runtime never holds the plan's tokens; it can't use the
+    Claude plan. ChatGPT sign-in returns to a listener on `127.0.0.1` (port
+    1455, or a free port when that one is taken). Its tokens, app registration and
     random per-install id are kept only in the system credential store,
     split across several entries where an entry is small; without a
     credential store the sign-in fails before your browser opens, and nothing

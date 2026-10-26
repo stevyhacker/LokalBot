@@ -5,12 +5,6 @@
 | Medium | [Pi](https://github.com/earendil-works/pi/releases/tag/v1.3.0) | 1.0.3 → 1.3.0 | Updates Agent Mode's runtime on every platform. Tool calls whose final arguments are malformed JSON now fail validation instead of running with the fields parsed before the error; more transient provider errors are retried. Setup downloads about 5 MB less and installs 11–12 MB less, because pi no longer depends on `chord` and `esbuild`. Approvals, private-library access and approved-origin restrictions are unchanged. |
 | Medium | [llama.cpp](https://github.com/ggml-org/llama.cpp/releases/tag/v0.7.0) | b11474 → v0.7.0 (build b11669) | Updates local chat, structured output, tool calls, embeddings and autocomplete on every platform. Embedding servers skip the LM head, prompt-cache restores are more reliable, and ggml moves to 0.27.0. Models, settings and outputs are unchanged in the probes below. macOS still builds checksum-pinned source for macOS 15 with generic arm64 CPU code and bundle-relative libraries. |
 
-## Release age
-
-`RELEASING.md` asks for a pi release at least seven days old. npm published
-1.3.0 on 2026-10-15 at 19:13 UTC, so it reaches seven days on
-**2026-10-22 at 19:13 UTC**. Do not release this update before then.
-
 ## Pi 1.3.0
 
 The bundled `package.json` pins 1.3.0 and the matching `pi-agent-core`,

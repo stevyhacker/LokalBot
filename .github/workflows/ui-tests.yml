@@ -12,12 +12,13 @@
 # Runs on every PR (the `changes` job skips the expensive jobs when no app or
 # UI-test path changed, or the PR is a draft, so the aggregate check always
 # reports; marking a draft ready for review runs the suite), weekly on master,
-# and on dispatch. Releases dispatch it for the exact candidate
-# (Scripts/prepare-release.sh); it no longer runs on every master push, which
-# re-tested trees their pull requests had already tested and took 16% of macOS
-# job time in the week to 2026-10-07. Whether it blocks merging remains a
-# branch protection decision; the workflow itself does not mutate repository
-# state.
+# and on dispatch. A release candidate is covered by its merged pull request's
+# run when that run tested the same tree; otherwise Scripts/prepare-release.sh
+# dispatches it for the exact candidate. It no longer runs on every master
+# push, which re-tested trees their pull requests had already tested and took
+# 16% of macOS job time in the week to 2026-10-07. Whether it blocks merging
+# remains a branch protection decision; the workflow itself does not mutate
+# repository state.
 #
 # The required gate tests on macos-15, the app's oldest supported macOS. Its
 # products are built on macos-26 with Xcode 26.4.1, like the shipped app:

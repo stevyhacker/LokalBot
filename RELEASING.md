@@ -155,15 +155,25 @@ Run from the repo root. Replace `1.0.0` / `100` with the version you are shippin
 
 ### 0. Add the previous release's upgrade fixture
 
-Run the **Upgrade fixtures** workflow (or let it run on a PR that touches
-`Scripts/upgrade-fixtures/`). Download the previous stable version's
-`upgrade-fixture-<version>` artifact and extract its tarball into
-`LokalBotTests/Fixtures/upgrade/<version>/`. Fold the database's write-ahead log
-into it (`sqlite3 library/lokalbotv3.sqlite 'PRAGMA wal_checkpoint(TRUNCATE)'`,
-then delete any `-wal`/`-shm` files), check that it holds only the synthetic
-library, run `UpgradeMigrationTests`, and commit it.
-`release-preflight.py --candidate` refuses a release whose changelog base has
-no fixture.
+Each stable release run builds its own version's fixture on a clean hosted Mac
+once the DMG is published (the **Upgrade fixture** job, which calls
+`upgrade-fixtures.yml`) and keeps it for 90 days. Add the previous stable
+version's fixture to the candidate:
+
+```sh
+Scripts/upgrade-fixtures/add.sh 0.8.0
+```
+
+It downloads that artifact from a run of the release's tag or of `master`,
+extracts it into `LokalBotTests/Fixtures/upgrade/<version>/` with the
+database's write-ahead log folded in, and checks that its manifest names the
+version and the synthetic library. Commit the folder with the candidate; the
+Build job's `UpgradeMigrationTests` opens every fixture folder. When the
+artifact is missing or expired, build it with
+`gh workflow run upgrade-fixtures.yml --ref master -f versions=<version>` and
+run `add.sh` again once that finishes. The committed folders are the only list
+of fixture versions. `release-preflight.py --candidate` refuses a release
+whose changelog base has no fixture.
 
 ### 1. Bump the version
 
@@ -232,9 +242,10 @@ with clean build inputs, matching toolchain and digest verification; missing or
 stale products fail instead of rebuilding silently. Use **Re-run all jobs** when
 retrying a shared-products workflow: a failed-jobs-only retry cannot consume
 artifacts from the preceding attempt. UI Tests runs on pull requests that are
-ready for review, weekly on `master`, and for each release candidate when
-`Scripts/prepare-release.sh` dispatches it with the candidate's SHA; it no longer
-runs on every `master` push. Build, Lint and XcodeGen still do. Build skips its
+ready for review, weekly on `master`, and for a release candidate that its
+merged pull request's run doesn't cover, when `Scripts/prepare-release.sh`
+dispatches it with the candidate's SHA; it no longer runs on every `master`
+push. Build, Lint and XcodeGen still do. Build skips its
 macOS jobs on pull requests that change only docs, the website, assets, video
 or distribution notes (`Scripts/ci/build-relevance.py`).
 
@@ -246,12 +257,16 @@ After pushing the complete candidate commit to `master`, run:
 Scripts/prepare-release.sh 0.8.1
 ```
 
-This explicitly dispatches the Release workflow in preparation mode and the full
-UI Tests suite for the candidate's exact SHA. Preparation validates candidate
-metadata and signs/exports the app while the normal push CI runs. It creates no
-tag, sends nothing to notarization and publishes no release. Wait for
-preparation, that UI Tests run and the Build, Lint and XcodeGen push runs on the
-exact commit before creating the release tag.
+This explicitly dispatches the Release workflow in preparation mode.
+Preparation validates candidate metadata and signs/exports the app while the
+normal push CI runs. It creates no tag, sends nothing to notarization and
+publishes no release. When the candidate is the merge of a pull request whose
+full UI run tested the candidate's exact tree (`release-candidate.py
+ui-covered`), that run is the UI gate; otherwise the script also dispatches the
+full UI Tests suite for the candidate's exact SHA. Wait for preparation, any
+UI Tests run it dispatched and the Build, Lint and XcodeGen push runs on the
+exact commit before creating the release tag. Merge the release pull request
+only once it contains the current `master`, so that its run covers the merge.
 
 Build and unit execution are separate jobs in `build.yml`, sharing one compile.
 The UI aggregate checks smoke, Reduce Motion, both functional shards, all three
@@ -262,8 +277,14 @@ On a tag push, Release requires the candidate to remain the current `master` tip
 and verifies successful **push** runs for Build (both jobs), Lint and XcodeGen,
 and a successful UI Tests run on that exact SHA, either a push run or the
 exact-SHA dispatch from `prepare-release.sh`; only a full run reports
-`XCUITest (macOS)`. If a UI Tests job fails to get a runner, use **Re-run all
-jobs** on that dispatch. It retrieves prepared apps only from successful `release.yml` manual
+`XCUITest (macOS)`. When no UI Tests run exists on that SHA, the merged pull
+request's newest run counts instead, if the candidate merges a pull request
+from this repository into `master`, the pull request's head already contained
+the previous `master` tip and has the candidate's exact tree, and that run
+built and passed the full suite (`UI build (macOS)` and `XCUITest (macOS)`).
+GitHub tested that head merged into an older `master`, which is the head's own
+tree. An exact-SHA run, when there is one, always decides. If a UI Tests job
+fails to get a runner, use **Re-run all jobs** on that dispatch. It retrieves prepared apps only from successful `release.yml` manual
 runs on that exact trusted master SHA and verifies source/tree, version/build,
 Xcode, architecture, lockfile, run identity and archive digest before reuse.
 A missing/expired preparation uses the existing cold archive flow; a mismatched
@@ -372,6 +393,7 @@ No edits to the DMG after this point — the signature covers these exact bytes:
 ```sh
 python3 Scripts/generate_appcast.py \
   --archive build/LokalBot.dmg \
+  --archive-filename LokalBot-1.0.0-macos-arm64.dmg \
   --app build/export/LokalBot.app \
   --repo stevyhacker/lokalbot \
   --output build/appcast.xml
@@ -381,7 +403,9 @@ python3 Scripts/generate_appcast.py \
 The script reads `CFBundleShortVersionString` / `CFBundleVersion` from the app,
 locates `sign_update` (via `--sign-update-tool`, `$SPARKLE_BIN`, your PATH,
 `xcrun`, or DerivedData), signs the DMG, and renders `appcast.xml` with the
-enclosure URL `https://github.com/stevyhacker/lokalbot/releases/download/v1.0.0/LokalBot.dmg`.
+enclosure URL `https://github.com/stevyhacker/lokalbot/releases/download/v1.0.0/LokalBot-1.0.0-macos-arm64.dmg`.
+The DMG is published as `LokalBot-<version>-macos-arm64.dmg`, like the Linux and
+Windows files, so `--archive-filename` must match the name you upload in step 7.
 
 The download URL's tag defaults to `v<short-version>`. If you're publishing
 under a pre-release tag (step 7), pass it explicitly — e.g.
@@ -390,13 +414,16 @@ actually uploads to.
 
 ### 7. Publish the GitHub Release
 
-Upload **both** the DMG and the appcast as release assets so the feed at
-`releases/latest/download/appcast.xml` resolves:
+Upload the DMG under its versioned name, its checksum and the appcast as release
+assets so the feed at `releases/latest/download/appcast.xml` resolves:
 
 ```sh
+cp build/LokalBot.dmg build/LokalBot-1.0.0-macos-arm64.dmg
+(cd build && shasum -a 256 -b LokalBot-1.0.0-macos-arm64.dmg > LokalBot-1.0.0-macos-arm64.dmg.sha256)
 git tag v1.0.0 && git push origin v1.0.0
 gh release create v1.0.0 \
-  build/LokalBot.dmg \
+  build/LokalBot-1.0.0-macos-arm64.dmg \
+  build/LokalBot-1.0.0-macos-arm64.dmg.sha256 \
   build/appcast.xml \
   --title "LokalBot 1.0.0" \
   --notes-file Scripts/release-notes/v1.0.0.md
@@ -414,9 +441,9 @@ on GitHub and won't become "Latest"; tag without a suffix for a stable release.
 - Agent runtime: no separate pi GitHub asset is published. The app downloads
   checksum-pinned Bun, then installs pi from the public npm registry using
   `LokalBot/Resources/pi/runtime/package.json` + `bun.lock`. When bumping pi,
-  first verify the chosen release is at least seven days old, pin the matching
-  `pi-agent-core`, `pi-ai`, and `pi-tui` overrides, regenerate the lockfile with
-  the Bun version in `AgentRuntimeManifest`, and verify a clean
+  pin the matching `pi-agent-core`, `pi-ai`, and `pi-tui` overrides,
+  regenerate the lockfile with the Bun version in `AgentRuntimeManifest`, and
+  verify a clean
   `bun install --production --frozen-lockfile --ignore-scripts` before release.
 
 ---
@@ -540,8 +567,10 @@ After the publish job, the `aur` job (`.github/workflows/aur.yml`) points the
 `lokalbot-bin` AUR package (`LinuxWindows/packaging/aur`) at the stable tag's
 Linux archive and its `.sha256`, builds and installs it in a clean Arch
 container with namcap, and pushes `PKGBUILD` and `.SRCINFO` to
-aur.archlinux.org with the `AUR_SSH_PRIVATE_KEY` secret. Without the secret it
-stops after the checks; pre-release tags skip it. To publish again from
+aur.archlinux.org with the `AUR_SSH_PRIVATE_KEY` secret. It pushes only while
+the `AUR_PUBLISH` repository variable is `true` (set it once an AUR account holds
+the key); without the variable or the secret it stops after the checks, and
+pre-release tags skip it. To publish again from
 master: `gh workflow run aur.yml -f tag=vX.Y.Z`. Setup, manual updates and the
 expected namcap warnings are in
 [the AUR package README](LinuxWindows/packaging/aur/README.md).
@@ -586,7 +615,8 @@ temporary keychain exists only while Xcode exports and seals the finished app,
 then is deleted. The DMG uses a separate short-lived keychain that is deleted
 immediately after `codesign`, before notarization. The workflow then notarizes
 and staples, downloads the Sparkle tarball for `sign_update`, runs
-`generate_appcast.py`, and uploads `LokalBot.dmg` + `appcast.xml` to the Release.
+`generate_appcast.py`, and uploads `LokalBot-<version>-macos-arm64.dmg`, its
+`.sha256` and `appcast.xml` to the Release.
 Jobs beside it build, sign and attach the Linux and Windows archives and feeds
 ([Linux and Windows](#linux-and-windows)); the manual steps above cover macOS
 only.
@@ -599,7 +629,8 @@ Required repo secrets:
   `LinuxWindows/scripts/release-feeds.sh` for the Linux and Windows feeds)
 
 Optional: `AUR_SSH_PRIVATE_KEY`, the AUR account's SSH key that lets the
-release push the `lokalbot-bin` AUR package ([AUR package](#aur-package)).
+release push the `lokalbot-bin` AUR package once the `AUR_PUBLISH` repository
+variable is `true` ([AUR package](#aur-package)).
 
 Set the certificate and credential secrets without pasting them into source or
 shell history. `gh secret set NAME` prompts for the value securely:

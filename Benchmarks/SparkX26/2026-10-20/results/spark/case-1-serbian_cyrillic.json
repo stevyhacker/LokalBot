@@ -1,0 +1,83 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\n  \"guide_owner\": \"Ива\",\n  \"guide_due\": \"сриједе\",\n  \"marko_has_new_task\": false\n}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 38,
+    "prompt_tokens": 175,
+    "total_tokens": 213,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 175,
+    "prompt_ms": 810.164,
+    "prompt_per_token_ms": 4.6295085714285715,
+    "prompt_per_second": 216.00564823912197,
+    "predicted_n": 38,
+    "predicted_ms": 2282.145,
+    "predicted_per_token_ms": 61.6795945945946,
+    "predicted_per_second": 16.212817327558064
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"guide_owner\": \"Ива\",\n  \"guide_due\": \"сриједе\",\n  \"marko_has_new_task\": false\n}"
+        }
+      }
+    ],
+    "created": 1792527391,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 38,
+      "prompt_tokens": 175,
+      "total_tokens": 213,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-BlnX6W3hvEVXKboOgkWn5KXcsJSjy4Hg",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 175,
+      "prompt_ms": 810.164,
+      "prompt_per_token_ms": 4.6295085714285715,
+      "prompt_per_second": 216.00564823912197,
+      "predicted_n": 38,
+      "predicted_ms": 2282.145,
+      "predicted_per_token_ms": 61.6795945945946,
+      "predicted_per_second": 16.212817327558064
+    }
+  },
+  "wall_seconds": 3.11223819386214,
+  "memory": {
+    "samples": 16,
+    "peak_rss_bytes": 6448558080,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "serbian_cyrillic",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": false,
+    "json_valid": true,
+    "correct_fields": 2,
+    "total_fields": 3,
+    "wrong": {
+      "guide_due": {
+        "expected": "до сриједе",
+        "actual": "сриједе"
+      }
+    }
+  }
+}

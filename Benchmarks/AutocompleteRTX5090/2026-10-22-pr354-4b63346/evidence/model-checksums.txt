@@ -1,0 +1,3 @@
+856aeee6d85ac684b1db8dee48795b44fc06731ecda03aee36ece682413a9b9a  /workspace/pr354-validation/autocomplete-master/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+856aeee6d85ac684b1db8dee48795b44fc06731ecda03aee36ece682413a9b9a  /workspace/pr354-validation/autocomplete-vulkan/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+856aeee6d85ac684b1db8dee48795b44fc06731ecda03aee36ece682413a9b9a  /workspace/pr354-validation/autocomplete-cuda/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf

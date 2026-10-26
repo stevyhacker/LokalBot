@@ -309,6 +309,28 @@ final class AudioSourceMonitorTests: XCTestCase {
             "com.bytedance.lark.helperx", belongsTo: "com.electron.lark"))
     }
 
+    /// Webex renders call audio in `WebexHelper`, which Core Audio lists as
+    /// `Cisco-Systems.SparkHelper` — outside the host's `Cisco-Systems.Spark.`
+    /// namespace. Without the mapping the tap lands on the silent main process
+    /// and the "Them" track records nothing.
+    func testWebexCallOnItsMediaHelperIsTheCaptureTarget() {
+        MeetingDetector.resetCaptureTargetMemory()
+        let host = AudioProcess(id: 896, name: "Webex", bundleID: "Cisco-Systems.Spark",
+                                objectID: AudioObjectID(896), isRunningOutput: false)
+        let helper = AudioProcess(id: 70531, name: "WebexHelper", bundleID: "Cisco-Systems.SparkHelper",
+                                  objectID: AudioObjectID(70531), isRunningOutput: true)
+        let app = MeetingDetector.DetectedApp(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: host.id)
+
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelper", belongsTo: "Cisco-Systems.Spark"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelper", belongsTo: "com.webex.meetingmanager"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelperX", belongsTo: "Cisco-Systems.Spark"))
+        XCTAssertEqual(MeetingDetector.bestOutputAudioProcess(for: app, in: [host, helper])?.id, helper.id)
+        XCTAssertEqual(MeetingDetector.bestCaptureAudioProcess(for: app, in: [host, helper])?.id, helper.id)
+    }
+
     func testDingTalkCallOnItsHelperIsTheCaptureTarget() {
         MeetingDetector.resetCaptureTargetMemory()
         let host = AudioProcess(id: 100,

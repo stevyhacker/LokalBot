@@ -61,3 +61,12 @@ pub fn ai_error(err: &anyhow::Error) -> Option<&AiError> {
 pub(crate) fn is_cancelled(err: &anyhow::Error) -> bool {
     matches!(ai_error(err), Some(AiError::Cancelled))
 }
+
+/// Shared cancellation check for setup, downloads and inference jobs.
+pub(crate) fn check_cancelled(cancel: &std::sync::atomic::AtomicBool) -> anyhow::Result<()> {
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        Err(AiError::Cancelled.into())
+    } else {
+        Ok(())
+    }
+}

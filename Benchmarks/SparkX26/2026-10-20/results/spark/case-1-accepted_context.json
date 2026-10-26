@@ -1,0 +1,83 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"task\": \"Send revised onboarding checklist\", \"owner\": \"Alex\", \"due\": \"by Friday\", \"acceptance_timestamp\": \"03:20\", \"request_timestamp\": \"03:10\"}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 47,
+    "prompt_tokens": 153,
+    "total_tokens": 200,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 153,
+    "prompt_ms": 812.714,
+    "prompt_per_token_ms": 5.311856209150327,
+    "prompt_per_second": 188.25810801831884,
+    "predicted_n": 47,
+    "predicted_ms": 2887.397,
+    "predicted_per_token_ms": 62.7695,
+    "predicted_per_second": 15.931304216219662
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"task\": \"Send revised onboarding checklist\", \"owner\": \"Alex\", \"due\": \"by Friday\", \"acceptance_timestamp\": \"03:20\", \"request_timestamp\": \"03:10\"}"
+        }
+      }
+    ],
+    "created": 1792527378,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 47,
+      "prompt_tokens": 153,
+      "total_tokens": 200,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-vj7HfBPAxc2vnOek7dbTbnMkTrOYnedQ",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 153,
+      "prompt_ms": 812.714,
+      "prompt_per_token_ms": 5.311856209150327,
+      "prompt_per_second": 188.25810801831884,
+      "predicted_n": 47,
+      "predicted_ms": 2887.397,
+      "predicted_per_token_ms": 62.7695,
+      "predicted_per_second": 15.931304216219662
+    }
+  },
+  "wall_seconds": 3.7193506630137563,
+  "memory": {
+    "samples": 18,
+    "peak_rss_bytes": 6225084416,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "accepted_context",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": false,
+    "json_valid": true,
+    "correct_fields": 4,
+    "total_fields": 5,
+    "wrong": {
+      "due": {
+        "expected": "Friday",
+        "actual": "by Friday"
+      }
+    }
+  }
+}

@@ -36,7 +36,7 @@ final class AudioSourceMonitor: ObservableObject {
         "com.microsoft.teams", "com.microsoft.teams2",
         "com.apple.FaceTime",
         "com.webex.meetingmanager", "com.cisco.webexmeetingsapp",
-        "Cisco-Systems.Spark",
+        "Cisco-Systems.Spark", "Cisco-Systems.SparkHelper",
         "com.tinyspeck.slackmacgap",
         "com.hnc.Discord",
         "com.google.Chrome", "com.apple.Safari", "org.mozilla.firefox",

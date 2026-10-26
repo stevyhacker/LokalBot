@@ -11,7 +11,8 @@ TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-pi-tests.XXXXXX")"
 trap 'rm -rf "$TEST_ROOT"' EXIT
 
 mkdir -p "$TEST_ROOT/resources/tests"
-cp -R "$RESOURCES/lokalbot-extension" "$TEST_ROOT/resources/"
+cp -R "$RESOURCES/lokalbot-extension" "$RESOURCES/lokalbot-cli-skill" "$RESOURCES/system-prompt.md" \
+  "$TEST_ROOT/resources/"
 cp "$RESOURCES/tests/pi-runtime.test.ts" "$TEST_ROOT/resources/tests/"
 ln -s "$RUNTIME_ROOT/pi/node_modules" "$TEST_ROOT/node_modules"
 

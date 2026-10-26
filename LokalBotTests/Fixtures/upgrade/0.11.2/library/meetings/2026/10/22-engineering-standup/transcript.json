@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 9,
+      "speaker": "me",
+      "text": "Quick standup. I'm picking up the Postgres migration today."
+    },
+    {
+      "start": 9,
+      "end": 20,
+      "speaker": "me",
+      "text": "Blocker on the index rebuild \u2014 needs a review from the data team."
+    },
+    {
+      "start": 20,
+      "end": 32,
+      "speaker": "me",
+      "text": "Also scheduling the Redis failover benchmark for Thursday morning."
+    }
+  ]
+}

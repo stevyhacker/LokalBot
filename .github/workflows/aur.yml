@@ -5,8 +5,10 @@
 # PKGBUILD at that release (scripts/update-aur.sh), builds and installs it in
 # a clean Arch container with namcap (scripts/ci/check-aur-package.sh), and
 # pushes PKGBUILD and .SRCINFO to aur.archlinux.org with the
-# AUR_SSH_PRIVATE_KEY secret. Without the secret the push is skipped. On a
-# pull request that changes the package it only runs the checks.
+# AUR_SSH_PRIVATE_KEY secret. The push needs both the secret and the
+# AUR_PUBLISH repository variable set to true, which says an AUR account
+# holds that key; without either it is skipped. On a pull request that
+# changes the package it only runs the checks.
 #
 # To publish a release again, from master:
 #   gh workflow run aur.yml -f tag=v0.11.0
@@ -69,13 +71,19 @@ jobs:
       - name: Build, install and check the package in Arch
         run: scripts/ci/check-aur-package.sh
 
-      - name: Check for the AUR key
+      # The key alone isn't enough: a key no AUR account holds fails the push
+      # (and the release run) with "Permission denied (publickey)".
+      - name: Check for the AUR key and account
         id: key
         if: inputs.tag != ''
         env:
           AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_PUBLISH: ${{ vars.AUR_PUBLISH }}
         run: |
-          if [ -n "$AUR_SSH_PRIVATE_KEY" ]; then
+          if [ "$AUR_PUBLISH" != "true" ]; then
+            echo "::notice::The AUR_PUBLISH repository variable is not true, so lokalbot-bin was not pushed to the AUR."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$AUR_SSH_PRIVATE_KEY" ]; then
             echo "present=true" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::AUR_SSH_PRIVATE_KEY is not set, so lokalbot-bin was not pushed to the AUR."

@@ -1,5 +1,6 @@
-// LokalBot pi extension: registers the app-configured local LLM as a
-// provider and gates every tool except workspace reads behind the host UI.
+// LokalBot pi extension: registers the app-configured model as a provider,
+// gates every tool except workspace reads behind the host UI, and adds the
+// per-run facts that LokalBot's system prompt refers to.
 //
 // Runs inside pi (RPC mode) under Bun. The env contract comes from the launch
 // planner (lokalbot-agent/src/launch.rs); the confirm() below surfaces in
@@ -12,7 +13,7 @@
 // are reviewed like Bash commands.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
+import { openAICompletionsApi, openAIResponsesApi } from "@earendil-works/pi-ai/compat";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
@@ -28,6 +29,14 @@ const WINDOWS = process.platform === "win32";
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 const REASONING_DIALECTS = ["llama-server", "openai", "openrouter", "ollama", "generic"] as const;
 type ReasoningDialect = typeof REASONING_DIALECTS[number];
+/// Chat completions for local and OpenAI-compatible servers; the Responses
+/// API for LokalBot's ChatGPT plan relay.
+const PROVIDER_APIS = ["openai-completions", "openai-responses"] as const;
+type ProviderAPI = typeof PROVIDER_APIS[number];
+/// pi-ai sends a reasoning model's instructions as a developer message (the
+/// plan route rejects system messages) and replays its encrypted reasoning.
+/// The route also rejects output caps.
+const RESPONSES_MODEL_TRAITS = { reasoning: true, compat: { supportsMaxOutputTokens: false } } as const;
 const REASONING_LEVELS = ["automatic", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 type ReasoningLevel = typeof REASONING_LEVELS[number];
 /// ThinkReasoningLevel.budgetTokens, so a level means the same thinking
@@ -76,25 +85,29 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
     throw new Error("Remote LokalBot LLM endpoints must use HTTPS");
   }
   const dialect = reasoningDialect(process.env.LOKALBOT_LLM_REASONING_DIALECT);
+  const api = providerAPI(process.env.LOKALBOT_LLM_API);
+  const servedBy = process.env.LOKALBOT_LLM_SERVED_BY || undefined;
   const reasoningFile = process.env.LOKALBOT_LLM_REASONING_FILE;
-  const completions = openAICompletionsApi();
+  const streams = api === "openai-responses" ? openAIResponsesApi() : openAICompletionsApi();
   const inferenceFetch = retryRejectedReasoning(inferenceFetchForOrigin(endpoint));
 
   pi.registerProvider("lokalbot", {
     baseUrl,
-    api: "openai-completions",
+    api,
     // Pi has its own HTTP client: the host's URLSession redirect policy does
     // not cover it. Inject only this provider's supported transport hook.
     // LokalBot writes the Agent reasoning level (already limited to what the
     // model accepts) to a file it may change mid-task; read it per request.
-    streamSimple: (selectedModel, context, options) => completions.streamSimple(
+    streamSimple: (selectedModel, context, options) => streams.streamSimple(
       selectedModel, context, {
         ...options,
         fetch: inferenceFetch,
         onPayload: async (payload, payloadModel) => {
           const upstream = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
-          return applyReasoningLevel(
-            upstream as Record<string, unknown>, readReasoningLevel(reasoningFile), dialect, model);
+          const level = readReasoningLevel(reasoningFile);
+          return api === "openai-responses"
+            ? applyResponsesReasoningLevel(upstream as Record<string, unknown>, level)
+            : applyReasoningLevel(upstream as Record<string, unknown>, level, dialect, model);
         },
       },
     ),
@@ -109,6 +122,7 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         // completion with "undefined is not an object".
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        ...(api === "openai-responses" ? RESPONSES_MODEL_TRAITS : {}),
       },
     ],
   });
@@ -145,6 +159,39 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
     }
     return undefined;
   });
+
+  pi.on("before_agent_start", (event) => {
+    event.systemPromptOptions.sections.environment = environmentSection(
+      new Date(), process.env.LOKALBOT_AGENT_WORKSPACE_KIND, model, endpoint, loopback, servedBy);
+  });
+}
+
+/// The facts LokalBot's system prompt points to: today's date, what the
+/// working folder is, and which model answers. It is the last prompt section,
+/// and pi folds a changed section into the leading system message for this
+/// provider, so the date only changes the cached prompt once a day.
+/// `servedBy` names a plan's provider when a local relay forwards to it.
+export function environmentSection(
+  now: Date,
+  workspaceKind: string | undefined,
+  model: string,
+  endpoint: URL,
+  local: boolean,
+  servedBy?: string,
+): string {
+  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((part) => String(part).padStart(2, "0")).join("-");
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const lines = [`Today is ${weekday}, ${day} (${zone}). Run \`date\` for the exact time.`];
+  if (workspaceKind === "agent-workspace") {
+    lines.push("The working folder is the Agent Workspace, a folder LokalBot keeps for these tasks. The user's own documents are elsewhere.");
+  } else if (workspaceKind === "chosen-folder") {
+    lines.push("The working folder is one the user chose for this task.");
+  }
+  const server = servedBy ? `by ${servedBy}` : local ? "on this computer" : `by ${endpoint.host}`;
+  lines.push(`You run on the model ${model}, served ${server}.`);
+  return lines.join("\n");
 }
 
 /// A launched Agent task has approval for one origin. Reject redirects before
@@ -162,6 +209,14 @@ export function inferenceFetchForOrigin(endpoint: URL, implementation = globalTh
     }
     return implementation(input, { ...init, redirect: "error" });
   };
+}
+
+export function providerAPI(value: string | undefined): ProviderAPI {
+  if (value === undefined || value === "") return "openai-completions";
+  if (!(PROVIDER_APIS as readonly string[]).includes(value)) {
+    throw new Error("Invalid model API in the LokalBot launch configuration");
+  }
+  return value as ProviderAPI;
 }
 
 export function reasoningDialect(value: string | undefined): ReasoningDialect {
@@ -220,6 +275,17 @@ export function applyReasoningLevel(
     case "generic":
       return { ...payload, reasoning_effort: effort };
   }
+}
+
+/// The Responses API takes a level as `reasoning.effort`, as the ChatGPT plan
+/// engine sends it. Automatic leaves pi's request as built.
+export function applyResponsesReasoningLevel(
+  payload: Record<string, unknown>,
+  level: ReasoningLevel,
+): Record<string, unknown> {
+  if (level === "automatic") return payload;
+  const reasoning = (payload.reasoning ?? {}) as Record<string, unknown>;
+  return { ...payload, reasoning: { ...reasoning, effort: level === "off" ? "none" : level } };
 }
 
 /// A chosen level can be one the selected model does not accept. When the

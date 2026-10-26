@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"owner\": \"Alex\", \"task_is_completed\": false, \"publish_now\": false, \"condition\": \"tests pass\"}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 29,
+    "prompt_tokens": 130,
+    "total_tokens": 159,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 130,
+    "prompt_ms": 608.961,
+    "prompt_per_token_ms": 4.684315384615385,
+    "prompt_per_second": 213.47836725176163,
+    "predicted_n": 29,
+    "predicted_ms": 1728.554,
+    "predicted_per_token_ms": 61.73407142857143,
+    "predicted_per_second": 16.1985104312622
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"owner\": \"Alex\", \"task_is_completed\": false, \"publish_now\": false, \"condition\": \"tests pass\"}"
+        }
+      }
+    ],
+    "created": 1792527398,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 29,
+      "prompt_tokens": 130,
+      "total_tokens": 159,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-hsppBZGD7ROUsqt45THwOWc47WecgrWe",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 130,
+      "prompt_ms": 608.961,
+      "prompt_per_token_ms": 4.684315384615385,
+      "prompt_per_second": 213.47836725176163,
+      "predicted_n": 29,
+      "predicted_ms": 1728.554,
+      "predicted_per_token_ms": 61.73407142857143,
+      "predicted_per_second": 16.1985104312622
+    }
+  },
+  "wall_seconds": 2.3565203258767724,
+  "memory": {
+    "samples": 12,
+    "peak_rss_bytes": 6573281280,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "conditional_task",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 4,
+    "total_fields": 4,
+    "wrong": {}
+  }
+}

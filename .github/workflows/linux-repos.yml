@@ -171,7 +171,18 @@ jobs:
       - name: Install the repository tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm rclone gnupg
+          sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm gnupg
+
+      # Ubuntu 24.04's rclone (1.60.1, from 2022) failed its first attempt at
+      # every R2 upload with 501 NotImplemented and succeeded only on retry.
+      - name: Install rclone
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" \
+            https://github.com/rclone/rclone/releases/download/v1.75.2/rclone-v1.75.2-linux-amd64.zip
+          echo "349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702  $RUNNER_TEMP/rclone.zip" | sha256sum --check
+          unzip -q -j "$RUNNER_TEMP/rclone.zip" rclone-v1.75.2-linux-amd64/rclone -d "$RUNNER_TEMP/rclone"
+          sudo install -m 0755 "$RUNNER_TEMP/rclone/rclone" /usr/local/bin/rclone
+          rclone version
 
       # The repositories serve the same .deb users download; the .rpm gets a
       # signature on the way in.

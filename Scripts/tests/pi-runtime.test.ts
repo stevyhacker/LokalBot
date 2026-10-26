@@ -8,7 +8,8 @@ import { homedir, tmpdir } from "node:os";
 import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import lokalbotExtension, {
-  applyReasoningLevel, inferenceFetchForOrigin, readReasoningLevel, retryRejectedReasoning,
+  applyReasoningLevel, applyResponsesReasoningLevel, environmentSection, inferenceFetchForOrigin, providerAPI,
+  readReasoningLevel, retryRejectedReasoning,
 } from "../../LokalBot/Resources/pi/lokalbot-extension/index";
 import * as boundary from "../../LokalBot/Resources/pi/lokalbot-extension/index";
 
@@ -375,15 +376,54 @@ test("arguments of a tool without a preview must fit in full before approval", a
 
 // One Pi RPC turn against a stub model that requests `toolCall` and then
 // replies STUB-REPLY. Every approval prompt is answered with `approved`.
+/// A Responses event stream as OpenAI sends it: each output item added, its
+/// text, the item done, then the completed response.
+function responsesStream(items: any[]): string {
+  const events: any[] = [{ type: "response.created", response: { id: "resp-test", status: "in_progress" } }];
+  items.forEach((item, index) => {
+    events.push({ type: "response.output_item.added", output_index: index,
+      item: item.type === "message" ? { ...item, content: [] } : { ...item, arguments: "" } });
+    if (item.type === "message") {
+      events.push({ type: "response.output_text.delta", output_index: index, delta: item.content[0].text });
+    }
+    events.push({ type: "response.output_item.done", output_index: index, item });
+  });
+  events.push({ type: "response.completed", response: { id: "resp-test", status: "completed", output: items,
+    usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } } });
+  return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
+}
+
+/// What LokalBot's ChatGPT plan relay passes back: encrypted reasoning and a
+/// tool call, then the answer once the tool's output comes in.
+function responsesTurn(body: any, toolCall: { name: string; arguments: unknown }): string {
+  if (body.input.some((item: any) => item.type === "function_call_output")) {
+    return responsesStream([{ type: "message", id: "msg-test", role: "assistant", status: "completed",
+      content: [{ type: "output_text", text: "STUB-REPLY", annotations: [] }] }]);
+  }
+  return responsesStream([
+    { type: "reasoning", id: "rs-test", summary: [], encrypted_content: "SYNTHETIC-ENCRYPTED" },
+    { type: "function_call", id: "fc-test", call_id: "call-test", status: "completed",
+      name: toolCall.name, arguments: JSON.stringify(toolCall.arguments) },
+  ]);
+}
+
 async function piTurn(options: {
   workspace: string; toolCall: { name: string; arguments: unknown }; approved: boolean;
   extensions?: string[]; piConfig?: string; beforeAnswer?: (payload: any) => Promise<void>;
   home?: string; tmp?: string; privateRoots?: string[];
+  launchArguments?: string[]; environment?: Record<string, string>;
+  api?: "openai-completions" | "openai-responses";
 }) {
   const requests: any[] = [];
   const server = Bun.serve({
     hostname: "127.0.0.1", port: 0,
     async fetch(req) {
+      if (options.api === "openai-responses") {
+        expect(new URL(req.url).pathname).toBe("/v1/responses");
+        const body = await req.json();
+        requests.push(body);
+        return new Response(responsesTurn(body, options.toolCall), { headers: { "content-type": "text/event-stream" } });
+      }
       expect(new URL(req.url).pathname).toBe("/v1/chat/completions");
       const body = await req.json();
       requests.push(body);
@@ -411,9 +451,10 @@ async function piTurn(options: {
     ...(options.extensions ?? []).flatMap(extension => ["-e", extension]),
     "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-approve",
     "--session-dir", join(options.workspace, "sessions"), "--offline",
+    ...(options.launchArguments ?? []),
   ], {
     cwd: options.workspace, stdin: "pipe", stdout: "pipe", stderr: "pipe",
-    env: { PATH: process.env.PATH, HOME: options.home ?? options.workspace,
+    env: { ...options.environment, PATH: process.env.PATH, HOME: options.home ?? options.workspace,
       ...(options.tmp ? { TMPDIR: options.tmp } : {}),
       PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0",
       // As in PiLaunchPlanner: no compiled copies outside the runtime.
@@ -421,7 +462,8 @@ async function piTurn(options: {
       PI_CODING_AGENT_DIR: options.piConfig ?? join(options.workspace, "pi-config"),
       LOKALBOT_AGENT_PRIVATE_ROOTS: JSON.stringify(options.privateRoots ?? []),
       LOKALBOT_LLM_BASE_URL: `http://127.0.0.1:${server.port}/v1`,
-      LOKALBOT_LLM_MODEL: "stub-model", LOKALBOT_LLM_CTX: "16384" },
+      LOKALBOT_LLM_MODEL: "stub-model", LOKALBOT_LLM_CTX: "16384",
+      LOKALBOT_LLM_API: options.api ?? "openai-completions" },
   });
   const send = (message: unknown) => { proc.stdin.write(JSON.stringify(message) + "\n"); proc.stdin.flush(); };
   const stderr = new Response(proc.stderr).text();
@@ -593,6 +635,84 @@ test.skipIf(!runtime)("Pi keeps no compiled copies of itself or the extension ou
   }
 }, 25_000);
 
+const systemPromptFile = join(repo, "LokalBot/Resources/pi/system-prompt.md");
+const promptArguments = [
+  "--skill", join(repo, "LokalBot/Resources/pi/lokalbot-cli-skill"), "--system-prompt", systemPromptFile,
+];
+
+test("the environment section names the day, the working folder and the model", () => {
+  const now = new Date(2026, 9, 22, 23, 59);
+  const local = environmentSection(now, "agent-workspace", "qwen3.5-4b", new URL("http://127.0.0.1:17872/v1"), true);
+  expect(local).toStartWith("Today is Thursday, 2026-10-22 (");
+  expect(local).toContain("The working folder is the Agent Workspace");
+  expect(local).toEndWith("You run on the model qwen3.5-4b, served on this computer.");
+  const remote = environmentSection(
+    new Date(2027, 0, 3, 0, 0), "chosen-folder", "claude-opus-5-5", new URL("https://api.anthropic.com/v1"), false);
+  expect(remote).toStartWith("Today is Sunday, 2027-01-03 (");
+  expect(remote).toContain("The working folder is one the user chose for this task.");
+  expect(remote).toEndWith("served by api.anthropic.com.");
+  const relayed = environmentSection(now, "agent-workspace", "gpt-6.1-sol", new URL("http://127.0.0.1:5123/v1"), true,
+    "OpenAI on the user's ChatGPT plan");
+  expect(relayed).toEndWith("You run on the model gpt-6.1-sol, served by OpenAI on the user's ChatGPT plan.");
+  // Launched without a kind (an older host): say nothing about the folder.
+  expect(environmentSection(now, undefined, "m", new URL("http://127.0.0.1/v1"), true)).not.toContain("working folder");
+});
+
+test.skipIf(!runtime)("Pi sends LokalBot's prompt, skill and environment instead of its coding prompt", async () => {
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "lokalbot-pi-prompt-")));
+  try {
+    await writeFile(join(workspace, "notes.txt"), "synthetic notes");
+    const turn = await piTurn({ workspace, approved: true,
+      toolCall: { name: "read", arguments: { path: "notes.txt" } },
+      launchArguments: promptArguments,
+      environment: { LOKALBOT_AGENT_WORKSPACE_KIND: "agent-workspace" } });
+    expect(turn.reply).toBe(true);
+    const prompt = (await readFile(systemPromptFile, "utf8")).trimEnd();
+    for (const request of turn.requests) {
+      const systems = request.messages.filter((message: any) => message.role === "system");
+      expect(systems).toHaveLength(1);
+      expect(request.messages[0]).toBe(systems[0]);
+      const text: string = systems[0].content;
+      expect(text.startsWith(prompt)).toBe(true);
+      expect(text).not.toContain("coding agent harness");
+      expect(text).not.toContain("Pi documentation");
+      expect(text).toContain("<name>lokalbot-library</name>");
+      expect(text).toContain(`<cwd>\n${workspace}\n</cwd>`);
+      expect(text).toMatch(/<environment>\nToday is [A-Z][a-z]+day, \d{4}-\d\d-\d\d \(/);
+      expect(text).toContain("The working folder is the Agent Workspace");
+      expect(text).toEndWith("You run on the model stub-model, served on this computer.\n</environment>");
+    }
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+}, 25_000);
+
+test.skipIf(!runtime)("a task saved with Pi's coding prompt resumes with LokalBot's prompt as its only system message", async () => {
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "lokalbot-pi-prompt-resume-")));
+  try {
+    await writeFile(join(workspace, "notes.txt"), "synthetic notes");
+    const toolCall = { name: "read", arguments: { path: "notes.txt" } };
+    const before = await piTurn({ workspace, approved: true, toolCall });
+    expect(before.requests[0].messages[0].content).toContain("Pi documentation");
+    const after = await piTurn({ workspace, approved: true, toolCall,
+      launchArguments: ["--continue", ...promptArguments],
+      environment: { LOKALBOT_AGENT_WORKSPACE_KIND: "chosen-folder" } });
+    expect(after.reply).toBe(true);
+    const request = after.requests[0];
+    // Small local models' chat templates reject a system message after the
+    // first; Pi folds the changed prompt into the leading one instead.
+    expect(request.messages.filter((message: any) => message.role === "system")).toHaveLength(1);
+    expect(request.messages[0].role).toBe("system");
+    const text: string = request.messages[0].content;
+    expect(text.startsWith((await readFile(systemPromptFile, "utf8")).trimEnd())).toBe(true);
+    expect(text).not.toContain("Pi documentation");
+    expect(text).toContain("The working folder is one the user chose for this task.");
+    expect(JSON.stringify(request.messages)).toContain("synthetic notes");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+}, 50_000);
+
 test("Pi resumes append-only context edits without overwriting visible history", async () => {
   const workspace = await mkdtemp(join(tmpdir(), "lokalbot-pi-context-upgrade-"));
   try {
@@ -709,3 +829,93 @@ test("the registered provider sends the level LokalBot writes, and follows a cha
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("the provider speaks the Responses API only when LokalBot asks for it", async () => {
+  await withExtensionFixture(async ({ provider }) => {
+    expect(provider.api).toBe("openai-completions");
+    expect(provider.models[0].reasoning).toBeUndefined();
+  });
+  await withExtensionFixture(async ({ provider }) => {
+    expect(provider.api).toBe("openai-responses");
+    // Instructions go out as a developer message, and no output cap.
+    expect(provider.models[0].reasoning).toBe(true);
+    expect(provider.models[0].compat.supportsMaxOutputTokens).toBe(false);
+  }, undefined, { LOKALBOT_LLM_API: "openai-responses" });
+  expect(providerAPI(undefined)).toBe("openai-completions");
+  expect(() => providerAPI("anthropic-messages")).toThrow("Invalid model API");
+});
+
+test("the Responses API takes a level as reasoning.effort", () => {
+  const base = { model: "gpt-6.1-sol", reasoning: { effort: "medium", summary: "auto" } };
+  expect(applyResponsesReasoningLevel(base, "automatic")).toBe(base);
+  expect(applyResponsesReasoningLevel(base, "high").reasoning).toEqual({ effort: "high", summary: "auto" });
+  expect(applyResponsesReasoningLevel(base, "off").reasoning).toEqual({ effort: "none", summary: "auto" });
+  expect(applyResponsesReasoningLevel({ model: "m" }, "low").reasoning).toEqual({ effort: "low" });
+});
+
+test("the Responses provider sends developer instructions and LokalBot's level, without an output cap", async () => {
+  const bodies: any[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
+    async fetch(request) {
+      expect(new URL(request.url).pathname).toBe("/v1/responses");
+      expect(request.headers.get("authorization")).toBe("Bearer synthetic-token");
+      bodies.push(await request.json());
+      return new Response(responsesStream([{ type: "message", id: "msg-test", role: "assistant", status: "completed",
+        content: [{ type: "output_text", text: "ok", annotations: [] }] }]),
+      { headers: { "content-type": "text/event-stream" } });
+    },
+  });
+  const root = await mkdtemp(join(tmpdir(), "lokalbot-responses-"));
+  const file = join(root, "level.json");
+  try {
+    await writeFile(file, JSON.stringify({ level: "high" }));
+    const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+    await withExtensionFixture(async ({ provider }) => {
+      const model = { ...provider.models[0], provider: "lokalbot", api: provider.api,
+        baseUrl, maxTokens: 128, name: "Fixture" };
+      const stream = provider.streamSimple(model, { messages: [
+        { role: "system", content: "Synthetic instructions.", timestamp: 0 },
+        { role: "user", content: "hi", timestamp: Date.now() },
+      ] }, { apiKey: "synthetic-token", maxRetries: 0, timeoutMs: 2_000, reasoning: "medium" });
+      const events: any[] = [];
+      for await (const event of stream) events.push(event);
+      expect(events.at(-1)?.type).toBe("done");
+    }, baseUrl, { LOKALBOT_LLM_API: "openai-responses", LOKALBOT_LLM_REASONING_FILE: file });
+    expect(bodies).toHaveLength(1);
+    expect(bodies[0].input[0]).toEqual({ role: "developer", content: "Synthetic instructions." });
+    expect(bodies[0].reasoning.effort).toBe("high");
+    expect(bodies[0].include).toEqual(["reasoning.encrypted_content"]);
+    expect(bodies[0].max_output_tokens).toBeUndefined();
+    expect(bodies[0].store).toBe(false);
+  } finally {
+    server.stop(true);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test.skipIf(!runtime)("Pi runs a tool turn over the Responses API, as the ChatGPT plan relay serves it", async () => {
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "lokalbot-pi-responses-")));
+  try {
+    await writeFile(join(workspace, "notes.txt"), "synthetic notes");
+    const turn = await piTurn({ workspace, approved: true, api: "openai-responses",
+      toolCall: { name: "read", arguments: { path: "notes.txt" } } });
+    expect(turn.reply).toBe(true);
+    expect(turn.approvals).toHaveLength(0);
+    expect(turn.requests).toHaveLength(2);
+    const [first, second] = turn.requests;
+    expect(first.store).toBe(false);
+    expect(first.max_output_tokens).toBeUndefined();
+    expect(first.input[0].role).toBe("developer");
+    expect(first.tools.map((tool: any) => tool.name)).toContain("read");
+    // store: false keeps nothing on OpenAI's side, so pi replays the
+    // encrypted reasoning with the call and its output.
+    expect(second.input).toContainEqual(expect.objectContaining({
+      type: "reasoning", encrypted_content: "SYNTHETIC-ENCRYPTED" }));
+    expect(second.input).toContainEqual(expect.objectContaining({ type: "function_call", call_id: "call-test" }));
+    const output = second.input.find((item: any) => item.type === "function_call_output");
+    expect(output.call_id).toBe("call-test");
+    expect(JSON.stringify(output.output)).toContain("synthetic notes");
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
+}, 25_000);

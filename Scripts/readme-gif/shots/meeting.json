@@ -1,0 +1,18 @@
+{
+  "bundle": "me.dotenv.LokalBot.uitesthost",
+  "size": [940, 620],
+  "settle": 1.5,
+  "park": [1080, 700],
+  "pre": 0.6,
+  "post": 0.4,
+  "setup": [
+    {"press": {"label": "Hide Sidebar"}},
+    {"focus": {"id": "meeting.list"}}
+  ],
+  "actions": [
+    {"move": {"contains": "Jump to evidence at 00:00:14"}, "duration": 1.0},
+    {"wait": 0.3},
+    {"click": {"contains": "Jump to evidence at 00:00:14"}, "duration": 0.05},
+    {"wait": 2.0}
+  ]
+}

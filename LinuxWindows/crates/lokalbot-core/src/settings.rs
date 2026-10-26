@@ -103,7 +103,8 @@ pub struct Settings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_reasoning_level: Option<ReasoningLevel>,
     pub semantic_search_enabled: bool,
-    /// llama.cpp build for the built-in runtime: `auto`, `vulkan` or `cpu`.
+    /// llama.cpp build for the built-in runtime: `auto`, `cuda`, `vulkan` or `cpu`.
+    /// CUDA is opt-in while native NVIDIA validation is pending.
     pub llama_backend: String,
 
     // Dictation

@@ -58,6 +58,115 @@ GUIDES = [
         "related": ["record-both-sides-mac-meeting-without-bot", "offline-meeting-transcription-mac", "system-requirements"],
     },
     {
+        "slug": "local-ai-meeting-notes-linux",
+        "published": "2026-10-26",
+        "updated": "2026-10-26",
+        "updated_label": "October 26, 2026",
+        "title": "Local AI Meeting Notes on Linux — Bot-Free and Open Source",
+        "description": "Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.",
+        "eyebrow": "Linux",
+        "h1": "Local AI meeting notes on Linux",
+        "lead": "LokalBot records both sides of a call without a bot, transcribes and summarizes it with models on your computer, and keeps every meeting searchable. Here is what works on Linux, what depends on your desktop, and how to install it.",
+        "read_time": "6 min read",
+        "body": """
+        <h2>What works on Linux</h2>
+        <p>LokalBot for Linux is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app (Today, Meetings, Timeline, People, Projects, Ask, and Settings) and reads the same library format, so a library recorded on a Mac opens on Linux. It's an alpha.</p>
+        <ul>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your computer's audio through a PulseAudio or PipeWire monitor, so nothing joins the call. On Linux the second track is everything your computer plays, not one app. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B through sherpa-onnx by default, with Parakeet v3, SenseVoice, and Whisper turbo as options. Speakers are separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations come from Qwen3.5 4B in the built-in llama.cpp, or from Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
+          <li><strong>Search.</strong> Keyword and meaning search across your meetings, with SQLite full-text search and EmbeddingGemma 2, plus Quick Recall from a shortcut.</li>
+          <li><strong>Agent access.</strong> A read-only CLI and MCP server lets Claude Code, Codex, and other agents search your meetings, off until you allow it.</li>
+        </ul>
+
+        <h2>Your desktop matters</h2>
+        <p>Meetings, transcription, notes, search, and Ask work on any desktop. A few features depend on what your desktop lets apps do:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th scope="col">Feature</th><th scope="col">X11</th><th scope="col">Wayland</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Day memory (app and window activity)</th><td>Yes</td><td>Hyprland, Sway, and KDE; GNOME with the Window Calls extension</td></tr>
+              <tr><th scope="row">Screen context (visible text, optional encrypted screenshots)</th><td>Yes</td><td>Sway and Hyprland with <code>grim</code>; other desktops through the screenshot portal when it can capture just the active window</td></tr>
+              <tr><th scope="row">Dictation</th><td>Yes</td><td>Bind <code>lokalbot dictate</code> to a shortcut in your compositor</td></tr>
+              <tr><th scope="row">Autocomplete in other apps</th><td>GTK apps; Qt, Chromium, Electron, and Firefox once system accessibility is on</td><td>Only in the practice editor in Settings</td></tr>
+              <tr><th scope="row">Tray icon</th><td colspan="2">Yes; GNOME needs the AppIndicator extension</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>On <a href="/blog/windows-and-linux-alpha">Omarchy and other Hyprland desktops</a>, <code>grim</code>, <code>wtype</code>, <code>wl-clipboard</code>, and PipeWire are already there, and the dictation pill and Quick Recall float instead of tiling.</p>
+
+        <h2>Install and stay updated</h2>
+        <ul>
+          <li><strong>Debian and Ubuntu:</strong> <code>sudo apt install ./LokalBot-&lt;version&gt;-linux-amd64.deb</code>. It adds the LokalBot repository at pkg.lokalbot.com, so <code>sudo apt upgrade</code> brings later versions.</li>
+          <li><strong>Fedora:</strong> <code>sudo dnf install ./LokalBot-&lt;version&gt;-linux-x86_64.rpm</code>, then <code>sudo dnf upgrade</code> for later versions. On openSUSE the same package installs, and LokalBot tells you when a new version is out.</li>
+          <li><strong>Arch and Omarchy:</strong> <code>sudo pacman -U ./LokalBot-&lt;version&gt;-linux-x86_64.pkg.tar.zst</code>. LokalBot tells you when a newer package is out.</li>
+          <li><strong>Any distribution:</strong> extract the <code>.tar.gz</code> and run <code>./install.sh</code>. It installs into <code>~/.local/bin</code>, adds LokalBot to your applications menu, and lets the app update itself after checking each download's signature.</li>
+        </ul>
+        <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. See the <a href="system-requirements">system requirements</a>.</p>
+
+        <h2>Models and hardware</h2>
+        <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
+
+        <h2>What's not there yet</h2>
+        <ul>
+          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>There's no Flatpak or Snap. An AUR package, <code>lokalbot-bin</code>, is on its way.</li>
+          <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
+        </ul>
+        """,
+        "faq": [
+            ("Does LokalBot work on Wayland?", "Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation needs a compositor shortcut bound to lokalbot dictate; and autocomplete in other apps needs X11."),
+            ("Do I need an NVIDIA GPU?", "No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."),
+            ("Can I move my library between Linux and a Mac?", "Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."),
+        ],
+        "related": ["system-requirements", "local-ai-meeting-notes-windows", "open-source-ai-meeting-notes"],
+    },
+    {
+        "slug": "local-ai-meeting-notes-windows",
+        "published": "2026-10-26",
+        "updated": "2026-10-26",
+        "updated_label": "October 26, 2026",
+        "title": "Local AI Meeting Notes on Windows — Bot-Free and Open Source",
+        "description": "Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.",
+        "eyebrow": "Windows",
+        "h1": "Local AI meeting notes on Windows",
+        "lead": "LokalBot records both sides of a Teams, Zoom, or Meet call without a bot, transcribes and summarizes it with models on your PC, and keeps every meeting searchable. Here is what works on Windows and how to install it.",
+        "read_time": "5 min read",
+        "body": """
+        <h2>What works on Windows</h2>
+        <p>LokalBot for Windows is a native app written in Rust with GPUI, the UI framework behind the Zed editor. It has the same pages as the Mac app and reads the same library format, so a library recorded on a Mac opens on Windows. It's an alpha.</p>
+        <ul>
+          <li><strong>Meetings without a bot.</strong> LokalBot records your microphone and your PC's audio through WASAPI loopback, so nothing joins the call. On Windows the second track is everything your PC plays, not one app. When it detects a meeting, it asks with a notification.</li>
+          <li><strong>On-device transcription.</strong> Qwen3-ASR 0.6B by default, with Parakeet v3, SenseVoice, and Whisper turbo as options, and speakers separated with pyannote segmentation and TitaNet.</li>
+          <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations from Qwen3.5 4B in the built-in llama.cpp, Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
+          <li><strong>Your day.</strong> App and window activity, and, if you turn it on, screen text and encrypted screenshots, read through UI Automation and on-device OCR.</li>
+          <li><strong>Writing.</strong> Hold <kbd>Alt+Space</kbd> to dictate anywhere. Optional autocomplete suggests the next words in apps whose text fields support UI Automation, with LFM2.5 1.2B on your PC.</li>
+          <li><strong>Calendar.</strong> Private iCal or CalDAV links from Outlook, Google, or another calendar name your recordings and list today's meetings.</li>
+          <li><strong>Agents.</strong> A read-only CLI and MCP server for Claude Code, Codex, and other agents, and an optional Agent Mode that works on your files with your approval, in Git Bash or PowerShell.</li>
+        </ul>
+
+        <h2>Install without admin rights</h2>
+        <p>Run <code>LokalBot-&lt;version&gt;-windows-x86_64-setup.exe</code> from the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. It installs for your user into <code>%LOCALAPPDATA%\\Programs\\LokalBot</code>, without administrator rights, and adds a Start menu shortcut and an Installed apps entry. Uninstalling keeps your library. A portable zip is in the same release.</p>
+        <p>The app isn't code-signed yet, so SmartScreen asks before the first launch: choose <strong>More info → Run anyway</strong>. Updates are signed: LokalBot checks for a new version once a day, verifies the download's signature, and installs it only when you choose <strong>Install and Relaunch</strong>. A winget package is in review.</p>
+
+        <h2>Models and hardware</h2>
+        <p>LokalBot needs Windows 10 or 11 on x64. On first launch it downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU, including AMD Radeon and Intel graphics, or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing on an NVIDIA L4, CUDA read a long prompt into Qwen3.5 4B 32% faster than Vulkan. See the <a href="system-requirements">system requirements</a>.</p>
+
+        <h2>What's not there yet</h2>
+        <ul>
+          <li>Code signing, so SmartScreen will warn until it's in place.</li>
+          <li>Selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, and coding-agent sessions in day memory are Mac only for now.</li>
+          <li>Bot-free is not consent-free. Tell the people in your meeting that you're recording, and follow the rules that apply to them.</li>
+        </ul>
+        """,
+        "faq": [
+            ("Why does Windows warn me before LokalBot opens?", "The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first."),
+            ("Does a bot join my Teams or Zoom calls?", "No. LokalBot records your microphone and what your PC plays, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording."),
+            ("Do I need administrator rights?", "No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available."),
+        ],
+        "related": ["system-requirements", "local-ai-meeting-notes-linux", "claude-code-codex-meeting-notes"],
+    },
+    {
         "slug": "offline-meeting-transcription-mac",
         "updated": "2026-10-20",
         "updated_label": "October 20, 2026",
@@ -287,7 +396,7 @@ GUIDES = [
         <ul>
           <li><strong>Mac:</strong> Apple Silicon — M1 or later.</li>
           <li><strong>Operating system:</strong> macOS 15.0 or later.</li>
-          <li><strong>Install:</strong> download <a href="https://github.com/stevyhacker/lokalbot/releases/latest/download/LokalBot.dmg">LokalBot.dmg</a>, or run <code>brew install --cask stevyhacker/tap/lokalbot</code>.</li>
+          <li><strong>Install:</strong> download <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-asset="mac">the DMG</a>, or run <code>brew install --cask stevyhacker/tap/lokalbot</code>.</li>
           <li><strong>Disk:</strong> room for the app, recordings, and selected models.</li>
           <li><strong>Internet:</strong> required for the initial app and model downloads; optional for the built-in workflow after setup.</li>
           <li><strong>Library:</strong> <code>~/Library/Application Support/me.dotenv.LokalBot</code>.</li>
@@ -392,7 +501,58 @@ GUIDES = [
             ("Does it run on Windows on ARM or ARM Linux?", "No. The Windows and Linux versions are built only for x64 (x86_64) processors."),
             ("Can I move my library between a Mac and a PC?", "Yes. The Mac, Windows, and Linux apps use the same library format, so a library recorded on one opens on the others. It lives in ~/Library/Application Support/me.dotenv.LokalBot on a Mac, %LOCALAPPDATA%\\LokalBot on Windows, and ~/.local/share/LokalBot on Linux."),
         ],
-        "related": ["local-transcription-models-mac", "offline-meeting-transcription-mac", "record-both-sides-mac-meeting-without-bot"],
+        "related": ["local-ai-meeting-notes-linux", "local-ai-meeting-notes-windows", "local-ai-meeting-notes-mac"],
+    },
+    {
+        "slug": "granola-otter-alternatives-linux-windows",
+        "kind": "question",
+        "published": "2026-10-26",
+        "updated": "2026-10-26",
+        "updated_label": "October 26, 2026",
+        "title": "Granola and Otter Alternatives for Linux and Windows",
+        "description": "Granola has no Linux app, and Otter and Fireflies offer Linux only a web app. Which bot-free meeting notetakers run on Linux and Windows, where they transcribe, and how they're licensed.",
+        "eyebrow": "Linux and Windows",
+        "h1": "Is there a Granola or Otter alternative for Linux and Windows?",
+        "lead": "Yes. Granola has no Linux app, and Otter and Fireflies give Linux users only a web app and a browser extension. Several apps record meetings without a bot on Linux and Windows, but they differ a lot on where your audio is transcribed.",
+        "read_time": "5 min read",
+        "body": """
+        <h2>The options, side by side</h2>
+        <p>Checked against each project's own site, documentation, and releases on October 26, 2026:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th scope="col">App</th><th scope="col">Linux</th><th scope="col">Windows</th><th scope="col">Transcription</th><th scope="col">License</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">LokalBot</th><td>Native app, alpha: .deb, .rpm, Arch package, or archive</td><td>Native app, alpha</td><td>On your computer by default</td><td>GPLv3</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-openwhispr">OpenWhispr</a></th><td>Native app: AppImage, .deb, .rpm, or archive</td><td>Native app</td><td>On your device or in the cloud; setup recommends its cloud</td><td>MIT</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-hyprnote">Anarlog</a> (formerly Hyprnote)</th><td>Native app, beta</td><td>Native app, beta</td><td>On your device only on Macs; elsewhere a cloud service or a server you run</td><td>MIT, with commercial enterprise parts</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-meetily">Meetily</a></th><td>Build from source; a Pro Linux app is in development</td><td>Native app</td><td>On your device</td><td>MIT for the Community Edition; Pro is commercial</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-screenpipe">Screenpipe</a></th><td>AppImage</td><td>Native app</td><td>On your device by default</td><td>Source-available; commercial use needs a license</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-granola">Granola</a></th><td>None; the web app can't record</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-otter">Otter</a></th><td>Web app and Chrome extension</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-fireflies">Fireflies</a></th><td>Web app and Chrome extension</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>All of them can record without a bot joining the call. Otter and Fireflies send a notetaker bot by default; their desktop apps and browser extensions record without one.</p>
+
+        <h2>What to check before you choose</h2>
+        <ul>
+          <li><strong>Where transcription runs by default.</strong> Some apps are local only on a Mac, and some recommend their cloud during setup. If audio must stay on your computer, check the setting for meetings, dictation, and file uploads separately.</li>
+          <li><strong>What's free.</strong> Speaker labels, meeting detection, longer meetings, and MCP access for AI tools are paid features in some apps.</li>
+          <li><strong>How agents reach your notes.</strong> A local MCP server reads the library on your computer. A hosted one needs your notes in the vendor's cloud.</li>
+          <li><strong>Open source or source-available.</strong> MIT and GPLv3 let anyone use, change, and share the code; a source-available license can restrict commercial use.</li>
+          <li><strong>Your desktop.</strong> On Linux, Wayland limits what any app can do with global shortcuts, typing into other apps, and screen capture. Check what works on your desktop before you rely on it.</li>
+        </ul>
+
+        <h2>Where LokalBot fits</h2>
+        <p>LokalBot records, transcribes, and summarizes on your computer by default, and asks before any context goes to a remote server. Speaker separation, meeting detection, cited answers, and a local read-only MCP server are free, and the same app keeps a timeline of your day, dictation, and autocomplete. Its Windows and Linux apps are in alpha: see <a href="local-ai-meeting-notes-linux">Linux</a> and <a href="local-ai-meeting-notes-windows">Windows</a> for what works today.</p>
+        """,
+        "faq": [
+            ("Does Granola work on Linux?", "No. Granola's apps are for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but can't record or transcribe a meeting."),
+            ("Can I use Otter or Fireflies on Linux?", "Only through their web apps and Chrome extensions. Their desktop apps are for Windows and Mac, their notetakers join calls as a bot unless you record from the desktop app or the extension, and transcription happens in their cloud."),
+            ("Which open-source apps transcribe locally on Linux?", "LokalBot and OpenWhispr both transcribe on a Linux computer; with OpenWhispr, choose on-device transcription during setup. Meetily transcribes locally too, but on Linux you build it from source. Anarlog's Linux beta transcribes in the cloud or on a server you run. Screenpipe transcribes locally by default, under a source-available license."),
+        ],
+        "related": ["local-ai-meeting-notes-linux", "local-ai-meeting-notes-windows", "open-source-ai-meeting-notes"],
     },
     {
         "slug": "claude-code-codex-meeting-notes",
@@ -627,13 +787,13 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-10-20",
+        "updated": "2026-10-26",
     },
     {
         "slug": "benchmarks",
         "eyebrow": "Benchmarks",
         "h1": "LokalBot local model benchmarks",
         "description": "Measured speech recognition, speaker diarization, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.",
-        "updated": "2026-10-20",
+        "updated": "2026-10-26",
     },
 ]

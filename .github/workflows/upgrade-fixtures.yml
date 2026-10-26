@@ -1,13 +1,25 @@
 # Builds upgrade fixtures from real, signed releases on clean hosted Macs.
 # Never run locally: it writes the app's real defaults domain and Keychain.
+#
+# Release (release.yml) calls this for each stable tag once its DMG is
+# published, so the next release adds that fixture with
+# Scripts/upgrade-fixtures/add.sh instead of waiting for a runner. A dispatch
+# without versions rebuilds every committed fixture; a pull request that
+# changes the generator rebuilds the newest one.
 name: Upgrade fixtures
 
 on:
   workflow_dispatch:
     inputs:
       versions:
-        description: "Space-separated releases"
-        default: "0.6.2 0.7.2 0.8.5 0.9.0 0.9.1 0.9.2 0.9.3 0.9.4 0.9.5 0.9.6 0.10.0 0.10.1 0.10.2 0.10.3 0.10.4 0.10.5 0.10.6 0.10.7 0.10.8 0.10.9 0.10.10 0.11.0"
+        description: "Space-separated releases; empty rebuilds every committed fixture"
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.11.2
+        required: true
+        type: string
   pull_request:
     paths:
       - "Scripts/upgrade-fixtures/**"
@@ -17,14 +29,30 @@ permissions:
   contents: read
 
 jobs:
+  plan:
+    name: Pick versions
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.plan.outputs.versions }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Pick versions
+        id: plan
+        env:
+          REQUESTED: ${{ inputs.tag || inputs.versions }}
+        # REQUESTED is split on spaces into one argument per version.
+        run: python3 Scripts/upgrade-fixtures/settings.py plan "$GITHUB_EVENT_NAME" $REQUESTED >> "$GITHUB_OUTPUT"
+
   generate:
     name: Fixture ${{ matrix.version }}
+    needs: plan
+    if: needs.plan.outputs.versions != '[]'
     runs-on: macos-15
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        version: ["0.6.2", "0.7.2", "0.8.5", "0.9.0", "0.9.1", "0.9.2", "0.9.3", "0.9.4", "0.9.5", "0.9.6", "0.10.0", "0.10.1", "0.10.2", "0.10.3", "0.10.4", "0.10.5", "0.10.6", "0.10.7", "0.10.8", "0.10.9", "0.10.10", "0.11.0"]
+        version: ${{ fromJSON(needs.plan.outputs.versions) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -37,8 +65,9 @@ jobs:
       # paths, so the fixture travels as one tarball with its names intact.
       - name: Pack
         run: tar -cf ".build/upgrade/fixture-${{ matrix.version }}.tar" -C ".build/upgrade/${{ matrix.version }}" .
+      # Kept until the next release adds it, however far off that is.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: upgrade-fixture-${{ matrix.version }}
           path: .build/upgrade/fixture-${{ matrix.version }}.tar
-          retention-days: 14
+          retention-days: 90

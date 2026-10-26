@@ -1,7 +1,6 @@
 {
   "missing": {
     "PersonalContextSettings.swift": [
-      "1 suggestion to review",
       "Add to Personal Context",
       "Add…",
       "Always Use",
@@ -9,8 +8,7 @@
       "Forget Everything",
       "Forget everything…",
       "Privacy settings…",
-      "Stop Always Using",
-      "\\(…) suggestions to review"
+      "Stop Always Using"
     ],
     "ActionEvidencePassages.swift": [
       "Pause",
@@ -225,7 +223,8 @@
       "Leave empty if the server runs one model.",
       "Meetings, dictation, and your vocabulary go to this server, including automatically after each meeting.",
       "Model ID: \\(…)",
-      "Requests count toward your \\(…)'s usage. Agent Mode can't use a plan yet.",
+      "Requests count toward your \\(…)'s usage, including Agent Mode tasks.",
+      "Requests count toward your \\(…)'s usage. Agent Mode can't use this plan yet.",
       "Runs on this Mac. Audio stays here.",
       "The change takes effect when you choose Use model.",
       "Use model",

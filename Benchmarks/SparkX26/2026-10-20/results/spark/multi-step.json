@@ -1,0 +1,271 @@
+{
+  "id": "multi_step_meeting_answer",
+  "group": "multi_step",
+  "steps": [
+    {
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "search_meetings",
+              "arguments": "{\"query\":\"Atlas\",\"limit\":10}"
+            },
+            "id": "TW7rLsevCl4j22Kh5wsMi0JYDpI0Lvky"
+          }
+        ]
+      },
+      "finish_reason": "tool_calls",
+      "usage": {
+        "completion_tokens": 21,
+        "prompt_tokens": 294,
+        "total_tokens": 315,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 294,
+        "prompt_ms": 1275.197,
+        "prompt_per_token_ms": 4.337404761904762,
+        "prompt_per_second": 230.55261265514272,
+        "predicted_n": 21,
+        "predicted_ms": 1266.311,
+        "predicted_per_token_ms": 63.315549999999995,
+        "predicted_per_second": 15.793908447450903
+      },
+      "raw": {
+        "choices": [
+          {
+            "finish_reason": "tool_calls",
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "search_meetings",
+                    "arguments": "{\"query\":\"Atlas\",\"limit\":10}"
+                  },
+                  "id": "TW7rLsevCl4j22Kh5wsMi0JYDpI0Lvky"
+                }
+              ]
+            }
+          }
+        ],
+        "created": 1792527573,
+        "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+        "system_fingerprint": "b0-unknown",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 21,
+          "prompt_tokens": 294,
+          "total_tokens": 315,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "id": "chatcmpl-voHHbVPGIm1fUUTCbTYBfWYhw6mbrhiw",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 294,
+          "prompt_ms": 1275.197,
+          "prompt_per_token_ms": 4.337404761904762,
+          "prompt_per_second": 230.55261265514272,
+          "predicted_n": 21,
+          "predicted_ms": 1266.311,
+          "predicted_per_token_ms": 63.315549999999995,
+          "predicted_per_second": 15.793908447450903
+        }
+      },
+      "wall_seconds": 2.55032253684476,
+      "memory": {
+        "samples": 13,
+        "peak_rss_bytes": 7793790976,
+        "peak_physical_footprint_bytes": null
+      }
+    },
+    {
+      "message": {
+        "role": "assistant",
+        "content": "",
+        "tool_calls": [
+          {
+            "type": "function",
+            "function": {
+              "name": "read_meeting",
+              "arguments": "{\"meeting_id\":\"A-210\"}"
+            },
+            "id": "wYPDICjoppvsys75Ts3TB1A66BwwnqHN"
+          }
+        ]
+      },
+      "finish_reason": "tool_calls",
+      "usage": {
+        "completion_tokens": 19,
+        "prompt_tokens": 397,
+        "total_tokens": 416,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 397,
+        "prompt_ms": 1992.289,
+        "prompt_per_token_ms": 5.018360201511335,
+        "prompt_per_second": 199.2682788491027,
+        "predicted_n": 19,
+        "predicted_ms": 1151.485,
+        "predicted_per_token_ms": 63.97138888888888,
+        "predicted_per_second": 15.631988258639932
+      },
+      "raw": {
+        "choices": [
+          {
+            "finish_reason": "tool_calls",
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "",
+              "tool_calls": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "read_meeting",
+                    "arguments": "{\"meeting_id\":\"A-210\"}"
+                  },
+                  "id": "wYPDICjoppvsys75Ts3TB1A66BwwnqHN"
+                }
+              ]
+            }
+          }
+        ],
+        "created": 1792527576,
+        "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+        "system_fingerprint": "b0-unknown",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 19,
+          "prompt_tokens": 397,
+          "total_tokens": 416,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "id": "chatcmpl-oun4gQY17tIFg1e8dFs1n6c4D4RfrOZq",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 397,
+          "prompt_ms": 1992.289,
+          "prompt_per_token_ms": 5.018360201511335,
+          "prompt_per_second": 199.2682788491027,
+          "predicted_n": 19,
+          "predicted_ms": 1151.485,
+          "predicted_per_token_ms": 63.97138888888888,
+          "predicted_per_second": 15.631988258639932
+        }
+      },
+      "wall_seconds": 3.1533420654013753,
+      "memory": {
+        "samples": 16,
+        "peak_rss_bytes": 7805390848,
+        "peak_physical_footprint_bytes": null
+      }
+    },
+    {
+      "message": {
+        "role": "assistant",
+        "content": "From the latest Atlas meeting (**A-210**, \"Atlas release review\", dated 2026-09-10):\n\n- **Launch date agreed:** September 25, 2026\n- **Checklist sender:** Ana — \"I'll send the onboarding checklist before the launch.\"\n\n**Source timestamps:**\n- Launch agreement — 00:12 (Marko)\n- Checklist sender — 00:38 (Ana)"
+      },
+      "finish_reason": "stop",
+      "usage": {
+        "completion_tokens": 110,
+        "prompt_tokens": 515,
+        "total_tokens": 625,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "timings": {
+        "cache_n": 0,
+        "prompt_n": 515,
+        "prompt_ms": 2232.938,
+        "prompt_per_token_ms": 4.335801941747573,
+        "prompt_per_second": 230.63784126563297,
+        "predicted_n": 110,
+        "predicted_ms": 7039.911,
+        "predicted_per_token_ms": 64.58633944954128,
+        "predicted_per_second": 15.483150284144216
+      },
+      "raw": {
+        "choices": [
+          {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "From the latest Atlas meeting (**A-210**, \"Atlas release review\", dated 2026-09-10):\n\n- **Launch date agreed:** September 25, 2026\n- **Checklist sender:** Ana — \"I'll send the onboarding checklist before the launch.\"\n\n**Source timestamps:**\n- Launch agreement — 00:12 (Marko)\n- Checklist sender — 00:38 (Ana)"
+            }
+          }
+        ],
+        "created": 1792527586,
+        "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+        "system_fingerprint": "b0-unknown",
+        "object": "chat.completion",
+        "usage": {
+          "completion_tokens": 110,
+          "prompt_tokens": 515,
+          "total_tokens": 625,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "id": "chatcmpl-jtqYvmN0Ksj41RyqT1Em9qO2jKTeecnN",
+        "timings": {
+          "cache_n": 0,
+          "prompt_n": 515,
+          "prompt_ms": 2232.938,
+          "prompt_per_token_ms": 4.335801941747573,
+          "prompt_per_second": 230.63784126563297,
+          "predicted_n": 110,
+          "predicted_ms": 7039.911,
+          "predicted_per_token_ms": 64.58633944954128,
+          "predicted_per_second": 15.483150284144216
+        }
+      },
+      "wall_seconds": 9.283329432364553,
+      "memory": {
+        "samples": 46,
+        "peak_rss_bytes": 7818661888,
+        "peak_physical_footprint_bytes": null
+      }
+    }
+  ],
+  "used": [
+    {
+      "name": "search_meetings",
+      "args": {
+        "query": "Atlas",
+        "limit": 10
+      }
+    },
+    {
+      "name": "read_meeting",
+      "args": {
+        "meeting_id": "A-210"
+      }
+    }
+  ],
+  "answer": "From the latest Atlas meeting (**A-210**, \"Atlas release review\", dated 2026-09-10):\n\n- **Launch date agreed:** September 25, 2026\n- **Checklist sender:** Ana — \"I'll send the onboarding checklist before the launch.\"\n\n**Source timestamps:**\n- Launch agreement — 00:12 (Marko)\n- Checklist sender — 00:38 (Ana)",
+  "xml_adapter_used_diagnostic_only": false,
+  "content_correct": true,
+  "path_correct": true,
+  "passed_native": true,
+  "wall_seconds": 14.986994034610689
+}

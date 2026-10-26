@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\n  \"release_notes_owner\": \"Marko\",\n  \"release_notes_due\": \"Friday\",\n  \"download_totals_owner\": null\n}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 33,
+    "prompt_tokens": 162,
+    "total_tokens": 195,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 162,
+    "prompt_ms": 729.914,
+    "prompt_per_token_ms": 4.505641975308642,
+    "prompt_per_second": 221.94395504127885,
+    "predicted_n": 33,
+    "predicted_ms": 1845.598,
+    "predicted_per_token_ms": 57.6749375,
+    "predicted_per_second": 17.338553682871353
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"release_notes_owner\": \"Marko\",\n  \"release_notes_due\": \"Friday\",\n  \"download_totals_owner\": null\n}"
+        }
+      }
+    ],
+    "created": 1792527598,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 33,
+      "prompt_tokens": 162,
+      "total_tokens": 195,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-PC3P7C2Jk2xEDKddO55OFsF0ZsK0hyFa",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 162,
+      "prompt_ms": 729.914,
+      "prompt_per_token_ms": 4.505641975308642,
+      "prompt_per_second": 221.94395504127885,
+      "predicted_n": 33,
+      "predicted_ms": 1845.598,
+      "predicted_per_token_ms": 57.6749375,
+      "predicted_per_second": 17.338553682871353
+    }
+  },
+  "wall_seconds": 2.597896304912865,
+  "memory": {
+    "samples": 13,
+    "peak_rss_bytes": 5595410432,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "owner_acceptance",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 3,
+    "total_fields": 3,
+    "wrong": {}
+  }
+}

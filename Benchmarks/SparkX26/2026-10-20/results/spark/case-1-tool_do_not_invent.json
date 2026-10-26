@@ -1,0 +1,106 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search_meetings",
+          "arguments": "{\"query\":\"release approval\",\"limit\":10}"
+        },
+        "id": "S9IMWMLw5EY1aNSoEP9ZokKED8jZg4IA"
+      }
+    ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+    "completion_tokens": 21,
+    "prompt_tokens": 293,
+    "total_tokens": 314,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 293,
+    "prompt_ms": 1274.987,
+    "prompt_per_token_ms": 4.351491467576792,
+    "prompt_per_second": 229.80626469132628,
+    "predicted_n": 21,
+    "predicted_ms": 1287.088,
+    "predicted_per_token_ms": 64.3544,
+    "predicted_per_second": 15.538953047499472
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "search_meetings",
+                "arguments": "{\"query\":\"release approval\",\"limit\":10}"
+              },
+              "id": "S9IMWMLw5EY1aNSoEP9ZokKED8jZg4IA"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1792527567,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 21,
+      "prompt_tokens": 293,
+      "total_tokens": 314,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-lfTh4CS6eaqzDubZePnxrDmIRY554QO1",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 293,
+      "prompt_ms": 1274.987,
+      "prompt_per_token_ms": 4.351491467576792,
+      "prompt_per_second": 229.80626469132628,
+      "predicted_n": 21,
+      "predicted_ms": 1287.088,
+      "predicted_per_token_ms": 64.3544,
+      "predicted_per_second": 15.538953047499472
+    }
+  },
+  "wall_seconds": 2.5705052372068167,
+  "memory": {
+    "samples": 13,
+    "peak_rss_bytes": 7791636480,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_do_not_invent",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": false,
+    "native_calls": [
+      {
+        "name": "search_meetings",
+        "args": {
+          "query": "release approval",
+          "limit": 10
+        }
+      }
+    ],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

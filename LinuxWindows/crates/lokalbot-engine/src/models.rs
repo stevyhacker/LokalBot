@@ -56,7 +56,7 @@ impl Models {
         match Self::resolve(id) {
             Some(ModelRef::Gguf(entry)) => lokalbot_ai::catalog::is_downloaded(paths, entry),
             Some(ModelRef::Speech(model)) => lokalbot_speech::models::is_installed(paths, model),
-            Some(ModelRef::Runtime) => self.shared.runtime.installed_backend().is_some(),
+            Some(ModelRef::Runtime) => self.shared.runtime.usable_backend().is_some(),
             Some(ModelRef::Ocr) => lokalbot_ai::ocr::is_installed(paths),
             None => false,
         }
@@ -133,8 +133,10 @@ impl Models {
                 })
                 .map(|model| model.id.to_string()),
         );
+        // Built-in models stay ready on Vulkan or CPU while a CUDA selection
+        // waits for setup; `runtime_backend` reports the selected runtime.
         let runtime_backend = self.shared.runtime.installed_backend();
-        if runtime_backend.is_some() {
+        if self.shared.runtime.usable_backend().is_some() {
             installed.push(RUNTIME_ID.to_string());
         }
         let screen_text_ready = lokalbot_ai::ocr::is_installed(self.shared.library.paths());
@@ -152,6 +154,8 @@ impl Models {
             embeddings_ready: ready(self.embedding_requirements()),
             screen_text_ready,
             runtime_backend,
+            runtime_needs_check: self.shared.runtime.runtime_needs_check(),
+            runtime_storage: self.shared.runtime.storage(),
             installed,
         };
         self.shared.emit(EngineEvent::Models(status));

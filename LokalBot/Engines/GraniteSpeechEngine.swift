@@ -82,6 +82,7 @@ actor GraniteSpeechEngine: TranscriptionEngine {
 
     func transcribe(configuration: GraniteSpeechModelConfiguration,
                     audio url: URL, language: String?, prompt: String? = nil) async throws -> Transcript {
+        try configuration.transcriptionChoice.validateLanguage(language)
         let pin = await ModelResidency.shared.pin(id: LlamaServerRole.graniteASR.residencyID)
         defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
         await acquire(configuration)

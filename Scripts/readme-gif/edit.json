@@ -1,0 +1,24 @@
+{
+  "canvas": [1840, 1344],
+  "fps": 20,
+  "scale": 0.9,
+  "captionSize": 52,
+  "captionTop": 46,
+  "stageTop": 140,
+  "footer": "Real LokalBot app · fictional demo data",
+  "themes": {
+    "light": {"text": "#1F2328", "muted": "#59636E", "ring": "#127A6A"},
+    "dark": {"text": "#F0F6FC", "muted": "#9198A1", "ring": "#3FC1A9"}
+  },
+  "start": 2.0,
+  "shots": [
+    {"take": "recall", "from": 0.4, "to": 5.4, "caption": "One search for what you saw and heard",
+     "crop": [0, 30, 660, 482], "radius": 21, "scale": 1.1},
+    {"take": "meeting", "from": 0.3, "to": 4.8, "caption": "Every decision links to where it was said"},
+    {"take": "ask", "from": 0.3, "to": 4.8, "caption": "Ask questions, get answers with sources"},
+    {"take": "autocomplete", "from": 7.6, "to": 13.4, "hold": 1.0,
+     "caption": "Autocomplete finishes it from the meeting", "crop": [0, 30, 673, 66], "scale": 1.35},
+    {"take": "dictation", "from": 1.2, "to": 9.0, "hold": 1.6,
+     "caption": "Say what you need; dictation writes it", "crop": [0, 30, 673, 336], "scale": 1.3}
+  ]
+}

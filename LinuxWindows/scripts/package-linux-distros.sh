@@ -123,6 +123,8 @@ EOF
   fi
   # The binaries need glibc 2.39 (built on Ubuntu 24.04). The app links ALSA,
   # xcb and xkbcommon and loads Vulkan and the Wayland client at run time.
+  # The llama.cpp runtime it downloads (llama-server) links the GCC OpenMP
+  # runtime, libgomp.so.1, which minimal installs lack.
   # Arch's gcc-libs is a meta package of every GCC runtime; namcap asks for
   # libgcc and libstdc++, and for hicolor-icon-theme, which owns the icon folders.
   # System audio uses PulseAudio or PipeWire's PulseAudio server; the
@@ -134,6 +136,7 @@ overrides:
       - libc6 (>= 2.39)
       - libstdc++6
       - libgcc-s1
+      - libgomp1
       - libasound2t64 | libasound2
       - libxcb1
       - libxkbcommon0
@@ -156,6 +159,7 @@ overrides:
     depends:
       - libc.so.6(GLIBC_2.39)(64bit)
       - libstdc++.so.6()(64bit)
+      - libgomp.so.1()(64bit)
       - libasound.so.2()(64bit)
       - libxcb.so.1()(64bit)
       - libxkbcommon.so.0()(64bit)
@@ -172,6 +176,7 @@ overrides:
       - glibc>=2.39
       - libgcc
       - libstdc++
+      - libgomp
       - alsa-lib
       - libxcb
       - libxkbcommon

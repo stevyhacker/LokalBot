@@ -21,6 +21,7 @@ ureq.workspace = true
 sha2.workspace = true
 hex.workspace = true
 regex.workspace = true
+libloading = "0.8.9"
 unicode-normalization.workspace = true
 # Look-around in the spoken-undertaking patterns (`SpokenUndertaking.swift`).
 fancy-regex = "0.19"

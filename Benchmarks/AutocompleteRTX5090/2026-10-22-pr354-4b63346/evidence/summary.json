@@ -1,0 +1,897 @@
+{
+  "pr_revision": "4b63346556f15776d441cf3e8c42a8ce2a7c15f6",
+  "master_revision": "a70373f0f20f5daaee0c08fa1216beb3a9e76bb7",
+  "quantiles": "nearest rank from rounded per-case millisecond logs; successful suggestions only",
+  "results": {
+    "master": {
+      "runs": [
+        {
+          "run": 1,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 213,
+          "p95_ms": 671,
+          "max_ms": 671,
+          "startup_seconds": 4.3,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 321
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 213
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 241
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 184
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 299
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 220
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 173
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 211
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 338
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 173
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 671
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 347
+            },
+            {
+              "name": "question",
+              "latency_ms": 256
+            },
+            {
+              "name": "German",
+              "latency_ms": 200
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 207
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 298
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 187
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 190
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 161
+            }
+          ]
+        },
+        {
+          "run": 2,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 203,
+          "p95_ms": 310,
+          "max_ms": 310,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 201
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 310
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 244
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 175
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 176
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 272
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 248
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 186
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 281
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 172
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 190
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 214
+            },
+            {
+              "name": "question",
+              "latency_ms": 302
+            },
+            {
+              "name": "German",
+              "latency_ms": 203
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 210
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 294
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 187
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 192
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 161
+            }
+          ]
+        },
+        {
+          "run": 3,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 211,
+          "p95_ms": 306,
+          "max_ms": 306,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 199
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 306
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 245
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 190
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 304
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 187
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 210
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 248
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 208
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 248
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 178
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 176
+            },
+            {
+              "name": "question",
+              "latency_ms": 268
+            },
+            {
+              "name": "German",
+              "latency_ms": 201
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 211
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 296
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 235
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 268
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 160
+            }
+          ]
+        }
+      ],
+      "pooled": {
+        "suggestions": 57,
+        "total": 60,
+        "p50_ms": 211,
+        "p95_ms": 338,
+        "max_ms": 671
+      }
+    },
+    "vulkan": {
+      "runs": [
+        {
+          "run": 1,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 216,
+          "p95_ms": 385,
+          "max_ms": 385,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 202
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 286
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 232
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 167
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 242
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 221
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 181
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 216
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 385
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 211
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 306
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 191
+            },
+            {
+              "name": "question",
+              "latency_ms": 256
+            },
+            {
+              "name": "German",
+              "latency_ms": 201
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 185
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 282
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 188
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 271
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 161
+            }
+          ]
+        },
+        {
+          "run": 2,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 243,
+          "p95_ms": 346,
+          "max_ms": 346,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 202
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 301
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 238
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 175
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 247
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 243
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 213
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 245
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 213
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 248
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 250
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 270
+            },
+            {
+              "name": "question",
+              "latency_ms": 339
+            },
+            {
+              "name": "German",
+              "latency_ms": 203
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 209
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 294
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 218
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 346
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 160
+            }
+          ]
+        },
+        {
+          "run": 3,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "vulkan",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 210,
+          "p95_ms": 354,
+          "max_ms": 354,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 200
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 305
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 245
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 189
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 305
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 223
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 174
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 217
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 354
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 177
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 191
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 230
+            },
+            {
+              "name": "question",
+              "latency_ms": 333
+            },
+            {
+              "name": "German",
+              "latency_ms": 201
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 210
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 276
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 186
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 193
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 160
+            }
+          ]
+        }
+      ],
+      "pooled": {
+        "suggestions": 57,
+        "total": 60,
+        "p50_ms": 218,
+        "p95_ms": 346,
+        "max_ms": 385
+      }
+    },
+    "cuda": {
+      "runs": [
+        {
+          "run": 1,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "cuda",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 177,
+          "p95_ms": 212,
+          "max_ms": 212,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 179
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 183
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 173
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 173
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 177
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 184
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 174
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 173
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 185
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 175
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 174
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 187
+            },
+            {
+              "name": "question",
+              "latency_ms": 176
+            },
+            {
+              "name": "German",
+              "latency_ms": 191
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 212
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 183
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 174
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 177
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 161
+            }
+          ]
+        },
+        {
+          "run": 2,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "cuda",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 181,
+          "p95_ms": 217,
+          "max_ms": 217,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 200
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 203
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 171
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 172
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 181
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 184
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 193
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 173
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 207
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 171
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 173
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 174
+            },
+            {
+              "name": "question",
+              "latency_ms": 196
+            },
+            {
+              "name": "German",
+              "latency_ms": 180
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 217
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 207
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 185
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 174
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 161
+            }
+          ]
+        },
+        {
+          "run": 3,
+          "model": "lfm2.5-1.2b-instruct",
+          "backend": "cuda",
+          "debounce_ms": 160,
+          "key_interval_ms": 140,
+          "suggestions": 19,
+          "total": 20,
+          "p50_ms": 181,
+          "p95_ms": 210,
+          "max_ms": 210,
+          "startup_seconds": 1.9,
+          "cases": [
+            {
+              "name": "email, next words",
+              "latency_ms": 181
+            },
+            {
+              "name": "email, mid-word",
+              "latency_ms": 180
+            },
+            {
+              "name": "email, after a full stop",
+              "latency_ms": null
+            },
+            {
+              "name": "email, sign-off",
+              "latency_ms": 184
+            },
+            {
+              "name": "chat reply, after a comma",
+              "latency_ms": 173
+            },
+            {
+              "name": "chat reply, next words",
+              "latency_ms": 181
+            },
+            {
+              "name": "chat, mid-word",
+              "latency_ms": 210
+            },
+            {
+              "name": "code comment, Rust",
+              "latency_ms": 176
+            },
+            {
+              "name": "code comment, Python",
+              "latency_ms": 172
+            },
+            {
+              "name": "caret inside a word",
+              "latency_ms": 208
+            },
+            {
+              "name": "commit message",
+              "latency_ms": 171
+            },
+            {
+              "name": "document, after a colon",
+              "latency_ms": 173
+            },
+            {
+              "name": "notes, list item",
+              "latency_ms": 187
+            },
+            {
+              "name": "question",
+              "latency_ms": 179
+            },
+            {
+              "name": "German",
+              "latency_ms": 177
+            },
+            {
+              "name": "Montenegrin",
+              "latency_ms": 186
+            },
+            {
+              "name": "memory: Northwind captions",
+              "latency_ms": 183
+            },
+            {
+              "name": "memory: laptop quote",
+              "latency_ms": 191
+            },
+            {
+              "name": "memory: editor candidate",
+              "latency_ms": 187
+            },
+            {
+              "name": "emoji shortcode",
+              "latency_ms": 160
+            }
+          ]
+        }
+      ],
+      "pooled": {
+        "suggestions": 57,
+        "total": 60,
+        "p50_ms": 180,
+        "p95_ms": 210,
+        "max_ms": 217
+      }
+    }
+  },
+  "cuda_vs_pr_vulkan_p50_ms_reduction_percent": 17.4,
+  "cuda_vs_pr_vulkan_p95_ms_reduction_percent": 39.3
+}

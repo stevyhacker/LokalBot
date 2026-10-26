@@ -345,6 +345,9 @@ pub struct ModelStatus {
     /// The screen text recognition (OCR) models are downloaded.
     pub screen_text_ready: bool,
     pub runtime_backend: Option<String>,
+    /// CUDA is downloaded, but its setup GPU check has not passed.
+    pub runtime_needs_check: bool,
+    pub runtime_storage: Vec<lokalbot_ai::runtime::RuntimeStorage>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

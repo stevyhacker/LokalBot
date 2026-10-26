@@ -997,10 +997,14 @@ final class MeetingDetector {
     /// too) and mapped to the lowercased host. Feishu's Electron helpers keep
     /// ByteDance's identifier while the app itself is `com.electron.lark`, and
     /// DingTalk's helper is `com.alibaba.DingTalk-Helper` beside
-    /// `com.alibaba.DingTalkMac`.
+    /// `com.alibaba.DingTalkMac`. Webex's media engine (`WebexHelper`, which
+    /// renders the remote participants' audio) registers with Core Audio as
+    /// `Cisco-Systems.SparkHelper`, with no dot after `Spark`, so it is not in
+    /// the `Cisco-Systems.Spark.` namespace of its host `Cisco-Systems.Spark`.
     nonisolated static let foreignHelperHosts: [String: String] = [
         "com.bytedance.lark.helper": "com.electron.lark",
         "com.alibaba.dingtalk-helper": "com.alibaba.dingtalkmac",
+        "cisco-systems.sparkhelper": "cisco-systems.spark",
     ]
 
     /// Whether an audio process belongs to the detected meeting application's

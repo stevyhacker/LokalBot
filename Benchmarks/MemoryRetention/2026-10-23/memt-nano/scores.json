@@ -1,0 +1,102 @@
+{
+  "memt-nano-nf4-offload/automatic": {
+    "all": {
+      "cases": 120,
+      "gold": 65,
+      "recalled": 62,
+      "unwanted": 11,
+      "proposals": 73,
+      "empty_cases": 55,
+      "clean_empty": 47,
+      "decision_correct": 110,
+      "perfect": 108,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 0,
+      "pairs": 60,
+      "pairs_perfect": 50
+    },
+    "en": {
+      "cases": 96,
+      "gold": 52,
+      "recalled": 51,
+      "unwanted": 6,
+      "proposals": 57,
+      "empty_cases": 44,
+      "clean_empty": 39,
+      "decision_correct": 89,
+      "perfect": 89,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 0,
+      "pairs": 48,
+      "pairs_perfect": 42
+    },
+    "sr": {
+      "cases": 24,
+      "gold": 13,
+      "recalled": 11,
+      "unwanted": 5,
+      "proposals": 16,
+      "empty_cases": 11,
+      "clean_empty": 8,
+      "decision_correct": 21,
+      "perfect": 19,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 0,
+      "pairs": 12,
+      "pairs_perfect": 8
+    }
+  },
+  "memt-nano-nf4-offload/reviewed": {
+    "all": {
+      "cases": 120,
+      "gold": 65,
+      "recalled": 64,
+      "unwanted": 9,
+      "proposals": 73,
+      "empty_cases": 55,
+      "clean_empty": 47,
+      "decision_correct": 110,
+      "perfect": 108,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 3,
+      "pairs": 60,
+      "pairs_perfect": 50
+    },
+    "en": {
+      "cases": 96,
+      "gold": 52,
+      "recalled": 51,
+      "unwanted": 6,
+      "proposals": 57,
+      "empty_cases": 44,
+      "clean_empty": 39,
+      "decision_correct": 89,
+      "perfect": 89,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 0,
+      "pairs": 48,
+      "pairs_perfect": 42
+    },
+    "sr": {
+      "cases": 24,
+      "gold": 13,
+      "recalled": 13,
+      "unwanted": 3,
+      "proposals": 16,
+      "empty_cases": 11,
+      "clean_empty": 8,
+      "decision_correct": 21,
+      "perfect": 19,
+      "errors": 0,
+      "kind_errors": 0,
+      "format_errors": 3,
+      "pairs": 12,
+      "pairs_perfect": 8
+    }
+  }
+}

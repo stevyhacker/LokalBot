@@ -1,0 +1,23 @@
+{
+  "record": {
+    "build": "b11669",
+    "asset": "llama-b11669-bin-ubuntu-cuda-13.4-x64.tar.gz",
+    "sha256": "80878473d27278dbe9c38fb7e704f292a51e889d3c28a1e863137cdee1e2ba4e",
+    "backend": "cuda",
+    "server": "llama-b11669/llama-server",
+    "version": "version: 0.7.0-dev (build 11669, commit 620d2225c)",
+    "flags": [
+      "--reasoning",
+      "--cache-ram",
+      "--no-ui",
+      "--no-webui",
+      "--jinja"
+    ],
+    "probe": 2,
+    "cudaLibraries": "1108bd9300a281e8eabb18d3fa028d4240ecd983f9f90dbbbc3297671016d697"
+  },
+  "server_inode": 1108318941,
+  "server_sha256": "3ac6495070ae9627825dbe706de3b580fdbedd2fbe079197b2c6c81982dbd0f9",
+  "server_replaced": false,
+  "completed_archives_remaining": 0
+}

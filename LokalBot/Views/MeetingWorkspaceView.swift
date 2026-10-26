@@ -1840,23 +1840,33 @@ private struct OutcomeActionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             WorkspaceMenu(title: "Action options", symbol: "ellipsis",
                           label: "Options for action: \(reference.text)",
-                          identifier: "meeting.action.status.\(reference.action.id)", items:
-                OutcomeStatus.allCases.map { status in
-                    .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
-                          action: { onStatus(status) })
-                } + [.separator, .init(title: "Correct owner or due date", action: onCorrect),
-                     .init(title: "Open in Agent", action: {
-                    app.openAgent(.init(
-                        title: reference.text,
-                        prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
-                        meetingID: reference.meetingID,
-                        actionID: reference.action.id))
-                })])
+                          identifier: "meeting.action.status.\(reference.action.id)", items: menuItems)
             .frame(minWidth: 32, minHeight: 24)
             .fixedSize()
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
+    }
+
+    private var menuItems: [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = OutcomeStatus.allCases.map { status in
+            .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
+                  action: { onStatus(status) })
+        }
+        items += [.separator, .init(title: "Correct owner or due date", action: onCorrect),
+                  .init(title: "Open in Agent", action: {
+            app.openAgent(.init(
+                title: reference.text,
+                prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
+                meetingID: reference.meetingID,
+                actionID: reference.action.id))
+        })]
+        for target in ActionAgentAvailability.installed {
+            items.append(.init(title: "Open in \(target.rawValue)", action: {
+                app.handOff(reference, owner: displayOwner, to: target)
+            }))
+        }
+        return items
     }
 
     private func activeOccurrence(
@@ -2187,9 +2197,10 @@ private struct WorkspaceSpeakerRenameSheet: View {
     @State private var profileID: UUID?
     @State private var name: String
     @State private var selectedCalendarIdentityID: String?
-    @State private var suggestionQuery = ""
+    /// The name as last typed, which searches the suggestions.
+    @State private var typedName = ""
+    @State private var suggestionListHeight: CGFloat = 0
     @FocusState private var nameFocused: Bool
-    @FocusState private var searchFocused: Bool
 
     init(
         draft: WorkspaceSpeakerRenameDraft,
@@ -2257,9 +2268,14 @@ private struct WorkspaceSpeakerRenameSheet: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Name").font(.scaled(.callout)).foregroundStyle(.secondary)
-                TextField("Speaker name", text: $name, prompt: Text("Name this speaker"))
+                TextField("Speaker name", text: nameBinding, prompt: Text("Name this speaker"))
                     .textFieldStyle(.roundedBorder)
                     .focused($nameFocused)
+                    // A field with a submit action keeps Return from the
+                    // default button, so Return saves from here as well.
+                    .onSubmit {
+                        if let match = returnSuggestion { choose(match) } else { save() }
+                    }
                     .accessibilityIdentifier("speaker.rename.name")
             }
             ScrollView {
@@ -2270,9 +2286,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
                         Text("Listen, choose a name, then save. These sources suggest names; attendance does not identify a voice.")
                             .workspaceTextRole(.supporting)
                             .fixedSize(horizontal: false, vertical: true)
-                        if showsSuggestionSearch { suggestionSearchField }
+                        let returnID = returnSuggestion?.id
                         ForEach(visibleSuggestions) { suggestion in
-                            suggestionRow(suggestion)
+                            suggestionRow(suggestion, isReturnTarget: suggestion.id == returnID)
                         }
                         if visibleSuggestions.isEmpty {
                             Text("No suggested names match this search.")
@@ -2292,9 +2308,12 @@ private struct WorkspaceSpeakerRenameSheet: View {
                         canConfirmIdentity: draft.canConfirmIdentity, microphoneIsUser: draft.microphoneIsUser)
                     if let notice { Text(notice).font(.scaled(.caption)).foregroundStyle(.secondary) }
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    suggestionListHeight = max(suggestionListHeight, $0)
+                }
             }
-            // Keep the sheet from resizing on every keystroke while filtering.
-            .frame(minHeight: showsSuggestionSearch ? 280 : nil, maxHeight: 280)
+            // Keep the sheet from shrinking on every keystroke while filtering.
+            .frame(minHeight: min(suggestionListHeight, 280), maxHeight: 280)
 
             Label("Names you save also teach LokalBot this voice, so it can name the person in later meetings. Voices stay encrypted on this Mac.",
                   systemImage: "lock.shield")
@@ -2307,11 +2326,11 @@ private struct WorkspaceSpeakerRenameSheet: View {
                     .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(name, selectedCalendarIdentityID, profileID) }
+                Button("Save", action: save)
                     .primaryActionButton()
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    // Return in the search field picks a match instead of saving.
-                    .keyboardShortcut(searchFocused ? nil : .defaultAction)
+                    .disabled(nameIsBlank)
+                    // Return fills in the top match first, then saves.
+                    .keyboardShortcut(returnSuggestion == nil ? .defaultAction : nil)
                     .accessibilityIdentifier("speaker.rename.save")
             }
         }
@@ -2329,62 +2348,64 @@ private struct WorkspaceSpeakerRenameSheet: View {
         MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, hints: hints)
     }
 
-    /// Short lists fit the scroll area without searching.
-    private var showsSuggestionSearch: Bool { suggestions.count > 3 }
-
-    private var visibleSuggestions: [MeetingSpeakerSuggestion] {
-        showsSuggestionSearch ? suggestions.filter { $0.matches(suggestionQuery) } : suggestions
+    /// Typing records the name as the search; a name filled in by a choice,
+    /// here or in the voice review, doesn't filter.
+    private var nameBinding: Binding<String> {
+        Binding(get: { name }, set: { newValue in
+            if newValue != name { typedName = newValue }
+            name = newValue
+        })
     }
 
-    private var suggestionSearchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            TextField("Search suggested names", text: $suggestionQuery)
-                .textFieldStyle(.plain)
-                .focused($searchFocused)
-                .onSubmit {
-                    guard let first = visibleSuggestions.first else { return }
-                    choose(first)
-                    nameFocused = true
-                }
-                .accessibilityIdentifier("speaker.rename.searchSuggestions")
-            if !suggestionQuery.isEmpty {
-                Button {
-                    suggestionQuery = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Clear search")
-                .accessibilityLabel("Clear search")
-                .accessibilityIdentifier("speaker.rename.searchSuggestions.clear")
-            }
+    private var nameQuery: String {
+        typedName == name ? name.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+    }
+
+    private var visibleSuggestions: [MeetingSpeakerSuggestion] {
+        let query = nameQuery
+        guard !query.isEmpty else { return suggestions }
+        // The chosen guest stays listed while its name is edited, since
+        // saving keeps that guest.
+        return suggestions.filter { $0.matches(query) || isChosen($0) }
+    }
+
+    /// The top match not already chosen, which Return fills in. With none,
+    /// Return saves the name as typed.
+    private var returnSuggestion: MeetingSpeakerSuggestion? {
+        let query = nameQuery
+        guard !query.isEmpty else { return nil }
+        return suggestions.first { $0.matches(query) && !isChosen($0) }
+    }
+
+    private func isChosen(_ suggestion: MeetingSpeakerSuggestion) -> Bool {
+        if let selectedCalendarIdentityID {
+            return suggestion.calendar?.id == selectedCalendarIdentityID
         }
-        .font(AppFont.scaled(.body))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .workspaceControl()
+        return suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
+            == MeetingSpeakerSuggestion.nameKey(name)
+    }
+
+    private var nameIsBlank: Bool { name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    private func save() {
+        guard !nameIsBlank else { return }
+        onSave(name, selectedCalendarIdentityID, profileID)
     }
 
     private func choose(_ suggestion: MeetingSpeakerSuggestion) {
         name = suggestion.name ?? ""
+        typedName = ""
         selectedCalendarIdentityID = suggestion.calendar?.id
         profileID = nil
     }
 
-    private func suggestionRow(_ suggestion: MeetingSpeakerSuggestion) -> some View {
+    private func suggestionRow(
+        _ suggestion: MeetingSpeakerSuggestion, isReturnTarget: Bool
+    ) -> some View {
         let assignedElsewhere = suggestion.calendar.map {
             assignedCalendarIdentityIDs.contains($0.id) && $0.id != draft.currentCalendarIdentityID
         } ?? false
-        let selected: Bool = if let selectedCalendarIdentityID {
-            suggestion.calendar?.id == selectedCalendarIdentityID
-        } else {
-            suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
-                == MeetingSpeakerSuggestion.nameKey(name)
-        }
+        let selected = isChosen(suggestion)
         let title = suggestion.name ?? "Enter a name for this guest"
         let label = ([title] + suggestion.sources + [suggestion.calendar?.emailAddress,
                       assignedElsewhere ? "Also assigned to another voice" : nil].compactMap { $0 })
@@ -2393,8 +2414,17 @@ private struct WorkspaceSpeakerRenameSheet: View {
             choose(suggestion)
         } label: {
             VStack(alignment: .leading, spacing: 5) {
-                Label(title, systemImage: selected ? "checkmark.circle.fill" : "person.crop.circle")
-                    .font(AppFont.scaled(.body))
+                HStack(alignment: .firstTextBaseline) {
+                    Label(title, systemImage: selected ? "checkmark.circle.fill" : "person.crop.circle")
+                        .font(AppFont.scaled(.body))
+                    Spacer(minLength: 8)
+                    if isReturnTarget {
+                        Image(systemName: "return")
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 6) { sourceBadges(suggestion) }
                     VStack(alignment: .leading, spacing: 4) { sourceBadges(suggestion) }

@@ -39,6 +39,8 @@ actions!(lokalbot, [Quit, ToggleRecording]);
 struct Options {
     storage_root: Option<std::path::PathBuf>,
     section: Option<Section>,
+    /// Screenshot target for the Models settings, including runtime selection.
+    models_settings: bool,
     /// `--window quick-recall|onboarding` opens that window at startup.
     window: Option<String>,
     /// `--moment <id>` opens Timeline on that screen moment.
@@ -95,7 +97,10 @@ fn parse_options() -> Options {
     let mut iter = args.iter();
     while let Some(arg) = iter.next() {
         if arg == "--page" {
-            options.section = iter.next().and_then(|name| section_named(name));
+            if let Some(name) = iter.next() {
+                options.section = section_named(name);
+                options.models_settings = name.eq_ignore_ascii_case("settings-models");
+            }
         } else if arg == "--window" {
             options.window = iter.next().cloned();
         } else if arg == "--moment" {
@@ -155,7 +160,7 @@ fn section_named(name: &str) -> Option<Section> {
         "projects" => Section::Projects,
         "ask" => Section::Ask,
         "agent" => Section::Agent,
-        "settings" => Section::Settings,
+        "settings" | "settings-models" => Section::Settings,
         _ => return None,
     })
 }
@@ -240,6 +245,11 @@ fn main() {
             let data = cx.new(|_| AppData::new(library, settings));
             if let Some(section) = options.section {
                 data.update(cx, |data, _| data.section = section);
+            }
+            if options.models_settings {
+                data.update(cx, |data, cx| {
+                    data.open_settings(state::SettingsCategory::Models, cx)
+                });
             }
             if let Some(id) = options.moment {
                 let moment = data.read(cx).library.screen_moment(id).ok().flatten();

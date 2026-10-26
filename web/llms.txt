@@ -6,12 +6,13 @@ Key facts:
 
 - Platforms: macOS 15.0 or later on Apple Silicon (M1 or later). In alpha: Windows 10 or 11 (x64) and Linux (x86_64, glibc 2.39 or later), a separate native app that reads the same library format. No Intel Mac, iOS, Android, or web version.
 - Price and license: free, GNU GPL v3. Source: https://github.com/stevyhacker/lokalbot
-- Install: from https://github.com/stevyhacker/lokalbot/releases/latest download LokalBot.dmg (or run `brew install --cask stevyhacker/tap/lokalbot`) on a Mac, LokalBot-<version>-windows-x86_64-setup.exe (a per-user installer) or the portable LokalBot-<version>-windows-x86_64.zip on Windows (neither code-signed yet), or LokalBot-<version>-linux-x86_64.tar.gz (or the .deb, .rpm or Arch package from the same release) on Linux (for the archive, run ./install.sh).
+- Install: from https://github.com/stevyhacker/lokalbot/releases/latest download LokalBot-<version>-macos-arm64.dmg (or run `brew install --cask stevyhacker/tap/lokalbot`) on a Mac, LokalBot-<version>-windows-x86_64-setup.exe (a per-user installer) or the portable LokalBot-<version>-windows-x86_64.zip on Windows (neither code-signed yet), or LokalBot-<version>-linux-x86_64.tar.gz (or the .deb, .rpm or Arch package from the same release) on Linux (for the archive, run ./install.sh). The .deb, and the .rpm on Fedora, add the LokalBot repository at pkg.lokalbot.com, so apt or dnf keeps it updated.
 - Meetings: records the microphone and the meeting app's audio on separate tracks without joining the call (on Windows and Linux, the second track is everything the computer plays). On a fresh install it asks through a notification before recording a detected meeting.
-- Local models: on Mac, Qwen3-ASR 1.7B is the default speech model (since 0.8.1); Parakeet, IBM Granite Speech, and Whisper large-v3 turbo are alternatives. On Windows and Linux the default is Qwen3-ASR 0.6B, with Parakeet, SenseVoice, and Whisper turbo. Summaries use Qwen3.5 4B on llama.cpp and search uses EmbeddingGemma 2 embeddings everywhere.
+- Local models: on Mac, Qwen3-ASR 1.7B is the default speech model (since 0.8.1); Parakeet, IBM Granite Speech, and Whisper large-v3 turbo are alternatives. On Windows and Linux the default is Qwen3-ASR 0.6B, with Parakeet, SenseVoice, and Whisper turbo. Summaries use Qwen3.5 4B on llama.cpp and search uses EmbeddingGemma 2 embeddings everywhere. On Windows and Linux, llama.cpp runs on a Vulkan GPU, the CPU, or an NVIDIA GPU with CUDA (experimental). Speakers you name are recognized in later meetings.
 - Optional backends: Ollama, OpenAI-compatible servers, and the user's ChatGPT or Claude plan on every platform, plus Apple Intelligence on Mac (macOS 26+). A non-local server or plan must be explicitly approved before it receives meeting or workday context.
+- Languages: Qwen3-ASR transcribes 52 languages and dialects; meeting notes follow the meeting's language unless the user picks another; the interface is translated into 24 languages.
 - Workday memory: day tracking starts with app names and window titles only. Saved screen text and encrypted screenshots are opt-in; screenshots are deleted after 14 days by default.
-- Also includes: hold-to-talk dictation (⌥ Space on Mac, Alt+Space on Windows and Linux), optional local autocomplete, Markdown/Obsidian/Logseq export (Mac only for now), and a read-only CLI and MCP server that stay off until Agent Access is enabled.
+- Also includes: hold-to-talk dictation (⌥ Space on Mac, Alt+Space on Windows and Linux) with recent dictations kept to copy again, optional local autocomplete that can use the message being answered and the user's meetings, a sample meeting to try before recording, a Raycast extension (https://www.raycast.com/stevan_bogosavljevic/lokalbot), Markdown/Obsidian/Logseq export (Mac only for now), and a read-only CLI and MCP server that stay off until Agent Access is enabled.
 - Personal Context (Mac only for now): an encrypted list of facts, preferences, goals, and principles about the user, from "Remember …" in Ask, items added in Settings, and what it learns overnight from the user's own words in meetings and typed requests. Ask uses it; agents can read only items the user shares, under a separate permission.
 - Mac only for now: selection actions, meeting note export and daily memory notes, Personal Context, spoken summaries, coding-agent sessions in day memory, and Apple Intelligence.
 - Not supported: syncing between devices.
@@ -24,8 +25,18 @@ Key facts:
 - [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, speaker diarization, search, summary, autocomplete, and OCR results with methods and known gaps
 - [Privacy policy](https://www.lokalbot.com/privacy): what stays on your computer and exactly when the app uses the network
 
+## Blog
+
+- [LokalBot blog](https://www.lokalbot.com/blog): releases, local model benchmarks, and build notes ([Atom feed](https://www.lokalbot.com/blog/feed.xml))
+- [Recall vs. restraint](https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark): a 120-case benchmark of local models deciding what to save as a memory and what to leave out
+- [LokalBot is on Windows and Linux, in alpha](https://www.lokalbot.com/blog/windows-and-linux-alpha): what works, what is missing, default models, and installation
+- [How the Windows and Linux port was built](https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents): specs first, how coding agents' work was checked, and a link to the full write-up
+
 ## Guides
 
+- [Local AI meeting notes on Linux](https://www.lokalbot.com/local-ai-meeting-notes-linux): what works on X11 and Wayland, installing with apt, dnf, or pacman, models, and CUDA
+- [Granola and Otter alternatives for Linux and Windows](https://www.lokalbot.com/granola-otter-alternatives-linux-windows): which bot-free notetakers run there, where they transcribe, and their licenses
+- [Local AI meeting notes on Windows](https://www.lokalbot.com/local-ai-meeting-notes-windows): bot-free Teams, Zoom, and Meet recording, installing without admin rights, models, and CUDA
 - [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free capture, on-device transcription, private summaries, trade-offs, and setup
 - [Offline meeting transcription on Mac](https://www.lokalbot.com/offline-meeting-transcription-mac): local speech models, two-track audio, timestamps, and no cloud upload
 - [Record both sides of a Mac meeting without a bot](https://www.lokalbot.com/record-both-sides-mac-meeting-without-bot): microphone plus meeting-app audio as synchronized tracks
@@ -44,6 +55,7 @@ Key facts:
 - [LokalBot vs Fireflies.ai](https://www.lokalbot.com/lokalbot-vs-fireflies)
 - [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
+- [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
 - [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)

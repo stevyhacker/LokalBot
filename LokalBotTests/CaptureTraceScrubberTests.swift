@@ -64,7 +64,7 @@ final class CaptureTraceScrubberTests: XCTestCase {
     /// recorded Feishu or DingTalk trace loses the process that carries the call.
     func testForeignMeetingHelpersSurviveScrubbing() {
         for helper in ["com.bytedance.lark.helper", "com.bytedance.lark.helper.Renderer",
-                       "com.alibaba.DingTalk-Helper"] {
+                       "com.alibaba.DingTalk-Helper", "Cisco-Systems.SparkHelper"] {
             XCTAssertEqual(scrubber.scrubBundleID(helper), helper)
             XCTAssertTrue(MeetingDetector.foreignHelperHosts.keys.contains { helper.lowercased().hasPrefix($0) },
                           helper)

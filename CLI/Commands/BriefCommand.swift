@@ -12,12 +12,13 @@ struct BriefCommand: AsyncParsableCommand {
             and a timeline of recent days, weeks, and months. Each part appears
             only under the Privacy permission that covers it; with none on, it
             lists the permissions and how to turn them on. Same text as the
-            get_briefing MCP tool.
+            get_briefing MCP tool, except that it names lokalbot-cli commands
+            where that names MCP tools.
             """
     )
 
     func run() async throws {
         let provider = FileLibraryToolProvider(gate: AgentAccessGate()) { _ in .text("") }
-        print(provider.briefing())
+        print(provider.briefing(vocabulary: .cli))
     }
 }

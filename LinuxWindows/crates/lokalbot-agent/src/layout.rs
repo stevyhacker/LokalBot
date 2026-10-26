@@ -83,6 +83,11 @@ impl RuntimeLayout {
         self.root.join("lokalbot-cli-skill")
     }
 
+    /// LokalBot's system prompt, written from the copy built into the app.
+    pub fn system_prompt_file(&self) -> PathBuf {
+        self.root.join("lokalbot-system-prompt.md")
+    }
+
     fn read_marker(&self) -> Option<VersionMarker> {
         serde_json::from_slice(&std::fs::read(self.version_marker()).ok()?).ok()
     }

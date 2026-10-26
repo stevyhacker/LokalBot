@@ -1,0 +1,63 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "search_meetings",
+      "description": "Search local meeting metadata, newest first. Read results with read_meeting before answering questions about decisions.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query",
+          "limit"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "read_meeting",
+      "description": "Read the transcript and source timestamps for one local meeting ID.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "meeting_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "meeting_id"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "calculate",
+      "description": "Calculate a numeric arithmetic expression exactly.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

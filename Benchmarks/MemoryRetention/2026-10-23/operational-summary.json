@@ -1,0 +1,62 @@
+{
+  "hy-memory-q4": {
+    "requests": 120,
+    "finish_reasons": {
+      "stop": 120
+    },
+    "transport_errors": 0,
+    "nonempty_reasoning": 0,
+    "max_prompt_tokens": 601,
+    "max_completion_tokens": 103,
+    "started_utc": "2026-10-23T08:28:42.103505+00:00",
+    "finished_utc": "2026-10-23T08:34:23.167436+00:00",
+    "server_sha256": "9c37c22d3c64005c704bde9c36c923178b111ec8477d921c8d32ded05852f040",
+    "runs": 1,
+    "note": "Timing is diagnostic on a shared CPU host, not a speed ranking."
+  },
+  "lfm25-24b": {
+    "requests": 120,
+    "finish_reasons": {
+      "stop": 120
+    },
+    "transport_errors": 0,
+    "nonempty_reasoning": 0,
+    "max_prompt_tokens": 602,
+    "max_completion_tokens": 146,
+    "started_utc": "2026-10-23T08:36:40.193504+00:00",
+    "finished_utc": "2026-10-23T08:43:55.574267+00:00",
+    "server_sha256": "9c37c22d3c64005c704bde9c36c923178b111ec8477d921c8d32ded05852f040",
+    "runs": 1,
+    "note": "Timing is diagnostic on a shared CPU host, not a speed ranking."
+  },
+  "qwen35-4b": {
+    "requests": 120,
+    "finish_reasons": {
+      "stop": 120
+    },
+    "transport_errors": 0,
+    "nonempty_reasoning": 0,
+    "max_prompt_tokens": 613,
+    "max_completion_tokens": 39,
+    "started_utc": "2026-10-23T08:03:58.246600+00:00",
+    "finished_utc": "2026-10-23T08:09:52.427693+00:00",
+    "server_sha256": "9c37c22d3c64005c704bde9c36c923178b111ec8477d921c8d32ded05852f040",
+    "runs": 1,
+    "note": "Timing is diagnostic on a shared CPU host, not a speed ranking."
+  },
+  "qwen35-9b": {
+    "requests": 120,
+    "finish_reasons": {
+      "stop": 120
+    },
+    "transport_errors": 0,
+    "nonempty_reasoning": 0,
+    "max_prompt_tokens": 613,
+    "max_completion_tokens": 57,
+    "started_utc": "2026-10-23T08:13:52.126296+00:00",
+    "finished_utc": "2026-10-23T08:25:37.092654+00:00",
+    "server_sha256": "9c37c22d3c64005c704bde9c36c923178b111ec8477d921c8d32ded05852f040",
+    "runs": 1,
+    "note": "Timing is diagnostic on a shared CPU host, not a speed ranking."
+  }
+}

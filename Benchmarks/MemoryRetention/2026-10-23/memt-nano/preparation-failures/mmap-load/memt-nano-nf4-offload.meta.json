@@ -1,0 +1,44 @@
+{
+  "identity": {
+    "arm": "memt-nano-nf4-offload",
+    "model_revision": "30fe0b22422c4cc4c87475f98db5c8baa5c1a902",
+    "inputs": {
+      "frozen.json": "54e89abe34685dcc8617e8a956ef0c9094834ea86fee83db8d2f186e4dfd3eb8",
+      "cases.json": "907997632a42fd2afff07629f265bfd5f623957ea736b4e4ff7a998393e33a08",
+      "prompts.json": "a436434cccd82a793e8053c83a7321de877f049cbb916edae96da634fe64dc38",
+      "schema.json": "8ee95fd53f191f21d5e7368191b94a9687e297a2829dcf7a43a3cf7df4c5aeac",
+      "score.py": "1da13d7068e889d3da757571d91e0c03cc185bf65494afbc1cd2b07ee0a06a6c"
+    },
+    "software": {
+      "run_windows.py": "6a7c7c8baad9750a1698527c8e7d5a487254a957d7baaa59767a236c4fe4c8f5",
+      "nf4_offload.py": "157d881a7d14ee86db1059c2eee48c06f2a6369eeea55c990707287a493c0ecc",
+      "model.json": "ead476afce1b32b1d3bf9f92549046db4336b1d1dd0772286a3ad40f7489084c",
+      "verified-model-files.json": "6dc3a6208ab7722ae9c91354f218f3633f104d008e32ac5d962b992370d868de",
+      "PROTOCOL_EXTENSION.md": "c515f88d0aeef3c5a9a23f3d95479b2cc1295066b9dd88c2dde2ee91b9987152",
+      "lmformatenforcer-revision.json": "aa43711ab13ee8348a40c055dba9bd893d721ea0abdbf7b1514180a78f800f71"
+    },
+    "packages": {
+      "torch": "2.11.0+rocm7.13.0",
+      "transformers": "5.12.1",
+      "bitsandbytes": "0.50.2",
+      "accelerate": "1.15.0",
+      "lm-format-enforcer": "0.11.3"
+    },
+    "settings": {
+      "do_sample": false,
+      "seed": 0,
+      "enable_thinking": false,
+      "max_new_tokens": 1024,
+      "max_context_tokens": 8192,
+      "expert_quantization": "NF4, blocksize 64, no double quantization",
+      "dense_and_memory_weights": "BF16",
+      "native_memory": "fresh/no prior state for each case",
+      "schema_enforcement": "lm-format-enforcer",
+      "BNB_ROCM_VERSION": "714",
+      "MIOPEN_FIND_MODE": "FAST"
+    }
+  },
+  "frozen_before_inference": 1792750932.1330802,
+  "platform": "Windows-11-10.0.26300-SP0",
+  "gpu": "AMD Radeon RX 6600 XT"
+}

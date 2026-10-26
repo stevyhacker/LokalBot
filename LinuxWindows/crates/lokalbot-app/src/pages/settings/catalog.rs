@@ -451,6 +451,13 @@ pub const ENTRIES: &[Entry] = &[
         value: details,
     },
     Entry {
+        id: "settings.llamaBackend",
+        title: "llama.cpp",
+        category: Models,
+        aliases: "nvidia gpu acceleration vulkan cpu llama runtime",
+        value: |s| s.llama_backend.clone(),
+    },
+    Entry {
         id: "settings.cotypingBuiltInModelID",
         title: "Autocomplete model",
         category: Models,

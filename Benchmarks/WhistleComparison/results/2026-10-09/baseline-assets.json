@@ -1,0 +1,139 @@
+{
+  "parakeet": {
+    "repository": "FluidInference/parakeet-ultra-coreml",
+    "revision": "95eaa59a39d4394f047a4dc5cce480388a60d1b6",
+    "files": [
+      {
+        "file": "Decoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "sha256": "fe92b6cfaa012abd5248c0bc877832f19807015abffc60d87b8ccc8ccb48b3b5"
+      },
+      {
+        "file": "Decoder.mlmodelc/coremldata.bin",
+        "bytes": 560,
+        "sha256": "3b06e66768f0df7e21795f50e2b29300e33eeb1a2579dc42c695279c2d308497"
+      },
+      {
+        "file": "Decoder.mlmodelc/model.mil",
+        "bytes": 13110,
+        "sha256": "956f600207f88396017ca5c96cfa3acd5bfee60835a5b44b762e033a8fb28955"
+      },
+      {
+        "file": "Decoder.mlmodelc/weights/weight.bin",
+        "bytes": 23604992,
+        "sha256": "02a0d219f281b9665bc10c8768649403b2eebbbf4b44c627041d948e0de11bb4"
+      },
+      {
+        "file": "Encoder.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "sha256": "d87101d824d6723cf95304da33755c3c60e762663b9ef2b0c4bd0aa166a09a0d"
+      },
+      {
+        "file": "Encoder.mlmodelc/coremldata.bin",
+        "bytes": 514,
+        "sha256": "397a84a4062f563cbc5f56077c674f09a61d85be5090f61d2f1932afb92ac0fe"
+      },
+      {
+        "file": "Encoder.mlmodelc/model.mil",
+        "bytes": 1002653,
+        "sha256": "f5d601568a4171d99a314c0fe3f6bc67715da2623732a3fb566e050ea83e5848"
+      },
+      {
+        "file": "Encoder.mlmodelc/weights/weight.bin",
+        "bytes": 594211328,
+        "sha256": "315ba01f33cadbf601d43ac7f5c86208b7aa75fdaa34705c9869d5abe3521c9b"
+      },
+      {
+        "file": "JointDecisionv3.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "sha256": "68d38ca646aebafa7a9329e2efda50f5767c49e89fdb5f77f212072bb66f97c4"
+      },
+      {
+        "file": "JointDecisionv3.mlmodelc/coremldata.bin",
+        "bytes": 592,
+        "sha256": "5e3af5a4ce686f6c237cadbd9284e10d333bc0e1546633cd0e430e6194044bc4"
+      },
+      {
+        "file": "JointDecisionv3.mlmodelc/model.mil",
+        "bytes": 11777,
+        "sha256": "791b3c3cf3eb2079c84623fc880f6bba008d1366e5f8b03e9a8ed8bd4d7194a0"
+      },
+      {
+        "file": "JointDecisionv3.mlmodelc/weights/weight.bin",
+        "bytes": 12642764,
+        "sha256": "3f310b85b82341c53ec383025ab094a4e462ee1c592e1ad7c6bfe39cff66ca25"
+      },
+      {
+        "file": "Preprocessor.mlmodelc/analytics/coremldata.bin",
+        "bytes": 243,
+        "sha256": "c9beeb989c8d66f8be11df59bc6df277ec76cee404f6865b46243835ef562f6d"
+      },
+      {
+        "file": "Preprocessor.mlmodelc/coremldata.bin",
+        "bytes": 486,
+        "sha256": "dbde3f2300842c1fd51ef3ff948a0bcffe65ffd2dca10707f2509f32c1d65b1d"
+      },
+      {
+        "file": "Preprocessor.mlmodelc/metadata.json",
+        "bytes": 2841,
+        "sha256": "2a98699e22d279dd37fa1d238aeb1c6db1df0d6fad687775324157689d8f3acf"
+      },
+      {
+        "file": "Preprocessor.mlmodelc/model.mil",
+        "bytes": 28181,
+        "sha256": "4b8518a956450fec57f06c2a21bdffc26973f7f1fa6842fb38fe917f896b6b93"
+      },
+      {
+        "file": "Preprocessor.mlmodelc/weights/weight.bin",
+        "bytes": 491072,
+        "sha256": "129b76e3aeafa8afa3ea76d995b964b145fe83700d579f6ff42c4c38fa0968ea"
+      },
+      {
+        "file": "parakeet_vocab.json",
+        "bytes": 151122,
+        "sha256": "7ec60e05f1b24480736ec0eed40900f4626bce1fa9a60fd700ec7e2a59198735"
+      }
+    ]
+  },
+  "qwen": {
+    "repository": "aufklarer/Qwen3-ASR-1.7B-MLX-8bit",
+    "files": [
+      {
+        "file": "config.json",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 7188,
+        "sha256": "1b76b3b6c655fc54595da025f7a96474ad9fa86363303fbdd61a7d8483ccfaf7"
+      },
+      {
+        "file": "merges.txt",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 1671853,
+        "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+      },
+      {
+        "file": "model.safetensors.index.json",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 78968,
+        "sha256": "0a5d0ec11188602242ff81a9969883d0fdeb98cd5d85cd1413089d897c201af5"
+      },
+      {
+        "file": "model.safetensors",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 2463307541,
+        "sha256": "bf304b009cc7eca79283056f787b44c952d24ac22cec787b39732bba3c23c13c"
+      },
+      {
+        "file": "tokenizer_config.json",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 12487,
+        "sha256": "4942d005604266809309cabc9f4e9cb89ce855d59b14681fdc0e1cc62ea26c4c"
+      },
+      {
+        "file": "vocab.json",
+        "revision": "e5450a26d1fd417c45fc9c405651ddc3180a27a6",
+        "bytes": 2776833,
+        "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+      }
+    ]
+  }
+}

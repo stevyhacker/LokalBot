@@ -336,6 +336,9 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 let calendar_changed = calendar_settings_changed(&before, &settings);
                 let calendar_turned_on =
                     settings.calendar_detection_enabled && !before.calendar_detection_enabled;
+                shared
+                    .runtime
+                    .set_backend_preference(&settings.llama_backend);
                 *shared.settings.write() = *settings;
                 if calendar_turned_on {
                     shared.calendar.reload();

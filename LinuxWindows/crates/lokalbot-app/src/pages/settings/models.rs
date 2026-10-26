@@ -54,17 +54,13 @@ pub fn model_name(id: &str) -> String {
 }
 
 /// Download size of a model id from its catalog. The llama.cpp runtime is
-/// counted at its larger (Vulkan) archive until a backend is installed.
-pub fn model_bytes(id: &str) -> u64 {
+/// includes the optional CUDA libraries until system reuse is established.
+pub fn model_bytes(id: &str, settings: &Settings) -> u64 {
     if let Some(entry) = lokalbot_ai::catalog::entry(id) {
         return entry.size_bytes;
     }
     if id == RUNTIME_ID {
-        return lokalbot_ai::runtime::assets()
-            .iter()
-            .map(|a| a.size)
-            .max()
-            .unwrap_or(0);
+        return lokalbot_ai::runtime::download_bytes(&settings.llama_backend);
     }
     if id == lokalbot_ai::ocr::OCR_MODEL_ID {
         return lokalbot_ai::ocr::total_size();
@@ -630,7 +626,7 @@ impl SettingsPage {
             let download: u64 = [speech, think]
                 .iter()
                 .filter(|id| !status.installed.iter().any(|installed| installed == *id))
-                .map(|id| model_bytes(id))
+                .map(|id| model_bytes(id, &settings))
                 .sum();
             let data = self.data.clone();
             presets = presets.row(
@@ -859,8 +855,38 @@ impl SettingsPage {
                 cx,
             ),
         );
+        for runtime in &status.runtime_storage {
+            let path = runtime.path.clone();
+            let id = SharedString::from(format!("settings-runtime-storage-{}", runtime.name));
+            storage = storage.row(
+                "settings.modelStorage",
+                settings_row::content_row(
+                    id.clone(),
+                    h_flex()
+                        .gap(px(12.))
+                        .items_center()
+                        .child(div().flex_1().child(settings_row::help(
+                            format!(
+                                "llama.cpp · {} · {}",
+                                lokalbot_i18n::tr(&runtime.name),
+                                size_label(runtime.bytes)
+                            ),
+                            cx,
+                        )))
+                        .child(
+                            Button::new(id)
+                                .outline()
+                                .small()
+                                .label(lokalbot_i18n::tr("Show in Folder"))
+                                .on_click(move |_, _, cx| cx.open_with_system(&path)),
+                        ),
+                    false,
+                    cx,
+                ),
+            );
+        }
         if !unused.is_empty() {
-            let total: u64 = unused.iter().map(|id| model_bytes(id)).sum();
+            let total: u64 = unused.iter().map(|id| model_bytes(id, &settings)).sum();
             let rows = unused.iter().map(|id| {
                 let data = self.data.clone();
                 let remove = id.clone();
@@ -886,7 +912,7 @@ impl SettingsPage {
                                     .child(format!(
                                         "{} · {}",
                                         model_purpose(id),
-                                        size_label(model_bytes(id))
+                                        size_label(model_bytes(id, &settings))
                                     )),
                             ),
                     )
@@ -1010,7 +1036,118 @@ impl SettingsPage {
             ),
         );
 
-        vec![summary, roles, presets, remote, storage, budget, also]
+        let backend_data = self.data.clone();
+        let backends = ["auto", "vulkan", "cuda", "cpu"];
+        let selected_backend = backends
+            .iter()
+            .position(|b| settings.llama_backend.trim().eq_ignore_ascii_case(b))
+            .unwrap_or(0);
+        let cuda_selected = selected_backend == 2;
+        let runtime_progress = downloads.get(RUNTIME_ID);
+        let runtime_downloading = runtime_progress.is_some_and(|d| d.error.is_none());
+        let runtime_detail = match runtime_progress {
+            Some(progress) if progress.error.is_some() => progress
+                .error
+                .as_ref()
+                .map(ToString::to_string)
+                .unwrap_or_default(),
+            Some(progress) => lokalbot_i18n::format(
+                "Downloading · {0}%",
+                &[("0", format!("{}", (progress.fraction() * 100.).round()))],
+            ),
+            None if status.runtime_backend.is_some() => format!(
+                "{} · {}",
+                lokalbot_i18n::tr("Ready"),
+                status.runtime_backend.as_ref().unwrap()
+            ),
+            // Downloaded, but the setup GPU check failed: no download is left.
+            None if status.runtime_needs_check => {
+                format!("{} · CUDA", lokalbot_i18n::tr("Not ready"))
+            }
+            None => lokalbot_i18n::format(
+                "About {0} to download",
+                &[(
+                    "0",
+                    size_label(lokalbot_ai::runtime::download_bytes(
+                        &settings.llama_backend,
+                    )),
+                )],
+            ),
+        };
+        let runtime_data = self.data.clone();
+        let runtime = Section::new("llama.cpp").row(
+            "settings.llamaBackend",
+            settings_row::content_row(
+                "settings.llamaBackend",
+                v_flex()
+                    .gap(px(8.))
+                    .child(settings_row::segmented(
+                        "settings-llama-backend",
+                        &[
+                            lokalbot_i18n::tr("Automatic"),
+                            "Vulkan",
+                            lokalbot_i18n::tr("CUDA (experimental)"),
+                            "CPU",
+                        ],
+                        selected_backend,
+                        move |index, _, cx| {
+                            backend_data.update(cx, |data, cx| {
+                                data.update_settings(
+                                    |s| s.llama_backend = backends[index].into(),
+                                    cx,
+                                )
+                            });
+                        },
+                        cx,
+                    ))
+                    .child(
+                        h_flex()
+                            .gap(px(12.))
+                            .items_center()
+                            .child(div().flex_1().child(settings_row::help(runtime_detail, cx)))
+                            .child(
+                                Button::new("settings-runtime-download")
+                                    .outline()
+                                    .small()
+                                    .label(if runtime_downloading {
+                                        lokalbot_i18n::tr("Cancel")
+                                    } else if cuda_selected
+                                        && (status.runtime_backend.is_some()
+                                            || status.runtime_needs_check)
+                                    {
+                                        // Setup repeats the GPU check and repairs
+                                        // missing libraries without a full download.
+                                        lokalbot_i18n::tr("Check again")
+                                    } else {
+                                        lokalbot_i18n::tr("Download")
+                                    })
+                                    .disabled(
+                                        status.runtime_backend.is_some()
+                                            && !cuda_selected
+                                            && runtime_progress.is_none(),
+                                    )
+                                    .on_click(move |_, _, cx| {
+                                        runtime_data.update(cx, |data, cx| {
+                                            data.request(
+                                                if runtime_downloading {
+                                                    AppEvent::CancelDownload(RUNTIME_ID.into())
+                                                } else {
+                                                    AppEvent::DownloadModel(RUNTIME_ID.into())
+                                                },
+                                                cx,
+                                            )
+                                        });
+                                    }),
+                            ),
+                    ),
+                self.is_focused("settings.llamaBackend"),
+                cx,
+            ),
+        );
+
+        vec![
+            summary, roles, runtime, presets, remote, storage, budget, also,
+        ]
     }
 
     fn role_row(&self, row: RoleRow, choices: RoleChoices, cx: &mut Context<Self>) -> AnyElement {
@@ -1037,7 +1174,7 @@ impl SettingsPage {
             .filter(|id| !row.installed.contains(id))
             .cloned()
             .collect();
-        let missing_bytes: u64 = missing.iter().map(|id| model_bytes(id)).sum();
+        let missing_bytes: u64 = missing.iter().map(|id| model_bytes(id, &settings)).sum();
         let status: Option<(SharedString, gpui_kit::Hsla)> =
             match (row.downloading, row.ready, &remote) {
                 (Some(fraction), _, _) => Some((
@@ -1752,7 +1889,7 @@ fn confirm_preset(
 /// Asks before deleting a downloaded model the settings don't use.
 fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Window, cx: &mut App) {
     let name = model_name(&id);
-    let size = size_label(model_bytes(&id));
+    let size = size_label(model_bytes(&id, &data.read(cx).settings));
     window.open_alert_dialog(cx, move |alert, _, _| {
         let data = data.clone();
         let id = id.clone();

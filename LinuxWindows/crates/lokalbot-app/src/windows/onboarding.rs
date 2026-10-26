@@ -448,7 +448,13 @@ impl Onboarding {
                 None => (lokalbot_i18n::tr("Download required").into(), false),
             }
         };
-        let with_size = |id: &str| format!("{} · {}", model_name(id), size_label(model_bytes(id)));
+        let with_size = |id: &str| {
+            format!(
+                "{} · {}",
+                model_name(id),
+                size_label(model_bytes(id, &settings))
+            )
+        };
         let built_in = settings.summarizer_backend == SummarizerBackend::BuiltIn;
         let think_local = settings.think_is_local();
         let think_name = if built_in {
@@ -482,7 +488,7 @@ impl Onboarding {
         let download: u64 = needed
             .iter()
             .filter(|id| !status.installed.contains(id))
-            .map(|id| model_bytes(id))
+            .map(|id| model_bytes(id, &settings))
             .sum();
         let autocomplete = model_status(
             &settings.cotyping_built_in_model_id,

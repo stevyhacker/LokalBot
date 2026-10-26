@@ -1,0 +1,15 @@
+{
+  "bundle": "com.apple.Terminal",
+  "title": "Claude Code",
+  "size": [900, 560],
+  "settle": 1.0,
+  "park": [1040, 640],
+  "pre": 0.6,
+  "post": 1.0,
+  "actions": [
+    {"type": "Set the Team price in pricing.html to what we decided in today's launch meeting", "cps": 22},
+    {"wait": 0.5},
+    {"key": "return"},
+    {"wait": 26.0}
+  ]
+}

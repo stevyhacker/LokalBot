@@ -261,6 +261,7 @@ final class MicRecorder {
     private var framesWritten: AVAudioFramePosition = 0
     private var recordingSampleRate: Double = 0
     private var lastAudioWriteAt: Date?
+    private var lastSignalAt: Date?
     private var lastAudioWriteInstant: ContinuousClock.Instant?
     private var captureStartedInstant: ContinuousClock.Instant?
     private var recoveryState: RecoveryState = .healthy
@@ -338,9 +339,16 @@ final class MicRecorder {
         return false
     }
 
+    /// About -90 dBFS: below the noise floor of any working microphone, even
+    /// in a quiet room, so only a muted or switched-off input stays under it
+    /// (a closed MacBook lid delivers digital silence, #373).
+    static let signalRMSThreshold: Float = 0.00003
+
     struct CaptureHealth: Sendable {
         let duration: TimeInterval
         let lastAudioWriteAt: Date?
+        /// The last written buffer above `signalRMSThreshold`.
+        let lastSignalAt: Date?
         let isEngineRunning: Bool
         let droppedBufferCount: Int
         let recoveryState: RecoveryState
@@ -486,12 +494,14 @@ final class MicRecorder {
             ? Double(framesWritten) / recordingSampleRate
             : 0
         let lastAudioWriteAt = self.lastAudioWriteAt
+        let lastSignalAt = self.lastSignalAt
         let recoveryState = self.recoveryState
         healthLock.unlock()
         let droppedBufferCount = dropCounter.snapshot()
         let writeError = writeFailure ?? previewTee?.failureDescription
         return CaptureHealth(duration: duration,
                              lastAudioWriteAt: lastAudioWriteAt,
+                             lastSignalAt: lastSignalAt,
                              isEngineRunning: isEngineRunning,
                              droppedBufferCount: droppedBufferCount,
                              recoveryState: recoveryState, writeError: writeError)
@@ -1023,6 +1033,7 @@ final class MicRecorder {
         framesWritten = 0
         recordingSampleRate = sampleRate
         lastAudioWriteAt = nil
+        lastSignalAt = nil
         lastAudioWriteInstant = nil
         captureStartedInstant = sampleRate > 0 ? now : nil
         recoveryState = .healthy
@@ -1083,18 +1094,21 @@ final class MicRecorder {
         endedAt: ContinuousClock.Instant, hostTime: UInt64, hostValid: Bool
     ) {
         guard buffer.frameLength > 0 else { return }
+        let rms = AudioLevelMeter.rms(of: buffer)
+        let now = Date()
         healthLock.lock()
         if recordingSampleRate <= 0 {
             recordingSampleRate = buffer.format.sampleRate
         }
         let startFrame = framesWritten
         framesWritten += AVAudioFramePosition(buffer.frameLength)
-        lastAudioWriteAt = Date()
+        lastAudioWriteAt = now
+        if rms >= Self.signalRMSThreshold { lastSignalAt = now }
         lastAudioWriteInstant = endedAt
         healthLock.unlock()
         speakerAudioClock?.record(hostTime: hostTime, valid: hostValid, startFrame: startFrame,
             frames: Int64(buffer.frameLength), sampleRate: buffer.format.sampleRate)
-        levelMeter.record(AudioLevelMeter.normalized(rms: AudioLevelMeter.rms(of: buffer)))
+        levelMeter.record(AudioLevelMeter.normalized(rms: rms))
         if !hasDeliveredFirstAudio {
             hasDeliveredFirstAudio = true
             if let onFirstAudio { DispatchQueue.main.async(execute: onFirstAudio) }

@@ -40,13 +40,22 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             Briefing.definition,
             ToolDefinition(
                 name: "list_meetings",
-                description: "List recorded meetings, newest first. Returns id, title, date, and duration for each.",
+                description: "List recorded meetings, newest first. Returns id, title, date, and duration for each; "
+                    + "include \"summary\" adds each meeting's summary, so one call covers several meetings.",
                 inputSchema: [
                     "type": "object",
                     "properties": [
                         "limit": [
                             "type": "integer",
-                            "description": "Maximum meetings to return (default 20).",
+                            "description": .string("Maximum meetings to return (default 20; with summaries default "
+                                + "\(SessionFormatter.defaultSummaryListCount), at most "
+                                + "\(SessionFormatter.maximumSummaryListCount))."),
+                        ],
+                        "include": [
+                            "type": "string",
+                            "description": .string("\"summary\" adds each meeting's summary. The summaries share "
+                                + "\(SessionFormatter.listSummaryBudget) characters; a cut one has "
+                                + "summary_truncated, and get_meeting reads it whole."),
                         ],
                         "since": [
                             "type": "string",
@@ -281,15 +290,16 @@ struct FileLibraryToolProvider: LibraryToolProvider {
 
     /// Never refused: with no grants it still says which permissions are off,
     /// so an agent learns what it could ask for. Each section checks its own
-    /// grant inside `Briefing`.
-    func briefing() -> String {
+    /// grant inside `Briefing`. `lokalbot-cli brief` asks for `.cli` names.
+    func briefing(vocabulary: Briefing.Vocabulary = .mcp) -> String {
         Briefing.render(Briefing.Context(
             root: gate.root,
             meetingAccess: gate.isAuthorized(),
             screenGate: screenGate,
             personalGate: personalGate,
             screenReader: screenReader,
-            now: now()))
+            now: now(),
+            vocabulary: vocabulary))
     }
 
     /// Independent of meeting and screen access, and of Agent Mode
@@ -336,6 +346,17 @@ struct FileLibraryToolProvider: LibraryToolProvider {
     }
 
     private func listMeetings(_ arguments: JSONValue?) -> ToolResult {
+        let includeSummary: Bool
+        do {
+            includeSummary = try SessionFormatter.listIncludesSummary(arguments?["include"]?.stringValue ?? "")
+        } catch SessionFormatter.ListIncludeError.unknown(let values) {
+            return .error(.invalidArguments,
+                          "Unknown include value(s): \(values.joined(separator: ", ")). "
+                              + "list_meetings takes \"summary\".")
+        } catch {
+            return .error(.invalidArguments,
+                          "list_meetings doesn't include transcripts. Read one meeting's with get_meeting.")
+        }
         do {
             var meetings = try SessionLookup.loadAllMeetings()
             if let query = arguments?["query"]?.stringValue, !query.isEmpty {
@@ -351,12 +372,15 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 meetings = meetings.filter { $0.startedAt >= day }
             }
             let limit: Int
-            switch boundedLimit(arguments?["limit"], default: 20,
-                                maximum: LibraryInputPolicy.maximumMeetingCount) {
+            switch includeSummary
+                ? boundedLimit(arguments?["limit"], default: SessionFormatter.defaultSummaryListCount,
+                               maximum: SessionFormatter.maximumSummaryListCount)
+                : boundedLimit(arguments?["limit"], default: 20,
+                               maximum: LibraryInputPolicy.maximumMeetingCount) {
             case .success(let value): limit = value
             case .failure(let result): return result
             }
-            return .text(SessionFormatter.listJSON(Array(meetings.prefix(limit))))
+            return .text(SessionFormatter.listJSON(Array(meetings.prefix(limit)), includeSummary: includeSummary))
         } catch {
             return .error(
                 .meetingNotFound,

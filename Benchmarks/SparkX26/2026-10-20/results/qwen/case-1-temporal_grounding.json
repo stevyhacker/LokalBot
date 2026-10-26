@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\n  \"owner\": \"Ana\",\n  \"commitment_timestamp\": \"06:32\",\n  \"due\": \"this afternoon\"\n}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 35,
+    "prompt_tokens": 144,
+    "total_tokens": 179,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 144,
+    "prompt_ms": 737.99,
+    "prompt_per_token_ms": 5.124930555555555,
+    "prompt_per_second": 195.1245951842166,
+    "predicted_n": 35,
+    "predicted_ms": 1967.576,
+    "predicted_per_token_ms": 57.869882352941175,
+    "predicted_per_second": 17.280145722452396
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"owner\": \"Ana\",\n  \"commitment_timestamp\": \"06:32\",\n  \"due\": \"this afternoon\"\n}"
+        }
+      }
+    ],
+    "created": 1792527622,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 35,
+      "prompt_tokens": 144,
+      "total_tokens": 179,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-MisYWvc3b1af44qadnwrVaIbz7CbECmd",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 144,
+      "prompt_ms": 737.99,
+      "prompt_per_token_ms": 5.124930555555555,
+      "prompt_per_second": 195.1245951842166,
+      "predicted_n": 35,
+      "predicted_ms": 1967.576,
+      "predicted_per_token_ms": 57.869882352941175,
+      "predicted_per_second": 17.280145722452396
+    }
+  },
+  "wall_seconds": 2.737083933316171,
+  "memory": {
+    "samples": 13,
+    "peak_rss_bytes": 6920048640,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "temporal_grounding",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 3,
+    "total_fields": 3,
+    "wrong": {}
+  }
+}

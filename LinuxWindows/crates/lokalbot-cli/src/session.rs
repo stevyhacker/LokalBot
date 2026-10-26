@@ -156,15 +156,118 @@ struct ListEntry {
     has_system_track: bool,
     has_summary: bool,
     has_transcript: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    summary_truncated: Option<bool>,
     /// Only on LokalBot's sample meeting: made up, with synthetic voices.
     #[serde(skip_serializing_if = "Option::is_none")]
     sample: Option<bool>,
 }
 
-pub fn list_json(session: &Session, meetings: &[Meeting]) -> String {
+/// `list --include summary` (MCP: `list_meetings` with `include`): the listed
+/// summaries share one character budget, so ten hour-long meetings fit a
+/// small model's context. A short summary comes whole and leaves the rest of
+/// its share to longer ones; a cut one ends in "…" with `summary_truncated`,
+/// and `get` reads it whole.
+pub const LIST_SUMMARY_BUDGET: usize = 20_000;
+pub const LIST_SUMMARY_CAP: usize = 5_000;
+pub const DEFAULT_SUMMARY_LIST_COUNT: usize = 10;
+pub const MAXIMUM_SUMMARY_LIST_COUNT: usize = 50;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ListIncludeError {
+    Transcript,
+    Unknown(Vec<String>),
+}
+
+/// Whether `list --include` (MCP `include`) asks for summaries. Entries
+/// always carry metadata, so `metadata` changes nothing; transcripts are read
+/// one meeting at a time with `get`.
+pub fn list_includes_summary(include: &str) -> Result<bool, ListIncludeError> {
+    let parts: std::collections::BTreeSet<String> = include
+        .split(',')
+        .map(|p| p.trim().to_lowercase())
+        .filter(|p| !p.is_empty())
+        .collect();
+    if parts.contains("transcript") {
+        return Err(ListIncludeError::Transcript);
+    }
+    let unknown: Vec<String> = parts
+        .iter()
+        .filter(|p| !["metadata", "summary"].contains(&p.as_str()))
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        return Err(ListIncludeError::Unknown(unknown));
+    }
+    Ok(parts.contains("summary"))
+}
+
+/// Each summary cut to its share of `LIST_SUMMARY_BUDGET`; `None` where a
+/// meeting has none.
+pub fn list_summaries(summaries: &[Option<String>]) -> Vec<Option<(String, bool)>> {
+    let texts: Vec<Option<&str>> = summaries
+        .iter()
+        .map(|s| s.as_deref().map(str::trim).filter(|t| !t.is_empty()))
+        .collect();
+    let present: Vec<usize> = (0..texts.len()).filter(|&i| texts[i].is_some()).collect();
+    let lengths: Vec<usize> = present
+        .iter()
+        .map(|&i| texts[i].map_or(0, |t| t.chars().count()))
+        .collect();
+    let shares = summary_shares(&lengths, LIST_SUMMARY_BUDGET, LIST_SUMMARY_CAP);
+    let mut result = vec![None; texts.len()];
+    for (&index, share) in present.iter().zip(shares) {
+        if let Some(text) = texts[index] {
+            result[index] = Some(shortened(text, share));
+        }
+    }
+    result
+}
+
+/// Shortest first, each takes what it needs up to an equal split of what is
+/// left (and at most `cap`), so short summaries leave room for long ones.
+pub fn summary_shares(lengths: &[usize], budget: usize, cap: usize) -> Vec<usize> {
+    let mut shares = vec![0; lengths.len()];
+    let mut remaining = budget;
+    let mut order: Vec<usize> = (0..lengths.len()).collect();
+    order.sort_by_key(|&i| (lengths[i], i));
+    for (position, &index) in order.iter().enumerate() {
+        shares[index] = lengths[index]
+            .min(cap)
+            .min(remaining / (order.len() - position));
+        remaining -= shares[index];
+    }
+    shares
+}
+
+/// The text when it has at most `limit` characters; otherwise its start, cut
+/// at the last line break when that keeps at least half, and "…".
+pub fn shortened(text: &str, limit: usize) -> (String, bool) {
+    if text.chars().count() <= limit {
+        return (text.to_string(), false);
+    }
+    let mut kept: String = text.chars().take(limit.saturating_sub(2)).collect();
+    if let Some(newline) = kept.rfind('\n')
+        && kept[..newline].chars().count() >= kept.chars().count() / 2
+    {
+        kept.truncate(newline);
+    }
+    (format!("{}\n…", kept.trim_end()), true)
+}
+
+pub fn list_json(session: &Session, meetings: &[Meeting], include_summary: bool) -> String {
+    let markdown: Vec<Option<String>> = meetings.iter().map(|m| session.summary(m)).collect();
+    let summaries = if include_summary {
+        list_summaries(&markdown)
+    } else {
+        vec![None; meetings.len()]
+    };
     let entries: Vec<ListEntry> = meetings
         .iter()
-        .map(|m| ListEntry {
+        .zip(markdown.iter().zip(summaries))
+        .map(|(m, (markdown, summary))| ListEntry {
             id: short_id(m),
             uuid: m.id.hyphenated().to_string(),
             title: m.title.clone(),
@@ -172,15 +275,17 @@ pub fn list_json(session: &Session, meetings: &[Meeting]) -> String {
             duration_seconds: duration(m).unwrap_or(0.0),
             app_source: m.app_name.clone(),
             has_system_track: m.has_system_track,
-            has_summary: session.summary(m).is_some(),
+            has_summary: markdown.is_some(),
             has_transcript: session.transcript_markdown(m).is_some(),
+            summary_truncated: summary.as_ref().and_then(|(_, cut)| cut.then_some(true)),
+            summary: summary.map(|(text, _)| text),
             sample: m.is_sample().then_some(true),
         })
         .collect();
     json::pretty(&entries, true)
 }
 
-pub fn list_table(meetings: &[Meeting]) -> String {
+pub fn list_table(session: &Session, meetings: &[Meeting], include_summary: bool) -> String {
     if meetings.is_empty() {
         return "(no meetings)".into();
     }
@@ -196,7 +301,18 @@ pub fn list_table(meetings: &[Meeting]) -> String {
             ]
         })
         .collect();
-    render_table(&["ID", "Date", "Duration", "App", "Title"], &rows)
+    let table = render_table(&["ID", "Date", "Duration", "App", "Title"], &rows);
+    if !include_summary {
+        return table;
+    }
+    let markdown: Vec<Option<String>> = meetings.iter().map(|m| session.summary(m)).collect();
+    let mut sections = vec![table];
+    for (m, summary) in meetings.iter().zip(list_summaries(&markdown)) {
+        if let Some((text, _)) = summary {
+            sections.push(format!("── {} · {}\n{text}", short_id(m), m.title));
+        }
+    }
+    sections.join("\n\n")
 }
 
 /// Which parts `get` prints, and an optional transcript window (MCP).
@@ -447,6 +563,62 @@ mod tests {
         assert_eq!(
             table,
             "ID        Title        \n────────  ─────────────\na1b2c3d4  Design review"
+        );
+    }
+
+    #[test]
+    fn list_summaries_share_one_budget() {
+        // Short summaries take what they need and leave the rest to longer ones.
+        assert_eq!(
+            summary_shares(&[100, 9_000, 30_000], 10_000, 5_000),
+            vec![100, 4_950, 4_950]
+        );
+        assert_eq!(summary_shares(&[300, 200], 20_000, 5_000), vec![300, 200]);
+        assert_eq!(summary_shares(&[8_000; 4], 20_000, 5_000), vec![5_000; 4]);
+        assert_eq!(summary_shares(&[], 20_000, 5_000), Vec::<usize>::new());
+        let fifty = summary_shares(&[18_000; 50], LIST_SUMMARY_BUDGET, LIST_SUMMARY_CAP);
+        assert!(fifty.iter().sum::<usize>() <= LIST_SUMMARY_BUDGET);
+        assert!(fifty.iter().all(|&s| s == 400));
+
+        assert_eq!(shortened("short", 10), ("short".to_string(), false));
+        let text = "## TL;DR\nWe chose Redis.\n\n## Key points\n- one\n- two";
+        let (cut, truncated) = shortened(text, 30);
+        assert!(truncated);
+        assert_eq!(cut, "## TL;DR\nWe chose Redis.\n…");
+        // One long line is cut mid-line rather than to almost nothing.
+        let (cut, _) = shortened(&format!("a\n{}", "b".repeat(100)), 20);
+        assert_eq!(cut, format!("a\n{}\n…", "b".repeat(16)));
+        assert!(cut.chars().count() <= 20);
+
+        let listed = list_summaries(&[
+            Some("  ## TL;DR\nShort.\n".into()),
+            None,
+            Some("   ".into()),
+            Some("x".repeat(LIST_SUMMARY_CAP + 1)),
+        ]);
+        assert_eq!(listed[0], Some(("## TL;DR\nShort.".to_string(), false)));
+        assert_eq!(listed[1], None);
+        assert_eq!(listed[2], None);
+        let (long, truncated) = listed[3].clone().unwrap();
+        assert!(truncated && long.ends_with("\n…") && long.chars().count() <= LIST_SUMMARY_CAP);
+    }
+
+    #[test]
+    fn list_include_takes_only_summary() {
+        assert_eq!(list_includes_summary("metadata"), Ok(false));
+        assert_eq!(list_includes_summary(""), Ok(false));
+        assert_eq!(list_includes_summary(" Summary "), Ok(true));
+        assert_eq!(list_includes_summary("metadata,summary"), Ok(true));
+        assert_eq!(
+            list_includes_summary("summary,transcript"),
+            Err(ListIncludeError::Transcript)
+        );
+        assert_eq!(
+            list_includes_summary("summary,audio,notes"),
+            Err(ListIncludeError::Unknown(vec![
+                "audio".into(),
+                "notes".into()
+            ]))
         );
     }
 

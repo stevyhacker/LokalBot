@@ -203,7 +203,7 @@ struct PersonalModel: Codable, Equatable, Sendable {
             case .tooLong(let count):
                 "That's \(count) characters. LokalBot remembers up to \(PersonalModel.maxCharacters); shorten it and try again."
             case .full:
-                "LokalBot already remembers \(PersonalModel.maxClaims) things about you. Forget some in Settings → Day Memory first."
+                "LokalBot already remembers \(PersonalModel.maxClaims) things about you. Forget some in Settings → Personal Context first."
             case .looksSecret:
                 "This looks like a password, key, or card number. LokalBot doesn't remember those."
             case .notFound:

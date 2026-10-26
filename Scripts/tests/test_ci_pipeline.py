@@ -105,6 +105,115 @@ class PublicationGateTests(unittest.TestCase):
             run.assert_not_called()
 
 
+class MergedPullRequestUITests(unittest.TestCase):
+    """The release accepts the merged pull request's UI run only when that run
+    was a full one and tested the candidate's exact tree."""
+
+    def setUp(self):
+        self.env = patch.dict(os.environ, GITHUB_REPOSITORY='owner/Repo')
+        self.env.start()
+        self.addCleanup(self.env.stop)
+        self.parents = 'merge base head'
+        self.trees = {'merge^{tree}': 'tree', 'head^{tree}': 'tree'}
+        self.pull = dict(merge_commit_sha='merge', merged_at='2026-10-21T17:57:04Z', base=dict(ref='master'),
+                         head=dict(sha='head', ref='feature', repo=dict(full_name='owner/repo')))
+        self.run = dict(id=5, head_sha='head', head_branch='feature', event='pull_request', status='completed',
+                        conclusion='success', run_number=9, run_attempt=1, head_repository=dict(full_name='owner/repo'))
+        self.jobs = [dict(name='XCUITest (macOS)', conclusion='success'), dict(name='UI build (macOS)', conclusion='success')]
+        self.ancestor = True
+
+    def command(self, *args):
+        if args[:2] == ('git', 'rev-list'):
+            return self.parents
+        if args[:2] == ('git', 'rev-parse'):
+            return self.trees[args[2]]
+        raise AssertionError(args)
+
+    def api(self, path):
+        if path.startswith('commits/'):
+            return [self.pull]
+        if path.startswith('actions/workflows/ui-tests.yml/runs'):
+            return {'workflow_runs': [self.run]}
+        if path.startswith('actions/runs/'):
+            return {'jobs': self.jobs}
+        raise AssertionError(path)
+
+    def check(self):
+        with patch.object(release, 'command', side_effect=self.command), \
+                patch.object(release, 'api', side_effect=self.api), \
+                patch.object(release, 'is_ancestor', side_effect=lambda older, newer: self.ancestor):
+            return release.merged_pull_request_ui('merge')
+
+    def refused(self):
+        with self.assertRaises(ValueError):
+            self.check()
+
+    def test_full_run_on_the_identical_tree_counts(self):
+        self.assertEqual(self.check(), 5)
+
+    def test_candidate_must_merge_a_pull_request_from_this_repository_into_master(self):
+        for change in ['single parent', 'fork', 'other base', 'other head', 'unmerged']:
+            with self.subTest(change=change):
+                self.setUp()
+                if change == 'single parent':
+                    self.parents = 'merge base'
+                elif change == 'fork':
+                    self.pull['head']['repo'] = dict(full_name='someone/repo')
+                elif change == 'other base':
+                    self.pull['base']['ref'] = 'dev'
+                elif change == 'other head':
+                    self.pull['head']['sha'] = 'elsewhere'
+                else:
+                    self.pull['merged_at'] = None
+                self.refused()
+
+    def test_tree_must_match_and_the_head_must_contain_master(self):
+        self.trees['head^{tree}'] = 'other'
+        self.refused()
+        self.setUp()
+        self.ancestor = False
+        self.refused()
+
+    def test_the_suite_must_have_run_and_passed_in_the_newest_run(self):
+        # A draft or UI-irrelevant pull request passes the aggregate check
+        # with the suite skipped.
+        self.jobs = [dict(name='XCUITest (macOS)', conclusion='success'), dict(name='UI build (macOS)', conclusion='skipped')]
+        self.refused()
+        self.setUp()
+        self.run = dict(self.run, conclusion='failure')
+        self.refused()
+        self.setUp()
+        self.run = dict(self.run, head_repository=dict(full_name='someone/repo'))
+        self.refused()
+
+    def test_an_exact_commit_ui_run_decides_on_its_own(self):
+        exact = dict(id=1, head_sha='merge', head_branch='master', event='workflow_dispatch', status='completed',
+                     conclusion='failure', run_number=3, run_attempt=1)
+
+        def api(path):
+            if path == 'git/ref/heads/master':
+                return {'object': {'sha': 'merge'}}
+            if path.startswith('actions/workflows/ui-tests.yml/runs?head_sha=merge'):
+                return {'workflow_runs': [exact] if 'workflow_dispatch' in path else []}
+            if path.startswith('actions/workflows/'):
+                return {'workflow_runs': [dict(exact, id=2, event='push', conclusion='success')]}
+            if path.startswith('actions/runs/'):
+                return {'jobs': [dict(name=name, conclusion='success') for names in release.GATES.values() for name in names]}
+            raise AssertionError(path)
+
+        with patch.object(release, 'command', return_value='merge'), patch.object(release, 'api', side_effect=api), \
+                patch.object(release, 'merged_pull_request_ui') as fallback, contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(ValueError):
+                release.gates()
+            fallback.assert_not_called()
+
+    def test_prepare_release_skips_the_dispatch_only_when_covered(self):
+        prepare = (ROOT / 'Scripts/prepare-release.sh').read_text()
+        self.assertIn('if python3 Scripts/ci/release-candidate.py ui-covered; then', prepare)
+        release_workflow = (ROOT / '.github/workflows/release.yml').read_text()
+        self.assertIn('pull-requests: read', release_workflow)
+
+
 class CompleteCoverageTests(unittest.TestCase):
     def setUp(self):
         self.original = Path.cwd()

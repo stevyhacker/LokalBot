@@ -203,7 +203,10 @@ pub fn render_setup(data: &Entity<AppData>, cx: &App) -> AnyElement {
     let setup = state.sample_setup.clone().unwrap_or_default();
     let needed = needs(&state.settings);
     let missing = missing(state);
-    let total: u64 = missing.iter().map(|id| model_bytes(id)).sum();
+    let total: u64 = missing
+        .iter()
+        .map(|id| model_bytes(id, &state.settings))
+        .sum();
     let failed = missing
         .iter()
         .any(|id| state.downloads.get(id).is_some_and(|d| d.error.is_some()));
@@ -217,7 +220,7 @@ pub fn render_setup(data: &Entity<AppData>, cx: &App) -> AnyElement {
                 "Downloading · {0}%",
                 &[("0", format!("{}", (p.fraction() * 100.).round()))],
             ),
-            None => size_label(model_bytes(id)),
+            None => size_label(model_bytes(id, &state.settings)),
         };
         v_flex()
             .gap(px(6.))

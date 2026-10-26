@@ -56,6 +56,12 @@ pub enum Command {
         /// Maximum number of meetings to return.
         #[arg(long)]
         limit: Option<i64>,
+        /// Add each meeting's summary: --include summary. The summaries share
+        /// 20,000 characters, and --limit then defaults to 10 (at most 50).
+        /// Read transcripts one meeting at a time with `get <id> --include
+        /// transcript`.
+        #[arg(long, default_value = "metadata")]
+        include: String,
         /// Plain-text table instead of JSON.
         #[arg(long)]
         table: bool,
@@ -209,24 +215,46 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
         Command::Brief => {
             let session = Session::open(paths)?;
             let authorized = access::meetings_access_authorized(&session.paths);
-            Ok(briefing::render(&session, authorized, chrono::Utc::now()))
+            Ok(briefing::render(
+                &session,
+                authorized,
+                chrono::Utc::now(),
+                briefing::Vocabulary::Cli,
+            ))
         }
         Command::List {
             since,
             until,
             query,
             limit,
+            include,
             table,
         } => {
             require_meeting_access(&paths)?;
             let since = since.map(|v| day_or_error(&v, "--since")).transpose()?;
             let until = until.map(|v| day_or_error(&v, "--until")).transpose()?;
+            let include_summary = session::list_includes_summary(&include).map_err(|err| {
+                validation(match err {
+                    session::ListIncludeError::Transcript => "list doesn't include transcripts. Read one meeting's with `get <id> --include transcript`.".to_string(),
+                    session::ListIncludeError::Unknown(values) => format!(
+                        "Unknown --include value(s): {}. list takes summary.",
+                        values.join(", ")
+                    ),
+                })
+            })?;
+            let maximum = if include_summary {
+                session::MAXIMUM_SUMMARY_LIST_COUNT
+            } else {
+                MAXIMUM_MEETING_COUNT
+            };
             if let Some(limit) = limit
-                && !(1..=MAXIMUM_MEETING_COUNT as i64).contains(&limit)
+                && !(1..=maximum as i64).contains(&limit)
             {
-                return Err(validation(format!(
-                    "--limit must be between 1 and {MAXIMUM_MEETING_COUNT}."
-                )));
+                return Err(validation(if include_summary {
+                    format!("--limit must be between 1 and {maximum} with --include summary.")
+                } else {
+                    format!("--limit must be between 1 and {maximum}.")
+                }));
             }
             let session = Session::open(paths)?;
             let mut meetings = session.meetings()?;
@@ -242,13 +270,16 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 let needle = query.to_lowercase();
                 meetings.retain(|m| m.title.to_lowercase().contains(&needle));
             }
+            let limit = limit
+                .map(|l| l as usize)
+                .or(include_summary.then_some(session::DEFAULT_SUMMARY_LIST_COUNT));
             if let Some(limit) = limit {
-                meetings.truncate(limit as usize);
+                meetings.truncate(limit);
             }
             Ok(if table {
-                session::list_table(&meetings)
+                session::list_table(&session, &meetings, include_summary)
             } else {
-                session::list_json(&session, &meetings)
+                session::list_json(&session, &meetings, include_summary)
             })
         }
         Command::Get {

@@ -186,7 +186,7 @@ final class CotypingSettingsTests: XCTestCase {
     func testDefaultsKeepCotypingSuggestionsConcise() {
         let settings = AppSettings()
         XCTAssertEqual(settings.cotypingMaxWords, 4)
-        XCTAssertEqual(settings.cotypingDebounceMs, 160)
+        XCTAssertEqual(settings.cotypingDebounceMs, 100)
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)
         XCTAssertEqual(settings.cotypingMaxResponseTokens, 6)

@@ -1078,9 +1078,7 @@ struct SettingsView: View {
     @ViewBuilder private var personalContextSection: some View {
         if shows("Personal Context", ["personal", "context", "about", "you", "remember", "memory", "facts", "preferences", "goals",
                                "principles", "values", "personal", "profile", "forget"]) {
-            Section("Personal Context") {
-                PersonalContextSettings(personalModel: app.personalModel, access: app.personalContextAccess)
-            }
+            PersonalContextSettings(personalModel: app.personalModel, access: app.personalContextAccess)
         }
     }
 

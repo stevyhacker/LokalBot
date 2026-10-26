@@ -34,7 +34,7 @@ runs:
         # A release build is a GUI-subsystem program; wait for it explicitly.
         Start-Process -FilePath $exe -ArgumentList "--seed-demo" -Wait -NoNewWindow
         $out = Join-Path $env:RUNNER_TEMP "screenshots"
-        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,meetings,timeline,people,projects,ask,agent,settings -WaitSeconds 8
+        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,meetings,timeline,people,projects,ask,agent,settings,settings-models -WaitSeconds 8
         $settingsPath = Join-Path $root "settings.json"
         $settings = if (Test-Path $settingsPath) { Get-Content $settingsPath -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
         $settings | Add-Member -NotePropertyName appTheme -NotePropertyValue "dark" -Force

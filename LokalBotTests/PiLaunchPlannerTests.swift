@@ -12,6 +12,8 @@ final class PiLaunchPlannerTests: XCTestCase {
     private func makePlan(apiKey: String? = nil,
                           inheritedAPIKey: String? = nil,
                           skill: URL? = URL(fileURLWithPath: "/app/Resources/pi/lokalbot-cli-skill"),
+                          systemPrompt: URL? = URL(fileURLWithPath: "/app/Resources/pi/system-prompt.md"),
+                          workspaceKind: AgentWorkspaceKind? = .agentWorkspace,
                           helpers: URL? = URL(fileURLWithPath: "/app/Contents/Helpers"),
                           capability: String? = nil,
                           continuePrevious: Bool = false,
@@ -25,8 +27,10 @@ final class PiLaunchPlannerTests: XCTestCase {
             piCLI: URL(fileURLWithPath: "/rt/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js"),
             extensionDirectory: URL(fileURLWithPath: "/app/Resources/pi/lokalbot-extension"),
             skillDirectory: skill,
+            systemPrompt: systemPrompt,
             sessionDirectory: URL(fileURLWithPath: "/store/agent/sessions"),
             workspace: URL(fileURLWithPath: "/work"),
+            workspaceKind: workspaceKind,
             endpoint: AgentLLMEndpoint(baseURL: endpoint.baseURL, model: endpoint.model,
                                        contextTokens: endpoint.contextTokens, apiKey: apiKey,
                                        reasoningDialect: .llamaServer),
@@ -47,6 +51,7 @@ final class PiLaunchPlannerTests: XCTestCase {
             "--model", "qwen2.5-7b-instruct",
             "--no-extensions", "-e", "/app/Resources/pi/lokalbot-extension",
             "--no-skills", "--skill", "/app/Resources/pi/lokalbot-cli-skill",
+            "--system-prompt", "/app/Resources/pi/system-prompt.md",
             "--no-prompt-templates",
             "--no-context-files",
             "--no-approve",
@@ -86,6 +91,29 @@ final class PiLaunchPlannerTests: XCTestCase {
         XCTAssertNil(makePlan().environment["LOKALBOT_LLM_REASONING_FILE"])
     }
 
+    func testEnvironmentNamesTheWireAPIAndWhoServesAPlan() {
+        let local = makePlan().environment
+        XCTAssertEqual(local["LOKALBOT_LLM_API"], "openai-completions")
+        XCTAssertNil(local["LOKALBOT_LLM_SERVED_BY"])
+        var relay = endpoint
+        relay.api = .responses
+        relay.plan = .chatGPT
+        let plan = PiLaunchPlanner.plan(
+            bun: URL(fileURLWithPath: "/rt/bun/bun"),
+            piCLI: URL(fileURLWithPath: "/rt/cli.js"),
+            extensionDirectory: URL(fileURLWithPath: "/app/Resources/pi/lokalbot-extension"),
+            skillDirectory: nil,
+            sessionDirectory: URL(fileURLWithPath: "/store/agent/sessions"),
+            workspace: URL(fileURLWithPath: "/work"),
+            endpoint: relay,
+            helpersDirectory: nil,
+            baseEnvironment: ["LOKALBOT_LLM_SERVED_BY": "inherited"]).environment
+        XCTAssertEqual(plan["LOKALBOT_LLM_API"], "openai-responses")
+        XCTAssertEqual(plan["LOKALBOT_LLM_SERVED_BY"], "OpenAI on the user's ChatGPT plan")
+        XCTAssertNil(makePlan(inheritedEnvironment: ["LOKALBOT_LLM_SERVED_BY": "inherited"])
+            .environment["LOKALBOT_LLM_SERVED_BY"], "a local server must not inherit a plan's label")
+    }
+
     func testAPIKeyIsPassedWhenPresent() {
         XCTAssertEqual(makePlan(apiKey: "sk-test").environment["LOKALBOT_LLM_API_KEY"], "sk-test")
     }
@@ -101,6 +129,19 @@ final class PiLaunchPlannerTests: XCTestCase {
         let json = try XCTUnwrap(plan.environment["LOKALBOT_AGENT_PRIVATE_ROOTS"])
         XCTAssertEqual(try JSONDecoder().decode([String].self, from: Data(json.utf8)), ["/store", "/app-support"])
         XCTAssertEqual(plan.workingDirectory.path, "/work")
+    }
+
+    func testMissingSystemPromptKeepsPiFromTakingThePathAsPromptText() {
+        XCTAssertFalse(makePlan(systemPrompt: nil).arguments.contains("--system-prompt"))
+    }
+
+    func testEnvironmentNamesTheWorkingFolderKind() {
+        XCTAssertEqual(makePlan().environment["LOKALBOT_AGENT_WORKSPACE_KIND"], "agent-workspace")
+        XCTAssertEqual(makePlan(workspaceKind: .chosenFolder).environment["LOKALBOT_AGENT_WORKSPACE_KIND"],
+                       "chosen-folder")
+        XCTAssertNil(makePlan(workspaceKind: nil,
+                              inheritedEnvironment: ["LOKALBOT_AGENT_WORKSPACE_KIND": "agent-workspace"])
+            .environment["LOKALBOT_AGENT_WORKSPACE_KIND"])
     }
 
     func testNoSkillDirectoryOmitsSkillFlagButKeepsNoSkills() {

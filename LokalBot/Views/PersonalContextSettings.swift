@@ -1,15 +1,20 @@
 import SwiftUI
 
-/// Settings → Personal Context: what the person told LokalBot about
-/// themselves, what it learned from their meetings, and learned preferences
-/// waiting for review. Every row can be edited or forgotten here.
+/// Settings → Personal Context: learned items waiting for review, what
+/// LokalBot keeps about the person grouped by kind, the learning switches,
+/// and what agents can read. Every item can be edited or forgotten here.
 struct PersonalContextSettings: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var personalModel: PersonalModelController
     @ObservedObject var access: PersonalContextAccessManager
     @State private var editing: EditorTarget?
     @State private var confirmingForgetAll = false
+    @State private var confirmingDismissAll = false
+    @State private var showsAllSuggestions = false
     @State private var error: String?
+
+    /// Suggestions shown before "Show N more", so kept items stay in view.
+    static let collapsedSuggestionLimit = 5
 
     enum EditorTarget: Identifiable {
         case add
@@ -25,6 +30,225 @@ struct PersonalContextSettings: View {
 
     var body: some View {
         Group {
+            if let message = personalModel.loadError ?? error {
+                Section {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .workspaceTextRole(.warning)
+                }
+            }
+            reviewSection
+            keptSection
+            learningSection
+            agentsSection
+            detailsSection
+        }
+        .onAppear { personalModel.loadIfNeeded() }
+    }
+
+    // MARK: - To review
+
+    @ViewBuilder private var reviewSection: some View {
+        let suggestions = personalModel.suggestions
+        if !suggestions.isEmpty {
+            let limit = Self.collapsedSuggestionLimit
+            let visible = showsAllSuggestions ? suggestions : Array(suggestions.prefix(limit))
+            Section {
+                ForEach(visible) { claim in
+                    suggestionRow(claim)
+                }
+                if suggestions.count > limit {
+                    Button {
+                        showsAllSuggestions.toggle()
+                    } label: {
+                        if showsAllSuggestions {
+                            Text("Show less")
+                        } else {
+                            Text("Show \(suggestions.count - limit) more")
+                        }
+                    }
+                    .buttonStyle(.workspaceLink)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("settings.personalContext.suggestions.more")
+                }
+            } header: {
+                sectionHeader("To review", count: suggestions.count,
+                              subtitle: "Learned from your own words. LokalBot uses them only after you keep them.") {
+                    Button("Keep All") {
+                        report(personalModel.confirm(Set(suggestions.map(\.id))))
+                    }
+                    .buttonStyle(.workspaceLink)
+                    .accessibilityIdentifier("settings.personalContext.suggestions.keepAll")
+                    Button("Dismiss All") { confirmingDismissAll = true }
+                        .buttonStyle(.plain)
+                        .settingsSecondary()
+                        .accessibilityIdentifier("settings.personalContext.suggestions.dismissAll")
+                        .confirmationDialog("Dismiss all suggestions?", isPresented: $confirmingDismissAll,
+                                            titleVisibility: .visible) {
+                            Button("Dismiss All", role: .destructive) {
+                                report(personalModel.forget(Set(personalModel.suggestions.map(\.id))))
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("LokalBot won't suggest them again.")
+                        }
+                }
+            }
+        }
+    }
+
+    private func suggestionRow(_ claim: PersonalClaim) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: claim.kind.systemImage)
+                .settingsSecondary()
+                .frame(width: 18)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(claim.text)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                metaLine(for: claim, showsKind: true)
+                if let quote = claim.quote {
+                    quoteLine(quote, for: claim)
+                        .padding(.top, 3)
+                }
+            }
+            Spacer(minLength: 12)
+            HStack(spacing: 6) {
+                Button { report(personalModel.confirm(claim.id)) } label: {
+                    Label("Keep", systemImage: "checkmark")
+                        .labelStyle(.titleAndIcon)
+                }
+                .accessibilityIdentifier("settings.personalContext.suggestion.keep")
+                Button { report(personalModel.dismiss(claim.id)) } label: {
+                    Image(systemName: "xmark")
+                }
+                .help("Dismiss")
+                .accessibilityLabel("Dismiss")
+                .accessibilityIdentifier("settings.personalContext.suggestion.dismiss")
+                actionsMenu(for: claim) {
+                    Button("Edit…") { editing = .edit(claim) }
+                    if case .learned(let meetingID, _) = claim.origin {
+                        Button("Open Meeting") { app.openMeeting(meetingID) }
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+        }
+        .editorSheet(for: .edit(claim), editing: $editing, save: save)
+        .accessibilityIdentifier("settings.personalContext.suggestion")
+    }
+
+    // MARK: - Kept
+
+    @ViewBuilder private var keptSection: some View {
+        let claims = personalModel.orderedClaims.filter { $0.status == .confirmed }
+        Section {
+            if claims.isEmpty {
+                SettingsHelp("Nothing yet. Try “Remember that Maya is my manager” or “Remember: answer in bullet points”.")
+            } else {
+                ForEach(PersonalClaim.Kind.allCases, id: \.self) { kind in
+                    let group = claims.filter { $0.kind == kind }
+                    if !group.isEmpty {
+                        Label {
+                            Text(Self.groupTitle(kind))
+                        } icon: {
+                            Image(systemName: kind.systemImage)
+                        }
+                        .font(.scaled(.caption).weight(.semibold))
+                        .textCase(.uppercase)
+                        .settingsSecondary()
+                        .accessibilityAddTraits(.isHeader)
+                        ForEach(group) { claim in
+                            row(claim)
+                        }
+                    }
+                }
+            }
+        } header: {
+            sectionHeader("Kept", count: claims.isEmpty ? nil : claims.count) {
+                Button { editing = .add } label: {
+                    Label("Add…", systemImage: "plus")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(personalModel.loadError != nil)
+                .accessibilityIdentifier("settings.personalContext.add")
+                .editorSheet(for: .add, editing: $editing, save: save)
+            }
+        }
+    }
+
+    private func row(_ claim: PersonalClaim) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(claim.text)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                metaLine(for: claim, showsKind: false)
+            }
+            Spacer(minLength: 12)
+            if claim.alwaysUse {
+                Image(systemName: "pin.fill")
+                    .font(.scaled(.caption))
+                    .settingsSecondary()
+                    .help("Always used")
+                    .accessibilityLabel("Always used")
+            }
+            if claim.sharing == .agents {
+                Text("Shared")
+                    .font(.scaled(.caption).weight(.medium))
+                    .foregroundStyle(access.isEnabled ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(access.isEnabled ? AnyShapeStyle(Brand.tealFill.opacity(0.2))
+                                                                : AnyShapeStyle(.quaternary)))
+                    .help(access.isEnabled ? "Shared with agents" : "Marked for agents; personal context access is off")
+            }
+            actionsMenu(for: claim) {
+                Button("Edit…") { editing = .edit(claim) }
+                Button(claim.alwaysUse ? "Stop Always Using" : "Always Use") {
+                    report(personalModel.update(claim.id, alwaysUse: !claim.alwaysUse))
+                }
+                Button(claim.sharing == .agents ? "Stop Sharing with Agents" : "Share with Agents") {
+                    report(personalModel.update(
+                        claim.id, sharing: claim.sharing == .agents ? .lokalBotOnly : .agents))
+                }
+                if claim.isLearned, claim.authority != .stated, Self.hasRemovableSource(claim) {
+                    Divider()
+                    if case .learned(let meetingID, _) = claim.origin {
+                        Button("Open Meeting") { app.openMeeting(meetingID) }
+                    }
+                    Button(Self.keepLabel(for: claim)) {
+                        report(personalModel.keepAsStatement(claim.id))
+                    }
+                }
+                Divider()
+                Button("Forget", role: .destructive) { report(personalModel.forget([claim.id])) }
+            }
+        }
+        .contextMenu {
+            Button("Edit…") { editing = .edit(claim) }
+            Button("Forget", role: .destructive) { report(personalModel.forget([claim.id])) }
+        }
+        .editorSheet(for: .edit(claim), editing: $editing, save: save)
+        .accessibilityIdentifier("settings.personalContext.claim")
+    }
+
+    static func groupTitle(_ kind: PersonalClaim.Kind) -> LocalizedStringKey {
+        switch kind {
+        case .fact: "Facts"
+        case .preference: "Preferences"
+        case .goal: "Goals"
+        case .principle: "Principles"
+        }
+    }
+
+    // MARK: - Learning and agents
+
+    private var learningSection: some View {
+        Section {
             Toggle(isOn: $app.settings.askMemoryEnabled) {
                 SettingsLabel("Remember what I tell Ask",
                               help: "Type “Remember …” in Ask or Quick Recall, or add items here. Ask gives the relevant ones to your Think model with each question.")
@@ -55,37 +279,48 @@ struct PersonalContextSettings: View {
             if app.settings.personalLearningEnabled, app.settings.askMemoryEnabled, !app.settings.dreamingEnabled {
                 SettingsHelp("Learning runs after the overnight review, which is off.")
             }
-            if let loadError = personalModel.loadError {
-                Label(loadError, systemImage: "exclamationmark.triangle")
-                    .workspaceTextRole(.warning)
-            }
-            let suggestions = personalModel.suggestions
-            if !suggestions.isEmpty {
-                Text(suggestions.count == 1 ? "1 suggestion to review" : "\(suggestions.count) suggestions to review")
-                    .font(.scaled(.caption).weight(.semibold))
-                    .settingsSecondary()
-                ForEach(suggestions) { claim in
-                    suggestionRow(claim)
+        } header: {
+            Text("Learning")
+        }
+    }
+
+    @ViewBuilder private var agentsSection: some View {
+        let shared = personalModel.claims.filter { $0.sharing == .agents }.count
+        if access.isEnabled || shared > 0 {
+            Section {
+                HStack(alignment: .center, spacing: 10) {
+                    Image(systemName: "person.2.wave.2")
+                        .foregroundStyle(access.isEnabled ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
+                        .frame(width: 18)
+                        .accessibilityHidden(true)
+                    Text(LocalizedStringKey(Self.agentSummary(shared: shared, accessEnabled: access.isEnabled)))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 12)
+                    Button("Privacy settings…") {
+                        app.settingsTab = .privacy
+                        app.focusedSettingID = "settings.personalContextAccess"
+                    }
+                    .buttonStyle(.workspaceLink)
                 }
+            } header: {
+                Text("Agents")
             }
-            let claims = personalModel.orderedClaims.filter { $0.status == .confirmed }
-            if claims.isEmpty {
-                SettingsHelp("Nothing yet. Try “Remember that Maya is my manager” or “Remember: answer in bullet points”.")
-            } else {
-                ForEach(claims) { claim in
-                    row(claim)
-                }
-            }
-            agentAccessLine
-            HStack(spacing: 8) {
-                Button("Add…") { editing = .add }
-                    .disabled(personalModel.loadError != nil)
-                    .accessibilityIdentifier("settings.personalContext.add")
-                if !claims.isEmpty {
-                    Button("Forget everything…", role: .destructive) { confirmingForgetAll = true }
-                }
-            }
-            if let error { Text(error).workspaceTextRole(.warning) }
+        }
+    }
+
+    static func agentSummary(shared: Int, accessEnabled: Bool) -> String {
+        if accessEnabled {
+            return shared == 0
+                ? "Personal context access is on, but nothing is shared yet. Choose Share with Agents on an item."
+                : shared == 1 ? "Agents can read 1 shared item, when it's relevant to their task."
+                : "Agents can read \(shared) shared items, when they're relevant to their task."
+        }
+        return shared == 1 ? "1 item is marked for agents, but personal context access is off."
+                           : "\(shared) items are marked for agents, but personal context access is off."
+    }
+
+    private var detailsSection: some View {
+        Section {
             SettingsDetails("How LokalBot uses this",
                             "Items stay on this Mac, encrypted with the same key as your Ask history. Each question gets "
                                 + "the items marked Always use, your principles and preferences, and the facts and goals "
@@ -97,140 +332,141 @@ struct PersonalContextSettings: View {
                                 + "forget them here to delete them. Learned items go when you delete or correct the "
                                 + "meeting they came from, unless you keep them. Questions limited to some sources or "
                                 + "days don't get learned items. A forgotten learned item isn't learned again.")
-        }
-        .onAppear { personalModel.loadIfNeeded() }
-        .sheet(item: $editing) { target in
-            PersonalClaimEditor(target: target) { text, kind, sharing in
-                save(target: target, text: text, kind: kind, sharing: sharing)
-            }
-        }
-        .confirmationDialog(
-            "Forget everything LokalBot remembers about you?",
-            isPresented: $confirmingForgetAll, titleVisibility: .visible
-        ) {
-            Button("Forget Everything", role: .destructive) {
-                if case .failure(let failure) = personalModel.forgetAll() {
-                    error = failure.localizedDescription
-                } else {
-                    error = nil
+        } footer: {
+            if !personalModel.claims.isEmpty {
+                HStack {
+                    Spacer()
+                    Button("Forget everything…", role: .destructive) { confirmingForgetAll = true }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(LBTokens.Palette.recordingText)
+                        .confirmationDialog(
+                            "Forget everything LokalBot remembers about you?",
+                            isPresented: $confirmingForgetAll, titleVisibility: .visible
+                        ) {
+                            Button("Forget Everything", role: .destructive) {
+                                if case .failure(let failure) = personalModel.forgetAll() {
+                                    error = failure.localizedDescription
+                                } else {
+                                    error = nil
+                                }
+                                app.forgetDictationForLearning()
+                            }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Deletes every fact, preference, goal, and principle saved here. Your Ask history is kept.")
+                        }
                 }
-                app.forgetDictationForLearning()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Deletes every fact, preference, goal, and principle saved here. Your Ask history is kept.")
-        }
-    }
-
-    private func row(_ claim: PersonalClaim) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: claim.kind.systemImage)
-                .foregroundStyle(Brand.teal)
-                .frame(width: 18)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(claim.text)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                SettingsHelp(originLine(for: claim))
-                if claim.authority == .learned, let quote = claim.quote {
-                    quoteLine(quote, for: claim)
-                }
-            }
-            Spacer(minLength: 8)
-            if claim.sharing == .agents {
-                Image(systemName: "person.2.wave.2")
-                    .foregroundStyle(access.isEnabled ? AnyShapeStyle(Brand.teal) : AnyShapeStyle(.secondary))
-                    .help(access.isEnabled ? "Shared with agents" : "Marked for agents; personal context access is off")
-                    .accessibilityLabel("Shared with agents")
-            }
-            if claim.alwaysUse {
-                Image(systemName: "pin.fill")
-                    .foregroundStyle(.secondary)
-                    .help("Always used")
-                    .accessibilityLabel("Always used")
-            }
-            Menu {
-                Button("Edit…") { editing = .edit(claim) }
-                Button(claim.alwaysUse ? "Stop Always Using" : "Always Use") {
-                    report(personalModel.update(claim.id, alwaysUse: !claim.alwaysUse))
-                }
-                Button(claim.sharing == .agents ? "Stop Sharing with Agents" : "Share with Agents") {
-                    report(personalModel.update(
-                        claim.id, sharing: claim.sharing == .agents ? .lokalBotOnly : .agents))
-                }
-                if claim.isLearned, claim.authority != .stated, Self.hasRemovableSource(claim) {
-                    Divider()
-                    if case .learned(let meetingID, _) = claim.origin {
-                        Button("Open Meeting") { app.openMeeting(meetingID) }
-                    }
-                    Button(Self.keepLabel(for: claim)) {
-                        report(personalModel.keepAsStatement(claim.id))
-                    }
-                }
-                Divider()
-                Button("Forget", role: .destructive) { report(personalModel.forget([claim.id])) }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .accessibilityLabel("Actions for \(claim.text)")
-        }
-        .contextMenu {
-            Button("Edit…") { editing = .edit(claim) }
-            Button("Forget", role: .destructive) { report(personalModel.forget([claim.id])) }
-        }
-        .accessibilityIdentifier("settings.personalContext.claim")
-    }
-
-    @ViewBuilder private var agentAccessLine: some View {
-        let shared = personalModel.claims.filter { $0.sharing == .agents }.count
-        if access.isEnabled {
-            SettingsHelp(shared == 0
-                ? "Personal context access is on, but nothing is shared yet. Choose Share with Agents on an item."
-                : shared == 1 ? "Agents can read 1 shared item, when it's relevant to their task."
-                : "Agents can read \(shared) shared items, when they're relevant to their task.")
-        } else if shared > 0 {
-            HStack(spacing: 6) {
-                SettingsHelp(shared == 1 ? "1 item is marked for agents, but personal context access is off."
-                                         : "\(shared) items are marked for agents, but personal context access is off.")
-                Button("Privacy settings…") {
-                    app.settingsTab = .privacy
-                    app.focusedSettingID = "settings.personalContextAccess"
-                }
-                .buttonStyle(.workspaceLink)
             }
         }
     }
 
-    private func suggestionRow(_ claim: PersonalClaim) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "sparkles")
-                .foregroundStyle(Brand.teal)
-                .frame(width: 18)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(claim.text)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                SettingsHelp(originLine(for: claim))
-                if let quote = claim.quote { quoteLine(quote, for: claim) }
-                HStack(spacing: 10) {
-                    Button("Keep") { report(personalModel.confirm(claim.id)) }
-                        .accessibilityIdentifier("settings.personalContext.suggestion.keep")
-                    Button("Edit…") { editing = .edit(claim) }
-                    Button("Dismiss") { report(personalModel.dismiss(claim.id)) }
-                        .accessibilityIdentifier("settings.personalContext.suggestion.dismiss")
-                    if case .learned(let meetingID, _) = claim.origin {
-                        Button("Open Meeting") { app.openMeeting(meetingID) }
-                    }
+    // MARK: - Shared row parts
+
+    private func sectionHeader<Actions: View>(
+        _ title: LocalizedStringKey, count: Int? = nil, subtitle: LocalizedStringKey? = nil,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(title)
+                if let count {
+                    Text(count, format: .number)
+                        .font(.scaled(.caption).weight(.semibold).monospacedDigit())
+                        .settingsSecondary()
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(.quaternary))
                 }
-                .buttonStyle(.borderless)
-                .font(AppFont.scaled(.callout))
+                Spacer(minLength: 8)
+                HStack(spacing: 12) { actions() }
+                    .font(.scaled(.callout).weight(.medium))
+                    .textCase(nil)
+            }
+            if let subtitle {
+                Text(subtitle)
+                    .font(.scaled(.callout).weight(.regular))
+                    .settingsSecondary()
+                    .textCase(nil)
             }
         }
-        .accessibilityIdentifier("settings.personalContext.suggestion")
+    }
+
+    private func actionsMenu<Items: View>(for claim: PersonalClaim,
+                                          @ViewBuilder items: () -> Items) -> some View {
+        Menu {
+            items()
+        } label: {
+            Image(systemName: "ellipsis")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .tint(.secondary)
+        .fixedSize()
+        .accessibilityLabel("Actions for \(claim.text)")
+    }
+
+    private func metaLine(for claim: PersonalClaim, showsKind: Bool) -> some View {
+        Text(verbatim: Self.metaLine(for: claim, showsKind: showsKind,
+                                     meetingTitle: meetingTitle(for: claim)))
+            .font(.scaled(.subheadline))
+            .settingsSecondary()
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func meetingTitle(for claim: PersonalClaim) -> String? {
+        guard case .learned(let meetingID, _) = claim.origin else { return nil }
+        return app.meetings.first { $0.id == meetingID }?.title
+    }
+
+    private func quoteLine(_ quote: String, for claim: PersonalClaim) -> some View {
+        let verb: String
+        switch claim.origin {
+        case .typed(.dictation, _): verb = "You dictated"
+        case .typed: verb = "You typed"
+        default: verb = "You said"
+        }
+        return HStack(alignment: .top, spacing: 8) {
+            RoundedRectangle(cornerRadius: 1)
+                .fill(.quaternary)
+                .frame(width: 2)
+            Text(verbatim: "“\(quote)”")
+                .font(.scaled(.callout))
+                .settingsSecondary()
+                .lineLimit(2)
+                .textSelection(.enabled)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: "\(verb): \(quote)"))
+    }
+
+    /// "Preference · From Claude Code · 22 Oct": the kind (in review only,
+    /// where kept items are grouped by kind instead), where it came from,
+    /// and the day, with the year only when it isn't this year.
+    static func metaLine(for claim: PersonalClaim, showsKind: Bool, meetingTitle: String?,
+                         now: Date = Date(), calendar: Calendar = .current) -> String {
+        let source: String
+        switch claim.origin {
+        case .said: source = "Said in Ask"
+        case .added: source = "Added by you"
+        case .learned: source = meetingTitle.map { "From \($0)" } ?? "From a meeting"
+        case .typed(.codingAgent(let name), _): source = "From \(name)"
+        case .typed(.ask, _): source = "From a question in Ask"
+        case .typed(.dictation(let appName), _):
+            source = appName.isEmpty ? "From your dictation" : "Dictated in \(appName)"
+        case .workMemory(let firstDay):
+            let since = DreamDay.date(fromKey: firstDay).map { $0.formatted(date: .abbreviated, time: .omitted) }
+                ?? firstDay
+            source = "In work memory since \(since)"
+        }
+        var parts = showsKind ? [claim.kind.displayName, source] : [source]
+        if claim.status == .confirmed, claim.authority == .learned {
+            parts.append("Saved automatically")
+        }
+        let sameYear = calendar.isDate(claim.createdAt, equalTo: now, toGranularity: .year)
+        parts.append(claim.createdAt.formatted(sameYear ? .dateTime.day().month(.abbreviated)
+                                                        : .dateTime.day().month(.abbreviated).year()))
+        return parts.joined(separator: " · ")
     }
 
     /// Dictated words are gone once read, so nothing can retract the item.
@@ -244,54 +480,6 @@ struct PersonalContextSettings: View {
         case .learned: "Keep Even If the Meeting Is Deleted"
         case .typed(.ask, _): "Keep Even If the Conversation Is Deleted"
         default: "Keep Even If the Source Is Deleted"
-        }
-    }
-
-    private func quoteLine(_ quote: String, for claim: PersonalClaim) -> some View {
-        let verb: String
-        switch claim.origin {
-        case .typed(.dictation, _): verb = "You dictated"
-        case .typed: verb = "You typed"
-        default: verb = "You said"
-        }
-        return Text("\(verb): “\(quote)”")
-            .font(.scaled(.caption))
-            .italic()
-            .settingsSecondary()
-            .lineLimit(3)
-            .textSelection(.enabled)
-    }
-
-    private func originLine(for claim: PersonalClaim) -> String {
-        let day = claim.createdAt.formatted(date: .abbreviated, time: .omitted)
-        let origin: String
-        switch claim.origin {
-        case .said: origin = "You said this in Ask"
-        case .added: origin = "Added in Settings"
-        case .learned(let meetingID, _):
-            let title = app.meetings.first { $0.id == meetingID }?.title ?? "a meeting"
-            origin = Self.learnedOrigin("Learned from \(title)", claim.authority)
-        case .typed(.codingAgent(let name), _):
-            origin = Self.learnedOrigin("Learned from what you typed to \(name)", claim.authority)
-        case .typed(.ask, _):
-            origin = Self.learnedOrigin("Learned from a question you asked", claim.authority)
-        case .typed(.dictation(let appName), _):
-            origin = Self.learnedOrigin(
-                appName.isEmpty ? "Learned from your dictation" : "Learned from what you dictated in \(appName)",
-                claim.authority)
-        case .workMemory(let firstDay):
-            let since = DreamDay.date(fromKey: firstDay).map { $0.formatted(date: .abbreviated, time: .omitted) }
-                ?? firstDay
-            origin = Self.learnedOrigin("In your work memory since \(since)", claim.authority)
-        }
-        return "\(claim.kind.displayName) · \(origin) · \(day)"
-    }
-
-    private static func learnedOrigin(_ base: String, _ authority: PersonalClaim.Authority) -> String {
-        switch authority {
-        case .learned: base
-        case .confirmed: base + ", kept by you"
-        case .stated: base + ", now your own statement"
         }
     }
 
@@ -321,6 +509,26 @@ struct PersonalContextSettings: View {
             error = failure.localizedDescription
         } else {
             error = nil
+        }
+    }
+}
+
+private extension View {
+    /// The editor sheet hangs off the row or button that opens it: Form
+    /// rows load lazily, so a sheet on another row may not exist to present.
+    func editorSheet(
+        for target: PersonalContextSettings.EditorTarget,
+        editing: Binding<PersonalContextSettings.EditorTarget?>,
+        save: @escaping (PersonalContextSettings.EditorTarget, String, PersonalClaim.Kind,
+                         PersonalClaim.Sharing) -> String?
+    ) -> some View {
+        sheet(item: Binding(
+            get: { editing.wrappedValue?.id == target.id ? editing.wrappedValue : nil },
+            set: { editing.wrappedValue = $0 }
+        )) { target in
+            PersonalClaimEditor(target: target) { text, kind, sharing in
+                save(target, text, kind, sharing)
+            }
         }
     }
 }

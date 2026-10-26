@@ -145,6 +145,150 @@ fn list_get_search_actions_and_people() {
 }
 
 #[test]
+fn brief_names_cli_commands_where_get_briefing_names_tools() {
+    let (_dir, root) = seeded();
+    let paths = LibraryPaths::new(&root);
+    access::set_meetings_access(&paths, true).unwrap();
+    access::set_screen_access(&paths, Some(access::ScreenScope::RecentWeek)).unwrap();
+    let brief = stdout(&cli(&root, &["brief"]));
+    let tools = lokalbot_cli::mcp::Provider {
+        session: lokalbot_cli::session::Session::open(paths).unwrap(),
+        now: None,
+    }
+    .briefing();
+
+    assert!(
+        brief.contains(". Commands: search, get, list, actions, and people.\n"),
+        "{brief}"
+    );
+    assert!(
+        brief
+            .contains("- Screen memory: on, the last 7 days. No lokalbot-cli command searches it.")
+    );
+    assert!(brief.contains("For more, run lokalbot-cli: search and get for what was said, list --include summary for several meetings' summaries at once,"));
+    for tool in [
+        "search_meetings",
+        "get_meeting",
+        "list_meetings",
+        "get_action_items",
+        "get_person",
+        "ask_library",
+        "search_screen",
+        "get_timeline",
+        "get_personal_context",
+    ] {
+        assert!(!brief.contains(tool), "{tool} in {brief}");
+    }
+    assert!(tools.contains(". Tools: search_meetings, get_meeting, list_meetings,"));
+    assert!(tools.contains(
+        "list_meetings with include \"summary\" for several meetings' summaries at once"
+    ));
+
+    // The same briefing apart from the names: the meetings, screen and
+    // closing lines differ, nothing else.
+    let brief_lines: Vec<&str> = brief.trim_end().lines().collect();
+    let tool_lines: Vec<&str> = tools.lines().collect();
+    assert_eq!(brief_lines.len(), tool_lines.len());
+    let differing: Vec<&str> = brief_lines
+        .iter()
+        .zip(&tool_lines)
+        .filter(|(a, b)| a != b)
+        .map(|(a, _)| *a)
+        .collect();
+    assert_eq!(differing.len(), 3, "{differing:#?}");
+    assert!(differing[0].starts_with("- Meetings: on."));
+    assert!(differing[1].starts_with("- Screen memory: on,"));
+    assert!(differing[2].starts_with("For more"));
+}
+
+#[test]
+fn list_includes_summaries_within_one_budget() {
+    let (_dir, root) = seeded();
+    access::set_meetings_access(&LibraryPaths::new(&root), true).unwrap();
+
+    let rows: serde_json::Value =
+        serde_json::from_str(&stdout(&cli(&root, &["list", "--include", "summary"]))).unwrap();
+    let rows = rows.as_array().unwrap();
+    assert_eq!(
+        rows.len(),
+        lokalbot_cli::session::DEFAULT_SUMMARY_LIST_COUNT,
+        "summaries default to ten meetings"
+    );
+    let mut total = 0;
+    for row in rows {
+        assert_eq!(
+            row["summary"].is_string(),
+            row["has_summary"] == true,
+            "{row}"
+        );
+        total += row["summary"].as_str().map_or(0, |s| s.chars().count());
+    }
+    assert!(total > 0 && total <= lokalbot_cli::session::LIST_SUMMARY_BUDGET);
+    let first = &rows[0];
+    assert_eq!(first["id"], "55555555");
+    assert!(first["summary"].as_str().unwrap().contains("## TL;DR"));
+    assert!(first.get("summary_truncated").is_none());
+    // Uncut, it is the summary `get` prints.
+    let one: serde_json::Value = serde_json::from_str(&stdout(&cli(
+        &root,
+        &[
+            "get",
+            "55555555",
+            "--include",
+            "summary",
+            "--format",
+            "json",
+        ],
+    )))
+    .unwrap();
+    assert_eq!(one["summary"].as_str().unwrap().trim(), first["summary"]);
+
+    let plain: serde_json::Value =
+        serde_json::from_str(&stdout(&cli(&root, &["list", "--limit", "3"]))).unwrap();
+    assert!(
+        plain
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r.get("summary").is_none())
+    );
+    let all: serde_json::Value = serde_json::from_str(&stdout(&cli(
+        &root,
+        &["list", "--include", "metadata,summary", "--limit", "50"],
+    )))
+    .unwrap();
+    assert_eq!(all.as_array().unwrap().len(), 17);
+
+    let table = stdout(&cli(
+        &root,
+        &["list", "--limit", "2", "--include", "summary", "--table"],
+    ));
+    assert!(table.starts_with("ID        Date"), "{table}");
+    assert!(
+        table.contains("\n\n── 55555555 · Holiday shoot planning\n"),
+        "{table}"
+    );
+
+    let transcripts = cli(&root, &["list", "--include", "summary,transcript"]);
+    assert_eq!(transcripts.status.code(), Some(64));
+    assert!(String::from_utf8_lossy(&transcripts.stderr).contains(
+        "list doesn't include transcripts. Read one meeting's with `get <id> --include transcript`."
+    ));
+    let unknown = cli(&root, &["list", "--include", "audio"]);
+    assert!(
+        String::from_utf8_lossy(&unknown.stderr)
+            .contains("Unknown --include value(s): audio. list takes summary.")
+    );
+    let over = cli(&root, &["list", "--include", "summary", "--limit", "51"]);
+    assert_eq!(over.status.code(), Some(64));
+    assert!(
+        String::from_utf8_lossy(&over.stderr)
+            .contains("--limit must be between 1 and 50 with --include summary.")
+    );
+    assert!(cli(&root, &["list", "--limit", "51"]).status.success());
+}
+
+#[test]
 fn mcp_round_trip() {
     let (_dir, root) = seeded();
     access::set_meetings_access(&LibraryPaths::new(&root), true).unwrap();
@@ -165,6 +309,8 @@ fn mcp_round_trip() {
         r#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"list_meetings","arguments":{"limit":0}}}"#,
         "",
         r#"{"jsonrpc":"2.0","id":6,"method":"ping"}"#,
+        r#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"list_meetings","arguments":{"include":"summary","limit":2}}}"#,
+        r#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"list_meetings","arguments":{"include":"transcript"}}}"#,
     ];
     {
         let stdin = child.stdin.as_mut().unwrap();
@@ -177,7 +323,7 @@ fn mcp_round_trip() {
         .lines()
         .map(|l| serde_json::from_str(l).unwrap())
         .collect();
-    assert_eq!(lines.len(), 6, "notifications and blank lines get no reply");
+    assert_eq!(lines.len(), 8, "notifications and blank lines get no reply");
     assert_eq!(lines[0]["result"]["protocolVersion"], "2025-06-18");
     assert_eq!(lines[0]["result"]["serverInfo"]["name"], "lokalbot");
     let tools = lines[1]["result"]["tools"].as_array().unwrap();
@@ -201,6 +347,15 @@ fn mcp_round_trip() {
         "[invalid_arguments] \"limit\" must be an integer between 1 and 1000."
     );
     assert_eq!(lines[5]["result"], serde_json::json!({}));
+    let listed: serde_json::Value =
+        serde_json::from_str(lines[6]["result"]["content"][0]["text"].as_str().unwrap()).unwrap();
+    let listed = listed.as_array().unwrap();
+    assert_eq!(listed.len(), 2);
+    assert!(listed[0]["summary"].as_str().unwrap().contains("## TL;DR"));
+    assert_eq!(
+        lines[7]["result"]["content"][0]["text"],
+        "[invalid_arguments] list_meetings doesn't include transcripts. Read one meeting's with get_meeting."
+    );
     assert!(String::from_utf8_lossy(&output.stderr).contains("lokalbot-cli mcp: serving on stdio"));
 }
 

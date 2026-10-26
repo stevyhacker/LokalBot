@@ -23,8 +23,9 @@
 #
 # Optional:
 #   AUR_SSH_PRIVATE_KEY    SSH key of the AUR account that maintains
-#                          lokalbot-bin (aur.yml). Without it the AUR package
-#                          is checked but not pushed.
+#                          lokalbot-bin (aur.yml). Without it, or without the
+#                          AUR_PUBLISH repository variable set to true, the
+#                          AUR package is checked but not pushed.
 #   WINGET_TOKEN           classic token (public_repo) of the account whose
 #                          microsoft/winget-pkgs fork wingetcreate pushes to
 #                          (winget.yml). Without it nothing goes to winget.
@@ -50,6 +51,7 @@ concurrency:
 permissions:
   contents: write # create the Release and upload DMG + appcast
   actions: read # verify validation provenance and retrieve trusted preparation
+  pull-requests: read # find the merged pull request whose UI run covers the candidate
 
 defaults:
   run:
@@ -80,7 +82,7 @@ jobs:
           CANDIDATE_VERSION: ${{ inputs.version }}
         run: python3 Scripts/ci/release-candidate.py prepare
 
-      - name: Require all five exact-commit release gates
+      - name: Require all five release gates
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -431,12 +433,18 @@ jobs:
           umask 077
           key_file="$RUNNER_TEMP/sparkle-ed25519.key"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
+          # The DMG is published as LokalBot-<version>-macos-arm64.dmg, like
+          # the Linux and Windows files; the Publish step uploads it under
+          # this name.
+          dmg_name="LokalBot-${GITHUB_REF_NAME#v}-macos-arm64.dmg"
+          echo "DMG_NAME=$dmg_name" >> "$GITHUB_ENV"
           # --release-tag: the DMG uploads to THIS tag's release, so the
           # enclosure URL must embed it verbatim. Deriving it from the app's
           # version would drop a pre-release suffix (v1.0.0-beta → v1.0.0)
           # and point the feed at a release that doesn't exist.
           python3 Scripts/generate_appcast.py \
             --archive build/LokalBot.dmg \
+            --archive-filename "$dmg_name" \
             --app build/export/LokalBot.app \
             --repo "$GITHUB_REPOSITORY" \
             --release-tag "$GITHUB_REF_NAME" \
@@ -445,7 +453,7 @@ jobs:
             --ed-key-file "$key_file"
           rm -f "$key_file"
 
-      # Upload both assets: the Sparkle feed resolves via
+      # Upload the DMG, its checksum and the appcast: the Sparkle feed resolves via
       # releases/latest/download/appcast.xml, so the appcast must live on the
       # Release next to the DMG it signs. Hyphenated tags (v1.0.0-beta) become
       # pre-releases and never become "latest" (RELEASING.md step 7).
@@ -476,10 +484,13 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --notes-file "$notes_file"
           fi
+          # A copy under the published name keeps the signed bytes untouched.
+          cp build/LokalBot.dmg "build/$DMG_NAME"
+          (cd build && shasum -a 256 -b "$DMG_NAME" > "$DMG_NAME.sha256")
           gh release upload "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            build/LokalBot.dmg build/appcast.xml
+            "build/$DMG_NAME" "build/$DMG_NAME.sha256" build/appcast.xml
 
       - name: Delete temp keychain
         if: always()
@@ -572,7 +583,8 @@ jobs:
 
   # Points the lokalbot-bin AUR package at this release once its Linux archive
   # is attached, checks it in a clean Arch container and pushes it with the
-  # AUR_SSH_PRIVATE_KEY secret (skipped without it). Pre-releases stay off the
+  # AUR_SSH_PRIVATE_KEY secret (skipped without it or the AUR_PUBLISH
+  # variable). Pre-releases stay off the
   # AUR. GitHub-hosted, like every job that sees a secret.
   aur:
     name: AUR package
@@ -599,5 +611,19 @@ jobs:
       tag: ${{ github.ref_name }}
     secrets:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    permissions:
+      contents: read
+
+  # Builds this release's upgrade fixture on a clean hosted Mac once the DMG
+  # is published and keeps it for 90 days, so the next release adds it with
+  # Scripts/upgrade-fixtures/add.sh instead of waiting for a runner
+  # (RELEASING.md step 0). Pre-releases are never a changelog base.
+  upgrade-fixture:
+    name: Upgrade fixture
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: release
+    uses: ./.github/workflows/upgrade-fixtures.yml
+    with:
+      tag: ${{ github.ref_name }}
     permissions:
       contents: read

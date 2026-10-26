@@ -191,3 +191,54 @@ final class PersonalContextSettingsTabTests: XCTestCase {
         }
     }
 }
+
+/// Personal Context rows: one short line of kind, source, and day.
+final class PersonalContextSettingsRowTests: XCTestCase {
+    private let calendar = Calendar(identifier: .gregorian)
+    private let now = Date(timeIntervalSince1970: 1_792_670_400) // 2026-10-22
+
+    private func claim(_ origin: PersonalClaim.Origin, status: PersonalClaim.Status = .confirmed,
+                       authority: PersonalClaim.Authority = .confirmed, daysAgo: Double = 1) -> PersonalClaim {
+        PersonalClaim(kind: .preference, text: "Answer in bullet points.", origin: origin,
+                      status: status, authority: authority, createdAt: now.addingTimeInterval(-daysAgo * 86_400))
+    }
+
+    private func line(_ claim: PersonalClaim, showsKind: Bool = false, meetingTitle: String? = nil) -> String {
+        PersonalContextSettings.metaLine(for: claim, showsKind: showsKind, meetingTitle: meetingTitle,
+                                         now: now, calendar: calendar)
+    }
+
+    func testReviewLineNamesKindAndSourceWithoutTheYear() {
+        let suggestion = claim(.typed(source: .codingAgent(name: "Codex"), dayKey: "2026-10-21"),
+                               status: .proposed, authority: .learned)
+        let parts = line(suggestion, showsKind: true).components(separatedBy: " · ")
+        XCTAssertEqual(Array(parts.prefix(2)), ["Preference", "From Codex"])
+        XCTAssertEqual(parts.count, 3)
+        XCTAssertFalse(parts[2].contains("2026"), parts[2])
+    }
+
+    func testKeptLinesDropTheKindAndMarkWhatWasSavedWithoutReview() {
+        let kept = claim(.typed(source: .codingAgent(name: "Claude Code"), dayKey: "2026-10-21"))
+        XCTAssertTrue(line(kept).hasPrefix("From Claude Code · "), line(kept))
+        XCTAssertEqual(line(kept).components(separatedBy: " · ").count, 2)
+
+        let meeting = claim(.learned(meetingID: UUID(), dayKey: "2026-10-21"), authority: .learned)
+        XCTAssertTrue(line(meeting, meetingTitle: "Weekly sync").hasPrefix("From Weekly sync · Saved automatically · "))
+        XCTAssertTrue(line(meeting).hasPrefix("From a meeting · "))
+        XCTAssertTrue(line(claim(.added, authority: .stated)).hasPrefix("Added by you · "))
+    }
+
+    func testOlderItemsShowTheirYear() {
+        let old = claim(.added, authority: .stated, daysAgo: 400)
+        XCTAssertTrue(line(old).contains("2025"), line(old))
+    }
+
+    func testAgentSummaryFollowsAccessAndSharedCount() {
+        XCTAssertEqual(PersonalContextSettings.agentSummary(shared: 0, accessEnabled: true),
+                       "Personal context access is on, but nothing is shared yet. Choose Share with Agents on an item.")
+        XCTAssertEqual(PersonalContextSettings.agentSummary(shared: 2, accessEnabled: true),
+                       "Agents can read 2 shared items, when they're relevant to their task.")
+        XCTAssertEqual(PersonalContextSettings.agentSummary(shared: 1, accessEnabled: false),
+                       "1 item is marked for agents, but personal context access is off.")
+    }
+}

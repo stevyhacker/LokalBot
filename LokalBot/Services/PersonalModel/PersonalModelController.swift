@@ -225,6 +225,17 @@ final class PersonalModelController: ObservableObject {
         mutate { model, date in model.confirm(id: id, now: date) }
     }
 
+    /// Keep All in review: every listed suggestion in one save.
+    @discardableResult
+    func confirm(_ ids: Set<UUID>) -> Result<Void, PersonalModel.EditError> {
+        mutate { model, date in
+            for id in ids {
+                if case .failure(let failure) = model.confirm(id: id, now: date) { return .failure(failure) }
+            }
+            return .success(())
+        }
+    }
+
     @discardableResult
     func dismiss(_ id: UUID) -> Result<Void, PersonalModel.EditError> {
         mutate { model, date in

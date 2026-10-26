@@ -1,0 +1,18 @@
+{
+  "frozen_utc": "2026-10-23T08:02:56.602685+00:00",
+  "source_git_head": "ac6903e2718b036977f1bde6507208041cd8c1aa",
+  "files": {
+    "PROTOCOL.md": "0d285f9011184c231006ff42cc9454909c42dd570e2ee5dfc965e1a86ae49cf1",
+    "models.json": "eda6f7abbe87f4c7ecccf72f58b05d411887f181b07e304434095f01677ce747",
+    "schema.json": "8ee95fd53f191f21d5e7368191b94a9687e297a2829dcf7a43a3cf7df4c5aeac",
+    "build_cases.py": "61969386e30ce0755813eec9be2832c80df59b095319e083e7068f4ec2fc3f02",
+    "cases.json": "907997632a42fd2afff07629f265bfd5f623957ea736b4e4ff7a998393e33a08",
+    "build_prompts.py": "77d9a0925e366451cface49f2760880922c3507b8c2cebe7a86259050c0f74e5",
+    "prompts.json": "a436434cccd82a793e8053c83a7321de877f049cbb916edae96da634fe64dc38",
+    "runner.py": "1ddf4aa54b3b01595f09541a6c57786fbcad6d4432732bd6b008e54bae2474aa",
+    "run_remote.py": "fd03dc5f834614b44af3f38ac19ca255dbb23228c1c088e92bd43c6d9c2154aa",
+    "score.py": "1da13d7068e889d3da757571d91e0c03cc185bf65494afbc1cd2b07ee0a06a6c",
+    "test_score.py": "cceb2bb741e177defb4ddfbbc38c7dd838247ab7d3f1d706de137b305bba85ee",
+    "PersonalLearning.swift.snapshot": "fd8322565d2dccfc750714277c9b0ae635de50787508cb8ae108e0e6ce95c166"
+  }
+}

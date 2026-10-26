@@ -8,6 +8,8 @@ $root = Join-Path $env:TEMP ("lokalbot-pi-tests-" + [guid]::NewGuid().ToString("
 New-Item -ItemType Directory -Force (Join-Path $root "resources\tests") | Out-Null
 try {
   Copy-Item -Recurse (Join-Path $resources "lokalbot-extension") (Join-Path $root "resources")
+  Copy-Item -Recurse (Join-Path $resources "lokalbot-cli-skill") (Join-Path $root "resources")
+  Copy-Item (Join-Path $resources "system-prompt.md") (Join-Path $root "resources")
   Copy-Item (Join-Path $resources "tests\pi-runtime.test.ts") (Join-Path $root "resources\tests")
   New-Item -ItemType Junction -Path (Join-Path $root "node_modules") -Target (Join-Path $runtime "pi\node_modules") | Out-Null
   $env:LOKALBOT_PINNED_RUNTIME_ROOT = $runtime

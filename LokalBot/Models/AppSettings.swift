@@ -687,7 +687,7 @@ struct AppSettings: Codable, Equatable {
     static let legacyPreviewCotypingMaxWords: Int = 2
     static let legacyPreviewCotypingDebounceMs: Int = 150
     static let lowLatencyCotypingDebounceMs: Int = 20
-    static let defaultCotypingDebounceMs: Int = 160
+    static let defaultCotypingDebounceMs: Int = 100
     static let legacyDefaultCotypingDebounceMs: Int = 350
     static let maximumCotypingDebounceMs: Int = 1_000
     static let minimumSpeechSpeed: Double = 0.5

@@ -1,0 +1,719 @@
+{
+  "clips": 97,
+  "audioSeconds": 839.0611875,
+  "engines": {
+    "whistle": {
+      "groups": {
+        "ami": {
+          "refWords": 385,
+          "errors": 100,
+          "substitutions": 39,
+          "deletions": 47,
+          "insertions": 14,
+          "audioSeconds": 106.5699375,
+          "seconds": 0.5789065,
+          "clips": 24,
+          "wer": 25.974025974025974,
+          "rtfx": 184.08834155429244,
+          "medianMs": 22.035100000000003,
+          "p95Ms": 38.439524999999996
+        },
+        "fleurs-de_de": {
+          "refWords": 182,
+          "errors": 36,
+          "substitutions": 28,
+          "deletions": 3,
+          "insertions": 5,
+          "audioSeconds": 103.14,
+          "seconds": 0.6683817999999999,
+          "clips": 8,
+          "wer": 19.78021978021978,
+          "rtfx": 154.3129989476075,
+          "medianMs": 76.26705,
+          "p95Ms": 120.79324999999997
+        },
+        "fleurs-en_us": {
+          "refWords": 425,
+          "errors": 64,
+          "substitutions": 37,
+          "deletions": 3,
+          "insertions": 24,
+          "audioSeconds": 188.6,
+          "seconds": 0.8952585,
+          "clips": 20,
+          "wer": 15.058823529411764,
+          "rtfx": 210.6654111633679,
+          "medianMs": 40.7322,
+          "p95Ms": 66.37140000000001
+        },
+        "fleurs-fr_fr": {
+          "refWords": 227,
+          "errors": 57,
+          "substitutions": 41,
+          "deletions": 4,
+          "insertions": 12,
+          "audioSeconds": 87.66,
+          "seconds": 0.6655169,
+          "clips": 8,
+          "wer": 25.110132158590307,
+          "rtfx": 131.71716601035976,
+          "medianMs": 67.78415,
+          "p95Ms": 165.6319249999999
+        },
+        "fleurs-pl_pl": {
+          "refWords": 139,
+          "errors": 59,
+          "substitutions": 48,
+          "deletions": 5,
+          "insertions": 6,
+          "audioSeconds": 72.0,
+          "seconds": 0.7084038,
+          "clips": 8,
+          "wer": 42.44604316546763,
+          "rtfx": 101.6369477408224,
+          "medianMs": 72.67035,
+          "p95Ms": 153.76119999999995
+        },
+        "fleurs-sr_rs": {
+          "refWords": 154,
+          "errors": 172,
+          "substitutions": 145,
+          "deletions": 5,
+          "insertions": 22,
+          "audioSeconds": 88.8,
+          "seconds": 0.6382447,
+          "clips": 8,
+          "wer": 111.68831168831169,
+          "rtfx": 139.1315901252294,
+          "medianMs": 81.88015,
+          "p95Ms": 127.4455
+        },
+        "names": {
+          "refWords": 41,
+          "errors": 15,
+          "substitutions": 9,
+          "deletions": 3,
+          "insertions": 3,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.1015698,
+          "clips": 3,
+          "wer": 36.58536585365854,
+          "rtfx": 148.58193577224725,
+          "medianMs": 32.7946,
+          "p95Ms": 39.46756
+        },
+        "names-hinted": {
+          "refWords": 41,
+          "errors": 9,
+          "substitutions": 6,
+          "deletions": 2,
+          "insertions": 1,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.09663189999999999,
+          "clips": 3,
+          "wer": 21.951219512195124,
+          "rtfx": 156.1744879278996,
+          "medianMs": 32.2415,
+          "p95Ms": 35.56511
+        },
+        "noise10": {
+          "refWords": 123,
+          "errors": 20,
+          "substitutions": 16,
+          "deletions": 2,
+          "insertions": 2,
+          "audioSeconds": 52.28,
+          "seconds": 0.2421906,
+          "clips": 6,
+          "wer": 16.260162601626018,
+          "rtfx": 215.86304340465733,
+          "medianMs": 37.5393,
+          "p95Ms": 58.77252500000001
+        },
+        "quiet": {
+          "refWords": 38,
+          "errors": 2,
+          "substitutions": 2,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 21.12,
+          "seconds": 0.0833856,
+          "clips": 2,
+          "wer": 5.2631578947368425,
+          "rtfx": 253.28114206769513,
+          "medianMs": 41.692800000000005,
+          "p95Ms": 42.15495000000001
+        },
+        "silence": {
+          "refWords": 0,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 71.0,
+          "seconds": 0.004049462,
+          "clips": 6,
+          "wer": null,
+          "rtfx": 17533.19329827024,
+          "medianMs": 0.5829380000000001,
+          "p95Ms": 1.49320975
+        },
+        "synthetic": {
+          "refWords": 59,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 17.708375,
+          "seconds": 0.0951025,
+          "clips": 1,
+          "wer": 0.0,
+          "rtfx": 186.2030440840146,
+          "medianMs": 95.1025,
+          "p95Ms": 95.1025
+        },
+        "human-english": {
+          "refWords": 810,
+          "errors": 164,
+          "substitutions": 76,
+          "deletions": 50,
+          "insertions": 38,
+          "audioSeconds": 295.1699375,
+          "seconds": 1.474165,
+          "clips": 44,
+          "wer": 20.246913580246915,
+          "rtfx": 200.22856159249474,
+          "medianMs": 31.658949999999997,
+          "p95Ms": 60.80285
+        }
+      },
+      "metadata": [
+        {
+          "type": "load",
+          "engine": "whistle",
+          "seconds": 0.00487412
+        },
+        {
+          "type": "warmup",
+          "engine": "whistle",
+          "seconds": 0.0257511
+        }
+      ],
+      "processMemory": {
+        "maxRSSBytes": 138002432,
+        "peakFootprintBytes": 137101864
+      },
+      "timestampStructure": {
+        "words": 1794,
+        "invalid": 0,
+        "outOfBounds": 0,
+        "nonMonotonic": 0
+      },
+      "changedAcrossRepeats": 0,
+      "failures": 0
+    },
+    "parakeet": {
+      "groups": {
+        "ami": {
+          "refWords": 385,
+          "errors": 40,
+          "substitutions": 17,
+          "deletions": 9,
+          "insertions": 14,
+          "audioSeconds": 106.5699375,
+          "seconds": 1.058662331,
+          "clips": 24,
+          "wer": 10.38961038961039,
+          "rtfx": 100.66471090865704,
+          "medianMs": 42.3051875,
+          "p95Ms": 56.330923099999985
+        },
+        "fleurs-de_de": {
+          "refWords": 182,
+          "errors": 3,
+          "substitutions": 3,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 103.14,
+          "seconds": 0.5676781240000001,
+          "clips": 8,
+          "wer": 1.6483516483516483,
+          "rtfx": 181.68746625860817,
+          "medianMs": 65.525625,
+          "p95Ms": 97.39400625
+        },
+        "fleurs-en_us": {
+          "refWords": 425,
+          "errors": 32,
+          "substitutions": 13,
+          "deletions": 2,
+          "insertions": 17,
+          "audioSeconds": 188.6,
+          "seconds": 1.118889874,
+          "clips": 20,
+          "wer": 7.529411764705882,
+          "rtfx": 168.55993103750262,
+          "medianMs": 52.849896,
+          "p95Ms": 71.89570385000002
+        },
+        "fleurs-fr_fr": {
+          "refWords": 227,
+          "errors": 18,
+          "substitutions": 10,
+          "deletions": 3,
+          "insertions": 5,
+          "audioSeconds": 87.66,
+          "seconds": 0.517526291,
+          "clips": 8,
+          "wer": 7.929515418502203,
+          "rtfx": 169.3826990520951,
+          "medianMs": 58.268770499999995,
+          "p95Ms": 97.16520009999998
+        },
+        "fleurs-pl_pl": {
+          "refWords": 139,
+          "errors": 13,
+          "substitutions": 13,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 72.0,
+          "seconds": 0.532763459,
+          "clips": 8,
+          "wer": 9.352517985611511,
+          "rtfx": 135.14440373809495,
+          "medianMs": 56.566813,
+          "p95Ms": 107.21008124999996
+        },
+        "fleurs-sr_rs": {
+          "refWords": 154,
+          "errors": 37,
+          "substitutions": 30,
+          "deletions": 2,
+          "insertions": 5,
+          "audioSeconds": 88.8,
+          "seconds": 0.5261883350000001,
+          "clips": 8,
+          "wer": 24.025974025974026,
+          "rtfx": 168.76086772239066,
+          "medianMs": 61.6138965,
+          "p95Ms": 98.65312334999999
+        },
+        "names": {
+          "refWords": 41,
+          "errors": 7,
+          "substitutions": 5,
+          "deletions": 1,
+          "insertions": 1,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.152155001,
+          "clips": 3,
+          "wer": 17.073170731707318,
+          "rtfx": 99.18463015224849,
+          "medianMs": 51.78425,
+          "p95Ms": 52.5690878
+        },
+        "names-hinted": {
+          "refWords": 41,
+          "errors": 7,
+          "substitutions": 5,
+          "deletions": 1,
+          "insertions": 1,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.153674374,
+          "clips": 3,
+          "wer": 17.073170731707318,
+          "rtfx": 98.2039952868134,
+          "medianMs": 53.394416,
+          "p95Ms": 53.4261041
+        },
+        "noise10": {
+          "refWords": 123,
+          "errors": 6,
+          "substitutions": 6,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 52.28,
+          "seconds": 0.315412751,
+          "clips": 6,
+          "wer": 4.878048780487805,
+          "rtfx": 165.75106692500202,
+          "medianMs": 51.808229499999996,
+          "p95Ms": 63.25403125
+        },
+        "quiet": {
+          "refWords": 38,
+          "errors": 20,
+          "substitutions": 1,
+          "deletions": 19,
+          "insertions": 0,
+          "audioSeconds": 21.12,
+          "seconds": 0.0922155,
+          "clips": 2,
+          "wer": 52.63157894736842,
+          "rtfx": 229.02874245652845,
+          "medianMs": 46.10775,
+          "p95Ms": 51.80655
+        },
+        "silence": {
+          "refWords": 0,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 71.0,
+          "seconds": 0.674019625,
+          "clips": 6,
+          "wer": null,
+          "rtfx": 105.33817913684635,
+          "medianMs": 74.8572705,
+          "p95Ms": 229.29216699999998
+        },
+        "synthetic": {
+          "refWords": 59,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 17.708375,
+          "seconds": 0.120416,
+          "clips": 1,
+          "wer": 0.0,
+          "rtfx": 147.0599837230933,
+          "medianMs": 120.416,
+          "p95Ms": 120.416
+        },
+        "human-english": {
+          "refWords": 810,
+          "errors": 72,
+          "substitutions": 30,
+          "deletions": 11,
+          "insertions": 31,
+          "audioSeconds": 295.1699375,
+          "seconds": 2.177552205,
+          "clips": 44,
+          "wer": 8.88888888888889,
+          "rtfx": 135.55125650822228,
+          "medianMs": 48.021583,
+          "p95Ms": 66.06220185000001
+        }
+      },
+      "metadata": [
+        {
+          "engine": "parakeet",
+          "seconds": 10.867611875,
+          "type": "load"
+        },
+        {
+          "engine": "parakeet",
+          "seconds": 0.060131666,
+          "type": "warmup"
+        }
+      ],
+      "processMemory": {
+        "maxRSSBytes": 677314560,
+        "peakFootprintBytes": 84231080
+      },
+      "timestampStructure": {
+        "words": 3797,
+        "invalid": 0,
+        "outOfBounds": 0,
+        "nonMonotonic": 0
+      },
+      "changedAcrossRepeats": 0,
+      "failures": 0
+    },
+    "qwen": {
+      "groups": {
+        "ami": {
+          "refWords": 385,
+          "errors": 35,
+          "substitutions": 7,
+          "deletions": 20,
+          "insertions": 8,
+          "audioSeconds": 106.5699375,
+          "seconds": 3.258424539,
+          "clips": 24,
+          "wer": 9.090909090909092,
+          "rtfx": 32.705970699786704,
+          "medianMs": 133.68110449999998,
+          "p95Ms": 212.65800184999998
+        },
+        "fleurs-de_de": {
+          "refWords": 182,
+          "errors": 4,
+          "substitutions": 3,
+          "deletions": 0,
+          "insertions": 1,
+          "audioSeconds": 103.14,
+          "seconds": 2.442387375,
+          "clips": 8,
+          "wer": 2.197802197802198,
+          "rtfx": 42.22917341275562,
+          "medianMs": 303.25637500000005,
+          "p95Ms": 413.0700875
+        },
+        "fleurs-en_us": {
+          "refWords": 425,
+          "errors": 27,
+          "substitutions": 9,
+          "deletions": 2,
+          "insertions": 16,
+          "audioSeconds": 188.6,
+          "seconds": 4.051166462,
+          "clips": 20,
+          "wer": 6.352941176470588,
+          "rtfx": 46.554492827947385,
+          "medianMs": 194.5692295,
+          "p95Ms": 301.75576105
+        },
+        "fleurs-fr_fr": {
+          "refWords": 227,
+          "errors": 18,
+          "substitutions": 8,
+          "deletions": 4,
+          "insertions": 6,
+          "audioSeconds": 87.66,
+          "seconds": 2.486366042,
+          "clips": 8,
+          "wer": 7.929515418502203,
+          "rtfx": 35.256273018226814,
+          "medianMs": 251.05087500000002,
+          "p95Ms": 593.8857227999997
+        },
+        "fleurs-pl_pl": {
+          "refWords": 139,
+          "errors": 29,
+          "substitutions": 24,
+          "deletions": 3,
+          "insertions": 2,
+          "audioSeconds": 72.0,
+          "seconds": 2.5448577500000003,
+          "clips": 8,
+          "wer": 20.863309352517987,
+          "rtfx": 28.292347578170133,
+          "medianMs": 277.20885400000003,
+          "p95Ms": 555.7416040499999
+        },
+        "fleurs-sr_rs": {
+          "refWords": 154,
+          "errors": 41,
+          "substitutions": 32,
+          "deletions": 4,
+          "insertions": 5,
+          "audioSeconds": 88.8,
+          "seconds": 2.684442208,
+          "clips": 8,
+          "wer": 26.623376623376622,
+          "rtfx": 33.07949775762131,
+          "medianMs": 330.8306245,
+          "p95Ms": 516.58578125
+        },
+        "names": {
+          "refWords": 41,
+          "errors": 5,
+          "substitutions": 3,
+          "deletions": 1,
+          "insertions": 1,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.428321875,
+          "clips": 3,
+          "wer": 12.195121951219512,
+          "rtfx": 35.23387055587576,
+          "medianMs": 145.08533300000002,
+          "p95Ms": 155.85049579999998
+        },
+        "names-hinted": {
+          "refWords": 41,
+          "errors": 1,
+          "substitutions": 1,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 15.0914375,
+          "seconds": 0.453787375,
+          "clips": 3,
+          "wer": 2.4390243902439024,
+          "rtfx": 33.25662707121369,
+          "medianMs": 146.510667,
+          "p95Ms": 172.97509139999997
+        },
+        "noise10": {
+          "refWords": 123,
+          "errors": 7,
+          "substitutions": 6,
+          "deletions": 0,
+          "insertions": 1,
+          "audioSeconds": 52.28,
+          "seconds": 1.115076124,
+          "clips": 6,
+          "wer": 5.691056910569106,
+          "rtfx": 46.88469143475267,
+          "medianMs": 186.225354,
+          "p95Ms": 257.38955175
+        },
+        "quiet": {
+          "refWords": 38,
+          "errors": 2,
+          "substitutions": 2,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 21.12,
+          "seconds": 0.402632042,
+          "clips": 2,
+          "wer": 5.2631578947368425,
+          "rtfx": 52.454841634288016,
+          "medianMs": 201.316021,
+          "p95Ms": 203.13437739999998
+        },
+        "silence": {
+          "refWords": 0,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 71.0,
+          "seconds": 0.47237291800000003,
+          "clips": 6,
+          "wer": null,
+          "rtfx": 150.3049757818673,
+          "medianMs": 70.13931249999999,
+          "p95Ms": 146.06230225
+        },
+        "synthetic": {
+          "refWords": 59,
+          "errors": 0,
+          "substitutions": 0,
+          "deletions": 0,
+          "insertions": 0,
+          "audioSeconds": 17.708375,
+          "seconds": 0.49688725,
+          "clips": 1,
+          "wer": 0.0,
+          "rtfx": 35.63861821771438,
+          "medianMs": 496.88725,
+          "p95Ms": 496.88725
+        },
+        "human-english": {
+          "refWords": 810,
+          "errors": 62,
+          "substitutions": 16,
+          "deletions": 22,
+          "insertions": 24,
+          "audioSeconds": 295.1699375,
+          "seconds": 7.309591001,
+          "clips": 44,
+          "wer": 7.654320987654321,
+          "rtfx": 40.38118377069508,
+          "medianMs": 157.0135415,
+          "p95Ms": 272.92773924999995
+        }
+      },
+      "metadata": [
+        {
+          "engine": "qwen",
+          "seconds": 0.500477542,
+          "type": "load"
+        },
+        {
+          "engine": "qwen",
+          "seconds": 3.592609291,
+          "type": "warmup"
+        },
+        {
+          "mlxActiveBytes": 2500659434,
+          "mlxPeakBytes": 3917478715,
+          "type": "memory"
+        }
+      ],
+      "processMemory": {
+        "maxRSSBytes": 2630467584,
+        "peakFootprintBytes": 7962873648
+      },
+      "timestampStructure": {
+        "words": 0,
+        "invalid": 0,
+        "outOfBounds": 0,
+        "nonMonotonic": 0
+      },
+      "changedAcrossRepeats": 0,
+      "failures": 0
+    }
+  },
+  "paired": {
+    "whistle-minus-parakeet/human-english": {
+      "werPoints": 11.358024691358025,
+      "bootstrap95": [
+        7.416046429204324,
+        16.30483240889843
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-parakeet/ami": {
+      "werPoints": 15.584415584415584,
+      "bootstrap95": [
+        9.275219833903273,
+        23.544737298422056
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-parakeet/fleurs-en_us": {
+      "werPoints": 7.529411764705882,
+      "bootstrap95": [
+        3.673713579920157,
+        11.520079185520359
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-parakeet/noise10": {
+      "werPoints": 11.382113821138212,
+      "bootstrap95": [
+        6.184436606981372,
+        16.03053435114504
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-qwen/human-english": {
+      "werPoints": 12.592592592592593,
+      "bootstrap95": [
+        8.717932752179326,
+        17.223666313076773
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-qwen/ami": {
+      "werPoints": 16.883116883116884,
+      "bootstrap95": [
+        11.309043778801843,
+        24.14657903072537
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-qwen/fleurs-en_us": {
+      "werPoints": 8.705882352941176,
+      "bootstrap95": [
+        4.4996076233183855,
+        13.043696525231358
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    },
+    "whistle-minus-qwen/noise10": {
+      "werPoints": 10.56910569105691,
+      "bootstrap95": [
+        6.0594668489405334,
+        15.929203539823009
+      ],
+      "resamplingUnit": "clip, exploratory; correlated speakers may widen uncertainty"
+    }
+  },
+  "stream": {
+    "refWords": 123,
+    "substitutions": 7,
+    "deletions": 1,
+    "insertions": 0,
+    "errors": 8,
+    "wer": 6.504065040650406,
+    "firstCommitAudioSeconds": 3,
+    "duration": 55.28,
+    "maxPassMs": 128.89700000000002,
+    "totalComputeSeconds": 3.04593
+  }
+}

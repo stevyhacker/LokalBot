@@ -218,6 +218,31 @@ final class PersonalModelStoreTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.encryptedURL.path))
         XCTAssertTrue(PersonalModelController(store: store).currentClaims().isEmpty)
     }
+
+    func testKeepAllConfirmsTheListedSuggestionsTogether() throws {
+        let store = makeStore()
+        var model = PersonalModel()
+        model.claims = ["Answer in bullet points.", "Amounts in EUR.", "Ask before sending email for me."]
+            .enumerated().map { index, text in
+                PersonalClaim(kind: .preference, text: text,
+                              origin: .typed(source: .codingAgent(name: "Codex"), dayKey: "2026-10-22"),
+                              status: .proposed, authority: .learned, quote: text,
+                              createdAt: now.addingTimeInterval(Double(index)))
+            }
+        try store.save(model)
+        let controller = PersonalModelController(store: store, now: { self.now })
+        let ids = controller.suggestions.map(\.id)
+        XCTAssertEqual(ids.count, 3)
+
+        XCTAssertEqual(controller.confirm([ids[0], UUID()]).failure, .notFound)
+        XCTAssertEqual(controller.suggestions.count, 3, "a failed Keep All keeps nothing")
+
+        XCTAssertNoThrow(try controller.confirm(Set(ids.prefix(2))).get())
+        XCTAssertEqual(controller.suggestions.map(\.id), [ids[2]])
+        let reopened = PersonalModelController(store: store)
+        XCTAssertEqual(Set(reopened.usableClaims().map(\.id)), Set(ids.prefix(2)))
+        XCTAssertTrue(reopened.usableClaims().allSatisfy { $0.authority == .confirmed })
+    }
 }
 
 final class PersonalContextBuilderTests: XCTestCase {

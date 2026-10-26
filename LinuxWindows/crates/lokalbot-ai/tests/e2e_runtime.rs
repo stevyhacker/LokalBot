@@ -59,6 +59,9 @@ fn installs_runtime_downloads_models_and_answers() {
         runtime.installed_version()
     );
     assert!(runtime.installed_backend().is_some());
+    if settings.llama_backend == "cuda" {
+        assert_eq!(runtime.installed_backend().as_deref(), Some("CUDA"));
+    }
     if std::env::var_os("LOKALBOT_E2E_RUNTIME_ONLY").is_some() {
         return;
     }
@@ -154,6 +157,22 @@ fn installs_runtime_downloads_models_and_answers() {
     assert_eq!(query.len(), catalog::EMBEDDING_DIMENSIONS);
     assert!(dot(&query, &documents[0]) > dot(&query, &documents[1]));
     for status in runtime.statuses() {
+        if settings.llama_backend == "cuda"
+            && matches!(
+                status.role,
+                lokalbot_ai::runtime::Role::Main | lokalbot_ai::runtime::Role::Embedder
+            )
+        {
+            assert!(status.running, "both exercised CUDA roles must be running");
+            assert_eq!(status.backend, Some(lokalbot_ai::LlamaBackend::Cuda));
+            assert!(
+                lokalbot_ai::runtime::read_marker(&paths, status.port)
+                    .unwrap()
+                    .gpu_offloaded,
+                "CUDA validation must establish model offload, not just a healthy CPU server"
+            );
+            eprintln!("confirmed GPU model offload for {:?}", status.role);
+        }
         eprintln!(
             "server {:?}: running={} model={:?} backend={:?}",
             status.role, status.running, status.model_id, status.backend

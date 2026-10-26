@@ -17,13 +17,14 @@ Windows and Linux installs put it at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokal
 lokalbot-cli brief
 ```
 
-Run this once at the start of a session (MCP: `get_briefing`). It says which LokalBot sources are on and how the user would turn on the others, then gives what each permission covers: what the user shared about themselves, their open action items, current projects and goals, recent Claude Code and Codex work by project, and a timeline with recent days in detail and older weeks and months in a line each. It is short on purpose. Use it to orient, then search for detail.
+Run this once at the start of a session (MCP: `get_briefing`). It says which LokalBot sources are on and how the user would turn on the others, then gives what each permission covers: what the user shared about themselves, their open action items, current projects and goals, recent Claude Code and Codex work by project, and a timeline with recent days in detail and older weeks and months in a line each. It is short on purpose. Use it to orient, then search for detail. `brief` points to `lokalbot-cli` commands; `get_briefing` gives the same text but names MCP tools instead.
 
 Before asking the user about past work, a decision, a commitment, or where something stands, search LokalBot first. Ask only when LokalBot has nothing, and say what you checked. Items the briefing doesn't list are unknown, not false. Cite meetings from `get`, `search`, or `actions` results, not from the briefing's summary lines.
 
 ## Choose the source
 
 - Use `list` when you need candidate meeting ids, titles, and dates.
+- Use `list --include summary` for what several meetings covered, such as the topics of the last ten meetings or one week's themes. One call returns every summary, shortened to fit. Don't fetch transcripts meeting by meeting for that: they are long, and ten of them can fill your context.
 - Use `get` when the meeting is known; `latest` works without listing first. Request `metadata,summary` for a cited summary; include `transcript` when the question needs exact wording.
 - Use `search` directly when the user remembers a phrase or wants cross-meeting mentions.
 - Use `actions` for commitments: what the user owes, overdue work, or one meeting's next steps.
@@ -38,9 +39,13 @@ Before asking the user about past work, a decision, a commitment, or where somet
 lokalbot-cli list --limit 10
 lokalbot-cli list --limit 10 --table
 lokalbot-cli list --since 2026-06-01 --query "design"
+lokalbot-cli list --limit 10 --include summary
+lokalbot-cli list --since 2026-10-13 --until 2026-10-17 --include summary --table
 ```
 
 The `id` field in each list entry is an 8-character prefix that the other commands accept.
+
+`--include summary` adds each meeting's `summary` (Markdown). The listed summaries share 20,000 characters: short ones come whole, and a long one is cut, ending in `…`, with `"summary_truncated": true`. `get <id> --include summary` reads it whole. With `--include summary`, `--limit` defaults to 10 and goes up to 50. `transcript` isn't accepted there; read transcripts one meeting at a time with `get`.
 
 ## Reading a single meeting
 
@@ -166,7 +171,7 @@ lokalbot-cli doctor                        # exit 0 when ready; nextSteps otherw
 
 ## MCP alternative (and ask_library)
 
-The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings`, `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves under its own permission.
+The same library is available over MCP for GUI clients and anything else that speaks it: `lokalbot-cli mcp` serves `get_briefing` (call it first; same text as `brief`), `list_meetings` (`include: "summary"` works as in `list --include summary`), `get_meeting`, `search_meetings`, `ask_library`, `get_action_items`, `list_people`, and `get_person` on stdio. It also advertises `search_screen`, `get_timeline`, `get_recent_activity`, `get_app_usage`, and `get_screenshot_detail`; those return OCR and metadata only, never decrypted pixels or screenshot paths. `get_personal_context` returns what the user shared about themselves under its own permission.
 
 ```bash
 claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp

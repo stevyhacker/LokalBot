@@ -1,0 +1,74 @@
+  lfm2.5-1.2b-instruct: 100% of 731 MB
+model and runtime ready in 0.0s
+[2026-10-22T07:45:39Z WARN  lokalbot_platform::activity::linux] activity: No desktop session was found, so LokalBot cannot see which app is in front.
+[2026-10-22T07:45:39Z WARN  lokalbot_engine::daymemory] day memory: No desktop session was found, so LokalBot cannot see which app is in front.
+[2026-10-22T07:45:39Z INFO  lokalbot_ai::runtime] llama-server autocomplete starting pid=16348 port=17874 model=LFM2.5-1.2B-Instruct-Q4_K_M.gguf backend=Vulkan
+warm-up (server start and model load) took 1.9s: Some(" neural network.")
+[2026-10-22T07:45:41Z WARN  lokalbot_platform::meeting] meeting detection: pactl is not installed
+email, next words              200 ms  " up on a few"
+email, mid-word                305 ms  "dently present a compelling"
+email, after a full stop            —  "(none)"
+email, sign-off                245 ms  " regards,"
+chat reply, after a comma      189 ms  "tomorrow!"
+chat reply, next words         305 ms  " deployment to be completed."
+chat, mid-word                 223 ms  "row."
+code comment, Rust             174 ms  " up"
+code comment, Python           217 ms  " settings"
+caret inside a word            354 ms  "eived the notes or"
+commit message                 177 ms  " in progress."
+document, after a colon        191 ms  " 1. Analyze the"
+notes, list item               230 ms  " next week"
+question                       333 ms  " moving to the new"
+German                         201 ms  " bei dir, um zu"
+Montenegrin                    210 ms  "la da je Marija!"
+  saved fact from "Client call – Northwind": Deliver the captioned Northwind cut — due this week
+  saved fact from "Client call – Northwind": Priya Nair: Northwind likes the first cut; captions are required before it goes live.
+memory: Northwind captions     276 ms  " is ready to go"
+  saved fact from "Laptop refresh planning": John Park: Workstation laptops for both video editors.
+  saved fact from "Laptop refresh planning": Request a business quote from the vendor — due by Thursday
+memory: laptop quote           186 ms  " quote?"
+  saved fact from "Editor hiring debrief": Maya Chen: Move the editor candidate to references.
+  saved fact from "Editor hiring debrief": Maya Chen: Check the editor candidate's references — due this week
+memory: editor candidate       193 ms  " to check the candidate's"
+emoji shortcode                160 ms  "🚀"
+[2026-10-22T07:46:45Z INFO  lokalbot_ai::runtime] llama-server autocomplete stopped pid=16348
+
+Accepting word by word (email): …eam this morning, and I wanted to follow
+- Tab takes ` up`, ghost now ` on a few`
+- Tab takes ` on`, ghost now ` a few points.` (topped up 11 ms after the Tab)
+- Tab takes ` a`, ghost now ` few points.`
+- Tab takes ` few`, ghost now ` points.`
+- Tab takes ` points`, ghost now `.`
+- Tab takes `.`, ghost now ` First, the total revenue` (next suggestion 327 ms after the Tab)
+
+Accepting word by word (notes): …ime and fixes a crash that happened when
+- Tab takes ` the`, ghost now ` app was launched.`
+- Tab takes ` app`, ghost now ` was launched.`
+- Tab takes ` was`, ghost now ` launched.`
+- Tab takes ` launched`, ghost now `.`
+- Tab takes `.`, ghost now ``
+
+| Case | Suggestion | Last key → suggestion |
+| --- | --- | --- |
+| email, next words | ` up on a few` | 200 ms |
+| email, mid-word | `dently present a compelling` | 305 ms |
+| email, after a full stop | (none) | — |
+| email, sign-off | ` regards,` | 245 ms |
+| chat reply, after a comma | `tomorrow!` | 189 ms |
+| chat reply, next words | ` deployment to be completed.` | 305 ms |
+| chat, mid-word | `row.` | 223 ms |
+| code comment, Rust | ` up` | 174 ms |
+| code comment, Python | ` settings` | 217 ms |
+| caret inside a word | `eived the notes or` | 354 ms |
+| commit message | ` in progress.` | 177 ms |
+| document, after a colon | ` 1. Analyze the` | 191 ms |
+| notes, list item | ` next week` | 230 ms |
+| question | ` moving to the new` | 333 ms |
+| German | ` bei dir, um zu` | 201 ms |
+| Montenegrin | `la da je Marija!` | 210 ms |
+| memory: Northwind captions | ` is ready to go` | 276 ms |
+| memory: laptop quote | ` quote?` | 186 ms |
+| memory: editor candidate | ` to check the candidate's` | 193 ms |
+| emoji shortcode | `🚀` | 160 ms |
+
+model lfm2.5-1.2b-instruct, backend vulkan, debounce 160 ms, 140 ms per key: 19 of 20 cases got a suggestion; p50 210 ms, p95 354 ms, max 354 ms

@@ -26,9 +26,24 @@ enum SessionFormatter {
 
     // MARK: - list
 
-    static func listJSON(_ meetings: [Meeting]) -> String {
-        let entries = meetings.map { meeting in
-            ListEntry(
+    /// `list --include summary` (MCP: `list_meetings` with `include`): the
+    /// listed summaries share one character budget, so ten hour-long
+    /// meetings fit a small model's context. A short summary comes whole and
+    /// leaves the rest of its share to longer ones; a cut one ends in "…"
+    /// with `summary_truncated`, and `get` reads it whole.
+    static let listSummaryBudget = 20_000
+    static let listSummaryCap = 5_000
+    static let defaultSummaryListCount = 10
+    static let maximumSummaryListCount = 50
+
+    static func listJSON(_ meetings: [Meeting], includeSummary: Bool = false) -> String {
+        let markdown = meetings.map(SessionLookup.summaryMarkdown(for:))
+        let summaries = includeSummary
+            ? listSummaries(markdown)
+            : Array(repeating: nil, count: meetings.count)
+        let entries = meetings.indices.map { index in
+            let meeting = meetings[index]
+            return ListEntry(
                 id: SessionLookup.shortID(meeting.id),
                 uuid: meeting.id.uuidString.lowercased(),
                 title: meeting.title,
@@ -36,8 +51,10 @@ enum SessionFormatter {
                 duration_seconds: meeting.duration ?? 0,
                 app_source: meeting.appName,
                 has_system_track: meeting.hasSystemTrack,
-                has_summary: SessionLookup.summaryMarkdown(for: meeting) != nil,
+                has_summary: markdown[index] != nil,
                 has_transcript: SessionLookup.transcriptMarkdown(for: meeting) != nil,
+                summary: summaries[index]?.text,
+                summary_truncated: summaries[index]?.truncated == true ? true : nil,
                 sample: meeting.isSample ? true : nil)
         }
         let encoder = JSONEncoder()
@@ -45,7 +62,7 @@ enum SessionFormatter {
         return (try? String(data: encoder.encode(entries), encoding: .utf8)) ?? "[]"
     }
 
-    static func listTable(_ meetings: [Meeting]) -> String {
+    static func listTable(_ meetings: [Meeting], includeSummary: Bool = false) -> String {
         guard !meetings.isEmpty else { return "(no meetings)" }
         let header = ["ID", "Date", "Duration", "App", "Title"]
         let rows: [[String]] = meetings.map { meeting in
@@ -57,7 +74,76 @@ enum SessionFormatter {
                 meeting.title,
             ]
         }
-        return renderTable(header: header, rows: rows)
+        let table = renderTable(header: header, rows: rows)
+        guard includeSummary else { return table }
+        let summaries = listSummaries(meetings.map(SessionLookup.summaryMarkdown(for:)))
+        let sections = zip(meetings, summaries).compactMap { meeting, summary in
+            summary.map { "── \(SessionLookup.shortID(meeting.id)) · \(meeting.title)\n\($0.text)" }
+        }
+        return ([table] + sections).joined(separator: "\n\n")
+    }
+
+    enum ListIncludeError: Error, Equatable {
+        case transcript
+        case unknown([String])
+    }
+
+    /// Whether `list --include` (MCP `include`) asks for summaries. Entries
+    /// always carry metadata, so `metadata` changes nothing; transcripts are
+    /// read one meeting at a time with `get`.
+    static func listIncludesSummary(_ include: String) throws -> Bool {
+        let parts = Set(include.split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            .filter { !$0.isEmpty })
+        if parts.contains("transcript") { throw ListIncludeError.transcript }
+        let unknown = parts.subtracting(["metadata", "summary"])
+        guard unknown.isEmpty else { throw ListIncludeError.unknown(unknown.sorted()) }
+        return parts.contains("summary")
+    }
+
+    /// Each summary cut to its share of `listSummaryBudget`; nil where a
+    /// meeting has none.
+    static func listSummaries(_ summaries: [String?]) -> [(text: String, truncated: Bool)?] {
+        let texts = summaries.map { summary -> String? in
+            guard let trimmed = summary?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !trimmed.isEmpty else { return nil }
+            return trimmed
+        }
+        let present = texts.indices.filter { texts[$0] != nil }
+        let shares = summaryShares(present.map { texts[$0]?.count ?? 0 },
+                                   budget: listSummaryBudget, cap: listSummaryCap)
+        var result: [(text: String, truncated: Bool)?] = Array(repeating: nil, count: texts.count)
+        for (index, share) in zip(present, shares) {
+            if let text = texts[index] { result[index] = shortened(text, to: share) }
+        }
+        return result
+    }
+
+    /// Shortest first, each takes what it needs up to an equal split of
+    /// what is left (and at most `cap`), so short summaries leave room for
+    /// long ones.
+    static func summaryShares(_ lengths: [Int], budget: Int, cap: Int) -> [Int] {
+        var shares = Array(repeating: 0, count: lengths.count)
+        var remaining = budget
+        let order = lengths.indices.sorted { (lengths[$0], $0) < (lengths[$1], $1) }
+        for (position, index) in order.enumerated() {
+            shares[index] = min(lengths[index], cap, remaining / (order.count - position))
+            remaining -= shares[index]
+        }
+        return shares
+    }
+
+    /// The text when it has at most `limit` characters; otherwise its start,
+    /// cut at the last line break when that keeps at least half, and "…".
+    static func shortened(_ text: String, to limit: Int) -> (text: String, truncated: Bool) {
+        guard text.count > limit else { return (text, false) }
+        var kept = String(text.prefix(max(0, limit - 2)))
+        if let newline = kept.lastIndex(of: "\n"),
+           kept.distance(from: kept.startIndex, to: newline) >= kept.count / 2 {
+            kept = String(kept[..<newline])
+        }
+        while kept.last?.isWhitespace == true { kept.removeLast() }
+        return (kept + "\n…", true)
     }
 
     // MARK: - get
@@ -191,6 +277,8 @@ enum SessionFormatter {
         var has_system_track: Bool
         var has_summary: Bool
         var has_transcript: Bool
+        var summary: String?
+        var summary_truncated: Bool?
         var sample: Bool?
     }
 

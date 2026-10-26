@@ -33,7 +33,10 @@ for account in screenshot-key chat-key; do
     -X "$(python3 "$ROOT_DIR/Scripts/upgrade-fixtures/settings.py" key "$account")"
 done
 
-gh release download "v$VERSION" --repo stevyhacker/LokalBot --pattern LokalBot.dmg --dir "$WORK"
+# Releases before 0.11.2 only have LokalBot.dmg; later ones add the version.
+gh release download "v$VERSION" --repo stevyhacker/LokalBot \
+  --pattern "LokalBot-$VERSION-macos-arm64.dmg" --output "$WORK/LokalBot.dmg" 2>/dev/null \
+  || gh release download "v$VERSION" --repo stevyhacker/LokalBot --pattern LokalBot.dmg --dir "$WORK"
 MOUNT=$(hdiutil attach -nobrowse -readonly "$WORK/LokalBot.dmg" | tail -1 | awk -F'\t' '{print $NF}')
 cp -R "$MOUNT/LokalBot.app" "$WORK/LokalBot.app"
 hdiutil detach "$MOUNT" -quiet
@@ -43,6 +46,11 @@ LOKALBOT_STORAGE_ROOT="$LIB" "$WORK/LokalBot.app/Contents/MacOS/LokalBot" --sear
 
 mkdir -p "$OUT"
 rsync -a --exclude models --exclude debug.log --exclude 'debug.log.*' "$LIB/" "$OUT/library/"
+# Fold the write-ahead log into the database so the fixture commits as is.
+for db in "$OUT"/library/*.sqlite; do
+  sqlite3 "$db" 'PRAGMA wal_checkpoint(TRUNCATE)' >/dev/null
+  rm -f "$db-wal" "$db-shm"
+done
 defaults export "$DOMAIN" "$OUT/defaults.plist"
 python3 - "$VERSION" "$OUT/manifest.json" <<'PY'
 import json, sys, datetime

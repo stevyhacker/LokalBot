@@ -22,7 +22,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | --- | --- | --- | --- |
 | Meetings: record mic + system audio | ✓ (PulseAudio/PipeWire monitor) | ✓ (WASAPI loopback) | No bot joins the call. Tracks are 16 kHz WAV files; meetings recorded on macOS (AAC `.m4a`) play and transcribe too. A recording cut short by a crash or power loss is closed at its last audio when LokalBot starts again, then processed as usual. |
 | On-device transcription | ✓ | ✓ | sherpa-onnx: Qwen3-ASR 0.6B by default; Parakeet v3, SenseVoice and Whisper turbo optional. Speakers are separated with pyannote segmentation and TitaNet embeddings. |
-| Notes, actions, decisions, day digest, project notes, follow-up drafts | ✓ | ✓ | The macOS prompts, run by the built-in llama.cpp server (Vulkan or CPU), Ollama, an OpenAI-compatible server you approve, or your own ChatGPT or Claude plan (see [Think providers](#think-providers)). Follow-ups are written only by a model on your computer, and LokalBot never sends them. |
+| Notes, actions, decisions, day digest, project notes, follow-up drafts | ✓ | ✓ | The macOS prompts, run by the built-in llama.cpp server (Vulkan, experimental CUDA or CPU), Ollama, an OpenAI-compatible server you approve, or your own ChatGPT or Claude plan (see [Think providers](#think-providers)). Follow-ups are written only by a model on your computer, and LokalBot never sends them. |
 | Ask with citations | ✓ | ✓ | As on macOS, the model looks things up with tools (search, list and read meetings, action items, screen text, app activity) and answers once it has enough; each citation must match a source a tool returned. A Think model running on the CPU, or one with a context window under 16K tokens, instead gets the relevant meetings found first (keyword and meaning search) and answers in one turn. |
 | Keyword and meaning search, Quick Recall | ✓ | ✓ | SQLite FTS5 plus EmbeddingGemma vectors, kept up to date in the background. |
 | Day memory (app and window activity) | X11, Hyprland, Sway, KDE; GNOME with the Window Calls extension | ✓ | Window titles are cleared after the retention window in Privacy settings. |
@@ -41,6 +41,81 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 
 ## Think providers
 
+### NVIDIA CUDA (experimental)
+
+Settings → Models → llama.cpp offers **CUDA (experimental)** on Linux x86_64 and
+Windows x64. It accelerates the built-in Think, search and autocomplete models;
+transcription and speaker separation still use their separate CPU engines.
+
+Setup picks one of two pinned llama.cpp CUDA builds from the driver's CUDA
+version and each GPU's compute capability (read with `nvidia-smi`):
+
+| Build | Prebuilt kernels | Other GPUs (compiled from PTX) |
+| --- | --- | --- |
+| CUDA 13.4 | RTX 30, 40 and 50 (compute capability 8.6, 8.9, 12.x) on a CUDA 13.0+ driver (R580+) | Turing, A100, H100 and newer with a CUDA 13.4+ driver |
+| CUDA 12.8 (Linux) / 12.4 (Windows) | RTX 30 and 40 on a CUDA 12.0+ driver (R525+) | Maxwell, Pascal, Volta, Turing and newer with a CUDA 12.8 / 12.4+ driver |
+
+[NVIDIA's minor-version compatibility](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)
+lets a driver run prebuilt kernels from any toolkit of its CUDA major version,
+but it compiles PTX only from a toolkit no newer than itself. So a Turing GPU
+on an R580 driver gets the CUDA 12 build, and a GTX 10-series GPU works with a
+CUDA 12.8 (Linux) or 12.4 (Windows) driver. LokalBot takes the newest build
+that every NVIDIA GPU in the PC can run; without `nvidia-smi` it takes one whose
+PTX the driver can compile. `LOKALBOT_CUDA_RUNTIME=13.4`, `12.8` or `12.4` forces
+a build for troubleshooting. Actual device detection and model offload must
+still succeed. Kepler and older GPUs, and drivers older than CUDA 12.0, can keep
+using Vulkan or CPU. **Automatic** continues to select Vulkan or CPU; CUDA
+remains opt-in pending broader hardware validation and performance comparisons.
+
+LokalBot first tries compatible system CUDA libraries. If the CUDA backend cannot
+use them, it downloads the pinned CUDA runtime, cuBLAS and cuBLASLt libraries into
+its own runtime folder. You do not need the CUDA compiler or full toolkit. A fresh
+download is at most about 594 MB (CUDA 13.4) or 767 MB (CUDA 12.8) on Linux, and
+578 MB (CUDA 13.4) or 658 MB (CUDA 12.4) on Windows. Reusing system libraries
+reduces that to the server archive: about 154 MB for CUDA 13.4, 173 MB for
+CUDA 12.8 and 267 MB for CUDA 12.4, excluding models. Settings estimates the CUDA
+13.4 size until setup has picked a build. Downloads are verified and an
+incomplete setup does not count as installed.
+
+Changing the backend lets in-flight requests finish; models switch when next
+loaded. Selecting CUDA does not stop the built-in models: they keep using the
+Vulkan or CPU runtime Automatic would choose until CUDA setup succeeds, and no
+background role starts a CUDA download. Download under Settings → Models →
+llama.cpp prepares CUDA. If setup downloads everything but the final GPU check
+fails, for example because another app has filled GPU memory, the verified files
+are kept, Settings shows "Not ready · CUDA", and **Check again** repeats only the
+check. Once CUDA is set up, explicit CUDA reports a startup error if it cannot
+accelerate the model, rather than silently labeling a CPU run as CUDA. Choose
+Automatic, Vulkan or CPU to recover. **Check again** stays available for CUDA so
+it can retry detection and repair missing system libraries without reinstalling
+the server. Transient GPU failures
+preserve installed files. Device probes are cached for the session, and healthy
+helpers are reused before probing. Model Storage lists runtime folders even
+after switching backends.
+
+For native NVIDIA validation, run the ignored runtime test with
+`LOKALBOT_E2E_BACKEND=cuda` and a separate `LOKALBOT_E2E_ROOT`, and run the
+`lokalbot-engine` `autocomplete_eval` example with `--backend cuda`. The runtime
+test checks actual model offload as well as text generation and embeddings.
+The runtime and autocomplete path have been exercised on NVIDIA L4, RTX 3080,
+RTX 5060 Ti and RTX 5090 GPUs under Ubuntu 24.04. The RTX 5090 additionally passed
+bundled libraries, system-library reuse and in-place repair on a CUDA 13.2 driver.
+On that card, three release-mode autocomplete runs per backend measured pooled
+p50/p95 of 180/210 ms for CUDA versus 218/346 ms for Vulkan, including the
+160 ms debounce. Both produced 57/60 suggestions; this is one synthetic model
+workload, not a general performance guarantee. Native Windows CUDA passed the
+runtime test on an NVIDIA L4 under Windows Server 2022 with both the CUDA 13.4
+and 12.4 builds, and the CUDA 12.8 build passed on a Pascal Titan Xp with a CUDA
+12.8 driver. With `llama-bench`, CUDA read a 4,096-token prompt into the default
+Qwen3.5 4B model 44% faster than Vulkan on an RTX 3060 (Linux) and 32% faster on
+the L4 (Windows); generation speed was within 9%. On GPUs without prebuilt CUDA
+kernels (Maxwell to Turing, A100, H100), the first CUDA reply after setup took
+1–3 minutes in testing while the driver compiled them; later starts reuse its
+cache. See the
+[hardware validation report](docs/cuda-validation.md).
+
+### Other Think providers
+
 Think (notes, digests, Ask, Compose) runs on the built-in model by default. On a PC without a
 supported GPU, local models are slow, so Settings → Models → Connections also offers:
 
@@ -52,14 +127,17 @@ supported GPU, local models are slow, so Settings → Models → Connections als
 - **Ollama**, on this PC or another one.
 - **ChatGPT plan**: **Continue with ChatGPT** signs in through your browser (OpenAI's Sign in with
   ChatGPT) and returns to LokalBot on `127.0.0.1`. Requests go to OpenAI's Responses API and count
-  toward your plan. The sign-in is kept only in the system credential store; on a Linux desktop
-  without a Secret Service (GNOME Keyring, KWallet) it cannot be used.
+  toward your plan, including Agent Mode tasks. The sign-in is kept only in the system credential
+  store; on a Linux desktop without a Secret Service (GNOME Keyring, KWallet) it cannot be used.
 - **Claude plan**: runs the Claude Code you installed and signed in to yourself (`claude` on PATH,
   in `~/.local/bin`, or npm's `claude.cmd` on Windows), with its tools, MCP servers, settings and
   session history turned off. LokalBot never sees your Claude credentials.
 
 Every remote server and each plan needs its own approval before any context leaves your computer.
-Agent Mode runs on the built-in model, Ollama or an OpenAI-compatible server, not on a plan.
+Agent Mode runs on the built-in model, Ollama, an OpenAI-compatible server or the ChatGPT plan, not
+on the Claude plan. On the ChatGPT plan each task starts a relay on `127.0.0.1` with its own random
+key: the agent sends its requests there, and LokalBot adds the plan's token, so the agent and the
+commands it runs never hold your ChatGPT sign-in.
 
 ## Install
 
@@ -70,7 +148,8 @@ release has none yet, use a CI run's artifacts (`lokalbot-linux-x86_64`, `lokalb
 
 - **Linux** (x86_64): extract `LokalBot-<version>-linux-x86_64.tar.gz` and run `./install.sh`. It installs
   `lokalbot` and `lokalbot-cli` into `~/.local/bin` and adds LokalBot to your applications menu.
-  Runtime needs: a Vulkan or OpenGL driver (Mesa is fine), PulseAudio or PipeWire for system audio.
+  Runtime needs: a Vulkan or OpenGL driver (Mesa is fine), PulseAudio or PipeWire for system audio, and
+  for the built-in models the GCC OpenMP runtime (`libgomp1` on Debian and Ubuntu, `libgomp` on Fedora and Arch).
   The same release has packages that install into `/usr/bin` with their dependencies:
   `LokalBot-<version>-linux-amd64.deb` (Debian, Ubuntu: `sudo apt install ./LokalBot-…deb`),
   `LokalBot-<version>-linux-x86_64.rpm` (Fedora, openSUSE: `sudo dnf install ./LokalBot-…rpm`) and

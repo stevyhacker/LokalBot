@@ -476,13 +476,18 @@ actor ParakeetEngine: TranscriptionEngine {
         await ModelRuntimeRegistry.shared.unregister(id: variant.runtimeID)
     }
 
+    nonisolated static func languageHint(_ language: String?, variant: Variant) throws -> Language? {
+        if variant == .v2 { try TranscriptionModelChoice.parakeetV2.validateLanguage(language) }
+        return language.flatMap { Language(rawValue: $0) }
+    }
+
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        let hint = try Self.languageHint(language, variant: variant)
         activeUses += 1
         defer { finishUse() }
         try await prepare()
         guard let manager else { throw TranscriptionEngineError.notLoaded }
         var state = try TdtDecoderState()
-        let hint = language.flatMap { Language(rawValue: $0) }
         let result = try await manager.transcribe(url, decoderState: &state, language: hint)
         let transcript = Transcript(segments: Self.segments(from: result, speaker: "speaker"),
                                     engine: variant.transcriptEngine)
@@ -660,10 +665,7 @@ actor WhisperEngine: TranscriptionEngine {
         let promptTokens = TranscriptionPrompt.normalized(prompt).flatMap { context in
             pipe.tokenizer?.encode(text: " " + context)
         }
-        let options = DecodingOptions(
-            language: language,
-            detectLanguage: language == nil,
-            promptTokens: promptTokens)
+        let options = Self.decodingOptions(language: language, promptTokens: promptTokens)
         let results = try await pipe.transcribe(audioPath: url.path, decodeOptions: options)
         let segments = results.flatMap(\.segments).map { seg in
             Transcript.Segment(start: TimeInterval(seg.start), end: TimeInterval(seg.end),
@@ -673,6 +675,10 @@ actor WhisperEngine: TranscriptionEngine {
                                timingPrecision: .span)
         }.filter { !$0.text.isEmpty }
         return Transcript(segments: segments, engine: "whisper-large-v3-turbo (WhisperKit)")
+    }
+
+    nonisolated static func decodingOptions(language: String?, promptTokens: [Int]? = nil) -> DecodingOptions {
+        DecodingOptions(language: language, detectLanguage: language == nil, promptTokens: promptTokens)
     }
 
     private func finishUse() {
@@ -743,6 +749,7 @@ actor CohereEngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        try TranscriptionModelChoice.cohere.validateLanguage(language)
         activeUses += 1
         defer { finishUse() }
         try await prepare()

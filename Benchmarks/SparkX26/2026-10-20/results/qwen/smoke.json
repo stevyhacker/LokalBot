@@ -1,0 +1,68 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "4"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 2,
+    "prompt_tokens": 25,
+    "total_tokens": 27,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 25,
+    "prompt_ms": 172.421,
+    "prompt_per_token_ms": 6.89684,
+    "prompt_per_second": 144.99393925333922,
+    "predicted_n": 2,
+    "predicted_ms": 55.759,
+    "predicted_per_token_ms": 55.759,
+    "predicted_per_second": 17.93432450366757
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "4"
+        }
+      }
+    ],
+    "created": 1792527595,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 2,
+      "prompt_tokens": 25,
+      "total_tokens": 27,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-zPejQSrjr71GYXPxt03fAPK2diW7CNu3",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 25,
+      "prompt_ms": 172.421,
+      "prompt_per_token_ms": 6.89684,
+      "prompt_per_second": 144.99393925333922,
+      "predicted_n": 2,
+      "predicted_ms": 55.759,
+      "predicted_per_token_ms": 55.759,
+      "predicted_per_second": 17.93432450366757
+    }
+  },
+  "wall_seconds": 0.22971735103055835,
+  "memory": {
+    "samples": 1,
+    "peak_rss_bytes": 5417975808,
+    "peak_physical_footprint_bytes": null
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-00000017-1",
+      "schemaVersion": 2,
+      "text": "Gate launch announcements on the CDN serving the new build.",
+      "citations": [
+        {
+          "meetingID": "00000017-0000-4000-8000-000000000017",
+          "segmentID": "segment-0002-0000042000-0000060000",
+          "start": 42,
+          "end": 60,
+          "speaker": "me",
+          "excerpt": "Next launch we gate the announcement on a checksum check against the CDN."
+        }
+      ]
+    }
+  ],
+  "openQuestions": []
+}

@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "scope": "tiny random checkpoint; not model accuracy",
+  "max_absolute_differences": {
+    "prefill_logits": 0.0,
+    "cached_decode_logits": 0.0,
+    "memory_commit_layer_3": 0.0,
+    "memory_read_logits": 0.0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
+  "cpu": "AMD Ryzen 7 9700X, 8 physical cores, 16 threads",
+  "ram_gib": 62,
+  "load_average": [
+    6.96826171875,
+    3.28857421875,
+    2.6318359375
+  ],
+  "runtime_version": "version: 0.6.0-dev (build 0, commit unknown)\nbuilt with GNU 13.3.0 for Linux x86_64\n",
+  "compile_flags": {
+    "build_type": "Release",
+    "GGML_NATIVE": true,
+    "GGML_CUDA": false,
+    "GGML_BLAS": false,
+    "GGML_OPENMP": true
+  },
+  "note": "Existing remote source archive SHA256 matches the repository b11474 pin. Linux CPU binary; not the bundled macOS Metal binary."
+}

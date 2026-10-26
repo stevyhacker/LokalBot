@@ -1,0 +1,24 @@
+Validation UTC: 2026-10-23T08:50:39.049402+00:00
+test_correct (test_score.ScoreChecks.test_correct) ... ok
+test_dataset (test_score.ScoreChecks.test_dataset) ... ok
+test_duplicate (test_score.ScoreChecks.test_duplicate) ... ok
+test_empty_does_not_imply_recall (test_score.ScoreChecks.test_empty_does_not_imply_recall) ... ok
+test_error_never_clean_empty (test_score.ScoreChecks.test_error_never_clean_empty) ... ok
+test_invalid_review_source_fails (test_score.ScoreChecks.test_invalid_review_source_fails) ... ok
+test_invalid_schema (test_score.ScoreChecks.test_invalid_schema) ... ok
+test_kind_error (test_score.ScoreChecks.test_kind_error) ... ok
+test_missing_review_fails (test_score.ScoreChecks.test_missing_review_fails) ... ok
+test_mixed_exclusion_can_recall_and_fail (test_score.ScoreChecks.test_mixed_exclusion_can_recall_and_fail) ... ok
+test_negated_anchor_needs_review (test_score.ScoreChecks.test_negated_anchor_needs_review) ... ok
+test_wrong_handle (test_score.ScoreChecks.test_wrong_handle) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.003s
+
+OK
+
+PASS: 480 responses, 398 reviewed items, frozen inputs, pinned weights/runtime, score aggregation and chart CSV.
+
+PASS: local Markdown artifact links; 480 normal completions; no transport errors, truncation or nonempty reasoning; context/output limits respected.
+VISUAL REVIEW: both final PNGs inspected; corrected header spacing; direct labels and denominator counts checked; English/Serbian share count scale; SVGs exported from the same figure code.
+Scope: no app build/installation/release; no publication or Reddit posting. Full application source snapshot remained local.

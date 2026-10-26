@@ -643,6 +643,7 @@ mod tests {
                 client,
                 process: None,
                 lease: None,
+                relay: None,
                 capability: None,
                 endpoint: LlmEndpoint {
                     base_url: "http://127.0.0.1:17872/v1".into(),
@@ -650,6 +651,8 @@ mod tests {
                     context_tokens: 32_768,
                     api_key: None,
                     reasoning_dialect: ReasoningDialect::LlamaServer,
+                    api: Default::default(),
+                    plan: None,
                 },
                 reports_session_file: false,
             }));

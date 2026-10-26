@@ -161,8 +161,12 @@ impl SettingsPage {
             )
             .into_any_element(),
             (false, None) => {
-                let size =
-                    models::size_label(missing.iter().map(|id| models::model_bytes(id)).sum());
+                let size = models::size_label(
+                    missing
+                        .iter()
+                        .map(|id| models::model_bytes(id, &settings))
+                        .sum(),
+                );
                 let download_data = data.clone();
                 let ids = missing.clone();
                 h_flex()

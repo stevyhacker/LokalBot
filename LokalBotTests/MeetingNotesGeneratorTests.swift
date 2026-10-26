@@ -1196,7 +1196,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
 
         config.openAIBaseURL = "https://api.openai.com/v1"
         for (model, window) in [("gpt-5.4-mini", 128_000), ("gpt-4.1-mini", 1_000_000), ("gpt-4o", 128_000),
-                                ("o4-mini", 128_000), ("gpt-3.5-turbo", 16_384)] {
+                                ("o4-mini", 128_000), ("gpt-6.1-sol", 922_000), ("gpt-3.5-turbo", 16_384)] {
             config.openAIModel = model
             XCTAssertEqual(MeetingSummaryGenerator.contextTokenLimit(for: config), window, model)
         }

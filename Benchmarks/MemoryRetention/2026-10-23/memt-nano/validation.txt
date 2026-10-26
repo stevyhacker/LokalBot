@@ -1,0 +1,1 @@
+PASS: original frozen inputs unchanged; 120 added responses; 73 reviewed proposals; pinned checkpoint and adapter; validated smoke; matching score aggregates and ten chart rows.

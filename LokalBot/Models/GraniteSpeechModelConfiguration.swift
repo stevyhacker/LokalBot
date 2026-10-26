@@ -114,6 +114,12 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
 
     var supportsVocabularyPrompt: Bool { repository == Self.speech5.repository }
 
+    /// The picker choice this configuration runs under, so language errors
+    /// name the selected Granite model.
+    var transcriptionChoice: TranscriptionModelChoice {
+        repository == Self.speech5.repository ? .graniteSpeech5 : .graniteSpeech
+    }
+
     var quantization: String {
         let leaf = (model.path as NSString).lastPathComponent
         let stem = (leaf as NSString).deletingPathExtension

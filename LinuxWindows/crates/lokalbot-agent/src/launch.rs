@@ -6,7 +6,9 @@
 //! `PI_SKIP_VERSION_CHECK`, since pi ships update checks and install
 //! telemetry on by default). Context files are disabled because pi's upward
 //! discovery is not confined to the working folder; workspace files stay
-//! readable through the read tool, which the extension gates.
+//! readable through the read tool, which the extension gates. LokalBot's own
+//! system prompt replaces pi's coding-agent prompt; the extension appends the
+//! per-run environment.
 //!
 //! Additions on Linux and Windows: Bun runs with `--no-install` so a missing
 //! import can never be fetched from npm at run time; Bun's transpiler cache
@@ -42,14 +44,36 @@ pub enum SessionChoice {
     Saved(PathBuf),
 }
 
+/// What the working folder is, for the extension's environment prompt section
+/// (`AgentWorkspaceKind` in `PiLaunchPlanner.swift`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WorkspaceKind {
+    /// The app's own Agent Workspace.
+    AgentWorkspace,
+    /// A folder the user picked.
+    ChosenFolder,
+}
+
+impl WorkspaceKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::AgentWorkspace => "agent-workspace",
+            Self::ChosenFolder => "chosen-folder",
+        }
+    }
+}
+
 pub struct PlanInputs<'a> {
     pub bun: &'a Path,
     pub pi_cli: &'a Path,
     pub extension_dir: &'a Path,
     pub skill_dir: Option<&'a Path>,
+    /// Replaces pi's default system prompt (`--system-prompt`).
+    pub system_prompt: Option<&'a Path>,
     pub session_dir: &'a Path,
     pub pi_config_dir: &'a Path,
     pub workspace: &'a Path,
+    pub workspace_kind: Option<WorkspaceKind>,
     pub library_root: &'a Path,
     pub endpoint: &'a LlmEndpoint,
     pub reasoning_level_file: Option<&'a Path>,
@@ -67,9 +91,12 @@ pub const ENV_BASE_URL: &str = "LOKALBOT_LLM_BASE_URL";
 pub const ENV_MODEL: &str = "LOKALBOT_LLM_MODEL";
 pub const ENV_CONTEXT: &str = "LOKALBOT_LLM_CTX";
 pub const ENV_DIALECT: &str = "LOKALBOT_LLM_REASONING_DIALECT";
+pub const ENV_API: &str = "LOKALBOT_LLM_API";
+pub const ENV_SERVED_BY: &str = "LOKALBOT_LLM_SERVED_BY";
 pub const ENV_REASONING_FILE: &str = "LOKALBOT_LLM_REASONING_FILE";
 pub const ENV_PRIVATE_ROOTS: &str = "LOKALBOT_AGENT_PRIVATE_ROOTS";
 pub const ENV_API_KEY: &str = "LOKALBOT_LLM_API_KEY";
+pub const ENV_WORKSPACE_KIND: &str = "LOKALBOT_AGENT_WORKSPACE_KIND";
 
 pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
     let mut arguments = vec![
@@ -98,6 +125,10 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
         arguments.push("--skill".into());
         arguments.push(path_string(skill));
     }
+    if let Some(prompt) = inputs.system_prompt {
+        arguments.push("--system-prompt".into());
+        arguments.push(path_string(prompt));
+    }
     arguments.extend([
         "--no-prompt-templates".into(),
         "--no-context-files".into(),
@@ -125,12 +156,27 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
         ENV_DIALECT,
         Some(endpoint.reasoning_dialect.as_str().into()),
     );
+    set(&mut env, ENV_API, Some(endpoint.api.as_str().into()));
+    // A plan relay is on this computer; the model is not. The extension's
+    // environment section says who serves it.
+    set(
+        &mut env,
+        ENV_SERVED_BY,
+        endpoint
+            .plan
+            .map(|plan| format!("{} on the user's {}", plan.provider_name(), plan.title())),
+    );
     // The host rewrites this file when the reasoning level changes; the
     // extension reads it before every model request. Absent: Automatic.
     set(
         &mut env,
         ENV_REASONING_FILE,
         inputs.reasoning_level_file.map(path_string),
+    );
+    set(
+        &mut env,
+        ENV_WORKSPACE_KIND,
+        inputs.workspace_kind.map(|kind| kind.as_str().into()),
     );
     let roots: Vec<String> = inputs
         .private_roots
@@ -218,7 +264,8 @@ fn set(env: &mut BTreeMap<String, String>, key: &str, value: Option<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::endpoint::ReasoningDialect;
+    use crate::endpoint::{ProviderApi, ReasoningDialect};
+    use lokalbot_core::settings::SubscriptionPlan;
 
     struct Options {
         api_key: Option<String>,
@@ -229,6 +276,8 @@ mod tests {
         session: SessionChoice,
         reasoning_file: Option<PathBuf>,
         tools: Option<Vec<&'static str>>,
+        plan: Option<SubscriptionPlan>,
+        inherited_served_by: bool,
     }
 
     impl Default for Options {
@@ -242,6 +291,8 @@ mod tests {
                 session: SessionChoice::Fresh,
                 reasoning_file: None,
                 tools: None,
+                plan: None,
+                inherited_served_by: false,
             }
         }
     }
@@ -253,6 +304,9 @@ mod tests {
         if let Some(key) = options.inherited_key {
             base.insert(ENV_API_KEY.to_string(), key.to_string());
         }
+        if options.inherited_served_by {
+            base.insert(ENV_SERVED_BY.to_string(), "someone else".into());
+        }
         base.insert(
             lokalbot_core::access::CAPABILITY_ENV.to_string(),
             "inherited".into(),
@@ -263,6 +317,12 @@ mod tests {
             context_tokens: 16_384,
             api_key: options.api_key.clone(),
             reasoning_dialect: ReasoningDialect::LlamaServer,
+            api: if options.plan.is_some() {
+                ProviderApi::Responses
+            } else {
+                ProviderApi::ChatCompletions
+            },
+            plan: options.plan,
         };
         let private_roots = vec![PathBuf::from("/store"), PathBuf::from("/rt")];
         let tools = options.tools.clone();
@@ -273,9 +333,11 @@ mod tests {
             ),
             extension_dir: Path::new("/rt/lokalbot-extension"),
             skill_dir: options.skill.then_some(Path::new("/rt/lokalbot-cli-skill")),
+            system_prompt: Some(Path::new("/rt/lokalbot-system-prompt.md")),
             session_dir: Path::new("/store/agent/sessions"),
             pi_config_dir: Path::new("/store/agent/pi-config"),
             workspace: Path::new("/work"),
+            workspace_kind: Some(WorkspaceKind::AgentWorkspace),
             library_root: Path::new("/store"),
             endpoint: &endpoint,
             reasoning_level_file: options.reasoning_file.as_deref(),
@@ -307,6 +369,8 @@ mod tests {
                 "--no-skills",
                 "--skill",
                 "/rt/lokalbot-cli-skill",
+                "--system-prompt",
+                "/rt/lokalbot-system-prompt.md",
                 "--no-prompt-templates",
                 "--no-context-files",
                 "--no-approve",
@@ -328,6 +392,7 @@ mod tests {
         assert_eq!(env["PI_TELEMETRY"], "0");
         assert_eq!(env["BUN_RUNTIME_TRANSPILER_CACHE_PATH"], "0");
         assert_eq!(env["JITI_FS_CACHE"], "false");
+        assert_eq!(env[ENV_WORKSPACE_KIND], "agent-workspace");
         assert_eq!(env["PI_CODING_AGENT_DIR"], "/store/agent/pi-config");
         assert_eq!(env[lokalbot_core::paths::STORAGE_ROOT_ENV], "/store");
         let separator = if cfg!(windows) { ";" } else { ":" };
@@ -352,6 +417,29 @@ mod tests {
         let plain = make(Options::default()).environment;
         assert_eq!(plain[ENV_DIALECT], "llama-server");
         assert!(!plain.contains_key(ENV_REASONING_FILE));
+    }
+
+    #[test]
+    fn a_plan_relay_selects_the_responses_api_and_names_who_serves_it() {
+        let plain = make(Options {
+            inherited_served_by: true,
+            ..Options::default()
+        })
+        .environment;
+        assert_eq!(plain[ENV_API], "openai-completions");
+        assert!(
+            !plain.contains_key(ENV_SERVED_BY),
+            "a local model is never described as served by a plan"
+        );
+        let relayed = make(Options {
+            plan: Some(SubscriptionPlan::ChatGpt),
+            api_key: Some("relay-fixture-key".into()),
+            ..Options::default()
+        })
+        .environment;
+        assert_eq!(relayed[ENV_API], "openai-responses");
+        assert_eq!(relayed[ENV_SERVED_BY], "OpenAI on the user's ChatGPT plan");
+        assert_eq!(relayed[ENV_API_KEY], "relay-fixture-key");
     }
 
     #[test]

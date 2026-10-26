@@ -491,9 +491,9 @@ impl ThinkClient {
     /// The built-in model runs on the CPU build (no GPU found or chosen).
     pub fn runs_on_cpu(&self) -> bool {
         match &self.inner.backend {
-            Backend::BuiltIn { runtime, .. } => {
-                runtime.active_backend() != Some(crate::runtime::LlamaBackend::Vulkan)
-            }
+            Backend::BuiltIn { runtime, .. } => !runtime
+                .active_backend()
+                .is_some_and(crate::runtime::LlamaBackend::is_gpu),
             _ => false,
         }
     }
@@ -1007,6 +1007,16 @@ impl ReasoningSupport {
         if name == "gpt-5" || name.starts_with("gpt-5-") {
             return Self::new(&[Minimal, Low, Medium, High], Some(Medium));
         }
+        // GPT-6 adds Max and defaults to Medium. Sol and Luna also take
+        // `none`; 6.1 Sol and Astra reject it, so newer models get no Off.
+        // Astra documents no default (OpenAI's model pages, 26 October 2026).
+        if name == "gpt-6" || name.starts_with("gpt-6-") || name.starts_with("gpt-6.") {
+            if name.starts_with("gpt-6-sol") || name.starts_with("gpt-6-luna") {
+                return Self::new(&[Off, Low, Medium, High, Xhigh, Max], Some(Medium));
+            }
+            let default = (!name.starts_with("gpt-6-astra")).then_some(Medium);
+            return Self::new(&[Low, Medium, High, Xhigh, Max], default);
+        }
         Self::new(&[], None)
     }
 
@@ -1125,6 +1135,7 @@ fn is_openai_reasoning_model(model: &str) -> bool {
         || name.starts_with("o3")
         || name.starts_with("o4")
         || name.starts_with("gpt-5")
+        || name.starts_with("gpt-6")
 }
 
 // ------------------------------------------------------------- chat bodies
@@ -2302,6 +2313,55 @@ mod tests {
             Dialect::inferred("http://localhost:1234/v1"),
             Dialect::Generic
         );
+    }
+
+    /// OpenAI's model pages on 26 October 2026. GPT-6 models used to have no
+    /// levels, so a chosen level never reached the request.
+    #[test]
+    fn gpt_6_models_offer_their_documented_levels() {
+        use ReasoningLevel::*;
+        let up_to_max = vec![Low, Medium, High, Xhigh, Max];
+        let known = |model| ReasoningSupport::known(Dialect::OpenAi, "", model);
+        let sol = known("GPT-6.1-Sol");
+        assert_eq!(sol, ReasoningSupport::new(&up_to_max, Some(Medium)));
+        assert_eq!(sol.request_level(High, None), Some(High));
+        assert_eq!(
+            sol.request_level(High, Some(0)),
+            Some(Low),
+            "6.1 Sol rejects none"
+        );
+        for model in ["gpt-6-sol", "gpt-6-luna"] {
+            let support = known(model);
+            assert_eq!(support.levels[0], Off, "{model}");
+            assert_eq!(support.levels[1..], up_to_max[..], "{model}");
+            assert_eq!(support.default_level, Some(Medium), "{model}");
+        }
+        assert_eq!(
+            known("gpt-6-astra"),
+            ReasoningSupport::new(&up_to_max, None)
+        );
+        assert_eq!(
+            known("gpt-6.2-sol").levels,
+            up_to_max,
+            "a newer GPT-6 model gets no Off"
+        );
+
+        let settings = Settings {
+            summarizer_backend: SummarizerBackend::ChatGptPlan,
+            chatgpt_plan_model: "gpt-6.1-sol".into(),
+            ..Settings::default()
+        };
+        assert_eq!(reasoning_choices(&settings), (up_to_max, Some(Medium)));
+        assert_eq!(plans::chatgpt::context_tokens("gpt-6.1-sol"), 922_000);
+
+        // OpenAI's API treats GPT-6 as a reasoning model: no temperature, and
+        // Automatic maps a task's budget onto an effort.
+        let request = ChatRequest::new("s", "u")
+            .temperature(0.3)
+            .reasoning_budget(1_024);
+        let body = chat_body(Dialect::OpenAi, "gpt-6.1-sol", &request, None, None, &[]);
+        assert!(body.get("temperature").is_none());
+        assert_eq!(body["reasoning_effort"], "medium");
     }
 
     #[test]
