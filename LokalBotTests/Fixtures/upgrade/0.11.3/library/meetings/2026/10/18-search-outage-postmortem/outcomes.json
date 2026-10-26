@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000008-1",
+      "schemaVersion": 2,
+      "text": "Fold versioned keys into the eviction-policy doc",
+      "citations": [
+        {
+          "meetingID": "00000008-0000-4000-8000-000000000008",
+          "segmentID": "segment-0002-0000036000-0000054000",
+          "start": 36,
+          "end": 54,
+          "speaker": "me",
+          "excerpt": "Fix is versioned keys \u2014 and this feeds straight into the Redis eviction-policy doc."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-00000008-1",
+      "schemaVersion": 2,
+      "text": "Cache keys carry the index version from now on.",
+      "citations": [
+        {
+          "meetingID": "00000008-0000-4000-8000-000000000008",
+          "segmentID": "segment-0001-0000018000-0000036000",
+          "start": 18,
+          "end": 36,
+          "speaker": "them",
+          "excerpt": "Root cause was the cache key not including the index version."
+        }
+      ]
+    }
+  ],
+  "openQuestions": []
+}

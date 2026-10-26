@@ -4,7 +4,7 @@ members = ["crates/*"]
 default-members = ["crates/lokalbot-app", "crates/lokalbot-cli"]
 
 [workspace.package]
-version = "0.11.3"
+version = "0.11.4"
 edition = "2024"
 license = "GPL-3.0-only"
 publish = false
