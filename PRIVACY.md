@@ -89,7 +89,10 @@ output, file contents, reasoning, and instructions the agents inject are not
 kept, and detected credentials are redacted. Subagent sessions and sessions in
 folders you exclude are skipped. Sessions that read LokalBot's library through
 its CLI or MCP keep no reply text. Work is saved after ten quiet minutes, joins
-the day digest, and follows the screen-text retention above. Turning the
+the day digest, and follows the screen-text retention above. The Timeline also
+uses saved records, on this Mac and without a model, to name work sessions by
+project and task, split tracked time by project, and list each session's
+requests, pull requests, and commits. Turning the
 setting off stops reading and keeps saved records; **Delete saved agent
 sessions** removes them and withdraws unedited journals that used them.
 

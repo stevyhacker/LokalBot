@@ -1452,3 +1452,15 @@
 "Dismiss all suggestions?" = "Dismiss all suggestions?";
 "LokalBot won't suggest them again." = "LokalBot won't suggest them again.";
 "Open in %@" = "Open in %@";
+"%lld project" = "%lld project";
+"%lld projects" = "%lld projects";
+"Other projects" = "Other projects";
+"%lld PR opened" = "%lld PR opened";
+"%lld PRs opened" = "%lld PRs opened";
+"%lld merged" = "%lld merged";
+"%lld commit" = "%lld commit";
+"%lld commits" = "%lld commits";
+"Agent work" = "Agent work";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "What you asked Claude Code and Codex during this session, and what they recorded doing.";
+"Merged #%lld" = "Merged #%lld";
+"Merged a pull request" = "Merged a pull request";

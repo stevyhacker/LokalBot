@@ -10,8 +10,13 @@ import Combine
 final class CaptureModel: ObservableObject {
     @Published private(set) var day = Date()
     @Published var blocks: [ActivityBlock] = [] {
-        didSet { workSessions = DayActivityProjection(blocks: blocks, day: day).sessions }
+        didSet { refreshProjection() }
     }
+    /// The day's settled coding-agent bursts. Set before `blocks`, whose
+    /// change recomputes the sessions from both.
+    @Published private(set) var agentBursts: [CodingAgentBurst] = []
+    /// Tracked time by project; empty without coding-agent evidence.
+    @Published private(set) var projectSplit = TimelineProjectAttribution.DaySplit()
     @Published var shots: [ActivityStore.Screenshot] = []
     @Published private(set) var rewindFrames: [ScreenRewindFrame] = []
     @Published var selection: ActivityBlock.ID?
@@ -37,6 +42,18 @@ final class CaptureModel: ObservableObject {
     }
 
     @Published private(set) var workSessions: [TimelineWorkSession] = []
+
+    private func refreshProjection() {
+        let projection = DayActivityProjection(blocks: blocks, day: day, agentBursts: agentBursts)
+        workSessions = projection.sessions
+        projectSplit = projection.attribution.split(of: blocks)
+    }
+
+    /// What the day's agents recorded, scheduled runs left out like in the
+    /// sessions.
+    var dayOutcomes: TimelineAgentOutcomes {
+        TimelineAgentOutcomes(agentBursts.filter { !$0.isScheduledRun })
+    }
 
     var selectedSession: TimelineWorkSession? {
         guard let selectedSessionID else { return nil }
@@ -76,7 +93,7 @@ final class CaptureModel: ObservableObject {
         generating = false
         selectedSnapshotID = nil
         day = value
-        blocks = []; shots = []; rewindFrames = []
+        agentBursts = []; blocks = []; shots = []; rewindFrames = []
         digest = nil; digestUpdatedAt = nil; latestDigestEvidenceAt = nil
         selection = nil; selectedSessionID = nil
         reload(app: app)
@@ -113,9 +130,11 @@ final class CaptureModel: ObservableObject {
         overviewTask = Task { @MainActor in
             let snapshot = await ActivityStore.readInBackground(at: url) { store in
                 let shots = store.screenshots(on: requestedDay, includingTextOnly: true)
-                return (store.blocks(on: requestedDay), shots, loadDigest(store))
+                return (store.blocks(on: requestedDay), shots, loadDigest(store),
+                        store.codingAgentBursts(on: requestedDay))
             }
             guard !Task.isCancelled, generation == overviewGeneration else { return }
+            agentBursts = snapshot.3
             blocks = snapshot.0
             shots = snapshot.1
             rewindFrames = ScreenRewindSequence.frames(from: snapshot.1)
@@ -655,16 +674,27 @@ struct TimelineOverviewAndSessions: View {
 }
 
 /// Tracked time as the one large number, the day's counts beneath it, and the
-/// split by app. Nothing shows for a day without activity: the sessions list
-/// explains that.
+/// split by project, or by app on a day without coding-agent evidence.
+/// Nothing shows for a day without activity: the sessions list explains that.
 private struct TimelineDayTotals: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
 
+    /// One legend entry and bar segment.
+    struct Row: Identifiable {
+        enum Kind { case app, otherApps, project, otherProjects, otherActivity }
+        let label: String
+        let seconds: TimeInterval
+        let kind: Kind
+        var id: String { "\(kind)-\(label)" }
+    }
+
     var body: some View {
         let perApp = DayActivityOverview.perApp(model.blocks)
+        let split = model.projectSplit
         let meetingCount = model.meetings(in: app).count
         if !perApp.isEmpty || meetingCount > 0 {
+            let rows = split.projects.isEmpty ? Self.appRows(perApp) : Self.projectRows(split)
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -674,15 +704,26 @@ private struct TimelineDayTotals: View {
                             .font(AppFont.scaled(.body))
                             .foregroundStyle(.secondary)
                     }
-                    countsLine(appCount: perApp.count, meetingCount: meetingCount)
+                    countsLine(appCount: perApp.count, projectCount: split.projects.count,
+                               meetingCount: meetingCount)
                         .font(AppFont.scaled(.callout))
                         .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
                 }
-                if !perApp.isEmpty {
-                    ProportionBar(segments: ProportionBarMath.segments(perApp: perApp).map {
-                        ($0, $0.label == "Other" ? Color.gray : CaptureStyle.color(for: $0.label))
-                    }, height: 8)
-                    legend(AppTimePresentation.rows(perApp: perApp))
+                if !rows.isEmpty {
+                    ProportionBar(segments: split.projects.isEmpty
+                                  ? Self.appSegments(perApp) : Self.segments(rows), height: 8)
+                    legend(rows)
+                }
+                if let outcomes = TimelineOutcomeText.text(model.dayOutcomes) {
+                    Label {
+                        outcomes
+                    } icon: {
+                        Image(systemName: "arrow.triangle.merge")
+                            .foregroundStyle(LBTokens.Palette.accentText)
+                    }
+                    .font(AppFont.scaled(.callout))
+                    .foregroundStyle(Color(nsColor: WorkspaceTextColor.supporting))
+                    .accessibilityIdentifier("timeline.dayOutcomes")
                 }
             }
             .accessibilityElement(children: .contain)
@@ -690,29 +731,86 @@ private struct TimelineDayTotals: View {
         }
     }
 
+    static func appRows(_ perApp: [(label: String, seconds: TimeInterval)]) -> [Row] {
+        AppTimePresentation.rows(perApp: perApp).map {
+            Row(label: $0.label, seconds: $0.seconds, kind: $0.isOther ? .otherApps : .app)
+        }
+    }
+
+    /// The four busiest projects, the rest folded together, then the time no
+    /// project claims.
+    static func projectRows(_ split: TimelineProjectAttribution.DaySplit, cap: Int = 4) -> [Row] {
+        var rows: [Row] = []
+        var otherSeconds: TimeInterval = 0
+        for share in split.projects {
+            if rows.count < cap, share.seconds >= 60 {
+                rows.append(Row(label: share.project, seconds: share.seconds, kind: .project))
+            } else {
+                otherSeconds += share.seconds
+            }
+        }
+        if otherSeconds >= 60 {
+            rows.append(Row(label: "Other projects", seconds: otherSeconds, kind: .otherProjects))
+        }
+        if split.unattributedSeconds >= 60 {
+            rows.append(Row(label: "Other activity", seconds: split.unattributedSeconds, kind: .otherActivity))
+        }
+        return rows
+    }
+
+    private static func appSegments(
+        _ perApp: [(label: String, seconds: TimeInterval)]
+    ) -> [(segment: ProportionBarMath.Segment, color: Color)] {
+        ProportionBarMath.segments(perApp: perApp).map {
+            ($0, $0.label == "Other" ? Color.gray : CaptureStyle.color(for: $0.label))
+        }
+    }
+
+    private static func segments(_ rows: [Row]) -> [(segment: ProportionBarMath.Segment, color: Color)] {
+        let total = rows.reduce(0) { $0 + $1.seconds }
+        guard total > 0 else { return [] }
+        return rows.map { row in
+            (ProportionBarMath.Segment(label: row.label, fraction: row.seconds / total), color(for: row))
+        }
+    }
+
+    static func color(for row: Row) -> Color {
+        switch row.kind {
+        case .app, .project: CaptureStyle.color(for: row.label)
+        case .otherProjects: Color.gray.opacity(0.55)
+        case .otherApps, .otherActivity: Color.gray
+        }
+    }
+
     /// Each count is its own catalog entry, so every language words it.
-    private func countsLine(appCount: Int, meetingCount: Int) -> Text {
+    private func countsLine(appCount: Int, projectCount: Int, meetingCount: Int) -> Text {
         let sessionCount = model.workSessions.count
         var parts = [Text(sessionCount == 1 ? "\(sessionCount) work session" : "\(sessionCount) work sessions")]
         if meetingCount > 0 {
             parts.append(Text(meetingCount == 1 ? "\(meetingCount) meeting" : "\(meetingCount) meetings"))
         }
-        parts.append(Text(appCount == 1 ? "\(appCount) app" : "\(appCount) apps"))
+        if projectCount > 0 {
+            parts.append(Text(projectCount == 1 ? "\(projectCount) project" : "\(projectCount) projects"))
+        } else {
+            parts.append(Text(appCount == 1 ? "\(appCount) app" : "\(appCount) apps"))
+        }
         return parts.dropFirst().reduce(parts[0]) { $0 + Text(verbatim: " · ") + $1 }
     }
 
-    /// Two columns, each app's time flush right so the numbers line up.
-    private func legend(_ rows: [AppTimePresentation.Row]) -> some View {
+    /// Two columns, each entry's time flush right so the numbers line up.
+    /// App and project names are shown as captured; the folded entries are
+    /// interface copy.
+    private func legend(_ rows: [Row]) -> some View {
         let pairs = stride(from: 0, to: rows.count, by: 2).map {
             Array(rows[$0..<min($0 + 2, rows.count)])
         }
         return Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
             ForEach(pairs.indices, id: \.self) { index in
                 GridRow {
-                    ForEach(pairs[index], id: \.label) { row in
+                    ForEach(pairs[index]) { row in
                         HStack(spacing: 7) {
-                            StatusDot(color: row.isOther ? .gray : CaptureStyle.color(for: row.label), size: 7)
-                            Text(row.label).lineLimit(1)
+                            StatusDot(color: Self.color(for: row), size: 7)
+                            label(row).lineLimit(1)
                             Spacer(minLength: 6)
                             Text(CaptureStyle.hm(row.seconds))
                                 .monospacedDigit()
@@ -724,6 +822,34 @@ private struct TimelineDayTotals: View {
             }
         }
         .font(AppFont.scaled(.callout))
+    }
+
+    private func label(_ row: Row) -> Text {
+        switch row.kind {
+        case .app, .otherApps, .project: Text(verbatim: row.label)
+        case .otherProjects: Text("Other projects")
+        case .otherActivity: Text("Other activity")
+        }
+    }
+}
+
+/// "3 PRs opened · 1 merged", or the commits when no pull request moved.
+/// Each count is its own catalog entry, so every language words it.
+enum TimelineOutcomeText {
+    static func text(_ outcomes: TimelineAgentOutcomes) -> Text? {
+        var parts: [Text] = []
+        let opened = outcomes.openedPullRequests.count
+        if opened > 0 {
+            parts.append(Text(opened == 1 ? "\(opened) PR opened" : "\(opened) PRs opened"))
+        }
+        let merged = outcomes.mergedPullRequests
+        if merged > 0 { parts.append(Text("\(merged) merged")) }
+        let commits = outcomes.commits
+        if parts.isEmpty, commits > 0 {
+            parts.append(Text(commits == 1 ? "\(commits) commit" : "\(commits) commits"))
+        }
+        guard let first = parts.first else { return nil }
+        return parts.dropFirst().reduce(first) { $0 + Text(verbatim: " · ") + $1 }
     }
 }
 
@@ -1022,20 +1148,34 @@ private struct TimelineWorkSessionRow: View {
     @State private var hovering = false
 
     var body: some View {
+        let outcomes = TimelineOutcomeText.text(session.outcomes)
         Button(action: onSelect) {
-            HStack(spacing: metrics.spacing) {
+            HStack(alignment: .firstTextBaseline, spacing: metrics.spacing) {
                 TimelineRailTime(date: session.start, metrics: metrics)
-                TimelineRailDot(color: CaptureStyle.color(for: session.primaryApp), metrics: metrics)
-                // A title that only lists apps stays quieter than one that
-                // names what was open.
-                Text(session.title)
-                    .font(session.titleNamesApps ? TimelineRailStyle.title : TimelineRailStyle.titleEmphasis)
-                    .foregroundStyle(session.titleNamesApps
-                        ? AnyShapeStyle(Color(nsColor: WorkspaceTextColor.supporting))
-                        : AnyShapeStyle(.primary))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                // A project session takes its project's color, so the rail
+                // and the day's split read together.
+                TimelineRailDot(color: CaptureStyle.color(for: session.project ?? session.primaryApp),
+                                metrics: metrics)
+                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+                VStack(alignment: .leading, spacing: 2) {
+                    // A title that only lists apps stays quieter than one that
+                    // names what was open.
+                    Text(session.title)
+                        .font(session.titleNamesApps && !session.titleNamesProject
+                              ? TimelineRailStyle.title : TimelineRailStyle.titleEmphasis)
+                        .foregroundStyle(session.titleNamesApps && !session.titleNamesProject
+                            ? AnyShapeStyle(Color(nsColor: WorkspaceTextColor.supporting))
+                            : AnyShapeStyle(.primary))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    if let outcomes {
+                        outcomes
+                            .font(TimelineRailStyle.detail.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Text(CaptureStyle.hm(session.activeDuration))
                     .font(TimelineRailStyle.detailEmphasis.monospacedDigit())
                     .foregroundStyle(.secondary)
@@ -1050,7 +1190,8 @@ private struct TimelineWorkSessionRow: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help(helpText)
-        .accessibilityLabel("Work session, \(session.title)")
+        .accessibilityLabel(outcomes.map { Text("Work session, \(session.title)") + Text(verbatim: ", ") + $0 }
+            ?? Text("Work session, \(session.title)"))
         .accessibilityValue("\(session.start.formatted(date: .omitted, time: .shortened)) to \(session.end.formatted(date: .omitted, time: .shortened)), \(CaptureStyle.hm(session.activeDuration)), \(session.appCount) apps, \(sceneCount) context scenes\(isSelected ? ", selected" : "")")
         .accessibilityHint("Show this work session in the context panel")
         .accessibilityIdentifier("timeline.session.\(session.id)")

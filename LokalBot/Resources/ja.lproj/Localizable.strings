@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "すべての提案を却下しますか？";
 "LokalBot won't suggest them again." = "LokalBotはこれらを再び提案しません。";
 "Open in %@" = "%@ で開く";
+"%lld project" = "プロジェクト %lld 件";
+"%lld projects" = "プロジェクト %lld 件";
+"Other projects" = "その他のプロジェクト";
+"%lld PR opened" = "PR %lld 件をオープン";
+"%lld PRs opened" = "PR %lld 件をオープン";
+"%lld merged" = "マージ %lld 件";
+"%lld commit" = "コミット %lld 件";
+"%lld commits" = "コミット %lld 件";
+"Agent work" = "エージェントの作業";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "このセッション中に Claude Code と Codex に依頼した内容と、記録されている実行内容です。";
+"Merged #%lld" = "#%lld をマージ";
+"Merged a pull request" = "プルリクエストをマージ";

@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "忽略所有建議？";
 "LokalBot won't suggest them again." = "LokalBot 不會再建議這些內容。";
 "Open in %@" = "在 %@ 中打開";
+"%lld project" = "%lld 個專案";
+"%lld projects" = "%lld 個專案";
+"Other projects" = "其他專案";
+"%lld PR opened" = "已開啟 %lld 個 PR";
+"%lld PRs opened" = "已開啟 %lld 個 PR";
+"%lld merged" = "已合併 %lld 個";
+"%lld commit" = "%lld 次提交";
+"%lld commits" = "%lld 次提交";
+"Agent work" = "智慧體工作";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "你在此工作時段向 Claude Code 和 Codex 提出的要求，以及記錄到的操作。";
+"Merged #%lld" = "已合併 #%lld";
+"Merged a pull request" = "已合併提取要求";

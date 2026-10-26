@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Abaikan semua saran?";
 "LokalBot won't suggest them again." = "LokalBot tidak akan menyarankannya lagi.";
 "Open in %@" = "Buka di %@";
+"%lld project" = "%lld proyek";
+"%lld projects" = "%lld proyek";
+"Other projects" = "Proyek lain";
+"%lld PR opened" = "%lld PR dibuka";
+"%lld PRs opened" = "%lld PR dibuka";
+"%lld merged" = "digabungkan: %lld";
+"%lld commit" = "%lld commit";
+"%lld commits" = "%lld commit";
+"Agent work" = "Pekerjaan agen";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Apa yang Anda minta dari Claude Code dan Codex selama sesi ini, dan apa yang tercatat mereka lakukan.";
+"Merged #%lld" = "#%lld digabungkan";
+"Merged a pull request" = "Pull request digabungkan";

@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Sallame duk shawarwari?";
 "LokalBot won't suggest them again." = "LokalBot ba zai sake ba da shawarar su ba.";
 "Open in %@" = "Buɗe a %@";
+"%lld project" = "Aiki %lld";
+"%lld projects" = "Ayyuka %lld";
+"Other projects" = "Wasu ayyuka";
+"%lld PR opened" = "PR %lld an buɗe";
+"%lld PRs opened" = "PR %lld an buɗe";
+"%lld merged" = "an haɗa: %lld";
+"%lld commit" = "Commit %lld";
+"%lld commits" = "Commit %lld";
+"Agent work" = "Aikin wakilai";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Abin da ka nema daga Claude Code da Codex a wannan zama, da abin da aka rubuta cewa sun yi.";
+"Merged #%lld" = "An haɗa #%lld";
+"Merged a pull request" = "An haɗa pull request";

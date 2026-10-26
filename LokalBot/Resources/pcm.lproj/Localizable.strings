@@ -1453,3 +1453,15 @@
 "Dismiss all suggestions?" = "Dismiss all di suggestions?";
 "LokalBot won't suggest them again." = "LokalBot no go suggest dem again.";
 "Open in %@" = "Open for %@";
+"%lld project" = "%lld project";
+"%lld projects" = "%lld projects";
+"Other projects" = "Other projects";
+"%lld PR opened" = "%lld PR don open";
+"%lld PRs opened" = "%lld PRs don open";
+"%lld merged" = "%lld don merge";
+"%lld commit" = "%lld commit";
+"%lld commits" = "%lld commits";
+"Agent work" = "Agent work";
+"What you asked Claude Code and Codex during this session, and what they recorded doing." = "Wetin you ask Claude Code and Codex for dis session, and wetin dem record say dem do.";
+"Merged #%lld" = "Don merge #%lld";
+"Merged a pull request" = "Pull request don merge";
