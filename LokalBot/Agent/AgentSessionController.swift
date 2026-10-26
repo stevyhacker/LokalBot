@@ -30,6 +30,9 @@ final class AgentSessionController: ObservableObject {
             case .builtIn(let modelID):
                 name = ModelCatalog.entry(id: modelID, custom: settings.customBuiltInModels)?.displayName ?? modelID
                 destination = .onDevice
+            case .chatGPTPlan(let model):
+                name = model
+                destination = .remote(host: SubscriptionPlan.chatGPT.title)
             case .unsupported(let reason):
                 name = settings.thinkModelDisplayName
                 destination = .blocked(reason: reason)
@@ -40,8 +43,13 @@ final class AgentSessionController: ObservableObject {
             name = settings.summarizerBackend == .builtIn
                 ? ModelCatalog.entry(id: endpoint.model, custom: settings.customBuiltInModels)?.displayName ?? endpoint.model
                 : endpoint.model
-            destination = InferenceEndpointPolicy.isLoopback(endpoint.baseURL)
-                ? .onDevice : .remote(host: endpoint.baseURL.host ?? "configured server")
+            // A plan relay listens on this Mac; the plan's provider answers.
+            if let plan = endpoint.plan {
+                destination = .remote(host: plan.title)
+            } else {
+                destination = InferenceEndpointPolicy.isLoopback(endpoint.baseURL)
+                    ? .onDevice : .remote(host: endpoint.baseURL.host ?? "configured server")
+            }
         }
     }
 
@@ -68,6 +76,7 @@ final class AgentSessionController: ObservableObject {
     @Published var composerError: String?
     private var lastSubmittedPrompt: AgentQueuedPrompt?
     private var connectedEndpoint: URL?
+    private var connectedPlan: SubscriptionPlan?
     private var queueDispatchTask: Task<Void, Never>?
     @Published var visibleTranscriptID: String?
     var contextResolver: AgentContextResolver { .init(root: storage.rootURL) }
@@ -127,6 +136,9 @@ final class AgentSessionController: ObservableObject {
     /// failure, so the Main LLM cannot be evicted mid-conversation by an
     /// unrelated model load.
     private var llmLease: InferenceLease?
+    /// Runs from resolveEndpoint (ChatGPT plan only) until shutdown or
+    /// failure, like the lease.
+    private var planRelay: ChatGPTPlanRelay?
     private var accessCapability: AgentAccessCapability?
     /// The extension reads the Agent reasoning level from this file before
     /// every model call, so a change applies from the agent's next step.
@@ -218,11 +230,12 @@ final class AgentSessionController: ObservableObject {
             guard generation == lifecycleGeneration else {
                 // shutdown() may have run while the broker was still ensuring,
                 // before resolveEndpoint had assigned the lease.
-                releaseLLMLease()
+                releaseModelConnection()
                 return
             }
             modelContext = ModelContext(endpoint: endpoint, settings: configuration)
             connectedEndpoint = endpoint.baseURL
+            connectedPlan = endpoint.plan
             var capabilityToken: String?
             if makeTransport == nil {
                 let root = runtimeRoot
@@ -312,7 +325,7 @@ final class AgentSessionController: ObservableObject {
         activeSessionFile = nil
         modelContext = nil
         resetApprovalPolicy()
-        releaseLLMLease()
+        releaseModelConnection()
         try? FileManager.default.removeItem(at: reasoningLevelFile)
         writtenReasoningLevel = nil
         reasoningSupport = nil
@@ -401,6 +414,11 @@ final class AgentSessionController: ObservableObject {
             if let connectedEndpoint {
                 try InferenceEndpointPolicy.validate(connectedEndpoint,
                     approvedOrigins: settings().approvedRemoteInferenceOrigins)
+            }
+            // The relay's loopback URL passes the origin check; the plan has
+            // its own approval.
+            if let connectedPlan, !connectedPlan.isApproved(in: settings()) {
+                throw SubscriptionPlanError.approvalRequired(connectedPlan)
             }
             wirePrompt = try contextResolver.prompt(prompt, attachments: sources)
         } catch {
@@ -713,7 +731,7 @@ final class AgentSessionController: ObservableObject {
     // MARK: - Endpoint + plan
 
     private func resolveEndpoint(settings configuration: AppSettings) async throws -> AgentLLMEndpoint {
-        releaseLLMLease()
+        releaseModelConnection()
         let connection = try await thinkExecution.prepareAgentConnection(
             settings: configuration,
             // Injected transports never contact the configured service and
@@ -721,6 +739,7 @@ final class AgentSessionController: ObservableObject {
             includingCredentials: makeTransport == nil,
             broker: broker)
         llmLease = connection.lease
+        planRelay = connection.relay
         return connection.endpoint
     }
 
@@ -844,9 +863,12 @@ final class AgentSessionController: ObservableObject {
         pendingTextDelta = ""
     }
 
-    /// Fire-and-forget so the synchronous failure paths can call it; the
-    /// broker serializes the release internally.
-    private func releaseLLMLease() {
+    /// Stops the plan relay and releases the Main LLM lease. Fire-and-forget
+    /// so the synchronous failure paths can call it; the broker serializes
+    /// the release internally.
+    private func releaseModelConnection() {
+        planRelay?.stop()
+        planRelay = nil
         guard let lease = llmLease else { return }
         llmLease = nil
         let broker = self.broker
@@ -929,7 +951,7 @@ final class AgentSessionController: ObservableObject {
         if failedPrompt == nil { failedPrompt = lastSubmittedPrompt }
         folder.appendNotice(message, isError: true)
         publish()
-        releaseLLMLease()
+        releaseModelConnection()
         await oldProcess?.stop()
         failureTeardownInProgress = false
         guard failureGeneration == lifecycleGeneration else { return }
@@ -944,7 +966,7 @@ final class AgentSessionController: ObservableObject {
         modelContext = nil
         resetApprovalPolicy()
         revokeAccessCapability()
-        releaseLLMLease()
+        releaseModelConnection()
         state = .failed(Self.message(for: error))
         if case ThinkExecutionError.agentConfiguration = error {
             recoveryAction = .openModels

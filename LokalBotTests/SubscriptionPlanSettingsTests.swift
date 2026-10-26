@@ -71,13 +71,20 @@ final class SubscriptionPlanSettingsTests: XCTestCase {
         }
     }
 
-    func testAgentModeIsUnsupportedOnPlans() {
-        for plan in SubscriptionPlan.allCases {
-            guard case .unsupported(let reason) = ThinkExecution.agentResolution(settings: settings(plan)) else {
-                return XCTFail("Agent Mode has no endpoint for \(plan)")
-            }
-            XCTAssertTrue(reason.contains(plan.title))
+    func testAgentModeRunsOnTheChatGPTPlanOnly() {
+        XCTAssertEqual(ThinkExecution.agentResolution(settings: settings(.chatGPT)), .chatGPTPlan(model: "gpt-5.2"))
+        XCTAssertEqual(AgentSessionController.ModelContext(settings: settings(.chatGPT)).destination,
+                       .remote(host: SubscriptionPlan.chatGPT.title))
+        XCTAssertEqual(ThinkExecution.agentResolution(settings: settings(.chatGPT, approved: false)),
+                       .unsupported(reason: SubscriptionPlanError.approvalRequired(.chatGPT).localizedDescription))
+        var noModel = settings(.chatGPT)
+        noModel.chatGPTPlanModel = ""
+        XCTAssertEqual(ThinkExecution.agentResolution(settings: noModel),
+                       .unsupported(reason: SubscriptionPlanError.noModel(.chatGPT).localizedDescription))
+        guard case .unsupported(let reason) = ThinkExecution.agentResolution(settings: settings(.claude)) else {
+            return XCTFail("Agent Mode has no endpoint for the Claude plan")
         }
+        XCTAssertTrue(reason.contains(SubscriptionPlan.claude.title))
     }
 
     func testDreamProvenanceNamesThePlanNotAnAccount() {

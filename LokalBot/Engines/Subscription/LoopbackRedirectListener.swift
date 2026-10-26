@@ -43,35 +43,12 @@ final class LoopbackRedirectListener: @unchecked Sendable {
     }
 
     private static func start(port: UInt16, path: String) async throws -> LoopbackRedirectListener {
-        let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(
-            host: .ipv4(.loopback),
-            port: NWEndpoint.Port(rawValue: port) ?? .any)
-        parameters.allowLocalEndpointReuse = false
         let listener: NWListener
+        let boundPort: UInt16
         do {
-            listener = try NWListener(using: parameters)
-        } catch {
-            throw ListenerError.couldNotListen(error.localizedDescription)
-        }
-        let queue = DispatchQueue(label: "me.dotenv.LokalBot.oauth-loopback.start")
-        let boundPort: UInt16 = try await withCheckedThrowingContinuation { continuation in
-            let once = OnceFlag()
-            listener.stateUpdateHandler = { state in
-                switch state {
-                case .ready:
-                    if once.claim() { continuation.resume(returning: listener.port?.rawValue ?? port) }
-                case .failed(let error), .waiting(let error):
-                    listener.cancel()
-                    if once.claim() { continuation.resume(throwing: ListenerError.couldNotListen(error.localizedDescription)) }
-                case .cancelled:
-                    if once.claim() { continuation.resume(throwing: ListenerError.couldNotListen("cancelled")) }
-                default:
-                    break
-                }
-            }
-            listener.newConnectionHandler = { $0.cancel() }
-            listener.start(queue: queue)
+            (listener, boundPort) = try await LoopbackListener.bind(port: port)
+        } catch let error as LoopbackListener.BindError {
+            throw ListenerError.couldNotListen(error.detail)
         }
         let redirect = LoopbackRedirectListener(listener: listener, port: boundPort, path: path)
         listener.stateUpdateHandler = { [weak redirect] state in
@@ -193,6 +170,50 @@ final class LoopbackRedirectListener: @unchecked Sendable {
         connection.send(content: Data(head.utf8) + bytes, completion: .contentProcessed { _ in
             connection.cancel()
         })
+    }
+}
+
+/// A TCP listener bound to 127.0.0.1 only, so nothing off this Mac can reach
+/// it. Shared by the sign-in redirect and Agent Mode's ChatGPT plan relay.
+enum LoopbackListener {
+    struct BindError: Error {
+        let detail: String
+    }
+
+    /// A started listener on `port`, or on any free port when it is 0. It
+    /// refuses connections until the caller installs its own handler.
+    static func bind(port: UInt16) async throws -> (listener: NWListener, port: UInt16) {
+        let parameters = NWParameters.tcp
+        parameters.requiredLocalEndpoint = .hostPort(
+            host: .ipv4(.loopback),
+            port: NWEndpoint.Port(rawValue: port) ?? .any)
+        parameters.allowLocalEndpointReuse = false
+        let listener: NWListener
+        do {
+            listener = try NWListener(using: parameters)
+        } catch {
+            throw BindError(detail: error.localizedDescription)
+        }
+        let queue = DispatchQueue(label: "me.dotenv.LokalBot.loopback.start")
+        let boundPort: UInt16 = try await withCheckedThrowingContinuation { continuation in
+            let once = OnceFlag()
+            listener.stateUpdateHandler = { state in
+                switch state {
+                case .ready:
+                    if once.claim() { continuation.resume(returning: listener.port?.rawValue ?? port) }
+                case .failed(let error), .waiting(let error):
+                    listener.cancel()
+                    if once.claim() { continuation.resume(throwing: BindError(detail: error.localizedDescription)) }
+                case .cancelled:
+                    if once.claim() { continuation.resume(throwing: BindError(detail: "cancelled")) }
+                default:
+                    break
+                }
+            }
+            listener.newConnectionHandler = { $0.cancel() }
+            listener.start(queue: queue)
+        }
+        return (listener, boundPort)
     }
 }
 

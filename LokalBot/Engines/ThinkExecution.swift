@@ -3,6 +3,8 @@ import Foundation
 struct AgentLLMConnection: Equatable, Sendable {
     let endpoint: AgentLLMEndpoint
     let lease: InferenceLease?
+    /// The session's ChatGPT plan relay; stop it when the session ends.
+    var relay: ChatGPTPlanRelay?
 }
 
 enum ThinkExecutionError: LocalizedError, Sendable {
@@ -201,11 +203,38 @@ final class ThinkExecution {
         settings: AppSettings,
         includingCredentials: Bool = true,
         broker: InferenceBroker = .shared,
-        server: LlamaServer = .shared
+        server: LlamaServer = .shared,
+        planAccount: ChatGPTPlanAccount = .shared
     ) async throws -> AgentLLMConnection {
         switch Self.agentResolution(settings: settings, includingCredentials: includingCredentials) {
         case .ready(let endpoint):
             return AgentLLMConnection(endpoint: endpoint, lease: nil)
+
+        case .chatGPTPlan(let model):
+            // A missing sign-in opens Models now instead of failing the first turn.
+            if includingCredentials {
+                let status = await planAccount.status()
+                guard status.isSignedIn else {
+                    throw ThinkExecutionError.agentConfiguration(ChatGPTPlanError.signedOut.localizedDescription)
+                }
+                guard status.allowsPlanUsage else {
+                    throw ThinkExecutionError.agentConfiguration(
+                        ChatGPTPlanError.planUsageNotGranted.localizedDescription)
+                }
+            }
+            let relay = try await ChatGPTPlanRelay.start(tokens: { rejected in
+                if let rejected { return try await planAccount.accessTokenAfterRejection(of: rejected) }
+                return try await planAccount.accessToken()
+            })
+            let endpoint = AgentLLMEndpoint(
+                baseURL: relay.baseURL,
+                model: model,
+                contextTokens: MeetingSummaryGenerator.contextTokenLimit(for: settings),
+                apiKey: relay.key,
+                reasoningDialect: .openAI,
+                api: .responses,
+                plan: .chatGPT)
+            return AgentLLMConnection(endpoint: endpoint, lease: nil, relay: relay)
 
         case .builtIn(let modelID):
             guard let entry = ModelCatalog.entry(
@@ -254,14 +283,26 @@ final class ThinkExecution {
 
         case .appleIntelligence:
             return .unsupported(
-                reason: "Apple Intelligence doesn't expose a local endpoint Agent Mode can use. Switch the Think model to Built-in (on-device), Ollama, or an OpenAI-compatible server under Settings → Models.")
+                reason: "Apple Intelligence doesn't expose a local endpoint Agent Mode can use. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
 
-        case .chatGPTPlan, .claudePlan:
-            // Agent Mode's runtime speaks chat completions with a key it can
-            // hold; plan usage offers neither.
-            let title = SubscriptionPlan(backend: settings.summarizerBackend)?.title ?? "subscription plan"
+        case .chatGPTPlan:
+            // pi reaches the plan through a relay that holds the tokens, so
+            // nothing here reads credentials.
+            let plan = SubscriptionPlan.chatGPT
+            guard plan.isApproved(in: settings) else {
+                return .unsupported(reason: SubscriptionPlanError.approvalRequired(plan).localizedDescription)
+            }
+            let model = plan.model(in: settings)
+            guard !model.isEmpty else {
+                return .unsupported(reason: SubscriptionPlanError.noModel(plan).localizedDescription)
+            }
+            return .chatGPTPlan(model: model)
+
+        case .claudePlan:
+            // Claude Code is an agent of its own; `claude -p` offers no model
+            // endpoint for Agent Mode's runtime to call.
             return .unsupported(
-                reason: "Agent Mode can't run on your \(title) yet. Switch the Think model to Built-in (on-device), Ollama, or an OpenAI-compatible server under Settings → Models.")
+                reason: "Agent Mode can't run on your Claude plan yet. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
 
         case .ollama:
             guard let base = URL(string: settings.ollamaBaseURL) else {
