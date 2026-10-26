@@ -127,14 +127,17 @@ supported GPU, local models are slow, so Settings → Models → Connections als
 - **Ollama**, on this PC or another one.
 - **ChatGPT plan**: **Continue with ChatGPT** signs in through your browser (OpenAI's Sign in with
   ChatGPT) and returns to LokalBot on `127.0.0.1`. Requests go to OpenAI's Responses API and count
-  toward your plan. The sign-in is kept only in the system credential store; on a Linux desktop
-  without a Secret Service (GNOME Keyring, KWallet) it cannot be used.
+  toward your plan, including Agent Mode tasks. The sign-in is kept only in the system credential
+  store; on a Linux desktop without a Secret Service (GNOME Keyring, KWallet) it cannot be used.
 - **Claude plan**: runs the Claude Code you installed and signed in to yourself (`claude` on PATH,
   in `~/.local/bin`, or npm's `claude.cmd` on Windows), with its tools, MCP servers, settings and
   session history turned off. LokalBot never sees your Claude credentials.
 
 Every remote server and each plan needs its own approval before any context leaves your computer.
-Agent Mode runs on the built-in model, Ollama or an OpenAI-compatible server, not on a plan.
+Agent Mode runs on the built-in model, Ollama, an OpenAI-compatible server or the ChatGPT plan, not
+on the Claude plan. On the ChatGPT plan each task starts a relay on `127.0.0.1` with its own random
+key: the agent sends its requests there, and LokalBot adds the plan's token, so the agent and the
+commands it runs never hold your ChatGPT sign-in.
 
 ## Install
 

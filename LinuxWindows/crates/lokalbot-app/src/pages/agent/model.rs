@@ -222,6 +222,7 @@ impl AgentModel {
             manifest: self.installer.manifest().clone(),
             runtime,
             api_key: Arc::new(lokalbot_engine::secrets::openai_api_key),
+            chatgpt_account: lokalbot_ai::plans::chatgpt::shared(),
             helpers_dir: PiLauncher::bundled_helpers_dir(),
             shell: None,
         };

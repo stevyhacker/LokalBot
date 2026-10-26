@@ -145,6 +145,9 @@ fn main() -> Result<()> {
         manifest: manifest.clone(),
         runtime: Some(runtime.clone()),
         api_key: Arc::new(|| None),
+        // Without the app's credential store, a plan task reports that the
+        // sign-in can't be read.
+        chatgpt_account: lokalbot_ai::plans::chatgpt::shared(),
         helpers_dir: options.cli.clone().or_else(PiLauncher::bundled_helpers_dir),
         shell: options
             .powershell

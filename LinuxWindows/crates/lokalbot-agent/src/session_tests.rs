@@ -7,7 +7,7 @@ use parking_lot::{Mutex, RwLock};
 use serde_json::Value;
 
 use super::*;
-use crate::endpoint::ReasoningDialect;
+use crate::endpoint::{Destination, ProviderApi, ReasoningDialect};
 use crate::rpc::tests::RecordingTransport;
 use crate::rpc::{LineTransport, REQUEST_TIMEOUT};
 
@@ -19,6 +19,8 @@ struct FakeLauncher {
     /// Keep `done` until the test releases it (a slow model warm-up).
     hold: Mutex<bool>,
     held: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
+    /// Launches as if through a plan relay.
+    plan: Mutex<Option<SubscriptionPlan>>,
 }
 
 impl Launcher for FakeLauncher {
@@ -40,6 +42,7 @@ impl Launcher for FakeLauncher {
             client,
             process: None,
             lease: None,
+            relay: None,
             capability: None,
             endpoint: LlmEndpoint {
                 base_url: "http://127.0.0.1:17872/v1".into(),
@@ -47,6 +50,8 @@ impl Launcher for FakeLauncher {
                 context_tokens: 32_768,
                 api_key: None,
                 reasoning_dialect: ReasoningDialect::LlamaServer,
+                api: ProviderApi::ChatCompletions,
+                plan: *self.plan.lock(),
             },
             reports_session_file: false,
         };
@@ -81,6 +86,7 @@ impl Harness {
             failure: Mutex::new(None),
             hold: Mutex::new(false),
             held: Mutex::new(Vec::new()),
+            plan: Mutex::new(None),
         });
         let env = Arc::new(AgentEnvironment {
             library,
@@ -226,6 +232,31 @@ fn unsupported_backend_fails_without_spawning_and_points_to_models() {
     h.pump();
     assert_eq!(h.session.state, SessionState::Failed("Pick a model".into()));
     assert_eq!(h.session.recovery_action, Some(RecoveryAction::OpenModels));
+}
+
+#[test]
+fn a_plan_task_checks_the_plans_approval_before_each_message() {
+    let mut h = Harness::new();
+    let plan = SubscriptionPlan::ChatGpt;
+    plan.set_approved(&mut h.env.settings.write(), true);
+    *h.launcher.plan.lock() = Some(plan);
+    h.start();
+    assert_eq!(
+        h.session.presented_model().destination,
+        Destination::Remote("ChatGPT plan".into()),
+        "the relay listens here, but OpenAI answers"
+    );
+    plan.set_approved(&mut h.env.settings.write(), false);
+    let sent = h.lines().len();
+    h.send("Summarize my day");
+    assert_eq!(
+        h.session.composer_error,
+        Some(plan.approval_required_message())
+    );
+    assert_eq!(h.lines().len(), sent, "nothing reaches pi");
+    plan.set_approved(&mut h.env.settings.write(), true);
+    h.send("Summarize my day");
+    assert_eq!(h.last_line()["type"], "prompt");
 }
 
 #[test]
