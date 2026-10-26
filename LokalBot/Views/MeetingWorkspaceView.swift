@@ -2261,8 +2261,10 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 TextField("Speaker name", text: nameBinding, prompt: Text("Name this speaker"))
                     .textFieldStyle(.roundedBorder)
                     .focused($nameFocused)
+                    // A field with a submit action keeps Return from the
+                    // default button, so Return saves from here as well.
                     .onSubmit {
-                        if let match = returnSuggestion { choose(match) }
+                        if let match = returnSuggestion { choose(match) } else { save() }
                     }
                     .accessibilityIdentifier("speaker.rename.name")
             }
@@ -2314,9 +2316,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
                     .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(name, selectedCalendarIdentityID, profileID) }
+                Button("Save", action: save)
                     .primaryActionButton()
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(nameIsBlank)
                     // Return fills in the top match first, then saves.
                     .keyboardShortcut(returnSuggestion == nil ? .defaultAction : nil)
                     .accessibilityIdentifier("speaker.rename.save")
@@ -2371,6 +2373,13 @@ private struct WorkspaceSpeakerRenameSheet: View {
         }
         return suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
             == MeetingSpeakerSuggestion.nameKey(name)
+    }
+
+    private var nameIsBlank: Bool { name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    private func save() {
+        guard !nameIsBlank else { return }
+        onSave(name, selectedCalendarIdentityID, profileID)
     }
 
     private func choose(_ suggestion: MeetingSpeakerSuggestion) {
