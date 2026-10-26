@@ -31,8 +31,10 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.click()
         search.typeText("Granite Speech 5.0 2B")
-        let choice = app.descendants(matching: .any).matching(
-            NSPredicate(format: "label BEGINSWITH %@", "Granite Speech 5.0 2B")).firstMatch
+        // The combined picker row exposes its text through value on macOS.
+        let choice = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@",
+                        "Granite Speech 5.0 2B", "Granite Speech 5.0 2B")).firstMatch
         XCTAssertTrue(choice.waitForExistence(timeout: 5))
         choice.click()
         let details = app.staticTexts["3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"]
