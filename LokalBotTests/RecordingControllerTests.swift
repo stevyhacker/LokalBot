@@ -202,6 +202,17 @@ final class RecordingControllerTests: XCTestCase {
         XCTAssertEqual(health(at: now, lastAudible: nil).systemAudioStatus, "Silent")
     }
 
+    /// #373: a closed MacBook lid left the default input writing digital
+    /// silence for a whole meeting while the strip said "Receiving audio".
+    func testHealthReportsAMicrophoneThatWritesOnlySilence() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        XCTAssertEqual(health(at: now).microphoneStatus, "Receiving audio")
+        XCTAssertEqual(health(at: now, micSignalAge: nil).microphoneStatus, "Receiving silence")
+        XCTAssertEqual(health(at: now, micSignalAge: 11).microphoneStatus, "Receiving silence")
+        XCTAssertEqual(health(at: now, micWrite: now.addingTimeInterval(-11), micSignalAge: nil).microphoneStatus,
+                       "No recent audio", "no buffers at all stays a stall, not silence")
+    }
+
     func testHealthKeepsSourceLossIndependentOfTheOtherSource() {
         let now = Date(timeIntervalSince1970: 1_000)
         let staleMic = health(at: now, micWrite: now.addingTimeInterval(-11), lastAudible: now)
@@ -229,7 +240,7 @@ final class RecordingControllerTests: XCTestCase {
     func testHealthDoesNotPresentUnstartedSourcesAsReceiving() {
         let now = Date(timeIntervalSince1970: 1_000)
         let snapshot = RecordingMemoryHealthSnapshot.recording(
-            microphone: .init(duration: 0, lastAudioWriteAt: nil, isEngineRunning: true,
+            microphone: .init(duration: 0, lastAudioWriteAt: nil, lastSignalAt: nil, isEngineRunning: true,
                               droppedBufferCount: 0, recoveryState: .healthy),
             system: .init(duration: 0, audibleDuration: 0, framesSinceAttach: 0,
                           lastAudioWriteAt: nil, lastAudibleWriteAt: nil, capturedPID: 42,
@@ -251,6 +262,7 @@ final class RecordingControllerTests: XCTestCase {
     private func health(
         at now: Date,
         micWrite: Date? = nil,
+        micSignalAge: TimeInterval? = 0,
         systemWrite: Date? = nil,
         lastAudible: Date? = nil,
         engineRunning: Bool = true,
@@ -258,9 +270,11 @@ final class RecordingControllerTests: XCTestCase {
         recovery: MicRecorder.RecoveryState = .healthy,
         rms: Float = 0
     ) -> RecordingMemoryHealthSnapshot {
-        .recording(
-            microphone: .init(duration: 30, lastAudioWriteAt: micWrite ?? now, isEngineRunning: engineRunning,
-                              droppedBufferCount: 3, recoveryState: recovery),
+        let micWrite = micWrite ?? now
+        return .recording(
+            microphone: .init(duration: 30, lastAudioWriteAt: micWrite,
+                              lastSignalAt: micSignalAge.map { micWrite.addingTimeInterval(-$0) },
+                              isEngineRunning: engineRunning, droppedBufferCount: 3, recoveryState: recovery),
             system: .init(duration: 30, audibleDuration: 20, framesSinceAttach: 48_000,
                           lastAudioWriteAt: systemWrite ?? now, lastAudibleWriteAt: lastAudible,
                           capturedPID: 42, lastRMSLevel: rms, peakRMSLevel: 0.5, droppedBufferCount: 2),

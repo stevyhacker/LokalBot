@@ -1,0 +1,12 @@
+{
+  "header": {"schemaVersion": 1, "macOSVersion": "27.0", "origin": "reconstructed",
+             "scenario": "meet-room-under-meet-path", "scrubberVersion": 1, "recordedAt": "2026-10-26T00:00:00Z"},
+  "events": [
+    {"t": 0, "query": "runningApps", "apps": [{"processIdentifier": 701, "bundleIdentifier": "com.brave.Browser", "localizedName": "Brave Browser"}]},
+    {"t": 0, "query": "frontmost", "app": {"processIdentifier": 701, "bundleIdentifier": "com.brave.Browser", "localizedName": "Brave Browser"}},
+    {"t": 0, "query": "audioProcesses", "processes": [{"id": 702, "name": "Brave Brwsr Hlpr", "bundleID": "com.brave.Browser.helper", "objectID": 91, "isRunningOutput": true}]},
+    {"t": 0, "query": "browserSnapshot", "processID": 701, "browser": {"url": "https://meet.google.com/meet/bcd-fghj-klm", "state": "inCall"}},
+    {"t": 300, "query": "browserSnapshot", "processID": 701, "browser": {"url": "https://meet.google.com/meet/bcd-fghj-klm", "state": "ended"}},
+    {"t": 300, "query": "audioProcesses", "processes": []}
+  ]
+}

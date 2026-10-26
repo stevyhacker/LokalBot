@@ -14,13 +14,16 @@ enum BrowserMeetingSession {
     }
 
     /// The canonical meeting-room URL, or nil for anything that is not an
-    /// exact https://meet.google.com/abc-defg-hij document.
+    /// exact https://meet.google.com/abc-defg-hij document. Meet also serves
+    /// the room as /meet/abc-defg-hij (#372); both canonicalize to the short
+    /// form that calendar links use, so a bound room matches either.
     nonisolated static func meetURL(_ raw: String) -> String? {
         guard let components = URLComponents(string: raw), components.scheme == "https",
               components.host?.lowercased() == "meet.google.com", components.user == nil, components.password == nil,
-              components.port == nil || components.port == 443,
-              components.path.range(of: #"^/[a-z]{3}-[a-z]{4}-[a-z]{3}$"#, options: .regularExpression) != nil else { return nil }
-        return "https://meet.google.com" + components.path
+              components.port == nil || components.port == 443 else { return nil }
+        let path = components.path.hasPrefix("/meet/") ? String(components.path.dropFirst(5)) : components.path
+        guard path.range(of: #"^/[a-z]{3}-[a-z]{4}-[a-z]{3}$"#, options: .regularExpression) != nil else { return nil }
+        return "https://meet.google.com" + path
     }
     private static let observationQueue = DispatchQueue(
         label: "me.dotenv.LokalBot.browser-observation", qos: .utility)

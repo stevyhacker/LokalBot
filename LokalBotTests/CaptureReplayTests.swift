@@ -175,6 +175,28 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertLessThan(ended.first ?? .infinity, 720)
     }
 
+    /// #372: Meet showed the room as /meet/abc-defg-hij, which was not taken
+    /// for a call document, so no meeting started and system audio never
+    /// attached. The call starts, binds to the room's canonical URL, and ends.
+    func testMeetCallUnderMeetPathStartsAndEnds() async throws {
+        let replay = try replay("meet-room-under-meet-path")
+        let detector = MeetingDetector()
+        var started: [(TimeInterval, MeetingDetector.DetectedApp?)] = []
+        var ended: [TimeInterval] = []
+        detector.onMeetingStarted = { started.append((replay.clock.elapsed, $0.detectedApp)) }
+        detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+        for second in stride(from: 0.0, through: 360, by: 2) {
+            await replay.clock.advance(to: second)
+            await detector.tickForTesting()
+        }
+        XCTAssertEqual(started.count, 1, "one meeting starts")
+        XCTAssertLessThan(started.first?.0 ?? .infinity, 30)
+        XCTAssertEqual(started.first?.1?.bundleID, "com.brave.Browser")
+        XCTAssertEqual(started.first?.1?.meetingURL?.absoluteString, "https://meet.google.com/bcd-fghj-klm")
+        XCTAssertEqual(ended.count, 1, "the meeting ends once")
+        XCTAssertGreaterThanOrEqual(ended.first ?? 0, 300, "must not end before the call does")
+    }
+
     /// 2026-10-03: Meet's page after the first call was not recognized as an
     /// end, so that call stayed bound but unverified, and the next meeting, in
     /// another room, was never detected. A verified call in another room must
