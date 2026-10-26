@@ -1,0 +1,109 @@
+<!doctype html>
+<!--
+  Source for web/assets/og-home.png, the homepage's og:image and twitter:image.
+  It names the Mac default models and their file sizes; update it when
+  README.md's "Local AI, your choice" table changes. To regenerate it, serve
+  the repository root over HTTP and take a 1200×630 viewport screenshot at
+  2× scale, then downscale to 1200×630:
+
+    python3 -m http.server 8765 --bind 127.0.0.1
+    # screenshot http://127.0.0.1:8765/Assets/social-preview/og-home.html
+    sips -Z 1200 og-home@2x.png --out web/assets/og-home.png
+
+  Colors come from web/styles.css (light theme). The screenshot is the
+  website's light meeting summary, which uses fictional demo data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --text: #0e141c;
+    --text-dim: #2e3b44;
+    --text-faint: #56646e;
+    --accent-text: #075f55;
+    --teal: #23c4ae;
+    --card: rgba(255, 255, 255, 0.86);
+    --line: rgba(14, 20, 28, 0.08);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; overflow: hidden; }
+  body {
+    position: relative;
+    font-family: var(--font);
+    color: var(--text);
+    background:
+      radial-gradient(900px 420px at 12% -10%, rgba(35, 196, 174, 0.22), transparent 70%),
+      radial-gradient(700px 420px at 100% 110%, rgba(108, 140, 255, 0.16), transparent 70%),
+      #f4f7f7;
+    -webkit-font-smoothing: antialiased;
+  }
+  header { position: absolute; top: 34px; left: 0; right: 0; text-align: center; }
+  h1 { font-size: 50px; font-weight: 750; letter-spacing: -0.035em; line-height: 1.05; }
+  h1 span { color: var(--accent-text); }
+  header p { margin-top: 12px; color: var(--text-dim); font-size: 21px; letter-spacing: -0.01em; }
+
+  .stage { position: absolute; top: 150px; left: 36px; right: 36px; display: grid; grid-template-columns: 286px 1fr 286px; gap: 22px; align-items: center; }
+  .col { display: grid; gap: 14px; }
+  .chip {
+    display: grid; grid-template-columns: 50px 1fr; gap: 14px; align-items: center;
+    padding: 14px 16px; border-radius: 18px; background: var(--card);
+    border: 1px solid var(--line); box-shadow: 0 14px 34px -22px rgba(14, 20, 28, 0.45);
+  }
+  .icon { width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; }
+  .chip h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }
+  .chip h2 small { font-size: 16px; font-weight: 500; color: var(--text-faint); }
+  .chip p { margin-top: 2px; color: var(--text-dim); font-size: 15px; }
+  .tags { display: flex; gap: 6px; margin-top: 7px; }
+  .tags span { padding: 2px 8px; border-radius: 7px; background: rgba(35, 196, 174, 0.13); color: var(--accent-text); font: 600 12.5px var(--mono); }
+
+  figure { position: relative; }
+  figure img { display: block; width: 100%; border-radius: 16px; border: 1px solid rgba(14, 20, 28, 0.12); box-shadow: 0 30px 60px -28px rgba(14, 20, 28, 0.55); }
+  .badge {
+    position: absolute; top: -20px; left: -14px; transform: rotate(-4deg);
+    padding: 8px 18px; border-radius: 999px; background: var(--teal); color: #04221e;
+    font-size: 21px; font-weight: 750; letter-spacing: -0.02em; box-shadow: 0 10px 24px -10px rgba(7, 95, 85, 0.6);
+  }
+  figcaption { margin-top: 12px; text-align: center; color: var(--text-faint); font-size: 14px; }
+
+  footer { position: absolute; left: 0; right: 0; bottom: 30px; display: flex; justify-content: center; align-items: center; gap: 14px; font-size: 19px; color: var(--text-dim); }
+  footer img { width: 38px; height: 38px; }
+  footer strong { color: var(--text); font-size: 24px; font-weight: 750; letter-spacing: -0.02em; }
+  footer .url { color: var(--accent-text); font-weight: 650; }
+  footer .dot { color: var(--text-faint); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>The little AI team <span>on your computer</span></h1>
+    <p>Every model runs locally. No cloud needed.</p>
+  </header>
+
+  <div class="stage">
+    <div class="col">
+      <div class="chip"><div class="icon" style="background:#efe7ff">🧑‍🤝‍🧑</div><div><h2>Nemotron <small>3</small></h2><p>Knows who's talking</p><div class="tags"><span>Core ML</span><span>0.2 GB</span></div></div></div>
+      <div class="chip"><div class="icon" style="background:#e3f0ff">📝</div><div><h2>Qwen3-ASR <small>1.7B</small></h2><p>Turns speech into text</p><div class="tags"><span>MLX 8-bit</span><span>2.47 GB</span></div></div></div>
+      <div class="chip"><div class="icon" style="background:#fff0de">✨</div><div><h2>Gemma 4 <small>E2B</small></h2><p>Finishes your sentences</p><div class="tags"><span>Q6_K</span><span>3.85 GB</span></div></div></div>
+    </div>
+
+    <figure>
+      <img src="../../web/assets/screens/meetings-summary-light.png" alt="">
+      <div class="badge">9.6 GB · all local</div>
+      <figcaption>Default models on Mac. Windows and Linux use their own, about 4 GB.</figcaption>
+    </figure>
+
+    <div class="col">
+      <div class="chip"><div class="icon" style="background:#ffe6ec">🔎</div><div><h2>EmbeddingGemma <small>2</small></h2><p>Searches by meaning</p><div class="tags"><span>Q8_0</span><span>0.31 GB</span></div></div></div>
+      <div class="chip"><div class="icon" style="background:#dff7f1">🧠</div><div><h2>Qwen3.5 <small>4B</small></h2><p>Writes the recap</p><div class="tags"><span>Q4_K_M</span><span>2.74 GB</span></div></div></div>
+      <div class="chip"><div class="icon" style="background:#eef6d9">👀</div><div><h2>Apple Vision</h2><p>Reads screen text (opt-in)</p><div class="tags"><span>Built into macOS</span></div></div></div>
+    </div>
+  </div>
+
+  <footer>
+    <img src="../../web/assets/lokalbot-icon.svg" alt="">
+    <strong>LokalBot</strong><span class="dot">·</span><span class="url">lokalbot.com</span><span class="dot">·</span><span>Mac, with Windows and Linux in alpha</span><span class="dot">·</span><span>Free &amp; open source</span>
+  </footer>
+</body>
+</html>
