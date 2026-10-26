@@ -1187,6 +1187,8 @@ kbd {
 .blog-card { min-height: 0; }
 .blog-list .blog-card strong { font-size: clamp(1.3rem, 2.6vw, 1.6rem); }
 .blog-article :is(ul, ol, pre, .guide-table-wrap, .blog-figure) + p { margin-top: 1rem; }
+.blog-note { padding: 14px 18px; border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 0.95rem !important; }
+.blog-note + h2 { margin-top: 2.2rem; }
 .blog-figure { margin: 1.8rem 0 0; }
 .blog-figure img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 .blog-figure figcaption { margin-top: 0.7rem; color: var(--text-faint); font-size: 0.86rem; line-height: 1.55; }

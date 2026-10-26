@@ -174,4 +174,208 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
         <p>The full story, including the build machines, the rules for agents working side by side, and the decisions that were left to a person, is on Field Notes: <a href="https://bogosavljevic.me/blog/posts/porting-lokalbot-to-linux-and-windows/" target="_blank" rel="noopener">Porting LokalBot to Linux and Windows with agents</a>. The result is described in <a href="/blog/windows-and-linux-alpha">LokalBot is on Windows and Linux, in alpha</a>.</p>
         """,
     },
+    {
+        "slug": "autocomplete-that-knows-your-meetings",
+        "published": "2026-10-13",
+        "title": "Autocomplete That Knows Your Meetings, on Gemma 4 E2B",
+        "description": "LokalBot's autocomplete runs Gemma 4 E2B base at about 50 ms a suggestion on an M4 Max and can bring in facts from your own meeting notes. How it compares with Cotypist and Cotabby.",
+        "eyebrow": "Autocomplete",
+        "h1": "Autocomplete that knows your meetings",
+        "lead": "LokalBot suggests the rest of what you are typing in almost any Mac app, with a small model running on your Mac. When your draft names something from a recent meeting, it can bring in what was said there.",
+        "read_time": "4 min read",
+        "body": """
+        <figure class="blog-figure">
+          <img src="/assets/blog/autocomplete-memory.gif" width="1650" height="258" alt="Typing an update in TextEdit after a call with John: after “the Harbor beta ships”, autocomplete suggests “Thursday morning, after the accessibility review.” and Tab accepts it word by word." loading="lazy" decoding="async" />
+          <figcaption>A suggestion that comes from a meeting earlier that day. Tab accepts it word by word.</figcaption>
+        </figure>
+
+        <h2>Fast enough to stay out of the way</h2>
+        <p>Getting autocomplete to be useful without being intrusive or laggy took a lot of experiments with different models and quantizations. The best balance of suggestion quality and latency on a regular MacBook turned out to be the Gemma 4 E2B base model at 6-bit (Q6_K), running in-process through llama.cpp. On an M4 Max a suggestion takes about 50 ms.</p>
+
+        <h2>Context from your own work</h2>
+        <ul>
+          <li><strong>The text above the field.</strong> On by default, read through macOS accessibility. Private browser windows are never read.</li>
+          <li><strong>Your meetings, if you opt in.</strong> When your draft names something distinctive, LokalBot can add up to two facts from your own meeting notes to the model's context.</li>
+        </ul>
+        <p>Autocomplete lives in the same app as meetings, dictation, and screen recall, which share one memory budget for their models.</p>
+
+        <h2>How it compares</h2>
+        <p>Cotypist and Cotabby are the closest alternatives. As described on their sites on October 13, 2026:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">Cotypist, Cotabby, and LokalBot autocomplete compared</caption>
+            <thead>
+              <tr><th scope="col">Feature</th><th scope="col">Cotypist</th><th scope="col">Cotabby</th><th scope="col">LokalBot</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">License and price</th><td>Proprietary; free for 100 words a day, paid for unlimited</td><td>AGPL-3.0, free (beta)</td><td>GPLv3, free, no limits</td></tr>
+              <tr><th scope="row">Model</th><td>Local (Gemma 4 E4B recommended)</td><td>Local GGUF through llama.cpp, or Apple Intelligence</td><td>Gemma 4 E2B base Q6_K, in-process llama.cpp</td></tr>
+              <tr><th scope="row">Knows what was said in your meetings</th><td>No</td><td>No</td><td>Yes, opt-in</td></tr>
+              <tr><th scope="row">Text above the field</th><td>Not documented on its site</td><td>OCR of the window</td><td>Accessibility text, never from private windows</td></tr>
+              <tr><th scope="row">Also in the app</th><td>Autocomplete only</td><td>Emoji, macros, autocorrect</td><td>Meetings, dictation, screen recall</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>A head-to-head with Cotabby used identical inputs and the same Gemma 4 E2B weights over 782 next-word checkpoints. LokalBot predicted the exact next word 32.7% of the time (256 of 782) and Cotabby 30.7% (240 of 782), a difference of 2.0 points with a 95% interval of 0.0 to 4.0. In other words, the two are comparable on accuracy; the work now is on the experience around the suggestions.</p>
+
+        <h2>Try it</h2>
+        <p>Turn on Autocomplete in <strong>Settings → Writing</strong>. It needs the Accessibility and Input Monitoring permissions and a one-time model download. Tab accepts a word. Password fields and apps you exclude are never read.</p>
+        """,
+    },
+    {
+        "slug": "raycast-extension",
+        "published": "2026-10-02",
+        "title": "Search Your Meetings from Raycast",
+        "description": "The LokalBot Raycast extension finds every meeting where a word came up, in titles, summaries, or transcripts, without opening the app. It only reads your local library.",
+        "eyebrow": "Integration",
+        "h1": "Search your meetings from Raycast",
+        "lead": "Finding out what was said in a meeting shouldn't mean opening another app. The LokalBot extension, now in the Raycast Store, searches your meetings from Raycast.",
+        "read_time": "2 min read",
+        "body": """
+        <figure class="blog-figure">
+          <img src="/assets/blog/raycast-quick-recall.webp" width="1600" height="1000" alt="Raycast's Quick Recall command listing meetings that mention onboarding, each match labeled title, summary, or transcript." loading="lazy" decoding="async" />
+          <figcaption>Quick Recall in Raycast, with fictional demo data.</figcaption>
+        </figure>
+
+        <h2>Two commands</h2>
+        <ul>
+          <li><strong>Quick Recall.</strong> Type a word and see every meeting where it came up, from titles, summaries, or the transcript itself. Enter reveals the meeting's files in Finder and ⌘Enter copies the matching snippet.</li>
+          <li><strong>Recent Meetings.</strong> Lists your last 20 meetings.</li>
+        </ul>
+
+        <h2>Local, like the app</h2>
+        <p>The extension makes no network requests. It reads your local LokalBot library, and only after you allow external agents to read your meeting library in LokalBot's privacy settings.</p>
+        <p>It needs the LokalBot app installed, which on Mac means Apple Silicon and macOS 15 or later.</p>
+
+        <h2>Install</h2>
+        <p>Get <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">LokalBot in the Raycast Store</a>. It's the first LokalBot extension for Raycast, so <a href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener">tell us</a> what's missing or annoying.</p>
+        """,
+    },
+    {
+        "slug": "five-local-models-6-8-gb",
+        "published": "2026-09-30",
+        "updated": "2026-10-26",
+        "title": "Five Local Models, 6.8 GB of Weights: LokalBot 0.9.2's Model Stack",
+        "description": "Since July every model in LokalBot was benchmarked and most defaults swapped for smaller ones. In 0.9.2 the whole stack is 6.8 GB, with faster notes, better speaker labels, and quicker autocomplete.",
+        "eyebrow": "Models",
+        "h1": "Five local models, 6.8 GB of weights",
+        "lead": "Since LokalBot launched in July, every model in it has been benchmarked, and most defaults were swapped for smaller ones. In 0.9.2 the whole stack is 6.8 GB.",
+        "read_time": "3 min read",
+        "body": """
+        <p class="blog-note"><strong>Update, October 2026:</strong> two defaults have changed since this post. Search now uses EmbeddingGemma 2, and autocomplete uses Gemma 4 E2B; see <a href="/blog/autocomplete-that-knows-your-meetings">Autocomplete that knows your meetings</a>. Current numbers are on the <a href="/benchmarks">benchmarks page</a>.</p>
+
+        <h2>The stack in 0.9.2</h2>
+        <ul>
+          <li><strong>Transcription:</strong> Qwen3-ASR 1.7B, MLX 8-bit.</li>
+          <li><strong>Who spoke when:</strong> Nemotron 3, Core ML.</li>
+          <li><strong>Notes and action items:</strong> Qwen3.5 4B, Q4_K_M in llama.cpp.</li>
+          <li><strong>Search embeddings:</strong> Harrier 0.6B, Q8_0.</li>
+          <li><strong>Autocomplete in any app:</strong> LFM2.5 1.2B, Q4_K_M.</li>
+          <li><strong>Screen text:</strong> Apple Vision OCR, opt-in.</li>
+        </ul>
+
+        <h2>What changed, in numbers</h2>
+        <p>Measured on an M4 Max with 48 GB of memory:</p>
+        <ul>
+          <li>A 26-minute meeting goes to finished notes in 33 seconds with the model already loaded, decoding at about 85 tokens a second.</li>
+          <li>Speaker error dropped from 43.4% to 14.6% diarization error rate on the AMI corpus. That's against the previous pyannote setup, so it says more about that configuration than about pyannote.</li>
+          <li>Autocomplete latency at the 95th percentile fell from 1.83 s with Gemma 4 E4B to 0.49 s.</li>
+        </ul>
+
+        <h2>A model that didn't make it</h2>
+        <p>MiniCPM5 2B was tested for notes. It was smaller and faster, but it got stuck repeating itself on one summary and assigned action items to the wrong person. Qwen3.5 4B stayed the default: saving a few seconds isn't worth getting wrong who agreed to do what.</p>
+
+        <h2>Also in the app</h2>
+        <p>A read-only MCP server and CLI, off by default, let Claude Code or any other MCP client pull context from your meetings.</p>
+        <p>There are no numbers yet from 16 GB Macs or other M-series chips. If you run LokalBot on one, especially an M5 or M6, <a href="https://github.com/stevyhacker/lokalbot/issues/new/choose" target="_blank" rel="noopener">share what you get</a>. The <a href="https://github.com/stevyhacker/lokalbot/releases/tag/v0.9.2" target="_blank" rel="noopener">0.9.2 release notes</a> have the rest.</p>
+        """,
+    },
+    {
+        "slug": "a-workday-on-local-models",
+        "published": "2026-07-21",
+        "updated": "2026-10-26",
+        "title": "A Whole Workday on Local Models: LokalBot 0.5",
+        "description": "LokalBot 0.5 adds Dreaming, which turns a finished day into a morning brief, plus faster autocomplete and answers right in Quick Recall. What the app does, and the models behind it.",
+        "eyebrow": "Release",
+        "h1": "A whole workday on local models",
+        "lead": "LokalBot now does the job of three or four subscription apps (a meeting notetaker, dictation, autocomplete, and a memory of your day) on your own hardware, with no subscription and no API keys.",
+        "read_time": "3 min read",
+        "body": """
+        <p class="blog-note"><strong>Update, October 2026:</strong> several default models have changed since this post; the current ones are on the <a href="/benchmarks">benchmarks page</a>.</p>
+
+        <h2>What it does</h2>
+        <ul>
+          <li><strong>Meetings.</strong> Detects Zoom, Teams, Meet, and other calls and records you and the other side on two synchronized tracks, with no bot joining the call. Transcription and the summary run on your Mac as soon as the meeting ends.</li>
+          <li><strong>Dictation.</strong> Hold ⌥ Space, talk, and release. It's transcribed locally and pasted at the cursor, and the audio is deleted afterwards.</li>
+          <li><strong>Autocomplete.</strong> Ghost-text suggestions in almost any Mac text field; Tab accepts. Opt-in.</li>
+          <li><strong>Recall.</strong> Ask “what did we decide about this?” and get the answer from your own library, with the source meeting cited and the exact moment ready to replay. Full-text and semantic search cover everything.</li>
+          <li><strong>Day timeline.</strong> An optional private timeline of where your time went, with a daily digest.</li>
+        </ul>
+
+        <h2>New in 0.5</h2>
+        <ul>
+          <li><strong>Dreaming.</strong> LokalBot can compile a finished day overnight into a morning brief and structured work memory.</li>
+          <li><strong>Faster autocomplete.</strong> New installs get the 0.73 GB LFM2.5 1.2B model, and accepting suggestions is more reliable across native apps, Chromium, and input methods.</li>
+          <li><strong>Answers in Quick Recall.</strong> Quick Recall can answer right in its compact window instead of always opening the full Ask view.</li>
+          <li><strong>Scheduled day digests</strong>, with a prompt you can customize.</li>
+        </ul>
+
+        <h2>The models in daily use</h2>
+        <p>One setup, on a 48 GB M4 Max, all through the bundled llama.cpp with full Metal offload:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">Models in daily use</caption>
+            <thead>
+              <tr><th scope="col">Job</th><th scope="col">Model</th><th scope="col">Quantization</th><th scope="col">Size</th><th scope="col">Speed</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Transcription</th><td>Granite Speech 4.1 2B</td><td>Q4_K_M + F16 projector</td><td>2.3 GB</td><td>Faster than real time</td></tr>
+              <tr><th scope="row">Summaries and chat</th><td>Qwen3.5 4B</td><td>Q4_K_M</td><td>2.7 GB</td><td>About 100 tokens/s</td></tr>
+              <tr><th scope="row">Autocomplete</th><td>Gemma 4 E4B</td><td>UD-Q5_K_XL</td><td>6.7 GB</td><td>About 78 tokens/s</td></tr>
+              <tr><th scope="row">Embeddings</th><td>Qwen3-Embedding 0.6B</td><td>Q8_0</td><td>0.6 GB</td><td>—</td></tr>
+              <tr><th scope="row">Diarization</th><td>pyannote community-1</td><td>Core ML</td><td>0.1 GB</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The full list of changes is in the <a href="https://github.com/stevyhacker/lokalbot/releases/tag/v0.5.0" target="_blank" rel="noopener">0.5.0 release notes</a>.</p>
+        """,
+    },
+    {
+        "slug": "introducing-lokalbot",
+        "published": "2026-07-01",
+        "updated": "2026-10-26",
+        "title": "Introducing LokalBot: Meetings, Autocomplete, and Day Tracking on Your Mac",
+        "description": "LokalBot is a free, open-source Mac app that records and summarizes meetings, autocompletes your typing in any app, and tracks where your day went, with every model running on your Mac.",
+        "eyebrow": "Launch",
+        "h1": "Introducing LokalBot",
+        "lead": "LokalBot records and summarizes your meetings, autocompletes your typing in any app, and keeps track of where your day went. Every model runs on your Mac: no cloud, no account, and no API keys.",
+        "read_time": "3 min read",
+        "body": """
+        <p class="blog-note"><strong>Update, October 2026:</strong> this is the original announcement. The default models have changed since (see <a href="/blog/five-local-models-6-8-gb">Five local models, 6.8 GB of weights</a>), the app now checks for updates (see the <a href="/privacy">privacy policy</a> for every network use), and LokalBot also runs on <a href="/blog/windows-and-linux-alpha">Windows and Linux</a>.</p>
+
+        <h2>One app instead of several</h2>
+        <p>Recording meetings, autocompleting text, and keeping track of the day usually means several separate apps, each with its own subscription and its own cloud. LokalBot does all of it in one Mac app, with no third-party inference cost. It's free and open source under the GPLv3.</p>
+
+        <h2>The model stack</h2>
+        <ul>
+          <li><strong>Summaries, chat, and autocomplete</strong> run on a bundled llama.cpp: in-process for autocomplete's low latency, llama-server otherwise. Any of them can point at your own GGUF file, Ollama, an OpenAI-compatible endpoint, or Apple Intelligence.</li>
+          <li><strong>Transcription</strong> uses Granite Speech 4.1, Parakeet, Whisper, or Qwen3-ASR through Core ML and MLX on Apple Silicon. Parakeet runs at about 190 times real time.</li>
+          <li><strong>Semantic search</strong> uses Qwen3-Embedding 0.6B on a second llama-server, with vectors in SQLite and brute-force cosine similarity. At personal scale, brute force is instant, and it adds no dependencies.</li>
+          <li><strong>Speaker separation</strong> is optional: pyannote, through FluidAudio, splits the other side of a call into individual speakers.</li>
+          <li><strong>An in-app Hugging Face browser</strong> searches and downloads GGUF models, with a note on whether each one fits your Mac.</li>
+        </ul>
+
+        <h2>Launch defaults</h2>
+        <ul>
+          <li><strong>Transcription:</strong> IBM Granite Speech 4.1 2B, Q4.</li>
+          <li><strong>Summaries:</strong> Qwen 3.6 35B-A3B, Q4_K_M.</li>
+          <li><strong>Autocomplete:</strong> Gemma 4 E4B, Q5 XL.</li>
+        </ul>
+        <p>These run well on an M4 Max with 48 GB of memory. With 16 to 24 GB, choose one of the lighter alternatives in the app's model settings.</p>
+
+        <h2>Private by design</h2>
+        <p>After the one-time model download, LokalBot works offline. Optional screenshots are sealed with AES-GCM and deleted automatically. LokalBot needs an Apple Silicon Mac with macOS 15 or later.</p>
+        <p>Get it from <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>, and join the <a href="https://www.reddit.com/r/LocalLLaMA/comments/1ukhpnl/lokalbot_fully_local_macos_app_meetings/" target="_blank" rel="noopener">launch discussion on r/LocalLLaMA</a>, especially if you have better local speech or small, fast autocomplete models to suggest.</p>
+        """,
+    },
 ]

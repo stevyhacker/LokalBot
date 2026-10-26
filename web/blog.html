@@ -26,7 +26,7 @@
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Blog","@id":"https://www.lokalbot.com/blog#blog","url":"https://www.lokalbot.com/blog","name":"LokalBot Blog","description":"News from the LokalBot project: releases, local model benchmarks, and notes on how the app is built. Subscribe with the Atom feed.","dateModified":"2026-10-25","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"blogPost":[{"@type":"BlogPosting","headline":"Recall vs. restraint: which local models know when not to save a memory","url":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","datePublished":"2026-10-23"},{"@type":"BlogPosting","headline":"LokalBot is on Windows and Linux, in alpha","url":"https://www.lokalbot.com/blog/windows-and-linux-alpha","datePublished":"2026-10-20"},{"@type":"BlogPosting","headline":"How the Windows and Linux port was built","url":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents","datePublished":"2026-10-20"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Blog","@id":"https://www.lokalbot.com/blog#blog","url":"https://www.lokalbot.com/blog","name":"LokalBot Blog","description":"News from the LokalBot project: releases, local model benchmarks, and notes on how the app is built. Subscribe with the Atom feed.","dateModified":"2026-10-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"blogPost":[{"@type":"BlogPosting","headline":"Recall vs. restraint: which local models know when not to save a memory","url":"https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark","datePublished":"2026-10-23"},{"@type":"BlogPosting","headline":"LokalBot is on Windows and Linux, in alpha","url":"https://www.lokalbot.com/blog/windows-and-linux-alpha","datePublished":"2026-10-20"},{"@type":"BlogPosting","headline":"How the Windows and Linux port was built","url":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents","datePublished":"2026-10-20"},{"@type":"BlogPosting","headline":"Autocomplete that knows your meetings","url":"https://www.lokalbot.com/blog/autocomplete-that-knows-your-meetings","datePublished":"2026-10-13"},{"@type":"BlogPosting","headline":"Search your meetings from Raycast","url":"https://www.lokalbot.com/blog/raycast-extension","datePublished":"2026-10-02"},{"@type":"BlogPosting","headline":"Five local models, 6.8 GB of weights","url":"https://www.lokalbot.com/blog/five-local-models-6-8-gb","datePublished":"2026-09-30"},{"@type":"BlogPosting","headline":"A whole workday on local models","url":"https://www.lokalbot.com/blog/a-workday-on-local-models","datePublished":"2026-07-21"},{"@type":"BlogPosting","headline":"Introducing LokalBot","url":"https://www.lokalbot.com/blog/introducing-lokalbot","datePublished":"2026-07-01"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"}]}]}</script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -63,6 +63,36 @@
           <span class="guide-card__eyebrow"><time datetime="2026-10-20">October 20, 2026</time> · Build notes</span>
           <strong>How the Windows and Linux port was built</strong>
           <span>The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up.</span>
+          <span class="guide-card__meta">3 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/autocomplete-that-knows-your-meetings">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-13">October 13, 2026</time> · Autocomplete</span>
+          <strong>Autocomplete that knows your meetings</strong>
+          <span>LokalBot's autocomplete runs Gemma 4 E2B base at about 50 ms a suggestion on an M4 Max and can bring in facts from your own meeting notes. How it compares with Cotypist and Cotabby.</span>
+          <span class="guide-card__meta">4 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/raycast-extension">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-02">October 2, 2026</time> · Integration</span>
+          <strong>Search your meetings from Raycast</strong>
+          <span>The LokalBot Raycast extension finds every meeting where a word came up, in titles, summaries, or transcripts, without opening the app. It only reads your local library.</span>
+          <span class="guide-card__meta">2 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/five-local-models-6-8-gb">
+          <span class="guide-card__eyebrow"><time datetime="2026-09-30">September 30, 2026</time> · Models</span>
+          <strong>Five local models, 6.8 GB of weights</strong>
+          <span>Since July every model in LokalBot was benchmarked and most defaults swapped for smaller ones. In 0.9.2 the whole stack is 6.8 GB, with faster notes, better speaker labels, and quicker autocomplete.</span>
+          <span class="guide-card__meta">3 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/a-workday-on-local-models">
+          <span class="guide-card__eyebrow"><time datetime="2026-07-21">July 21, 2026</time> · Release</span>
+          <strong>A whole workday on local models</strong>
+          <span>LokalBot 0.5 adds Dreaming, which turns a finished day into a morning brief, plus faster autocomplete and answers right in Quick Recall. What the app does, and the models behind it.</span>
+          <span class="guide-card__meta">3 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/introducing-lokalbot">
+          <span class="guide-card__eyebrow"><time datetime="2026-07-01">July 1, 2026</time> · Launch</span>
+          <strong>Introducing LokalBot</strong>
+          <span>LokalBot is a free, open-source Mac app that records and summarizes meetings, autocompletes your typing in any app, and tracks where your day went, with every model running on your Mac.</span>
           <span class="guide-card__meta">3 min read</span>
         </a>
     </section>
