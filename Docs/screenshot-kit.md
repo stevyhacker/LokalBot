@@ -121,8 +121,8 @@ a live window. Accent text contrast in both appearances is covered by
 `BrandContrastTests`; rerun it after changing `Brand.teal` or a workspace
 surface color.
 
-The README opens with a composite hero; [its notes](../Assets/hero/README.md)
-cover the captures and `Scripts/render_readme_hero.py`. It then uses `today.png`, `meetings-summary.png`, `quick-recall.png`, and
+The README opens with a looping recording of the real app; [its notes](../Assets/hero/README.md)
+cover how it was filmed, and the earlier composite hero from `Scripts/render_readme_hero.py`. It then uses `today.png`, `meetings-summary.png`, `quick-recall.png`, and
 `timeline.png`, plus the separately produced real-app video and
 `autocomplete-memory.gif`, a loop cut from the autocomplete launch film's footage. [Capture notes](../Assets/screenshots/README.md) and
 [the source manifest](../Assets/screenshots/readme.source.json) record the
