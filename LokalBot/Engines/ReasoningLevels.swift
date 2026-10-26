@@ -235,6 +235,16 @@ extension ReasoningSupport {
         if name == "gpt-5" || name.hasPrefix("gpt-5-") {
             return .init(levels: [.minimal, .low, .medium, .high], defaultLevel: .medium)
         }
+        // GPT-6 adds Max and defaults to Medium. Sol and Luna also take
+        // `none`; 6.1 Sol and Astra reject it, so newer models get no Off.
+        // Astra documents no default (OpenAI's model pages, 26 October 2026).
+        if name == "gpt-6" || name.hasPrefix("gpt-6-") || name.hasPrefix("gpt-6.") {
+            let levels: [ThinkReasoningLevel] = [.low, .medium, .high, .xhigh, .max]
+            if name.hasPrefix("gpt-6-sol") || name.hasPrefix("gpt-6-luna") {
+                return .init(levels: [.off] + levels, defaultLevel: .medium)
+            }
+            return .init(levels: levels, defaultLevel: name.hasPrefix("gpt-6-astra") ? nil : .medium)
+        }
         return .unavailable
     }
 

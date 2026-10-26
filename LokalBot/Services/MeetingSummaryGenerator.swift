@@ -34,6 +34,8 @@ enum MeetingSummaryGenerator {
     static func openAIContextTokens(model: String) -> Int? {
         let name = model.lowercased()
         if name.hasPrefix("gpt-4.1") { return 1_000_000 }
+        // Every GPT-6 model takes at most 922K input tokens of a 1.05M window.
+        if name.hasPrefix("gpt-6") { return 922_000 }
         let families = ["gpt-5", "gpt-4o", "gpt-4-turbo", "o1", "o3", "o4"]
         return families.contains(where: name.hasPrefix) ? 128_000 : nil
     }

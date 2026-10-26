@@ -275,6 +275,50 @@ final class TextEngineTests: XCTestCase {
                        .cerebras)
     }
 
+    /// OpenAI's model pages on 26 October 2026. GPT-6 models used to have no
+    /// levels, so Settings showed "Set by the model" and a chosen level never
+    /// reached the request.
+    func testGPT6ModelsOfferTheirDocumentedLevels() throws {
+        let upToMax: [ThinkReasoningLevel] = [.low, .medium, .high, .xhigh, .max]
+        let sol = ReasoningSupport.known(provider: .openAI, model: "gpt-6.1-sol")
+        XCTAssertEqual(sol, ReasoningSupport(levels: upToMax, defaultLevel: .medium))
+        for model in ["gpt-6-sol", "gpt-6-luna", "GPT-6-Luna"] {
+            XCTAssertEqual(ReasoningSupport.known(provider: .openAI, model: model),
+                           ReasoningSupport(levels: [.off] + upToMax, defaultLevel: .medium), model)
+        }
+        XCTAssertEqual(ReasoningSupport.known(provider: .openAI, model: "gpt-6-astra"), ReasoningSupport(levels: upToMax))
+        XCTAssertEqual(ReasoningSupport.known(provider: .openAI, model: "gpt-6.2-sol").levels, upToMax,
+                       "a newer GPT-6 model gets no Off")
+        XCTAssertEqual(ReasoningSupport.known(provider: .openRouter, model: "openai/gpt-6.1-sol"), sol)
+        XCTAssertEqual(sol.requestLevel(.high, taskBudget: 0), .low, "6.1 Sol rejects none")
+
+        // What Settings → Models and the Agent composer offer on the plan.
+        var settings = AppSettings()
+        settings.summarizerBackend = .chatGPTPlan
+        settings.chatGPTPlanModel = "gpt-6.1-sol"
+        let plan = ReasoningSupport.known(for: settings)
+        XCTAssertTrue(plan.isAdjustable)
+        XCTAssertEqual(plan.automaticTitle, "Automatic (Medium)")
+        XCTAssertEqual(plan.levels.map(\.displayName), ["Low", "Medium", "High", "Extra high", "Max"])
+        XCTAssertEqual(plan.displayed(.high), .high)
+
+        // OpenAI's API treats GPT-6 as a reasoning model: no temperature, and
+        // Automatic maps a task's budget onto an effort.
+        func body(_ level: ThinkReasoningLevel) throws -> [String: Any] {
+            let engine = OpenAICompatibleEngine(baseURL: URL(string: "https://api.openai.com/v1")!,
+                                                model: "gpt-6.1-sol", apiKey: "test-token", chatDialect: .openAI,
+                                                reasoningLevel: level)
+            let request = try engine.makeChatRequest(
+                system: "s", prompt: "p", context: [], schema: nil,
+                options: .init(maxTokens: 900, reasoningBudgetTokens: 1_024, temperature: 0.2))
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        }
+        XCTAssertEqual(try body(.max)["reasoning_effort"] as? String, "medium", "capped by the task")
+        let automatic = try body(.automatic)
+        XCTAssertEqual(automatic["reasoning_effort"] as? String, "medium")
+        XCTAssertNil(automatic["temperature"])
+    }
+
     func testCerebrasRequestCarriesTheChosenEffortCappedByTheTask() throws {
         let engine = OpenAICompatibleEngine(
             baseURL: URL(string: "https://api.cerebras.ai/v1")!,
