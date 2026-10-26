@@ -1,11 +1,11 @@
 # LokalBot Privacy Policy
 
-Effective: October 21, 2026
+Effective: October 26, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
 telemetry backend. The project does not receive your recordings, transcripts,
-summaries, screenshots, prompts, files, calendar events, or usage history.
+summaries, screenshots, prompts, files, email, calendar events, or usage history.
 
 The sections below describe the Mac app. [LokalBot for Linux and
 Windows](#lokalbot-for-linux-and-windows) lists where the Windows and Linux app
@@ -35,7 +35,9 @@ LokalBot can store the following under its Application Support directory:
   choice that is on by default;
 - opt-in Agent Mode sessions and the agent runtime;
 - facts, preferences, goals, and principles you ask Ask to remember about
-  you, encrypted; and
+  you, encrypted;
+- conversations downloaded from email accounts you connect, encrypted (see
+  **Email** under [Network access](#network-access)); and
 - preferences, diagnostic logs, and encryption keys.
 
 Fresh installs select activity-only day tracking. Visible text and encrypted
@@ -299,6 +301,30 @@ The app may make these outbound connections:
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
+- **Email (optional):** nothing is read until you connect an account under
+  Settings → Day Memory → Email. Gmail sign-in uses an OAuth client you create
+  in Google Cloud and import; LokalBot keeps its id and secret in the
+  Keychain. Sign-in opens `accounts.google.com` in your browser and returns to
+  a listener on `127.0.0.1` that accepts only that redirect. LokalBot asks
+  only for Google's read-only Gmail permission (`gmail.readonly`), so it
+  can't send, delete, label, or mark mail as read, and it never sees your
+  password. It keeps the session tokens in the Keychain and, while the app
+  runs, checks `gmail.googleapis.com` for new mail at launch, every three
+  hours, after 06:00 each day, and 30 minutes before a meeting with
+  attendees. It reads headers first and downloads a conversation only when
+  you wrote in it, or when someone on your calendar in the last 90 or next 14
+  days takes part and the mail isn't bulk mail (Gmail's Promotions, Social,
+  Updates, and Forums tabs, mailing lists, and automated senders). To find
+  those conversations it searches your mailbox for those attendees'
+  addresses; the searches go only to Google. It never reads Spam, Trash, or
+  Drafts, keeps the names, types, and sizes of attachments but never their
+  contents, and keeps only messages from the last 90 days. Downloaded mail is
+  sealed with its own Keychain key under `email/` in the library. It is not
+  yet used anywhere else: not in search, Ask, briefs, Dream reviews, personal
+  learning, exports, model prompts, or the CLI and MCP. **Disconnect** asks
+  Google to revoke the access, deletes the tokens, and deletes that account's
+  downloaded mail; you can also remove LokalBot's access in your Google
+  Account settings.
 - **Optional remote inference:** an Ollama or OpenAI-compatible URL that you
   configure. Loopback URLs stay on your Mac. Before a non-loopback server can
   receive meeting, workday, Personal Context, or agent context, LokalBot requires
@@ -476,8 +502,9 @@ grant optional permissions until you approve them:
   with calendar-matched recordings; agendas already saved stay with their
   meeting until it is deleted. Attendee emails remain in meeting metadata, are
   deleted with the meeting, and are never added to transcripts, exports, CLI
-  or MCP results, or model prompts. On this Mac they only help recognize the
-  same person across meetings in People and are never shown there. When an
+  or MCP results, or model prompts. On this Mac they help recognize the same
+  person across meetings in People, where they are never shown, and, once you
+  connect email, choose which mail conversations LokalBot downloads. When an
   attendee has no display name, People uses the name suggested from a company
   address ("dragan@…" becomes "Dragan"); the address itself is not shown.
 - Accessibility for browser-meeting detection, Autocomplete (the Cotyping
@@ -996,7 +1023,7 @@ platform differences:
   settings-change access or `setup`, `config` and `secret` commands, and
   personal context is read only from a library that came from a Mac, because
   the app has no Personal Context page or setting for it yet.
-- **Mac-only features.** Personal Context, selection actions, meeting note export,
+- **Mac-only features.** Personal Context, email, selection actions, meeting note export,
   daily memory notes, spoken summaries and coding-agent sessions are not in the
   Windows and Linux app yet, so none of their data is collected there.
 - **Network access** is limited to model and runtime downloads you request

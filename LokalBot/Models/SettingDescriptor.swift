@@ -157,6 +157,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.codingAgentExcludedFolders", title: "Never read sessions in these folders", category: .dayMemory, aliases: "coding agent exclude folders projects repositories"),
         .init(id: "settings.dailyMemoryExportEnabled", title: "Export a daily memory note", category: .dayMemory, aliases: "dailyMemoryExportEnabled"),
         .init(id: "settings.dailyMemoryExportFormat", title: "Format", category: .dayMemory, aliases: "dailyMemoryExportFormat"),
+        .init(id: "settings.email", title: "Email accounts", category: .dayMemory, aliases: "email gmail mail inbox google account read-only meeting brief"),
         .init(id: "settings.memoryRoutinesEnabled", title: "Enable safe local routines", category: .dayMemory, aliases: "memoryRoutinesEnabled"),
         .init(id: "settings.memoryRoutineWeekday", title: "Weekly log day", category: .dayMemory, aliases: "memoryRoutineWeekday"),
         .init(id: "settings.dreamingEnabled", title: "Review the day overnight", category: .dayMemory, aliases: "dreamingEnabled dream morning brief projects goals pins"),

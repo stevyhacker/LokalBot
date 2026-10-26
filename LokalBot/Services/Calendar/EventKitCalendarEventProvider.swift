@@ -97,6 +97,19 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         return candidates
     }
 
+    /// Attendee addresses of meetings between `start` and `end`, for
+    /// deciding which email threads involve people the user meets.
+    func attendeeAddresses(from start: Date, to end: Date) -> Set<String> {
+        guard authorizationStatus == .fullAccess, start < end else { return [] }
+        var addresses: Set<String> = []
+        for candidate in fetchCandidates(from: start, to: end) {
+            for identity in candidate.resolvedParticipantIdentities {
+                if let address = identity.emailAddress { addresses.insert(address) }
+            }
+        }
+        return addresses
+    }
+
     private func fetchCandidates(from start: Date, to end: Date) -> [CalendarMeetingCandidate] {
         let predicate = store.predicateForEvents(
             withStart: start,

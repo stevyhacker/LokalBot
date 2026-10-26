@@ -174,7 +174,7 @@ struct SettingsView: View {
         case .recording:
             meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
         case .dayMemory:
-            dayTrackingSection; routinesSection; dreamingSection
+            dayTrackingSection; emailSection; routinesSection; dreamingSection
         case .personalContext:
             personalContextSection
         case .writing:
@@ -921,6 +921,12 @@ struct SettingsView: View {
                     .settingsSecondary()
                     .accessibilityIdentifier("settings.digestInstructions.count")
             }
+        }
+    }
+
+    @ViewBuilder private var emailSection: some View {
+        if shows("Email", ["email", "gmail", "mail", "inbox", "google", "account", "read-only"]) {
+            EmailSettingsSection(email: app.email, focusedSettingID: app.focusedSettingID)
         }
     }
 
