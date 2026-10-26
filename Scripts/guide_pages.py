@@ -504,6 +504,57 @@ GUIDES = [
         "related": ["local-ai-meeting-notes-linux", "local-ai-meeting-notes-windows", "local-ai-meeting-notes-mac"],
     },
     {
+        "slug": "granola-otter-alternatives-linux-windows",
+        "kind": "question",
+        "published": "2026-10-26",
+        "updated": "2026-10-26",
+        "updated_label": "October 26, 2026",
+        "title": "Granola and Otter Alternatives for Linux and Windows",
+        "description": "Granola has no Linux app, and Otter and Fireflies offer Linux only a web app. Which bot-free meeting notetakers run on Linux and Windows, where they transcribe, and how they're licensed.",
+        "eyebrow": "Linux and Windows",
+        "h1": "Is there a Granola or Otter alternative for Linux and Windows?",
+        "lead": "Yes. Granola has no Linux app, and Otter and Fireflies give Linux users only a web app and a browser extension. Several apps record meetings without a bot on Linux and Windows, but they differ a lot on where your audio is transcribed.",
+        "read_time": "5 min read",
+        "body": """
+        <h2>The options, side by side</h2>
+        <p>Checked against each project's own site, documentation, and releases on October 26, 2026:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <thead><tr><th scope="col">App</th><th scope="col">Linux</th><th scope="col">Windows</th><th scope="col">Transcription</th><th scope="col">License</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">LokalBot</th><td>Native app, alpha: .deb, .rpm, Arch package, or archive</td><td>Native app, alpha</td><td>On your computer by default</td><td>GPLv3</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-openwhispr">OpenWhispr</a></th><td>Native app: AppImage, .deb, .rpm, or archive</td><td>Native app</td><td>On your device or in the cloud; setup recommends its cloud</td><td>MIT</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-hyprnote">Anarlog</a> (formerly Hyprnote)</th><td>Native app, beta</td><td>Native app, beta</td><td>On your device only on Macs; elsewhere a cloud service or a server you run</td><td>MIT, with commercial enterprise parts</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-meetily">Meetily</a></th><td>Build from source; a Pro Linux app is in development</td><td>Native app</td><td>On your device</td><td>MIT for the Community Edition; Pro is commercial</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-screenpipe">Screenpipe</a></th><td>AppImage</td><td>Native app</td><td>On your device by default</td><td>Source-available; commercial use needs a license</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-granola">Granola</a></th><td>None; the web app can't record</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-otter">Otter</a></th><td>Web app and Chrome extension</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+              <tr><th scope="row"><a href="lokalbot-vs-fireflies">Fireflies</a></th><td>Web app and Chrome extension</td><td>Native app</td><td>Cloud</td><td>Proprietary</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>All of them can record without a bot joining the call. Otter and Fireflies send a notetaker bot by default; their desktop apps and browser extensions record without one.</p>
+
+        <h2>What to check before you choose</h2>
+        <ul>
+          <li><strong>Where transcription runs by default.</strong> Some apps are local only on a Mac, and some recommend their cloud during setup. If audio must stay on your computer, check the setting for meetings, dictation, and file uploads separately.</li>
+          <li><strong>What's free.</strong> Speaker labels, meeting detection, longer meetings, and MCP access for AI tools are paid features in some apps.</li>
+          <li><strong>How agents reach your notes.</strong> A local MCP server reads the library on your computer. A hosted one needs your notes in the vendor's cloud.</li>
+          <li><strong>Open source or source-available.</strong> MIT and GPLv3 let anyone use, change, and share the code; a source-available license can restrict commercial use.</li>
+          <li><strong>Your desktop.</strong> On Linux, Wayland limits what any app can do with global shortcuts, typing into other apps, and screen capture. Check what works on your desktop before you rely on it.</li>
+        </ul>
+
+        <h2>Where LokalBot fits</h2>
+        <p>LokalBot records, transcribes, and summarizes on your computer by default, and asks before any context goes to a remote server. Speaker separation, meeting detection, cited answers, and a local read-only MCP server are free, and the same app keeps a timeline of your day, dictation, and autocomplete. Its Windows and Linux apps are in alpha: see <a href="local-ai-meeting-notes-linux">Linux</a> and <a href="local-ai-meeting-notes-windows">Windows</a> for what works today.</p>
+        """,
+        "faq": [
+            ("Does Granola work on Linux?", "No. Granola's apps are for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but can't record or transcribe a meeting."),
+            ("Can I use Otter or Fireflies on Linux?", "Only through their web apps and Chrome extensions. Their desktop apps are for Windows and Mac, their notetakers join calls as a bot unless you record from the desktop app or the extension, and transcription happens in their cloud."),
+            ("Which open-source apps transcribe locally on Linux?", "LokalBot and OpenWhispr both transcribe on a Linux computer; with OpenWhispr, choose on-device transcription during setup. Meetily transcribes locally too, but on Linux you build it from source. Anarlog's Linux beta transcribes in the cloud or on a server you run. Screenpipe transcribes locally by default, under a source-available license."),
+        ],
+        "related": ["local-ai-meeting-notes-linux", "local-ai-meeting-notes-windows", "open-source-ai-meeting-notes"],
+    },
+    {
         "slug": "claude-code-codex-meeting-notes",
         "kind": "question",
         "published": "2026-10-14",

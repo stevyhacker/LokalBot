@@ -35,6 +35,7 @@ Key facts:
 ## Guides
 
 - [Local AI meeting notes on Linux](https://www.lokalbot.com/local-ai-meeting-notes-linux): what works on X11 and Wayland, installing with apt, dnf, or pacman, models, and CUDA
+- [Granola and Otter alternatives for Linux and Windows](https://www.lokalbot.com/granola-otter-alternatives-linux-windows): which bot-free notetakers run there, where they transcribe, and their licenses
 - [Local AI meeting notes on Windows](https://www.lokalbot.com/local-ai-meeting-notes-windows): bot-free Teams, Zoom, and Meet recording, installing without admin rights, models, and CUDA
 - [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free capture, on-device transcription, private summaries, trade-offs, and setup
 - [Offline meeting transcription on Mac](https://www.lokalbot.com/offline-meeting-transcription-mac): local speech models, two-track audio, timestamps, and no cloud upload
@@ -54,6 +55,7 @@ Key facts:
 - [LokalBot vs Fireflies.ai](https://www.lokalbot.com/lokalbot-vs-fireflies)
 - [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
+- [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
 - [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)

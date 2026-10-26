@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot vs OpenWhispr: open-source meeting notes and dictation compared</title>
+  <meta name="description" content="Compare OpenWhispr and LokalBot, two open-source apps for dictation and bot-free meeting notes: local and cloud defaults, what's free, agent access, and platforms." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-openwhispr" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-openwhispr" />
+  <meta property="og:title" content="LokalBot vs OpenWhispr — open-source meeting notes and dictation" />
+  <meta property="og:description" content="Both are open source and record meetings without a bot. They differ on cloud defaults, what's free, agent access, and platforms." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot vs OpenWhispr — open-source meeting notes and dictation" />
+  <meta name="twitter:description" content="Both are open source and record meetings without a bot. They differ on cloud defaults, what's free, agent access, and platforms." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs OpenWhispr","description":"Compare OpenWhispr and LokalBot, two open-source apps for dictation and bot-free meeting notes: local and cloud defaults, what's free, agent access, and platforms.","datePublished":"2026-10-26","dateModified":"2026-10-26","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-openwhispr","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","applicationCategory":"BusinessApplication","operatingSystem":"macOS 15+, Windows 10+, Linux"},{"@type":"SoftwareApplication","name":"OpenWhispr"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs OpenWhispr","item":"https://www.lokalbot.com/lokalbot-vs-openwhispr"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-openwhispr#faq","mainEntity":[{"@type":"Question","name":"Is OpenWhispr local?","acceptedAnswer":{"@type":"Answer","text":"It can be. Choose on-device transcription and a built-in local model, and your audio stays on your computer. Its setup recommends OpenWhispr Cloud, though, and transcription is chosen separately for dictation, meetings, and file uploads, so check each one. LokalBot runs on your computer by default and asks before any context goes to a remote server."}},{"@type":"Question","name":"How do AI agents reach each one?","acceptedAnswer":{"@type":"Answer","text":"OpenWhispr's MCP server is hosted: it needs a paid plan with cloud backup turned on and sees only notes synced to its cloud. Its local CLI is free. LokalBot's read-only CLI and MCP server run on your computer, read your local library, and are free; you turn them on in Settings."}},{"@type":"Question","name":"Which one runs on Linux?","acceptedAnswer":{"@type":"Answer","text":"Both. OpenWhispr ships AppImage, .deb, .rpm, and .tar.gz builds for x86-64 Linux. LokalBot's Linux app is in alpha, with .deb, .rpm, and Arch packages and updates through apt and dnf; see local AI meeting notes on Linux."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- ambient brand background -->
+  <div class="bg-field" aria-hidden="true">
+    <div class="bg-glow bg-glow--a"></div>
+    <div class="bg-glow bg-glow--b"></div>
+    <div class="bg-glow bg-glow--c"></div>
+    <div class="bg-refract"></div>
+    <div class="bg-grain"></div>
+  </div>
+
+  <svg class="glass-defs" aria-hidden="true" focusable="false" width="0" height="0">
+    <filter id="liquidGlass" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.011 0.015" numOctaves="2" seed="7" result="noise" />
+      <feGaussianBlur in="noise" stdDeviation="2.4" result="soft" />
+      <feDisplacementMap in="SourceGraphic" in2="soft" scale="26" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <!-- ───────────────────────── NAV ───────────────────────── -->
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
+        <i class="ph ph-github-logo" aria-hidden="true"></i>
+      </a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ─────────────────────── HEAD ─────────────────────── -->
+    <section class="section compare-head">
+      <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs OpenWhispr</span></nav>
+        <p class="eyebrow">Compare</p>
+        <h1 class="section__title">LokalBot vs OpenWhispr</h1>
+        <p class="section__lead">OpenWhispr is a popular open-source app for dictation and meeting notes, under the MIT license. Like LokalBot, it records your microphone and system audio without a bot and can transcribe and summarize on your device. Its setup recommends OpenWhispr Cloud, though, and device sync, its MCP server, and team features come with paid plans. LokalBot runs on your computer by default, keeps every feature free in one GPLv3 app, and remembers more of your workday than meetings.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-10-26">October 26, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+      </header>
+    </section>
+
+    <!-- ─────────────────────── TABLE ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
+      <div class="compare-wrap reveal">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col">LokalBot</th>
+              <th scope="col">OpenWhispr</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Meeting capture</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Bot-free microphone + system audio; detects meetings and asks before recording</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Bot-free microphone + system audio; suggests recording on microphone activity or a calendar event, and asks first</td>
+            </tr>
+            <tr>
+              <th scope="row">Default processing</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your computer; a remote server gets context only after you approve it</td>
+              <td>Setup recommends OpenWhispr Cloud; on-device transcription is an option you choose</td>
+            </tr>
+            <tr>
+              <th scope="row">Transcription</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your device with Orukeet (a Parakeet fine-tune), Whisper, and others, or cloud providers</td>
+            </tr>
+            <tr>
+              <th scope="row">Summaries</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>llama.cpp built in — works with no keys and no setup</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Built-in llama.cpp models, a local server such as Ollama, your own keys, or OpenWhispr Cloud</td>
+            </tr>
+            <tr>
+              <th scope="row">Speaker separation</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your computer, on by default; names carry into later meetings</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>On your device, up to 8 speakers; names carry into later meetings</td>
+            </tr>
+            <tr>
+              <th scope="row">Ask across meetings</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cited answers that link back to the transcript and audio</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>A chat agent that searches, reads, and edits your notes</td>
+            </tr>
+            <tr>
+              <th scope="row">Connect AI tools</th>
+              <td>Read-only CLI and MCP server, off until you enable Agent Access</td>
+              <td>A hosted MCP server on paid plans that sees notes synced to its cloud; a local CLI for free</td>
+            </tr>
+            <tr>
+              <th scope="row">Transcribe existing files</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Import audio and video recordings as meetings</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Files, batch uploads, and YouTube links</td>
+            </tr>
+            <tr>
+              <th scope="row">System-wide dictation</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Hold ⌥ Space (Alt+Space on Windows and Linux) in any app</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Hotkeys for dictation, a voice assistant, translation, and meetings</td>
+            </tr>
+            <tr>
+              <th scope="row">Day timeline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Writing autocomplete</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping, in almost any app (on Linux, X11 only)</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Where your notes live</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>A local library on your computer; there is no LokalBot cloud</td>
+              <td>Locally; cloud backup, sync, and sharing on paid plans</td>
+            </tr>
+            <tr>
+              <th scope="row">License</th>
+              <td>GPLv3 — every feature in one open repository</td>
+              <td>MIT; its cloud and MCP server are hosted services</td>
+            </tr>
+            <tr>
+              <th scope="row">Price</th>
+              <td>Free</td>
+              <td>Free, with limits on cloud use · Pro $8/mo · Business $16 per user/mo · Enterprise custom</td>
+            </tr>
+            <tr>
+              <th scope="row">Platforms</th>
+              <td>macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha</td>
+              <td>macOS 12+ (Apple Silicon and Intel), Windows 10+ x64, and Linux x86-64; iPhone and iPad</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── PICKS ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
+      <div class="pick-grid">
+        <article class="pick reveal">
+          <h3>Pick OpenWhispr if&hellip;</h3>
+          <p>A dictation-first app with optional cloud extras.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> Dictation is your main job: a voice assistant, translation, per-app tone, and snippets</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want it on an iPhone, an iPad, or an Intel Mac too</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You'd like optional cloud sync, note sharing, and team spaces</li>
+          </ul>
+        </article>
+        <article class="pick pick--lokal reveal">
+          <h3>Pick LokalBot if&hellip;</h3>
+          <p>Local by default, and more than meetings.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want everything on your computer unless you approve a server</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want AI tools to read your library through a free, local, read-only MCP server</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want a day timeline, screen recall, and autocomplete in the same app</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Copyleft matters: GPLv3 keeps every fork's improvements open</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── QA ─────────────────────── -->
+    <section class="section faq">
+      <header class="section__head reveal">
+        <p class="eyebrow">Questions</p>
+        <h2 class="section__title">The short answers.</h2>
+      </header>
+      <div class="faq__list reveal">
+        <details class="qa">
+          <summary>Is OpenWhispr local?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>It can be. Choose on-device transcription and a built-in local model, and your audio stays on your computer. Its setup recommends OpenWhispr Cloud, though, and transcription is chosen separately for dictation, meetings, and file uploads, so check each one. LokalBot runs on your computer by default and asks before any context goes to a remote server.</p>
+        </details>
+        <details class="qa">
+          <summary>How do AI agents reach each one?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>OpenWhispr's MCP server is hosted: it needs a paid plan with cloud backup turned on and sees only notes synced to its cloud. Its local CLI is free. LokalBot's read-only CLI and MCP server run on your computer, read your local library, and are free; you turn them on in Settings.</p>
+        </details>
+        <details class="qa">
+          <summary>Which one runs on Linux?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Both. OpenWhispr ships AppImage, .deb, .rpm, and .tar.gz builds for x86-64 Linux. LokalBot's Linux app is in alpha, with .deb, .rpm, and Arch packages and updates through apt and dnf; see <a href="local-ai-meeting-notes-linux">local AI meeting notes on Linux</a>.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── CTA ─────────────────────── -->
+    <section class="section download">
+      <div class="download__panel reveal">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Download</p>
+        <h2 class="section__title">Local by default, nothing gated.</h2>
+        <p class="section__lead">Free and open source. Models download on first use; built-in inference then works offline.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          Download for macOS
+        </a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── MORE ─────────────────────── -->
+    <section class="section section--tight" aria-label="More comparisons">
+      <nav class="compare-more" aria-label="More comparisons">
+        <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
+        <a href="lokalbot-vs-apple-notes">LokalBot vs Apple Notes</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
+        <a href="lokalbot-vs-hyprnote">LokalBot vs Hyprnote</a>
+        <a href="lokalbot-vs-meetily">LokalBot vs Meetily</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
+        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-wispr-flow">LokalBot vs Wispr Flow</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind</a>
+      </nav>
+      <p class="compare-disclaimer">OpenWhispr is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on its public site, documentation, pricing, and repository as of October 2026 and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>
