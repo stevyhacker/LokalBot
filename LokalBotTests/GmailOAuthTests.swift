@@ -83,6 +83,131 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertThrowsError(try GmailOAuth.TokenResponse(json: Fixtures.json(["error": "invalid_grant"])))
     }
 
+    // MARK: LokalBot's own client
+
+    static let builtIn = GoogleOAuthClient.builtIn(id: "123456789-lokalbot.apps.googleusercontent.com")!
+
+    func testLokalBotsClientHasNoSecretAndReturnsThroughItsOwnScheme() {
+        let client = Self.builtIn
+        XCTAssertNil(client.clientSecret)
+        XCTAssertTrue(client.returnsToApp)
+        XCTAssertEqual(client.appURLScheme, "com.googleusercontent.apps.123456789-lokalbot")
+        XCTAssertEqual(client.appRedirectURI.absoluteString, "com.googleusercontent.apps.123456789-lokalbot:/oauth2redirect")
+        let refresh = Fixtures.form(GmailOAuth.refreshRequest(refreshToken: "r", client: client))
+        XCTAssertEqual(refresh, ["grant_type": "refresh_token", "refresh_token": "r",
+                                 "client_id": "123456789-lokalbot.apps.googleusercontent.com"])
+        XCTAssertFalse(Fixtures.client.returnsToApp, "an imported Desktop client keeps the loopback redirect")
+    }
+
+    func testOnlyARealClientIDCountsAsBuiltIn() {
+        XCTAssertNil(GoogleOAuthClient.builtIn(id: nil))
+        XCTAssertNil(GoogleOAuthClient.builtIn(id: ""))
+        XCTAssertNil(GoogleOAuthClient.builtIn(id: ".apps.googleusercontent.com"))
+        XCTAssertNil(GoogleOAuthClient.builtIn(id: "$(LOKALBOT_GOOGLE_CLIENT_ID)"))
+        XCTAssertNil(GoogleOAuthClient.builtIn(id: "evil.example.com"))
+        XCTAssertNotNil(GoogleOAuthClient.builtIn(id: " 1-a.apps.googleusercontent.com "))
+    }
+
+    func testSignInWithLokalBotsClientReturnsThroughTheSheet() async throws {
+        let client = Self.builtIn
+        let server = FakeGmailServer()
+        let authorizer = GmailAuthorizer(
+            secrets: MemoryEmailSecrets(client: nil), builtInClient: client,
+            presentAppRedirect: { url, scheme in
+                XCTAssertEqual(scheme, client.appURLScheme)
+                let items = Fixtures.query(url)
+                XCTAssertEqual(url.host, "accounts.google.com")
+                XCTAssertEqual(items["client_id"], [client.clientID])
+                XCTAssertEqual(items["redirect_uri"], [client.appRedirectURI.absoluteString])
+                XCTAssertEqual(items["scope"], [GmailOAuth.scope])
+                let state = items["state"]?.first ?? ""
+                return URL(string: "\(client.appRedirectURI.absoluteString)?state=\(state)&code=code-1&scope="
+                           + ChatGPTPlanOAuth.formEscaped(GmailOAuth.scope))!
+            },
+            transport: { request in
+                if request.url == GmailOAuth.tokenURL {
+                    let form = Fixtures.form(request)
+                    XCTAssertNil(form["client_secret"])
+                    XCTAssertEqual(form["client_id"], client.clientID)
+                    XCTAssertEqual(form["redirect_uri"], client.appRedirectURI.absoluteString)
+                    return (Fixtures.json(["access_token": "access-1", "refresh_token": "refresh-1",
+                                           "expires_in": 3_600, "scope": GmailOAuth.scope]),
+                            Fixtures.response(request, 200))
+                }
+                return try await server.transport(request)
+            })
+
+        let signIn = try await authorizer.signIn { _ in
+            XCTFail("LokalBot's client never opens the browser through a loopback listener")
+            return false
+        }
+
+        XCTAssertEqual(signIn.address, Fixtures.me)
+        XCTAssertEqual(signIn.credentials.clientID, client.clientID)
+    }
+
+    func testARedirectInAnyOtherSchemeIsRejected() async {
+        let authorizer = GmailAuthorizer(
+            secrets: MemoryEmailSecrets(client: nil), builtInClient: Self.builtIn,
+            presentAppRedirect: { url, _ in
+                let state = Fixtures.query(url)["state"]?.first ?? ""
+                return URL(string: "https://attacker.example/?state=\(state)&code=stolen")!
+            },
+            transport: { request in
+                XCTFail("no token request for a foreign redirect")
+                return (Data(), Fixtures.response(request, 500))
+            })
+        do {
+            _ = try await authorizer.signIn { _ in false }
+            XCTFail("expected the redirect to be rejected")
+        } catch {
+            XCTAssertEqual(error as? GmailError,
+                           .signInFailed("The sign-in response didn't match this request. Try again."))
+        }
+    }
+
+    func testAnImportedClientTakesOverNewSignIns() {
+        let withBoth = GmailAuthorizer(secrets: MemoryEmailSecrets(client: Fixtures.client), builtInClient: Self.builtIn)
+        XCTAssertEqual(withBoth.signInClient(), Fixtures.client)
+        let builtInOnly = GmailAuthorizer(secrets: MemoryEmailSecrets(client: nil), builtInClient: Self.builtIn)
+        XCTAssertEqual(builtInOnly.signInClient(), Self.builtIn)
+        XCTAssertNil(GmailAuthorizer(secrets: MemoryEmailSecrets(client: nil), builtInClient: nil).signInClient())
+    }
+
+    func testTokensRefreshWithTheClientThatIssuedThem() async throws {
+        let accountID = UUID()
+        let secrets = MemoryEmailSecrets(client: Fixtures.client, credentials: [accountID: EmailCredentials(
+            accessToken: "old", refreshToken: "refresh-1", expiresAt: Fixtures.now, clientID: Self.builtIn.clientID)])
+        let seen = RequestBox()
+        let authorizer = GmailAuthorizer(secrets: secrets, builtInClient: Self.builtIn, transport: { request in
+            seen.append(request)
+            return (Fixtures.json(["access_token": "new", "expires_in": 3_600]), Fixtures.response(request, 200))
+        }, now: { Fixtures.now })
+
+        let token = try await authorizer.accessToken(for: accountID, address: Fixtures.me)
+
+        XCTAssertEqual(token, "new")
+        let form = Fixtures.form(try XCTUnwrap(seen.requests.first))
+        XCTAssertEqual(form["client_id"], Self.builtIn.clientID)
+        XCTAssertNil(form["client_secret"], "LokalBot's tokens never travel with the imported client's secret")
+    }
+
+    func testTokensWhoseClientIsGoneNeedANewSignIn() async {
+        let accountID = UUID()
+        let secrets = MemoryEmailSecrets(client: nil, credentials: [accountID: EmailCredentials(
+            accessToken: "old", refreshToken: "refresh-1", expiresAt: Fixtures.now, clientID: Fixtures.client.clientID)])
+        let authorizer = GmailAuthorizer(secrets: secrets, builtInClient: Self.builtIn, transport: { request in
+            XCTFail("no refresh with a client that didn't issue the token")
+            return (Data(), Fixtures.response(request, 500))
+        }, now: { Fixtures.now })
+        do {
+            _ = try await authorizer.accessToken(for: accountID, address: Fixtures.me)
+            XCTFail("expected sign-in required")
+        } catch {
+            XCTAssertEqual(error as? GmailError, .signInRequired(Fixtures.me))
+        }
+    }
+
     // MARK: Client file
 
     func testClientFileMustBeADesktopClient() throws {

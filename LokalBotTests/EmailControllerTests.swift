@@ -71,7 +71,8 @@ final class EmailControllerTests: XCTestCase {
     }
 
     func testStartingWithoutAccountsNeverAsksForTheKey() {
-        let controller = EmailController(root: root, secrets: MemoryEmailSecrets(client: nil), keyProvider: {
+        let controller = EmailController(root: root, secrets: MemoryEmailSecrets(client: nil), builtInClient: nil,
+                                         keyProvider: {
             XCTFail("the Keychain key is read only once an account exists")
             return GmailFixtures.key()
         })
@@ -152,9 +153,25 @@ final class EmailControllerTests: XCTestCase {
         XCTAssertNil(controller.accounts.first?.sync.lastAttemptAt)
     }
 
+    func testLokalBotsClientIsReadyWithoutAnyFile() {
+        let secrets = MemoryEmailSecrets(client: nil)
+        let controller = EmailController(root: root, secrets: secrets, builtInClient: GmailOAuthTests.builtIn,
+                                         keyProvider: { GmailFixtures.key() })
+        XCTAssertTrue(controller.hasGoogleClient)
+        XCTAssertTrue(controller.hasBuiltInClient)
+        XCTAssertFalse(controller.usesOwnClient)
+
+        secrets.setGoogleClient(GmailFixtures.client)
+        controller.useBuiltInClient()
+        XCTAssertNil(secrets.googleClient())
+        XCTAssertFalse(controller.usesOwnClient)
+        XCTAssertTrue(controller.hasGoogleClient)
+    }
+
     func testImportingAClientFileReportsWhatIsWrong() throws {
         let secrets = MemoryEmailSecrets(client: nil)
-        let controller = EmailController(root: root, secrets: secrets, keyProvider: { GmailFixtures.key() })
+        let controller = EmailController(root: root, secrets: secrets, builtInClient: nil,
+                                         keyProvider: { GmailFixtures.key() })
         let web = root.appendingPathComponent("web.json")
         try GmailFixtures.json(["web": ["client_id": "x.apps.googleusercontent.com", "client_secret": "s"]])
             .write(to: web)
@@ -168,6 +185,7 @@ final class EmailControllerTests: XCTestCase {
             .write(to: desktop)
         controller.importGoogleClient(from: desktop)
         XCTAssertTrue(controller.hasGoogleClient)
+        XCTAssertTrue(controller.usesOwnClient)
         XCTAssertNil(controller.lastError)
         XCTAssertEqual(secrets.googleClient()?.clientID, "x.apps.googleusercontent.com")
     }

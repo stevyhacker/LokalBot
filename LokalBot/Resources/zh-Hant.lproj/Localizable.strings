@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "正在等待首次檢查。";
 "Email accounts" = "電子郵件帳戶";
 "Change Client File…" = "更換用戶端檔案…";
+"Connect a Gmail account?" = "要連接 Gmail 帳戶嗎？";
+"Privacy Policy" = "隱私權政策";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot 會向 Google 要求 Gmail 的唯讀存取權。它會下載過去 90 天內你寫過信的對話串，以及與行事曆中的人往來的郵件，並加密儲存在這台 Mac 上，絕不會傳送給 LokalBot 或其他任何人。中斷連線後，這些郵件會被刪除。";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "若要使用你自己的 Google Cloud 專案：請啟用 Gmail API，建立類型為「電腦版應用程式」的 OAuth 用戶端並發布，接著下載其 JSON 檔案，並在這裡選擇該檔案。之後新的登入會使用你的用戶端，而不是 LokalBot 的用戶端。";
+"Use LokalBot's Client" = "使用 LokalBot 的用戶端";
+"Use your own Google OAuth client" = "使用你自己的 Google OAuth 用戶端";

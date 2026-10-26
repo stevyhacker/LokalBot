@@ -8,6 +8,9 @@ struct EmailSettingsSection: View {
     let focusedSettingID: String?
     @State private var disconnecting: EmailAccount?
     @State private var revocationUnconfirmed = false
+    @State private var confirmingConnect = false
+
+    static let privacyPolicyURL = URL(string: "https://www.lokalbot.com/privacy#email")!
 
     var body: some View {
         Section("Email") {
@@ -20,18 +23,18 @@ struct EmailSettingsSection: View {
                 HStack(spacing: 12) {
                     Button(email.isSigningIn ? "Waiting for your browser…" : "Add Gmail Account…") {
                         revocationUnconfirmed = false
-                        email.connectGmail()
+                        confirmingConnect = true
                     }
                     .disabled(email.isSigningIn)
                     .accessibilityIdentifier("settings.email.addGmail")
                     if email.isSigningIn {
                         Button("Cancel") { email.cancelSignIn() }
-                    } else {
+                    } else if !email.hasBuiltInClient {
                         Button("Change Client File…") { chooseClientFile() }
                             .buttonStyle(.workspaceLink)
                     }
                 }
-                if email.isSigningIn {
+                if email.isSigningIn && email.usesOwnClient {
                     SettingsHelp("Finish signing in in your browser, then return here.")
                 }
             } else {
@@ -52,6 +55,34 @@ struct EmailSettingsSection: View {
                 SettingsHelp("Disconnected here, but Google didn't confirm it. You can also remove LokalBot's access in your Google Account settings.")
             }
             SettingsDetails("What LokalBot reads", Self.readingDetails)
+            if email.hasBuiltInClient {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SettingsHelp("For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's.")
+                        HStack(spacing: 12) {
+                            Button(email.usesOwnClient ? "Change Client File…" : "Choose Client File…") {
+                                chooseClientFile()
+                            }
+                            if email.usesOwnClient {
+                                Button("Use LokalBot's Client") { email.useBuiltInClient() }
+                                    .buttonStyle(.workspaceLink)
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                } label: {
+                    Text("Use your own Google OAuth client")
+                        .font(.scaled(.callout).weight(.medium))
+                        .settingsSecondary()
+                }
+            }
+        }
+        .alert("Connect a Gmail account?", isPresented: $confirmingConnect) {
+            Button("Continue") { email.connectGmail() }
+            Button("Privacy Policy") { NSWorkspace.shared.open(Self.privacyPolicyURL) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them.")
         }
         .confirmationDialog(
             Text("Disconnect \(disconnecting?.address ?? "")?"),

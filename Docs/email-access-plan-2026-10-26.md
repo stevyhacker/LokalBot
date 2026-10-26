@@ -4,7 +4,7 @@ Date: 2026-10-26. Status: in progress.
 
 **Progress.** The first PR (branch `claude/gmail-read-only`) delivers the Gmail half of step 2. It covers:
 
-- Gmail sign-in with the person's own OAuth client, for several accounts;
+- Gmail sign-in with LokalBot's own Google client, or optionally your own, for several accounts. Setup and verification are in [google-oauth-verification.md](google-oauth-verification.md);
 - the conversations-only filter;
 - Gmail's change history and the check schedule (morning, every three hours, and before meetings);
 - the sealed thread store;

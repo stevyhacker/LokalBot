@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "Inasubiri ukaguzi wa kwanza.";
 "Email accounts" = "Akaunti za barua pepe";
 "Change Client File…" = "Badilisha Faili ya Mteja…";
+"Connect a Gmail account?" = "Uunganishe akaunti ya Gmail?";
+"Privacy Policy" = "Sera ya Faragha";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot huiomba Google ruhusa ya kusoma tu kwenye Gmail. Hupakua mazungumzo ya siku 90 zilizopita ambayo uliandika ndani yake, pamoja na barua pepe na watu walio kwenye kalenda yako, huyahifadhi yakiwa yamesimbwa kwa njia fiche kwenye Mac hii, na kamwe haiyatumi kwa LokalBot wala mtu mwingine yeyote. Kutenganisha huyafuta.";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "Kwa mradi wako mwenyewe wa Google Cloud: washa Gmail API, unda mteja wa OAuth wa aina ya “Desktop app”, uchapishe, pakua faili yake ya JSON, kisha uichague hapa. Baada ya hapo, kuingia kupya kutatumia mteja wako badala ya mteja wa LokalBot.";
+"Use LokalBot's Client" = "Tumia Mteja wa LokalBot";
+"Use your own Google OAuth client" = "Tumia mteja wako mwenyewe wa Google OAuth";

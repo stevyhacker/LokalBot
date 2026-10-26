@@ -117,6 +117,8 @@ struct EmailCredentials: Codable, Equatable, Sendable {
     var accessToken: String
     var refreshToken: String
     var expiresAt: Date
+    /// The OAuth client that issued these tokens; refreshing needs the same one.
+    var clientID: String?
 }
 
 protocol EmailSecretStore: Sendable {

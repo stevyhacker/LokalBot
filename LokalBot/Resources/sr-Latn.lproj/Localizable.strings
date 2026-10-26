@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "Čeka se prva provera.";
 "Email accounts" = "Nalozi e-pošte";
 "Change Client File…" = "Promeni datoteku klijenta…";
+"Connect a Gmail account?" = "Povezati Gmail nalog?";
+"Privacy Policy" = "Politika privatnosti";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot traži od Google-a pristup Gmail-u samo za čitanje. Preuzima prepiske iz poslednjih 90 dana u kojima ste pisali i poštu sa osobama iz vašeg kalendara, čuva ih šifrovane na ovom Mac-u i nikada ih ne šalje LokalBot timu niti bilo kome drugom. Prekidanjem veze one se brišu.";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "Za sopstveni Google Cloud projekat: omogućite Gmail API, napravite OAuth klijent tipa „Desktop app“, objavite aplikaciju, preuzmite JSON datoteku klijenta i izaberite je ovde. Nove prijave će tada koristiti vaš klijent umesto LokalBot klijenta.";
+"Use LokalBot's Client" = "Koristi LokalBot klijent";
+"Use your own Google OAuth client" = "Upotreba sopstvenog Google OAuth klijenta";

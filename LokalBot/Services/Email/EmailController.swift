@@ -48,7 +48,13 @@ enum EmailSyncSchedule {
 @MainActor
 final class EmailController: ObservableObject {
     @Published private(set) var accounts: [EmailAccount] = []
+    /// A Google client is available to sign in with: LokalBot's own, or
+    /// one the person imported.
     @Published private(set) var hasGoogleClient = false
+    /// New sign-ins use a client the person imported instead of LokalBot's.
+    @Published private(set) var usesOwnClient = false
+    /// This build carries LokalBot's own Google client.
+    let hasBuiltInClient: Bool
     @Published private(set) var syncingAccountID: UUID?
     @Published private(set) var isSigningIn = false
     @Published var lastError: String?
@@ -79,14 +85,22 @@ final class EmailController: ObservableObject {
 
     init(root: URL,
          secrets: EmailSecretStore = KeychainEmailSecretStore(),
+         builtInClient: GoogleOAuthClient? = .builtIn(),
          authorizer: GmailAuthorizer? = nil,
          keyProvider: @escaping @MainActor () throws -> SymmetricKey = { try EmailStore.liveKey() },
          now: @escaping () -> Date = Date.init) {
         self.root = root
         self.secrets = secrets
-        self.authorizer = authorizer ?? GmailAuthorizer(secrets: secrets)
+        hasBuiltInClient = builtInClient != nil
+        self.authorizer = authorizer ?? GmailAuthorizer(secrets: secrets, builtInClient: builtInClient)
         self.keyProvider = keyProvider
         self.now = now
+        refreshClientState()
+    }
+
+    private func refreshClientState() {
+        usesOwnClient = secrets.googleClient() != nil
+        hasGoogleClient = usesOwnClient || hasBuiltInClient
     }
 
     /// Loads saved accounts and starts the minute tick. Nothing touches the
@@ -94,7 +108,7 @@ final class EmailController: ObservableObject {
     func start() {
         guard !started else { return }
         started = true
-        hasGoogleClient = secrets.googleClient() != nil
+        refreshClientState()
         do {
             try loadAccountsIfNeeded()
         } catch {
@@ -154,13 +168,20 @@ final class EmailController: ObservableObject {
         do {
             let client = try GoogleOAuthClient(json: Data(contentsOf: url))
             secrets.setGoogleClient(client)
-            hasGoogleClient = true
+            refreshClientState()
             lastError = nil
         } catch let error as GmailError {
             lastError = error.localizedDescription
         } catch {
             lastError = "That file couldn't be read: \(error.localizedDescription)"
         }
+    }
+
+    /// Forgets the imported client so new sign-ins use LokalBot's again.
+    /// Accounts signed in through it ask to sign in again on their next check.
+    func useBuiltInClient() {
+        secrets.setGoogleClient(nil)
+        refreshClientState()
     }
 
     // MARK: Accounts

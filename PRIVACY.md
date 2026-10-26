@@ -302,29 +302,20 @@ The app may make these outbound connections:
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
 - **Email (optional):** nothing is read until you connect an account under
-  Settings → Day Memory → Email. Gmail sign-in uses an OAuth client you create
-  in Google Cloud and import; LokalBot keeps its id and secret in the
-  Keychain. Sign-in opens `accounts.google.com` in your browser and returns to
-  a listener on `127.0.0.1` that accepts only that redirect. LokalBot asks
-  only for Google's read-only Gmail permission (`gmail.readonly`), so it
-  can't send, delete, label, or mark mail as read, and it never sees your
-  password. It keeps the session tokens in the Keychain and, while the app
-  runs, checks `gmail.googleapis.com` for new mail at launch, every three
-  hours, after 06:00 each day, and 30 minutes before a meeting with
-  attendees. It reads headers first and downloads a conversation only when
-  you wrote in it, or when someone on your calendar in the last 90 or next 14
-  days takes part and the mail isn't bulk mail (Gmail's Promotions, Social,
-  Updates, and Forums tabs, mailing lists, and automated senders). To find
-  those conversations it searches your mailbox for those attendees'
-  addresses; the searches go only to Google. It never reads Spam, Trash, or
-  Drafts, keeps the names, types, and sizes of attachments but never their
-  contents, and keeps only messages from the last 90 days. Downloaded mail is
-  sealed with its own Keychain key under `email/` in the library. It is not
-  yet used anywhere else: not in search, Ask, briefs, Dream reviews, personal
-  learning, exports, model prompts, or the CLI and MCP. **Disconnect** asks
-  Google to revoke the access, deletes the tokens, and deletes that account's
-  downloaded mail; you can also remove LokalBot's access in your Google
-  Account settings.
+  Settings → Day Memory → Email, after a notice that says what is read. LokalBot
+  signs in to Google with its own OAuth client, which has no secret: Google's
+  consent page opens in macOS's sign-in sheet and returns only to LokalBot. If
+  you import your own Google Cloud client instead, its id and secret are kept
+  in the Keychain and the sign-in opens in your browser, returning to a
+  listener on `127.0.0.1` that accepts only that redirect. Either way LokalBot
+  asks only for Google's read-only Gmail permission (`gmail.readonly`), never
+  sees your password, and keeps the session tokens in the Keychain. While the
+  app runs it checks `gmail.googleapis.com` for new mail at launch, every
+  three hours, after 06:00 each day, and 30 minutes before a meeting with
+  attendees. To find conversations with people on your calendar, it searches
+  your mailbox for their addresses; those searches go only to Google. What it
+  downloads, how it is stored, and how it is deleted is under
+  [Email from Gmail](#email-from-gmail).
 - **Optional remote inference:** an Ollama or OpenAI-compatible URL that you
   configure. Loopback URLs stay on your Mac. Before a non-loopback server can
   receive meeting, workday, Personal Context, or agent context, LokalBot requires
@@ -488,6 +479,53 @@ use those requests to track you.
 
 LokalBot's own automated tests send only synthetic fixture text to remote
 model providers, from the project's CI; they never use a user's library.
+
+## Email from Gmail
+
+This section is LokalBot's disclosure for data it receives from Google APIs.
+LokalBot's use and transfer to any other app of information received from
+Google APIs will adhere to the [Google API Services User Data
+Policy](https://developers.google.com/terms/api-services-user-data-policy) and
+the [Google Workspace API User Data and Developer
+Policy](https://developers.google.com/workspace/workspace-api-user-data-developer-policy),
+including the Limited Use requirements.
+
+- **What LokalBot reads.** With the read-only Gmail permission, LokalBot reads
+  your Gmail address and its verified "Send mail as" addresses, Gmail's
+  record of what changed since the last check, the headers and labels of
+  threads that match its searches, and the text of conversations that
+  qualify: ones you wrote in (Gmail's Sent label), and ones where someone on
+  your calendar in the last 90 or next 14 days takes part and the mail isn't
+  bulk mail (Gmail's Promotions, Social, Updates, and Forums tabs, mailing
+  lists, and automated senders). It never reads Spam, Trash, or Drafts or the
+  contents of attachments, whose names, types, and sizes it keeps. HTML mail is
+  turned into text without loading images, tracking pixels, or links. Google
+  refuses any change to your mail under this permission, so LokalBot can't
+  send, delete, label, or mark mail as read.
+- **How it is used.** Only for features you see in LokalBot on your Mac. Today
+  that is the account list and its status in Settings; nothing else reads the
+  downloaded mail yet, not search, Ask, briefs, Dream reviews, Personal
+  Context, exports, model prompts, or the CLI and MCP. Before a feature such as
+  a meeting brief uses your mail, this policy will describe it and LokalBot
+  will ask you.
+- **Where it is kept.** Only on your Mac: each conversation is sealed with
+  AES-GCM, using a key kept in your macOS Keychain, in `email/` in the
+  library, and the sign-in tokens are kept in the Keychain. LokalBot has no
+  server, so nothing is uploaded anywhere.
+- **Who receives it.** No one. LokalBot doesn't transfer or sell Gmail data to
+  the LokalBot project, advertisers, data brokers, AI providers, or anyone
+  else; doesn't use it for advertising or to decide credit-worthiness; and
+  doesn't let any person read it. It is never used to develop, improve, or
+  train AI or machine-learning models. Text from your mail is not sent to
+  remote AI models; if that ever becomes an option, it will be off until you
+  turn it on for that feature.
+- **How long it is kept, and deleting it.** Messages older than 90 days are
+  deleted automatically, and mail you trash, delete, or that stops
+  qualifying is removed at the next check. **Disconnect** deletes that
+  account's mail and tokens on your Mac at once, then asks Google to revoke
+  LokalBot's access; you can also remove it at
+  [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
+  Deleting LokalBot's library folder removes all downloaded mail.
 
 ## Permissions
 

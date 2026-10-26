@@ -6,6 +6,9 @@ import Foundation
 actor GmailAuthorizer {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
     typealias BrowserOpener = @Sendable (URL) async -> Bool
+    /// Shows Google's consent page and returns the URL Google redirected to
+    /// in the client's own scheme (`ASWebAuthenticationSession` in the app).
+    typealias AppRedirectPresenter = @Sendable (_ url: URL, _ callbackScheme: String) async throws -> URL
 
     /// Refresh this long before the access token expires.
     static let refreshMargin: TimeInterval = 120
@@ -17,6 +20,8 @@ actor GmailAuthorizer {
     }
 
     private let secrets: EmailSecretStore
+    private let builtInClient: GoogleOAuthClient?
+    private let presentAppRedirect: AppRedirectPresenter
     private let transport: Transport
     private let now: @Sendable () -> Date
     private var refreshTasks: [UUID: Task<EmailCredentials, Error>] = [:]
@@ -27,11 +32,32 @@ actor GmailAuthorizer {
     private var signInListener: LoopbackRedirectListener?
 
     init(secrets: EmailSecretStore = KeychainEmailSecretStore(),
+         builtInClient: GoogleOAuthClient? = .builtIn(),
+         presentAppRedirect: @escaping AppRedirectPresenter = { try await GoogleSignInSheet.present($0, callbackScheme: $1) },
          transport: @escaping Transport = { try await GmailAuthorizer.liveTransport($0) },
          now: @escaping @Sendable () -> Date = { Date() }) {
         self.secrets = secrets
+        self.builtInClient = builtInClient
+        self.presentAppRedirect = presentAppRedirect
         self.transport = transport
         self.now = now
+    }
+
+    /// The client new sign-ins use: the person's own when they imported one,
+    /// otherwise LokalBot's.
+    nonisolated func signInClient() -> GoogleOAuthClient? {
+        secrets.googleClient() ?? builtInClient
+    }
+
+    /// The client that issued an account's tokens. Refreshing needs that same
+    /// client; if it's gone (the imported file was removed or replaced), the
+    /// account signs in again.
+    private func issuingClient(_ credentials: EmailCredentials) -> GoogleOAuthClient? {
+        let imported = secrets.googleClient()
+        guard let id = credentials.clientID else { return imported ?? builtInClient }
+        if let imported, imported.clientID == id { return imported }
+        if let builtInClient, builtInClient.clientID == id { return builtInClient }
+        return nil
     }
 
     /// Google's fixed hosts; never follow a redirect away from them.
@@ -47,31 +73,44 @@ actor GmailAuthorizer {
 
     // MARK: Sign-in
 
-    /// Opens Google's consent page and completes the code exchange when the
-    /// browser returns to the loopback listener. The account's address comes
-    /// from Gmail itself, so the token can't be filed under the wrong one.
+    /// Shows Google's consent page and completes the code exchange when
+    /// Google returns. LokalBot's own client returns to the app's sign-in
+    /// sheet; an imported Desktop client returns to a loopback listener in
+    /// the browser. The account's address comes from Gmail itself, so the
+    /// token can't be filed under the wrong one.
     func signIn(loginHint: String? = nil, openBrowser: BrowserOpener) async throws -> SignIn {
-        guard let client = secrets.googleClient() else { throw GmailError.noClient }
-        signInListener?.stop()
-        let listener = try await LoopbackRedirectListener.start(preferredPort: 0, path: GmailOAuth.callbackPath)
-        signInListener = listener
-        defer {
-            listener.stop()
-            if signInListener === listener { signInListener = nil }
+        guard let client = signInClient() else { throw GmailError.noClient }
+        let state = ChatGPTPlanOAuth.randomToken()
+        let pkce = ChatGPTPlanOAuth.PKCE()
+        let redirectURI: URL
+        let query: [String: String]
+        if client.returnsToApp {
+            redirectURI = client.appRedirectURI
+            let request = GmailOAuth.AuthorizationRequest(
+                client: client, redirectURI: redirectURI, state: state, pkce: pkce, loginHint: loginHint)
+            let returned = try await presentAppRedirect(request.url, client.appURLScheme)
+            query = Self.query(of: returned, scheme: client.appURLScheme)
+        } else {
+            signInListener?.stop()
+            let listener = try await LoopbackRedirectListener.start(preferredPort: 0, path: GmailOAuth.callbackPath)
+            signInListener = listener
+            defer {
+                listener.stop()
+                if signInListener === listener { signInListener = nil }
+            }
+            redirectURI = GmailOAuth.redirectURI(port: listener.port)
+            let request = GmailOAuth.AuthorizationRequest(
+                client: client, redirectURI: redirectURI, state: state, pkce: pkce, loginHint: loginHint)
+            guard await openBrowser(request.url) else {
+                throw GmailError.signInFailed("LokalBot couldn't open your browser for Google sign-in.")
+            }
+            query = try await listener.waitForCallback(timeout: GmailOAuth.signInTimeout)
         }
-        let redirectURI = GmailOAuth.redirectURI(port: listener.port)
-        let request = GmailOAuth.AuthorizationRequest(
-            client: client, redirectURI: redirectURI, state: ChatGPTPlanOAuth.randomToken(),
-            pkce: ChatGPTPlanOAuth.PKCE(), loginHint: loginHint)
-        guard await openBrowser(request.url) else {
-            throw GmailError.signInFailed("LokalBot couldn't open your browser for Google sign-in.")
-        }
-        let query = try await listener.waitForCallback(timeout: GmailOAuth.signInTimeout)
-        guard case .code(let code) = try GmailOAuth.parseCallback(query, expectedState: request.state) else {
+        guard case .code(let code) = try GmailOAuth.parseCallback(query, expectedState: state) else {
             throw CancellationError()
         }
         let (data, response) = try await transport(GmailOAuth.codeExchangeRequest(
-            code: code, client: client, verifier: request.pkce.verifier, redirectURI: redirectURI))
+            code: code, client: client, verifier: pkce.verifier, redirectURI: redirectURI))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200...299).contains(status) else {
             let code = ChatGPTPlanOAuth.oauthErrorCode(data) ?? "HTTP \(status)"
@@ -84,7 +123,7 @@ actor GmailAuthorizer {
         }
         let credentials = EmailCredentials(
             accessToken: tokens.accessToken, refreshToken: refreshToken,
-            expiresAt: now().addingTimeInterval(tokens.expiresIn))
+            expiresAt: now().addingTimeInterval(tokens.expiresIn), clientID: client.clientID)
         let gmail = GmailClient(
             accessToken: { tokens.accessToken },
             tokenRejected: { _ in throw GmailError.signInFailed("Google rejected the new sign-in. Try again.") },
@@ -93,6 +132,18 @@ actor GmailAuthorizer {
         let address = profile.emailAddress.lowercased()
         let aliases = ((try? await gmail.sendAsAddresses()) ?? []).filter { $0 != address }
         return SignIn(address: address, aliases: Array(Set(aliases)).sorted(), credentials: credentials)
+    }
+
+    /// The query of a redirect in the app's own scheme; anything else is empty,
+    /// which the state check then rejects.
+    static func query(of url: URL, scheme: String) -> [String: String] {
+        guard url.scheme?.caseInsensitiveCompare(scheme) == .orderedSame,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return [:] }
+        var query: [String: String] = [:]
+        for item in components.queryItems ?? [] where query[item.name] == nil {
+            query[item.name] = item.value ?? ""
+        }
+        return query
     }
 
     func cancelSignIn() {
@@ -157,7 +208,10 @@ actor GmailAuthorizer {
 
     private func performRefresh(_ accountID: UUID, address: String,
                                 _ credentials: EmailCredentials) async throws -> EmailCredentials {
-        guard let client = secrets.googleClient() else { throw GmailError.noClient }
+        guard let client = issuingClient(credentials) else {
+            lokalbotLog("email gmail refresh has no client for these tokens")
+            throw GmailError.signInRequired(address)
+        }
         let (data, response) = try await transport(GmailOAuth.refreshRequest(
             refreshToken: credentials.refreshToken, client: client))
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

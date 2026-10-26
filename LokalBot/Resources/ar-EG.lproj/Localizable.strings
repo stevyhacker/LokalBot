@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "بانتظار أول تحقق.";
 "Email accounts" = "حسابات الإيميل";
 "Change Client File…" = "غيّر ملف العميل…";
+"Connect a Gmail account?" = "تربط حساب Gmail؟";
+"Privacy Policy" = "سياسة الخصوصية";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot بيطلب من Google إذن قراءة بس على Gmail. بينزّل المحادثات اللي كتبت فيها والإيميلات مع الناس اللي في تقويمك من آخر 90 يوم، وبيحفظها متشفّرة على الـ Mac ده، وعمره ما بيبعتها لـ LokalBot أو لأي حد تاني. لما تقطع الاتصال بتتمسح.";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "لمشروعك الخاص على Google Cloud: فعّل Gmail API، واعمل عميل OAuth من نوع «Desktop app»، وانشره، وبعدين نزّل ملف JSON بتاعه واختاره هنا. بعد كده، تسجيلات الدخول الجديدة هتستخدم العميل بتاعك بدل عميل LokalBot.";
+"Use LokalBot's Client" = "استخدم عميل LokalBot";
+"Use your own Google OAuth client" = "استخدم عميل Google OAuth بتاعك";

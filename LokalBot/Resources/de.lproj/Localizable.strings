@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "Warten auf die erste Prüfung.";
 "Email accounts" = "E-Mail-Konten";
 "Change Client File…" = "Client-Datei ändern…";
+"Connect a Gmail account?" = "Gmail-Konto verbinden?";
+"Privacy Policy" = "Datenschutzerklärung";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot bittet Google um Lesezugriff auf Gmail. Es lädt Konversationen der letzten 90 Tage herunter, in denen du geschrieben hast, sowie E-Mails mit Personen aus deinem Kalender, speichert sie verschlüsselt auf diesem Mac und sendet sie nie an LokalBot oder sonst jemanden. Beim Trennen werden sie gelöscht.";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "Für dein eigenes Google-Cloud-Projekt: Aktiviere die Gmail API, erstelle einen OAuth-Client vom Typ „Desktop-App“, veröffentliche die App, lade die JSON-Datei des Clients herunter und wähle sie hier aus. Neue Anmeldungen nutzen dann deinen Client statt des Clients von LokalBot.";
+"Use LokalBot's Client" = "Client von LokalBot verwenden";
+"Use your own Google OAuth client" = "Eigenen Google-OAuth-Client verwenden";

@@ -1474,3 +1474,9 @@
 "Waiting for the first check." = "첫 확인을 기다리는 중입니다.";
 "Email accounts" = "이메일 계정";
 "Change Client File…" = "클라이언트 파일 변경…";
+"Connect a Gmail account?" = "Gmail 계정을 연결할까요?";
+"Privacy Policy" = "개인정보 처리방침";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot은 Google에 Gmail 읽기 전용 액세스를 요청합니다. 지난 90일 동안 내가 작성한 대화와 캘린더에 있는 사람들과 주고받은 메일을 다운로드해 이 Mac에 암호화하여 보관하며, LokalBot이나 다른 누구에게도 보내지 않습니다. 연결을 해제하면 삭제됩니다.";
+"For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "직접 만든 Google Cloud 프로젝트를 사용하려면 Gmail API를 사용 설정하고, 유형이 “데스크톱 앱”인 OAuth 클라이언트를 만들어 게시한 다음, JSON 파일을 다운로드하여 여기에서 선택하세요. 이후 새 로그인에는 LokalBot의 클라이언트 대신 내 클라이언트가 사용됩니다.";
+"Use LokalBot's Client" = "LokalBot 클라이언트 사용";
+"Use your own Google OAuth client" = "내 Google OAuth 클라이언트 사용";
