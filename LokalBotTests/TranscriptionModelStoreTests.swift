@@ -3,6 +3,39 @@ import FluidAudio
 @testable import LokalBot
 
 final class TranscriptionModelStoreTests: XCTestCase {
+    func testSpeech5RequiresItsOwnCompleteCacheAndDeletionPreserves41() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeGraniteModel(in: environment)
+        let configuration = GraniteSpeechModelConfiguration.speech5
+        let model = GraniteSpeechEngine.modelURL(configuration: configuration, appSupport: environment.appSupport)
+        let projector = GraniteSpeechEngine.projectorURL(configuration: configuration, appSupport: environment.appSupport)
+
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+        try writeGGUF(model)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+        try writeGGUF(projector)
+        XCTAssertTrue(TranscriptionModelStore.downloadedChoices(environment: environment).contains("granite-speech-5.0-2b"))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+
+        try TranscriptionModelStore.delete(.graniteSpeech5, environment: environment)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: model.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: projector.path))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+    }
+
+    func testDeletingGranite41LeavesSpeech5Downloaded() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try writeGraniteModel(in: environment)
+        try writeGGUF(GraniteSpeechEngine.modelURL(configuration: .speech5, appSupport: environment.appSupport))
+        try writeGGUF(GraniteSpeechEngine.projectorURL(configuration: .speech5, appSupport: environment.appSupport))
+
+        try TranscriptionModelStore.delete(.graniteSpeech, environment: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.graniteSpeech, environment: environment))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.graniteSpeech5, environment: environment))
+    }
+
     func testDownloadedChoicesReadDiskCaches() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }

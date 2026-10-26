@@ -83,7 +83,9 @@ struct TranscriptionModelStore {
         case .qwenASR06B:
             return qwenModelExists(modelID: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
                                    environment: environment)
-        case .graniteSpeech:
+        case .graniteSpeech, .graniteSpeech5:
+            let graniteConfiguration = choice == .graniteSpeech5
+                ? GraniteSpeechModelConfiguration.speech5 : graniteConfiguration
             return ModelFileValidator.looksLikeGGUF(GraniteSpeechEngine.modelURL(
                 configuration: graniteConfiguration,
                 appSupport: environment.appSupport))
@@ -146,6 +148,10 @@ struct TranscriptionModelStore {
         case .graniteSpeech:
             [GraniteSpeechEngine.modelRoot(
                 configuration: graniteConfiguration,
+                appSupport: environment.appSupport)]
+        case .graniteSpeech5:
+            [GraniteSpeechEngine.modelRoot(
+                configuration: .speech5,
                 appSupport: environment.appSupport)]
         case .graniteTurbo:
             [GraniteTurboEngine.modelRoot(appSupport: environment.appSupport)]

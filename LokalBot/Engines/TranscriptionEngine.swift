@@ -49,6 +49,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case qwenASR17B = "qwen3-asr-1.7b"
     case qwenASR06B = "qwen3-asr-0.6b"
     case graniteSpeech = "granite-speech"
+    case graniteSpeech5 = "granite-speech-5.0-2b"
     case graniteTurbo = "granite-speech-5-turbo"
     case whisperLarge = "whisper-large-v3-turbo"
     case funASRNano = "fun-asr-nano-2512"
@@ -76,6 +77,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: "Qwen3-ASR 1.7B"
         case .qwenASR06B: "Qwen3-ASR 0.6B"
         case .graniteSpeech: "Granite Speech 4.1 2B"
+        case .graniteSpeech5: "Granite Speech 5.0 2B"
         case .graniteTurbo: "Granite Speech 5 fast (English)"
         case .whisperLarge: "Whisper large-v3 turbo"
         case .cohere: "Cohere Transcribe (multilingual)"
@@ -104,7 +106,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
     var acceptsVocabularyPrompt: Bool {
         switch self {
-        case .whisperLarge, .qwenASR17B, .qwenASR06B, .remoteServer: true
+        case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .remoteServer: true
         default: false
         }
     }
@@ -124,6 +126,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: "2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"
         case .qwenASR06B: "0.7 GB · MLX, 52 languages/dialects, compact global tier"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
+        case .graniteSpeech5: "3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"
         case .graniteTurbo: "0.95 GB · English only · fast local transcription without punctuation or vocabulary prompts"
         case .whisperLarge: "1.6 GB · 99 languages, word timestamps, wide-language legacy fallback"
         case .cohere: "2B params · legacy — no auto language detection, timestamps, or diarization"
@@ -142,6 +145,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: QwenASREngine.accuracy
         case .qwenASR06B: QwenASREngine.compact
         case .graniteSpeech: GraniteSpeechEngine.shared
+        case .graniteSpeech5: GraniteSpeechEngine.configured(.speech5)
         case .graniteTurbo: GraniteTurboEngine.shared
         case .whisperLarge: WhisperEngine.shared
         case .cohere: CohereEngine.shared
