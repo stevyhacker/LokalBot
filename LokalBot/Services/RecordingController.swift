@@ -177,6 +177,8 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
     /// Presentation follows recent writes from each source independently.
     /// A source that produced sound earlier can subsequently become silent;
     /// historical audible data is not evidence that it is audible now.
+    /// A microphone that writes only digital silence is "Receiving silence",
+    /// not "Receiving audio": a quiet speaker still has a noise floor (#373).
     static func recording(
         microphone: MicRecorder.CaptureHealth,
         system: SystemAudioRecorder.CaptureHealth,
@@ -188,7 +190,8 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
         case .healthy:
             !microphone.isEngineRunning ? "Stopped"
                 : microphone.lastAudioWriteAt == nil ? "Waiting for audio"
-                : isRecent(microphone.lastAudioWriteAt, at: current) ? "Receiving audio" : "No recent audio"
+                : !isRecent(microphone.lastAudioWriteAt, at: current) ? "No recent audio"
+                : isRecent(microphone.lastSignalAt, at: current) ? "Receiving audio" : "Receiving silence"
         case .recovering(let attempt): "Recovering (attempt \(attempt))"
         case .degraded(let description): "Degraded: \(description)"
         }

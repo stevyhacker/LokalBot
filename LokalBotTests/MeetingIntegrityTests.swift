@@ -25,8 +25,13 @@ final class MeetingIntegrityTests: XCTestCase {
     func testOnlyExactMeetRoomURLsIdentifyACallDocument() {
         XCTAssertEqual(BrowserMeetingSession.meetURL("https://meet.google.com/abc-defg-hij?authuser=0"),
                        "https://meet.google.com/abc-defg-hij")
+        // #372: Meet also shows the room under /meet/; it is the same room.
+        XCTAssertEqual(BrowserMeetingSession.meetURL("https://meet.google.com/meet/abc-defg-hij?authuser=0"),
+                       "https://meet.google.com/abc-defg-hij")
         for bad in ["http://meet.google.com/abc-defg-hij", "https://meet.google.com.evil.test/abc-defg-hij",
-                    "https://meet.google.com/landing", "https://evil@meet.google.com/abc-defg-hij"] {
+                    "https://meet.google.com/landing", "https://evil@meet.google.com/abc-defg-hij",
+                    "https://meet.google.com/meet/landing", "https://meet.google.com/meet/meet/abc-defg-hij",
+                    "https://meet.google.com/other/abc-defg-hij", "https://meet.google.com/meetabc-defg-hij"] {
             XCTAssertNil(BrowserMeetingSession.meetURL(bad))
         }
     }
