@@ -1840,23 +1840,33 @@ private struct OutcomeActionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             WorkspaceMenu(title: "Action options", symbol: "ellipsis",
                           label: "Options for action: \(reference.text)",
-                          identifier: "meeting.action.status.\(reference.action.id)", items:
-                OutcomeStatus.allCases.map { status in
-                    .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
-                          action: { onStatus(status) })
-                } + [.separator, .init(title: "Correct owner or due date", action: onCorrect),
-                     .init(title: "Open in Agent", action: {
-                    app.openAgent(.init(
-                        title: reference.text,
-                        prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
-                        meetingID: reference.meetingID,
-                        actionID: reference.action.id))
-                })])
+                          identifier: "meeting.action.status.\(reference.action.id)", items: menuItems)
             .frame(minWidth: 32, minHeight: 24)
             .fixedSize()
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
+    }
+
+    private var menuItems: [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = OutcomeStatus.allCases.map { status in
+            .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
+                  action: { onStatus(status) })
+        }
+        items += [.separator, .init(title: "Correct owner or due date", action: onCorrect),
+                  .init(title: "Open in Agent", action: {
+            app.openAgent(.init(
+                title: reference.text,
+                prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
+                meetingID: reference.meetingID,
+                actionID: reference.action.id))
+        })]
+        for target in ActionAgentAvailability.installed {
+            items.append(.init(title: "Open in \(target.rawValue)", action: {
+                app.handOff(reference, owner: displayOwner, to: target)
+            }))
+        }
+        return items
     }
 
     private func activeOccurrence(

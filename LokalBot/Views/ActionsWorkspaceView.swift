@@ -185,6 +185,9 @@ struct ActionsWorkspaceView: View {
                                 prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
                                 meetingID: reference.meetingID, actionID: reference.action.id))
                         }
+                        ForEach(ActionAgentAvailability.installed) { target in
+                            Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
+                        }
                     } label: { Image(systemName: "ellipsis") }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden)
                     .accessibilityLabel("Action options")

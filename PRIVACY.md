@@ -573,6 +573,22 @@ of its transcript as fits already typed into the composer. LokalBot hands the
 text only to that app on this Mac; it is sent only if you press Send there, under
 that app's privacy terms. This does not enable Agent Access.
 
+**Open in Claude Code** and **Open in Codex**, in an action item's menu on the
+meeting page, in Actions, and on Today, start a new Claude Code session or Codex
+chat with a prompt already typed in. The prompt holds the action's text, owner,
+due date, and status; the meeting's title, start time, and LokalBot meeting ID;
+and the paths on this Mac of the meeting's summary, your notes, and its
+transcript. An action that came up in several meetings lists up to five of them.
+LokalBot hands the prompt only to that agent on this Mac, through Claude Code's
+`claude-cli://` link (or the Claude app's Code tab until that link is set up) or
+the Codex app's `codex://` link. Nothing is sent until you press Enter or Send
+there. Once you do, the prompt goes to Anthropic or OpenAI, and the agent can
+open the listed files with its own file access and permission prompts and send
+what it reads too, under that agent's terms. LokalBot can't limit what the agent
+reads. This does not enable Agent Access. Claude Code and Codex record these
+sessions like any other, so LokalBot reads them back as coding-agent evidence
+while **Read coding agent sessions** is on.
+
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
 captured text, and semantic search vector until you unsave or delete that

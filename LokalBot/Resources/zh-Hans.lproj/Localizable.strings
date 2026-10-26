@@ -1451,3 +1451,4 @@
 "Shared" = "已共享";
 "Dismiss all suggestions?" = "忽略所有建议？";
 "LokalBot won't suggest them again." = "LokalBot 不会再次建议这些内容。";
+"Open in %@" = "在 %@ 中打开";

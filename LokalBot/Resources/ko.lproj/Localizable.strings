@@ -1452,3 +1452,4 @@
 "Shared" = "공유됨";
 "Dismiss all suggestions?" = "모든 제안을 무시할까요?";
 "LokalBot won't suggest them again." = "LokalBot이 다시 제안하지 않습니다.";
+"Open in %@" = "%@에서 열기";

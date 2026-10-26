@@ -242,6 +242,9 @@ struct ActionThreadRow: View {
                         meetingID: thread.latestReference.meetingID,
                         actionID: thread.latestReference.action.id))
                 }
+                ForEach(ActionAgentAvailability.installed) { target in
+                    Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
+                }
             } label: {
                 Image(systemName: "ellipsis")
                     .frame(width: 28, height: 24)
@@ -511,6 +514,9 @@ struct OutcomeOverviewActionRow: View {
                         prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
                         meetingID: reference.meetingID,
                         actionID: reference.action.id))
+                }
+                ForEach(ActionAgentAvailability.installed) { target in
+                    Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
                 }
             } label: {
                 Image(systemName: "ellipsis")
