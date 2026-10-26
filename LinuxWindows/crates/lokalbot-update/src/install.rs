@@ -21,6 +21,9 @@ pub const APP_ID: &str = "com.lokalbot.LokalBot";
 const ICON_SIZES: [u32; 8] = [16, 24, 32, 48, 64, 128, 256, 512];
 /// The archive's folder of license texts.
 const LICENSES_DIR: &str = "LICENSES";
+/// The Windows archive's Visual C++ runtime, which lokalbot-ai's runtime.rs
+/// (`VC_RUNTIME_DIR`) copies beside llama-server.exe.
+const VC_RUNTIME_DIR: &str = "vc-runtime";
 
 pub const APP_BINARY: &str = if cfg!(windows) {
     "lokalbot.exe"
@@ -257,9 +260,9 @@ struct Replacement {
 /// archive's `LokalBot-<version>-<platform>` folder): both binaries, the
 /// Windows CLI copy, files the archive folder also holds (licenses, notices,
 /// when LokalBot runs from an extracted archive or the installer's folder),
-/// license texts the update adds to that folder's `LICENSES`, then
-/// install.sh's desktop entry and icons. Nothing is replaced unless every
-/// file could be staged.
+/// license texts the update adds to that folder's `LICENSES`, the Visual C++
+/// runtime, then install.sh's desktop entry and icons. Nothing is replaced
+/// unless every file could be staged.
 pub fn install(
     staged: &Path,
     targets: &Targets,
@@ -336,7 +339,10 @@ fn plan(staged: &Path, targets: &Targets) -> Result<Vec<Replacement>, InstallErr
         let new_license = !present
             && relative.parent() == Some(Path::new(LICENSES_DIR))
             && fs::symlink_metadata(targets.dir.join(LICENSES_DIR)).is_ok_and(|m| m.is_dir());
-        if present || new_license {
+        // Installations from before the Windows archive carried the Visual
+        // C++ runtime get it too; their llama.cpp runtimes need it.
+        let vc_runtime = relative.parent() == Some(Path::new(VC_RUNTIME_DIR));
+        if present || new_license || vc_runtime {
             pairs.push((staged.join(&relative), target));
         }
     }
@@ -381,6 +387,10 @@ fn sibling(target: &Path, suffix: &str) -> PathBuf {
 
 fn stage(replacement: &Replacement) -> io::Result<()> {
     let _ = fs::remove_file(&replacement.staged);
+    // The Visual C++ runtime can be new to an installation, folder and all.
+    if let Some(folder) = replacement.staged.parent() {
+        fs::create_dir_all(folder)?;
+    }
     fs::copy(&replacement.source, &replacement.staged)?;
     #[cfg(unix)]
     {
@@ -723,6 +733,32 @@ mod tests {
             assert_eq!(read(&folder.join("LICENSES/MIT.txt")), "added license");
             assert_eq!(read(&folder.join("settings-of-the-user.txt")), "kept");
             assert!(!folder.join("icons").exists());
+        }
+    }
+
+    #[test]
+    fn adds_the_visual_cpp_runtime_to_older_installations() {
+        for style in BOTH {
+            let temp = tempfile::tempdir().unwrap();
+            let staged = update(temp.path());
+            write(&staged.join("vc-runtime/msvcp140.dll"), "new runtime");
+            write(&staged.join("vc-runtime/vcruntime140.dll"), "new runtime");
+            let older = temp.path().join("older");
+            write(&older.join(APP_BINARY), "old app");
+            write(&older.join(CLI_BINARY), "old cli");
+            let current = temp.path().join("current");
+            write(&current.join(APP_BINARY), "old app");
+            write(&current.join(CLI_BINARY), "old cli");
+            write(&current.join("vc-runtime/msvcp140.dll"), "old runtime");
+            for folder in [&older, &current] {
+                install(&staged, &targets(folder), style).unwrap();
+                assert_eq!(
+                    names(&folder.join("vc-runtime")),
+                    sorted(&["msvcp140.dll", "vcruntime140.dll"]),
+                    "{style:?}"
+                );
+                assert_eq!(read(&folder.join("vc-runtime/msvcp140.dll")), "new runtime");
+            }
         }
     }
 

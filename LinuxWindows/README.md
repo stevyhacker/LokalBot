@@ -145,7 +145,8 @@ release has none yet, use a CI run's artifacts (`lokalbot-linux-x86_64`, `lokalb
 
 - **Linux** (x86_64): extract `LokalBot-<version>-linux-x86_64.tar.gz` and run `./install.sh`. It installs
   `lokalbot` and `lokalbot-cli` into `~/.local/bin` and adds LokalBot to your applications menu.
-  Runtime needs: a Vulkan or OpenGL driver (Mesa is fine), PulseAudio or PipeWire for system audio.
+  Runtime needs: a Vulkan or OpenGL driver (Mesa is fine), PulseAudio or PipeWire for system audio, and
+  for the built-in models the GCC OpenMP runtime (`libgomp1` on Debian and Ubuntu, `libgomp` on Fedora and Arch).
   The same release has packages that install into `/usr/bin` with their dependencies:
   `LokalBot-<version>-linux-amd64.deb` (Debian, Ubuntu: `sudo apt install ./LokalBot-…deb`),
   `LokalBot-<version>-linux-x86_64.rpm` (Fedora, openSUSE: `sudo dnf install ./LokalBot-…rpm`) and
