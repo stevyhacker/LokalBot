@@ -402,7 +402,7 @@ mod tests {
         assert_eq!(endpoint.api, ProviderApi::Responses);
         assert_eq!(endpoint.plan, Some(SubscriptionPlan::ChatGpt));
         assert_eq!(endpoint.reasoning_dialect, ReasoningDialect::OpenAi);
-        assert_eq!(endpoint.context_tokens, 128_000);
+        assert_eq!(endpoint.context_tokens, 922_000);
         assert!(connection.lease.is_none());
         let port = relay.port();
         drop(connection);
