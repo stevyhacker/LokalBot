@@ -24,6 +24,13 @@ Key facts:
 - [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, speaker diarization, search, summary, autocomplete, and OCR results with methods and known gaps
 - [Privacy policy](https://www.lokalbot.com/privacy): what stays on your computer and exactly when the app uses the network
 
+## Blog
+
+- [LokalBot blog](https://www.lokalbot.com/blog): releases, local model benchmarks, and build notes ([Atom feed](https://www.lokalbot.com/blog/feed.xml))
+- [Recall vs. restraint](https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark): a 120-case benchmark of local models deciding what to save as a memory and what to leave out
+- [LokalBot is on Windows and Linux, in alpha](https://www.lokalbot.com/blog/windows-and-linux-alpha): what works, what is missing, default models, and installation
+- [How the Windows and Linux port was built](https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents): specs first, how coding agents' work was checked, and a link to the full write-up
+
 ## Guides
 
 - [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free capture, on-device transcription, private summaries, trade-offs, and setup
