@@ -157,6 +157,11 @@ struct AppSettings: Codable, Equatable {
     /// Offers "Looks done?" on open actions when later retained screen text
     /// shows a matching completion (sent, merged, submitted). Never auto-completes.
     var suggestActionCompletion: Bool = true
+    /// Meta Model API models for Live Radar (while recording) and
+    /// Follow-through (after a meeting). Sending also needs a key and the
+    /// api.meta.ai origin in `approvedRemoteInferenceOrigins`.
+    var museRadarModel: String = MetaModelAPI.museSpark.id
+    var museFollowThroughModel: String = MetaModelAPI.museWonder.id
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -543,6 +548,26 @@ struct AppSettings: Codable, Equatable {
         }
     }
 
+    var metaModelAPIKey: String {
+        get { KeychainSecrets.string(account: MetaModelAPI.apiKeyAccount) ?? "" }
+        set { KeychainSecrets.setString(newValue, account: MetaModelAPI.apiKeyAccount) }
+    }
+
+    /// Meta's own key, else Think's key when Think already points at
+    /// api.meta.ai, so one key serves both.
+    var effectiveMetaModelAPIKey: String {
+        let own = metaModelAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !own.isEmpty { return own }
+        guard let think = URL(string: openAIBaseURL),
+              RemoteInferenceGate.origin(for: think) == MetaModelAPI.origin else { return "" }
+        return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Live Radar and Follow-through may send meeting text to api.meta.ai.
+    var metaModelAPIApproved: Bool {
+        InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins)
+    }
+
     // MARK: - Summarisation shape
 
     /// Which set of section headings the summariser uses (meeting, lecture,
@@ -879,6 +904,8 @@ struct AppSettings: Codable, Equatable {
         case transcriptionPrompt
         case autoTranscriptionVocabulary
         case suggestActionCompletion
+        case museRadarModel
+        case museFollowThroughModel
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
@@ -1080,6 +1107,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(transcriptionPrompt, forKey: .transcriptionPrompt)
         try c.encode(autoTranscriptionVocabulary, forKey: .autoTranscriptionVocabulary)
         try c.encode(suggestActionCompletion, forKey: .suggestActionCompletion)
+        try c.encode(museRadarModel, forKey: .museRadarModel)
+        try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
@@ -1261,6 +1290,8 @@ struct AppSettings: Codable, Equatable {
         transcriptionPrompt = decode(.transcriptionPrompt, defaults.transcriptionPrompt)
         autoTranscriptionVocabulary = decode(.autoTranscriptionVocabulary, defaults.autoTranscriptionVocabulary)
         suggestActionCompletion = decode(.suggestActionCompletion, defaults.suggestActionCompletion)
+        museRadarModel = decode(.museRadarModel, defaults.museRadarModel)
+        museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)

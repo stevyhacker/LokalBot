@@ -151,6 +151,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.meetingNotesUseCalendarContext", title: "Give notes the calendar title and invited names", category: .recording, aliases: "attendees participants names summary context"),
         .init(id: "settings.meetingNotesUseScreenTitles", title: "Give notes the titles of documents on screen", category: .recording, aliases: "screen documents slides summary context"),
         .init(id: "settings.useCalendarAgenda", title: "Use invitation agendas", category: .recording, aliases: "agenda calendar invitation notes description"),
+        .init(id: "settings.museRadarModel", title: "Live Radar model", category: .recording, aliases: "meta muse spark wonder live radar commitments contradictions api key"),
+        .init(id: "settings.museFollowThroughModel", title: "Follow-through model", category: .recording, aliases: "meta muse wonder spark follow through agent actions"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .dayMemory, aliases: "dayDigestAutoEnabled"),
         .init(id: "settings.codingAgentEvidenceEnabled", title: "Read coding agent sessions", category: .dayMemory, aliases: "claude code codex agent transcripts sessions digest pull requests commits"),

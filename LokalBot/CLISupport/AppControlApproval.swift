@@ -15,12 +15,14 @@ enum AppSecret: String, CaseIterable, Codable {
     case openAICompatible = "openai-compatible"
     case remoteTranscription = "remote-transcription"
     case autocompleteServer = "autocomplete-server"
+    case metaModelAPI = "meta-model-api"
 
     var title: String {
         switch self {
         case .openAICompatible: "OpenAI-compatible server API key"
         case .remoteTranscription: "Transcription server API key"
         case .autocompleteServer: "Autocomplete server API key"
+        case .metaModelAPI: "Meta Model API key"
         }
     }
 
@@ -33,6 +35,8 @@ enum AppSecret: String, CaseIterable, Codable {
             "Sent with transcription requests to the server in Settings → Models."
         case .autocompleteServer:
             "Sent with autocomplete requests to the server in Settings → Models."
+        case .metaModelAPI:
+            "Sent to api.meta.ai with Live Radar and Follow-through requests (Settings → Recording → Meta Muse)."
         }
     }
 

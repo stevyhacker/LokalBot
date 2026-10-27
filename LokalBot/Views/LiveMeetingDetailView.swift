@@ -6,7 +6,7 @@ import SwiftUI
 /// transcript preview (chunked, undiarized — the full pipeline transcript
 /// replaces it after the meeting) sits beside a full-height quick-notes pad;
 /// notes are saved to `notes.md` in the meeting folder and folded into the
-/// summary.
+/// summary. Live Radar sits between them.
 ///
 /// Starting preview is an explicit ASR opt-in. Opening a live meeting alone
 /// does not load a model or start speech inference.
@@ -33,6 +33,9 @@ struct LiveMeetingDetailView: View {
                     .frame(minWidth: 240, maxWidth: .infinity, maxHeight: .infinity)
                     .layoutPriority(1)
                     .splitPaneAccessibilityLabel("Live transcript")
+                MeetingRadarPanel(radar: app.meetingRadar, meeting: meeting)
+                    .frame(minWidth: 240, idealWidth: 320, maxHeight: .infinity)
+                    .splitPaneAccessibilityLabel("Live radar")
                 notesColumn
                     .frame(minWidth: 200, idealWidth: 300, maxHeight: .infinity)
                     .splitPaneAccessibilityLabel("Meeting notes")

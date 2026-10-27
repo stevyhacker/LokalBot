@@ -172,7 +172,7 @@ struct SettingsView: View {
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
+            meetingsSection; processingSection; summarizationSection; MetaMuseSettingsSection(); meetingNoteExportSection
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .personalContext:

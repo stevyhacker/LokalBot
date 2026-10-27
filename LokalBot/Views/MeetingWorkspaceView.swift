@@ -166,6 +166,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var speechSessionID: UUID?
     @State private var searchQuery = ""
     @State private var screenContext = MeetingScreenContext()
+    @State private var radar: MeetingRadarRecord?
     private var tab: MeetingWorkspaceTab {
         get { app.meetingWorkspaceTabs[meeting.id] ?? .summary }
         nonmutating set {
@@ -193,6 +194,7 @@ private struct MeetingWorkspaceDetail: View {
         _captureNeedsAttention = State(initialValue: document.captureNeedsAttention)
         _recoveryNeedsAttention = State(initialValue: document.recoveryNeedsAttention)
         _screenContext = State(initialValue: document.screenContext)
+        _radar = State(initialValue: document.radar)
     }
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
@@ -757,6 +759,17 @@ private struct MeetingWorkspaceDetail: View {
                 }
             }
         }
+        if let radar, !radar.items.isEmpty {
+            WorkspaceSection(title: "Live Radar", icon: "dot.radiowaves.left.and.right") {
+                RadarItemList(items: radar.items,
+                              followThrough: { app.followThrough($0, in: meeting) },
+                              openSource: { revealEvidence(at: $0.time) },
+                              scrolls: false)
+                Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · "
+                     + RadarItemList.costLabel(radar.cost))
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
+            }
+        }
         if !screenContext.materials.isEmpty {
             MeetingScreenMaterialsSection(
                 context: screenContext,
@@ -1136,6 +1149,7 @@ private struct MeetingWorkspaceDetail: View {
         captureNeedsAttention = document.captureNeedsAttention
         recoveryNeedsAttention = document.recoveryNeedsAttention
         screenContext = document.screenContext
+        radar = document.radar
         summary = document.summary
         speakerNameHints = document.speakerNameHints
         calendarSpeakerCandidates = meeting.resolvedCalendarParticipantIdentities
@@ -1866,6 +1880,7 @@ private struct OutcomeActionRow: View {
                 app.handOff(reference, owner: displayOwner, to: target)
             }))
         }
+        items.append(.init(title: "Follow Through with Muse…", action: { app.followThrough(reference) }))
         return items
     }
 

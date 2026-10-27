@@ -37,6 +37,20 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
+        // Public or synthetic transcripts only; reads no library and no Keychain.
+        if let replay = MeetingRadarReplay.parse(CommandLine.arguments) {
+            Task { @MainActor in
+                exit(await MeetingRadarReplay.run(input: replay.input, model: replay.model,
+                                                  interval: replay.interval, delay: replay.delay))
+            }
+            RunLoop.main.run()
+            return
+        }
+        if let replay = FollowThroughReplay.parse(CommandLine.arguments) {
+            Task { @MainActor in exit(await FollowThroughReplay.run(input: replay.input, model: replay.model)) }
+            RunLoop.main.run()
+            return
+        }
         // Reads one saved preferences value; needs no library, lock or window.
         if case .cotypingMeasurements? = HeadlessCommand.parse(CommandLine.arguments) {
             exit(CotypingStatsStore.printSaved())

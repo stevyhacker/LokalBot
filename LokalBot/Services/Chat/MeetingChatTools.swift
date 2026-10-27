@@ -354,7 +354,9 @@ final class MeetingChatTools: ChatToolRunner {
         self.now = now
     }
 
-    let specs: [ChatToolSpec] = [
+    var specs: [ChatToolSpec] { Self.specs }
+
+    static let specs: [ChatToolSpec] = [
         ChatToolSpec(
             name: "search_meetings",
             summary: "Search across every meeting transcript, summary and title. Accepts natural-language or keyword queries; returns matching meetings with timestamps and snippets.",

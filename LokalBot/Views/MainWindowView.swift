@@ -40,6 +40,10 @@ struct MainWindowView: View {
             FollowUpDraftSheet(meeting: meeting)
                 .environmentObject(app)
         }
+        .sheet(item: $app.followThroughSession) { session in
+            FollowThroughSheet(session: session)
+                .environmentObject(app)
+        }
         .sheet(isPresented: $app.showsSampleSetup) {
             SampleMeetingSetupSheet(modelRoles: app.modelRoles)
                 .environmentObject(app)

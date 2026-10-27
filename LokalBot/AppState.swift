@@ -341,6 +341,8 @@ final class AppState: ObservableObject {
 
     /// The meeting whose follow-up draft sheet is open, from any entry point.
     @Published var followUpDraftMeeting: Meeting?
+    /// The open Follow-through run (Muse plans one action; each step waits for approval).
+    @Published var followThroughSession: FollowThroughSession?
     /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
     @Published var showsSampleSetup = false
 
@@ -929,6 +931,16 @@ final class AppState: ObservableObject {
     private(set) lazy var liveTranscriber = LiveMeetingTranscriber(
         storageRoot: storage.rootURL,
         settings: { [store = settingsStore] in store.current })
+    /// Live Radar reads the live transcript with Muse while recording; it
+    /// runs only after the person starts it for that meeting.
+    private(set) lazy var meetingRadar = MeetingRadar(
+        transcriber: liveTranscriber,
+        evidenceSource: LibraryRadarEvidenceSource(
+            meetings: { [weak self] in self?.meetings ?? [] },
+            searchIndex: searchIndex,
+            embeddingIndex: embeddingIndex,
+            settings: { [store = settingsStore] in store.current }),
+        settings: { [store = settingsStore] in store.current })
 
     @MainActor
     func prepareRecommendedCotypingModel() {
@@ -1081,6 +1093,11 @@ final class AppState: ObservableObject {
         guard interactive else { return }
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
+        }
+        // The radar keeps its own copy of the live lines, so its last pass can
+        // run after the preview is cleared.
+        if meetingRadar.meetingID != nil, meetingRadar.meetingID != recording.currentMeeting?.id {
+            Task { await meetingRadar.finish() }
         }
         if active, let meeting = recording.currentMeeting {
             liveTranscriber.prepare(folder: meeting.folderURL(in: storage))

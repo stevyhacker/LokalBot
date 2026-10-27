@@ -17,6 +17,7 @@ LokalBot can store the following under its Application Support directory:
 
 - meeting microphone and system-audio tracks, and an AAC copy of the audio
   in recordings you import;
+- Live Radar findings (`radar.json`) for recordings where you started it;
 - transcripts, summaries, notes, search indexes, and meeting metadata,
   including attendee names and emails for calendar-matched meetings and,
   only when you turn on **Use invitation agendas**, the invitation's agenda
@@ -333,7 +334,7 @@ The app may make these outbound connections:
   invited participants' names, titles of documents on screen during the call,
   and, when enabled, the invitation agenda; each has its own setting.
   Follow-up drafts and pre-meeting briefs are written only by an on-device
-  Think model. A tracked project's "Where it stands" note uses the Think model
+  Think model; Follow-through, below, is a separate feature you start yourself. A tracked project's "Where it stands" note uses the Think model
   you chose: **Write Note** or **Update** sends the project's names, the lines
   of its ten most recent meetings that name it, the decisions and open actions
   that name it, and its overnight review notes.
@@ -344,6 +345,40 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
+- **Optional Meta Muse (Live Radar and Follow-through):** off until you add a
+  Meta Model API key and turn on "Allow sending meeting text to
+  https://api.meta.ai" in Settings → Recording → Meta Muse. That switch adds
+  the origin to the same approved-server list Think uses, so revoking it in
+  either place stops both. Even then, nothing is sent until you start it:
+  - **Live Radar** runs only after you press Start Radar during a recording,
+    for that recording, and turns on the live transcript preview if it is
+    off. About every 20 seconds it sends Muse Spark (or the model you choose)
+    the preview lines that arrived since the previous request, up to 24
+    earlier lines of the same meeting, the meeting title, invited names from
+    the calendar, what it already found, and up to six passages from your
+    earlier meetings that local search found for the new lines. Audio,
+    speaker separation, and the search itself stay on this Mac, and calendar
+    email addresses are never sent. What it finds is saved to `radar.json` in
+    the meeting folder and deleted with the meeting. It stops when the
+    recording ends, after one last request for lines it had not sent.
+  - **Follow-through** runs only when you choose Follow Through with Muse on
+    one action. It sends Muse Wonder (or the model you choose) the action, its
+    quoted source lines, the meeting title, date, invited names, the meeting
+    summary, that meeting's Live Radar items, and the name from Settings →
+    Writing, then whatever its read tools return: meeting search results,
+    meeting summaries or transcript windows, and action items. It cannot read
+    screen memory. Every step it proposes (an email draft, a calendar
+    invitation, a task for Claude Code or Codex, marking the action done)
+    waits for your approval, can be edited first, and opens as a draft in
+    your mail app, Calendar, or coding agent; LokalBot never sends mail or
+    invitations itself. Email addresses are filled in from the meeting's
+    calendar invitation on this Mac and are not sent to Meta. An approved
+    email is also saved as the meeting's follow-up draft.
+  Requests go only to `https://api.meta.ai`, through the same per-origin
+  rate gate and redirect rule as Think, with the key kept in the Keychain.
+  Meta's terms for your Model API account apply. Content sent while you use
+  free credits may be used to improve Meta's products; Contributor models,
+  which grant Meta training rights for a discount, are not offered.
 - **Optional autocomplete server:** Autocomplete runs on this Mac unless you
   choose Think's server or another OpenAI-compatible server under Settings →
   Models → Autocomplete. A server on a loopback address keeps your typing on

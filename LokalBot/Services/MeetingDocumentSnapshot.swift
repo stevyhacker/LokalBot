@@ -15,6 +15,7 @@ struct MeetingDocumentSnapshot: Sendable {
     var captureNeedsAttention = false
     var recoveryNeedsAttention = false
     var screenContext = MeetingScreenContext()
+    var radar: MeetingRadarRecord?
 
     static func load(meeting: Meeting, root: URL, template: NoteTemplate, databaseURL: URL) -> Self {
         let folder = root.appendingPathComponent(meeting.relativePath)
@@ -52,6 +53,7 @@ struct MeetingDocumentSnapshot: Sendable {
                     attributionNeedsRefresh: MeetingAttributionArtifacts.needsRefresh(in: folder),
                     captureNeedsAttention: RecordingHealthReport.load(in: folder)?.hasCaptureIssues == true,
                     recoveryNeedsAttention: MeetingAudioFiles.recoveryNeedsAttention(in: folder),
-                    screenContext: screenContext)
+                    screenContext: screenContext,
+                    radar: MeetingRadarRecord.load(from: folder))
     }
 }
