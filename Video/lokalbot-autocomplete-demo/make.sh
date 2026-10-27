@@ -1,11 +1,10 @@
 #!/bin/bash
-# Renders the autocomplete demo: picture, soundtrack, MP4, GIF, poster and captions.
+# Renders the autocomplete demo: picture, voice, music, MP4, GIF and poster.
 #
 #   ./make.sh [out-dir]          default: renders/ (gitignored)
 #
 # Needs Node with Playwright (headless Chromium), Python 3 with numpy and
-# scipy, and ffmpeg. The footage frames come from build_edit.py; the voice,
-# music and effects from the voice assets branch (see README.md).
+# scipy, and ffmpeg. The footage frames come from build_edit.py.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${1:-$HERE/renders}
@@ -20,12 +19,8 @@ node render.cjs events "$OUT/events.json"
 python3 audio.py edit.json "$OUT/events.json" "$OUT/soundtrack.wav"
 
 echo "== picture =="
-# KEEP_FRAMES=1 reuses frames already rendered (after re-rendering a span with
-# `node render.cjs frames renders/frames --from s --to s`).
-if [[ ${KEEP_FRAMES:-} != 1 ]]; then
-  rm -rf "$OUT/frames"
-  node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
-fi
+rm -rf "$OUT/frames"
+node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
 
 echo "== MP4 =="
 # Two-pass EBU R128 to -14 LUFS, the level the social sites play at.
@@ -43,20 +38,5 @@ echo "== GIF and poster =="
 ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-demo.mp4" -vf \
   "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
   "$OUT/lokalbot-autocomplete-demo.gif"
-# The hook's last full frame: the logo and "Autocomplete for your whole Mac."
-poster=${POSTER_FRAME:-$(python3 -c "import json; e = json.load(open('edit.json')); print(round((e['timeline']['hook'][1] - 0.38) * e['fps']))")}
-cp "$OUT/frames/$(printf %05d "$poster").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
-
-echo "== captions =="
-# Every spoken line, for sites that take a caption file (YouTube).
-python3 - "$OUT/lokalbot-autocomplete-demo.srt" <<'PY'
-import json, sys
-def stamp(t):
-    ms = round(t * 1000)
-    return f'{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}'
-subs = json.load(open('edit.json'))['subtitles']
-with open(sys.argv[1], 'w') as f:
-    for i, (a, b, text) in enumerate(subs, 1):
-        f.write(f'{i}\n{stamp(a)} --> {stamp(b)}\n{text}\n\n')
-PY
+cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-679}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
 ls -lh "$OUT"/lokalbot-autocomplete-demo*

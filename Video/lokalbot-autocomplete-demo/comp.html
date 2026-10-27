@@ -5,32 +5,18 @@
 <title>LokalBot autocomplete demo</title>
 <link rel="stylesheet" href="vendor/fonts.css">
 <style>
-  /* lokalbot.com's tokens: navy page, teal accents, glass panels. */
   :root {
-    --bg: #080d14;
-    --ink: #ecf3f7;
-    --dim: #a2b4c2;
-    --faint: #8ba2b0;
+    --bg: #070b10;
+    --ink: #eaf6f3;
+    --dim: #8ca3a0;
     --ghost: #7d8b8a;
     --mint: #6ef2dc;
     --teal: #23c4ae;
-    --teal-soft: rgba(35, 196, 174, 0.14);
     --amber: #fbbf24;
-    --glass: rgba(18, 28, 40, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-shadow: 0 26px 60px -18px rgba(0, 0, 0, 0.62), 0 10px 26px -12px rgba(0, 0, 0, 0.5);
-    --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.14), inset 0 -1px 0 rgba(0, 0, 0, 0.22);
   }
   html, body { margin: 0; background: var(--bg); overflow: hidden; }
-  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: Inter, sans-serif; color: var(--ink);
-           background: var(--bg); }
-  /* Larger than the frame, so it can drift with the camera. */
-  #bg { position: absolute; left: -240px; top: -140px; width: 2400px; height: 1360px; transform-origin: 50% 50%;
-        background:
-          radial-gradient(1340px 1340px at -60px -320px, rgba(35, 196, 174, 0.2), transparent 62%),
-          radial-gradient(1230px 1230px at 2390px 1350px, rgba(20, 94, 91, 0.3), transparent 62%),
-          radial-gradient(845px 845px at 50% 45%, rgba(35, 196, 174, 0.08), transparent 64%),
-          var(--bg); }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg);
+           font-family: Inter, sans-serif; color: var(--ink); }
   #gl { position: absolute; inset: 0; width: 1920px; height: 1080px; }
   #ui { position: absolute; inset: 0; pointer-events: none; }
   .layer { position: absolute; inset: 0; opacity: 0; }
@@ -39,54 +25,43 @@
   .mono { font-family: 'JetBrains Mono', monospace; }
 
   /* Hook: the headline types itself and Tab accepts the rest. */
-  #hook-line { top: 470px; font-size: 104px; font-weight: 800; letter-spacing: -0.045em; white-space: pre; }
+  #hook-line { top: 446px; font-size: 104px; font-weight: 800; letter-spacing: -0.035em; white-space: pre; }
   #hook-typed { color: var(--ink); }
   #hook-ghost { color: var(--ghost); }
   #hook-ghost .lit { color: var(--ink); }
   .caret { display: inline-block; width: 7px; height: 0.95em; margin: 0 4px 0 6px; vertical-align: -0.12em;
            background: var(--mint); border-radius: 3px; box-shadow: 0 0 22px rgba(110, 242, 220, 0.9); }
-
   /* The logo lockup, as at the top of lokalbot.com */
-  .brand { display: flex; align-items: center; gap: 0.36em; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
-  .brand img { width: 1.6em; height: 1.6em; }
-  #hook-brand { top: 318px; left: 0; right: 0; justify-content: center; font-size: 60px; }
-  #corner { top: 54px; right: 72px; font-size: 30px; color: var(--ink); }
-  #corner img { filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4)); }
-
-  /* Captions for muted autoplay */
-  #caption { left: 0; right: 0; bottom: 64px; display: flex; justify-content: center; }
-  #caption span { max-width: 1240px; padding: 14px 30px; border-radius: 22px; text-align: center;
-                  font-size: 40px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em;
-                  background: rgba(8, 13, 20, 0.62); border: 1px solid var(--glass-border);
-                  backdrop-filter: blur(10px); box-shadow: var(--glass-inset); }
-  #caption b { font-weight: inherit; }
+  #hook-kicker { top: 318px; left: 0; right: 0; display: flex; align-items: center; justify-content: center; gap: 0.36em;
+                 font-size: 56px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); white-space: nowrap; }
+  #hook-kicker img { width: 1.6em; height: 1.6em; }
 
   /* Keycaps */
   .key { position: absolute; display: flex; align-items: center; justify-content: center; gap: 12px;
          height: 92px; min-width: 176px; padding: 0 28px; box-sizing: border-box; border-radius: 20px;
          font: 600 34px Inter, sans-serif; color: #0e141c; letter-spacing: 0.01em;
          background: linear-gradient(180deg, #f4fffc 0%, #c9efe7 100%);
-         box-shadow: 0 10px 0 #5fae9f, 0 18px 40px rgba(0, 0, 0, 0.55); }
-  .key.down { transform: translateY(8px); box-shadow: 0 2px 0 #5fae9f, 0 8px 20px rgba(0, 0, 0, 0.5); }
+         box-shadow: 0 10px 0 #5fae9f, 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 60px rgba(110, 242, 220, 0.35); }
+  .key.down { transform: translateY(8px); box-shadow: 0 2px 0 #5fae9f, 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 90px rgba(110, 242, 220, 0.75); }
   .key svg { width: 34px; height: 34px; }
 
   /* Section titles over footage and the explainer */
-  .title { left: 120px; top: 92px; font-size: 64px; font-weight: 800; letter-spacing: -0.045em; white-space: nowrap;
+  .title { left: 120px; top: 92px; font-size: 64px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap;
            text-shadow: 0 4px 28px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.6); }
   .shadowed { text-shadow: 0 6px 40px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.7); }
-  .title small { display: block; margin-bottom: 14px; font-size: 24px; font-weight: 700; letter-spacing: 0.2em;
-                 text-transform: uppercase; color: var(--teal); }
+  .title small { display: block; margin-bottom: 14px; font-size: 24px; font-weight: 700; letter-spacing: 0.28em;
+                 text-transform: uppercase; color: var(--mint); }
   .title em { font-style: normal; color: var(--mint); }
   .pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px;
-          font-size: 28px; font-weight: 600; color: var(--ink); background: var(--glass);
-          border: 1px solid var(--glass-border); box-shadow: var(--glass-inset), var(--glass-shadow); white-space: nowrap; }
+          font-size: 28px; font-weight: 600; color: var(--ink); background: rgba(14, 20, 28, 0.82);
+          border: 1px solid rgba(110, 242, 220, 0.35); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); white-space: nowrap; }
   .pill b { color: var(--mint); font-weight: 700; }
-  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--teal); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 16px var(--mint); }
 
   /* Memory card that flies in beside the footage */
   .memcard { width: 560px; padding: 26px 30px; border-radius: 26px; box-sizing: border-box;
-             background: rgba(18, 28, 40, 0.9); border: 1px solid var(--glass-border);
-             box-shadow: var(--glass-inset), var(--glass-shadow); }
+             background: rgba(16, 24, 33, 0.92); border: 1px solid rgba(110, 242, 220, 0.45);
+             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(110, 242, 220, 0.18); }
   .memcard .head { display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 700;
                    letter-spacing: 0.16em; text-transform: uppercase; color: var(--mint); }
   .memcard .meet { margin-top: 14px; font-size: 26px; font-weight: 600; color: var(--dim); }
@@ -108,55 +83,26 @@
   #gate { height: 0; border-top: 3px dashed rgba(251, 191, 36, 0.7); }
 
   #sentence { font-size: 76px; font-weight: 700; letter-spacing: -0.02em; white-space: pre; }
-
-  /* The model, as lokalbot.com lists it */
-  #mac { left: 360px; top: 222px; width: 1200px; height: 660px; box-sizing: border-box; border-radius: 34px;
-         background: rgba(11, 17, 25, 0.55); border: 1px solid rgba(150, 180, 200, 0.24); box-shadow: var(--glass-inset); }
-  #mac .bar { position: absolute; left: 28px; top: 24px; display: flex; gap: 12px; }
-  #mac .bar i { width: 16px; height: 16px; border-radius: 50%; background: rgba(150, 180, 200, 0.3); }
-  #mac .where { position: absolute; right: 30px; top: 18px; display: flex; align-items: center; gap: 10px;
-                font-size: 24px; font-weight: 600; color: var(--faint); }
-  #mac .where svg { width: 26px; height: 26px; }
-  .modelcard { position: absolute; left: 110px; top: 80px; width: 980px; display: flex; align-items: center; gap: 40px;
-               padding: 40px 46px; box-sizing: border-box; border-radius: 30px; background: var(--glass);
-               border: 1px solid var(--glass-border); box-shadow: var(--glass-inset), var(--glass-shadow); }
-  .modelcard .tile { flex: none; width: 150px; height: 150px; border-radius: 34px; display: grid; place-items: center;
-                     background: linear-gradient(160deg, rgba(110, 242, 220, 0.24), rgba(35, 196, 174, 0.08));
-                     border: 1px solid rgba(110, 242, 220, 0.3); }
-  .modelcard .tile svg { width: 84px; height: 84px; }
-  .modelcard .name { font-size: 68px; font-weight: 800; letter-spacing: -0.04em; }
-  .modelcard .name small { font-size: 0.6em; font-weight: 600; color: var(--dim); letter-spacing: -0.01em; margin-left: 10px; }
-  .modelcard .what { margin-top: 6px; font-size: 36px; font-weight: 500; color: var(--dim); }
-  .modelcard .chips { margin-top: 22px; display: flex; gap: 16px; }
-  .chip { padding: 8px 18px; border-radius: 14px; font: 600 30px 'JetBrains Mono', monospace; color: var(--mint);
-          background: var(--teal-soft); }
-  #mac .out { position: absolute; left: 110px; right: 80px; top: 404px; font-size: 46px; font-weight: 600;
-              letter-spacing: -0.015em; white-space: pre; color: var(--dim); }
-  #mac .out b { font-weight: 700; color: var(--mint); }
-  #mac .out .label { display: block; margin-bottom: 10px; font: 600 22px 'JetBrains Mono', monospace; letter-spacing: 0.16em;
-                     color: var(--faint); text-transform: uppercase; }
-  #mac .pills { position: absolute; left: 0; right: 0; top: 556px; display: flex; justify-content: center; gap: 20px; }
   #sentence .ghost { color: var(--ghost); }
   #sentence .lit { color: var(--ink); }
 
   /* End card */
-  #end-logo { width: 220px; height: 220px; left: 850px; top: 196px; filter: drop-shadow(0 30px 60px rgba(0,0,0,.6)); }
+  #end-logo { width: 220px; height: 220px; left: 850px; top: 196px; filter: drop-shadow(0 30px 60px rgba(0,0,0,.6)) drop-shadow(0 0 50px rgba(110,242,220,.25)); }
   #end-name { top: 496px; font-size: 120px; font-weight: 800; letter-spacing: -0.04em; }
   #end-tag { top: 644px; font-size: 46px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
   #end-tag em { font-style: normal; color: var(--mint); }
   #end-sub { top: 732px; font-size: 32px; font-weight: 500; color: var(--dim); letter-spacing: 0.01em; }
   #end-url { top: 814px; font-size: 38px; font-weight: 700; color: var(--mint); letter-spacing: 0.02em; }
 
-  #grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.035; mix-blend-mode: overlay; }
+  #grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.06; mix-blend-mode: overlay; }
   #vignette { position: absolute; inset: 0; pointer-events: none;
-              background: radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.4) 100%); }
-  #fade { position: absolute; inset: 0; background: var(--bg); pointer-events: none; opacity: 0; }
+              background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%); }
+  #fade { position: absolute; inset: 0; background: #000; pointer-events: none; opacity: 0; }
 </style>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 </head>
 <body>
 <div id="stage">
-  <div id="bg"></div>
   <canvas id="gl" width="1920" height="1080"></canvas>
   <div id="ui"></div>
   <div id="vignette"></div>

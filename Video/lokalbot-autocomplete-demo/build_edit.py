@@ -11,7 +11,7 @@ and each Tab land in the slot. The explainer gets the memory take's prompt,
 the model's candidates at each step and the suggestion as the app showed it,
 split where each Tab accepted it.
 
-The edit speeds the recording up but never reorders it: typing plays 2 to 2.6
+The edit speeds the recording up but never reorders it: typing plays 2 to 4
 times faster, the wait for the suggestion is shortened, and the suggestion
 itself plays at close to real time. The real wait is printed so it can be
 quoted honestly.
@@ -33,15 +33,13 @@ FPS = 30
 # the left, where the card's rounded corner would clip the first letters.
 CROP = (1720, 330)
 PAD = 36
-# Faster than this, typing looks frantic; a long take opens mid-sentence instead.
-MAX_SPEED = 2.6
 
 
 def slots(edit):
     """Each clip's time on screen and, for the quick language cuts, how long its typing plays."""
     T = edit['timeline']
     starts = [T['langs'][0] + s for s in edit['langStarts']] + [T['dive'][0] + 0.3]
-    langs = {name: (starts[i + 1] - starts[i], 0.5) for i, name in enumerate(('german', 'french', 'spanish'))}
+    langs = {name: (starts[i + 1] - starts[i], 0.3) for i, name in enumerate(('german', 'french', 'spanish'))}
     return {'memory': (T['memory'][1] - T['memory'][0], None),
             edit['wordClip']: (T['word'][1] - T['word'][0], None), **langs}
 
@@ -71,16 +69,16 @@ def plan(events, shot, length, typing=None, lead=0.12, tail=0.35):
         raise SystemExit('take has no accepted suggestion')
     if typing is not None:
         lead = 0.0
-    wait_out = min(ghost - typed, 0.15 if typing else 0.3)
-    show_out = min(tabs[0] - ghost, 0.35 if typing else 0.6)
+    wait_out = min(ghost - typed, 0.12 if typing else 0.22)
+    show_out = min(tabs[0] - ghost, 0.25 if typing else 0.5)
     accept_out = (done + 0.2 - tabs[0]) / 1.5
     typing_out = typing or length - lead - tail - wait_out - show_out - accept_out
     if typing is None and typing_out < 0.6:
         raise SystemExit(f'slot of {length:.2f}s is too short for this take')
     start = first - 0.1
     speed = (typed - start) / typing_out
-    if speed > MAX_SPEED:
-        speed = MAX_SPEED
+    if speed > 3.6:
+        speed = 3.6
         start = typed - speed * typing_out  # Open mid-sentence rather than type faster.
     elif speed < 2.0:
         speed = 2.0
@@ -195,7 +193,9 @@ def explainer(edit, logs):
     if ghost != memory['content']:
         print(f'note: the app showed {ghost!r}, the replayed prompt gave {memory["content"]!r}')
     parts = chunks(shown, memory['prefix'], ghost)
-    edit['ghostScene'].update({'ghost': ghost, 'chunks': parts})
+    beat = 60 / edit['bpm']
+    edit['ghostScene'].update({'ghost': ghost, 'chunks': parts,
+                               'presses': [round(2 * beat + i * beat / 2, 3) for i in range(len(parts))]})
     print(f'explainer: {len(edit["candidates"])} steps, accepted as {parts}')
 
 
