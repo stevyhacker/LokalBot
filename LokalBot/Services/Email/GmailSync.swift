@@ -54,6 +54,8 @@ struct GmailSyncer: Sendable {
                     account.sync.capped = found.cut
                 }
                 if !failed.isEmpty { lokalbotLog("email sync deferred threads=\(failed.count)") }
+                lokalbotLog("email history changed=\(changes.threadIDs.count) retried=\(account.sync.retryThreadIDs.count) "
+                            + "newPeople=\(unsearched.count) people=\(everyone.count)")
                 account.sync.retryThreadIDs = Self.retries(failed)
                 account.sync.historyID = changes.historyID
             } catch GmailError.historyExpired {
@@ -105,6 +107,9 @@ struct GmailSyncer: Sendable {
             try store.deleteThread(accountID: account.id, threadID: id)
         }
         if !result.failed.isEmpty { lokalbotLog("email sync deferred threads=\(result.failed.count)") }
+        // Counts only: never addresses, subjects, or ids.
+        lokalbotLog("email scan sent=\(sent.count) withPeople=\(candidates.count - sent.count) "
+                    + "kept=\(result.kept.count) people=\(people.count) searched=\(searched.count) cut=\(cut)")
         account.sync.retryThreadIDs = Self.retries(result.failed)
         account.sync.capped = cut
         account.sync.historyID = profile.historyId

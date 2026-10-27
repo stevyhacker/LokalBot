@@ -327,7 +327,8 @@ final class EmailController: ObservableObject {
                 result = try await syncer.sync(attempted, attendees: attendees)
                 result.sync.lastSuccessAt = now()
                 result.sync.lastError = nil
-                lokalbotLog("email sync done threads=\(result.sync.threadCount) capped=\(result.sync.capped)")
+                lokalbotLog("email sync done threads=\(result.sync.threadCount) messages=\(result.sync.messageCount) "
+                            + "people=\(result.sync.people.count) attendees=\(attendees.count) capped=\(result.sync.capped)")
             } catch is CancellationError {
                 result.sync.lastError = nil
             } catch GmailError.signInRequired {
