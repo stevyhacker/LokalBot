@@ -4,8 +4,8 @@
   "file": "Lena.txt",
   "opening": "Hallo Lena,\n\n",
   "size": [
-    1040,
-    330
+    1760,
+    420
   ],
   "settle": 1.0,
   "park": [
@@ -27,17 +27,17 @@
   ],
   "actions": [
     {
-      "type": "danke für das Gespräch heute. Ich schicke dir ",
+      "type": "danke für die Notizen. Ich wünsche dir ein schönes ",
       "cps": 10
     },
     {
       "mark": "typed"
     },
     {
-      "expect": "danke für das Gespräch heute. Ich schicke dir "
+      "expect": "danke für die Notizen. Ich wünsche dir ein schönes "
     },
     {
-      "ghost": 25
+      "ghost": 40
     },
     {
       "wait": 0.9

@@ -4,8 +4,8 @@
   "file": "Tomorrow.txt",
   "opening": "Hi Priya,\n\n",
   "size": [
-    1040,
-    330
+    1760,
+    420
   ],
   "settle": 1.0,
   "park": [
@@ -37,7 +37,7 @@
       "expect": "Can we go over the launch chec"
     },
     {
-      "ghost": 25
+      "ghost": 40
     },
     {
       "wait": 0.9

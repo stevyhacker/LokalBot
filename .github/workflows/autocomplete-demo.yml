@@ -19,7 +19,7 @@ on:
       appearances:
         description: "Appearances to film"
         required: false
-        default: "dark light"
+        default: "light"
   pull_request:
     paths:
       - ".github/workflows/autocomplete-demo.yml"
@@ -79,7 +79,7 @@ jobs:
       - name: Film
         env:
           LOKALBOT_APP: ${{ github.workspace }}/.build/dd/Build/Products/Debug/LokalBot.app
-          APPEARANCES: ${{ inputs.appearances || 'dark light' }}
+          APPEARANCES: ${{ inputs.appearances || 'light' }}
           TAKES: ${{ inputs.takes }}
         run: |
           # TAKES is a space-separated list of names; empty films every take.

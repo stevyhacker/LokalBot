@@ -4,8 +4,8 @@
   "file": "Note to Sam.txt",
   "opening": "Hi Sam,\n\n",
   "size": [
-    1040,
-    330
+    1760,
+    420
   ],
   "settle": 1.0,
   "park": [
@@ -27,17 +27,17 @@
   ],
   "actions": [
     {
-      "type": "Thanks for the call today. I'll send you the ",
+      "type": "Thanks for the notes from today. Let me know if you have any ",
       "cps": 10
     },
     {
       "mark": "typed"
     },
     {
-      "expect": "Thanks for the call today. I'll send you the "
+      "expect": "Thanks for the notes from today. Let me know if you have any "
     },
     {
-      "ghost": 25
+      "ghost": 40
     },
     {
       "wait": 0.9

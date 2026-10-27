@@ -3,7 +3,8 @@ import Foundation
 
 // Gives the hosted desktop a Retina (2x) mode when the runner offers one, so
 // the filmed text stays sharp when the cut scales it up. Lists every mode it
-// sees; falls back to the widest 1x mode at least 1600 points wide.
+// sees; falls back to the widest 1x mode. Either has room for the takes'
+// windows, which are 1760 points wide.
 //
 //   swift Scripts/autocomplete-demo/display.swift
 guard ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" else {
@@ -19,10 +20,10 @@ func describe(_ mode: CGDisplayMode) -> String {
 print("Display before: \(CGDisplayBounds(display)), \(CGDisplayCopyDisplayMode(display).map(describe) ?? "?")")
 for mode in modes { print("  mode \(describe(mode))") }
 
-let retina = modes.filter { $0.pixelWidth == 2 * $0.width && $0.width >= 1280 && $0.height >= 800 }
+let retina = modes.filter { $0.pixelWidth == 2 * $0.width && $0.width >= 1792 && $0.height >= 900 }
     .sorted { $0.width * $0.height > $1.width * $1.height }
-let wide = modes.filter { $0.width >= 1600 && $0.height >= 1000 }
-    .sorted { $0.width * $0.height < $1.width * $1.height }
+let wide = modes.filter { $0.width >= 1792 && $0.height >= 900 }
+    .sorted { ($0.width, $0.height) > ($1.width, $1.height) }
 for mode in retina + wide {
     var configuration: CGDisplayConfigRef?
     guard CGBeginDisplayConfiguration(&configuration) == .success, let configuration else { continue }

@@ -10,10 +10,10 @@ suggestions are whatever the model wrote in that take.
 | --- | --- |
 | `shots/*.json` | One take each, in `Scripts/readme-gif/rig.swift`'s shot format plus the document's `file` name and `opening` text. `warmup` loads the model and is not kept. |
 | `stage.py` | Downloads the catalog's default autocomplete model and checks its pinned SHA-256, seeds the README GIF's fictional launch-pricing library (so "the Team plan will be $15" can be finished from that meeting), and writes a throwaway settings suite with everything that could capture or learn off. |
-| `film.sh` | CI only. Grants the runner's TCC permissions to LokalBot and the rig, sets TextEdit to plain text in a large font with spelling marks and macOS inline predictions off, then films every take in each appearance and encodes it with `encode.py`. A take whose suggestion never shows is filmed again. |
+| `film.sh` | CI only. Grants the runner's TCC permissions to LokalBot and the rig and turns macOS inline predictions off, then films every take in each appearance (light by default) and encodes it with `encode.py`. TextEdit gets plain text at 44 pt with spelling marks off as launch arguments, since it reads its preferences from its sandbox container. A take whose suggestion never shows, or whose typing comes out wrong, is filmed again. |
 | `encode.py` | Turns a take's frames into a constant 30 fps MP4 that keeps the take's timing, with its events (keystrokes, the moment the suggestion appeared, each accept) beside it. |
 | `probe.py` | Replays the last prompt the app built in each take through the bundled `llama-server` with the same model and records the top candidates and probabilities at each step, for the video's "how it works" chart. |
-| `display.swift` | Gives the hosted desktop a Retina mode when the runner offers one. |
+| `display.swift` | Gives the hosted desktop a Retina mode when the runner offers one, otherwise its widest mode (1920 × 1080 at 1x on current runners). |
 
 The rig's `ghost` action waits for LokalBot's suggestion panel to appear and
 logs when it did; `accept` presses Tab while it is still showing. The Debug

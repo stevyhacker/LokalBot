@@ -5,7 +5,7 @@
 #   LOKALBOT_APP=<Debug LokalBot.app> Scripts/autocomplete-demo/film.sh <out-dir> [take...]
 #
 # Takes are Scripts/autocomplete-demo/shots/*.json (default: all but warmup),
-# filmed once per appearance (APPEARANCES, default "dark light"). Each take is
+# filmed once per appearance (APPEARANCES, default "light"). Each take is
 # typed by Scripts/readme-gif/rig.swift with real key events and recorded at
 # 30 fps with ScreenCaptureKit: TextEdit's window plus LokalBot's suggestion
 # panel, which the Debug build shows to capture with --lokalbot-film-ghost.
@@ -16,8 +16,10 @@
 # its permissions; LAUNCH=open starts it with `open` instead.
 #
 # CI only: it grants this runner's TCC permissions to LokalBot and the rig
-# with sudo, and changes TextEdit's and the global text defaults (plain text
-# in a large font; no spelling marks or macOS inline predictions).
+# with sudo and turns macOS inline predictions and corrections off. TextEdit
+# opens each document in plain text at FONT_SIZE (default 44) points: it is
+# sandboxed and reads its preferences from its container, so its settings go
+# in as launch arguments rather than through `defaults`.
 #
 # Writes <out-dir>/clips/<appearance>-<take>.mp4 with a .json of the take's
 # events, the raw takes' metadata, and the app's log.
@@ -30,8 +32,8 @@ BIN="$APP/Contents/MacOS/LokalBot"
 BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$APP/Contents/Info.plist")
 OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
-if [[ $# -eq 0 ]]; then set -- memory email midword chat german french spanish; fi
-APPEARANCES=${APPEARANCES:-dark light}
+if [[ $# -eq 0 ]]; then set -- memory midword email german french spanish; fi
+APPEARANCES=${APPEARANCES:-light}
 ATTEMPTS=${ATTEMPTS:-3}
 WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/autocomplete-demo.XXXXXX")" && pwd -P)
 LIB="$WORK/library"
@@ -87,14 +89,9 @@ defaults write -g NSAutomaticInlinePredictionEnabled -bool false
 defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false
 defaults write -g NSAutomaticTextCompletionEnabled -bool false
 defaults write -g WebAutomaticSpellingCorrectionEnabled -bool false
-defaults write com.apple.TextEdit RichText -bool false
-defaults write com.apple.TextEdit NSFixedPitchFont -string HelveticaNeue
-defaults write com.apple.TextEdit NSFixedPitchFontSize -int 30
-defaults write com.apple.TextEdit CheckSpellingWhileTyping -bool false
-defaults write com.apple.TextEdit CheckGrammarWithSpelling -bool false
-defaults write com.apple.TextEdit SmartQuotes -bool false
-defaults write com.apple.TextEdit ApplePersistenceIgnoreState -bool true
-defaults write com.apple.TextEdit NSQuitAlwaysKeepsWindows -bool false
+TEXTEDIT_ARGS=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSize "${FONT_SIZE:-44}"
+               -CheckSpellingWhileTyping NO -CheckGrammarWithSpelling NO -SmartQuotes NO -SmartDashes NO
+               -TextReplacement NO -ApplePersistenceIgnoreState YES -NSQuitAlwaysKeepsWindows NO)
 
 background() { [[ $1 == dark ]] && echo "#1E1E1E" || echo "#FFFFFF"; }
 
@@ -122,7 +119,9 @@ film() {
   rm -rf "$3"
   mkdir -p "$3"
   doc=$(python3 "$HERE/stage.py" shot "$shot" "$DOCS")
-  open -a TextEdit "$doc"
+  local args=("${TEXTEDIT_ARGS[@]}")
+  [[ $1 == dark ]] && args+=(-AppleInterfaceStyle Dark)
+  open -a TextEdit "$doc" --args "${args[@]}"
   RIG_BACKGROUND=$(background "$1") "$RIG" take "$shot" "$3" || status=$?
   pkill -x TextEdit 2>/dev/null || true
   return $status

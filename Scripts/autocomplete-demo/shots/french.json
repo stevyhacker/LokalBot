@@ -4,8 +4,8 @@
   "file": "Camille.txt",
   "opening": "Bonjour Camille,\n\n",
   "size": [
-    1040,
-    330
+    1760,
+    420
   ],
   "settle": 1.0,
   "park": [
@@ -27,17 +27,17 @@
   ],
   "actions": [
     {
-      "type": "Merci pour la réunion de ce matin. Je t'envoie ",
+      "type": "Merci pour les notes. N'hésite pas si tu as des ",
       "cps": 10
     },
     {
       "mark": "typed"
     },
     {
-      "expect": "Merci pour la réunion de ce matin. Je t'envoie "
+      "expect": "Merci pour les notes. N'hésite pas si tu as des "
     },
     {
-      "ghost": 25
+      "ghost": 40
     },
     {
       "wait": 0.9
