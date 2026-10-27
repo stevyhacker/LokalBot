@@ -1,10 +1,10 @@
 {
- "voice_direction": "Upbeat, bright and confident, like a launch video you want to share. Quick but clear, with energy on the key words and only short pauses between lines. Never shouty or salesy.",
+ "voice_direction": "A professional narrator: clear, confident and polished, with energy on the key words and only short pauses between lines. Never shouty or salesy.",
  "voice": "ElevenLabs eleven_v4 in voice jBeSFLau956Zo30jykBV (tts_elevenlabs.py, stability 0.35, seeds 11, 29 and 42), or OpenAI gpt-4o-mini-tts (tts.py); the take used is in \"take\", tightened by tighten.py. \"spoken\" is what the voice is sent, with eleven_v4 audio tags. Synthetic; say so where it is posted.",
  "take": {"engine": "eleven", "seed": 29, "tighten": {"pause": 0.2, "tempo": 1.1}},
  "scenes": [
   {"id": "v3-01-hook", "section": "hook", "take": {"seed": 11}, "caption": "Meet LokalBot. Autocomplete for your whole Mac.",
-   "spoken": "[excited] Meet LokalBot! Autocomplete for your whole Mac."},
+   "spoken": "Meet LokalBot! Autocomplete for your whole Mac."},
   {"id": "v3-02-memory", "section": "memory", "caption": "It remembers what your team decided, and finishes your sentence."},
   {"id": "v3-03-word", "section": "word", "take": {"seed": 42}, "caption": "It finishes the word you're typing,"},
   {"id": "v3-04-langs", "section": "langs", "caption": "in any language you write.",
@@ -16,6 +16,6 @@
   {"id": "v3-08-pick", "section": "pick", "take": {"seed": 11}, "caption": "It weighs every next word. When it isn't sure, it stays quiet."},
   {"id": "v3-09-ghost", "section": "ghost", "take": {"seed": 42}, "caption": "When it is, the rest appears in gray. Tab takes it, word by word."},
   {"id": "v3-10-end", "section": "end", "take": {"seed": 42}, "caption": "LokalBot. Free, open source, and it runs on your Mac.",
-   "spoken": "[excited] LokalBot! Free, open source, and it runs on your Mac."}
+   "spoken": "LokalBot. Free, open source, and it runs on your Mac."}
  ]
 }

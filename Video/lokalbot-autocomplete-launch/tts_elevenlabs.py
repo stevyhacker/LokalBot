@@ -9,7 +9,8 @@ Writes assets/voice/eleven/<id>-s<seed>.mp3 plus production/eleven-generation.js
 The API key comes from ELEVENLABS_API_KEY or ELEVEN_LABS_API_KEY (the main
 checkout's .env uses the latter), e.g.
   export ELEVEN_LABS_API_KEY="$(sed -n 's/^ELEVEN_LABS_API_KEY=//p' ../../.env)"
-Usage: python3 tts_elevenlabs.py [--voice ID] [--seeds 11,29] [--only 05-open]
+Usage: python3 tts_elevenlabs.py [--voice ID --name brian] [--seeds 11,29] [--only 05-open]
+With --name, files are <id>-<name>-s<seed>.mp3, so several voices can sit side by side.
 """
 import argparse
 import base64
@@ -43,6 +44,7 @@ def main():
     ap.add_argument('--model', default='eleven_v4')
     ap.add_argument('--seeds', default='11,29')
     ap.add_argument('--only', default='')
+    ap.add_argument('--name', default='', help='short voice name for file names, when trying other voices')
     ap.add_argument('--stability', type=float, default=0.5)
     ap.add_argument('--similarity', type=float, default=0.8)
     ap.add_argument('--speed', type=float, default=1.0)
@@ -79,9 +81,10 @@ def main():
                     data = json.load(r)
             except urllib.error.HTTPError as e:
                 sys.exit(f'HTTP {e.code}: {e.read().decode()[:600]}')
-            path = out_dir / f"{scene['id']}-s{seed}.mp3"
+            path = out_dir / (f"{scene['id']}-{args.name}-s{seed}.mp3" if args.name else f"{scene['id']}-s{seed}.mp3")
             path.write_bytes(base64.b64decode(data['audio_base64']))
             row = {'id': scene['id'], 'seed': seed, 'file': str(path.relative_to(P)), 'text': body['text'],
+                   **({'voice_name': args.name, 'voice_id': args.voice, 'voice_settings': report['voice_settings']} if args.name else {}),
                    'duration': round(duration(path), 3), 'alignment': data.get('alignment')}
             report['rows'] = [x for x in report['rows'] if x['file'] != row['file']] + [row]
             report_path.write_text(json.dumps(report, indent=1, ensure_ascii=False) + '\n')

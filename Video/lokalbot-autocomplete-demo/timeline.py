@@ -125,7 +125,8 @@ def takes():
         report_path = HERE / 'production' / f"{pick['engine']}-generation.json"
         rows = json.loads(report_path.read_text())['rows'] if report_path.exists() else []
         if pick['engine'] == 'eleven':  # tts_elevenlabs.py: takes by seed, timed by ElevenLabs itself
-            row = next((r for r in rows if r['id'] == scene['id'] and r['seed'] == pick['seed']), None)
+            row = next((r for r in rows if r['id'] == scene['id'] and r['seed'] == pick['seed']
+                        and r.get('voice_name') == pick.get('voice')), None)
             heard = from_alignment(row['alignment']) if row and row.get('alignment') else None
         else:
             row = next((r for r in rows if r['id'] == scene['id'] and r['voice'] == pick['voice'] and r['take'] == pick['take']), None)
