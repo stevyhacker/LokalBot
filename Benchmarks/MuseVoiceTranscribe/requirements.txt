@@ -1,0 +1,2 @@
+-r ../NemotronDiarization/requirements-scoring.txt
+websockets==15.0.1
