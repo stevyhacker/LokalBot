@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Procedural soundtrack for the 30 s autocomplete demo.
+"""Procedural music bed and effects for the autocomplete demo.
 
 Everything is synthesized here, so the video carries no third-party audio.
 The music follows the section timeline in edit.json and the effects follow

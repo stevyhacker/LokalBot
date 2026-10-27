@@ -37,7 +37,35 @@ defaults:
     shell: bash
 
 jobs:
+  # A pull request's path filter sees the whole pull request, so every push
+  # would film again and replace the published takes. A later push films only
+  # when it changes the scripts or the rig; dispatch to film after changing
+  # only this workflow.
+  changes:
+    name: Decide whether to film
+    runs-on: ubuntu-latest
+    outputs:
+      film: ${{ steps.diff.outputs.film }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
+        run: |
+          film=true
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "${{ github.event.action }}" == synchronize ]] \
+            && git cat-file -e "$BEFORE^{commit}" 2>/dev/null \
+            && git diff --quiet "$BEFORE" "$AFTER" -- Scripts/autocomplete-demo Scripts/readme-gif/rig.swift; then
+            film=false
+          fi
+          echo "film=$film" | tee -a "$GITHUB_OUTPUT"
+
   build:
+    needs: changes
+    if: needs.changes.outputs.film == 'true'
     uses: ./.github/workflows/build.yml
     with:
       cache_mode: warm

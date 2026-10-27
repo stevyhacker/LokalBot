@@ -1,4 +1,4 @@
-// LokalBot autocomplete, 30 s. Every value on screen is a function of time:
+// LokalBot autocomplete demo. Every value on screen is a function of time:
 // `window.__seek(t)` lays the frame out, waits for the footage frames it
 // needs, and renders once. render.cjs steps it frame by frame.
 import * as THREE from 'three';

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Renders the 30 s autocomplete demo: picture, soundtrack, MP4, GIF and poster.
+# Renders the autocomplete demo: picture, voice, music, MP4, GIF and poster.
 #
 #   ./make.sh [out-dir]          default: renders/ (gitignored)
 #
@@ -31,12 +31,12 @@ norm="loudnorm=I=-14:TP=-1.0:LRA=11:measured_I=$(get input_i):measured_TP=$(get 
 norm="$norm:measured_LRA=$(get input_lra):measured_thresh=$(get input_thresh):offset=$(get target_offset):linear=true"
 ffmpeg -y -hide_banner -loglevel error -framerate 30 -i "$OUT/frames/%05d.png" -i "$OUT/soundtrack.wav" \
   -map 0:v -map 1:a -af "$norm,aresample=48000" -c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p \
-  -profile:v high -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT/lokalbot-autocomplete-30s.mp4"
+  -profile:v high -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT/lokalbot-autocomplete-demo.mp4"
 
 echo "== GIF and poster =="
 # 640 px at 12 fps stays under the 15 MB X allows for a GIF.
-ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-30s.mp4" -vf \
+ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-demo.mp4" -vf \
   "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
-  "$OUT/lokalbot-autocomplete-30s.gif"
-cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-679}").png" "$OUT/lokalbot-autocomplete-30s-poster.png"
-ls -lh "$OUT"/lokalbot-autocomplete-30s*
+  "$OUT/lokalbot-autocomplete-demo.gif"
+cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-679}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
+ls -lh "$OUT"/lokalbot-autocomplete-demo*

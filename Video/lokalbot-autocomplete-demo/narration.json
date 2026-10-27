@@ -1,0 +1,17 @@
+{
+ "voice_direction": "Warm, calm and assured, like showing a friend something you made. Unhurried, with small pauses between lines. Never salesy.",
+ "voice": "ElevenLabs eleven_v4, voice jBeSFLau956Zo30jykBV (Stevan's choice for the launch film). Synthetic; say so where it is posted.",
+ "scenes": [
+  {"id": "01-hook", "section": "hook", "caption": "This is LokalBot. Autocomplete for your whole Mac."},
+  {"id": "02-memory", "section": "memory", "caption": "It remembers what your team decided, so it can finish the sentence for you."},
+  {"id": "03-word", "section": "word", "caption": "It completes the word you're typing,"},
+  {"id": "04-langs", "section": "langs", "caption": "in whatever language you write."},
+  {"id": "05-how", "section": "dive", "caption": "So how does it work?"},
+  {"id": "06-context", "section": "context", "caption": "It reads the text before your cursor, and any saved notes that matter, like that pricing decision."},
+  {"id": "07-model", "section": "model", "caption": "A small model, Gemma 4, runs right inside the app. No server, no cloud, no account.",
+   "eleven_text": "A small model, Gemma four, runs right inside the app. No server, no cloud, no account."},
+  {"id": "08-pick", "section": "pick", "caption": "It weighs every possible next word. When it isn't sure, it stays quiet."},
+  {"id": "09-ghost", "section": "ghost", "caption": "When it is, the rest appears in gray, and Tab takes it one word at a time."},
+  {"id": "10-end", "section": "end", "caption": "LokalBot. Free, open source, and it runs on your Mac."}
+ ]
+}
