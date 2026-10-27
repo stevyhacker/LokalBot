@@ -284,6 +284,12 @@ enum SettingRegistry {
         entry("selectionActionsShortcut", .general, "Selection actions shortcut", .structured,
               aliases: "selection actions hotkey keyboard key combination",
               summary: "Key combination that opens selection actions, as a key code and modifier flags."),
+        entry("windowHandoffEnabled", .general, "Enable the Hand off shortcut", .bool, .consent,
+              aliases: "hand off handoff window agent global hotkey",
+              summary: "Register a global shortcut that reads the focused window and hands its task to Agent Mode, Claude Code, Codex, or the clipboard."),
+        entry("windowHandoffShortcut", .general, "Hand off shortcut", .structured,
+              aliases: "hand off handoff hotkey keyboard key combination",
+              summary: "Key combination that hands off the focused window, as a key code and modifier flags."),
     ]
 
     private static let recording: [SettingSpec] = [

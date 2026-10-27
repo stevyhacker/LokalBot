@@ -114,9 +114,7 @@ final class AgentSessionTabs: ObservableObject {
     @discardableResult func handOff(_ handoffs: [AgentHandoff], start: Bool,
                                     againIfArchived: Bool = false) -> [UUID] {
         var added: [UUID] = []
-        for handoff in handoffs where !tabs.contains(where: {
-            $0.record.handoff == handoff.source && !(againIfArchived && $0.record.isArchived)
-        }) {
+        for handoff in handoffs where !hasTask(for: handoff.source, againIfArchived: againIfArchived) {
             let tab = addSession(select: false)
             tab.controller.draft = handoff.prompt
             tab.controller.attachments = handoff.attachments
@@ -139,6 +137,11 @@ final class AgentSessionTabs: ObservableObject {
             startPendingHandoffs()
         }
         return added
+    }
+
+    private func hasTask(for source: AgentHandoffSource?, againIfArchived: Bool) -> Bool {
+        guard let source else { return false }
+        return tabs.contains { $0.record.handoff == source && !(againIfArchived && $0.record.isArchived) }
     }
 
     /// Sends a task's composer the way its Send button does. A draft edited

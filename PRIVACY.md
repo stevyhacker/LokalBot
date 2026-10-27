@@ -608,6 +608,27 @@ reads. This does not enable Agent Access. Claude Code and Codex record these
 sessions like any other, so LokalBot reads them back as coding-agent evidence
 while **Read coding agent sessions** is on.
 
+**Hand off** is off until you turn on **Enable the Hand off shortcut** in
+Settings → General. Pressing the shortcut, or **Hand off this window** in the
+menu bar, reads the focused window once: all of its Accessibility text,
+including text scrolled out of view, any selected text, and a screenshot when
+Screen Recording is allowed. When the window shares little text, the
+screenshot's text is read on this Mac. Excluded apps and sites, and windows
+with a password field, are not read. Credentials, card numbers, and IBANs are
+redacted, and a screenshot is dropped when anything was redacted. Nothing is
+added to screen memory, and Hand off works with screen memory off. Your Think
+model writes a brief from the text, under its own local or remote setting; you
+can edit it, write it again, or skip it. Nothing else happens until you press
+**Hand Off**. Then LokalBot saves a folder under `handoffs/` in the library,
+private to your user, with the brief, a manifest, the window's text, and the
+screenshot, and deletes it after 7 days. **Claude Code** and **Codex** open
+with a prompt of up to 5,000 characters that points at that folder; nothing is
+sent until you press Send there, and the agent then reads the folder with its
+own permissions. **Agent Mode** gets a new task with a copy of the folder in
+its working folder and the window's text attached; it waits for Send unless
+**Start handoffs automatically** is on. **Copy** puts the brief and the
+folder's location on the clipboard.
+
 Screen pixels and captured text follow the configured retention window by
 default. A screen moment you explicitly save retains its encrypted pixels,
 captured text, and semantic search vector until you unsave or delete that

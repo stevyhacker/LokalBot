@@ -548,6 +548,9 @@ struct DictationShortcut: Equatable, Sendable {
     static let quickRecallDefault = DictationShortcut(keyCode: 49, modifiers: [.maskControl, .maskShift])
     /// ⌃⇧ W ("write") opens selection actions.
     static let selectionActionsDefault = DictationShortcut(keyCode: 13, modifiers: [.maskControl, .maskShift])
+    /// ⌃⇧ H ("hand off") hands off the focused window. Not ⌃⌥, which
+    /// VoiceOver uses for its own commands.
+    static let windowHandoffDefault = DictationShortcut(keyCode: 4, modifiers: [.maskControl, .maskShift])
 
     var isModifierOnly: Bool { keyCode == nil }
 
@@ -577,6 +580,7 @@ struct DictationShortcut: Equatable, Sendable {
         case usedByDictation
         case usedByAsk
         case usedBySelectionActions
+        case usedByWindowHandoff
         case usedBySystem
         case unavailable
 
@@ -598,6 +602,8 @@ struct DictationShortcut: Equatable, Sendable {
                 "Ask already uses this shortcut. Choose another."
             case .usedBySelectionActions:
                 "Selection actions already use this shortcut. Choose another."
+            case .usedByWindowHandoff:
+                "Hand off already uses this shortcut. Choose another."
             case .usedBySystem:
                 "macOS already uses this shortcut. Choose another."
             case .unavailable:

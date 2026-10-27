@@ -183,6 +183,10 @@ final class AppState: ObservableObject {
                     || settings.selectionActionsShortcut != oldValue.selectionActionsShortcut {
                     applySelectionActionsSetting(replacing: oldValue.selectionActionsShortcut)
                 }
+                if settings.windowHandoffEnabled != oldValue.windowHandoffEnabled
+                    || settings.windowHandoffShortcut != oldValue.windowHandoffShortcut {
+                    applyWindowHandoffSetting(replacing: oldValue.windowHandoffShortcut)
+                }
                 // UI retention reductions are reviewed and executed explicitly.
                 // Changing a preference must not trigger an unreviewed cleanup.
                 if Self.dailyMemoryExportChanged(from: oldValue, to: settings) {
@@ -656,6 +660,42 @@ final class AppState: ObservableObject {
         },
         openPanel: { WindowAccess.shared.open("selection-actions") },
         report: { [weak self] message in self?.lastError = message }))
+    private(set) lazy var windowHandoffHotKey: QuickRecallHotKeyController = {
+        let controller = QuickRecallHotKeyController(
+            identifier: QuickRecallHotKeyController.windowHandoffIdentifier)
+        controller.onInvoke = { [weak self] in self?.windowHandoff.invoke() }
+        return controller
+    }()
+    /// Hand off: reads the focused window on a press and hands its task to
+    /// another agent. The brief runs on the Think model, so remote inference
+    /// keeps its per-origin approval.
+    private(set) lazy var windowHandoff = WindowHandoffController(dependencies: .init(
+        capture: { [weak self] in
+            guard let self else { return WindowHandoffCapture(issue: .unreadable) }
+            return await WindowHandoffCapturer.capture(
+                excludedApps: self.settings.excludedAppList,
+                excludedDomains: self.settings.excludedScreenDomainList)
+        },
+        makeEngine: { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: .interactive, purpose: "hand off")
+        },
+        targets: { WindowHandoffTarget.availableOnThisMac },
+        writePackage: { [weak self] capture, brief in
+            guard let self else { throw CocoaError(.fileWriteUnknown) }
+            return try WindowHandoffPackage.write(capture, brief: brief, library: self.storage.rootURL)
+        },
+        deliver: { [weak self] package, target in
+            guard let self else { return "LokalBot is shutting down." }
+            return self.deliverWindowHandoff(package, to: target)
+        },
+        returnFocus: { source in
+            guard let application = NSRunningApplication(processIdentifier: source.processID) else { return }
+            Task { await FocusReturn.activate(application) }
+        },
+        openPanel: { WindowAccess.shared.open("window-handoff") },
+        closePanel: { WindowAccess.shared.close("window-handoff") }))
     private let dailyMemoryExportScheduler = DailyMemoryExportScheduler()
     /// Notes are written while processing is idle, so a meeting's note is not
     /// written half-finished and rewritten moments later.
@@ -1323,6 +1363,7 @@ final class AppState: ObservableObject {
         showAgentSetupIfRequested()
         applyQuickRecallSetting()
         applySelectionActionsSetting()
+        applyWindowHandoffSetting()
         applyDailyMemoryExportSetting()
         applyMeetingNoteExportSetting()
         applyDayDigestSetting()
@@ -1597,6 +1638,8 @@ final class AppState: ObservableObject {
             quickRecallHotKey.stop()
             selectionActionsHotKey.stop()
             selectionActions.stop()
+            windowHandoffHotKey.stop()
+            windowHandoff.stop()
             dailyMemoryExportScheduler.stop()
             meetingNoteExport.stop()
             memoryRoutines.stop()
@@ -2284,9 +2327,11 @@ final class AppState: ObservableObject {
         guard interactive else { return }
         quickRecallHotKey.isSuspended = recording
         selectionActionsHotKey.isSuspended = recording
+        windowHandoffHotKey.isSuspended = recording
         if !recording {
             applyQuickRecallSetting()
             applySelectionActionsSetting()
+            applyWindowHandoffSetting()
         }
     }
 

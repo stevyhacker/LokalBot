@@ -15,6 +15,8 @@ struct ScreenAccessibilitySnapshot: Codable, Equatable, Sendable {
     var framedURLs: [String]?
     /// Some web content's address could not be read; nil when all could.
     var hasUnattributedWebContent: Bool?
+    /// The focused element's selected text. Only whole-document reads keep it.
+    var selectedText: String?
 
     func privacyObservation(appName: String, bundleIdentifier: String?) -> ScreenContextPrivacy.Observation {
         .init(appName: appName, bundleIdentifier: bundleIdentifier,
@@ -48,6 +50,19 @@ enum ScreenVisibleTextPolicy {
             if role == "AXStaticText", let staticValue { result.append(staticValue) }
         }
         return result
+    }
+}
+
+/// Hand off reads a whole document on an explicit press: every text element
+/// of the focused window, including what is scrolled out of view, in reading
+/// order. Screen memory never uses it.
+enum ScreenDocumentTextPolicy {
+    static let maximumCharacters = 100_000
+    static let textRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXComboBox", "AXHeading"]
+
+    static func text(role: String?, hidden: Bool, value: String?) -> [String] {
+        guard !hidden, let role, textRoles.contains(role), let value else { return [] }
+        return [value]
     }
 }
 
@@ -196,7 +211,21 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         textReadFailures[processID] = reason
     }
 
-    static func resolve(processID: pid_t, includeText: Bool = true) -> ScreenAccessibilitySnapshot? {
+    /// Which text a read keeps: what is visible, for screen memory, or the
+    /// whole document, for Hand off.
+    enum TextScope: Sendable {
+        case visible
+        case document
+
+        var maximumDuration: Duration { self == .visible ? .milliseconds(140) : .milliseconds(2_500) }
+        var maximumNodes: Int { self == .visible ? 320 : 6_000 }
+        var maximumCharacters: Int { self == .visible ? 24_000 : ScreenDocumentTextPolicy.maximumCharacters }
+        var maximumChildren: Int { self == .visible ? 80 : 800 }
+        var maximumElementCharacters: Int { self == .visible ? 8_000 : ScreenDocumentTextPolicy.maximumCharacters }
+    }
+
+    static func resolve(processID: pid_t, includeText: Bool = true,
+                        scope: TextScope = .visible) -> ScreenAccessibilitySnapshot? {
         func fail(_ reason: String, transient: Bool = false) -> ScreenAccessibilitySnapshot? {
             noteTextReadFailure(.init(reason: reason, isTransient: transient),
                                 processID: processID, includeText: includeText)
@@ -225,15 +254,16 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         var containsSecureField = false
         var totalCharacters = 0
         let started = ContinuousClock.now
-        let maximumDuration = Duration.milliseconds(140)
-        let maximumNodes = 320
-        let maximumCharacters = 24_000
+        let maximumDuration = scope.maximumDuration
+        let maximumNodes = scope.maximumNodes
+        let maximumCharacters = scope.maximumCharacters
 
         while !queue.isEmpty,
               visited.count < maximumNodes,
               totalCharacters < maximumCharacters,
               started.duration(to: .now) < maximumDuration {
-            let next = queue.removeFirst()
+            // A document is read depth first, so its text keeps reading order.
+            let next = scope == .document ? queue.removeLast() : queue.removeFirst()
             let element = next.element
             let identity = CFHash(element)
             guard visited.insert(identity).inserted else { continue }
@@ -241,22 +271,30 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
 
             let role = textualAttribute(element, kAXRoleAttribute as String)
             let secure = includeText ? secureFieldStatus(element) : nil
-            let elementFrame = includeText ? frame(of: element) : nil
+            let elementFrame = includeText && scope == .visible ? frame(of: element) : nil
             let hidden = attribute(element, "AXHidden") as? Bool == true
             if secure == true, Self.isTextEntry(role: role) { containsSecureField = true }
             if includeText, secure == false {
-                let visibleText = ScreenVisibleTextPolicy.text(
-                    role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
-                    title: textualAttribute(element, kAXTitleAttribute as String),
-                    visibleRangeText: Self.visibleText(of: element),
-                    staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
-                for text in visibleText {
+                let texts = switch scope {
+                case .visible:
+                    ScreenVisibleTextPolicy.text(
+                        role: role, frame: elementFrame, viewport: next.viewport, hidden: hidden,
+                        title: textualAttribute(element, kAXTitleAttribute as String),
+                        visibleRangeText: Self.visibleText(of: element),
+                        staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
+                case .document:
+                    ScreenDocumentTextPolicy.text(
+                        role: role, hidden: hidden,
+                        value: textualAttribute(element, kAXValueAttribute as String))
+                }
+                for text in texts {
                     append(
                         text,
                         parts: &parts,
                         seen: &seenText,
                         totalCharacters: &totalCharacters,
-                        maximumCharacters: maximumCharacters)
+                        maximumCharacters: maximumCharacters,
+                        maximumElementCharacters: scope.maximumElementCharacters)
                 }
             }
 
@@ -266,12 +304,22 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 // own URL (or the window document) can establish that origin.
                 webAreaURLs.append(urlString(attribute(element, kAXURLAttribute as String)))
             }
-            if !hidden, let children = (attribute(element, kAXVisibleChildrenAttribute as String)
-                ?? attribute(element, kAXChildrenAttribute as String)) as? [AXUIElement] {
+            // Only the visible scope prefers on-screen children.
+            var rawChildren: CFTypeRef?
+            if !hidden {
+                rawChildren = scope == .visible
+                    ? attribute(element, kAXVisibleChildrenAttribute as String)
+                        ?? attribute(element, kAXChildrenAttribute as String)
+                    : attribute(element, kAXChildrenAttribute as String)
+            }
+            if let children = rawChildren as? [AXUIElement] {
                 let clipsChildren = ["AXScrollArea", "AXWebArea", "AXWindow"].contains(role ?? "")
                 let viewport = clipsChildren
                     ? elementFrame.flatMap { next.viewport?.intersection($0) } : next.viewport
-                queue.append(contentsOf: children.prefix(80).map { ($0, viewport) })
+                let kept: [(element: AXUIElement, viewport: CGRect?)] =
+                    children.prefix(scope.maximumChildren).map { ($0, viewport) }
+                // Popped from the end, so the first child is read first.
+                queue.append(contentsOf: scope == .document ? Array(kept.reversed()) : kept)
             }
         }
 
@@ -298,6 +346,11 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         noteTextReadFailure(nil, processID: processID, includeText: includeText)
         let text = parts.joined(separator: "\n")
         let address = pageAddress(document: document, webAreaURLs: webAreaURLs)
+        let selectedText = scope == .document && includeText && settledFocus.focus == false
+            ? focused.flatMap { textualAttribute($0, kAXSelectedTextAttribute as String) }
+                .map { String($0.prefix(scope.maximumElementCharacters)) }
+                .flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+            : nil
         return ScreenAccessibilitySnapshot(
             text: text,
             sourceURL: address.sourceURL,
@@ -308,7 +361,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             hasWebContent: hasWebContent,
             containsSecureField: containsSecureField,
             framedURLs: address.framedURLs.isEmpty ? nil : address.framedURLs,
-            hasUnattributedWebContent: address.hasUnattributedWebContent ? true : nil)
+            hasUnattributedWebContent: address.hasUnattributedWebContent ? true : nil,
+            selectedText: selectedText)
     }
 
     struct PageAddress: Equatable, Sendable {
@@ -380,12 +434,13 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         parts: inout [String],
         seen: inout Set<String>,
         totalCharacters: inout Int,
-        maximumCharacters: Int
+        maximumCharacters: Int,
+        maximumElementCharacters: Int = 8_000
     ) {
         let value = raw
             .replacingOccurrences(of: "\u{0000}", with: "")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, value.count <= 8_000, seen.insert(value).inserted else { return }
+        guard !value.isEmpty, value.count <= maximumElementCharacters, seen.insert(value).inserted else { return }
         let remaining = maximumCharacters - totalCharacters
         guard remaining > 0 else { return }
         let clipped = String(value.prefix(remaining))
