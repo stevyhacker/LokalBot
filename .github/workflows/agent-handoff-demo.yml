@@ -7,15 +7,16 @@
 # kept as the `agent-handoff-demo` artifact and force-pushed to
 # `pr-assets/<pr>-agent-handoff-demo`, an orphan branch holding only them, so
 # a pull request can show the GIF.
+#
+# A take costs a hosted Mac for about fifteen minutes and model calls, so it
+# runs on dispatch or when a pull request is labeled `film demo` (remove and
+# add the label again for another take), never on every push.
 name: Agent handoff demo
 
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - ".github/workflows/agent-handoff-demo.yml"
-      - "Scripts/agent-handoff-demo/**"
-      - "LokalBot/Support/FilmDirector.swift"
+    types: [labeled]
 
 concurrency:
   group: agent-handoff-demo-${{ github.ref }}
@@ -30,6 +31,7 @@ defaults:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'film demo'
     uses: ./.github/workflows/build.yml
     with:
       cache_mode: warm

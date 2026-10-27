@@ -72,6 +72,9 @@ enum MeetingActionHandoff {
             "",
             "Get as far as you can on your own: look things up, and write the drafts, plans, or code it needs. "
                 + "Save what you make in `\(folder)/` in this workspace.",
+            // Only a lone lookup runs without a card (AgentApprovalPolicy.isLibraryLookup).
+            "Run each lokalbot-cli lookup as a command of its own, with no loops or chained commands, "
+                + "so it runs without waiting for me.",
             "Don't send, post, publish, buy, or delete anything. Draft it for me instead.",
             "Finish with a short report: what you did, the files you made, and what is left for me.",
             "",

@@ -69,6 +69,7 @@ final class AgentSessionTabs: ObservableObject {
                 controller.attachments = record.attachments
                 controller.restoreQueue(record.queuedPrompts)
                 controller.restoreSources(record.sources)
+                controller.allowsLibraryLookups = record.handoff != nil
                 tabs.append(Tab(id: record.id, number: nextNumber, controller: controller, record: record))
                 nextNumber += 1
             }
@@ -118,6 +119,7 @@ final class AgentSessionTabs: ObservableObject {
             let tab = addSession(select: false)
             tab.controller.draft = handoff.prompt
             tab.controller.attachments = handoff.attachments
+            tab.controller.allowsLibraryLookups = handoff.source != nil
             if let folder = handoff.folder {
                 // Best effort: the agent can still make the folder itself.
                 try? FileManager.default.createDirectory(
