@@ -1,0 +1,104 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 1374.69,
+          "excerpt" : "We'll just go for push buttons for in the interest of cost. Okay.",
+          "meetingID" : "AB392C04-F63A-5629-AF48-53804DA33C12",
+          "segmentID" : "segment-0190-0001371090-0001374690",
+          "speaker" : "them 3",
+          "start" : 1371.09
+        }
+      ],
+      "id" : "a06e17ba99f256cf",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Commit to using push buttons for the user interface to control costs."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 1636.59,
+          "excerpt" : "I think I think battery, and I think we all agreed on that. That that's that's gonna be most cost-effective and the best thing.",
+          "meetingID" : "AB392C04-F63A-5629-AF48-53804DA33C12",
+          "segmentID" : "segment-0230-0001630360-0001636590",
+          "speaker" : "them 3",
+          "start" : 1630.36
+        }
+      ],
+      "id" : "478bfd4c970d3086",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Commit to using battery as the primary energy source for the device."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 824.19,
+          "excerpt" : "I have just brief uh down few uh components which we require for the remote control uh construction. Uh the first one is case to keep all the components like integrated circuit, battery, etcetera, etcetera, it's like",
+          "meetingID" : "AB392C04-F63A-5629-AF48-53804DA33C12",
+          "segmentID" : "segment-0129-0000810130-0000824190",
+          "speaker" : "them 2",
+          "start" : 810.13
+        }
+      ],
+      "id" : "fb19602af33be472",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will present a brief overview of the required components for the remote control construction."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 978.49,
+          "excerpt" : "And we we have a circuit board uh in a remote controller. Can you go to the next slide, please. And how it works, how the remote controller works. When you press a button",
+          "meetingID" : "AB392C04-F63A-5629-AF48-53804DA33C12",
+          "segmentID" : "segment-0142-0000968320-0000978490",
+          "speaker" : "them 2",
+          "start" : 968.32
+        }
+      ],
+      "id" : "225df4552a34ff20",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will proceed to the next slide regarding the remote controller's functionality."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "ba7ecbea355dda8c23158d07eea970467bde8384716cb81456e34fdcf9b54d7b"
+}

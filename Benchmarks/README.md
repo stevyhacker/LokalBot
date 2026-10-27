@@ -11,6 +11,14 @@ These are the measurements behind LokalBot's default models. Each report records
 | Screen text | Apple Vision | PP-OCRv5/v6, TrOCR, GOT-OCR 2.0, GLM-OCR, PaddleOCR-VL, DeepSeek-OCR | On synthetic screenshots, Vision scored 0.971 token F1 at 120 ms per image; PP-OCRv6 scored 0.974 at 6.78 s. On real screenshots, Vision averaged 243 ms and the alternatives took 1.3–22 s. | [Synthetic](OCR/SYNTHETIC-RESULTS-2026-06-24.md) · [Real screenshots](OCR/RESULTS-2026-06-24.md) |
 | Transcription | Qwen3-ASR 1.7B, speakers assigned after transcription | Closed speech-to-text APIs and Parakeet TDT 0.6B v3; cutting audio at speaker turns before transcription (previous behaviour) | 17.6% WER on 27 minutes of AMI Mix-Headset audio; only Gemini 3.8 Flash scored lower (16.7%, within the error). With speakers assigned after transcription, the app's path scored 17.7% vs 26.5% AMI WER and 33.9% vs 36.5% speaker-attributed WER, and 4.4% vs 8.3% disagreement on three owner meetings. On Serbian, Croatian and Bosnian FLEURS speech, Whisper large-v3 turbo set to `bs` scored 13.0–22.3% WER, against 17.3–36.8% for Qwen on auto. Routing those tracks to Whisper was not adopted. | [APIs](CloudSTT/results/2026-09-30/REPORT.md) · [Speaker attribution](QwenSpanLength/results/2026-09-30/REPORT.md) · [Serbian, Croatian, Bosnian](DualASR/results/2026-10-07/REPORT.md) |
 
+## Meta hackathon features
+
+Opt-in features built on branch `meta-hackathon` ([HACKATHON.md](../HACKATHON.md)); they send text to Meta's API only after the person approves it.
+
+| Role | Model | Compared with | Result | Report |
+| --- | --- | --- | --- | --- |
+| Live commitments, decisions and contradictions (Live Radar) | Muse Spark 1.3 on the Meta Model API, live | Muse Wonder 1.0 live; LokalBot's post-meeting notes from the local Qwen3.5 4B | On 12 AMI meetings (6.4 h, manual transcripts), the radar caught 22/62 of AMI's annotated decisions and 8/20 actions, against 2/62 and 3/20 for the post-meeting notes. EmbeddingGemma 2 matching, τ 0.877. Items appeared a median 23 s after they were said. Requests took a median 1.05 s with 0 failures in 1,007, at $0.49 per meeting hour. On six meetings Wonder caught 23/42 decisions against 13/42 for Spark, at $1.27 per hour. | [2026-10-27](MuseRadar/results/2026-10-27/REPORT.md) |
+
 The [Hugging Face Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) presents the same numbers with their sources. It is generated from [`Distribution/huggingface/benchmark-summary.md`](../Distribution/huggingface/benchmark-summary.md).
 
 ## Not adopted

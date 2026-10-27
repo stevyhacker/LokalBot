@@ -13,20 +13,23 @@ summaries of the same team's previous meetings, standing in for the saved
 outcomes LokalBot's search would find (at most six, newest first).
 
 Writes $MUSE_RADAR_DATA/fixtures/<meeting>.json and references.json (AMI's
-abstract, action, decision and problem sentences per meeting). AMI annotations
-are CC BY 4.0.
+abstract, action, decision and problem sentences per meeting). With --notes it
+also builds library/, the same manual transcripts as SummaryQuality's `ref`
+meetings, for LokalBot's post-meeting notes to be scored beside the radar.
+AMI annotations are CC BY 4.0.
 """
 import json
 import os
 import re
 import sys
+import uuid
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 DATA = Path(os.environ.get('MUSE_RADAR_DATA', '/private/tmp/lokalbot-muse-radar'))
 os.environ['SUMMARY_BENCH_DIR'] = str(DATA)  # shares the annotation download layout
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'SummaryQuality'))
-from prepare import ANN, MEETINGS, annotations, words  # noqa: E402
+from prepare import ANN, MEETINGS, MODELS, annotations, reference, words  # noqa: E402
 
 TARGET = 12.0
 NS = '{http://nite.sourceforge.net/}'
@@ -90,8 +93,30 @@ def summary(meeting):
     return out
 
 
+def notes_library():
+    """Transcript-only meeting folders for `LokalBot Dev --process --summary-only`."""
+    library = DATA / 'library'
+    (library / 'meetings' / '2026' / '10').mkdir(parents=True, exist_ok=True)
+    if not (library / 'models').exists():
+        (library / 'models').symlink_to(MODELS)  # reuse installed models instead of downloading copies
+    for meeting in MEETINGS:
+        rel = f'meetings/2026/10/{meeting.lower()}-ref'
+        folder = library / rel
+        folder.mkdir(parents=True, exist_ok=True)
+        segments = reference(meeting)
+        end = segments[-1]['end']
+        meta = {'id': str(uuid.uuid5(uuid.NAMESPACE_URL, f'lokalbot-muse-radar/{meeting}')).upper(),
+                'title': 'Product design meeting', 'appName': 'Benchmark', 'startedAt': '2026-10-01T09:00:00Z',
+                'endedAt': f'2026-10-01T{9 + int(end // 3600):02d}:{int(end % 3600 // 60):02d}:{int(end % 60):02d}Z',
+                'relativePath': rel, 'hasSystemTrack': True}
+        (folder / 'meta.json').write_text(json.dumps(meta))
+        (folder / 'transcript.json').write_text(json.dumps({'engine': 'AMI manual transcript', 'segments': segments}))
+
+
 def main():
     annotations()
+    if '--notes' in sys.argv:
+        notes_library()
     (DATA / 'fixtures').mkdir(parents=True, exist_ok=True)
     references = {}
     for meeting in MEETINGS:

@@ -1,0 +1,332 @@
+{
+ "ES2004a": {
+  "abstract": [
+   "The Project Manager gave an introduction to the goal of the project, to create a trendy yet user-friendly remote.",
+   "She presented a long-range agenda for the whole project.",
+   "The group introduced themselves to each other and practiced with the meeting room tools by drawing on the board.",
+   "The Project Manager presented the project budget, the projected price point, and the projected profit aim for the project.",
+   "Then the group began a discussion about their own experiences with remote controls to generate initial design ideas for making the product user-friendly.",
+   "They discussed grouping features into a menu and adding an LCD display.",
+   "They also discussed the look of various materials that may be used in the design, in keeping with the company's goal to create fashionable electronics."
+  ],
+  "actions": [
+   "The group will prepare for the functional design meeting to discuss the components and functions of the product."
+  ],
+  "decisions": [],
+  "problems": [
+   "There may not be enough money in the budget to allow the addition of all the features the group discussed, such as the LCD display."
+  ]
+ },
+ "ES2004b": {
+  "abstract": [
+   "The Industrial Designer gave his presentation on the basic functions of the remote.",
+   "He presented the basic components that remotes share and suggested that smaller batteries be considered in the product design.",
+   "The User Interface Designer presented his ideas for making the remote easy-to-use; he discussed using a simple design and hiding complicated features from the main interface.",
+   "The Marketing Expert presented the findings from a lab study on user requirements for a remote control device, and discussed users' demand for a simple interface and advanced technology.",
+   "The Project Manager presented the new requirements that the remote not include a teletext function, that it be used only to control television, and that it include the company image in its design.",
+   "The group narrowed down their target marketing group to the youth market.",
+   "They discussed the functions the remote will have, including Video Plus capability and rechargeable batteries.",
+   "A customer service plan was suggested to make the remote seem more user-friendly, but it was decided that helpful manuals were more within the budget.",
+   "The group then discussed the shell-like shape of the remote and including several different casing options to buyers."
+  ],
+  "actions": [
+   "The Marketing Expert will research consumers' opinions on instruction manuals."
+  ],
+  "decisions": [
+   "It was decided that the group will produce one product design instead of creating alternate designs in an attempt to accomodate different users' preferences.",
+   "The marketing will be focused towards a young, business-class buyer.",
+   "The remote will feature Video Plus capabilities and a seashell-like shape to accomodate the LCD display and the flip screen.",
+   "The remote will be bundled with a docking station to recharge the remote's batteries and a user-friendly instruction manual, and multiple casings will be made available."
+  ],
+  "problems": [
+   "The limitations of the budget will restrict the development of some features; several of the features that the group wanted to include may have to be made simpler to decrease cost."
+  ]
+ },
+ "ES2004c": {
+  "abstract": [
+   "The Project Manager reviewed the decisions from the previous meeting.",
+   "The Marketing Expert made a presentation on trend watching, including trends in user requirements and trends in fashion.",
+   "The Industrial Designer presented all the components of the device and announced that several of the features already discussed would not be available.",
+   "He suggested substituting a kinetic battery for the rechargeable batteries and using a combination of rubber and plastic for the materials.",
+   "The User Interface Designer presented his main interface design, which included buttons for the most frequently used features and a graphic user interface on the LCD screen for other functions, to keep frequently used features easy to use.",
+   "He announced that speech recognition was still an option to consider, depending on price.",
+   "The Project Manager then began a discussion to decide what was going into the final design.",
+   "It was decided that a kinetic battery would be used in place of a rechargeable battery, that the remote will feature an LCD screen and rubber casing and rubber buttons, and that interchangeable rubber covers in fruit colors will be available.",
+   "Speech recognition may be included if it is not too costly."
+  ],
+  "actions": [],
+  "decisions": [
+   "It was decided that the remote would feature an LCD screen, rubber buttons, colorful rubber changeable skins, a kinetic battery, and possibly speech recognition if it is still within the budget to include it."
+  ],
+  "problems": [
+   "Several of the features that the group had wanted to integrate into the design were either too costly or unavailable due to new limitations from the factory.",
+   "The group had to change many of the original design elements to an alternative."
+  ]
+ },
+ "ES2004d": {
+  "abstract": [
+   "The Project Manager went over decisions from the previous meeting.",
+   "The Industrial Designer presented the prototype and discussed its look, its internal components, and its interface.",
+   "The Marketing Expert evaluated the product according to the initial product goals.",
+   "The group then decided that enough of this criteria had been satisfied for the project to continue.",
+   "The Project Manager presented the final cost of the device which exceeded the initial projected price point.",
+   "The group decided to remove speech recognition but to propose to the management that it remain in the design.",
+   "The group then discussed their effectiveness as a team.",
+   "All members felt that they interacted well and that they felt they could be creative.",
+   "The Marketing Expert felt that the market-research based approach would help the project's success with consumers.",
+   "The group did express, however, that the budget was overly constraining.",
+   "The Project Manager instructed the group to fill out a final evaluation questionnaire."
+  ],
+  "actions": [
+   "The group will suggest to the management that speech recognition remain in the product design.",
+   "All members will fill out a final evaluation questionnaire."
+  ],
+  "decisions": [
+   "It was decided that the speech recognition component seemed feasible, so it was added to the prototype design to provide a device locator function.",
+   "It was removed when the project exceeded its initial budget, but it will be suggested to the management that the speech recognition should remain in the product design.",
+   "The plastic case will be a neutral color, and the changeable rubber cases will be available in vibrant, fruit colors.",
+   "The LCD screen will appear only in black and white.",
+   "The company logo will appear on the inside of the device when opened.",
+   "The group decided that the device fulfilled enough of the project's initial goals to continue in production."
+  ],
+  "problems": [
+   "There was a lack of cost information at the beginning of the project.",
+   "The group did not know how much the features made available to them actually cost until the prototype was constructed; their prototype design may have been different had this information been available at the beginning."
+  ]
+ },
+ "IS1009a": {
+  "abstract": [
+   "The meeting opens with the group doing introductions by giving their name and role.",
+   "Betty is the project manager, Francina is the user interface specialist, Eileen is the marketing expert, and Jeanne is the industrial designer.",
+   "The project manager tells them they will be designing a new remote control that should be original, trendy, and user-friendly.",
+   "They will be concerned with functional, conceptional, and detailed design.",
+   "To try out the whiteboard, each group member draws her favorite animal on the board.",
+   "They discuss the project budget and then talk about their experiences with remote controls.",
+   "They seemed to agree that the remote should be compact and have a multi-purpose functions.",
+   "They also agree that it should do something different that current controls cannot do and that it should be made of different colors, materials, and shapes.",
+   "They also discuss a way of helping people find the remote when it is lost- a signal, whether it is a beep or light.",
+   "Then they close the meeting with the project manager going over the tasks they are to complete and telling them they will meet again in about thirty minutes."
+  ],
+  "actions": [
+   "The industrial designer will work on the working design and technical function.",
+   "The interface specialist will do the working design and functional design.",
+   "The marketing manager will look for user requirement specifications such as friendliness"
+  ],
+  "decisions": [
+   "Selling price will be twenty five Euro.",
+   "Company aims to profit fifty million Euro.",
+   "It should be compact, multi-functional, different in shape/color/material.",
+   "Have a locator to help find the remote when it is lost."
+  ],
+  "problems": [
+   "The group if not sure if they will have the budget to make the gadget multi-functional, but they would like to make one that would control basically all household machines."
+  ]
+ },
+ "IS1009b": {
+  "abstract": [
+   "The meeting begins and the marketing expert starts her presentation promptly, telling them that her research shows they need a focus- it is not possible to make a device that works on the whole house.",
+   "The project manager steps in and informs them that they have instructions to eliminate the teletext idea because it is too complicated, and also said they must maintain the corporate image by using corporate designs and colors.",
+   "The marketing expert resumes, talking about how remotes often get lost and that a light emitter might be useful.",
+   "The industrial designer gives her presentation, talking about components, materials, and energy sources.",
+   "They discuss giving the control different shapes to suit both adults and children, making the buttons various shapes, and putting a display clock on the control.",
+   "The interface designer presents, talking about the features users like on a remote and suggesting that they make the remote a T-shape and add an alarm clock function.",
+   "They discuss their target group and the possibility of removable plastic cases.",
+   "They close the meeting deciding to do more research on the plastic cases."
+  ],
+  "actions": [
+   "*NA*"
+  ],
+  "decisions": [
+   "They cannot make a device that works on the whole house- will need a focus.",
+   "They will eliminate teletext.",
+   "They will maintain the corporate image by using the proper designs and colors.",
+   "Their target group is basically everybody who owns a TV."
+  ],
+  "problems": [
+   "They are concerned about making the control marketable to a wide range of age groups, and have discussed making removable plastic covers so that the look is changeable.",
+   "However, they need to do more research on this topic.",
+   "They do not know if their budget will allow them to include all the features they would like to such as a light emitter, clock, alarm clock, and child lock."
+  ]
+ },
+ "IS1009c": {
+  "abstract": [
+   "The project manager opens the meeting by going over the minutes of the last meeting.",
+   "The interface specialist begins her presentation by highlighting important remote functions and showing examples of remote interfaces.",
+   "The group comments on her presentation, and then the industrial designer begins presenting.",
+   "She talks about the technical electronic components of the remote, explains how a remote works, and shows a few pictures revealing the insides of a normal remote control.",
+   "She suggests giving the remote a strong shell so it is durable, using a rechargable battery, and not adding a scroll wheel because it requires a sophisticated chip.",
+   "The marketing expert presents, talking about user preferences for a small, simple, eye-catching, cute, appealing, and functional remote.",
+   "Fruit and vegetable shapes are popular this year, so a soft, spongy remote perhaps covered with cloth could make the item marketable.",
+   "The group discusses the issues surrounding speech recognition, noting that if it is good quality it could be costly.",
+   "They about the power source and review the objectives of the product.",
+   "The project manager closes the meeting by telling each member what task she is to complete."
+  ],
+  "actions": [
+   "The marketing expert will do the product evaluation.",
+   "The industrial designer and interface specialist will work together on a prototype using modeling clay.",
+   "The industrial designer will come up with a user interface design.",
+   "Their coaches will send specific instructions and answer questions."
+  ],
+  "decisions": [
+   "They decided that the product should be bright, colorful, trendy in design, strong, compact, have push buttons, and contain supplement features (possibly mute button, swapping button, voice recognition).",
+   "The power source will be batteries because it is cost-effective.",
+   "They will have the industrial engineer do more research on the cost of voice recognition before deciding whether to include that function."
+  ],
+  "problems": [
+   "The group would like to include voice recognition as a feature, but they are not sure about how much it would cost.",
+   "This will require further research by the industrial engineer."
+  ]
+ },
+ "IS1009d": {
+  "abstract": [
+   "The project manager opens the meeting by going over the minutes of the last meeting, detailing the main points of each person's presentation.",
+   "They do the prototype presentation which includes a model of the remote control.",
+   "The group discusses this proposed model, approving of the small size and look of it.",
+   "They goes over finances and are pleased to find that they are well within budget.",
+   "However, while the marketing expert is doing the product evaulation the group realizes that they neglected to calculate voice recognition into the financing.",
+   "Their cost had been 8.20 Euros and they have 4.30 left to cover it, so they decide to settle for whatever quality it will buy.",
+   "They rate their product on its shape, size, color, feel, and functionality.",
+   "They discuss the project process, talk briefly about adding more features, and one member suggests eliminating a mute buttons and include a diffferent feature.",
+   "They are happy with the creativity, leadership, and teamwork within the group, and close the meeting by thanking one another."
+  ],
+  "actions": [
+   "*NA*"
+  ],
+  "decisions": [
+   "The remote is a snail shape with bright colors, blue and yellow with multi-colored buttons.",
+   "Compact in size.",
+   "It includes a remote holder in the shape of a shell.",
+   "The case will be made of plastic and the buttons of soft rubber.",
+   "Its features will include an on/off button, two mute buttons, nine channel buttons, two buttons for increasing/decreasing the volume, two buttons for scrolling up/down channels, a menu button in the center which controls the color/sharpness/brightness of the picture, and a swapping button.",
+   "Channel buttons numbered, rest of the buttons have symbols indicating function.",
+   "Light emitting diode is flourescent green.",
+   "In their cost evaluation they got 8.20, not factoring in the voice recognition feature.",
+   "They decide to settle for the level of quality the remaining 4.30 euros will get them."
+  ],
+  "problems": [
+   "The group spent 8.20 euros on their product, but they almost forgot to factor in voice recognition, which may cost more than the 4.30 euros remaining.",
+   "They will have to settle for whatever level of quality that 4.30 euros can buy."
+  ]
+ },
+ "TS3003a": {
+  "abstract": [
+   "The project manager introduced himself to the team and then acquainted the team with the audio and video equipment in the meeting room.",
+   "The project manager briefly described the company the team works for and discussed the corporate website.",
+   "The project manager then described the upcoming project and the roles of each team member.",
+   "The project manager introduced the smart boards to the team and led the team members in an exercise in which they each drew their favorite animal and described why they liked the animal.",
+   "The project manager briefed the team on the project budget and selling prices for the remote they are to create and led them in a discussion on their experiences with remote controls and what features they would like to include in their product."
+  ],
+  "actions": [
+   "The team members will work on their individual projects"
+  ],
+  "decisions": [
+   "The selling price will be 25 Euro.",
+   "The focus will be on an international market.",
+   "The production cost cannot exceed 12.50 Euro.",
+   "The remote will be able to control multiple devices.",
+   "The remote will be shockproof.",
+   "The remote will be waterproof."
+  ],
+  "problems": [
+   "Cost of a battery status display."
+  ]
+ },
+ "TS3003b": {
+  "abstract": [
+   "The project manager stated the agenda and the marketing expert discussed what functions are most relevant on a remote, what the target demographic is, and what his vision for the appearance of the remote is.",
+   "The marketing expert also brought up the idea to include a docking station to prevent the remote from getting lost and the idea to include an LCD screen.",
+   "The user interface designer pushed for a user-friendly interface with large buttons, a display function, a touchscreen, and the capability of controlling different devices.",
+   "The industrial designer discussed the interior workings of a remote and the project manager briefed the team on some new requirements they are to abide by.",
+   "The team then discussed teletext, the target demographic, the buttons the remote should have, the idea of marketing a remote designed for the elderly, an audio signal which can sound if the remote is lost, LCD screens, and language options."
+  ],
+  "actions": [
+   "The industrial designer will work on the components concept.",
+   "The user interface designer will work on the user interface concept and trend-watching"
+  ],
+  "decisions": [
+   "The remote will only be used for televisions.",
+   "The user target group consists of adults age sixty to eighty.",
+   "The corporate image must be visible in the design of the remote.",
+   "The team will implement teletext in their design if it does not cost too much.",
+   "The remote will only have a few buttons.",
+   "The remote will have a docking station.",
+   "The remote will have an audio signal to allow users to locate it when misplaced-the team will focus on creating a remote for elderly people.",
+   "The remote will feature a small LCD screen.",
+   "The remote will be fancy.",
+   "The remote will be easy to learn.",
+   "The remote will be made to accommodate different languages."
+  ],
+  "problems": [
+   "Cost of a touchscreen.",
+   "Whether to include teletext in the design despite the new requirement which indicates that the team is not to work with teletext.",
+   "The user target group of adults age forty and up is quite small.",
+   "What buttons and functions to include on the remote.",
+   "Whether to include a scroll button.",
+   "Whether to focus more on the layout of the buttons or the docking station.",
+   "Whether the user target group should be people age 60 to 80."
+  ]
+ },
+ "TS3003c": {
+  "abstract": [
+   "The project manager opened the meeting and recapped the decisions made in the previous meeting.",
+   "The marketing expert discussed his personal preferences for the design of the remote and presented the results of trend-watching reports, which indicated that there is a need for products which are fancy, innovative, easy to use, in dark colors, in recognizable shapes, and in a familiar material like wood.",
+   "The user interface designer discussed the option to include speech recognition and which functions to include on the remote.",
+   "The industrial designer discussed which options he preferred for the remote in terms of energy sources, casing, case supplements, buttons, and chips.",
+   "The team then discussed and made decisions regarding energy sources, speech recognition, LCD screens, chips, case materials and colors, case shape and orientation, and button orientation."
+  ],
+  "actions": [
+   "The team members will look at the corporate website.",
+   "The user interface designer will continue with what he has been working on.",
+   "The industrial designer and user interface designer will work together"
+  ],
+  "decisions": [
+   "The remote will have a docking station.",
+   "The remote will use a conventional battery and a docking station which recharges the battery.",
+   "The remote will use an advanced chip.",
+   "The remote will have changeable case covers.",
+   "The case covers will be available in wood or plastic.",
+   "The case will be single curved."
+  ],
+  "problems": [
+   "Whether to use kinetic energy or a conventional battery with a docking station which recharges the remote.",
+   "Whether to implement an LCD screen on the remote.",
+   "Choosing between an LCD screen or speech recognition.",
+   "Using wood for the case."
+  ]
+ },
+ "TS3003d": {
+  "abstract": [
+   "In the detailed design meeting the team created a prototype.",
+   "Along with buttons for numbers, channel selector, volume, mute, on-off, teletext, and subtitles, the prototype included an LCD screen and a help button for functional information.",
+   "One rechargable battery, single-curve form and plastic case, brought the total cost to 17 Euros.",
+   "To reduce this cost, it was decided to replace most buttons with a scrollwheel.",
+   "The remaining buttons were one for channel selection, one for volume (both assisted by the scrollwheel), teletext, on-off and the help button.",
+   "A suggestion to target the product to a younger or perhaps more general group was met with approval.",
+   "All these components were re-arranged in a revised prototype.",
+   "It was evaluated on a scale from 1 to 7 on the basis of the following criteria: fancy design (6), technological innovation (4), functionality (7), consideration of the target group (3).",
+   "The remote was also recognisable as a fashionable Real Reaction product.",
+   "The project process was deemed well-structured, although everyone thought it would have been better had they known the component prices at an earlier stage.",
+   "Teamword and leadership were good, but room for creativity impeded by budget constraints."
+  ],
+  "actions": [
+   "The project manager will prepare the final presentation, while the rest of the group will fill in a questionnaire."
+  ],
+  "decisions": [
+   "The prototype will use a rechargable battery.",
+   "The case will be plastic and will be made in single-curve form.",
+   "Five buttons are going to be used: one for channel selection, one for volume (both assisted by the scrollwheel), teletext, on-off and help button.",
+   "These would be made of rubber in a colour different from that of the case.",
+   "Their functionality will be enriched by the use of a scrollwheel (going up or down the channel list, changing the volume, etc.).",
+   "Standard buttons like the ones for teletext shortcuts were considered superfluous.",
+   "An LCD screen will be providing functional information, and context tips when using the scrollwheel.",
+   "The revised prototype will probably be targeted to a younger one, or even across the population."
+  ],
+  "problems": [
+   "The final cost of the prototype was probably slightly over the specified 12.50 Euros.",
+   "Raising the budget was not an option, although it was promoted as an idea throughout the meeting.",
+   "It is not clear whether the budget will allow for a docking station to be produced along with the remote, as it isn't included in the costing sheet.",
+   "The non-standard interface (few buttons, scrollwheel) makes the remote unsuitable for older people - the original target group.",
+   "It was suspected that many would not know how to use a scrollwheel, even though it does resemble a radio tuning button."
+  ]
+ }
+}

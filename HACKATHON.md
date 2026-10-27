@@ -38,7 +38,7 @@ Recording, transcription, speaker separation, search, meeting notes, actions, an
 
 | Model | Where | Why |
 |---|---|---|
-| Muse Spark 1.3 | Live Radar, one structured-output request about every 20 s | Fast enough to keep up with a meeting: median 1.5–2.7 s per pass, about $0.47 per meeting hour |
+| Muse Spark 1.3 | Live Radar, one structured-output request about every 20 s | Fast enough to keep up with a meeting: median 1.05 s per request on AMI, $0.49 per meeting hour. Wonder is offered for more decisions at 2.5× the cost |
 | Muse Wonder 1.0 | Follow-through, tool calling with approval | Plans the work, reads meetings, and writes drafts you can send as they are |
 | Muse Voice Transcribe 1.0 | Benchmarked for live speaker labels | Its final text arrived 0.74 s after each turn, but its speaker labels had 60.4% DER (21.7% on speech) against 16.5% (13.9%) for local Nemotron, so labels stay local ([report](Benchmarks/MuseVoiceTranscribe/results/2026-10-27/REPORT.md)) |
 
@@ -56,7 +56,11 @@ LokalBot keeps meetings on the Mac by default, and the hackathon features keep t
 
 - **Synthetic meeting:** the radar caught all 6 planted items, including both contradictions with an earlier meeting, in 6 passes and $0.016 with Spark. Wonder caught the same 6 for $0.033.
 - **Follow-through:** a synthetic case took 4 model turns, 20 s and $0.06 with Wonder. The result was an email draft signed with the user's name and a meeting proposal to settle the two open conflicts.
-- **AMI meetings:** see [Benchmarks/MuseRadar](Benchmarks/MuseRadar/README.md).
+- **AMI meetings (6.4 hours, 12 meetings, manual transcripts):** run live on Muse Spark, Live Radar caught 22 of AMI's 62 human-annotated decisions and 8 of its 20 actions. LokalBot's post-meeting notes from the local Qwen3.5 4B, on the same text, caught 2 and 3.
+  - **Timing and cost:** items appeared a median 23 s after they were said. Requests took a median 1.05 s, with 0 failures in 1,007, at $0.49 per meeting hour.
+  - **Muse Wonder:** on six of the meetings it caught 23 of 42 decisions against Spark's 13, at $1.27 per hour.
+  - **Contradictions:** all 10 that Spark flagged against an earlier meeting named a real change of plan, by our unblinded review.
+  - [Report](Benchmarks/MuseRadar/results/2026-10-27/REPORT.md).
 
 ## Try it
 

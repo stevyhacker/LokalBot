@@ -1,0 +1,193 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So I could draw them out.",
+        "resolution" : "other",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1874.45,
+          "excerpt" : "So I could draw them out.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0292-0001871760-0001874450",
+          "speaker" : "them 4",
+          "start" : 1871.76
+        }
+      ],
+      "id" : "6e22e233e5bc7107",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 4",
+      "schemaVersion" : 4,
+      "text" : "Draw out the flat, single curved, and double curved case options."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2188.2,
+          "excerpt" : "We've got a general idea of the concepts and the materials we're going to use. So now for the next meeting uh we'll have to look at the look-and-feel design. It's important that the corporate design image uh is going to be in the remote. So check out the corporate website maybe.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0366-0002169540-0002188200",
+          "speaker" : "them 1",
+          "start" : 2169.54
+        }
+      ],
+      "id" : "e262d68b98a4b5be",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Review look-and-feel design incorporating corporate design image and user interface."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1304.66,
+          "excerpt" : "So in that case we could use kinetic uh energy, but I think just a simple battery which you can reload on a docking station is just as good. And much cheaper as well.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0149-0001293490-0001304660",
+          "speaker" : "them 1",
+          "start" : 1293.49
+        }
+      ],
+      "id" : "23db3c70b1af29b2",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Suggests selecting a simple battery with docking station recharging over kinetic energy."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Okay let me just choose for the battery.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1314.84,
+          "excerpt" : "Okay let me just choose for the battery. That brings us to the chip.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0153-0001307700-0001314840",
+          "speaker" : "them 1",
+          "start" : 1307.7
+        }
+      ],
+      "id" : "c20fc3829d0bbeff",
+      "importance" : 4,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Decides to proceed with a simple battery option and moves to chip selection."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So just um I will put these um minutes on the in the folder.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2216.43,
+          "excerpt" : "So just um I will put these um minutes on the in the folder.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0368-0002208540-0002216430",
+          "speaker" : "them 1",
+          "start" : 2208.54
+        }
+      ],
+      "id" : "2853e591ebf9bbf8",
+      "importance" : 4,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Save meeting minutes in the SMARTboard projects folder."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2243.61,
+          "excerpt" : "And then we're going to uh try to finish our project, and uh make a good design for all the grandfathers and grandmothers, I think. Which are Uh let's see. I'm not sure if you're going to start right away to work together or I think you're going to fill in the questionnaires first. And then you'll get a message.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0370-0002218600-0002243610",
+          "speaker" : "them 1",
+          "start" : 2218.6
+        }
+      ],
+      "id" : "f7090c21365622d6",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Complete the project design for grandfathers and grandmothers."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousQuote",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1136.32,
+          "excerpt" : "Mm I don't have any information on pricing. So I'll have to ask the manufacturing department.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0114-0001131380-0001136320",
+          "speaker" : "them 4",
+          "start" : 1131.38
+        },
+        {
+          "end" : 1129.54,
+          "excerpt" : "I'm wondering um what will the voice recognition mean for the production price?",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0112-0001123340-0001129540",
+          "speaker" : "them 2",
+          "start" : 1123.34
+        },
+        {
+          "end" : 1131.98,
+          "excerpt" : "Yeah. That's a good point.",
+          "meetingID" : "64D63437-D9A4-524E-B6B8-46213227EA61",
+          "segmentID" : "segment-0113-0001130240-0001131980",
+          "speaker" : "them 1",
+          "start" : 1130.24
+        }
+      ],
+      "due" : "unknown",
+      "id" : "b9ca130d339905cc",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will ask the manufacturing department for pricing information on voice recognition."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "ad315594731db3da196530ea8223a6889f15a47f3d04d3a445ab5130fe3e1f9c"
+}

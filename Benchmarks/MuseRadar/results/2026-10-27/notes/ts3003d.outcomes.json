@@ -1,0 +1,328 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 80.27,
+          "excerpt" : "Okay this our last meeting. In this meeting we will discuss our final design. And we will do some evaluation about the, not only the product, but also the project. And then we're going to close the project today as well. So after this you will be uh free to go and uh spend all your money.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0008-0000055700-0000080270",
+          "speaker" : "them 1",
+          "start" : 55.7
+        }
+      ],
+      "id" : "cc9dbb8526143dfd",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Announced the meeting concludes the project and allows participants to leave."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 128.98,
+          "excerpt" : "We'll have the prototype presentation first. Then we will set up some evaluation um criteria. Then we will look at the finance. Uh we will have to see if everything we wanna do is also possible within our budget. Because everything costs money, and the more functions you wanna have the more money it will cost. So we have to see if it fits within the twelve and a half Euro per remote.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0010-0000101360-0000128980",
+          "speaker" : "them 1",
+          "start" : 101.36
+        }
+      ],
+      "id" : "e11d51e9ac79099f",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Stated the project must stay within a twelve and a half Euro budget per remote."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 552.82,
+          "excerpt" : "so if we Let's first count the buttons we have now. Because I Sixteen. Nah, that will be even more then. Eighteen Euros.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0093-0000540910-0000552820",
+          "speaker" : "them 1",
+          "start" : 540.91
+        }
+      ],
+      "id" : "051b0fbaedec0e6b",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Initiated a cost analysis by counting the current button inventory."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 638.3,
+          "excerpt" : "So And it's good for the design as well. So you can make",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0124-0000634970-0000638300",
+          "speaker" : "them 1",
+          "start" : 634.97
+        }
+      ],
+      "id" : "b49937d3bd69cbae",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Proposed integrating volume and channel functions into a single button for cost savings."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1382.55,
+          "excerpt" : "I'd rather just go to the board and",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0318-0001380970-0001382550",
+          "speaker" : "them 2",
+          "start" : 1380.97
+        }
+      ],
+      "id" : "5b7d292eeacd20f0",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will present the proposal to the board to increase the remote control price to eighteen dollars."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1672.6,
+          "excerpt" : "Oh I have to say this was a little hard, because the minutes of our last meeting",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0388-0001667410-0001672600",
+          "speaker" : "them 2",
+          "start" : 1667.41
+        }
+      ],
+      "id" : "dc30d931fd1509de",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will retrieve the minutes from the previous meeting to ensure they are available."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I think I'm going to make our final presentation now.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2550.73,
+          "excerpt" : "I think I'm going to make our final presentation now.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0677-0002546810-0002550730",
+          "speaker" : "them 1",
+          "start" : 2546.81
+        },
+        {
+          "end" : 2559.95,
+          "excerpt" : "And then I will be back in about ten minutes to show you the final presentation.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0679-0002553900-0002559950",
+          "speaker" : "them 1",
+          "start" : 2553.9
+        }
+      ],
+      "id" : "1a3324d9bf7bf008",
+      "importance" : 4,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Prepare and deliver the final project presentation."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 539.22,
+          "excerpt" : "So maybe we really should try to discard some buttons to uh keep our costs low. Because you have to we will have to get the twelve and a half Euros at the end. Um,",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0090-0000523090-0000539220",
+          "speaker" : "them 1",
+          "start" : 523.09
+        },
+        {
+          "end" : 522.53,
+          "excerpt" : "Then we have the case material supplements. It's plastic. It's the cheapest one we need. So that's uh not much to save either. But then the biggest costs are the buttons.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0089-0000508940-0000522530",
+          "speaker" : "them 1",
+          "start" : 508.94
+        }
+      ],
+      "due" : "unknown",
+      "id" : "214b969352b4d3bf",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Reiterated the necessity of meeting the twelve and a half Euro cost target."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1891.59,
+          "excerpt" : "We've gonna We're going to evaluate it.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0479-0001889280-0001891590",
+          "speaker" : "them 1",
+          "start" : 1889.28
+        },
+        {
+          "end" : 1891,
+          "excerpt" : "We're gonna go to our other room again.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0480-0001889620-0001891000",
+          "speaker" : "them 2",
+          "start" : 1889.62
+        }
+      ],
+      "id" : "843f0a41ffb0afa9",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Evaluate the project process and product."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2439.07,
+          "excerpt" : "That's it. Yeah. I think we still have to fit in one more questionnaire. I think. I don't know. I didn't get a message",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0655-0002430080-0002439070",
+          "speaker" : "them 1",
+          "start" : 2430.08
+        },
+        {
+          "end" : 2431.22,
+          "excerpt" : "Party party.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0656-0002430380-0002431220",
+          "speaker" : "them 2",
+          "start" : 2430.38
+        }
+      ],
+      "id" : "5b5fd78c5db92be2",
+      "importance" : 2,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Distribute and complete the additional questionnaire."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1563.94,
+          "excerpt" : "So um, I like set up all these criteria.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0369-0001560260-0001563940",
+          "speaker" : "them 2",
+          "start" : 1560.26
+        },
+        {
+          "end" : 1545.9,
+          "excerpt" : "No. But we can go on with the project evaluation.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0364-0001540660-0001545900",
+          "speaker" : "them 1",
+          "start" : 1540.66
+        }
+      ],
+      "due" : "unknown",
+      "id" : "1a7cad7fa1bbc1c6",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Will establish the evaluation criteria for the project."
+    }
+  ],
+  "decisionRecords" : [
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : "Yeah. But um I think we can then keep the single curved one. Just to express our L_C_D_ screen a bit more. So people will use it more, and especially for the help functions, it will be good if we have scroll bar, scroll button. It will be necessary to have good help function, as well.",
+        "speakerID" : "them 1",
+        "speakerLabel" : "Them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1415.83,
+          "excerpt" : "Yeah. But um I think we can then keep the single curved one. Just to express our L_C_D_ screen a bit more. So people will use it more, and especially for the help functions, it will be good if we have scroll bar, scroll button. It will be necessary to have good help function, as well.",
+          "meetingID" : "CAA82766-8D43-55ED-88F9-654620134291",
+          "segmentID" : "segment-0324-0001393810-0001415830",
+          "speaker" : "them 1",
+          "start" : 1393.81
+        }
+      ],
+      "id" : "a36dc669bdb5b700",
+      "schemaVersion" : 4,
+      "text" : "But um I think we can then keep the single curved one. Just to express our L_C_D_ screen a bit more. So people will use it more, and especially for the help functions, it will be good if we have scroll bar, scroll button. It will be necessary to have good help function, as well."
+    }
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "b5e791908f260f7a6fcb80959c39171477f7bbdf0cf25f3ec700aa2691bd6efe"
+}

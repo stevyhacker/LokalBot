@@ -1,0 +1,388 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So I'll be coming to you um frequently as the Industrial Expert to tell me how hard it's gonna be to add a feature or how expensive it's gonna be or if your time, if it takes five years to develop this it's just something we can't do.",
+        "resolution" : "other",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 213.22,
+          "excerpt" : "So I'll be coming to you um frequently as the Industrial Expert to tell me how hard it's gonna be to add a feature or how expensive it's gonna be or if your time, if it takes five years to develop this it's just something we can't do. So in the beginning just have a big puddle of things that we anybody can throw anything in and then just weed things out that can't be done for one reason or another, and then the things that seem the most attractive that to uh to a customer we'll try to then prioritise those. So that was um what I meant there, and as I said on the slide there consulting the Indu",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0024-0000165620-0000213220",
+          "speaker" : "them 3",
+          "start" : 165.62
+        }
+      ],
+      "id" : "09fac4d55877a02b",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 3",
+      "schemaVersion" : 4,
+      "text" : "Commits to regularly review feature feasibility, cost, and development timeline with the team."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousQuote",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 261.02,
+          "excerpt" : "Twenty five Euros makes a nice little present, and we want it to be an impulse purchase, we want somebody to see it and think it's, gee I just gotta have that. And take out their wallet and buy it. So it's gotta be really attractive and it but it's gotta go to market by September, 'cause anything that you don't already have out there in September showing it around, isn't gonna sell for Christmas. Um and then I'll be coming to you as the User Interface person to try to tell me from your point of view what are the most friendly features that we could put on it and try to help me with that priori",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0034-0000213640-0000261020",
+          "speaker" : "them 3",
+          "start" : 213.64
+        },
+        {
+          "end" : 292.06,
+          "excerpt" : "So I'll be coming to you for how much is it gonna cost us and how long is it gonna take you, and I'll be coming to you to tell me what's gonna make somebody take out their wallet you know, what what's what's gonna really be what they call a sizzle, 'cause we gotta sell this sizzle. A lot of times the thing that works the best from an engineering point of view isn't the thing that somebody's really just gonna take out their wallet and buy for Christmas for for their child or for their husband or whatever. Okay can we go to the next slide please?",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0039-0000261310-0000292060",
+          "speaker" : "them 3",
+          "start" : 261.31
+        }
+      ],
+      "id" : "4d25c263d3a854a2",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Commits to evaluating user-friendly features and helping prioritize the product's look and color."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So I'll be coming to you for how much is it gonna cost us and how long is it gonna take you, and I'll be coming to you to tell me what's gonna make somebody take out their wallet you know, what what's what's gonna really be what they call a sizzle, 'cause we gotta sell this sizzle.",
+        "resolution" : "other",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 292.06,
+          "excerpt" : "So I'll be coming to you for how much is it gonna cost us and how long is it gonna take you, and I'll be coming to you to tell me what's gonna make somebody take out their wallet you know, what what's what's gonna really be what they call a sizzle, 'cause we gotta sell this sizzle. A lot of times the thing that works the best from an engineering point of view isn't the thing that somebody's really just gonna take out their wallet and buy for Christmas for for their child or for their husband or whatever. Okay can we go to the next slide please?",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0039-0000261310-0000292060",
+          "speaker" : "them 3",
+          "start" : 261.31
+        }
+      ],
+      "id" : "8087b41a7a33e582",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 3",
+      "schemaVersion" : 4,
+      "text" : "Commits to assessing costs, timelines, and identifying key selling points to drive impulse purchases."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1445.13,
+          "excerpt" : "So uh there you have different uh types of remotes for different light source which are used which can be used for controlling the different functionalities of a television.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0258-0001436080-0001445130",
+          "speaker" : "them 4",
+          "start" : 1436.08
+        }
+      ],
+      "id" : "01fcb7cd47de722a",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Committed to presenting findings on different remote types and light sources."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1492.28,
+          "excerpt" : "And these are my few personal preferences like it can be used for a multipurpose use. Not, uh no uh like it can it can be used as a T_V_ control as plus an alarm clock to set an alarm a timing and it should have a child lock, and then to save electricity uh there should not be uh much move uh lots of circuits and all that. And if a person if if if parents wants the television to be switched off by ten o'clock then it should be switched off ten at ten o'clock automatically, so that nobody else comes later and use it.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0260-0001456320-0001492280",
+          "speaker" : "them 4",
+          "start" : 1456.32
+        }
+      ],
+      "id" : "6fdac86683f1ffab",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Committed to outlining personal preferences for multipurpose use, alarm clock, child lock, and energy efficiency."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 760.4,
+          "excerpt" : "So uh user interface controls the chip and accordingly the messages like there should be a user user interface like you know switch pad or something like that buttons should be there. So uh you can control whatever you want, you want to change the channel you want to control the volume you you want to uh mute uh mute the uh T_V_ or you want to have a child lock or you want to do some operations there's a there should be some device to tell what to do to the uh uh integrated circuit so that the integrated circuit can send the signals and T_V_ can perform the actions.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0098-0000726280-0000760400",
+          "speaker" : "them 2",
+          "start" : 726.28
+        }
+      ],
+      "id" : "fe6429e8f5939b06",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Outlines the requirement for a user interface (switch pad\/buttons) to control the integrated circuit and TV functions."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousQuote",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 794.12,
+          "excerpt" : "So I I just would like to uh add some extra features to the remote controller um I think these are the very simple features and uh they don't take much uh uh much of the um um investment also, it's like the text or buttons which uh which are there on the uh remote controller they those we can make uh um like fluorescent uh they'll be like light emitting if it is dark so that you can find your remote controller if it is dark.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0102-0000763820-0000794120",
+          "speaker" : "them 2",
+          "start" : 763.82
+        },
+        {
+          "end" : 853.5,
+          "excerpt" : "And there should be a beep if many buttons are pressed if suppose a child is playing with the remote controller and and she she or he is pressing the buttons all at the time then there should be a beep saying that it's this this is not a a you know a a action, there can be no action taking to that so. And there should be a child lock, like uh uh you should be able to lock your remote controller so that uh um whatever buttons are pressed by a child they can't be like you you if you have kids and all then they'll be playing with the remote controllers so can lock the remote controller. If make i",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0105-0000795060-0000853500",
+          "speaker" : "them 2",
+          "start" : 795.06
+        }
+      ],
+      "id" : "dc141e851ec0a545",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Proposes adding light-emitting buttons to help users find the remote in dark conditions."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 853.5,
+          "excerpt" : "And there should be a beep if many buttons are pressed if suppose a child is playing with the remote controller and and she she or he is pressing the buttons all at the time then there should be a beep saying that it's this this is not a a you know a a action, there can be no action taking to that so. And there should be a child lock, like uh uh you should be able to lock your remote controller so that uh um whatever buttons are pressed by a child they can't be like you you if you have kids and all then they'll be playing with the remote controllers so can lock the remote controller. If make i",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0105-0000795060-0000853500",
+          "speaker" : "them 2",
+          "start" : 795.06
+        }
+      ],
+      "id" : "499e5eff0d0367c3",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Suggests adding a beep for accidental button presses and a child lock feature."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 853.5,
+          "excerpt" : "And there should be a beep if many buttons are pressed if suppose a child is playing with the remote controller and and she she or he is pressing the buttons all at the time then there should be a beep saying that it's this this is not a a you know a a action, there can be no action taking to that so. And there should be a child lock, like uh uh you should be able to lock your remote controller so that uh um whatever buttons are pressed by a child they can't be like you you if you have kids and all then they'll be playing with the remote controllers so can lock the remote controller. If make i",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0105-0000795060-0000853500",
+          "speaker" : "them 2",
+          "start" : 795.06
+        }
+      ],
+      "id" : "29a6805a47d56d0d",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Suggests considering different animal shapes or comfortable ergonomic designs for the remote."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 939.01,
+          "excerpt" : "Yeah, exactly. Yeah. And and the buttons also I think if you want to have more features in your remote controller then there should be more buttons. If there are more buttons then it will be more complicated. If you have less features then your remote controller won't be attractive, so I think uh we need to make some buttons which are which are like um uh uh intended for two or three operations, like if you press one button in one mode then it will change the channel, if you press the other button in another mode it will change the colour. So if you want to have less buttons we can have that o",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0135-0000902100-0000939010",
+          "speaker" : "them 2",
+          "start" : 902.1
+        }
+      ],
+      "id" : "8e706dfe563f5517",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Discusses the trade-off between having more buttons for more features versus fewer multi-function buttons."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 966.69,
+          "excerpt" : "Well, I think I think that that's something that we'll have to discuss um with the User Interface person because I think there's a lot of argument to be made for one button for one feature. Because I think one of the things were complaining about in my what I found out in my research is when they complained about how hard it is to learn a new one. The changing modes was something I mean you and I, all all four of us we work with computers all the time, changing modes is nothing for us, but people who",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0138-0000938610-0000966690",
+          "speaker" : "them 3",
+          "start" : 938.61
+        }
+      ],
+      "id" : "024e37524847f4cc",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Suggests discussing the one-button-per-feature concept with the User Interface person."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 857.86,
+          "excerpt" : "Yeah, yeah, yeah and colours also, different colours, and",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0110-0000854880-0000857860",
+          "speaker" : "them 2",
+          "start" : 854.88
+        },
+        {
+          "end" : 861.67,
+          "excerpt" : "Now that's good from a marketing point of view, the fun the fun shape. And that you you say that won't add too much to the budget? To the shape is uh",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0109-0000853000-0000861670",
+          "speaker" : "them 3",
+          "start" : 853
+        }
+      ],
+      "due" : "unknown",
+      "id" : "99c24b343ff1d5e1",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Suggests exploring different color options for the remote controller."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1085.76,
+          "excerpt" : "And then uh infrared bulbs. Um this is like uh when it is dark.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0183-0001080200-0001085760",
+          "speaker" : "them 2",
+          "start" : 1080.2
+        },
+        {
+          "end" : 1062.65,
+          "excerpt" : "Yeah. Uh can you go to the next slide please? Uh components uh the main components we need for uh it like buttons and uh underneath that there should be switch. And uh bulbs. Like uh we can have a bulb like whenever we are operating a remote controller or uh whenever the T_V_ is on suppose, then the remote controller should automatically have a light.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0176-0001037110-0001062650",
+          "speaker" : "them 2",
+          "start" : 1037.11
+        }
+      ],
+      "due" : "unknown",
+      "id" : "7f1267287ca94977",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Committed to including infrared bulbs for visibility in dark conditions."
+    }
+  ],
+  "decisionRecords" : [
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : "Uh okay, can can I at this point interject um something? Um we have received instruction from higher up that certain things should not be uh considered. Um the one thing for example something to eliminate maybe that's the teletext, because that's sort of outdated with the internet, and according to to higher management the it should only control the T_V_, mostly because they feel that it's too complex a task to um to to include other things, and they are concerned with the time to market.",
+        "speakerID" : "them 1",
+        "speakerLabel" : "Them 1"
+      },
+      "citations" : [
+        {
+          "end" : 381.07,
+          "excerpt" : "Uh okay, can can I at this point interject um something? Um we have received instruction from higher up that certain things should not be uh considered. Um the one thing for example something to eliminate maybe that's the teletext, because that's sort of outdated with the internet, and according to to higher management the it should only control the T_V_, mostly because they feel that it's too complex a task to um to to include other things, and they are concerned with the time to market.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0045-0000341990-0000381070",
+          "speaker" : "them 1",
+          "start" : 341.99
+        }
+      ],
+      "id" : "eebcf149382dd60a",
+      "schemaVersion" : 4,
+      "text" : "Uh okay, can can I at this point interject um something? Um we have received instruction from higher up that certain things should not be uh considered. Um the one thing for example something to eliminate maybe that's the teletext, because that's sort of outdated with the intenet"
+    },
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : "Okay.",
+        "speakerID" : "them 4",
+        "speakerLabel" : "Them 4"
+      },
+      "citations" : [
+        {
+          "end" : 427.55,
+          "excerpt" : "Okay.",
+          "meetingID" : "A95F6B75-29F3-5BB8-B979-F8B9F2BAED26",
+          "segmentID" : "segment-0060-0000426990-0000427550",
+          "speaker" : "them 4",
+          "start" : 426.99
+        }
+      ],
+      "id" : "9f65c15b4ea7d78a",
+      "schemaVersion" : 4,
+      "text" : "Okay."
+    }
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "74889a350b0b57577091388007161bbf9b42ccac80f0f8a81ae5b69c2757b396"
+}

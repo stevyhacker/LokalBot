@@ -13,7 +13,7 @@ sentence-similarity embeddings (LokalBot's search model), where τ is the 95th
 percentile of the best match between each system's items and a *different*
 team's AMI summary, as in Benchmarks/SummaryQuality. One τ covers every system.
 
-Usage: score.py --app "path/to/LokalBot Dev.app" [--notes <library>] [--save results/<date>]
+Usage: score.py --app "path/to/LokalBot Dev.app" [--notes <library>] [--meetings A,B] [--save results/<date>/scores.json]
 """
 import argparse
 import json
@@ -119,7 +119,8 @@ def notes_run(library):
         actions = [text(x) for x in outcomes.get('actionItems', []) if text(x)]
         decisions = [text(x) for x in outcomes.get('decisionRecords', []) if text(x)]
         questions = [text(x) for x in outcomes.get('openQuestions', []) if text(x)]
-        meetings[folder.name[:-4].upper()] = {'actions': actions, 'decisions': decisions,
+        name = folder.name[:-len('-ref')]
+        meetings[name[:6].upper() + name[6:]] = {'actions': actions, 'decisions': decisions,
                                               'items': actions + decisions + questions,
                                               'kinds': {'commitment': len(actions), 'decision': len(decisions),
                                                         'question': len(questions), 'contradiction': 0}}
@@ -130,7 +131,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--app', required=True, help='a built LokalBot Dev.app, for its llama-server')
     parser.add_argument('--notes', help='SummaryQuality library whose -ref meetings hold post-meeting notes')
-    parser.add_argument('--save', type=Path)
+    parser.add_argument('--meetings', help='comma-separated subset, so systems are compared on the same meetings')
+    parser.add_argument('--save', type=Path, help='write the report as JSON to this file')
     args = parser.parse_args()
     references = json.loads((DATA / 'references.json').read_text())
     meetings = sorted(references)
@@ -140,6 +142,7 @@ def main():
     llama = Path(args.app) / 'Contents/Resources/llama-cpp/llama-server'
 
     with Embedder(llama, DATA / 'embeddings.json') as embed:
+        # One τ from every run on every meeting, whatever subset is scored.
         cross = []
         for name, runs in systems.items():
             for meeting, run in runs.items():
@@ -149,6 +152,9 @@ def main():
                 if run['items']:
                     cross += list(best(embed(run['items']) @ embed(sentences).T))
         tau = float(np.percentile(cross, 95))
+        if args.meetings:
+            keep = set(args.meetings.split(','))
+            systems = {name: {m: run for m, run in runs.items() if m in keep} for name, runs in systems.items()}
 
         report = {'tau': tau, 'crossMatches': len(cross), 'systems': {}}
         for name, runs in systems.items():
@@ -220,8 +226,8 @@ def main():
                   f"(${live['costPerHour']:.2f} per meeting hour), {live['rejected']} items rejected, "
                   f"{live['failedRequests']} failed requests")
     if args.save:
-        args.save.mkdir(parents=True, exist_ok=True)
-        (args.save / 'scores.json').write_text(json.dumps(report, indent=1) + '\n')
+        args.save.parent.mkdir(parents=True, exist_ok=True)
+        args.save.write_text(json.dumps(report, indent=1) + '\n')
 
 
 if __name__ == '__main__':

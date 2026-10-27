@@ -1,0 +1,258 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Okay, um, I'm going to look at the functional requirements from the marketing point of view and uh obviously our starting point with marketing is always market research.",
+        "resolution" : "other",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 876.26,
+          "excerpt" : "Okay, um, I'm going to look at the functional requirements from the marketing point of view and uh obviously our starting point with marketing is always market research. Um, so that's where we started, we used our our usability lab, the company's usability lab, we did our usual selection methods to get a cross-section of the general public, male and female, all age groups from fifteen upwards and um we observed them in the lab, just their general use of the remote control, you can see we had a hundred subjects there.",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0116-0000845630-0000876260",
+          "speaker" : "them 2",
+          "start" : 845.63
+        },
+        {
+          "end" : 1036.14,
+          "excerpt" : "I had marvellous tables and things that I could show you, but I think I'll just keep it simple, if there's any more information I can email you extra details, is that okay?",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0123-0001027470-0001036140",
+          "speaker" : "them 2",
+          "start" : 1027.47
+        }
+      ],
+      "id" : "8784afb3e4038541",
+      "importance" : 5,
+      "isForUser" : false,
+      "owner" : "Them 2",
+      "schemaVersion" : 4,
+      "text" : "Review functional requirements from a marketing perspective using market research data."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 2111.72,
+          "excerpt" : "Yeah we could look in at that.",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0397-0002110550-0002111720",
+          "speaker" : "them 3",
+          "start" : 2110.55
+        }
+      ],
+      "id" : "beb102dd3a39fdb5",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Investigate sea shell design options for the remote control exterior."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I had marvellous tables and things that I could show you, but I think I'll just keep it simple, if there's any more information I can email you extra details, is that okay?",
+        "resolution" : "other",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 1036.14,
+          "excerpt" : "I had marvellous tables and things that I could show you, but I think I'll just keep it simple, if there's any more information I can email you extra details, is that okay?",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0123-0001027470-0001036140",
+          "speaker" : "them 2",
+          "start" : 1027.47
+        },
+        {
+          "end" : 1027.96,
+          "excerpt" : "'Kay.",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0124-0001027780-0001027960",
+          "speaker" : "them 3",
+          "start" : 1027.78
+        }
+      ],
+      "id" : "a762b698dbb36707",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 2",
+      "schemaVersion" : 4,
+      "text" : "Provide additional detailed data via email upon request if further information is needed."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1769.14,
+          "excerpt" : "Can I just run this past you while it occurs to me, I don't mean to quickly jump from one subject to another, but just discussing the different age groups and targeting the different age groups it occurs to me, to produce our own mobile phones, that that's kind of what led us on to comparing T_V_ remote controls with with their design features, um, chain companies like Carphone Warehouse, you can pop in anytime with a phone that you bought for them if you've got any problems with it and they'll fix it, they'll phone the company, you can use their telephones. Is it worthwhile with with our reta",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0300-0001723200-0001769140",
+          "speaker" : "them 2",
+          "start" : 1723.2
+        },
+        {
+          "end" : 1722.94,
+          "excerpt" : "Okay so",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0299-0001722210-0001722940",
+          "speaker" : "them 1",
+          "start" : 1722.21
+        }
+      ],
+      "id" : "ca36756f9bf27916",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Evaluate the feasibility of offering free in-store support services for TV remote controls at high street outlets to assist older users."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 2161.63,
+          "excerpt" : "Yeah maybe we could come at some say five, six designs and then choose which are whichever appeals the most like, that could be the most common design.",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0406-0002154550-0002161630",
+          "speaker" : "them 3",
+          "start" : 2154.55
+        }
+      ],
+      "id" : "0f6c57ccb4298805",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Develop five to six design variations to select the most appealing option."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 2300.04,
+          "excerpt" : "What would you specifically like marketing to look at before the next meeting? Or shall I just sort of generally look at all the issues involved?",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0446-0002294550-0002300040",
+          "speaker" : "them 2",
+          "start" : 2294.55
+        }
+      ],
+      "id" : "b4e31426aba1e24a",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Determine specific marketing review requirements before the next meeting."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2030.26,
+          "excerpt" : "Can you look into the company logo?",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0382-0002026400-0002030260",
+          "speaker" : "them 1",
+          "start" : 2026.4
+        },
+        {
+          "end" : 2041.3,
+          "excerpt" : "Um, things that are associated with the company in view to trying to incorporate that into the design of the product. I mean",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0383-0002031500-0002041300",
+          "speaker" : "them 1",
+          "start" : 2031.5
+        }
+      ],
+      "id" : "0628abdd07ff4e6f",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Review company logo and associated elements to incorporate into the product design."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 2309.76,
+          "excerpt" : "Instruction manuals, 'cause there tends to be a",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0451-0002307170-0002309760",
+          "speaker" : "them 1",
+          "start" : 2307.17
+        },
+        {
+          "end" : 2318.51,
+          "excerpt" : "demonised thing, um, they're everyone's got like a big pile of them, but no one really uses them.",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0453-0002311600-0002318510",
+          "speaker" : "them 1",
+          "start" : 2311.6
+        }
+      ],
+      "id" : "e809599a3777d98a",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Review and improve instruction manuals to increase usability."
+    }
+  ],
+  "decisionRecords" : [
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : "we decided upon a universal control, one handset for all, T_V_, video",
+        "speakerID" : "them 1",
+        "speakerLabel" : "Them 1"
+      },
+      "citations" : [
+        {
+          "end" : 99.12,
+          "excerpt" : "we decided upon a universal control, one handset for all, T_V_, video",
+          "meetingID" : "5CC85F8E-7A31-5CC3-9A2A-2F9B84B3CD11",
+          "segmentID" : "segment-0011-0000092630-0000099120",
+          "speaker" : "them 1",
+          "start" : 92.63
+        }
+      ],
+      "id" : "d0d28cd0aa1ecf89",
+      "schemaVersion" : 4,
+      "text" : "Decided upon a universal control design: one handset for all TV equipment, accessible to a wide age range."
+    }
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "a2157eab43a133d6c381247cb70829843794c765c1c892abc10080516b0003f9"
+}

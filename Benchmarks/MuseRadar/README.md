@@ -1,5 +1,7 @@
 # Live Radar and Follow-through replays
 
+Read the [AMI evaluation](results/2026-10-27/REPORT.md).
+
 These harnesses run LokalBot's own Live Radar and Follow-through code against the Meta Model API on public or synthetic transcripts. Nothing here reads a LokalBot library or the Keychain. Both features were built for the Meta Global AI Developer Hackathon; see [HACKATHON.md](../../HACKATHON.md).
 
 ## What a replay does
@@ -38,15 +40,22 @@ APP="path/to/DerivedData/Build/Products/Debug/LokalBot Dev.app"
 - **Speakers.** The Project Manager is the microphone ("Me"). The other three people share the call track ("Others"), with no voices told apart, as in the live preview.
 - **Earlier meetings.** Each fixture gets the human decision and action sentences of the same team's earlier meetings as its earlier-meeting passages.
 
-`run.sh` replays every fixture with one model, and `score.py` scores what was caught against AMI's human summaries.
+`run.sh` replays every fixture with one model. `prepare.py --notes` also builds a meeting library of the same transcripts, and SummaryQuality's `run.sh` writes LokalBot's post-meeting notes into it. `score.py` then scores the radar and the notes against AMI's human summaries, with one matching threshold for both.
 
 ```bash
 export MUSE_RADAR_DATA=/private/tmp/lokalbot-muse-radar
-python3 prepare.py
+python3 prepare.py --notes
 META_API_KEY=... ./run.sh "$APP" muse-spark-1.3
-META_API_KEY=... ./run.sh "$APP" muse-wonder-1.0
-python3 score.py --app "$APP" --save results/<date>
+META_API_KEY=... ./run.sh "$APP" muse-wonder-1.0 ES2004b ES2004d IS1009b IS1009d TS3003b TS3003d
+SUMMARY_BENCH_DIR=$MUSE_RADAR_DATA CAP=240 ../SummaryQuality/run.sh "$APP" summary \
+  es2004a-ref es2004b-ref es2004c-ref es2004d-ref is1009a-ref is1009b-ref \
+  is1009c-ref is1009d-ref ts3003a-ref ts3003b-ref ts3003c-ref ts3003d-ref
+python3 score.py --app "$APP" --notes $MUSE_RADAR_DATA/library --save results/<date>/scores.json
+python3 score.py --app "$APP" --notes $MUSE_RADAR_DATA/library \
+  --meetings ES2004b,ES2004d,IS1009b,IS1009d,TS3003b,TS3003d --save results/<date>/scores-six-meetings.json
 ```
+
+The scorer needs `numpy` and LokalBot's EmbeddingGemma 2 model in the app's models folder.
 
 ## Limits
 

@@ -1,0 +1,228 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousQuote",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 508.01,
+          "excerpt" : "And uh just sum up a few of its favourite characteristics. Um the only thing we have to uh look after is that we use different colours, and different line width. Uh there's I can start from now. I will. You can use this pen by holding it like a like a little child. Because if you hold it like this, the sensors will get blocked and then the drawing won't get good.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0050-0000478290-0000508010",
+          "speaker" : "them 1",
+          "start" : 478.29
+        },
+        {
+          "end" : 506.56,
+          "excerpt" : "Okay.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0051-0000506210-0000506560",
+          "speaker" : "them 2",
+          "start" : 506.21
+        }
+      ],
+      "id" : "bd8ac660f31a3dba",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Bart instructed participants on the correct way to hold the digital pen for drawing."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll start with the presentation kick off.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 101.45,
+          "excerpt" : "Now first I'll tell you a little bit about the setting. You can see there are a few cameras here. They'll record uh our actions and you'll have wires and microphones that will record your voice. Uh there are also some microphones there but um you don't have to pay a lot of attention on those, because it will uh disappear when you don't attend to it. So is there a project documents folder? There are some notes in it already I see, some documents. Uh I'll start with the presentation kick off.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0012-0000065580-0000101450",
+          "speaker" : "them 1",
+          "start" : 65.58
+        }
+      ],
+      "id" : "2b1da116455c4bf4",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Bart initiated the presentation kick-off to begin the project overview."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'm Bart the project manager so I'll direct you through the project.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 138.65,
+          "excerpt" : "Well I don't know if you've noticed, but uh we're working for Real Reaction. Uh it's a company in uh electronics. We put fashion in electronics, uh we make it work, uh we put a lot of effort in design and in the product itself. I'm Bart the project manager so I'll direct you through the project.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0015-0000116660-0000138650",
+          "speaker" : "them 1",
+          "start" : 116.66
+        }
+      ],
+      "id" : "e10b9ec9b82248af",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Bart committed to guiding the team through the project details."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So now I'm gonna hand over the pen on the new blank sheet to you.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 714.07,
+          "excerpt" : "It's my characteristic uh characteristic about the dolphin. It lives for the fun. So now I'm gonna hand over the pen on the new blank sheet to you. Go ahead.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0078-0000700240-0000714070",
+          "speaker" : "them 1",
+          "start" : 700.24
+        }
+      ],
+      "id" : "0158af59aa924e7a",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Bart offered to pass the pen to a participant for them to draw."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So I'm gonna sit down, I think.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1211.18,
+          "excerpt" : "So that's leads us to our little discussion. We've got about five or ten minutes left for discussion. So I'm gonna sit down, I think. It's easier. I've got a message. Five minutes. Okay, that's uh good timing.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0149-0001189480-0001211180",
+          "speaker" : "them 1",
+          "start" : 1189.48
+        }
+      ],
+      "id" : "71afd94f4b860003",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Bart decided to sit down to make it easier to take notes."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So I'm gonna sit down, I think.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1211.18,
+          "excerpt" : "So that's leads us to our little discussion. We've got about five or ten minutes left for discussion. So I'm gonna sit down, I think. It's easier. I've got a message. Five minutes. Okay, that's uh good timing.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0149-0001189480-0001211180",
+          "speaker" : "them 1",
+          "start" : 1189.48
+        }
+      ],
+      "id" : "ef4d32b673d2a2eb",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Bart mentioned sitting down due to a message and the need for easier note-taking."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 1096.79,
+          "excerpt" : "Okay. That's pretty clear. So everybody knows how to work with the white board now? So if you have any ideas or if you wanna draw anything on the white board, just ask and go ahead. It's pretty uh easy.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0142-0001081610-0001096790",
+          "speaker" : "them 1",
+          "start" : 1081.61
+        },
+        {
+          "end" : 1089.21,
+          "excerpt" : "Yeah.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0143-0001088790-0001089210",
+          "speaker" : "them 3",
+          "start" : 1088.79
+        }
+      ],
+      "due" : "unknown",
+      "id" : "5439ddc6eff063f7",
+      "importance" : 1,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Bart confirmed that all participants understood how to use the whiteboard tools."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "So these are our um a few things we can think of. Um I will put the minutes from this meeting uh in our project folder.",
+        "resolution" : "other",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1400.3,
+          "excerpt" : "Okay. So these are our um a few things we can think of. Um I will put the minutes from this meeting uh in our project folder.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0211-0001389760-0001400300",
+          "speaker" : "them 1",
+          "start" : 1389.76
+        },
+        {
+          "end" : 1387.63,
+          "excerpt" : "Waterproof.",
+          "meetingID" : "3ABE0C2B-7050-5F60-A037-77481389704E",
+          "segmentID" : "segment-0210-0001386870-0001387630",
+          "speaker" : "them 1",
+          "start" : 1386.87
+        }
+      ],
+      "due" : "unknown",
+      "id" : "24bd4b732f1b7b13",
+      "importance" : 1,
+      "isForUser" : false,
+      "owner" : "Them 1",
+      "schemaVersion" : 4,
+      "text" : "Will put the minutes from this meeting in the project folder."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "1f42af91a739a19e029baea65a0a5ca5ddc44b06d52b60ba85dd5bb5af175159"
+}

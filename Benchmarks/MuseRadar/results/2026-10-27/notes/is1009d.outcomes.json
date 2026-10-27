@@ -1,0 +1,284 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "ambiguousName",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 627.96,
+          "excerpt" : "give her suggestion whether it'll be sellable or it'll be cost effective.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0102-0000621200-0000627960",
+          "speaker" : "them 2",
+          "start" : 621.2
+        },
+        {
+          "end" : 619.87,
+          "excerpt" : "So this is our proposed model. Now the marketing expert has to",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0098-0000614770-0000619870",
+          "speaker" : "them 2",
+          "start" : 614.77
+        }
+      ],
+      "id" : "5463281921bb455c",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Provide the marketing expert with a suggestion on whether the proposed remote control design is sellable and cost effective."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 3"
+      },
+      "citations" : [
+        {
+          "end" : 1674.6,
+          "excerpt" : "yeah, include some more buttons and uh um yeah features. We can make the buttons few buttons smaller. Uh I think they are quite big, so I think I I mean we can just have small buttons and more buttons in that case. If we want to have more features than that.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0415-0001656820-0001674600",
+          "speaker" : "them 3",
+          "start" : 1656.82
+        },
+        {
+          "end" : 1657.24,
+          "excerpt" : "We can always improve, yes.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0414-0001655360-0001657240",
+          "speaker" : "them 2",
+          "start" : 1655.36
+        }
+      ],
+      "id" : "470c48e794894edb",
+      "importance" : 5,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Explore adding more buttons and features while reducing button size to improve usability."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "speakerMismatch",
+        "resolution" : "unresolved",
+        "speakerID" : "them 2"
+      },
+      "citations" : [
+        {
+          "end" : 761.33,
+          "excerpt" : "Text that we can have on the case itself, we can it will be printed on the case and symbols as well as the buttons. Yeah.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0158-0000755410-0000761330",
+          "speaker" : "them 3",
+          "start" : 755.41
+        }
+      ],
+      "id" : "942eab2d55b460bc",
+      "importance" : 4,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Print text and universal symbols on the remote case and buttons to ensure international market usability without language dependence."
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "Okay, I'll take my file down so you can bring it up.",
+        "resolution" : "other",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1124.48,
+          "excerpt" : "Okay, I'll take my file down so you can bring it up.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0298-0001122170-0001124480",
+          "speaker" : "them 4",
+          "start" : 1122.17
+        },
+        {
+          "end" : 1121.65,
+          "excerpt" : "Now we would like to have a presentation by the marketing expert on production evaluation.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0297-0001115360-0001121650",
+          "speaker" : "them 1",
+          "start" : 1115.36
+        }
+      ],
+      "id" : "9dd8bcd4c54ee3e5",
+      "importance" : 3,
+      "isForUser" : false,
+      "owner" : "Them 4",
+      "schemaVersion" : 4,
+      "text" : "Prepare and present the marketing expert's file on production evaluation."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1702.93,
+          "excerpt" : "Well then again if we're gonna um do the speech recognition thing we're there gonna be some buttons that are gonna have to be added for that for the recording of the the speech. So that that's where we're gonna have to do maybe we can eliminate one of the mute buttons, instead of having two mute buttons. And um then maybe we can do something with the um",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0418-0001676420-0001702930",
+          "speaker" : "them 4",
+          "start" : 1676.42
+        },
+        {
+          "end" : 1681.52,
+          "excerpt" : "Yeah.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0419-0001681210-0001681520",
+          "speaker" : "them 3",
+          "start" : 1681.21
+        }
+      ],
+      "id" : "cb4c1c3dd93d7ef1",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Integrate speech recognition features by consolidating mute buttons and adding recording controls."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1743.95,
+          "excerpt" : "um always bearing in mind that right now we are of course well within the budget and that we still you know we probably can't, with this particular item, we probably can't just uh add a whole lot of more things. Uh um we need uh you know we need to leave space money-wise for the voice recogniser.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0431-0001718670-0001743950",
+          "speaker" : "them 1",
+          "start" : 1718.67
+        },
+        {
+          "end" : 1720.47,
+          "excerpt" : "And maybe",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0432-0001719060-0001720470",
+          "speaker" : "them 2",
+          "start" : 1719.06
+        }
+      ],
+      "id" : "64bb85f2e40c002f",
+      "importance" : 3,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Reserve budget space for the voice recognizer while considering limited room for additional features."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "speakerMismatch",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1138.89,
+          "excerpt" : "'Kay should be able to get it now.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0299-0001137910-0001138890",
+          "speaker" : "them 4",
+          "start" : 1137.91
+        },
+        {
+          "end" : 1145.02,
+          "excerpt" : "'Kay, why don't you move just to the next slide right away.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0300-0001142720-0001145020",
+          "speaker" : "them 4",
+          "start" : 1142.72
+        }
+      ],
+      "id" : "ebbedb909bd7ee5f",
+      "importance" : 2,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Bring up the presentation file and proceed to the next slide."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "speakerMismatch",
+        "resolution" : "unresolved",
+        "speakerID" : "them 1"
+      },
+      "citations" : [
+        {
+          "end" : 1435.89,
+          "excerpt" : "And I'm supposed to present this scale on the whiteboard. Um and we're supposed to talk about those things as a team now, so if you put my last slide back up there.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0354-0001425960-0001435890",
+          "speaker" : "them 4",
+          "start" : 1425.96
+        },
+        {
+          "end" : 1436.96,
+          "excerpt" : "Oh.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0355-0001436690-0001436960",
+          "speaker" : "them 1",
+          "start" : 1436.69
+        }
+      ],
+      "id" : "0b35f284b22c0b7b",
+      "importance" : 2,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Display the final evaluation slide on the whiteboard for the team discussion."
+    },
+    {
+      "attribution" : {
+        "basis" : "unclear",
+        "rejectionReason" : "missingBasis",
+        "resolution" : "unresolved",
+        "speakerID" : "them 4"
+      },
+      "citations" : [
+        {
+          "end" : 1707.89,
+          "excerpt" : "the volume control. Maybe we can put that all on one button.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0427-0001704250-0001707890",
+          "speaker" : "them 4",
+          "start" : 1704.25
+        },
+        {
+          "end" : 1708.79,
+          "excerpt" : "Hmm.",
+          "meetingID" : "32468F24-40DD-5439-929B-A0DB78E1AE57",
+          "segmentID" : "segment-0428-0001708390-0001708790",
+          "speaker" : "them 3",
+          "start" : 1708.39
+        }
+      ],
+      "id" : "794948f61025d07f",
+      "importance" : 2,
+      "isForUser" : false,
+      "schemaVersion" : 4,
+      "text" : "Consolidate volume control functionality onto a single button to simplify the interface."
+    }
+  ],
+  "decisionRecords" : [
+
+  ],
+  "openQuestions" : [
+
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "ce16ff5b4dcfbad70713728d22a341099fbe9a7d5ccb4d5d9bbbfd34efa50158"
+}
