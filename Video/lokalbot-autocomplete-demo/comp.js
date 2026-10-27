@@ -22,6 +22,7 @@ const ease = {
   outExpo: t => (t >= 1 ? 1 : 1 - 2 ** (-10 * t)),
   inExpo: t => (t <= 0 ? 0 : 2 ** (10 * t - 10)),
   inOutExpo: t => (t <= 0 ? 0 : t >= 1 ? 1 : t < 0.5 ? 2 ** (20 * t - 10) / 2 : (2 - 2 ** (-20 * t + 10)) / 2),
+  outQuart: t => 1 - (1 - t) ** 4,
   outBack: (t, s = 1.7) => 1 + (s + 1) * (t - 1) ** 3 + s * (t - 1) ** 2,
   inOutSine: t => -(Math.cos(Math.PI * t) - 1) / 2,
 };
@@ -62,6 +63,8 @@ const el = (html, cls = '', parent = ui) => {
 };
 const layer = () => el('', 'layer');
 const show = (node, o) => { node.style.opacity = o.toFixed(3); node.style.visibility = o > 0.001 ? 'visible' : 'hidden'; };
+/** show(), rising into place as it fades in. */
+const rise = (node, o, px = 22) => { show(node, o); node.style.transform = `translateY(${(px * (1 - o)).toFixed(1)}px)`; };
 /** Screen position of a world point. */
 function project(p) {
   const q = p.clone().project(camera);
@@ -402,7 +405,7 @@ function pickFollow(t) {
   if (t < p0 - 0.6 || t > p1 + 0.6 || !tree.columns.length) return 0;
   const starts = EDIT.pickSteps.map(s => p0 + s);
   let x = tree.rootX + 2;
-  tree.columns.forEach((col, k) => { x = lerp(x, col.cx - 1.5, seg(t, starts[k], starts[k] + 0.9, ease.inOutCubic)); });
+  tree.columns.forEach((col, k) => { x = lerp(x, col.cx - 1.5, seg(t, starts[k], starts[k] + 0.6, ease.inOutCubic)); });
   return x * seg(t, p0 - 0.6, p0 + 0.3) * (1 - seg(t, p1 - 0.2, p1 + 0.6));
 }
 function placeCamera(t) {
@@ -445,15 +448,15 @@ function typedHook(t) {
 
 function layoutHook(t) {
   const [, h1] = T.hook;
-  const o = 1 - seg(t, h1 - 0.5, h1 + 0.1);
+  const o = 1 - seg(t, h1 - 0.35, h1 + 0.05);
   show(hook, o);
   if (o <= 0) return;
   typedHook(t);
-  hook.style.transform = `translateY(${(-24 * (1 - o)).toFixed(1)}px)`;
+  hook.style.transform = `translateY(${(-24 * (1 - o)).toFixed(1)}px) scale(${lerp(1, 1.04, 1 - o).toFixed(4)})`;
   // On from the first frame, so a muted autoplay or a thumbnail already says what this is.
-  const b = seg(t, 0, 0.7, ease.outCubic);
-  hookBrand.style.opacity = b.toFixed(3);
-  hookBrand.style.transform = `translateY(${lerp(14, 0, b).toFixed(1)}px)`;
+  const b = seg(t, 0, 0.45, ease.outBack);
+  hookBrand.style.opacity = '1';
+  hookBrand.style.transform = `scale(${lerp(0.9, 1, b).toFixed(4)})`;
 }
 
 function cardEnter(c, t, t0, from, to, rotFrom, rotTo, dur) {
@@ -466,19 +469,19 @@ async function layoutFootage(t) {
   const jobs = [];
   // Memory
   const [m0, m1] = T.memory;
-  const mo = clamp(seg(t, m0, m0 + 0.6) * (1 - seg(t, m1 - 0.5, m1 + 0.2)));
+  const mo = clamp(seg(t, m0, m0 + 0.35) * (1 - seg(t, m1 - 0.35, m1 + 0.15)));
   if (mo > 0) {
-    cardEnter(card.memory, t, m0, v3(0, -0.6, -5), v3(0, 0, 0), [0.06, -0.22, 0], [0.02, -0.08, 0], 1.4);
-    card.memory.group.rotation.y += seg(t, m0 + 1.4, m1, ease.linear) * 0.05;
+    cardEnter(card.memory, t, m0, v3(0, -1.2, -6), v3(0, 0, 0), [0.1, -0.3, 0], [0.02, -0.08, 0], 0.85);
+    card.memory.group.rotation.y += seg(t, m0 + 0.85, m1, ease.linear) * 0.05;
   }
   jobs.push(card.memory.show(t - m0, mo));
-  show(memTitle, win(t, m0 + 0.5, m1, 0.5, 0.4));
+  rise(memTitle, win(t, m0 + 0.35, m1 - 0.1, 0.35, 0.3));
   // The fact the suggestion came from, once the suggestion is on screen.
   const ghostAt = m0 + EDIT.clips.memory.ghostAt;
-  const mc = win(t, ghostAt - 0.1, m1 - 0.1, 0.5, 0.4);
+  const mc = win(t, ghostAt - 0.1, m1 - 0.1, 0.3, 0.3);
   show(memcard, mc);
   if (mc > 0) {
-    const k = seg(t, ghostAt - 0.1, ghostAt + 0.6, ease.outCubic);
+    const k = seg(t, ghostAt - 0.1, ghostAt + 0.4, ease.outBack);
     memcard.style.left = `${lerp(1290, 1250, k)}px`;
     memcard.style.top = `${lerp(700, 676, k)}px`;
     memcard.style.transform = 'rotate(-1.5deg)';
@@ -486,18 +489,18 @@ async function layoutFootage(t) {
 
   // The second clip
   const [w0, w1] = T.word;
-  const wo = clamp(seg(t, w0, w0 + 0.6) * (1 - seg(t, w1 - 0.5, w1 + 0.2)));
-  if (wo > 0) cardEnter(card.word, t, w0, v3(X_WORD + 3, 1.5, -9), v3(X_WORD, 1.5, -6), [0, 0.25, 0], [0.02, 0.08, 0], 1.3);
+  const wo = clamp(seg(t, w0, w0 + 0.35) * (1 - seg(t, w1 - 0.35, w1 + 0.15)));
+  if (wo > 0) cardEnter(card.word, t, w0, v3(X_WORD + 4, 1.5, -9), v3(X_WORD, 1.5, -6), [0, 0.3, 0], [0.02, 0.08, 0], 0.8);
   jobs.push(card.word.show(t - w0, wo));
-  show(wordTitle, win(t, w0 + 0.4, w1, 0.5, 0.4));
+  rise(wordTitle, win(t, w0 + 0.2, w1 - 0.1, 0.3, 0.3));
 
   // Three languages, one after another: each slides off before the next slides in.
   const [l0] = T.langs;
   LANGS.forEach(([c], i) => {
     const s = l0 + EDIT.langStarts[i];
-    const next = i + 1 < LANGS.length ? l0 + EDIT.langStarts[i + 1] : T.dive[0] + 0.3;
-    const enter = i === 0 ? seg(t, s - 0.3, s + 0.4) : seg(t, s, s + 0.45);
-    const leave = i + 1 < LANGS.length ? seg(t, next - 0.45, next) : seg(t, next - 0.3, next + 0.4);
+    const next = i + 1 < LANGS.length ? l0 + EDIT.langStarts[i + 1] : T.dive[0] + 0.1;
+    const enter = i === 0 ? seg(t, s - 0.25, s + 0.3, ease.outQuart) : seg(t, s, s + 0.3, ease.outQuart);
+    const leave = i + 1 < LANGS.length ? seg(t, next - 0.3, next, ease.inCubic) : seg(t, next - 0.25, next + 0.15);
     const o = clamp(enter * (1 - leave));
     if (o > 0) {
       c.group.position.set(X_LANG + lerp(3, 0, enter) - 3 * leave, 0, -8 - 2 * leave);
@@ -509,7 +512,7 @@ async function layoutFootage(t) {
     tag.style.left = `${p.x}px`; tag.style.top = `${p.y}px`;
     show(tag, o);
   });
-  show(langTitle, win(t, l0 + 0.4, T.dive[0] + 0.3, 0.5, 0.4));
+  rise(langTitle, win(t, l0 + 0.2, T.dive[0] + 0.15, 0.3, 0.3));
 
   // The keycap, pressed on every real accept in the footage.
   const langs = langCues();
@@ -530,24 +533,25 @@ async function layoutFootage(t) {
 
 function layoutDive(t) {
   const [d0, d1] = T.dive;
-  show(howTitle, win(t, d0 + 0.2, d1 + 0.1, 0.6, 0.5));
-  howTitle.style.transform = `scale(${lerp(0.97, 1.03, seg(t, d0, d1 + 0.1, ease.linear)).toFixed(4)})`;
+  show(howTitle, win(t, d0 + 0.25, d1, 0.3, 0.3));
+  const land = seg(t, d0 + 0.25, d0 + 0.7, ease.outQuart);
+  howTitle.style.transform = `scale(${(lerp(1.14, 1, land) + 0.03 * seg(t, d0 + 0.7, d1, ease.linear)).toFixed(4)})`;
 }
 
 function layoutContext(t) {
   const [c0, c1] = T.context;
   const B = EDIT.beats;
   ctxGroup.visible = t > c0 - 0.1 && t < c1 + 0.8;
-  show(ctxTitle, win(t, c0 + 0.3, c1, 0.5, 0.4));
+  rise(ctxTitle, win(t, c0 + 0.2, c1 - 0.1, 0.3, 0.3));
   if (!ctxGroup.visible) { ctxTags.forEach(tag => show(tag, 0)); return; }
   const gap = 0.9, total = layers.reduce((s, l) => s + l.h, 0) + gap * (layers.length - 1);
   let y = total / 2;
   // At the end the two parts close into one prompt, which drifts on into the model.
-  const squeeze = seg(t, c1 - 1.2, c1 - 0.5);
-  const away = seg(t, c1 - 0.6, c1 + 0.6);
+  const squeeze = seg(t, c1 - 0.9, c1 - 0.45);
+  const away = seg(t, c1 - 0.45, c1 + 0.45);
   layers.forEach((l, i) => {
     const s = B[EDIT.prompt[i].beat];
-    const k = seg(t, s, s + 0.9, ease.outCubic);
+    const k = seg(t, s, s + 0.55, ease.outQuart);
     const target = v3(-3.5, y - l.h / 2, 0);
     y -= l.h + gap;
     l.mesh.position.lerpVectors(v3(...l.from).add(target), target, k);
@@ -561,25 +565,25 @@ function layoutContext(t) {
     const tag = ctxTags[i];
     const p = project(ctxGroup.localToWorld(l.mesh.position.clone().add(v3(10.5 + 0.7, 0, 0))));
     tag.style.left = `${p.x}px`; tag.style.top = `${p.y}px`; tag.style.transform = 'translateY(-50%)';
-    show(tag, seg(t, s + 0.5, s + 0.9) * (1 - seg(t, c1 - 1.3, c1 - 1.0)));
+    show(tag, seg(t, s + 0.35, s + 0.6) * (1 - seg(t, c1 - 1.0, c1 - 0.8)));
   });
 }
 
 function layoutModel(t) {
   const [n0, n1] = T.model;
   const B = EDIT.beats;
-  show(modelTitle, win(t, n0 + 0.3, n1, 0.5, 0.4));
-  const o = win(t, n0 + 0.2, n1, 0.7, 0.5);
+  rise(modelTitle, win(t, n0 + 0.2, n1 - 0.1, 0.3, 0.3));
+  const o = win(t, n0 + 0.15, n1 - 0.1, 0.4, 0.3);
   show(mac, o);
   if (o <= 0) return;
-  const k = seg(t, n0 + 0.2, n0 + 1.1, ease.outCubic);
-  mac.style.transform = `translateY(${lerp(30, 0, k).toFixed(1)}px) scale(${lerp(0.97, 1, k).toFixed(4)})`;
+  const k = seg(t, n0 + 0.15, n0 + 0.7, ease.outQuart);
+  mac.style.transform = `translateY(${lerp(60, 0, k).toFixed(1)}px) scale(${lerp(0.94, 1, k).toFixed(4)})`;
   // The model writes the rest of the sentence, a piece at a time.
   const G = EDIT.ghostScene;
   const n = B.modelStream.filter(s => t >= s).length;
   macOut.innerHTML = `${G.typed}<b>${G.chunks.slice(0, n).join('')}</b>${caretAt(Math.floor(t * 2.4) % 2 === 0)}`;
   macPills.forEach((pill, i) => {
-    const q = seg(t, B.modelPills[i], B.modelPills[i] + 0.5, ease.outCubic);
+    const q = seg(t, B.modelPills[i], B.modelPills[i] + 0.35, ease.outBack);
     pill.style.opacity = q.toFixed(3);
     pill.style.transform = `translateY(${lerp(12, 0, q).toFixed(1)}px)`;
   });
@@ -587,8 +591,8 @@ function layoutModel(t) {
 
 function layoutPick(t) {
   const [p0, p1] = T.pick;
-  const o = win(t, p0 + 0.1, p1, 0.6, 0.5);
-  show(pickTitle, win(t, p0 + 0.2, p1, 0.5, 0.4));
+  const o = win(t, p0 + 0.1, p1 - 0.1, 0.4, 0.3);
+  rise(pickTitle, win(t, p0 + 0.2, p1 - 0.1, 0.3, 0.3));
   tree.group.visible = o > 0;
   if (o <= 0) { show(gateLabel, 0); return; }
   const starts = EDIT.pickSteps.map(s => p0 + s);
@@ -596,8 +600,8 @@ function layoutPick(t) {
   tree.columns.forEach((col, k) => {
     const local = t - starts[k];
     col.items.forEach((item, j) => {
-      const grow = seg(local, 0.05 + j * 0.08, 0.5 + j * 0.08, ease.outCubic);
-      const decided = seg(local, 0.55, 0.8);
+      const grow = seg(local, 0.03 + j * 0.06, 0.33 + j * 0.06, ease.outBack);
+      const decided = seg(local, 0.38, 0.56);
       const visible = local > 0;
       item.mesh.visible = item.litMesh.visible = item.edge.visible = visible;
       if (!visible) return;
@@ -605,52 +609,55 @@ function layoutPick(t) {
       item.mesh.scale.setScalar(scale); item.litMesh.scale.setScalar(scale);
       item.mesh.material.opacity = o * grow * (item.chosen ? 1 - decided : lerp(1, 0.32, decided));
       item.litMesh.material.opacity = o * (item.chosen ? decided : 0);
-      const reach = seg(local, 0, 0.4 + j * 0.08, ease.outCubic);
+      const reach = seg(local, 0, 0.28 + j * 0.06, ease.outQuart);
       item.edge.scale.set(item.edge.userData.length * reach, item.chosen ? 0.06 : 0.03 + item.q * 0.04, 1);
       item.edge.material.color.setHex(item.chosen && decided > 0.5 ? MINT : TEAL);
       item.edge.material.opacity = o * (item.chosen ? 0.55 + decided * 0.4 : lerp(0.5, 0.2, decided)) * Math.sqrt(Math.max(item.q, 0.04));
     });
   });
   // The first word is checked against the confidence gate, as the voice says.
-  show(gateLabel, o * win(t, EDIT.beats.pickGate, p1, 0.5, 0.4));
+  rise(gateLabel, o * win(t, EDIT.beats.pickGate, p1, 0.3, 0.3), 14);
 }
 
 function layoutGhost(t) {
   const [g0, g1] = T.ghost;
-  show(ghostLayer, win(t, g0 + 0.1, g1, 0.6, 0.5));
-  show(ghostTitle, win(t, g0 + 0.2, g1, 0.5, 0.4));
+  show(ghostLayer, win(t, g0 + 0.25, g1 - 0.1, 0.3, 0.3));
+  rise(ghostTitle, win(t, g0 + 0.2, g1 - 0.1, 0.3, 0.3));
   if (t < g0 || t > g1) return;
   const G = EDIT.ghostScene;
   const lit = G.presses.map(p => g0 + p).filter(p => t >= p).length;
   const blink = Math.floor(t * 2.4) % 2 === 0;
-  sentence.innerHTML = ghostLine(G.typed, G.typed.length, G.chunks || G.ghost, lit, seg(t, g0 + G.ghostAt, g0 + G.ghostAt + 0.4), blink);
+  sentence.innerHTML = ghostLine(G.typed, G.typed.length, G.chunks || G.ghost, lit, seg(t, g0 + G.ghostAt, g0 + G.ghostAt + 0.25), blink);
 }
 
 function layoutEnd(t) {
   const [e0] = T.end;
-  show(end, seg(t, e0 + 0.1, e0 + 0.8));
+  show(end, seg(t, e0 + 0.2, e0 + 0.45));
   const logo = end.querySelector('#end-logo');
-  const k = seg(t, e0 + 0.1, e0 + 1.2, ease.outCubic);
-  logo.style.transform = `translateY(${lerp(16, 0, k).toFixed(1)}px) scale(${lerp(0.94, 1, k).toFixed(4)})`;
-  [['#end-name', 0.35], ['#end-tag', 0.7], ['#end-sub', 1.0], ['#end-url', 1.3]].forEach(([sel, d]) => {
+  const k = seg(t, e0 + 0.2, e0 + 0.85, ease.outBack);
+  logo.style.transform = `translateY(${lerp(24, 0, k).toFixed(1)}px) scale(${lerp(0.8, 1, k).toFixed(4)})`;
+  [['#end-name', 0.35], ['#end-tag', 0.55], ['#end-sub', 0.75], ['#end-url', 0.95]].forEach(([sel, d]) => {
     const node = end.querySelector(sel);
-    const q = seg(t, e0 + d, e0 + d + 0.6, ease.outCubic);
+    const q = seg(t, e0 + d, e0 + d + 0.4, ease.outQuart);
     node.style.opacity = q.toFixed(3);
     node.style.transform = `translateY(${lerp(18, 0, q).toFixed(1)}px)`;
   });
   document.getElementById('fade').style.opacity = seg(t, DURATION - 0.6, DURATION).toFixed(3);
 }
 
-/** The voice's words at the bottom, swapped straight over when one line follows another. */
+/** The voice's words at the bottom, lit as they are said, swapped straight over when one line follows another. */
 function layoutCaption(t) {
   const caps = EDIT.captions;
   let o = 0;
   for (let i = 0; i < caps.length; i++) {
-    const [a, b, text] = caps[i];
+    const [a, b, text, starts = []] = caps[i];
     const joined = i > 0 && a - caps[i - 1][1] < 0.05;
     const next = i + 1 < caps.length && caps[i + 1][0] - b < 0.05;
     if (t >= a - (joined ? 0 : 0.12) && t < b + (next ? 0 : 0.2)) {
-      caption.firstChild.textContent = text;
+      const words = text.split(' ');
+      caption.firstChild.innerHTML = starts.length === words.length
+        ? words.map((w, k) => `<b style="opacity:${lerp(0.42, 1, seg(t, starts[k] - 0.04, starts[k] + 0.08, ease.linear)).toFixed(3)}">${w}</b>`).join(' ')
+        : text;
       o = Math.min(joined ? 1 : seg(t, a - 0.12, a + 0.03, ease.linear), next ? 1 : 1 - seg(t, b, b + 0.2, ease.linear));
       break;
     }
@@ -710,7 +717,7 @@ window.__events = () => {
   EDIT.ghostScene.presses.forEach(p => add(T.ghost[0] + p, 'tab'));
   add(T.ghost[0] + EDIT.ghostScene.ghostAt, 'ghost');
   for (const name of ['memory', 'word', 'langs', 'context', 'model', 'pick', 'ghost']) add(T[name][0], 'whoosh:' + name);
-  add(T.end[0] + 0.1, 'reveal');
+  add(T.end[0] + 0.2, 'reveal');
   EDIT.pickSteps.forEach(s => add(T.pick[0] + s, 'tick'));
   EDIT.beats.modelStream.forEach(s => add(s, 'token'));
   return events.sort((a, b) => a[0] - b[0]);

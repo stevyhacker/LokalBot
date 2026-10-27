@@ -1,7 +1,9 @@
 # LokalBot autocomplete demo
 
-A calm, narrated cut for X, YouTube and Reddit, about a minute long: real
-autocomplete footage first, then a three.js look at how a suggestion is made.
+An upbeat, narrated 45 s cut for X, YouTube and Reddit: real autocomplete
+footage first, then a three.js look at how a suggestion is made. The voice
+starts on the first frame, and every cut, Tab press and model pick lands on
+the beat of the music.
 
 - Canvas: 1920 × 1080, 30 fps. lokalbot.com's look: the navy gradient, teal
   accents, glass panels, the logo lockup and Inter. Titles and captions are
@@ -19,11 +21,14 @@ autocomplete footage first, then a three.js look at how a suggestion is made.
   llama.cpp on the same runner (`logs/probabilities.json`).
 - Voice: synthetic, from `narration.json`. `take` picks the engine, voice and
   take: ElevenLabs (`../lokalbot-autocomplete-launch/tts_elevenlabs.py` with
-  `CUT_DIR` set to this folder) or OpenAI (`tts.py`). Say it is synthetic
-  where the video is posted.
+  `CUT_DIR` set to this folder) or OpenAI (`tts.py`). `tighten.py` shortens
+  the pauses in the chosen takes and quickens them 10% (Rubber Band, formants
+  kept). Say it is synthetic where the video is posted.
 - Music and effects: ElevenLabs Music and Sound Effects (`eleven_sound.py`,
-  prompts in `sound.json`). Commercial use follows the plan of the
-  ElevenLabs account that made them.
+  prompts in `sound.json`). The 120 BPM bed is re-cut by whole bars
+  (`sound.json` "music_edit") so its one-bar break falls on "So how does it
+  work?" and its final hit on the last word. Commercial use follows the plan
+  of the ElevenLabs account that made them.
 
 ## Files
 
@@ -32,7 +37,10 @@ autocomplete footage first, then a three.js look at how a suggestion is made.
 - `edit.json`: timeline, footage maps, voice placement, captions and every
   on-screen number.
 - `timeline.py`: times the sections, captions and explainer beats to the
-  chosen voice takes (or to estimated line lengths before there is a voice).
+  chosen voice takes (or to estimated line lengths before there is a voice),
+  and snaps the cuts to the music's beat.
+- `tighten.py`: the quicker versions of the chosen takes, with their word
+  timings (`production/tight.json`). Run it before `timeline.py`.
 - `build_edit.py <footage-dir>`: turns the workflow's published takes into
   `footage/` frames and fills the maps and cues in `edit.json`. Run it after
   `timeline.py`.
@@ -40,8 +48,8 @@ autocomplete footage first, then a three.js look at how a suggestion is made.
   sound. They call paid APIs (except `word_timings.py`, which runs locally),
   so they run once on a machine with the keys; the results go to the
   `pr-assets/<pr>-autocomplete-voice` branch, not into the repository.
-- `audio.py`: mixes voice, music (ducked under the voice) and effects from
-  `edit.json` and the composition's cue list.
+- `audio.py`: mixes voice, music (re-cut to the film and ducked under the
+  voice) and effects from `edit.json` and the composition's cue list.
 - `render.cjs`: headless Chromium renderer (frames, stills, cue list).
 - `make.sh [out-dir]`: everything after the footage and sound, through MP4,
   GIF and poster in `renders/`.
@@ -56,6 +64,7 @@ git fetch origin pr-assets/<pr>-autocomplete-voice
 mkdir -p /tmp/voice && git archive FETCH_HEAD | tar -x -C /tmp/voice
 mkdir -p assets/voice assets/sound
 cp -r /tmp/voice/openai /tmp/voice/eleven assets/voice/ && cp -r /tmp/voice/sound/eleven assets/sound/
+python3 tighten.py
 python3 timeline.py
 python3 build_edit.py /tmp/takes light
 ./make.sh

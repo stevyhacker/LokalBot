@@ -43,8 +43,9 @@ echo "== GIF and poster =="
 ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-demo.mp4" -vf \
   "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
   "$OUT/lokalbot-autocomplete-demo.gif"
-# The hook's last frame: the logo and "Autocomplete for your whole Mac."
-cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-166}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
+# The hook's last full frame: the logo and "Autocomplete for your whole Mac."
+poster=${POSTER_FRAME:-$(python3 -c "import json; e = json.load(open('edit.json')); print(round((e['timeline']['hook'][1] - 0.38) * e['fps']))")}
+cp "$OUT/frames/$(printf %05d "$poster").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
 
 echo "== captions =="
 # Every spoken line, for sites that take a caption file (YouTube).

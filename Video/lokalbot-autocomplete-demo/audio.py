@@ -114,15 +114,40 @@ def voice_bus(edit, n):
     return bus
 
 
-def music_bed(path, n, duration):
-    """The bed, placed so its own ending lands on the film's last frame."""
+def edited(bed, cut, n):
+    """The bed re-cut by whole bars (sound.json "music_edit"), from the film's first frame.
+
+    "bars" lists [first, end) bar ranges to play in order; "at" is where the
+    first one's downbeat lands in the film. Each splice sits just before a
+    downbeat, with a short crossfade.
+    """
+    bar = 4 * 60 / cut['bpm']
+    xf = int(0.012 * SR)
+    out = np.zeros(0)
+    for a, b in cut['bars']:
+        lo = int((cut['downbeat'] + a * bar - cut['at']) * SR)
+        hi = min(int((cut['downbeat'] + b * bar - cut['at']) * SR) + xf, len(bed))
+        part = bed[max(lo, 0):hi].copy()
+        if len(out):
+            ramp = np.linspace(0, 1, xf)
+            out[-xf:] = out[-xf:] * (1 - ramp) + part[:xf] * ramp
+            part = part[xf:]
+        out = np.concatenate([out, part])
+    out = np.pad(out, (0, max(n - len(out), 0)))[:n]
+    return fade(out, 0.004, 0.3)
+
+
+def music_bed(path, n, fade_in, cut=None):
+    """The bed, placed so its own ending lands on the film's last frame (or re-cut to the film's beat)."""
     bed = load(path)
+    if cut:
+        return edited(bed, cut, n)
     env = envelope(bed, 0.01, 0.3)
     end = np.flatnonzero(env > env.max() * 0.01)[-1] + int(0.5 * SR)  # where the last chord has rung out
     start = max(end - n, 0)
     x = bed[start:end]
     x = np.pad(x, (n - len(x), 0)) if len(x) < n else x[:n]
-    x = fade(x, 1.2 if start > 0 else 0.05, 0.3)
+    x = fade(x, fade_in if start > 0 else 0.05, 0.3)
     return x
 
 
@@ -135,7 +160,7 @@ def main():
     n = int(round(edit['duration'] * SR))
 
     voice = voice_bus(edit, n)
-    music = music_bed(sound / f"{mix['music']}.mp3", n, edit['duration'])
+    music = music_bed(sound / f"{mix['music']}.mp3", n, mix.get('music_fade_in', 1.2), mix.get('music_edit'))
     # Duck the music about 7 dB under speech, easing back between lines.
     duck = envelope(voice, 0.08, 0.5)
     duck = 1 - 0.55 * np.clip(duck / max(duck.max() * 0.3, 1e-9), 0, 1)
@@ -148,6 +173,7 @@ def main():
         clips[name] = from_onset(clips[name])
     # Swells peak on their cue: the whoosh on the cut, the reveal as the logo settles.
     whoosh_peak, reveal_peak = peak_time(clips['whoosh']), peak_time(clips['reveal'])
+    reveal_at = mix.get('reveal_at', 1.0)
     gains = {k: db(v) for k, v in mix['effect_db'].items()}
     for t, kind in events:
         name = kind.split(':')[0]
@@ -156,7 +182,7 @@ def main():
         elif name == 'whoosh':
             place(fx, fade(clips['whoosh'], 0.05, 0.3), t - whoosh_peak, gains['whoosh'], rng.uniform(-0.3, 0.3))
         elif name == 'reveal':
-            place(fx, fade(clips['reveal'], 0.05, 0.4), t + 1.0 - reveal_peak, gains['reveal'])
+            place(fx, fade(clips['reveal'], 0.005, 0.4), t + reveal_at - reveal_peak, gains['reveal'])
         elif name == 'token':
             place(fx, clips['tick'], t, gains['token'], 0.15)
         elif name in clips:
