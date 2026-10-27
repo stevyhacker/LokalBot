@@ -27,8 +27,11 @@
   ],
   "actions": [
     {
-      "type": "The plan for today is to finish the ",
-      "cps": 13
+      "type": "Monday, Tuesday, Wednesday, Thursday, ",
+      "cps": 10
+    },
+    {
+      "expect": "Monday, Tuesday, Wednesday, Thursday, "
     },
     {
       "ghost": 240

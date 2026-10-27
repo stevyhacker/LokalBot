@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "Gracias por la llamada de hoy. Te envío ",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "Gracias por la llamada de hoy. Te envío "
     },
     {
       "ghost": 25

@@ -12,7 +12,8 @@
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
 //
 // Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
-// timed out (the take is incomplete; film it again).
+// timed out, 6 the focused field does not end with an `expect` text (keys
+// were lost on the way). Film the take again for any of them.
 //
 // Build: swiftc -O -swift-version 5 rig.swift -o rig
 import AppKit
@@ -64,6 +65,7 @@ struct Action: Decodable {
     var run: [String]?        // a command started in the background, e.g. a voice line; not waited for
     var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
     var accept: Int?          // press `key` (default tab) up to this many times while that window shows
+    var expect: String?       // the focused field's text must end with this, else exit 6
 }
 
 struct Shot: Decodable {
@@ -404,7 +406,7 @@ func jitter() -> Double {
 // MARK: - Overlays
 
 /// Bundle ids of the shot's `also` apps; their floating windows are overlays.
-var overlayBundles: [String] = []
+nonisolated(unsafe) var overlayBundles: [String] = []
 
 /// Waits up to `seconds` for an overlay app to put a window above the menu
 /// bar's level on screen, such as LokalBot's autocomplete suggestion panel.
@@ -618,6 +620,13 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
                 Thread.sleep(forTimeInterval: action.duration ?? 0.32)
             }
             record("accepted", nil, ["presses": pressed])
+        } else if let expected = action.expect {
+            let focused: AXUIElement? = axValue(subject.element, kAXFocusedUIElementAttribute)
+            let text = focused.flatMap { axValue($0, kAXValueAttribute) as String? } ?? ""
+            guard text.hasSuffix(expected) else {
+                die("the field ends with \(String(text.suffix(expected.count + 12)).debugDescription), "
+                    + "not \(expected.debugDescription)", code: 6)
+            }
         } else if let name = action.key {
             guard let code = namedKeys[name] else { die("unknown key \(name)") }
             record("key", nil, ["key": name])

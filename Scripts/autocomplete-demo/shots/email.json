@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "Thanks for the call today. I'll send you the ",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "Thanks for the call today. I'll send you the "
     },
     {
       "ghost": 25

@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "Merci pour la réunion de ce matin. Je t'envoie ",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "Merci pour la réunion de ce matin. Je t'envoie "
     },
     {
       "ghost": 25

@@ -35,6 +35,12 @@ SETTINGS = dict(prepare_filming.SETTINGS)
 SETTINGS.update({
     "cotypingAcceptGranularity": "word",
     "menuBarOnly": True,
+    # Dictation's shortcut tap sits in the keystroke path on the app's main
+    # thread; on a busy hosted runner the rig's keys came out lost and out of
+    # order. Reading the visible window walks TextEdit's accessibility tree,
+    # which took 9 s there. Neither is part of this demo.
+    "dictationEnabled": False,
+    "cotypingUseVisibleContext": False,
 })
 
 

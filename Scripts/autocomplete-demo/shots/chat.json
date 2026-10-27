@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "Running 5 minutes late, start the standup ",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "Running 5 minutes late, start the standup "
     },
     {
       "ghost": 25

@@ -10,7 +10,10 @@
 # 30 fps with ScreenCaptureKit: TextEdit's window plus LokalBot's suggestion
 # panel, which the Debug build shows to capture with --lokalbot-film-ghost.
 # The rig waits for each suggestion and accepts it word by word with Tab; a
-# take whose suggestion never comes is filmed again (ATTEMPTS, default 3).
+# take whose suggestion never comes, or whose typing comes out wrong, is
+# filmed again (ATTEMPTS, default 3).
+# LokalBot runs as a child of this script, so the runner is responsible for
+# its permissions; LAUNCH=open starts it with `open` instead.
 #
 # CI only: it grants this runner's TCC permissions to LokalBot and the rig
 # with sudo, and changes TextEdit's and the global text defaults (plain text
@@ -36,7 +39,7 @@ DOCS="$WORK/docs"
 RIG="$WORK/rig"
 SUITE="lokalbot.autocomplete-demo.$$"
 MODEL_DIR=${MODEL_DIR:-$WORK/model}
-LAUNCH=${LAUNCH:-open}
+LAUNCH=${LAUNCH:-direct}
 mkdir -p "$OUT/logs" "$OUT/takes" "$OUT/clips"
 
 stop_app() {
@@ -126,8 +129,13 @@ film() {
 }
 
 warm_up() {  # warm_up <appearance>: the model loads; true once a suggestion shows
-  local status=0
-  film "$1" warmup "$WORK/warmup" > "$OUT/logs/warmup-$1.log" 2>&1 || status=$?
+  local status=1 attempt
+  for attempt in $(seq "$ATTEMPTS"); do
+    status=0
+    film "$1" warmup "$WORK/warmup" >> "$OUT/logs/warmup-$1.log" 2>&1 || status=$?
+    [[ $status -eq 0 ]] && break
+    echo "warm-up attempt $attempt: rig exited $status"
+  done
   cat "$OUT/logs/warmup-$1.log"
   grep -h 'film: ' "$LIB/debug.log" 2>/dev/null | tail -12 || true
   return $status

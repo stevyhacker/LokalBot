@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "Can we go over the launch chec",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "Can we go over the launch chec"
     },
     {
       "ghost": 25

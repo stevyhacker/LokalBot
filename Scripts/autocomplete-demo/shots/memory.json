@@ -28,14 +28,14 @@
   "actions": [
     {
       "type": "After the launch planning call, ",
-      "cps": 13
+      "cps": 10
     },
     {
       "wait": 0.6
     },
     {
       "type": "the Team plan will be ",
-      "cps": 13
+      "cps": 10
     },
     {
       "wait": 0.6
@@ -46,6 +46,9 @@
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "After the launch planning call, the Team plan will be $15"
     },
     {
       "ghost": 25

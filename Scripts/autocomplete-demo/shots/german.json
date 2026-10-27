@@ -28,10 +28,13 @@
   "actions": [
     {
       "type": "danke für das Gespräch heute. Ich schicke dir ",
-      "cps": 13
+      "cps": 10
     },
     {
       "mark": "typed"
+    },
+    {
+      "expect": "danke für das Gespräch heute. Ich schicke dir "
     },
     {
       "ghost": 25
