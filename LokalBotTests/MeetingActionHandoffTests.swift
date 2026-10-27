@@ -93,6 +93,7 @@ final class MeetingActionHandoffTests: XCTestCase {
         XCTAssertTrue(lines.contains("It comes up at [00:12:34] in the meeting."))
         XCTAssertTrue(lines.contains { $0.contains("Save what you make in `\(folder)/` in this workspace.") })
         XCTAssertTrue(lines.contains("Don't send, post, publish, buy, or delete anything. Draft it for me instead."))
+        XCTAssertTrue(lines.contains { $0.hasPrefix("Run each lokalbot-cli lookup as a command of its own") })
         XCTAssertEqual(lines.last, "The meeting's notes are attached.")
         XCTAssertFalse(lines.contains { $0.hasPrefix("Due:") })
     }
