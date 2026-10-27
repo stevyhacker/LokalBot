@@ -1,0 +1,150 @@
+{
+  "actionItems" : [
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll draft the launch announcement email for our customers today.",
+        "resolution" : "user",
+        "speakerID" : "local"
+      },
+      "citations" : [
+        {
+          "end" : 22.720000000000002,
+          "excerpt" : "Great! I'll draft the launch announcement email for our customers today.",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0003-0000018560-0000022720",
+          "speaker" : "local",
+          "start" : 18.56
+        }
+      ],
+      "id" : "ebea30575ca29c9e",
+      "importance" : 4,
+      "isForUser" : true,
+      "owner" : "Me",
+      "schemaVersion" : 4,
+      "text" : "Draft the launch announcement email for customers today"
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll write a short pricing FAQ that covers annual billing, refunds, and the free plan.",
+        "resolution" : "user",
+        "speakerID" : "local"
+      },
+      "citations" : [
+        {
+          "end" : 32.800000000000004,
+          "excerpt" : "I'll write a short pricing FAQ that covers annual billing, refunds, and the free plan.",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0005-0000027120-0000032800",
+          "speaker" : "local",
+          "start" : 27.12
+        }
+      ],
+      "id" : "b9aa46e85aca4d0a",
+      "importance" : 3,
+      "isForUser" : true,
+      "owner" : "Me",
+      "schemaVersion" : 4,
+      "text" : "Write a short pricing FAQ covering annual billing, refunds, and the free plan"
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "I'll put the plan comparison into a CSV table they can paste into the deck",
+        "resolution" : "user",
+        "speakerID" : "local"
+      },
+      "citations" : [
+        {
+          "end" : 40.800000000000004,
+          "excerpt" : "I'll put the plan comparison into a CSV table they can paste into the deck",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0007-0000036080-0000040800",
+          "speaker" : "local",
+          "start" : 36.08
+        }
+      ],
+      "id" : "09350df4331f97d2",
+      "importance" : 3,
+      "isForUser" : true,
+      "owner" : "Me",
+      "schemaVersion" : 4,
+      "text" : "Create a plan comparison as a CSV table Sales can paste into the deck"
+    },
+    {
+      "attribution" : {
+        "basis" : "commitment",
+        "quote" : "And I'll write the release notes for the launch, that's everything from me",
+        "resolution" : "user",
+        "speakerID" : "local"
+      },
+      "citations" : [
+        {
+          "end" : 49.6,
+          "excerpt" : ". And I'll write the release notes for the launch, that's everything from me",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0009-0000045680-0000049600",
+          "speaker" : "local",
+          "start" : 45.68
+        }
+      ],
+      "id" : "7a4c9becb7f9c85b",
+      "importance" : 4,
+      "isForUser" : true,
+      "owner" : "Me",
+      "schemaVersion" : 4,
+      "text" : "Write the release notes for the launch"
+    }
+  ],
+  "decisionRecords" : [
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : ". Pricing is locked, $15 per seat, billed annually, plus the free plan for teams of up to three",
+        "speakerID" : "them",
+        "speakerLabel" : "Them"
+      },
+      "citations" : [
+        {
+          "end" : 18.080000000000002,
+          "excerpt" : ". Pricing is locked, $15 per seat, billed annually, plus the free plan for teams of up to three",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0002-0000011200-0000018080",
+          "speaker" : "them",
+          "start" : 11.200000000000001
+        }
+      ],
+      "id" : "18639e99743b91e2",
+      "schemaVersion" : 4,
+      "text" : "Final pricing: $15 per seat billed annually with a free plan for teams of up to three."
+    },
+    {
+      "attribution" : {
+        "identity" : "other",
+        "quote" : "Perfect. I'll update the pricing page on the website myself by Monday",
+        "speakerID" : "them",
+        "speakerLabel" : "Them"
+      },
+      "citations" : [
+        {
+          "end" : 45.68,
+          "excerpt" : "Perfect. I'll update the pricing page on the website myself by Monday",
+          "meetingID" : "06FBE81D-E8D4-5539-8BA6-2EE913439E1F",
+          "segmentID" : "segment-0008-0000041120-0000045680",
+          "speaker" : "them",
+          "start" : 41.12
+        }
+      ],
+      "id" : "ea1232f7a0dde96e",
+      "schemaVersion" : 4,
+      "text" : "The speaker will update the website pricing page personally by Monday."
+    }
+  ],
+  "openQuestions" : [
+    "You: FAQ scope noted as covering annual billing, refunds, and the free plan; no deadline agreed for the FAQ itself.",
+    "Them: Next check-in scheduled for Tuesday; no agenda set."
+  ],
+  "schemaVersion" : 4,
+  "transcriptRevision" : "62cbb1480a08dd8fba635b5ead30e65ac098892886c0e22d70ad4d43eaa41ebf"
+}

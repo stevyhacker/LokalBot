@@ -1,0 +1,10 @@
+Feature,Free plan,Paid plan
+Price,$0,$15 per seat
+Billing cycle,Not applicable,Annual – billed once per year
+Example annual cost,Not applicable,Team of 5 = $75 per year (5 x $15)
+Team size limit,Up to 3 people,[TBD – no seat cap was decided for the paid plan]
+Onboarding,[TBD – not decided for the free plan],Included – free for every paid team
+Support,[TBD – fill in before the deck ships],[TBD – fill in before the deck ships]
+Storage,[TBD],[TBD]
+Integrations,[TBD],[TBD]
+Admin / SSO / roles,[TBD],[TBD]

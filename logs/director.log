@@ -1,0 +1,28 @@
+    0.0 start meeting=06FBE81D-E8D4-5539-8BA6-2EE913439E1F
+    0.8 window {"id":40,"x":160,"y":104,"w":1280,"h":800}
+    0.8 scene waiting -> meeting
+    1.2 meeting stage queued
+    2.0 meeting stage transcribing
+   17.1 meeting stage summarizing
+   19.9 meeting stage none
+   19.9 handed off 4 tasks: ["Draft the launch announcement email for customers today", "Write a short pricing FAQ covering annual billing, refunds, and the free plan", "Create a plan comparison as a CSV table Sales can paste into the deck", "Write the release notes for the launch"]
+   19.9 scene meeting -> handed-off
+   26.1 scene handed-off -> agents
+   27.4 task 2 starting: Draft the launch announcement email for customers today
+   27.4 task 3 idle: Write a short pricing FAQ covering annual billing, refunds, and the free plan
+   27.4 task 4 idle: Create a plan comparison as a CSV table Sales can paste into the deck
+   27.4 task 5 idle: Write the release notes for the launch
+   31.1 task 2 running: Draft the launch announcement email for customers today
+   32.6 task 3 starting: Write a short pricing FAQ covering annual billing, refunds, and the free plan
+   38.6 task 3 running: Write a short pricing FAQ covering annual billing, refunds, and the free plan
+   39.6 task 4 starting: Create a plan comparison as a CSV table Sales can paste into the deck
+   46.2 task 4 running: Create a plan comparison as a CSV table Sales can paste into the deck
+   48.0 task 5 starting: Write the release notes for the launch
+   56.2 task 5 running: Write the release notes for the launch
+  182.5 task 5 ready: Write the release notes for the launch
+  184.5 task 3 ready: Write a short pricing FAQ covering annual billing, refunds, and the free plan
+  209.1 task 2 ready: Draft the launch announcement email for customers today
+  248.5 task 4 ready: Create a plan comparison as a CSV table Sales can paste into the deck
+  248.5 4 of 4 tasks finished
+  248.5 scene agents -> done
+  266.6 done

@@ -1,0 +1,7 @@
+2026-10-27T15:17:45+0000 info me.dotenv.LokalBot.app: [LokalBot] pipeline enqueued meeting=B4E23A15-C1BC-53E7-B2E3-9DB655AD8F60 transcribe=true summarize=false origin=user
+2026-10-27T15:17:48+0000 info me.dotenv.LokalBot.app: [LokalBot] transcription track start track=mic engine=Parakeet TDT 0.6B v3 duration=8.26s language=en
+2026-10-27T15:18:23+0000 info me.dotenv.LokalBot.app: [LokalBot] transcription track done track=mic engine=Parakeet TDT 0.6B v3 duration=8.26s elapsed=34.98s rtfx=0.24x segments=1
+2026-10-27T15:18:23+0000 info me.dotenv.LokalBot.app: [LokalBot] transcription track start track=system engine=Parakeet TDT 0.6B v3 duration=8.26s language=en
+2026-10-27T15:18:24+0000 info me.dotenv.LokalBot.app: [LokalBot] transcription track done track=system engine=Parakeet TDT 0.6B v3 duration=8.26s elapsed=0.52s rtfx=16.01x segments=1
+2026-10-27T15:18:24+0000 info me.dotenv.LokalBot.app: [LokalBot] speaker identity processed speakers=2 named=0 automatic=0 suggestions=0 callSamples=0 microphone=
+LokalBot --process: done → /Users/runner/work/_temp/handoff-demo.t9Klh9/warmup/meetings/2026/10/27-warm-up

@@ -1,0 +1,15 @@
+2026-10-27T15:18:26.303Z INFO [app] detector idle app=none
+2026-10-27T15:18:26.314Z INFO [app] Sparkle updater started.
+2026-10-27T15:19:15.956Z INFO [app] detector idle app=none
+2026-10-27T15:19:15.961Z INFO [app] Sparkle updater started.
+2026-10-27T15:19:17.596Z INFO [app] pipeline enqueued meeting=06FBE81D-E8D4-5539-8BA6-2EE913439E1F transcribe=true summarize=true origin=auto
+2026-10-27T15:19:17.606Z INFO [app] pipeline queued missing transcript meeting=06FBE81D-E8D4-5539-8BA6-2EE913439E1F reason=neverTranscribed
+2026-10-27T15:19:20.393Z INFO [app] transcription track start track=mic engine=Parakeet TDT 0.6B v3 duration=59.36s language=en
+2026-10-27T15:19:31.220Z INFO [app] transcription track done track=mic engine=Parakeet TDT 0.6B v3 duration=59.36s elapsed=10.83s rtfx=5.48x segments=6
+2026-10-27T15:19:31.841Z INFO [app] transcription track start track=system engine=Parakeet TDT 0.6B v3 duration=59.36s language=en
+2026-10-27T15:19:34.026Z INFO [app] transcription track done track=system engine=Parakeet TDT 0.6B v3 duration=59.36s elapsed=2.19s rtfx=27.17x segments=6
+2026-10-27T15:19:34.193Z INFO [app] speaker identity processed speakers=2 named=0 automatic=0 suggestions=0 callSamples=0 microphone=
+2026-10-27T15:19:36.664Z INFO [app] generation call stage=extract-1 outcome=complete wall=1.8476500000000442 input=1356 output=572 cached=0 reasoning=29 prefill=unavailable decode=unavailable
+2026-10-27T15:20:18.940Z INFO [app] speaker voices not analyzed: the voice model is not installed or speaker separation is off
+2026-10-27T15:20:19.813Z INFO [app] speaker identity processed speakers=2 named=0 automatic=0 suggestions=0 callSamples=0 microphone=
+2026-10-27T15:20:20.093Z INFO [app] speaker voices learned meetingsAnalyzed=0 savedNames=0 recentMeetingsChecked=1
