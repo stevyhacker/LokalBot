@@ -1,0 +1,114 @@
+{
+ "rows": [
+  {
+   "id": "bed-a",
+   "kind": "music",
+   "model": "music_v2_5",
+   "prompt": "Calm, warm and modern instrumental underscore for a short product film about a Mac app that finishes your sentences. Around 92 BPM in D major. Soft felt piano and a gentle electric piano playing slow arpeggios over warm analog pads, a soft round sub bass, very light brushed percussion and a quiet shaker entering after the first few seconds. Hopeful, focused and unhurried, like a quiet morning at a desk. Steady energy throughout with a slight lift in the middle, no drops, no risers, no big hits, no vocals. Leaves plenty of space for a voiceover. Ends on a warm, resolved chord with a natural decay.",
+   "length_ms": 70000,
+   "song_id": "oDHryEWoY4H7ey7LA0Zr",
+   "file": "assets/sound/eleven/bed-a.mp3",
+   "bytes": 1680812,
+   "sha256": "8e8d0fbe225f41d24eba59ee8d3cd8dbd980f1c1e3ee936f67f9f88ee975cd13"
+  },
+  {
+   "id": "bed-b",
+   "kind": "music",
+   "model": "music_v2_5",
+   "prompt": "Minimal ambient electronic underscore for a calm tech product video. Around 90 BPM. A gentle plucked synth arpeggio and soft mallet bells over a warm pad, a subtle soft pulse, a soft kick on the downbeats after the intro and quiet hi-hat ticks. Optimistic, clean and modern, calm like a product keynote. No vocals, no drops, no risers, no crashes. Leaves plenty of room for narration. Settles into a warm final chord at the end.",
+   "length_ms": 70000,
+   "song_id": "sczRFDraXIMxdXetnDPK",
+   "file": "assets/sound/eleven/bed-b.mp3",
+   "bytes": 1680812,
+   "sha256": "5808155566a4b52ef66469448d707da0267ece158ed7f7dc43016188998cb297"
+  },
+  {
+   "id": "typing",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Close-up gentle typing on a modern laptop keyboard, soft quiet keystrokes, evenly spaced, dry room, no music",
+   "duration": 4.0,
+   "file": "assets/sound/eleven/typing.mp3",
+   "bytes": 65244,
+   "sha256": "434321f79c9b107e7fcaa01cb59b2a8e77c92daf43314f8b4f1ab309bab808ab"
+  },
+  {
+   "id": "tab",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "A single soft press of a laptop key, a muted low thock, close microphone, dry, no reverb",
+   "duration": 0.6,
+   "file": "assets/sound/eleven/tab-v1.mp3",
+   "bytes": 10492,
+   "sha256": "610a7ad0ca5721d1df91d7595a9cff4931a951a0cab312589f1f85b88fc4aa1b"
+  },
+  {
+   "id": "tab",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "A single soft press of a laptop key, a muted low thock, close microphone, dry, no reverb",
+   "duration": 0.6,
+   "file": "assets/sound/eleven/tab-v2.mp3",
+   "bytes": 10492,
+   "sha256": "2801391c9f96df86a3ee4fe7af114fdd74569b0a4b44f946588f946f0fd25ee0"
+  },
+  {
+   "id": "ghost",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Very soft, airy user interface shimmer, a gentle glassy chime that fades quickly, subtle and calm",
+   "duration": 1.2,
+   "file": "assets/sound/eleven/ghost-v1.mp3",
+   "bytes": 20105,
+   "sha256": "1329ad55a0e5e4e2d926fdd20ffc13e6d96904fb48120ca3b5ef0f6e9b13a255"
+  },
+  {
+   "id": "ghost",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Very soft, airy user interface shimmer, a gentle glassy chime that fades quickly, subtle and calm",
+   "duration": 1.2,
+   "file": "assets/sound/eleven/ghost-v2.mp3",
+   "bytes": 20105,
+   "sha256": "f09a1a4c07883977c2f9ddc764ea51192c5d7dfb6cdc711ab9ec49275f76a192"
+  },
+  {
+   "id": "whoosh",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Soft, gentle, airy whoosh for a slow camera move, smooth and quiet, no impact",
+   "duration": 1.6,
+   "file": "assets/sound/eleven/whoosh.mp3",
+   "bytes": 26792,
+   "sha256": "cc8c65fc5e523d148333fa5610654f479f537ce22a70244a9220b89af9133b28"
+  },
+  {
+   "id": "tick",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Tiny soft wooden user interface tick, clean and short, dry",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/tick.mp3",
+   "bytes": 8820,
+   "sha256": "538629f028f71dde567f1499024000b3fa5e5ba3d2659a415679a380789154af"
+  },
+  {
+   "id": "reveal",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Warm, soft, shimmering swell for a logo reveal, gentle and calm, no impact, fades out",
+   "duration": 3.0,
+   "file": "assets/sound/eleven/reveal.mp3",
+   "bytes": 48944,
+   "sha256": "54b3ab80ea6fa36af934fd60b35d9463a5ab2617718b63ba3c4823f426ee02e6"
+  }
+ ]
+}
