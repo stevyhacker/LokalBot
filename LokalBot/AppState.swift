@@ -741,6 +741,16 @@ final class AppState: ObservableObject {
     /// recordings. Concrete type so the settings UI observes its permission
     /// state; handed to the detector as the `CalendarEventProviding` seam.
     let calendar = EventKitCalendarEventProvider()
+    /// Connected mail accounts, read-only. Nothing is read until the person
+    /// connects an account; checks then run in the app like every schedule.
+    private(set) lazy var email: EmailController = {
+        let controller = EmailController(root: storage.rootURL)
+        controller.attendeeAddresses = { [weak self] in self?.emailAttendeeAddresses() ?? [] }
+        controller.nextMeetingStart = { [weak self] in self?.nextMeetingWithAttendeesStart() }
+        // Recorded meetings' attendees count too, so wait for the library.
+        controller.canSync = { [weak self] in self?.libraryReady == true }
+        return controller
+    }()
     private var cachedSearchIndex: SearchIndex?
     var searchIndex: SearchIndex {
         if let cachedSearchIndex { return cachedSearchIndex }
@@ -1371,6 +1381,8 @@ final class AppState: ObservableObject {
         applyDreamingSetting()
         applyDictationLearningSetting()
         applyHealthCheckSetting()
+        // Headless runs and the UI test host never read mail.
+        if headlessCommand == nil, !Self.isUITesting { email.start() }
         bindBackgroundActivity()
         // First-run check. A genuinely-new user with missing permissions gets
         // onboarding (windowed — see AppDelegate); the flag persists only when
@@ -1644,6 +1656,7 @@ final class AppState: ObservableObject {
             meetingNoteExport.stop()
             memoryRoutines.stop()
             dreaming.stop()
+            email.stop()
             chat.stop()
             dictation.stop()
             cotyping.stop()
@@ -2611,6 +2624,33 @@ final class AppState: ObservableObject {
         navigationHandoff.stageTimelineDay(day)
         selectedMeetingIDs = []
         navSection = .timeline
+    }
+
+    /// People whose mail threads qualify for download: attendees of meetings
+    /// in the email window and the next two weeks, from the calendar (when
+    /// calendar use is on) and from recorded meetings.
+    private func emailAttendeeAddresses() -> Set<String> {
+        let now = Date()
+        let windowStart = EmailScope.windowStart(now: now)
+        var addresses: Set<String> = []
+        if settings.calendarDetectionEnabled {
+            addresses = calendar.attendeeAddresses(from: windowStart, to: now.addingTimeInterval(14 * 86_400))
+        }
+        for meeting in meetings where meeting.startedAt >= windowStart {
+            for identity in meeting.resolvedCalendarParticipantIdentities {
+                if let address = identity.emailAddress { addresses.insert(address) }
+            }
+        }
+        return addresses
+    }
+
+    private func nextMeetingWithAttendeesStart() -> Date? {
+        guard settings.calendarDetectionEnabled, calendar.hasAccess else { return nil }
+        let now = Date()
+        return calendar.meetingCandidates(on: now)
+            .filter { $0.startDate > now && !$0.resolvedParticipantIdentities.isEmpty }
+            .map(\.startDate)
+            .min()
     }
 
     func applyMemoryRoutineSetting() {

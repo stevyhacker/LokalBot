@@ -176,7 +176,7 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .personalContext:
-            personalContextSection
+            personalContextSection; emailSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -954,6 +954,12 @@ struct SettingsView: View {
                     .settingsSecondary()
                     .accessibilityIdentifier("settings.digestInstructions.count")
             }
+        }
+    }
+
+    @ViewBuilder private var emailSection: some View {
+        if shows("Email", ["email", "gmail", "mail", "inbox", "google", "account", "read-only"]) {
+            EmailSettingsSection(email: app.email, focusedSettingID: app.focusedSettingID)
         }
     }
 
