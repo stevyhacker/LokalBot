@@ -11,6 +11,10 @@
 //   rig ax    <shot.json>             place the window and print its accessibility tree
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
 //
+// Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
+// timed out, 6 the focused field does not end with an `expect` text (keys
+// were lost on the way). Film the take again for any of them.
+//
 // Build: swiftc -O -swift-version 5 rig.swift -o rig
 import AppKit
 import ApplicationServices
@@ -59,6 +63,9 @@ struct Action: Decodable {
     var hold: [String]?       // modifier keys held down while `during` runs, e.g. ["control", "option"]
     var during: [Action]?
     var run: [String]?        // a command started in the background, e.g. a voice line; not waited for
+    var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
+    var accept: Int?          // press `key` (default tab) up to this many times while that window shows
+    var expect: String?       // the focused field's text must end with this, else exit 6
 }
 
 struct Shot: Decodable {
@@ -396,6 +403,36 @@ func jitter() -> Double {
     return 0.75 + Double((rhythm >> 33) % 1000) / 1000 * 0.5
 }
 
+// MARK: - Overlays
+
+/// Bundle ids of the shot's `also` apps; their floating windows are overlays.
+nonisolated(unsafe) var overlayBundles: [String] = []
+
+/// Waits up to `seconds` for an overlay app to put a window above the menu
+/// bar's level on screen, such as LokalBot's autocomplete suggestion panel.
+/// The window list names windows that capture cannot see, so this times the
+/// suggestion even when its pixels are hidden from recording.
+func waitForOverlay(_ seconds: Double) -> Bool {
+    let pids = Set(overlayBundles.flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
+        .map(\.processIdentifier))
+    let menuBar = Int(CGWindowLevelForKey(.statusWindow))
+    let deadline = Date().addingTimeInterval(seconds)
+    repeat {
+        let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly], kCGNullWindowID) as? [[String: Any]] ?? []
+        let shown = windows.contains { window in
+            guard let pid = window[kCGWindowOwnerPID as String] as? pid_t, pids.contains(pid),
+                  let layer = window[kCGWindowLayer as String] as? Int, layer > menuBar,
+                  (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+                  let bounds = window[kCGWindowBounds as String] as? [String: Double],
+                  (bounds["Width"] ?? 0) > 2, (bounds["Height"] ?? 0) > 2 else { return false }
+            return true
+        }
+        if shown { return true }
+        Thread.sleep(forTimeInterval: 0.02)
+    } while Date() < deadline
+    return false
+}
+
 // MARK: - Capture
 
 final class Capture: NSObject, SCStreamOutput {
@@ -571,6 +608,25 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
                 key(keyCodes[lower] ?? 0, text: String(character), flags: shifted ? .maskShift : [])
                 Thread.sleep(forTimeInterval: jitter() / cps)
             }
+        } else if let times = action.accept {
+            let name = action.key ?? "tab"
+            guard let code = namedKeys[name] else { die("unknown key \(name)") }
+            var pressed = 0
+            while pressed < times, waitForOverlay(0) {
+                guardHuman()
+                record("key", nil, ["key": name])
+                key(code, text: nil, flags: flags(action.mods ?? []))
+                pressed += 1
+                Thread.sleep(forTimeInterval: action.duration ?? 0.32)
+            }
+            record("accepted", nil, ["presses": pressed])
+        } else if let expected = action.expect {
+            let focused: AXUIElement? = axValue(subject.element, kAXFocusedUIElementAttribute)
+            let text = focused.flatMap { axValue($0, kAXValueAttribute) as String? } ?? ""
+            guard text.hasSuffix(expected) else {
+                die("the field ends with \(String(text.suffix(expected.count + 12)).debugDescription), "
+                    + "not \(expected.debugDescription)", code: 6)
+            }
         } else if let name = action.key {
             guard let code = namedKeys[name] else { die("unknown key \(name)") }
             record("key", nil, ["key": name])
@@ -605,6 +661,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
             do { try process.run() } catch { die("cannot run \(tool): \(error)") }
         } else if let mark = action.mark {
             record("mark", nil, ["name": mark])
+        } else if let seconds = action.ghost {
+            let waited = Date()
+            guard waitForOverlay(seconds) else { die("no overlay within \(seconds)s", code: 5) }
+            record("ghost", nil, ["waited": (Date().timeIntervalSince(waited) * 1000).rounded() / 1000])
         }
     }
 }
@@ -622,6 +682,7 @@ func waitForHumanIdle(_ seconds: Double) {
 func firstFrame(_ capture: Capture) -> Bool { capture.started.wait(timeout: .now() + 5) == .success }
 
 func take(_ shot: Shot, out: URL) async {
+    overlayBundles = shot.also ?? []
     waitForHumanIdle(shot.idle ?? 4)
     let (subject, display) = prepare(shot)
     var log: [[String: Any]] = []

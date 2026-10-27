@@ -1,0 +1,43 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "Warm up",
+  "file": "Warm up.txt",
+  "opening": "Notes\n\n",
+  "size": [
+    1760,
+    420
+  ],
+  "settle": 1.0,
+  "park": [
+    -240,
+    -160
+  ],
+  "pre": 0.6,
+  "post": 1.4,
+  "also": [
+    "me.dotenv.LokalBot"
+  ],
+  "setup": [
+    {
+      "key": "down",
+      "mods": [
+        "cmd"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Monday, Tuesday, Wednesday, Thursday, ",
+      "cps": 10
+    },
+    {
+      "expect": "Monday, Tuesday, Wednesday, Thursday, "
+    },
+    {
+      "ghost": 240
+    },
+    {
+      "wait": 1
+    }
+  ]
+}

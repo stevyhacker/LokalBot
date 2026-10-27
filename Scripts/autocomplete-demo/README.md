@@ -1,0 +1,29 @@
+# Autocomplete demo footage
+
+Films LokalBot's autocomplete on a hosted Mac in CI for the autocomplete
+launch video: real key events type into TextEdit, the default on-device
+model (Gemma 4 E2B Base, in-process llama.cpp) suggests, and each suggestion
+is accepted word by word with Tab. Nothing in the product UI is redrawn; the
+suggestions are whatever the model wrote in that take.
+
+| File | Role |
+| --- | --- |
+| `shots/*.json` | One take each, in `Scripts/readme-gif/rig.swift`'s shot format plus the document's `file` name and `opening` text. `warmup` loads the model and is not kept. |
+| `stage.py` | Downloads the catalog's default autocomplete model and checks its pinned SHA-256, seeds the README GIF's fictional launch-pricing library (so "the Team plan will be $15" can be finished from that meeting), and writes a throwaway settings suite with everything that could capture or learn off. |
+| `film.sh` | CI only. Grants the runner's TCC permissions to LokalBot and the rig and turns macOS inline predictions off, then films every take in each appearance (light by default) and encodes it with `encode.py`. TextEdit gets plain text at 44 pt with spelling marks off as launch arguments, since it reads its preferences from its sandbox container. A take whose suggestion never shows, or whose typing comes out wrong, is filmed again. |
+| `encode.py` | Turns a take's frames into a constant 30 fps MP4 that keeps the take's timing, with its events (keystrokes, the moment the suggestion appeared, each accept) beside it. |
+| `probe.py` | Replays the last prompt the app built in each take through the bundled `llama-server` with the same model and records the top candidates and probabilities at each step, for the video's "how it works" chart. |
+| `display.swift` | Gives the hosted desktop a Retina mode when the runner offers one, otherwise its widest mode (1920 × 1080 at 1x on current runners). |
+
+The rig's `ghost` action waits for LokalBot's suggestion panel to appear and
+logs when it did; `accept` presses Tab while it is still showing. The Debug
+build shows the panel to screen capture only with `--lokalbot-film-ghost`
+(`TestHooks.filmsAutocomplete`), which also logs autocomplete's states and
+every prompt it builds; release builds keep the panel hidden from capture.
+
+`.github/workflows/autocomplete-demo.yml` runs it on pull requests that change
+these files and on dispatch (inputs: takes, appearances). Results are the
+`autocomplete-demo` artifact and the orphan branch
+`pr-assets/<pr>-autocomplete-demo`. A hosted runner is a small virtual Mac, so
+a suggestion can take longer to appear than on an Apple silicon Mac; each
+take's `ghost` event records how long it waited.

@@ -1,0 +1,52 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "Tomorrow",
+  "file": "Tomorrow.txt",
+  "opening": "Hi Priya,\n\n",
+  "size": [
+    1760,
+    420
+  ],
+  "settle": 1.0,
+  "park": [
+    -240,
+    -160
+  ],
+  "pre": 0.6,
+  "post": 1.4,
+  "also": [
+    "me.dotenv.LokalBot"
+  ],
+  "setup": [
+    {
+      "key": "down",
+      "mods": [
+        "cmd"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Can we go over the launch chec",
+      "cps": 10
+    },
+    {
+      "mark": "typed"
+    },
+    {
+      "expect": "Can we go over the launch chec"
+    },
+    {
+      "ghost": 40
+    },
+    {
+      "wait": 0.9
+    },
+    {
+      "accept": 7
+    },
+    {
+      "wait": 0.4
+    }
+  ]
+}
