@@ -250,6 +250,9 @@ actor KokoroSpeechEngine {
                 let err = Pipe()
                 process.standardOutput = out
                 process.standardError = err
+                // The awaits below can move this task off the launching thread,
+                // where `waitUntilExit()` could wait forever.
+                let exitSignal = ProcessExitSignal(process)
                 do {
                     try process.run()
                 } catch {
@@ -275,7 +278,7 @@ actor KokoroSpeechEngine {
                 }
                 let stdout = out.fileHandleForReading.readDataToEndOfFile()
                 let stderr = err.fileHandleForReading.readDataToEndOfFile()
-                process.waitUntilExit()
+                await exitSignal.wait()
                 await ModelRuntimeRegistry.shared.unregister(id: runtimeID)
                 try Task.checkCancellation()
                 guard process.terminationStatus == 0 else {
