@@ -108,10 +108,15 @@ final class AgentSessionTabs: ObservableObject {
     /// Adds one task per handoff, skipping actions that already have a task,
     /// without changing the selected task. Each prompt waits in its task's
     /// composer. With `start`, tasks are sent as agents free up, at most
-    /// `maximumLiveSessions` working at once. Returns the new tasks' IDs.
-    @discardableResult func handOff(_ handoffs: [AgentHandoff], start: Bool) -> [UUID] {
+    /// `maximumLiveSessions` working at once. `againIfArchived` hands an
+    /// action off again when its only task is archived. Returns the new
+    /// tasks' IDs.
+    @discardableResult func handOff(_ handoffs: [AgentHandoff], start: Bool,
+                                    againIfArchived: Bool = false) -> [UUID] {
         var added: [UUID] = []
-        for handoff in handoffs where !tabs.contains(where: { $0.record.handoff == handoff.source }) {
+        for handoff in handoffs where !tabs.contains(where: {
+            $0.record.handoff == handoff.source && !(againIfArchived && $0.record.isArchived)
+        }) {
             let tab = addSession(select: false)
             tab.controller.draft = handoff.prompt
             tab.controller.attachments = handoff.attachments
