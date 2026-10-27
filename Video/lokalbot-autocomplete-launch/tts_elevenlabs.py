@@ -28,7 +28,8 @@ SPEC = json.loads((P / 'narration.json').read_text())
 
 def speak_text(scene):
     # ElevenLabs reads names as written; the Breeze respellings are not needed.
-    return scene.get('eleven_text') or scene['caption']
+    # A cut can give the text to send (with audio tags) as "spoken".
+    return scene.get('spoken') or scene.get('eleven_text') or scene['caption']
 
 
 def duration(path):

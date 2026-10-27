@@ -8,6 +8,16 @@
   {
    "id": "bed-b",
    "prompt": "Minimal ambient electronic underscore for a calm tech product video. Around 90 BPM. A gentle plucked synth arpeggio and soft mallet bells over a warm pad, a subtle soft pulse, a soft kick on the downbeats after the intro and quiet hi-hat ticks. Optimistic, clean and modern, calm like a product keynote. No vocals, no drops, no risers, no crashes. Leaves plenty of room for narration. Settles into a warm final chord at the end."
+  },
+  {
+   "id": "bed-c",
+   "length_ms": 50000,
+   "prompt": "Upbeat, energetic modern electronic pop instrumental for a fast, fun launch video about a Mac app that finishes your sentences. 120 BPM in E major. Starts right away, no long intro: a punchy four-on-the-floor kick, claps on two and four, crisp hi-hats and a bouncy synth bass, with bright plucked synth arpeggios and warm chords on top. Confident, optimistic and catchy, with forward momentum the whole way, a small lift around the middle and a clean, satisfying final hit at the end. No vocals, no big drops, no long risers. Leaves room for a voiceover."
+  },
+  {
+   "id": "bed-d",
+   "length_ms": 50000,
+   "prompt": "Bright, driving indie-electronic instrumental for an upbeat tech product video. 116 BPM. Opens straight into the groove: tight, live-sounding drums with claps, a funky muted electric guitar riff, a round synth bass and sparkly synth plucks. Playful, energetic and modern, like a startup launch film. Keeps moving the whole time, lifts in the second half and ends on a clean button ending. No vocals, no slow intro, no drops. Leaves space for narration."
   }
  ],
  "effects": [
@@ -48,27 +58,41 @@
    "duration": 3.0,
    "influence": 0.5,
    "text": "Warm, soft, shimmering swell for a logo reveal, gentle and calm, no impact, fades out"
+  },
+  {
+   "id": "swish",
+   "duration": 0.8,
+   "influence": 0.65,
+   "variants": 2,
+   "text": "Fast, clean air swish for a quick camera move in a modern upbeat tech promo, bright and punchy, no impact, very short tail"
+  },
+  {
+   "id": "reveal-hit",
+   "duration": 2.5,
+   "influence": 0.55,
+   "text": "Modern logo reveal for an upbeat tech promo: a soft, punchy low impact with a bright sparkling shimmer tail, clean and not cinematic, fades out"
   }
  ],
  "mix": {
-  "music": "bed-a",
-  "music_db": -11,
+  "music": "bed-c",
+  "music_db": -10,
+  "music_fade_in": 0.15,
   "effects": {
    "type": "typing",
    "tab": "tab-v1",
    "ghost": "ghost-v1",
-   "whoosh": "whoosh",
+   "whoosh": "swish-v1",
    "tick": "tick",
-   "reveal": "reveal"
+   "reveal": "reveal-hit"
   },
   "effect_db": {
    "type": -20,
    "tab": -14,
    "ghost": -18,
-   "whoosh": -22,
+   "whoosh": -20,
    "tick": -18,
    "token": -26,
-   "reveal": -14
+   "reveal": -13
   }
  }
 }

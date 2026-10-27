@@ -84,10 +84,11 @@ def main():
     for music in spec['music']:
         if only and music['id'] not in only:
             continue
-        body = {'prompt': music['prompt'], 'music_length_ms': spec['music_length_ms'], 'force_instrumental': True}
+        length = music.get('length_ms', spec['music_length_ms'])
+        body = {'prompt': music['prompt'], 'music_length_ms': length, 'force_instrumental': True}
         audio, model, headers = post(key, 'music', body, MUSIC_MODELS)
         keep({'id': music['id'], 'kind': 'music', 'model': model, 'prompt': music['prompt'],
-              'length_ms': spec['music_length_ms'], 'song_id': headers.get('song-id'), 'file': f"{music['id']}.mp3"}, audio)
+              'length_ms': length, 'song_id': headers.get('song-id'), 'file': f"{music['id']}.mp3"}, audio)
     for effect in spec['effects']:
         if only and effect['id'] not in only:
             continue

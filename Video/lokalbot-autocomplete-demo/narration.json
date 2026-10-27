@@ -1,19 +1,20 @@
 {
- "voice_direction": "Warm, calm and assured, like showing a friend something you made. Unhurried, with small pauses between lines. Never salesy.",
- "drama_direction": "warm, calm and assured, unhurried, like showing a friend something you made",
- "voice": "ElevenLabs eleven_v4 in voice jBeSFLau956Zo30jykBV (tts_elevenlabs.py), or OpenAI gpt-4o-mini-tts (tts.py); the take used is in \"take\". Synthetic; say so where it is posted.",
+ "voice_direction": "Upbeat, bright and confident, like a launch video you want to share. Quick but clear, with energy on the key words and only short pauses between lines. Never shouty or salesy.",
+ "voice": "ElevenLabs eleven_v4 in voice jBeSFLau956Zo30jykBV (tts_elevenlabs.py, stability 0.35, seeds 11, 29 and 42), or OpenAI gpt-4o-mini-tts (tts.py); the take used is in \"take\". \"spoken\" is what the voice is sent, with eleven_v4 audio tags. Synthetic; say so where it is posted.",
  "take": {"engine": "eleven", "seed": 11},
  "scenes": [
-  {"id": "01-hook", "take": {"seed": 29}, "section": "hook", "caption": "This is LokalBot. Autocomplete for your whole Mac."},
-  {"id": "02-memory", "section": "memory", "caption": "It remembers what your team decided, so it can finish the sentence for you."},
-  {"id": "03-word", "section": "word", "caption": "It completes the word you're typing,"},
-  {"id": "04-langs", "section": "langs", "caption": "in whatever language you write."},
-  {"id": "05-how", "section": "dive", "caption": "So how does it work?"},
-  {"id": "06-context", "section": "context", "caption": "It reads the text before your cursor, and any saved notes that matter, like that pricing decision."},
-  {"id": "07-model", "section": "model", "caption": "A small model, Gemma 4, runs right inside the app. No server, no cloud, no account.",
-   "spoken": "A small model, Gemma four, runs right inside the app. No server, no cloud, no account."},
-  {"id": "08-pick", "section": "pick", "caption": "It weighs every possible next word. When it isn't sure, it stays quiet."},
-  {"id": "09-ghost", "section": "ghost", "caption": "When it is, the rest appears in gray, and Tab takes it one word at a time."},
-  {"id": "10-end", "section": "end", "caption": "LokalBot. Free, open source, and it runs on your Mac."}
+  {"id": "v3-01-hook", "section": "hook", "caption": "Meet LokalBot. Autocomplete for your whole Mac.",
+   "spoken": "[excited] Meet LokalBot! Autocomplete for your whole Mac."},
+  {"id": "v3-02-memory", "section": "memory", "caption": "It remembers what your team decided, and finishes your sentence."},
+  {"id": "v3-03-word", "section": "word", "caption": "It finishes the word you're typing,"},
+  {"id": "v3-04-langs", "section": "langs", "caption": "in any language you write.", "spoken": "in any language you write!"},
+  {"id": "v3-05-how", "section": "dive", "caption": "So how does it work?"},
+  {"id": "v3-06-context", "section": "context", "caption": "It reads the text before your cursor, and saved notes, like that pricing call."},
+  {"id": "v3-07-model", "section": "model", "caption": "A small model, Gemma 4, runs right inside the app. No server, no cloud, no account.",
+   "spoken": "A small model, Gemma four, runs right inside the app. No server, no cloud, no account!"},
+  {"id": "v3-08-pick", "section": "pick", "caption": "It weighs every next word. When it isn't sure, it stays quiet."},
+  {"id": "v3-09-ghost", "section": "ghost", "caption": "When it is, the rest appears in gray. Tab takes it, word by word."},
+  {"id": "v3-10-end", "section": "end", "caption": "LokalBot. Free, open source, and it runs on your Mac.",
+   "spoken": "[excited] LokalBot! Free, open source, and it runs on your Mac."}
  ]
 }
