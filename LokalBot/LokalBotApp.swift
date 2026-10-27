@@ -40,8 +40,7 @@ enum LokalBotMain {
         // Public or synthetic transcripts only; reads no library and no Keychain.
         if let replay = MeetingRadarReplay.parse(CommandLine.arguments) {
             Task { @MainActor in
-                exit(await MeetingRadarReplay.run(input: replay.input, model: replay.model,
-                                                  interval: replay.interval, delay: replay.delay))
+                exit(await MeetingRadarReplay.run(replay))
             }
             RunLoop.main.run()
             return

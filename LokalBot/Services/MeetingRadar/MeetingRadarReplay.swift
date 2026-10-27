@@ -1,9 +1,14 @@
 import Foundation
 
-/// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]`
+/// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]
+///   [--base-url <url> [--reasoning-line <level>]]`
 ///
 /// Replays a timed transcript through Live Radar's request, grounding checks,
 /// and Meta Model API client, and prints one JSON line per pass and a summary.
+/// `--base-url` sends the same requests to another OpenAI-compatible server,
+/// such as llama-server running Meta's open-weight Muse Glimmer, which needs
+/// no key; `--reasoning-line` then adds the "Reasoning effort: <level>" line
+/// that Glimmer's chat template reads from the system prompt.
 /// A line becomes visible `delay` seconds after it starts (the live preview's
 /// chunking), and a pass runs every `interval` seconds of meeting time, as in
 /// the app. Earlier-meeting passages come from the fixture instead of the
@@ -34,23 +39,35 @@ enum MeetingRadarReplay {
         let earlier: [Passage]?
     }
 
-    static func parse(_ args: [String]) -> (input: URL, model: String, interval: Double, delay: Double)? {
+    struct Options {
+        var input: URL
+        var model: String
+        var interval: Double
+        var delay: Double
+        var baseURL: URL?
+        var reasoningLine: String?
+    }
+
+    static func parse(_ args: [String]) -> Options? {
         guard let flag = args.firstIndex(of: "--radar-replay"), args.count > flag + 1 else { return nil }
         func value(_ name: String) -> String? {
             args.firstIndex(of: name).flatMap { args.count > $0 + 1 ? args[$0 + 1] : nil }
         }
-        return (URL(fileURLWithPath: args[flag + 1]),
-                value("--model") ?? MetaModelAPI.museSpark.id,
-                value("--interval").flatMap(Double.init).map { max(1, $0) } ?? 20,
-                value("--delay").flatMap(Double.init).map { max(0, $0) } ?? 12)
+        return Options(input: URL(fileURLWithPath: args[flag + 1]),
+                       model: value("--model") ?? MetaModelAPI.museSpark.id,
+                       interval: value("--interval").flatMap(Double.init).map { max(1, $0) } ?? 20,
+                       delay: value("--delay").flatMap(Double.init).map { max(0, $0) } ?? 12,
+                       baseURL: value("--base-url").flatMap(URL.init(string:)),
+                       reasoningLine: value("--reasoning-line"))
     }
 
     @MainActor
-    static func run(input: URL, model: String, interval: Double, delay: Double) async -> Int32 {
+    static func run(_ options: Options) async -> Int32 {
+        let (input, model, interval, delay) = (options.input, options.model, options.interval, options.delay)
         let key = ProcessInfo.processInfo.environment["META_API_KEY"]?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !key.isEmpty else {
-            FileHandle.standardError.write(Data("radar-replay: set META_API_KEY\n".utf8))
+        guard !key.isEmpty || options.baseURL != nil else {
+            FileHandle.standardError.write(Data("radar-replay: set META_API_KEY, or pass --base-url\n".utf8))
             return 2
         }
         let fixture: Fixture
@@ -62,8 +79,15 @@ enum MeetingRadarReplay {
             FileHandle.standardError.write(Data("radar-replay: \(error.localizedDescription)\n".utf8))
             return 2
         }
-        let client = MuseChatClient(apiKey: key, model: model, reasoningEffort: "minimal", maxTokens: 4_000,
-                                    priority: .interactive, purpose: "radar replay")
+        var client = MuseChatClient(apiKey: key.isEmpty ? "local" : key, model: model, reasoningEffort: "minimal",
+                                    maxTokens: 4_000, priority: .interactive, purpose: "radar replay")
+        if let baseURL = options.baseURL {
+            client.baseURL = baseURL
+            client.gate = nil
+            client.transport = { request in try await sendInferenceRequest(request, base: baseURL) }
+        }
+        let system = options.reasoningLine.map { "Reasoning effort: \($0)\n\n" + MeetingRadarAnalyzer.system }
+            ?? MeetingRadarAnalyzer.system
         let meetingID = UUID()
         let lines = fixture.lines.enumerated().map { index, line in
             MeetingRadarAnalyzer.Line(label: "L\(index + 1)", time: line.time, speaker: line.speaker, text: line.text)
@@ -95,7 +119,7 @@ enum MeetingRadarReplay {
             let started = ContinuousClock.now
             do {
                 let reply = try await client.send(
-                    messages: [["role": "system", "content": MeetingRadarAnalyzer.system],
+                    messages: [["role": "system", "content": system],
                                ["role": "user", "content": MeetingRadarAnalyzer.prompt(request)]],
                     schema: (name: "radar", schema: MeetingRadarAnalyzer.schema))
                 let elapsed = (ContinuousClock.now - started).components

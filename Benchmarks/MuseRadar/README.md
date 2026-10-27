@@ -15,7 +15,7 @@ These harnesses run LokalBot's own Live Radar and Follow-through code against th
 
 `LokalBot Dev --follow-through-replay <fixture.json>` runs `FollowThroughSession` on Muse Wonder with read tools that answer from the fixture. Every proposal is recorded and approved without being carried out.
 
-Both read the key from `META_API_KEY`.
+Both read the key from `META_API_KEY`. `--radar-replay` also takes `--base-url <url>` to send the same requests to another OpenAI-compatible server instead, such as llama-server running Meta's open-weight Muse Glimmer, which needs no key. `--reasoning-line low` adds the "Reasoning effort: low" line Glimmer's chat template reads from the system prompt.
 
 ## Synthetic checks
 
