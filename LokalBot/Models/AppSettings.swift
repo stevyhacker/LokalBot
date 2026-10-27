@@ -166,6 +166,13 @@ struct AppSettings: Codable, Equatable {
     var useCalendarAgenda: Bool = false
     var autoTranscribe: Bool = true
     var autoSummarize: Bool = true
+    /// After each summary, open one Agent Mode task per open action that is
+    /// the person's. Off by default: it hands meeting notes to Agent Mode's
+    /// model without a click.
+    var handOffActionsAfterSummary: Bool = false
+    /// Handed-off tasks start on their own instead of waiting in the composer
+    /// for Send. Off by default.
+    var startHandoffsAutomatically: Bool = false
     var speechVoice: KokoroVoice = .heart
     var speechSpeed: Double = 1.0
 
@@ -884,6 +891,8 @@ struct AppSettings: Codable, Equatable {
         case useCalendarAgenda
         case autoTranscribe
         case autoSummarize
+        case handOffActionsAfterSummary
+        case startHandoffsAutomatically
         case speechVoice
         case speechSpeed
         case dictationEnabled
@@ -1085,6 +1094,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
         try c.encode(autoTranscribe, forKey: .autoTranscribe)
         try c.encode(autoSummarize, forKey: .autoSummarize)
+        try c.encode(handOffActionsAfterSummary, forKey: .handOffActionsAfterSummary)
+        try c.encode(startHandoffsAutomatically, forKey: .startHandoffsAutomatically)
         try c.encode(speechVoice, forKey: .speechVoice)
         try c.encode(Self.clampedSpeechSpeed(speechSpeed), forKey: .speechSpeed)
         try c.encode(dictationEnabled, forKey: .dictationEnabled)
@@ -1266,6 +1277,8 @@ struct AppSettings: Codable, Equatable {
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)
         autoTranscribe = decode(.autoTranscribe, defaults.autoTranscribe)
         autoSummarize = decode(.autoSummarize, defaults.autoSummarize)
+        handOffActionsAfterSummary = decode(.handOffActionsAfterSummary, defaults.handOffActionsAfterSummary)
+        startHandoffsAutomatically = decode(.startHandoffsAutomatically, defaults.startHandoffsAutomatically)
         speechVoice = decode(.speechVoice, defaults.speechVoice)
         speechSpeed = Self.clampedSpeechSpeed(decode(.speechSpeed, defaults.speechSpeed))
         dictationEnabled = decode(.dictationEnabled, defaults.dictationEnabled)

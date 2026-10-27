@@ -1029,6 +1029,10 @@
 "Summarization" = "摘要";
 "Summarize" = "总结";
 "Summarize automatically after transcription" = "转写完成后自动生成摘要";
+"Hand off my actions to Agent Mode after each summary" = "每次生成摘要后，把我的行动项交给智能体模式";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "每个属于你的未完成行动项都会获得一个独立的智能体模式任务，并附上会议笔记。";
+"Start handoffs automatically" = "自动开始交接的任务";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "交接的任务会立即开始，不必等你点发送。最多四个智能体同时工作，它们无需询问就能做什么，由智能体模式的批准设置决定。";
 "Summary" = "摘要";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "将内置命令行工具链接至 ~/.local/bin/lokalbot-cli，并将技能链接至 ~/.agents/skills 和 ~/.claude/skills。资料库访问为只读；更改设置需在“隐私”中另行开启。";
 "System" = "系统";

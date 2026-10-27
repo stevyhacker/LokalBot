@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "입력하는 동안 텍스트를 제안합니다";
 "Summarization" = "요약";
 "Summarize automatically after transcription" = "전사 후 자동 요약";
+"Hand off my actions to Agent Mode after each summary" = "요약할 때마다 내 실행 항목을 에이전트 모드에 넘기기";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "내 몫의 열린 실행 항목마다 회의 메모가 첨부된 에이전트 모드 작업이 하나씩 생깁니다.";
+"Start handoffs automatically" = "넘긴 작업 자동으로 시작";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "넘긴 작업은 보내기를 기다리지 않고 바로 시작합니다. 에이전트는 최대 4개까지 동시에 작업하며, 묻지 않고 할 수 있는 일은 에이전트 모드의 승인 설정에 따릅니다.";
 "Summary" = "요약";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "번들에 포함된 CLI를 ~/.local/bin/lokalbot-cli에, 스킬을 ~/.agents/skills 및 ~/.claude/skills에 심볼릭 링크로 연결합니다. 라이브러리 접근은 읽기 전용이며, 설정을 변경하려면 개인정보 보호에 있는 별도의 토글이 필요합니다.";
 "System" = "시스템";

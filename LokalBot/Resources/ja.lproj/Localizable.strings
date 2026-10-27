@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "入力中にテキストを提案";
 "Summarization" = "要約";
 "Summarize automatically after transcription" = "文字起こし後に自動要約";
+"Hand off my actions to Agent Mode after each summary" = "要約のたびに自分のアクションをエージェントモードに引き継ぐ";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "自分の未完了アクションごとに、会議のメモを添付したエージェントモードのタスクが作られます。";
+"Start handoffs automatically" = "引き継いだタスクを自動で開始";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "引き継いだタスクは送信を待たずにすぐ始まります。同時に動くエージェントは最大4つで、確認なしで何を行えるかはエージェントモードの承認設定で決まります。";
 "Summary" = "要約";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "同梱CLIのシンボリックリンクを~/.local/bin/lokalbot-cliに、スキルのリンクを~/.agents/skillsと~/.claude/skillsに作成します。ライブラリへのアクセスは読み取り専用です。設定の変更には「プライバシー」にある専用のスイッチが必要です。";
 "System" = "システム";

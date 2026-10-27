@@ -14,10 +14,31 @@ struct AgentTaskRecord: Codable, Equatable, Identifiable {
     var isPinned = false
     var isArchived = false
     var modifiedAt = Date()
+    /// Set when LokalBot handed this task off, so the same action never gets
+    /// a second task.
+    var handoff: AgentHandoffSource?
 
     enum CodingKeys: String, CodingKey {
         case id, title, workspace, sessionFile, draft, attachments, queuedPrompts, sources, isPinned, isArchived, modifiedAt
+        case handoff
     }
+}
+
+/// The meeting action a handed-off task works on.
+struct AgentHandoffSource: Codable, Equatable, Hashable {
+    var meetingID: UUID
+    var actionID: String
+}
+
+/// One task to hand to Agent Mode: its title, the prompt for its composer,
+/// the sources attached to that prompt, and a folder in the workspace made
+/// for what the agent produces.
+struct AgentHandoff: Equatable {
+    var source: AgentHandoffSource
+    var title: String
+    var prompt: String
+    var attachments: [AgentAttachment]
+    var folder: String?
 }
 
 extension AgentTaskRecord {
@@ -34,6 +55,7 @@ extension AgentTaskRecord {
         isPinned = try values.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
         isArchived = try values.decodeIfPresent(Bool.self, forKey: .isArchived) ?? false
         modifiedAt = try values.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? .distantPast
+        handoff = try values.decodeIfPresent(AgentHandoffSource.self, forKey: .handoff)
     }
 }
 

@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "మీరు టైప్ చేస్తుండగా వచనం సూచిస్తుంది";
 "Summarization" = "సారాంశం రూపొందించడం";
 "Summarize automatically after transcription" = "ట్రాన్స్‌క్రిప్షన్ తర్వాత స్వయంచాలకంగా సారాంశం రూపొందించండి";
+"Hand off my actions to Agent Mode after each summary" = "ప్రతి సారాంశం తర్వాత నా పనులను ఏజెంట్ మోడ్‌కు అప్పగించండి";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "మీకు చెందిన ప్రతి తెరిచి ఉన్న పనికి మీటింగ్ నోట్స్ జతచేసిన ప్రత్యేక ఏజెంట్ మోడ్ టాస్క్ వస్తుంది.";
+"Start handoffs automatically" = "అప్పగించిన టాస్క్‌లను స్వయంచాలకంగా ప్రారంభించండి";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "అప్పగించిన టాస్క్‌లు పంపడం కోసం వేచి ఉండకుండా వెంటనే మొదలవుతాయి. ఒకేసారి గరిష్ఠంగా నాలుగు ఏజెంట్లు పనిచేస్తాయి, అడగకుండా అవి ఏమి చేయగలవో ఏజెంట్ మోడ్ ఆమోద సెట్టింగ్ నిర్ణయిస్తుంది.";
 "Summary" = "సారాంశం";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "జత చేసిన CLIని ~/.local/bin/lokalbot-cli వద్ద, నైపుణ్యాన్ని ~/.agents/skills, ~/.claude/skillsలో సిమ్‌లింక్ చేస్తుంది. లైబ్రరీ యాక్సెస్ చదవడానికి మాత్రమే; సెట్టింగ్‌లను మార్చడానికి గోప్యతలో దానికంటూ ప్రత్యేక టోగుల్ అవసరం.";
 "System" = "సిస్టమ్";

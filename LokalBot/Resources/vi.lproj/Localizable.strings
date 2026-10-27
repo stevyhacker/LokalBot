@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Gợi ý văn bản khi bạn gõ";
 "Summarization" = "Tóm tắt";
 "Summarize automatically after transcription" = "Tự động tóm tắt sau khi chép lời";
+"Hand off my actions to Agent Mode after each summary" = "Giao các hành động của tôi cho Chế độ tác nhân sau mỗi bản tóm tắt";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Mỗi hành động đang mở thuộc về bạn sẽ có một tác vụ riêng trong Chế độ tác nhân, kèm ghi chú cuộc họp.";
+"Start handoffs automatically" = "Tự động bắt đầu các tác vụ được giao";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Tác vụ được giao bắt đầu ngay thay vì chờ Gửi. Tối đa bốn tác nhân làm việc cùng lúc, và cài đặt phê duyệt của Chế độ tác nhân quyết định những gì chúng được làm mà không cần hỏi.";
 "Summary" = "Bản tóm tắt";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Tạo liên kết tượng trưng cho CLI đi kèm tại ~/.local/bin/lokalbot-cli và kỹ năng trong ~/.agents/skills cùng ~/.claude/skills. Quyền truy cập thư viện chỉ đọc; việc thay đổi cài đặt cần nút bật/tắt riêng trong Quyền riêng tư.";
 "System" = "Hệ thống";

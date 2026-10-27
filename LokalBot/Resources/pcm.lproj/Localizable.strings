@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "E dey suggest text as you type";
 "Summarization" = "Making summary";
 "Summarize automatically after transcription" = "Make summary by itself after transcription";
+"Hand off my actions to Agent Mode after each summary" = "Hand my actions over to Agent Mode after every summary";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Every open action wey be your own go get im own Agent Mode task, with the meeting notes attached.";
+"Start handoffs automatically" = "Start handoffs by themselves";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Tasks wey you hand over go start sharp sharp instead of waiting for Send. Up to four agents fit work at once, and Agent Mode approval setting go decide wetin dem fit do without asking.";
 "Summary" = "Summary";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "E dey create symlink for bundled CLI at ~/.local/bin/lokalbot-cli and for the skill inside ~/.agents/skills and ~/.claude/skills. Library access na read-only; to change settings need im own switch under Privacy.";
 "System" = "System";

@@ -458,6 +458,15 @@ The app may make these outbound connections:
   Existing tasks rooted inside the private
   library remain readable but cannot run. Shell commands whose complete text
   cannot be reviewed are rejected.
+  **Hand off my actions to Agent Mode after each summary** is off by default.
+  When it is on, each new summary of a meeting from the last day opens one
+  Agent Mode task per open action that is yours, up to eight, with a prompt in
+  the composer, the meeting attached, and a `handoffs/` folder in the task's
+  working folder. A meeting's **Hand off my actions to Agent Mode** menu item
+  does the same on request. The attached meeting's summary is read and sent
+  only when the task is sent. **Start handoffs automatically**, also off by
+  default, sends those tasks without a click, up to four at a time, under the
+  selected approval mode; otherwise each waits for you to press Send.
 
 Those services receive normal connection metadata such as your IP address and
 request headers. LokalBot does not add an advertising identifier and does not

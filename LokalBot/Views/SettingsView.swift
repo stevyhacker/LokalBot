@@ -625,6 +625,7 @@ struct SettingsView: View {
     @ViewBuilder private var processingSection: some View {
             if shows("Processing", ["transcribe", "transcription", "summarize", "summary",
                                     "automatic", "auto", "after meeting", "model", "models", "engine",
+                                    "agent", "agent mode", "hand off", "handoff", "actions", "swarm",
                                     "echo", "echo cancellation", "speakers", "headphones",
                                     "microphone mode", "voice isolation"]) {
                 Section("Processing") {
@@ -632,6 +633,16 @@ struct SettingsView: View {
                     .settingTarget("settings.autoTranscribe", selected: app.focusedSettingID)
                     Toggle("Summarize automatically after transcription", isOn: $app.settings.autoSummarize)
                     .settingTarget("settings.autoSummarize", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.handOffActionsAfterSummary) {
+                        SettingsLabel("Hand off my actions to Agent Mode after each summary",
+                                      help: "Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached.")
+                    }
+                    .settingTarget("settings.handOffActionsAfterSummary", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.startHandoffsAutomatically) {
+                        SettingsLabel("Start handoffs automatically",
+                                      help: "Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking.")
+                    }
+                    .settingTarget("settings.startHandoffsAutomatically", selected: app.focusedSettingID)
                     LabeledContent("Transcribe and Think models") {
                         Button("Manage in Models…") { app.openSettings(tab: .models) }
                     }

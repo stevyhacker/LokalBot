@@ -482,6 +482,9 @@ private struct MeetingWorkspaceDetail: View {
         items += [
             .init(title: "Draft follow-up…", identifier: "toolbar.followUp",
                   enabled: projection != nil && partialNotes == nil, action: { app.draftFollowUp(for: meeting) }),
+            .init(title: "Hand off my actions to Agent Mode", identifier: "toolbar.handOffActions",
+                  enabled: partialNotes == nil && projection.map { !MeetingActionHandoff.actions(in: $0).isEmpty } == true,
+                  action: { app.handOffActionsAndOpenAgent(of: meeting) }),
             .separator,
             .init(title: isReadingSummary ? "Stop spoken summary" : "Read summary aloud",
                   enabled: summary?.isEmpty == false, action: { isReadingSummary ? stopSpeech() : readSummary() }),

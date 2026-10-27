@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Menyarankan teks saat Anda mengetik";
 "Summarization" = "Peringkasan";
 "Summarize automatically after transcription" = "Ringkas otomatis setelah transkripsi";
+"Hand off my actions to Agent Mode after each summary" = "Serahkan tindakan saya ke Mode Agen setelah setiap ringkasan";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Setiap tindakan terbuka milik Anda mendapat tugas Mode Agen sendiri, dengan catatan rapat terlampir.";
+"Start handoffs automatically" = "Mulai tugas yang diserahkan secara otomatis";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Tugas yang diserahkan langsung dimulai tanpa menunggu Kirim. Hingga empat agen bekerja bersamaan, dan pengaturan persetujuan Mode Agen menentukan apa yang boleh mereka lakukan tanpa bertanya.";
 "Summary" = "Ringkasan";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Membuat tautan simbolis CLI bawaan di ~/.local/bin/lokalbot-cli dan skill di ~/.agents/skills serta ~/.claude/skills. Akses pustaka hanya baca; mengubah pengaturan memerlukan sakelar tersendiri di Privasi.";
 "System" = "Sistem";
