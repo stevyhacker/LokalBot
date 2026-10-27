@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders web/assets/circuit-board.svg, the home page's background tile.
+"""Renders web/assets/circuit-board.svg, the website's background tile.
 
 The same circuit board as the autocomplete launch video
 (Video/lokalbot-autocomplete-demo/comp.js): chips with buses leaving their
