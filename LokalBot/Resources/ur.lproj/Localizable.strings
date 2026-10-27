@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "ٹائپ کرتے وقت متن تجویز کرتا ہے";
 "Summarization" = "خلاصہ بنانا";
 "Summarize automatically after transcription" = "نقل نویسی کے بعد خود بخود خلاصہ بنائیں";
+"Hand off my actions to Agent Mode after each summary" = "ہر خلاصے کے بعد میری کارروائیاں ایجنٹ موڈ کے حوالے کریں";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "آپ کی ہر کھلی کارروائی کو ایجنٹ موڈ میں اپنا الگ کام ملتا ہے، جس کے ساتھ میٹنگ کے نوٹس منسلک ہوتے ہیں۔";
+"Start handoffs automatically" = "حوالے کیے گئے کام خود بخود شروع کریں";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "حوالے کیے گئے کام بھیجنے کا انتظار کیے بغیر فوراً شروع ہو جاتے ہیں۔ ایک وقت میں زیادہ سے زیادہ چار ایجنٹ کام کرتے ہیں، اور وہ پوچھے بغیر کیا کر سکتے ہیں یہ ایجنٹ موڈ کی منظوری کی ترتیب طے کرتی ہے۔";
 "Summary" = "خلاصہ";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "شامل CLI کا سم لنک ~/.local/bin/lokalbot-cli میں اور مہارت کا ~/.agents/skills اور ~/.claude/skills میں بناتا ہے۔ لائبریری تک رسائی صرف پڑھنے کے لیے ہے؛ ترتیبات تبدیل کرنے کے لیے «رازداری» میں الگ ٹوگل درکار ہے۔";
 "System" = "سسٹم";

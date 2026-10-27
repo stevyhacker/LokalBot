@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Yana ba da shawarar rubutu yayin rubutawa";
 "Summarization" = "Taƙaitawa";
 "Summarize automatically after transcription" = "Taƙaita kai tsaye bayan rubuta magana";
+"Hand off my actions to Agent Mode after each summary" = "Miƙa matakaina ga Yanayin wakili bayan kowane taƙaitawa";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Kowane mataki a buɗe da yake naka zai sami nasa aikin a Yanayin wakili, tare da bayanan taron a haɗe.";
+"Start handoffs automatically" = "Fara ayyukan da aka miƙa kai tsaye";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Ayyukan da aka miƙa suna farawa nan take maimakon jiran Aika. Wakilai har huɗu suna aiki a lokaci ɗaya, kuma saitin amincewa na Yanayin wakili ne ke ƙayyade abin da za su iya yi ba tare da tambaya ba.";
 "Summary" = "Taƙaitawa";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Yana ƙirƙirar symlink na CLI da aka haɗa a ~/.local/bin/lokalbot-cli da na ƙwarewar a ~/.agents/skills da ~/.claude/skills. Damar ɗakin ajiya na karantawa ne kawai; canja saituna yana buƙatar nasa maɓalli a ƙarƙashin Sirri.";
 "System" = "Tsari";

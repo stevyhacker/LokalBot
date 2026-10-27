@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Schlägt beim Tippen Text vor";
 "Summarization" = "Zusammenfassung erstellen";
 "Summarize automatically after transcription" = "Nach der Transkription automatisch zusammenfassen";
+"Hand off my actions to Agent Mode after each summary" = "Meine Aktionen nach jeder Zusammenfassung an den Agent-Modus übergeben";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Jede offene Aktion, die dir gehört, bekommt eine eigene Aufgabe im Agent-Modus, mit den Notizen der Besprechung im Anhang.";
+"Start handoffs automatically" = "Übergaben automatisch starten";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Übergebene Aufgaben starten sofort, statt auf „Senden“ zu warten. Bis zu vier Agenten arbeiten gleichzeitig, und die Freigabe-Einstellung des Agent-Modus legt fest, was sie ohne Nachfrage tun dürfen.";
 "Summary" = "Zusammenfassung";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Verknüpft die enthaltene CLI unter ~/.local/bin/lokalbot-cli und den Skill unter ~/.agents/skills sowie ~/.claude/skills. Der Bibliothekszugriff ist nur lesend; das Ändern von Einstellungen erfordert einen eigenen Schalter unter Datenschutz.";
 "System" = "System";

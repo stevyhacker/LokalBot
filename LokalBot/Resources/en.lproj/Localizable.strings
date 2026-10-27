@@ -1029,6 +1029,10 @@
 "Summarization" = "Summarization";
 "Summarize" = "Summarize";
 "Summarize automatically after transcription" = "Summarize automatically after transcription";
+"Hand off my actions to Agent Mode after each summary" = "Hand off my actions to Agent Mode after each summary";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached.";
+"Start handoffs automatically" = "Start handoffs automatically";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking.";
 "Summary" = "Summary";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy.";
 "System" = "System";

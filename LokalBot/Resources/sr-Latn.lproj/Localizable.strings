@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Predlaže tekst dok kucate";
 "Summarization" = "Pravljenje sažetaka";
 "Summarize automatically after transcription" = "Automatski pravi sažetak posle transkripcije";
+"Hand off my actions to Agent Mode after each summary" = "Predaj moje obaveze Režimu Agenta posle svakog sažetka";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Svaka otvorena obaveza koja je vaša dobija svoj zadatak u Režimu Agenta, uz priložene beleške sa sastanka.";
+"Start handoffs automatically" = "Automatski pokreni predate zadatke";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Predati zadaci počinju odmah umesto da čekaju na Pošalji. Najviše četiri agenta rade istovremeno, a podešavanje odobravanja u Režimu Agenta određuje šta smeju da rade bez pitanja.";
 "Summary" = "Sažetak";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Pravi simboličke veze ka ugrađenom CLI-ju na putanji ~/.local/bin/lokalbot-cli i ka veštini u fasciklama ~/.agents/skills i ~/.claude/skills. Pristup biblioteci je samo za čitanje; za menjanje podešavanja potreban je poseban prekidač u odeljku Privatnost i podaci.";
 "System" = "Sistem";

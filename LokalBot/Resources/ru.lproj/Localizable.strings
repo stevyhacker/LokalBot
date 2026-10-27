@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Предлагает текст по мере ввода";
 "Summarization" = "Создание сводок";
 "Summarize automatically after transcription" = "Автоматически создавать сводку после расшифровки";
+"Hand off my actions to Agent Mode after each summary" = "Передавать мои действия в режим агента после каждой сводки";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Каждое открытое действие, которое за вами, получает свою задачу в режиме агента, с заметками встречи во вложении.";
+"Start handoffs automatically" = "Запускать переданные задачи автоматически";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Переданные задачи запускаются сразу, а не ждут кнопки «Отправить». Одновременно работают до четырёх агентов, а настройка подтверждений режима агента определяет, что они могут делать без вопросов.";
 "Summary" = "Сводка";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Создаёт символическую ссылку на встроенный CLI в ~/.local/bin/lokalbot-cli и на навык в ~/.agents/skills и ~/.claude/skills. Доступ к библиотеке — только для чтения; для изменения настроек нужен отдельный переключатель в разделе Конфиденциальность.";
 "System" = "Система";

@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "Hupendekeza maandishi unapoandika";
 "Summarization" = "Kutengeneza muhtasari";
 "Summarize automatically after transcription" = "Fupisha kiotomatiki baada ya unukuzi";
+"Hand off my actions to Agent Mode after each summary" = "Kabidhi hatua zangu kwa Hali ya Wakala baada ya kila muhtasari";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "Kila hatua iliyo wazi ambayo ni yako inapata kazi yake katika Hali ya Wakala, pamoja na maelezo ya mkutano yaliyoambatishwa.";
+"Start handoffs automatically" = "Anzisha kazi zilizokabidhiwa kiotomatiki";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "Kazi zilizokabidhiwa zinaanza mara moja badala ya kusubiri Tuma. Hadi mawakala wanne hufanya kazi kwa wakati mmoja, na mpangilio wa idhini wa Hali ya Wakala huamua wanachoweza kufanya bila kuuliza.";
 "Summary" = "Muhtasari";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "Huunda viungo vya kiishara vya CLI iliyojumuishwa kwenye ~/.local/bin/lokalbot-cli na vya ujuzi kwenye ~/.agents/skills na ~/.claude/skills. Ufikiaji wa maktaba ni wa kusoma tu; kubadilisha mipangilio kunahitaji swichi yake chini ya Faragha.";
 "System" = "Mfumo";

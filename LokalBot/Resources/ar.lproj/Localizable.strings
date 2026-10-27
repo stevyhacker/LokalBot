@@ -1009,6 +1009,10 @@
 "Suggests text as you type" = "يقترح نصًا أثناء الكتابة";
 "Summarization" = "التلخيص";
 "Summarize automatically after transcription" = "التلخيص تلقائيًا بعد التفريغ النصي";
+"Hand off my actions to Agent Mode after each summary" = "تسليم إجراءاتي إلى وضع الوكيل بعد كل ملخص";
+"Each open action that's yours gets its own Agent Mode task, with the meeting's notes attached." = "يحصل كل إجراء مفتوح يخصك على مهمة خاصة به في وضع الوكيل، مع إرفاق ملاحظات الاجتماع.";
+"Start handoffs automatically" = "بدء المهام المُسلَّمة تلقائيًا";
+"Handed-off tasks start right away instead of waiting for Send. Up to four agents work at once, and Agent Mode's approval setting decides what they can do without asking." = "تبدأ المهام المُسلَّمة فورًا بدلًا من انتظار الإرسال. يعمل حتى أربعة وكلاء في الوقت نفسه، ويحدد إعداد الموافقة في وضع الوكيل ما يمكنهم فعله دون سؤال.";
 "Summary" = "الملخص";
 "Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy." = "ينشئ روابط رمزية لواجهة سطر الأوامر المضمّنة في ~/.local/bin/lokalbot-cli وللمهارة في ~/.agents/skills و~/.claude/skills. الوصول إلى المكتبة للقراءة فقط؛ ويحتاج تغيير الإعدادات إلى مفتاح تبديل خاص به ضمن «الخصوصية».";
 "System" = "النظام";

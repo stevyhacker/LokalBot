@@ -1206,6 +1206,7 @@ final class AppState: ObservableObject {
             // The sample's notes don't count toward asking for a GitHub star.
             guard !meeting.isSample else { return }
             self?.githubStar.recordSummaryCompleted()
+            self?.handOffActionsAfterSummary(meeting)
         }
         if needsSynchronousLibrary {
             searchIndex.reindexAll(meetings, storage: storage)
@@ -1220,6 +1221,10 @@ final class AppState: ObservableObject {
         if Self.isUITesting && !Self.runsBackgroundWorkInUITests { return }
         interactive = true
         RecordingNotifier.shared.bootstrap()
+        RecordingNotifier.shared.onOpenAgent = { [weak self] in
+            self?.openAgent()
+            WindowAccess.shared.open("main")
+        }
         applyTrackingSetting()
         // Crash recovery: re-enqueue any meeting whose processing never
         // finished — a quit or crash mid-transcription used to lose the job.
