@@ -46,6 +46,14 @@ final class HackathonFilmUITests: XCTestCase {
 
     private var isLive: Bool { muse["LOKALBOT_MUSE_UI_TEST"] == "live" }
 
+    /// As large as the runner's desktop allows, so the film has room for text.
+    private var windowSize: [String: String] {
+        let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1600, height: 1000)
+        let width = Int(min(1_560, visible.width - 24))
+        let height = Int(min(1_080, visible.height - 16))
+        return ["LOKALBOT_CAPTURE_SIZE": "\(width)x\(height)"]
+    }
+
     private func radarItems(_ kind: String = "", in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "radar.item.\(kind)"))
     }
@@ -57,7 +65,7 @@ final class HackathonFilmUITests: XCTestCase {
             storageRoot: library, suitePrefix: "Film", settingsJSON: FilmFixture.settingsJSON,
             environment: ["LOKALBOT_INITIAL_SECTION": "settings",
                           "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "recording",
-                          "LOKALBOT_DISMISS_ONBOARDING": "1"])
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(windowSize) { _, new in new })
         defaultsSuiteName = launch.defaultsSuiteName
         var app = launch.app
         let keyField = app.secureTextFields["settings.metaMuse.key"]
@@ -75,7 +83,8 @@ final class HackathonFilmUITests: XCTestCase {
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
-                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new })
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
+                .merging(windowSize) { _, new in new })
         let start = app.buttons["live.radar.start"]
         XCTAssertTrue(film.wait(for: start, timeout: 15), "Live Radar pane did not render")
         film.hold(2)
@@ -113,7 +122,8 @@ final class HackathonFilmUITests: XCTestCase {
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_INITIAL_SECTION": "meetings",
                           "LOKALBOT_SELECT_FIRST": "1",
-                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new })
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
+                .merging(windowSize) { _, new in new })
         let followThrough = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH 'radar.followThrough.'")).firstMatch
         XCTAssertTrue(film.wait(for: app.descendants(matching: .any)["radar.items"], timeout: 20),

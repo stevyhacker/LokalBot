@@ -87,7 +87,7 @@ Spark flagged 22 contradictions: 10 against an earlier meeting and 12 within the
 ## Run record
 
 - **Software.**
-  - Radar: built from `e7fc494` on branch `meta-hackathon`.
+  - Radar: built from `e7fc494` on branch `meta-hackathon`. A later commit added a prompt rule that commitments be written as plain tasks ("Book the venue", not "Me will book the venue"). These results predate it and were not re-run; on the synthetic meeting, six replays with the rule caught the free-tier contradiction 6 times and the launch-date one 5 times.
   - Notes: the same build.
   - Scoring: Python 3.13.18 and numpy 2.3.1, with EmbeddingGemma 2 `Q8_0` on the app's llama-server.
   - Machine: macOS 27.0.1 on an Apple M4 Max.

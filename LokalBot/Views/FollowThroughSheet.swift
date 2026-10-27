@@ -28,7 +28,7 @@ struct FollowThroughSheet: View {
             footer
         }
         .padding(20)
-        .frame(minWidth: 640, idealWidth: 700, minHeight: 600, idealHeight: 720)
+        .frame(minWidth: 640, idealWidth: 760, minHeight: 600, idealHeight: 820)
         .onAppear { session.start() }
         .onDisappear { if session.state != .finished { session.cancel() } }
         .accessibilityIdentifier("followThrough.sheet")

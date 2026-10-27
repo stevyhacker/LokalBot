@@ -34,7 +34,7 @@ struct LiveMeetingDetailView: View {
                     .layoutPriority(1)
                     .splitPaneAccessibilityLabel("Live transcript")
                 MeetingRadarPanel(radar: app.meetingRadar, meeting: meeting)
-                    .frame(minWidth: 300, idealWidth: 360, maxHeight: .infinity)
+                    .frame(minWidth: 300, idealWidth: 400, maxHeight: .infinity)
                     .splitPaneAccessibilityLabel("Live radar")
                 notesColumn
                     .frame(minWidth: 180, idealWidth: 240, maxHeight: .infinity)

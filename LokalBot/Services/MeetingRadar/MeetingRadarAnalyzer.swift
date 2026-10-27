@@ -69,7 +69,9 @@ enum MeetingRadarAnalyzer {
     - Never repeat an item that is ALREADY ON THE RADAR. If a new line answers an open question there, \
     put its id (r1, …) in answered.
     - Skip greetings, small talk, filler, and anything you would have to guess.
-    - text: one short sentence of at most 20 words, in the language the meeting is held in.
+    - text: one short sentence of at most 20 words, in the language the meeting is held in. For a \
+    commitment, write only the task, as an instruction without its owner or deadline ("Book the venue \
+    for the offsite", not "Me will book the venue by Monday"); owner and due carry the rest.
     - evidence is "" for everything except contradictions.
     - Most passes add nothing. Then return {"items": [], "answered": []}.
     """
