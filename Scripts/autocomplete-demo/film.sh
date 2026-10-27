@@ -165,6 +165,14 @@ for appearance in $APPEARANCES; do
   done
 done
 echo "launched with: $LAUNCH" | tee "$OUT/logs/launch.txt"
+stop_app
+echo "== what the model weighed =="
+SERVER="$APP/Contents/Resources/llama-cpp/llama-server"
+if [[ -x "$SERVER" ]]; then
+  python3 "$HERE/probe.py" "$LIB/debug.log" "$SERVER" "$MODEL" "$OUT/logs/probabilities.json" || echo "probe failed"
+else
+  echo "no bundled llama-server at $SERVER"
+fi
 ls -l "$OUT/clips"
 [[ $failed -eq 0 ]] || echo "$failed takes had no suggestion"
 [[ -n "$(ls "$OUT/clips"/*.mp4 2>/dev/null)" ]]

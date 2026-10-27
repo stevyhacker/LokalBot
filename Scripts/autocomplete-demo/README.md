@@ -12,12 +12,14 @@ suggestions are whatever the model wrote in that take.
 | `stage.py` | Downloads the catalog's default autocomplete model and checks its pinned SHA-256, seeds the README GIF's fictional launch-pricing library (so "the Team plan will be $15" can be finished from that meeting), and writes a throwaway settings suite with everything that could capture or learn off. |
 | `film.sh` | CI only. Grants the runner's TCC permissions to LokalBot and the rig, sets TextEdit to plain text in a large font with spelling marks and macOS inline predictions off, then films every take in each appearance and encodes it with `encode.py`. A take whose suggestion never shows is filmed again. |
 | `encode.py` | Turns a take's frames into a constant 30 fps MP4 that keeps the take's timing, with its events (keystrokes, the moment the suggestion appeared, each accept) beside it. |
+| `probe.py` | Replays the last prompt the app built in each take through the bundled `llama-server` with the same model and records the top candidates and probabilities at each step, for the video's "how it works" chart. |
 | `display.swift` | Gives the hosted desktop a Retina mode when the runner offers one. |
 
 The rig's `ghost` action waits for LokalBot's suggestion panel to appear and
 logs when it did; `accept` presses Tab while it is still showing. The Debug
 build shows the panel to screen capture only with `--lokalbot-film-ghost`
-(`TestHooks.filmsAutocomplete`); release builds keep it hidden from capture.
+(`TestHooks.filmsAutocomplete`), which also logs autocomplete's states and
+every prompt it builds; release builds keep the panel hidden from capture.
 
 `.github/workflows/autocomplete-demo.yml` runs it on pull requests that change
 these files and on dispatch (inputs: takes, appearances). Results are the
