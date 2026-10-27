@@ -1,7 +1,8 @@
 {
  "voice_direction": "Warm, calm and assured, like showing a friend something you made. Unhurried, with small pauses between lines. Never salesy.",
- "voice": "OpenAI gpt-4o-mini-tts (tts_openai.py), voice chosen per take in \"take\". Synthetic; say so where it is posted.",
- "take": {"voice": "cedar", "take": 1},
+ "drama_direction": "warm, calm and assured, unhurried, like showing a friend something you made",
+ "voice": "Made with tts.py (OpenAI gpt-4o-mini-tts or Fish Audio Drama 3); the take used is in \"take\". Synthetic; say so where it is posted.",
+ "take": {"engine": "openai", "voice": "cedar", "take": 1},
  "scenes": [
   {"id": "01-hook", "section": "hook", "caption": "This is LokalBot. Autocomplete for your whole Mac."},
   {"id": "02-memory", "section": "memory", "caption": "It remembers what your team decided, so it can finish the sentence for you."},
