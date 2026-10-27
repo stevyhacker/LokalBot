@@ -19,8 +19,18 @@ node render.cjs events "$OUT/events.json"
 python3 audio.py edit.json "$OUT/events.json" "$OUT/soundtrack.wav"
 
 echo "== picture =="
-rm -rf "$OUT/frames"
-node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
+# KEEP_FRAMES=1 reuses frames already rendered.
+if [[ ${KEEP_FRAMES:-} != 1 ]]; then
+  rm -rf "$OUT/frames"
+  node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
+fi
+# X shows a video's first frame as its thumbnail, and the film opens on an
+# empty frame. Frame 1 becomes the hook as the suggestion shows (1.43 s): the
+# logo, "Autocomplete for" with "your whole Mac." in gray, and the Tab key.
+thumb=$(printf %05d "${THUMB_FRAME:-44}")
+[[ -f "$OUT/frames/first.png" ]] || cp "$OUT/frames/00001.png" "$OUT/frames/first.png"
+cp "$OUT/frames/$thumb.png" "$OUT/frames/00001.png"
+cp "$OUT/frames/$thumb.png" "$OUT/lokalbot-autocomplete-demo-thumbnail.png"
 
 echo "== MP4 =="
 # Two-pass EBU R128 to -14 LUFS, the level the social sites play at.
