@@ -46,33 +46,65 @@
  "wordClip": "midword",
  "clips": {
   "memory": {
-   "src": "footage/placeholder-memory",
-   "frames": 360,
+   "src": "footage/light-memory",
+   "frames": 925,
    "size": [
-    2080,
-    660
+    1756,
+    330
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     8.8824
     ],
     [
-     4.6,
-     11.5
+     0.12,
+     8.8824
+    ],
+    [
+     1.9293,
+     15.396
+    ],
+    [
+     2.1493,
+     24.721
+    ],
+    [
+     2.6493,
+     25.694
+    ],
+    [
+     4.662,
+     28.713
     ]
    ],
    "accepts": [
-    2.6,
-    2.9,
-    3.2,
-    3.5,
-    3.8
+    2.649,
+    2.981,
+    3.267,
+    3.588,
+    3.902,
+    4.191
    ],
-   "ghostAt": 2.0,
-   "keys": [],
+   "ghostAt": 2.149,
+   "keys": [
+    0.138,
+    0.193,
+    0.249,
+    0.304,
+    0.36,
+    0.415,
+    0.471,
+    0.527,
+    0.582,
+    0.638,
+    0.693,
+    1.719,
+    1.788
+   ],
    "kicker": "Remembers your meetings",
-   "title": "Knows what you <em>decided</em>."
+   "title": "Knows what you <em>decided</em>.",
+   "background": "#FFFFFF"
   },
   "email": {
    "src": "footage/placeholder-email",
@@ -104,120 +136,179 @@
    "title": "Writes the rest. <em>You press Tab.</em>"
   },
   "midword": {
-   "src": "footage/placeholder-midword",
-   "frames": 360,
+   "src": "footage/light-midword",
+   "frames": 522,
    "size": [
-    2080,
-    660
+    1756,
+    330
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     3.904799999999997
     ],
     [
-     4.6,
-     11.5
+     0.12,
+     3.904799999999997
+    ],
+    [
+     1.2837,
+     8.094
+    ],
+    [
+     1.5037,
+     13.08
+    ],
+    [
+     2.0037,
+     14.057
+    ],
+    [
+     2.757,
+     15.187
     ]
    ],
    "accepts": [
-    2.6,
-    2.9,
-    3.2,
-    3.5,
-    3.8
+    2.004,
+    2.292
    ],
-   "ghostAt": 2.0,
+   "ghostAt": 1.504,
    "keys": [],
    "kicker": "Mid-word",
-   "title": "Finishes the word <em>you're typing</em>."
+   "title": "Finishes the word <em>you're typing</em>.",
+   "background": "#FFFFFF"
   },
   "german": {
-   "src": "footage/placeholder-german",
-   "frames": 360,
+   "src": "footage/light-german",
+   "frames": 608,
    "size": [
-    2080,
-    660
+    1756,
+    330
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     11.158
     ],
     [
-     4.6,
-     11.5
+     0.0,
+     11.158
+    ],
+    [
+     0.3,
+     12.238
+    ],
+    [
+     0.42,
+     16.313
+    ],
+    [
+     0.67,
+     17.23
+    ],
+    [
+     1.452,
+     18.403
     ]
    ],
    "accepts": [
-    2.6,
-    2.9,
-    3.2,
-    3.5,
-    3.8
+    0.67,
+    0.971
    ],
-   "ghostAt": 2.0,
+   "ghostAt": 0.42,
    "keys": [],
    "kicker": "",
-   "title": ""
+   "title": "",
+   "background": "#FFFFFF"
   },
   "french": {
-   "src": "footage/placeholder-french",
-   "frames": 360,
+   "src": "footage/light-french",
+   "frames": 659,
    "size": [
-    2080,
-    660
+    1756,
+    330
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     10.575
     ],
     [
-     4.6,
-     11.5
+     0.0,
+     10.575
+    ],
+    [
+     0.3,
+     11.655
+    ],
+    [
+     0.42,
+     17.496
+    ],
+    [
+     0.67,
+     18.439
+    ],
+    [
+     1.5087,
+     19.697
     ]
    ],
    "accepts": [
-    2.6,
-    2.9,
-    3.2,
-    3.5,
-    3.8
+    0.67,
+    0.985
    ],
-   "ghostAt": 2.0,
+   "ghostAt": 0.42,
    "keys": [],
    "kicker": "",
-   "title": ""
+   "title": "",
+   "background": "#FFFFFF"
   },
   "spanish": {
-   "src": "footage/placeholder-spanish",
-   "frames": 360,
+   "src": "footage/light-spanish",
+   "frames": 750,
    "size": [
-    2080,
-    660
+    1756,
+    330
    ],
    "map": [
     [
-     0,
-     0
+     0.0,
+     8.945
     ],
     [
-     4.6,
-     11.5
+     0.0,
+     8.945
+    ],
+    [
+     0.3,
+     10.025
+    ],
+    [
+     0.42,
+     19.805
+    ],
+    [
+     0.67,
+     20.728
+    ],
+    [
+     2.404,
+     23.329
     ]
    ],
    "accepts": [
-    2.6,
-    2.9,
-    3.2,
-    3.5,
-    3.8
+    0.67,
+    0.979,
+    1.311,
+    1.588,
+    1.894
    ],
-   "ghostAt": 2.0,
+   "ghostAt": 0.42,
    "keys": [],
    "kicker": "",
-   "title": ""
+   "title": "",
+   "background": "#FFFFFF"
   }
  },
  "memory": {
@@ -278,23 +369,23 @@
    "options": [
     [
      " per",
-     0.67
+     0.669
     ],
     [
      "/",
-     0.194
+     0.197
     ],
     [
      " a",
-     0.022
+     0.024
     ],
     [
      ".",
      0.015
     ],
     [
-     " USD",
-     0.015
+     "0",
+     0.013
     ]
    ]
   },
@@ -303,23 +394,23 @@
    "options": [
     [
      " seat",
-     0.841
+     0.821
     ],
     [
      " month",
-     0.048
+     0.06
     ],
     [
      " user",
-     0.029
-    ],
-    [
-     " team",
-     0.023
+     0.038
     ],
     [
      " person",
-     0.017
+     0.021
+    ],
+    [
+     " team",
+     0.018
     ]
    ]
   },
@@ -328,23 +419,23 @@
    "options": [
     [
      ",",
-     0.556
+     0.573
     ],
     [
      " per",
-     0.112
+     0.117
     ],
     [
      " billed",
-     0.089
+     0.081
     ],
     [
      ".",
-     0.054
+     0.049
     ],
     [
      " and",
-     0.051
+     0.04
     ]
    ]
   },
@@ -353,19 +444,19 @@
    "options": [
     [
      " billed",
-     0.894
+     0.876
     ],
     [
      " per",
-     0.027
+     0.03
     ],
     [
      " and",
-     0.014
+     0.017
     ],
     [
      "\n",
-     0.008
+     0.013
     ],
     [
      " paid",
@@ -378,23 +469,23 @@
    "options": [
     [
      " annually",
-     0.915
+     0.877
     ],
     [
      "\n",
-     0.043
+     0.075
     ],
     [
      " yearly",
      0.014
     ],
     [
-     " per",
+     " once",
      0.004
     ],
     [
-     " once",
-     0.003
+     " per",
+     0.004
     ]
    ]
   },
@@ -403,19 +494,19 @@
    "options": [
     [
      ".",
-     0.761
+     0.745
     ],
     [
      ",",
-     0.127
+     0.131
     ],
     [
      " (",
-     0.025
+     0.026
     ],
     [
      " and",
-     0.015
+     0.016
     ],
     [
      " for",

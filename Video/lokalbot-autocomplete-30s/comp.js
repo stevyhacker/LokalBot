@@ -223,7 +223,8 @@ const CARD_FRAG = `
     vec3 c = texture2D(uMap, vUv).rgb * (1.0 - uDim);
     float rim = (1.0 - smoothstep(0.0, uRadius * 0.6, abs(d))) * uRim;
     c += vec3(0.43, 0.95, 0.86) * rim * 1.6;
-    gl_FragColor = vec4(c, inside * uOpacity * vFade);
+    // Kept under the bloom threshold: a white window would otherwise glow.
+    gl_FragColor = vec4(min(c, vec3(0.96)), inside * uOpacity * vFade);
   }`;
 function tiledPlane(w, h, nx, ny) {
   const pos = [], uv = [], center = [], rand = [], index = [];

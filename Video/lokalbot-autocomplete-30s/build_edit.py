@@ -28,6 +28,11 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 SHOTS = HERE.parent.parent / 'Scripts' / 'autocomplete-demo' / 'shots'
 FPS = 30
+# The part of each 1760 x 420 take the edit shows: the text lines, without the
+# empty page below them or the scroll bar on the right. PAD widens the page on
+# the left, where the card's rounded corner would clip the first letters.
+CROP = (1720, 330)
+PAD = 36
 
 
 def slots(edit):
@@ -114,14 +119,16 @@ def probe_size(mp4):
     return int(s['width']), int(s['height']), int(s['nb_read_packets'])
 
 
-def extract(mp4, dest, needed):
+def extract(mp4, dest, needed, background):
     """Write only the frames the edit shows, named by their 1-based index in the clip."""
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True)
     lo, hi = min(needed), max(needed)
     with tempfile.TemporaryDirectory() as tmp:
-        subprocess.run(['ffmpeg', '-v', 'error', '-i', str(mp4), '-vf', f'select=between(n\\,{lo}\\,{hi})',
+        subprocess.run(['ffmpeg', '-v', 'error', '-i', str(mp4),
+                        '-vf', f'crop={CROP[0]}:{CROP[1]}:0:0,pad=iw+{PAD}:ih:{PAD}:0:color={background},'
+                        f'select=between(n\\,{lo}\\,{hi})',
                         '-vsync', '0', '-q:v', '2', '-start_number', str(lo + 1), f'{tmp}/%04d.jpg'], check=True)
         for n in needed:
             shutil.move(f'{tmp}/{n + 1:04d}.jpg', dest / f'{n + 1:04d}.jpg')
@@ -196,7 +203,7 @@ def main():
     if len(sys.argv) < 2:
         raise SystemExit(__doc__)
     root = Path(sys.argv[1])
-    appearance = sys.argv[2] if len(sys.argv) > 2 else 'dark'
+    appearance = sys.argv[2] if len(sys.argv) > 2 else 'light'
     edit = json.loads((HERE / 'edit.json').read_text())
     for name, (length, typing) in slots(edit).items():
         mp4 = root / 'clips' / f'{appearance}-{name}.mp4'
@@ -204,10 +211,11 @@ def main():
         shot = json.loads((SHOTS / f'{name}.json').read_text())
         points, ghost, tabs, stats = plan(meta['events'], shot, length, typing)
         width, height, frames = probe_size(mp4)
-        # Sampled finer than the frame rate: a slot need not start on a frame.
-        needed = sorted({min(max(round(source_time(points, i / 240) * FPS), 0), frames - 1)
-                         for i in range(-120, int((length + 1.5) * 240))})
-        extract(mp4, HERE / 'footage' / f'{appearance}-{name}', needed)
+        width, height = min(width, CROP[0]) + PAD, min(height, CROP[1])
+        # Every frame in the span the map plays: a squeezed wait can land on any of them.
+        span = [min(max(round(p[1] * FPS), 0), frames - 1) for p in points]
+        needed = list(range(min(span), max(span) + 1))
+        extract(mp4, HERE / 'footage' / f'{appearance}-{name}', needed, meta.get('background') or '#FFFFFF')
         keys = [to_slot(points, k) for k in key_times(meta['events'], shot)]
         keys = [k for k in keys if k is not None]
         thinned = []

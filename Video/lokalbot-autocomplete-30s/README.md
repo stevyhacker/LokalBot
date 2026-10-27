@@ -37,6 +37,6 @@ then a three.js look at how a suggestion is made.
 ```sh
 git fetch origin pr-assets/<pr>-autocomplete-demo
 mkdir -p /tmp/takes && git archive FETCH_HEAD | tar -x -C /tmp/takes
-python3 build_edit.py /tmp/takes dark
+python3 build_edit.py /tmp/takes light
 ./make.sh
 ```
