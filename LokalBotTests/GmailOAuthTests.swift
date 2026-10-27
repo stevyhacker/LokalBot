@@ -300,7 +300,7 @@ final class GmailOAuthTests: XCTestCase {
         })
 
         let token = await authorizer.forget(accountID)
-        XCTAssertEqual(token, "refresh-1")
+        XCTAssertEqual(token, ["refresh-1"])
         XCTAssertNil(try secrets.credentials(for: accountID))
         XCTAssertTrue(seen.requests.isEmpty)
         let confirmed = await authorizer.revoke(token: "refresh-1")
@@ -326,7 +326,7 @@ final class GmailOAuthTests: XCTestCase {
         }
         XCTAssertEqual(try secrets.credentials(for: accountID), credentials)
         let token = await authorizer.forget(accountID)
-        XCTAssertEqual(token, "refresh-1")
+        XCTAssertEqual(token, ["refresh-1"])
     }
 
     func testALockedKeychainIsNotASignOut() async {
@@ -359,24 +359,59 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertEqual(secrets.reads, 1)
     }
 
-    func testANewSignInRevokesTheTokenItReplaces() async throws {
+    func testReconnectKeepsTheNewGrantAndRetainsOldTokensUntilDisconnect() async throws {
         let accountID = UUID()
         let secrets = MemoryEmailSecrets(credentials: [accountID: EmailCredentials(
-            accessToken: "a", refreshToken: "old-refresh", expiresAt: Fixtures.now)])
-        let revoked = RequestBox()
+            accessToken: "a", refreshToken: "old-refresh", expiresAt: Fixtures.now,
+            clientID: Self.builtIn.clientID, pendingRevocationTokens: ["older-client-refresh"])])
+        let seen = RequestBox()
         let authorizer = GmailAuthorizer(secrets: secrets, transport: { request in
-            revoked.append(request)
-            return (Data(), Fixtures.response(request, 200))
-        })
+            seen.append(request)
+            XCTAssertEqual(request.url, GmailOAuth.tokenURL, "reconnect must never revoke the new project's grant")
+            XCTAssertEqual(Fixtures.form(request)["refresh_token"], "new-refresh")
+            return (Fixtures.json(["access_token": "refreshed", "expires_in": 3_600]), Fixtures.response(request, 200))
+        }, now: { Fixtures.now })
 
-        await authorizer.save(EmailCredentials(accessToken: "b", refreshToken: "new-refresh", expiresAt: Fixtures.now),
+        await authorizer.save(EmailCredentials(accessToken: "b", refreshToken: "new-refresh", expiresAt: Fixtures.now,
+                                              clientID: Self.builtIn.clientID),
                               for: accountID)
-        for _ in 0..<50 where revoked.requests.isEmpty {
-            try await Task.sleep(for: .milliseconds(10))
-        }
+        let refreshed = try await authorizer.accessToken(for: accountID, address: Fixtures.me)
+        XCTAssertEqual(refreshed, "refreshed")
+        XCTAssertEqual(seen.requests.count, 1)
 
-        XCTAssertEqual(try secrets.credentials(for: accountID)?.refreshToken, "new-refresh")
-        XCTAssertEqual(revoked.requests.map { Fixtures.form($0)["token"] }, ["old-refresh"])
+        // The pending revocations survive serialization and a fresh authorizer.
+        let saved = try XCTUnwrap(secrets.credentials(for: accountID))
+        let restored = try JSONDecoder().decode(EmailCredentials.self, from: JSONEncoder().encode(saved))
+        let restarted = GmailAuthorizer(secrets: MemoryEmailSecrets(credentials: [accountID: restored]))
+        let tokens = await restarted.forget(accountID)
+        XCTAssertEqual(tokens, ["new-refresh", "old-refresh", "older-client-refresh"])
+    }
+
+    func testExpiredCurrentGrantStillRetainsPreviousClientsForDisconnect() async throws {
+        let accountID = UUID()
+        let secrets = MemoryEmailSecrets(credentials: [accountID: EmailCredentials(
+            accessToken: "a", refreshToken: "expired", expiresAt: Fixtures.now,
+            pendingRevocationTokens: ["previous-project-refresh"])])
+        let authorizer = GmailAuthorizer(secrets: secrets, transport: { request in
+            (Fixtures.json(["error": "invalid_grant"]), Fixtures.response(request, 400))
+        }, now: { Fixtures.now })
+        do {
+            _ = try await authorizer.accessToken(for: accountID, address: Fixtures.me)
+            XCTFail("expected sign-in required")
+        } catch {
+            XCTAssertEqual(error as? GmailError, .signInRequired(Fixtures.me))
+        }
+        let tokens = await authorizer.forget(accountID)
+        XCTAssertEqual(tokens, ["expired", "previous-project-refresh"])
+        XCTAssertNil(try secrets.credentials(for: accountID))
+    }
+
+    func testCredentialsFromBeforePendingRevocationsStillDecode() throws {
+        let data = try JSONEncoder().encode(EmailCredentials(
+            accessToken: "a", refreshToken: "r", expiresAt: Fixtures.now))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertNil(json["pendingRevocationTokens"])
+        XCTAssertNil(try JSONDecoder().decode(EmailCredentials.self, from: data).pendingRevocationTokens)
     }
 
     // MARK: Sign-in
@@ -423,8 +458,8 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertTrue(redirect.value?.hasPrefix("http://127.0.0.1:") == true)
     }
 
-    func testSignInNeedsAnImportedClient() async {
-        let authorizer = GmailAuthorizer(secrets: MemoryEmailSecrets(client: nil), transport: { request in
+    func testSignInNeedsABuiltInOrImportedClient() async {
+        let authorizer = GmailAuthorizer(secrets: MemoryEmailSecrets(client: nil), builtInClient: nil, transport: { request in
             XCTFail("no request without a client")
             return (Data(), Fixtures.response(request, 500))
         })

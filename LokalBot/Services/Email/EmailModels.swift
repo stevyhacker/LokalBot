@@ -119,6 +119,9 @@ struct EmailCredentials: Codable, Equatable, Sendable {
     var expiresAt: Date
     /// The OAuth client that issued these tokens; refreshing needs the same one.
     var clientID: String?
+    /// Replaced sign-ins, retained only so Disconnect can revoke grants from
+    /// previous clients too. Revoking during reconnect can revoke the new grant.
+    var pendingRevocationTokens: [String]?
 }
 
 protocol EmailSecretStore: Sendable {

@@ -151,19 +151,23 @@ actor GmailAuthorizer {
         signInListener = nil
     }
 
-    /// Files a finished sign-in under its account. A sign-in that replaces
-    /// a different refresh token (a new client file, a second consent)
-    /// revokes the old one, so no grant stays live at Google unused.
+    /// Files a finished sign-in under its account. Google revocation affects
+    /// the whole project's grant, including a newly issued token. Keep replaced
+    /// tokens in the Keychain for Disconnect instead of revoking on reconnect.
     func save(_ credentials: EmailCredentials, for accountID: UUID) {
         refreshTasks[accountID]?.cancel()
         refreshTasks[accountID] = nil
         let previous = cache[accountID] ?? (try? secrets.credentials(for: accountID))
-        cache[accountID] = credentials
-        secrets.setCredentials(credentials, for: accountID)
-        if let previous, previous.refreshToken != credentials.refreshToken {
-            let token = previous.refreshToken
-            Task { await self.revoke(token: token) }
+        var next = credentials
+        var pending = Set(credentials.pendingRevocationTokens ?? [])
+        if let previous {
+            pending.formUnion(previous.pendingRevocationTokens ?? [])
+            pending.insert(previous.refreshToken)
         }
+        pending.remove(credentials.refreshToken)
+        next.pendingRevocationTokens = pending.isEmpty ? nil : pending.sorted()
+        cache[accountID] = next
+        secrets.setCredentials(next, for: accountID)
     }
 
     // MARK: Tokens
@@ -220,8 +224,12 @@ actor GmailAuthorizer {
             if let code, GmailOAuth.revokedGrantErrors.contains(code) {
                 lokalbotLog("email gmail refresh rejected code=\(code)")
                 if cache[accountID]?.refreshToken == credentials.refreshToken {
-                    cache[accountID] = nil
-                    secrets.setCredentials(nil, for: accountID)
+                    // Older clients may belong to another Cloud project. Keep
+                    // their tokens available for Disconnect even if this grant expired.
+                    if credentials.pendingRevocationTokens?.isEmpty ?? true {
+                        cache[accountID] = nil
+                        secrets.setCredentials(nil, for: accountID)
+                    }
                 }
                 throw GmailError.signInRequired(address)
             }
@@ -259,15 +267,16 @@ actor GmailAuthorizer {
 
     // MARK: Disconnect
 
-    /// Stops using the account at once: forgets its tokens here and returns
-    /// the refresh token for `revoke(token:)`. Nil when nothing was stored.
-    func forget(_ accountID: UUID) -> String? {
+    /// Stops using the account at once and returns every retained refresh
+    /// token for revocation, including grants from previously used clients.
+    func forget(_ accountID: UUID) -> [String] {
         refreshTasks[accountID]?.cancel()
         refreshTasks[accountID] = nil
-        let token = (cache[accountID] ?? (try? secrets.credentials(for: accountID)))?.refreshToken
+        let credentials = cache[accountID] ?? (try? secrets.credentials(for: accountID))
         cache[accountID] = nil
         secrets.setCredentials(nil, for: accountID)
-        return token
+        guard let credentials else { return [] }
+        return Array(Set([credentials.refreshToken] + (credentials.pendingRevocationTokens ?? []))).sorted()
     }
 
     /// Asks Google to revoke a refresh token, which also ends every access

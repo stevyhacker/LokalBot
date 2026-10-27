@@ -238,7 +238,7 @@ final class EmailController: ObservableObject {
         }
         manualRequests.remove(accountID)
         launchPending.remove(accountID)
-        let token = await authorizer.forget(accountID)
+        let tokens = await authorizer.forget(accountID)
         do {
             // An unreadable account list is never overwritten.
             try loadAccountsIfNeeded()
@@ -248,8 +248,10 @@ final class EmailController: ObservableObject {
         } catch {
             lastError = "This account couldn't be removed completely: \(error.localizedDescription)"
         }
-        guard let token else { return true }
-        let confirmed = await authorizer.revoke(token: token)
+        var confirmed = true
+        for token in tokens {
+            if !(await authorizer.revoke(token: token)) { confirmed = false }
+        }
         lokalbotLog("email account disconnected revoked=\(confirmed) accounts=\(accounts.count)")
         return confirmed
     }

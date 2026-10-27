@@ -99,7 +99,8 @@ final class EmailControllerTests: XCTestCase {
             try store.saveThread(EmailThread(id: "t1", accountID: account.id, subject: "s", messages: []))
         }
         let secrets = MemoryEmailSecrets(credentials: [
-            removed.id: EmailCredentials(accessToken: "a", refreshToken: "r", expiresAt: GmailFixtures.now),
+            removed.id: EmailCredentials(accessToken: "a", refreshToken: "r", expiresAt: GmailFixtures.now,
+                                         pendingRevocationTokens: ["old-r"]),
             kept.id: EmailCredentials(accessToken: "a2", refreshToken: "r2", expiresAt: GmailFixtures.now),
         ])
         let revoked = RevocationLog()
@@ -115,7 +116,7 @@ final class EmailControllerTests: XCTestCase {
         let confirmed = await controller.disconnect(removed.id)
 
         XCTAssertTrue(confirmed)
-        XCTAssertEqual(revoked.tokens, ["r"])
+        XCTAssertEqual(revoked.tokens, ["old-r", "r"])
         XCTAssertNil(try secrets.credentials(for: removed.id))
         XCTAssertNotNil(try secrets.credentials(for: kept.id))
         XCTAssertEqual(controller.accounts.map(\.id), [kept.id])
