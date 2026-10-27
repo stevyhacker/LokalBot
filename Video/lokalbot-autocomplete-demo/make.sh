@@ -1,10 +1,11 @@
 #!/bin/bash
-# Renders the autocomplete demo: picture, voice, music, MP4, GIF and poster.
+# Renders the autocomplete demo: picture, soundtrack, MP4, GIF, poster and captions.
 #
 #   ./make.sh [out-dir]          default: renders/ (gitignored)
 #
 # Needs Node with Playwright (headless Chromium), Python 3 with numpy and
-# scipy, and ffmpeg. The footage frames come from build_edit.py.
+# scipy, and ffmpeg. The footage frames come from build_edit.py; the voice,
+# music and effects from the voice assets branch (see README.md).
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${1:-$HERE/renders}
@@ -38,5 +39,19 @@ echo "== GIF and poster =="
 ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-demo.mp4" -vf \
   "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
   "$OUT/lokalbot-autocomplete-demo.gif"
-cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-679}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
+# The hook's last frame: the logo and "Autocomplete for your whole Mac."
+cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-166}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
+
+echo "== captions =="
+# Every spoken line, for sites that take a caption file (YouTube).
+python3 - "$OUT/lokalbot-autocomplete-demo.srt" <<'PY'
+import json, sys
+def stamp(t):
+    ms = round(t * 1000)
+    return f'{ms // 3600000:02d}:{ms // 60000 % 60:02d}:{ms // 1000 % 60:02d},{ms % 1000:03d}'
+subs = json.load(open('edit.json'))['subtitles']
+with open(sys.argv[1], 'w') as f:
+    for i, (a, b, text) in enumerate(subs, 1):
+        f.write(f'{i}\n{stamp(a)} --> {stamp(b)}\n{text}\n\n')
+PY
 ls -lh "$OUT"/lokalbot-autocomplete-demo*

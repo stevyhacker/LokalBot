@@ -347,7 +347,8 @@ const tree = (() => {
   let x = -root.w / 2;
   rootMesh.position.set(x, 0, 0);
   group.add(rootMesh);
-  let prevRight = x + root.w / 2;
+  // Columns sit side by side; each edge leaves from the word picked before it.
+  let prevRight = x + root.w / 2, prevEdge = prevRight;
   const SLOT = [0, 1.32, -1.32, 2.64, -2.64];
   const columns = STEPS.map(step => {
     const options = step.options.slice(0, 3);
@@ -367,7 +368,7 @@ const tree = (() => {
       mesh.position.set(left, y, 0); litMesh.position.set(left, y, 0.01);
       const edge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: TEAL, transparent: true, opacity: 0, depthWrite: false }));
       edge.geometry.translate(0.5, 0, 0);
-      const from = v3(prevRight + 0.05, 0, -0.01), to = v3(left - c.plain.w / 2 - 0.05, y, -0.01);
+      const from = v3(prevEdge + 0.05, 0, -0.01), to = v3(left - c.plain.w / 2 - 0.05, y, -0.01);
       edge.position.copy(from);
       edge.rotation.z = Math.atan2(to.y - from.y, to.x - from.x);
       edge.userData.length = from.distanceTo(to);
@@ -375,13 +376,14 @@ const tree = (() => {
       return { ...c, mesh, litMesh, edge, y, left };
     });
     const chosen = items.find(i => i.chosen) || items[0];
-    prevRight = chosen.left + chosen.plain.w / 2;
+    prevEdge = chosen.left + chosen.plain.w / 2;
+    prevRight = cx + width / 2;
     return { items, cx, chosen };
   });
   return { group, rootMesh, columns, rootX: x };
 })();
 const gateLabel = el(EDIT.gateLabel, 'abs tag', ui);
-Object.assign(gateLabel.style, { color: 'var(--amber)', fontSize: '32px' });
+Object.assign(gateLabel.style, { left: '120px', top: '232px', color: 'var(--amber)', fontSize: '30px' });
 
 // ---- 4: ghost text and Tab, then the end card
 const ghostLayer = layer();
@@ -609,13 +611,8 @@ function layoutPick(t) {
       item.edge.material.opacity = o * (item.chosen ? 0.55 + decided * 0.4 : lerp(0.5, 0.2, decided)) * Math.sqrt(Math.max(item.q, 0.04));
     });
   });
-  // The first word is checked against the confidence gate.
-  const first = tree.columns[0];
-  if (first) {
-    const pt = project(tree.group.localToWorld(v3(first.cx - 1.2, -2.35, 0)));
-    gateLabel.style.left = `${pt.x}px`; gateLabel.style.top = `${pt.y}px`;
-    show(gateLabel, o * win(t, EDIT.beats.pickGate, p1, 0.5, 0.4));
-  }
+  // The first word is checked against the confidence gate, as the voice says.
+  show(gateLabel, o * win(t, EDIT.beats.pickGate, p1, 0.5, 0.4));
 }
 
 function layoutGhost(t) {

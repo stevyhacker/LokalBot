@@ -1,11 +1,11 @@
 {
  "voice_direction": "Warm, calm and assured, like showing a friend something you made. Unhurried, with small pauses between lines. Never salesy.",
  "drama_direction": "warm, calm and assured, unhurried, like showing a friend something you made",
- "voice": "Made with tts.py (OpenAI gpt-4o-mini-tts or Fish Audio Drama 3); the take used is in \"take\". Synthetic; say so where it is posted.",
- "take": {"engine": "openai", "voice": "cedar", "take": 1},
+ "voice": "ElevenLabs eleven_v4 in voice jBeSFLau956Zo30jykBV (tts_elevenlabs.py), or OpenAI gpt-4o-mini-tts (tts.py); the take used is in \"take\". Synthetic; say so where it is posted.",
+ "take": {"engine": "eleven", "seed": 11},
  "scenes": [
-  {"id": "01-hook", "section": "hook", "caption": "This is LokalBot. Autocomplete for your whole Mac."},
-  {"id": "02-memory", "take": {"take": 2}, "section": "memory", "caption": "It remembers what your team decided, so it can finish the sentence for you."},
+  {"id": "01-hook", "take": {"seed": 29}, "section": "hook", "caption": "This is LokalBot. Autocomplete for your whole Mac."},
+  {"id": "02-memory", "section": "memory", "caption": "It remembers what your team decided, so it can finish the sentence for you."},
   {"id": "03-word", "section": "word", "caption": "It completes the word you're typing,"},
   {"id": "04-langs", "section": "langs", "caption": "in whatever language you write."},
   {"id": "05-how", "section": "dive", "caption": "So how does it work?"},
@@ -13,7 +13,7 @@
   {"id": "07-model", "section": "model", "caption": "A small model, Gemma 4, runs right inside the app. No server, no cloud, no account.",
    "spoken": "A small model, Gemma four, runs right inside the app. No server, no cloud, no account."},
   {"id": "08-pick", "section": "pick", "caption": "It weighs every possible next word. When it isn't sure, it stays quiet."},
-  {"id": "09-ghost", "take": {"take": 2}, "section": "ghost", "caption": "When it is, the rest appears in gray, and Tab takes it one word at a time."},
+  {"id": "09-ghost", "section": "ghost", "caption": "When it is, the rest appears in gray, and Tab takes it one word at a time."},
   {"id": "10-end", "section": "end", "caption": "LokalBot. Free, open source, and it runs on your Mac."}
  ]
 }

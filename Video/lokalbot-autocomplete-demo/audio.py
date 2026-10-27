@@ -71,6 +71,17 @@ def place(bus, clip, t, gain=1.0, pan=0.0):
     bus[i:i + n, 1] += clip[:n] * gain * right * np.sqrt(2)
 
 
+def from_onset(x):
+    """The clip from just before it starts sounding, so it lands on its cue."""
+    i = np.flatnonzero(np.abs(x) > np.abs(x).max() * 0.05)
+    return x[max(i[0] - int(0.002 * SR), 0):] if len(i) else x
+
+
+def peak_time(x):
+    """When a swell is loudest, in seconds from its start."""
+    return float(np.argmax(envelope(x, 0.005, 0.05))) / SR
+
+
 def keystrokes(typing):
     """Single key clicks cut from a recording of typing, at its onsets."""
     env = envelope(typing, 0.001, 0.03)
@@ -133,13 +144,19 @@ def main():
     fx = np.zeros((n, 2))
     clips = {name: load(sound / f'{file}.mp3') for name, file in mix['effects'].items()}
     keys = keystrokes(clips.pop('type'))
+    for name in ('tab', 'ghost', 'tick'):
+        clips[name] = from_onset(clips[name])
+    # Swells peak on their cue: the whoosh on the cut, the reveal as the logo settles.
+    whoosh_peak, reveal_peak = peak_time(clips['whoosh']), peak_time(clips['reveal'])
     gains = {k: db(v) for k, v in mix['effect_db'].items()}
     for t, kind in events:
         name = kind.split(':')[0]
         if name == 'type':
             place(fx, keys[rng.integers(len(keys))], t - 0.004, gains['type'] * rng.uniform(0.75, 1.0), rng.uniform(-0.2, 0.2))
         elif name == 'whoosh':
-            place(fx, fade(clips['whoosh'], 0.05, 0.3), t - 0.35, gains['whoosh'], rng.uniform(-0.3, 0.3))
+            place(fx, fade(clips['whoosh'], 0.05, 0.3), t - whoosh_peak, gains['whoosh'], rng.uniform(-0.3, 0.3))
+        elif name == 'reveal':
+            place(fx, fade(clips['reveal'], 0.05, 0.4), t + 1.0 - reveal_peak, gains['reveal'])
         elif name == 'token':
             place(fx, clips['tick'], t, gains['token'], 0.15)
         elif name in clips:
