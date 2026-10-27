@@ -1,0 +1,758 @@
+2026-10-27T21:44:34.029Z INFO [app] detector idle app=none
+2026-10-27T21:44:34.043Z INFO [app] Sparkle updater started.
+2026-10-27T21:44:35.976Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:44:43.204Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:44:43.413Z INFO [app] film: cotyping idle
+2026-10-27T21:44:45.661Z INFO [app] film: request {"prefix":"","prompt":"Topic: Warm up.txt\n\n"}
+2026-10-27T21:44:45.951Z INFO [app] cotyping window text: no single on-screen window matches the focused one
+2026-10-27T21:44:51.754Z INFO [app] film: cotyping debouncing
+2026-10-27T21:44:52.076Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nM","prefix":"Notes\n\nM"}
+2026-10-27T21:44:52.077Z INFO [app] film: cotyping generating
+2026-10-27T21:44:55.683Z INFO [app] film: cotyping debouncing
+2026-10-27T21:44:58.387Z INFO [app] film: request {"prefix":"Notes\n\nMonday, Tuesd","prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesd"}
+2026-10-27T21:44:58.388Z INFO [app] film: cotyping generating
+2026-10-27T21:44:59.685Z INFO [app] film: cotyping debouncing
+2026-10-27T21:45:00.864Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, Wednesd","prefix":"Notes\n\nMonday, Tuesday, Wednesd"}
+2026-10-27T21:45:00.871Z INFO [app] film: cotyping generating
+2026-10-27T21:45:13.397Z INFO [app] film: cotyping debouncing
+2026-10-27T21:45:13.500Z INFO [app] film: request {"prefix":"Notes\n\nMonday, Tuesday, Wednesday, Thursday, ","prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, Wednesday, Thursday, "}
+2026-10-27T21:45:13.500Z INFO [app] film: cotyping generating
+2026-10-27T21:45:22.998Z INFO [app] cotyping window text: read 2 lines in 31058 ms, kept 1 lines (24 characters); using them
+2026-10-27T21:45:38.361Z INFO [app] speaker voices not analyzed: the voice model is not installed or speaker separation is off
+2026-10-27T21:46:37.447Z INFO [app] film: cotyping ready(text: "Friday, Saturday, Sunday")
+2026-10-27T21:46:51.946Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:52.093Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:46:52.396Z INFO [app] film: cotyping idle
+2026-10-27T21:46:52.434Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:52.765Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\n\nHi all,\n\nAft","prefix":"Hi all,\n\nAft"}
+2026-10-27T21:46:52.775Z INFO [app] film: cotyping generating
+2026-10-27T21:46:52.789Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\n\nHi all,\n\nAft","prefix":"Hi all,\n\nAft"}
+2026-10-27T21:46:53.556Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:53.586Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter t","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter t"}
+2026-10-27T21:46:53.587Z INFO [app] film: cotyping generating
+2026-10-27T21:46:54.170Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:54.269Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the ","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the "}
+2026-10-27T21:46:54.269Z INFO [app] film: cotyping generating
+2026-10-27T21:46:54.863Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:54.882Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the la","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the la"}
+2026-10-27T21:46:54.883Z INFO [app] film: cotyping generating
+2026-10-27T21:46:55.375Z INFO [app] cotyping window text: read 3 lines in 2852 ms, kept 1 lines (30 characters); using them
+2026-10-27T21:46:55.552Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:55.689Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch","prefix":"Hi all,\n\nAfter the launch"}
+2026-10-27T21:46:55.690Z INFO [app] film: cotyping generating
+2026-10-27T21:46:56.368Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:56.457Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch pl","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch pl"}
+2026-10-27T21:46:56.457Z INFO [app] film: cotyping generating
+2026-10-27T21:46:56.861Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:56.873Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch plan","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch plan"}
+2026-10-27T21:46:56.874Z INFO [app] film: cotyping generating
+2026-10-27T21:46:57.158Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:57.273Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch plann","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch plann"}
+2026-10-27T21:46:57.274Z INFO [app] film: cotyping generating
+2026-10-27T21:46:57.831Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:58.076Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch plannin","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch plannin"}
+2026-10-27T21:46:58.078Z INFO [app] film: cotyping generating
+2026-10-27T21:46:58.547Z INFO [app] cotyping window text: read 3 lines in 1670 ms, kept 1 lines (30 characters); kept the text in use
+2026-10-27T21:46:58.674Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:58.823Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning ca","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning ca"}
+2026-10-27T21:46:58.823Z INFO [app] film: cotyping generating
+2026-10-27T21:46:59.259Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:59.294Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call","prefix":"Hi all,\n\nAfter the launch planning call"}
+2026-10-27T21:46:59.294Z INFO [app] film: cotyping generating
+2026-10-27T21:46:59.793Z INFO [app] film: cotyping debouncing
+2026-10-27T21:46:59.807Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, ","prefix":"Hi all,\n\nAfter the launch planning call, "}
+2026-10-27T21:46:59.807Z INFO [app] film: cotyping generating
+2026-10-27T21:47:00.641Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:00.780Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, t","prefix":"Hi all,\n\nAfter the launch planning call, t"}
+2026-10-27T21:47:00.781Z INFO [app] film: cotyping generating
+2026-10-27T21:47:01.207Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:01.315Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the"}
+2026-10-27T21:47:01.316Z INFO [app] film: cotyping generating
+2026-10-27T21:47:01.819Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:01.882Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Te","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Te"}
+2026-10-27T21:47:01.882Z INFO [app] film: cotyping generating
+2026-10-27T21:47:02.225Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:02.234Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Tea","prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Tea"}
+2026-10-27T21:47:02.235Z INFO [app] film: cotyping generating
+2026-10-27T21:47:02.460Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:02.598Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt - Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team ","prefix":"Hi all,\n\nAfter the launch planning call, the Team "}
+2026-10-27T21:47:02.598Z INFO [app] film: cotyping generating
+2026-10-27T21:47:03.090Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:03.103Z INFO [app] cotyping window text: read 3 lines in 1790 ms, kept 1 lines (30 characters); using them
+2026-10-27T21:47:03.128Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team pl","prefix":"Hi all,\n\nAfter the launch planning call, the Team pl"}
+2026-10-27T21:47:03.128Z INFO [app] film: cotyping generating
+2026-10-27T21:47:03.570Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:03.595Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan"}
+2026-10-27T21:47:03.596Z INFO [app] film: cotyping generating
+2026-10-27T21:47:03.938Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:03.950Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan ","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan "}
+2026-10-27T21:47:03.951Z INFO [app] film: cotyping generating
+2026-10-27T21:47:04.260Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:04.278Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan w","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan w"}
+2026-10-27T21:47:04.279Z INFO [app] film: cotyping generating
+2026-10-27T21:47:04.755Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:05.236Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will ","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will "}
+2026-10-27T21:47:05.239Z INFO [app] film: cotyping generating
+2026-10-27T21:47:05.688Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:05.794Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be","prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be"}
+2026-10-27T21:47:05.794Z INFO [app] film: cotyping generating
+2026-10-27T21:47:06.172Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:06.184Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be ","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be "}
+2026-10-27T21:47:06.189Z INFO [app] film: cotyping generating
+2026-10-27T21:47:06.893Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:06.916Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be $","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $"}
+2026-10-27T21:47:06.917Z INFO [app] film: cotyping generating
+2026-10-27T21:47:07.672Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:07.697Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be $15","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $15"}
+2026-10-27T21:47:07.698Z INFO [app] film: cotyping generating
+2026-10-27T21:47:07.779Z INFO [app] cotyping window text: read 3 lines in 1985 ms, kept 1 lines (30 characters); kept the text in use
+2026-10-27T21:47:20.011Z INFO [app] film: cotyping ready(text: " per seat, billed annually.")
+2026-10-27T21:47:21.116Z INFO [app] film: cotyping ready(text: " seat, billed annually.")
+2026-10-27T21:47:21.475Z INFO [app] film: cotyping ready(text: ", billed annually.")
+2026-10-27T21:47:21.884Z INFO [app] film: cotyping ready(text: " billed annually.")
+2026-10-27T21:47:22.277Z INFO [app] film: cotyping ready(text: " annually.")
+2026-10-27T21:47:22.780Z INFO [app] film: cotyping ready(text: ".")
+2026-10-27T21:47:23.167Z INFO [app] film: cotyping idle
+2026-10-27T21:47:23.350Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:23.381Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be $15 per seat, billed annually.","prompt":"Visible in this window:\n• E Launch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $15 per seat, billed annually."}
+2026-10-27T21:47:23.381Z INFO [app] film: cotyping generating
+2026-10-27T21:47:26.204Z INFO [app] cotyping window text: read 3 lines in 2789 ms, kept 1 lines (30 characters); kept the text in use
+2026-10-27T21:47:26.215Z INFO [app] film: cotyping idle
+2026-10-27T21:47:26.215Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:47:33.193Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:47:33.725Z INFO [app] film: cotyping idle
+2026-10-27T21:47:33.848Z INFO [app] film: request {"prompt":"Topic: Tomorrow.txt\n\n","prefix":""}
+2026-10-27T21:47:34.722Z INFO [app] cotyping window text: read 2 lines in 867 ms, kept 1 lines (16 characters); using them
+2026-10-27T21:47:34.806Z INFO [app] film: request {"prompt":"Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\n","prefix":"Hi Priya,\n\n"}
+2026-10-27T21:47:37.855Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:38.025Z INFO [app] film: request {"prompt":"Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nC","prefix":"Hi Priya,\n\nC"}
+2026-10-27T21:47:38.026Z INFO [app] film: cotyping generating
+2026-10-27T21:47:39.519Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:39.527Z INFO [app] film: request {"prompt":"Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we g","prefix":"Hi Priya,\n\nCan we g"}
+2026-10-27T21:47:39.528Z INFO [app] film: cotyping generating
+2026-10-27T21:47:39.873Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:39.896Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go ","prompt":"Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go "}
+2026-10-27T21:47:39.897Z INFO [app] film: cotyping generating
+2026-10-27T21:47:40.356Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:40.400Z INFO [app] film: request {"prompt":"Visible in this window:\n• Tomorrow.txt ~\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go ov","prefix":"Hi Priya,\n\nCan we go ov"}
+2026-10-27T21:47:40.400Z INFO [app] film: cotyping generating
+2026-10-27T21:47:40.484Z INFO [app] cotyping window text: read 2 lines in 2515 ms, kept 1 lines (23 characters); using them
+2026-10-27T21:47:40.674Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:40.808Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over","prefix":"Hi Priya,\n\nCan we go over"}
+2026-10-27T21:47:40.809Z INFO [app] film: cotyping generating
+2026-10-27T21:47:41.107Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:41.188Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go over t","prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over t"}
+2026-10-27T21:47:41.189Z INFO [app] film: cotyping generating
+2026-10-27T21:47:41.423Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:41.544Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over th","prefix":"Hi Priya,\n\nCan we go over th"}
+2026-10-27T21:47:41.544Z INFO [app] film: cotyping generating
+2026-10-27T21:47:42.220Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:42.260Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go over the l","prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over the l"}
+2026-10-27T21:47:42.260Z INFO [app] film: cotyping generating
+2026-10-27T21:47:43.031Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:43.113Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over the laun","prefix":"Hi Priya,\n\nCan we go over the laun"}
+2026-10-27T21:47:43.113Z INFO [app] film: cotyping generating
+2026-10-27T21:47:43.254Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:43.290Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go over the launc","prompt":"Visible in this window:\nE Tomorrow.txt - Edited\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over the launc"}
+2026-10-27T21:47:43.291Z INFO [app] film: cotyping generating
+2026-10-27T21:47:43.417Z INFO [app] cotyping window text: read 3 lines in 1159 ms, kept 1 lines (24 characters); using them
+2026-10-27T21:47:43.473Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:43.595Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go over the launch","prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over the launch"}
+2026-10-27T21:47:43.595Z INFO [app] film: cotyping generating
+2026-10-27T21:47:43.742Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:43.849Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\n\nHi Priya,\n\nCan we go over the launch ","prefix":"Hi Priya,\n\nCan we go over the launch "}
+2026-10-27T21:47:43.849Z INFO [app] film: cotyping generating
+2026-10-27T21:47:43.989Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:44.065Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch c","prefix":"Hi Priya,\n\nCan we go over the launch c"}
+2026-10-27T21:47:44.066Z INFO [app] film: cotyping generating
+2026-10-27T21:47:44.234Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:44.243Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch ch","prefix":"Hi Priya,\n\nCan we go over the launch ch"}
+2026-10-27T21:47:44.244Z INFO [app] film: cotyping generating
+2026-10-27T21:47:44.437Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:44.501Z INFO [app] film: request {"prefix":"Hi Priya,\n\nCan we go over the launch che","prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch che"}
+2026-10-27T21:47:44.502Z INFO [app] film: cotyping generating
+2026-10-27T21:47:44.693Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:44.744Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch chec","prefix":"Hi Priya,\n\nCan we go over the launch chec"}
+2026-10-27T21:47:44.746Z INFO [app] film: cotyping generating
+2026-10-27T21:47:48.035Z INFO [app] film: cotyping ready(text: "klist?")
+2026-10-27T21:47:49.142Z INFO [app] film: cotyping ready(text: "?")
+2026-10-27T21:47:49.566Z INFO [app] film: cotyping idle
+2026-10-27T21:47:49.680Z INFO [app] film: cotyping debouncing
+2026-10-27T21:47:49.710Z INFO [app] film: request {"prompt":"Visible in this window:\nE Tomorrow.txt - Edited|\n\nTopic: Tomorrow.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi Priya,\n\nCan we go over the launch checklist?","prefix":"Hi Priya,\n\nCan we go over the launch checklist?"}
+2026-10-27T21:47:49.711Z INFO [app] film: cotyping generating
+2026-10-27T21:47:50.779Z INFO [app] cotyping window text: read 3 lines in 1068 ms, kept 1 lines (24 characters); kept the text in use
+2026-10-27T21:47:52.158Z INFO [app] film: cotyping idle
+2026-10-27T21:47:52.159Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:47:56.047Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:47:56.358Z INFO [app] film: cotyping idle
+2026-10-27T21:47:56.486Z INFO [app] film: request {"prefix":"","prompt":"Topic: Note to Sam.txt\n\n"}
+2026-10-27T21:47:57.203Z INFO [app] cotyping window text: read 2 lines in 712 ms, kept 1 lines (21 characters); using them
+2026-10-27T21:47:57.311Z INFO [app] film: request {"prefix":"Hi Sam,\n\n","prompt":"Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\n\nHi Sam,\n\n"}
+2026-10-27T21:47:59.967Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:00.058Z INFO [app] film: request {"prefix":"Hi Sam,\n\nT","prompt":"Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\n\nHi Sam,\n\nT"}
+2026-10-27T21:48:00.060Z INFO [app] film: cotyping generating
+2026-10-27T21:48:00.480Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:00.561Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nTha","prefix":"Hi Sam,\n\nTha"}
+2026-10-27T21:48:00.562Z INFO [app] film: cotyping generating
+2026-10-27T21:48:00.978Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:01.020Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThank","prompt":"Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThank"}
+2026-10-27T21:48:01.020Z INFO [app] film: cotyping generating
+2026-10-27T21:48:01.455Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:01.482Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks ","prompt":"Visible in this window:\n• E Note to Sam.txt ~\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks "}
+2026-10-27T21:48:01.483Z INFO [app] film: cotyping generating
+2026-10-27T21:48:01.698Z INFO [app] cotyping window text: read 3 lines in 1154 ms, kept 1 lines (26 characters); using them
+2026-10-27T21:48:01.707Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:01.785Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks f","prefix":"Hi Sam,\n\nThanks f"}
+2026-10-27T21:48:01.786Z INFO [app] film: cotyping generating
+2026-10-27T21:48:01.986Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:02.014Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks fo","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks fo"}
+2026-10-27T21:48:02.016Z INFO [app] film: cotyping generating
+2026-10-27T21:48:02.168Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:02.205Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for"}
+2026-10-27T21:48:02.205Z INFO [app] film: cotyping generating
+2026-10-27T21:48:02.381Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:02.434Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for "}
+2026-10-27T21:48:02.435Z INFO [app] film: cotyping generating
+2026-10-27T21:48:02.634Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:02.704Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for t","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for t"}
+2026-10-27T21:48:02.704Z INFO [app] film: cotyping generating
+2026-10-27T21:48:02.872Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:02.913Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for th","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for th"}
+2026-10-27T21:48:02.914Z INFO [app] film: cotyping generating
+2026-10-27T21:48:03.154Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:03.170Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the","prefix":"Hi Sam,\n\nThanks for the"}
+2026-10-27T21:48:03.171Z INFO [app] film: cotyping generating
+2026-10-27T21:48:03.357Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:03.371Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the ","prefix":"Hi Sam,\n\nThanks for the "}
+2026-10-27T21:48:03.372Z INFO [app] film: cotyping generating
+2026-10-27T21:48:03.614Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:03.638Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the n","prefix":"Hi Sam,\n\nThanks for the n"}
+2026-10-27T21:48:03.638Z INFO [app] film: cotyping generating
+2026-10-27T21:48:03.827Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:03.852Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the no","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the no"}
+2026-10-27T21:48:03.852Z INFO [app] film: cotyping generating
+2026-10-27T21:48:04.103Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:04.133Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the not","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the not"}
+2026-10-27T21:48:04.133Z INFO [app] film: cotyping generating
+2026-10-27T21:48:04.294Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:04.335Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the note","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the note"}
+2026-10-27T21:48:04.335Z INFO [app] film: cotyping generating
+2026-10-27T21:48:04.737Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:04.872Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes "}
+2026-10-27T21:48:04.873Z INFO [app] film: cotyping generating
+2026-10-27T21:48:05.102Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:05.140Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes f","prefix":"Hi Sam,\n\nThanks for the notes f"}
+2026-10-27T21:48:05.141Z INFO [app] film: cotyping generating
+2026-10-27T21:48:05.804Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:05.949Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from"}
+2026-10-27T21:48:05.949Z INFO [app] film: cotyping generating
+2026-10-27T21:48:06.153Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:06.223Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from "}
+2026-10-27T21:48:06.223Z INFO [app] film: cotyping generating
+2026-10-27T21:48:06.352Z INFO [app] cotyping window text: read 3 lines in 1558 ms, kept 1 lines (26 characters); kept the text in use
+2026-10-27T21:48:06.408Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:06.488Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from t","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from t"}
+2026-10-27T21:48:06.488Z INFO [app] film: cotyping generating
+2026-10-27T21:48:06.635Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:06.755Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from to","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from to"}
+2026-10-27T21:48:06.755Z INFO [app] film: cotyping generating
+2026-10-27T21:48:07.095Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:07.151Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from toda","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from toda"}
+2026-10-27T21:48:07.152Z INFO [app] film: cotyping generating
+2026-10-27T21:48:07.526Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:07.674Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today.","prefix":"Hi Sam,\n\nThanks for the notes from today."}
+2026-10-27T21:48:07.674Z INFO [app] film: cotyping generating
+2026-10-27T21:48:07.844Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:07.855Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. "}
+2026-10-27T21:48:07.855Z INFO [app] film: cotyping generating
+2026-10-27T21:48:08.124Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:08.152Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. L","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. L"}
+2026-10-27T21:48:08.153Z INFO [app] film: cotyping generating
+2026-10-27T21:48:08.386Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:08.479Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let"}
+2026-10-27T21:48:08.480Z INFO [app] film: cotyping generating
+2026-10-27T21:48:08.690Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:08.707Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let ","prefix":"Hi Sam,\n\nThanks for the notes from today. Let "}
+2026-10-27T21:48:08.707Z INFO [app] film: cotyping generating
+2026-10-27T21:48:08.924Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:09.042Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let m","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let m"}
+2026-10-27T21:48:09.042Z INFO [app] film: cotyping generating
+2026-10-27T21:48:09.428Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:09.457Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me ","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me "}
+2026-10-27T21:48:09.458Z INFO [app] film: cotyping generating
+2026-10-27T21:48:09.582Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:09.642Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me k","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me k"}
+2026-10-27T21:48:09.643Z INFO [app] film: cotyping generating
+2026-10-27T21:48:09.828Z INFO [app] cotyping window text: read 3 lines in 773 ms, kept 1 lines (26 characters); kept the text in use
+2026-10-27T21:48:09.867Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:09.916Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me kn","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me kn"}
+2026-10-27T21:48:09.917Z INFO [app] film: cotyping generating
+2026-10-27T21:48:10.089Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:10.136Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me kno","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me kno"}
+2026-10-27T21:48:10.138Z INFO [app] film: cotyping generating
+2026-10-27T21:48:10.444Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:10.487Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know"}
+2026-10-27T21:48:10.488Z INFO [app] film: cotyping generating
+2026-10-27T21:48:10.675Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:10.824Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know i","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know i"}
+2026-10-27T21:48:10.824Z INFO [app] film: cotyping generating
+2026-10-27T21:48:11.080Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:11.193Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if"}
+2026-10-27T21:48:11.194Z INFO [app] film: cotyping generating
+2026-10-27T21:48:11.390Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:11.402Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if ","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if "}
+2026-10-27T21:48:11.403Z INFO [app] film: cotyping generating
+2026-10-27T21:48:11.559Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:11.659Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if y","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if y"}
+2026-10-27T21:48:11.660Z INFO [app] film: cotyping generating
+2026-10-27T21:48:11.824Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:11.847Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if yo","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if yo"}
+2026-10-27T21:48:11.848Z INFO [app] film: cotyping generating
+2026-10-27T21:48:12.068Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:12.178Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you"}
+2026-10-27T21:48:12.178Z INFO [app] film: cotyping generating
+2026-10-27T21:48:12.378Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:12.409Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you "}
+2026-10-27T21:48:12.410Z INFO [app] film: cotyping generating
+2026-10-27T21:48:12.604Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:12.623Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you h","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you h"}
+2026-10-27T21:48:12.624Z INFO [app] film: cotyping generating
+2026-10-27T21:48:12.791Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:12.869Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you ha","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you ha"}
+2026-10-27T21:48:12.869Z INFO [app] film: cotyping generating
+2026-10-27T21:48:13.028Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:13.071Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you hav","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you hav"}
+2026-10-27T21:48:13.072Z INFO [app] film: cotyping generating
+2026-10-27T21:48:13.290Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:13.346Z INFO [app] film: request {"prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have","prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have"}
+2026-10-27T21:48:13.346Z INFO [app] film: cotyping generating
+2026-10-27T21:48:13.519Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:13.527Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have "}
+2026-10-27T21:48:13.528Z INFO [app] film: cotyping generating
+2026-10-27T21:48:13.709Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:13.800Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have a","prompt":"Visible in this window:\nE Note to Sam.txt - Edited\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have a"}
+2026-10-27T21:48:13.800Z INFO [app] film: cotyping generating
+2026-10-27T21:48:13.973Z INFO [app] cotyping window text: read 3 lines in 911 ms, kept 1 lines (28 characters); using them
+2026-10-27T21:48:13.986Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:14.038Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have an","prompt":"Visible in this window:\nE Note to Sam.txt - Edited |\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have an"}
+2026-10-27T21:48:14.039Z INFO [app] film: cotyping generating
+2026-10-27T21:48:14.171Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:14.262Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have any","prompt":"Visible in this window:\nE Note to Sam.txt - Edited |\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have any"}
+2026-10-27T21:48:14.262Z INFO [app] film: cotyping generating
+2026-10-27T21:48:14.390Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:14.430Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have any ","prompt":"Visible in this window:\nE Note to Sam.txt - Edited |\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have any "}
+2026-10-27T21:48:14.431Z INFO [app] film: cotyping generating
+2026-10-27T21:48:19.353Z INFO [app] film: cotyping ready(text: "questions.")
+2026-10-27T21:48:20.560Z INFO [app] film: cotyping ready(text: ".")
+2026-10-27T21:48:20.908Z INFO [app] film: cotyping idle
+2026-10-27T21:48:21.014Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:21.027Z INFO [app] film: request {"prefix":"Hi Sam,\n\nThanks for the notes from today. Let me know if you have any questions.","prompt":"Visible in this window:\nE Note to Sam.txt - Edited |\n\nTopic: Note to Sam.txt\nRelevant saved facts: Action: Draft the launch announcement (owner Them)\n\nHi Sam,\n\nThanks for the notes from today. Let me know if you have any questions."}
+2026-10-27T21:48:21.027Z INFO [app] film: cotyping generating
+2026-10-27T21:48:22.208Z INFO [app] cotyping window text: read 3 lines in 1178 ms, kept 1 lines (28 characters); kept the text in use
+2026-10-27T21:48:23.713Z INFO [app] film: cotyping idle
+2026-10-27T21:48:23.713Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:48:29.177Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:48:29.597Z INFO [app] film: cotyping idle
+2026-10-27T21:48:29.709Z INFO [app] film: request {"prefix":"","prompt":"Topic: Lena.txt\n\n"}
+2026-10-27T21:48:31.594Z INFO [app] cotyping window text: read 2 lines in 1879 ms, kept 1 lines (13 characters); using them
+2026-10-27T21:48:31.663Z INFO [app] film: request {"prefix":"Hallo Lena,\n\n","prompt":"Visible in this window:\n• E Lena.txt~\n\nTopic: Lena.txt\n\nHallo Lena,\n\n"}
+2026-10-27T21:48:34.076Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:34.113Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt~\n\nTopic: Lena.txt\n\nHallo Lena,\n\nd","prefix":"Hallo Lena,\n\nd"}
+2026-10-27T21:48:34.115Z INFO [app] film: cotyping generating
+2026-10-27T21:48:34.830Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:34.901Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt~\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndank","prefix":"Hallo Lena,\n\ndank"}
+2026-10-27T21:48:34.902Z INFO [app] film: cotyping generating
+2026-10-27T21:48:35.489Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:35.521Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt~\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke ","prefix":"Hallo Lena,\n\ndanke "}
+2026-10-27T21:48:35.521Z INFO [app] film: cotyping generating
+2026-10-27T21:48:35.547Z INFO [app] cotyping window text: read 2 lines in 1440 ms, kept 1 lines (19 characters); using them
+2026-10-27T21:48:35.865Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:36.062Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für"}
+2026-10-27T21:48:36.062Z INFO [app] film: cotyping generating
+2026-10-27T21:48:36.274Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:36.287Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für ","prefix":"Hallo Lena,\n\ndanke für "}
+2026-10-27T21:48:36.287Z INFO [app] film: cotyping generating
+2026-10-27T21:48:36.468Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:36.577Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für d","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für d"}
+2026-10-27T21:48:36.578Z INFO [app] film: cotyping generating
+2026-10-27T21:48:36.798Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:37.008Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die"}
+2026-10-27T21:48:37.009Z INFO [app] film: cotyping generating
+2026-10-27T21:48:37.231Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:37.257Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die ","prefix":"Hallo Lena,\n\ndanke für die "}
+2026-10-27T21:48:37.257Z INFO [app] film: cotyping generating
+2026-10-27T21:48:37.464Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:37.486Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die N","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die N"}
+2026-10-27T21:48:37.487Z INFO [app] film: cotyping generating
+2026-10-27T21:48:37.665Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:37.693Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die No","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die No"}
+2026-10-27T21:48:37.695Z INFO [app] film: cotyping generating
+2026-10-27T21:48:37.906Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:37.935Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Not","prefix":"Hallo Lena,\n\ndanke für die Not"}
+2026-10-27T21:48:37.935Z INFO [app] film: cotyping generating
+2026-10-27T21:48:38.108Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:38.171Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Noti","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Noti"}
+2026-10-27T21:48:38.172Z INFO [app] film: cotyping generating
+2026-10-27T21:48:38.402Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:38.474Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notiz","prompt":"Visible in this window:\n• E Lena.txt —Edite\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notiz"}
+2026-10-27T21:48:38.474Z INFO [app] film: cotyping generating
+2026-10-27T21:48:38.674Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:38.798Z INFO [app] cotyping window text: read 3 lines in 639 ms, kept 1 lines (21 characters); using them
+2026-10-27T21:48:39.157Z INFO [app] film: cotyping ready(text: "Notice")
+2026-10-27T21:48:39.159Z INFO [app] film: cotyping idle
+2026-10-27T21:48:39.378Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:39.786Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. I","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. I"}
+2026-10-27T21:48:39.787Z INFO [app] film: cotyping generating
+2026-10-27T21:48:39.951Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:39.960Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ic","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ic"}
+2026-10-27T21:48:39.961Z INFO [app] film: cotyping generating
+2026-10-27T21:48:40.141Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:40.172Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich","prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich"}
+2026-10-27T21:48:40.172Z INFO [app] film: cotyping generating
+2026-10-27T21:48:40.372Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:40.474Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich ","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich "}
+2026-10-27T21:48:40.475Z INFO [app] film: cotyping generating
+2026-10-27T21:48:40.672Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:40.746Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich w","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich w"}
+2026-10-27T21:48:40.746Z INFO [app] film: cotyping generating
+2026-10-27T21:48:40.886Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.017Z INFO [app] film: cotyping idle
+2026-10-27T21:48:41.084Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.152Z INFO [app] film: cotyping ready(text: "won")
+2026-10-27T21:48:41.201Z INFO [app] film: cotyping idle
+2026-10-27T21:48:41.236Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.290Z INFO [app] film: cotyping ready(text: "wins")
+2026-10-27T21:48:41.367Z INFO [app] film: cotyping idle
+2026-10-27T21:48:41.406Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.513Z INFO [app] film: cotyping ready(text: "wins")
+2026-10-27T21:48:41.616Z INFO [app] film: cotyping idle
+2026-10-27T21:48:41.637Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.692Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsch","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsch"}
+2026-10-27T21:48:41.693Z INFO [app] film: cotyping generating
+2026-10-27T21:48:41.941Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:41.954Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche","prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche"}
+2026-10-27T21:48:41.955Z INFO [app] film: cotyping generating
+2026-10-27T21:48:42.205Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:42.314Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche ","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche "}
+2026-10-27T21:48:42.315Z INFO [app] film: cotyping generating
+2026-10-27T21:48:42.755Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:42.771Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche di","prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche di"}
+2026-10-27T21:48:42.771Z INFO [app] film: cotyping generating
+2026-10-27T21:48:42.908Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:42.933Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir","prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir"}
+2026-10-27T21:48:42.933Z INFO [app] film: cotyping generating
+2026-10-27T21:48:43.101Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:43.209Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt — Edited\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ","prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir "}
+2026-10-27T21:48:43.210Z INFO [app] film: cotyping generating
+2026-10-27T21:48:43.306Z INFO [app] cotyping window text: read 3 lines in 983 ms, kept 1 lines (22 characters); using them
+2026-10-27T21:48:43.390Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:43.398Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir e","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir e"}
+2026-10-27T21:48:43.399Z INFO [app] film: cotyping generating
+2026-10-27T21:48:43.589Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:43.613Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ei","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ei"}
+2026-10-27T21:48:43.614Z INFO [app] film: cotyping generating
+2026-10-27T21:48:43.859Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:43.894Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein"}
+2026-10-27T21:48:43.895Z INFO [app] film: cotyping generating
+2026-10-27T21:48:44.068Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:44.077Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein ","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein "}
+2026-10-27T21:48:44.077Z INFO [app] film: cotyping generating
+2026-10-27T21:48:44.257Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:44.294Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein s","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein s"}
+2026-10-27T21:48:44.294Z INFO [app] film: cotyping generating
+2026-10-27T21:48:44.443Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:44.512Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein sc","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein sc"}
+2026-10-27T21:48:44.512Z INFO [app] film: cotyping generating
+2026-10-27T21:48:44.690Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:44.728Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein sch","prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein sch"}
+2026-10-27T21:48:44.728Z INFO [app] film: cotyping generating
+2026-10-27T21:48:44.956Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:45.101Z INFO [app] film: cotyping ready(text: "such")
+2026-10-27T21:48:45.235Z INFO [app] film: cotyping idle
+2026-10-27T21:48:45.289Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:45.303Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schön","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schön"}
+2026-10-27T21:48:45.303Z INFO [app] film: cotyping generating
+2026-10-27T21:48:45.482Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:45.558Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schöne","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schöne"}
+2026-10-27T21:48:45.558Z INFO [app] film: cotyping generating
+2026-10-27T21:48:45.757Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:45.798Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes"}
+2026-10-27T21:48:45.798Z INFO [app] film: cotyping generating
+2026-10-27T21:48:46.042Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:46.055Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes ","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes "}
+2026-10-27T21:48:46.056Z INFO [app] film: cotyping generating
+2026-10-27T21:48:50.408Z INFO [app] film: cotyping ready(text: "Wochenende.")
+2026-10-27T21:48:51.591Z INFO [app] film: cotyping ready(text: ".")
+2026-10-27T21:48:51.922Z INFO [app] film: cotyping idle
+2026-10-27T21:48:52.037Z INFO [app] film: cotyping debouncing
+2026-10-27T21:48:52.050Z INFO [app] film: request {"prefix":"Hallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes Wochenende.","prompt":"Visible in this window:\n• E Lena.txt — Edited|\n\nTopic: Lena.txt\n\nHallo Lena,\n\ndanke für die Notizen. Ich wünsche dir ein schönes Wochenende."}
+2026-10-27T21:48:52.052Z INFO [app] film: cotyping generating
+2026-10-27T21:48:53.657Z INFO [app] cotyping window text: read 3 lines in 1611 ms, kept 1 lines (22 characters); using them
+2026-10-27T21:48:54.239Z INFO [app] film: cotyping idle
+2026-10-27T21:48:54.632Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:49:00.338Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:49:00.634Z INFO [app] film: cotyping idle
+2026-10-27T21:49:00.727Z INFO [app] film: request {"prefix":"","prompt":"Topic: Camille.txt\n\n"}
+2026-10-27T21:49:01.412Z INFO [app] cotyping window text: read 2 lines in 667 ms, kept 1 lines (17 characters); using them
+2026-10-27T21:49:01.501Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\n","prompt":"Visible in this window:\n• E Camille.txt ~\n\nTopic: Camille.txt\n\nBonjour Camille,\n\n"}
+2026-10-27T21:49:04.816Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:04.836Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nM","prompt":"Visible in this window:\n• E Camille.txt ~\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nM"}
+2026-10-27T21:49:04.836Z INFO [app] film: cotyping generating
+2026-10-27T21:49:05.413Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:05.430Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMer","prompt":"Visible in this window:\n• E Camille.txt ~\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMer"}
+2026-10-27T21:49:05.431Z INFO [app] film: cotyping generating
+2026-10-27T21:49:05.909Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:05.927Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt ~\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci","prefix":"Bonjour Camille,\n\nMerci"}
+2026-10-27T21:49:05.928Z INFO [app] film: cotyping generating
+2026-10-27T21:49:06.198Z INFO [app] cotyping window text: read 3 lines in 1361 ms, kept 1 lines (22 characters); using them
+2026-10-27T21:49:06.433Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:06.486Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci p","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci p"}
+2026-10-27T21:49:06.486Z INFO [app] film: cotyping generating
+2026-10-27T21:49:06.870Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:06.885Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pou","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pou"}
+2026-10-27T21:49:06.885Z INFO [app] film: cotyping generating
+2026-10-27T21:49:07.118Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:07.153Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour"}
+2026-10-27T21:49:07.153Z INFO [app] film: cotyping generating
+2026-10-27T21:49:07.417Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:07.445Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour ","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour "}
+2026-10-27T21:49:07.445Z INFO [app] film: cotyping generating
+2026-10-27T21:49:07.651Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:07.701Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour l","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour l"}
+2026-10-27T21:49:07.702Z INFO [app] film: cotyping generating
+2026-10-27T21:49:07.982Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:08.021Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour le","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour le"}
+2026-10-27T21:49:08.021Z INFO [app] film: cotyping generating
+2026-10-27T21:49:08.150Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:08.256Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les"}
+2026-10-27T21:49:08.256Z INFO [app] film: cotyping generating
+2026-10-27T21:49:08.402Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:08.442Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les ","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les "}
+2026-10-27T21:49:08.443Z INFO [app] film: cotyping generating
+2026-10-27T21:49:08.597Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:08.633Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les n","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les n"}
+2026-10-27T21:49:08.633Z INFO [app] film: cotyping generating
+2026-10-27T21:49:08.773Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:08.884Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les no","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les no"}
+2026-10-27T21:49:08.885Z INFO [app] film: cotyping generating
+2026-10-27T21:49:09.056Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:09.176Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les not","prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les not"}
+2026-10-27T21:49:09.177Z INFO [app] film: cotyping generating
+2026-10-27T21:49:09.713Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:09.830Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt -Edit|\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes.","prefix":"Bonjour Camille,\n\nMerci pour les notes."}
+2026-10-27T21:49:09.831Z INFO [app] film: cotyping generating
+2026-10-27T21:49:09.905Z INFO [app] cotyping window text: read 3 lines in 1016 ms, kept 1 lines (24 characters); using them
+2026-10-27T21:49:10.094Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:10.103Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. ","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. "}
+2026-10-27T21:49:10.104Z INFO [app] film: cotyping generating
+2026-10-27T21:49:10.319Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:10.388Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N"}
+2026-10-27T21:49:10.389Z INFO [app] film: cotyping generating
+2026-10-27T21:49:10.520Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:10.591Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'"}
+2026-10-27T21:49:10.592Z INFO [app] film: cotyping generating
+2026-10-27T21:49:10.719Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:10.842Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'h","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'h"}
+2026-10-27T21:49:10.842Z INFO [app] film: cotyping generating
+2026-10-27T21:49:11.004Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:11.045Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hé","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hé"}
+2026-10-27T21:49:11.046Z INFO [app] film: cotyping generating
+2026-10-27T21:49:11.218Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:11.258Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hés","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hés"}
+2026-10-27T21:49:11.258Z INFO [app] film: cotyping generating
+2026-10-27T21:49:11.503Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:11.670Z INFO [app] film: cotyping idle
+2026-10-27T21:49:11.722Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:11.766Z INFO [app] film: cotyping idle
+2026-10-27T21:49:11.971Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:11.992Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite"}
+2026-10-27T21:49:11.992Z INFO [app] film: cotyping generating
+2026-10-27T21:49:12.171Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:12.210Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite ","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite "}
+2026-10-27T21:49:12.211Z INFO [app] film: cotyping generating
+2026-10-27T21:49:12.426Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:12.450Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite p","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite p"}
+2026-10-27T21:49:12.451Z INFO [app] film: cotyping generating
+2026-10-27T21:49:12.692Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:12.757Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pa","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pa"}
+2026-10-27T21:49:12.758Z INFO [app] film: cotyping generating
+2026-10-27T21:49:12.924Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:13.008Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas"}
+2026-10-27T21:49:13.009Z INFO [app] film: cotyping generating
+2026-10-27T21:49:13.221Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:13.243Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas ","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas "}
+2026-10-27T21:49:13.244Z INFO [app] film: cotyping generating
+2026-10-27T21:49:13.470Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:13.481Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas s","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas s"}
+2026-10-27T21:49:13.482Z INFO [app] film: cotyping generating
+2026-10-27T21:49:13.689Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:13.752Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si"}
+2026-10-27T21:49:13.752Z INFO [app] film: cotyping generating
+2026-10-27T21:49:13.811Z INFO [app] cotyping window text: read 3 lines in 796 ms, kept 1 lines (24 characters); kept the text in use
+2026-10-27T21:49:13.950Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:14.044Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si ","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si "}
+2026-10-27T21:49:14.045Z INFO [app] film: cotyping generating
+2026-10-27T21:49:14.170Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:14.248Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si t","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si t"}
+2026-10-27T21:49:14.249Z INFO [app] film: cotyping generating
+2026-10-27T21:49:14.453Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:14.465Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu"}
+2026-10-27T21:49:14.466Z INFO [app] film: cotyping generating
+2026-10-27T21:49:14.666Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:14.675Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu ","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu "}
+2026-10-27T21:49:14.675Z INFO [app] film: cotyping generating
+2026-10-27T21:49:14.871Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:14.987Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu a","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu a"}
+2026-10-27T21:49:14.987Z INFO [app] film: cotyping generating
+2026-10-27T21:49:15.142Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:15.195Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as"}
+2026-10-27T21:49:15.196Z INFO [app] film: cotyping generating
+2026-10-27T21:49:15.327Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:15.344Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as ","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as "}
+2026-10-27T21:49:15.344Z INFO [app] film: cotyping generating
+2026-10-27T21:49:15.501Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:15.524Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as d","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as d"}
+2026-10-27T21:49:15.525Z INFO [app] film: cotyping generating
+2026-10-27T21:49:15.805Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:15.824Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as de","prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as de"}
+2026-10-27T21:49:15.824Z INFO [app] film: cotyping generating
+2026-10-27T21:49:16.024Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:16.128Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des"}
+2026-10-27T21:49:16.129Z INFO [app] film: cotyping generating
+2026-10-27T21:49:16.322Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:16.375Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des ","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des "}
+2026-10-27T21:49:16.375Z INFO [app] film: cotyping generating
+2026-10-27T21:49:20.599Z INFO [app] film: cotyping ready(text: "questions.")
+2026-10-27T21:49:21.749Z INFO [app] film: cotyping ready(text: ".")
+2026-10-27T21:49:22.171Z INFO [app] film: cotyping idle
+2026-10-27T21:49:22.240Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:22.250Z INFO [app] film: request {"prefix":"Bonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des questions.","prompt":"Visible in this window:\n• E Camille.txt — Edited\n\nTopic: Camille.txt\n\nBonjour Camille,\n\nMerci pour les notes. N'hésite pas si tu as des questions."}
+2026-10-27T21:49:22.251Z INFO [app] film: cotyping generating
+2026-10-27T21:49:24.245Z INFO [app] cotyping window text: read 3 lines in 1992 ms, kept 1 lines (24 characters); kept the text in use
+2026-10-27T21:49:25.225Z INFO [app] film: cotyping idle
+2026-10-27T21:49:25.226Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-27T21:49:30.187Z INFO [app] film: cotyping disabled("No focused text field.")
+2026-10-27T21:49:30.481Z INFO [app] film: cotyping idle
+2026-10-27T21:49:30.567Z INFO [app] film: request {"prompt":"Topic: Diego.txt\n\n","prefix":""}
+2026-10-27T21:49:31.141Z INFO [app] cotyping window text: read 2 lines in 567 ms, kept 0 lines (0 characters); using them
+2026-10-27T21:49:34.649Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:34.691Z INFO [app] film: request {"prompt":"Topic: Diego.txt\n\nHola Diego,\n\nG","prefix":"Hola Diego,\n\nG"}
+2026-10-27T21:49:34.691Z INFO [app] film: cotyping generating
+2026-10-27T21:49:35.051Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:35.249Z INFO [app] film: request {"prompt":"Topic: Diego.txt\n\nHola Diego,\n\nGra","prefix":"Hola Diego,\n\nGra"}
+2026-10-27T21:49:35.249Z INFO [app] film: cotyping generating
+2026-10-27T21:49:35.350Z INFO [app] cotyping window text: read 3 lines in 639 ms, kept 1 lines (20 characters); using them
+2026-10-27T21:49:35.510Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:35.539Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGrac","prefix":"Hola Diego,\n\nGrac"}
+2026-10-27T21:49:35.540Z INFO [app] film: cotyping generating
+2026-10-27T21:49:35.686Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:35.736Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGraci","prefix":"Hola Diego,\n\nGraci"}
+2026-10-27T21:49:35.736Z INFO [app] film: cotyping generating
+2026-10-27T21:49:35.935Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:35.969Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracia","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracia"}
+2026-10-27T21:49:35.970Z INFO [app] film: cotyping generating
+2026-10-27T21:49:36.099Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:36.135Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias"}
+2026-10-27T21:49:36.135Z INFO [app] film: cotyping generating
+2026-10-27T21:49:36.320Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:36.399Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias ","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias "}
+2026-10-27T21:49:36.400Z INFO [app] film: cotyping generating
+2026-10-27T21:49:36.565Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:36.607Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias p","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias p"}
+2026-10-27T21:49:36.607Z INFO [app] film: cotyping generating
+2026-10-27T21:49:36.782Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:36.794Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias po","prefix":"Hola Diego,\n\nGracias po"}
+2026-10-27T21:49:36.795Z INFO [app] film: cotyping generating
+2026-10-27T21:49:36.994Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:37.061Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por","prefix":"Hola Diego,\n\nGracias por"}
+2026-10-27T21:49:37.062Z INFO [app] film: cotyping generating
+2026-10-27T21:49:37.230Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:37.255Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por ","prefix":"Hola Diego,\n\nGracias por "}
+2026-10-27T21:49:37.256Z INFO [app] film: cotyping generating
+2026-10-27T21:49:37.431Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:37.449Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por l","prefix":"Hola Diego,\n\nGracias por l"}
+2026-10-27T21:49:37.449Z INFO [app] film: cotyping generating
+2026-10-27T21:49:37.620Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:37.630Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por la","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por la"}
+2026-10-27T21:49:37.630Z INFO [app] film: cotyping generating
+2026-10-27T21:49:37.814Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:37.855Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las","prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las"}
+2026-10-27T21:49:37.855Z INFO [app] film: cotyping generating
+2026-10-27T21:49:38.072Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:38.091Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las ","prefix":"Hola Diego,\n\nGracias por las "}
+2026-10-27T21:49:38.091Z INFO [app] film: cotyping generating
+2026-10-27T21:49:38.328Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:38.388Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las n","prefix":"Hola Diego,\n\nGracias por las n"}
+2026-10-27T21:49:38.388Z INFO [app] film: cotyping generating
+2026-10-27T21:49:38.935Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:38.956Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las not","prefix":"Hola Diego,\n\nGracias por las not"}
+2026-10-27T21:49:38.958Z INFO [app] film: cotyping generating
+2026-10-27T21:49:39.450Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:39.482Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt -Edite\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas.","prefix":"Hola Diego,\n\nGracias por las notas."}
+2026-10-27T21:49:39.483Z INFO [app] film: cotyping generating
+2026-10-27T21:49:39.688Z INFO [app] cotyping window text: read 3 lines in 721 ms, kept 1 lines (22 characters); using them
+2026-10-27T21:49:39.847Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:40.032Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. S","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. S"}
+2026-10-27T21:49:40.033Z INFO [app] film: cotyping generating
+2026-10-27T21:49:40.183Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:40.211Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si"}
+2026-10-27T21:49:40.212Z INFO [app] film: cotyping generating
+2026-10-27T21:49:40.350Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:40.398Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si ","prefix":"Hola Diego,\n\nGracias por las notas. Si "}
+2026-10-27T21:49:40.399Z INFO [app] film: cotyping generating
+2026-10-27T21:49:40.645Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:40.681Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si t","prefix":"Hola Diego,\n\nGracias por las notas. Si t"}
+2026-10-27T21:49:40.682Z INFO [app] film: cotyping generating
+2026-10-27T21:49:40.952Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:41.053Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si ti","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si ti"}
+2026-10-27T21:49:41.053Z INFO [app] film: cotyping generating
+2026-10-27T21:49:41.232Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:41.283Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tie","prefix":"Hola Diego,\n\nGracias por las notas. Si tie"}
+2026-10-27T21:49:41.283Z INFO [app] film: cotyping generating
+2026-10-27T21:49:41.487Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:41.504Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tien","prefix":"Hola Diego,\n\nGracias por las notas. Si tien"}
+2026-10-27T21:49:41.504Z INFO [app] film: cotyping generating
+2026-10-27T21:49:41.770Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:41.789Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tiene","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tiene"}
+2026-10-27T21:49:41.789Z INFO [app] film: cotyping generating
+2026-10-27T21:49:42.018Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:42.041Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes"}
+2026-10-27T21:49:42.041Z INFO [app] film: cotyping generating
+2026-10-27T21:49:42.250Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:42.283Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes ","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes "}
+2026-10-27T21:49:42.283Z INFO [app] film: cotyping generating
+2026-10-27T21:49:42.533Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:42.618Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes a","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes a"}
+2026-10-27T21:49:42.618Z INFO [app] film: cotyping generating
+2026-10-27T21:49:42.787Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:42.816Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes al","prefix":"Hola Diego,\n\nGracias por las notas. Si tienes al"}
+2026-10-27T21:49:42.816Z INFO [app] film: cotyping generating
+2026-10-27T21:49:42.946Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:43.052Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alg","prefix":"Hola Diego,\n\nGracias por las notas. Si tienes alg"}
+2026-10-27T21:49:43.053Z INFO [app] film: cotyping generating
+2026-10-27T21:49:43.264Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:43.344Z INFO [app] film: cotyping ready(text: "algo")
+2026-10-27T21:49:43.501Z INFO [app] film: cotyping idle
+2026-10-27T21:49:43.552Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:43.570Z INFO [app] cotyping window text: read 3 lines in 529 ms, kept 1 lines (22 characters); kept the text in use
+2026-10-27T21:49:43.593Z INFO [app] film: cotyping ready(text: "Laguna")
+2026-10-27T21:49:43.699Z INFO [app] film: cotyping idle
+2026-10-27T21:49:43.717Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:43.837Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes alguna","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alguna"}
+2026-10-27T21:49:43.837Z INFO [app] film: cotyping generating
+2026-10-27T21:49:43.998Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:44.037Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes alguna ","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alguna "}
+2026-10-27T21:49:44.037Z INFO [app] film: cotyping generating
+2026-10-27T21:49:49.280Z INFO [app] film: cotyping ready(text: "duda, no dudes en")
+2026-10-27T21:49:50.435Z INFO [app] film: cotyping ready(text: ", no dudes en")
+2026-10-27T21:49:50.835Z INFO [app] film: cotyping ready(text: " no dudes en")
+2026-10-27T21:49:51.213Z INFO [app] film: request {"prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alguna duda, no dudes en","prefix":"Hola Diego,\n\nGracias por las notas. Si tienes alguna duda, no dudes en"}
+2026-10-27T21:49:51.373Z INFO [app] film: cotyping ready(text: " dudes en")
+2026-10-27T21:49:51.674Z INFO [app] film: cotyping ready(text: " en")
+2026-10-27T21:49:52.056Z INFO [app] film: cotyping idle
+2026-10-27T21:49:52.159Z INFO [app] film: cotyping debouncing
+2026-10-27T21:49:52.179Z INFO [app] film: request {"prefix":"Hola Diego,\n\nGracias por las notas. Si tienes alguna duda, no dudes en","prompt":"Visible in this window:\n• E Diego.txt - Edited\n\nTopic: Diego.txt\n\nHola Diego,\n\nGracias por las notas. Si tienes alguna duda, no dudes en"}
+2026-10-27T21:49:52.180Z INFO [app] film: cotyping generating
+2026-10-27T21:49:53.759Z INFO [app] cotyping window text: read 3 lines in 1569 ms, kept 1 lines (22 characters); using them
+2026-10-27T21:49:54.807Z INFO [app] film: cotyping idle
+2026-10-27T21:49:54.808Z INFO [app] film: cotyping disabled("Not an editable text field.")

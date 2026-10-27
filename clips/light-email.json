@@ -1,0 +1,43 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 23.991593749999993,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.64,
+      "text": "Thanks for the notes from today. Let me know if you have any "
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 15.295
+    },
+    {
+      "kind": "ghost",
+      "t": 20.187,
+      "waited": 4.893
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 21.16
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 21.606
+    },
+    {
+      "kind": "accepted",
+      "presses": 2,
+      "t": 22.1
+    }
+  ]
+}

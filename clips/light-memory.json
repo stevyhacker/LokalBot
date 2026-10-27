@@ -1,0 +1,73 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 34.41984070899997,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.728,
+      "text": "After the launch planning call, "
+    },
+    {
+      "kind": "type",
+      "t": 9.445,
+      "text": "the Team plan will be "
+    },
+    {
+      "kind": "type",
+      "t": 15.711,
+      "text": "$15"
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 16.522
+    },
+    {
+      "kind": "ghost",
+      "t": 28.926,
+      "waited": 12.41
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 29.869
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 30.282
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 30.693
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 31.1
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 31.59
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 32.024
+    },
+    {
+      "kind": "accepted",
+      "presses": 6,
+      "t": 32.513
+    }
+  ]
+}

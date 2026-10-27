@@ -1,0 +1,43 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 14.756728915999986,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.695,
+      "text": "Can we go over the launch chec"
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 7.74
+    },
+    {
+      "kind": "ghost",
+      "t": 11.042,
+      "waited": 3.304
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 11.96
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 12.427
+    },
+    {
+      "kind": "accepted",
+      "presses": 2,
+      "t": 12.926
+    }
+  ]
+}

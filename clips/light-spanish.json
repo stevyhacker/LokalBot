@@ -1,0 +1,58 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 20.58027945799995,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.72,
+      "text": "Gracias por las notas. Si tienes alguna "
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 10.354
+    },
+    {
+      "kind": "ghost",
+      "t": 15.473,
+      "waited": 5.122
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 16.442
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 16.882
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 17.315
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 17.696
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 18.174
+    },
+    {
+      "kind": "accepted",
+      "presses": 5,
+      "t": 18.68
+    }
+  ]
+}

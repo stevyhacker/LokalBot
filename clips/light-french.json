@@ -1,0 +1,43 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 20.608281957999907,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.689,
+      "text": "Merci pour les notes. N'h\u00e9site pas si tu as des "
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 12.253
+    },
+    {
+      "kind": "ghost",
+      "t": 16.597,
+      "waited": 4.345
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 17.571
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 18.084
+    },
+    {
+      "kind": "accepted",
+      "presses": 2,
+      "t": 18.742
+    }
+  ]
+}

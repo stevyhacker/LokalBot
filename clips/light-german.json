@@ -1,0 +1,43 @@
+{
+  "rect": [
+    80,
+    307,
+    1760,
+    420
+  ],
+  "scale": 1,
+  "background": "#FFFFFF",
+  "end": 21.046554165999964,
+  "events": [
+    {
+      "kind": "type",
+      "t": 0.652,
+      "text": "danke f\u00fcr die Notizen. Ich w\u00fcnsche dir ein sch\u00f6nes "
+    },
+    {
+      "kind": "mark",
+      "name": "typed",
+      "t": 12.877
+    },
+    {
+      "kind": "ghost",
+      "t": 17.175,
+      "waited": 4.299
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 18.109
+    },
+    {
+      "key": "tab",
+      "kind": "key",
+      "t": 18.549
+    },
+    {
+      "kind": "accepted",
+      "presses": 2,
+      "t": 19.1
+    }
+  ]
+}
