@@ -314,7 +314,7 @@ kbd {
   content: "";
   position: absolute; inset: 0;
   pointer-events: none;
-  background: radial-gradient(110% 85% at 50% 45%, rgba(35, 196, 174, 0.06) 25%, rgba(35, 196, 174, 0.2) 80%);
+  background: radial-gradient(110% 85% at 50% 45%, rgba(35, 196, 174, 0.03) 25%, rgba(35, 196, 174, 0.12) 80%);
   -webkit-mask: url("assets/circuit-board.svg") 0 0 / 1200px 1200px repeat;
   mask: url("assets/circuit-board.svg") 0 0 / 1200px 1200px repeat;
 }
@@ -1814,7 +1814,7 @@ kbd {
   .bg-glow--a { background: radial-gradient(circle, rgba(35, 196, 174, 0.22), transparent 62%); }
   .bg-glow--b { background: radial-gradient(circle, rgba(12, 130, 117, 0.14), transparent 62%); }
   .home .bg-field::before {
-    background: radial-gradient(110% 85% at 50% 45%, rgba(12, 130, 117, 0.05) 25%, rgba(12, 130, 117, 0.16) 80%);
+    background: radial-gradient(110% 85% at 50% 45%, rgba(12, 130, 117, 0.025) 25%, rgba(12, 130, 117, 0.09) 80%);
   }
 
   .btn--ghost { box-shadow: var(--glass-inset), 0 8px 22px -12px rgba(14, 20, 28, 0.18); }
