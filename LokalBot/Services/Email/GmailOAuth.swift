@@ -105,7 +105,8 @@ enum GmailOAuth {
         ]))
     }
 
-    /// Revoking the refresh token also ends every access token issued from it.
+    /// Google revokes this account's grant for the entire Cloud project,
+    /// including tokens issued to its other clients. Use only on Disconnect.
     static func revocationRequest(token: String) -> URLRequest {
         ChatGPTPlanOAuth.formRequest(revokeURL, ["token": token])
     }

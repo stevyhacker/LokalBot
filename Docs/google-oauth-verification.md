@@ -22,7 +22,7 @@ People who want their own Google Cloud project can still import a Desktop-app cl
 
 Use a Google account that will own LokalBot for the long term, and add a second owner so the project never depends on one person.
 
-1. **Create the project.** Go to [console.cloud.google.com](https://console.cloud.google.com) and create a **New project** named `LokalBot`.
+1. **Find the project before creating one.** LokalBot's existing project is `lokalbot-512410` (number `158325362655`), confirmed on October 27, 2026. Select it in [console.cloud.google.com](https://console.cloud.google.com). Check its existing OAuth clients before adding one. Only create a new project if the intended owner cannot use this project.
 2. **Enable Gmail.** Open **APIs & Services → Library**, choose **Gmail API**, and click **Enable**.
 3. **Fill in Branding** (under **Google Auth Platform**):
    - App name `LokalBot`, the user support email, and the 120×120 app icon (`AppIcon.icns`, exported as PNG).
@@ -41,6 +41,17 @@ Use a Google account that will own LokalBot for the long term, and add a second 
    - If Google ever refuses it, register a second iOS client for the Dev bundle.
 
 From then on, a release with the client ID gives one-click Gmail sign-in to the first 100 users, each behind the unverified-app screen.
+
+## Setup and integration check: October 27, 2026
+
+- **Confirmed against Google Cloud:** the existing project above is active, the signed-in account is its owner, and Gmail API was enabled successfully. Before setup, the Credentials page listed no OAuth clients and asked for consent-screen configuration.
+- **Still required:** finish Branding, External audience and Data access; verify `lokalbot.com` ownership with the project's owner; create the iOS client; and add its public ID to `GmailOAuth.builtInClientID`. Never commit tokens, a Desktop client's secret, or downloaded credential JSON.
+- **Live policy:** the public privacy page still lacks the draft PR's **Email from Gmail** disclosure. Deploy that disclosure before shipping Gmail integration or submitting verification.
+- **Automated checks:** 78 focused email tests passed in an isolated Swift package containing the unchanged production email sources and their existing dependencies (only logging replaced). They use synthetic mail, an in-memory secret store, and temporary encrypted files. This is a focused subsystem check, not an app build or a live Google sign-in.
+- **Reconnect correction:** Google [revokes the account's grant across the entire Cloud project](https://developers.google.com/identity/protocols/oauth2/web-server#tokenrevoke), including newly issued tokens. Reconnect therefore saves the new tokens without revoking the old ones. Replaced refresh tokens remain in the Keychain solely for Disconnect, which deletes local credentials and mail before attempting every retained revocation. The regression fails with the old save behavior restored, then passes with the fix.
+- **Not tested against Google yet:** the native authorization-sheet redirect, actual refresh-token issuance and reuse, limited mailbox synchronization, and removal of the grant on Disconnect. Keep this PR in draft until setup and these checks are complete.
+
+For live integration testing, use a willing test account and an isolated library, keep the scope exactly `gmail.readonly`, limit the first scan, and record only request status/counts. Do not record tokens, authorization codes, message bodies, or private attendee addresses in PR evidence. Check the native callback, force one refresh, repeat sign-in, run a small first sync followed by history replay, then Disconnect and confirm local deletion and Google grant removal. This testing does not submit restricted-scope verification.
 
 ## When to submit
 

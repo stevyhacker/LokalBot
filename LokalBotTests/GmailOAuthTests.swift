@@ -365,7 +365,7 @@ final class GmailOAuthTests: XCTestCase {
             accessToken: "a", refreshToken: "old-refresh", expiresAt: Fixtures.now,
             clientID: Self.builtIn.clientID, pendingRevocationTokens: ["older-client-refresh"])])
         let seen = RequestBox()
-        let authorizer = GmailAuthorizer(secrets: secrets, transport: { request in
+        let authorizer = GmailAuthorizer(secrets: secrets, builtInClient: Self.builtIn, transport: { request in
             seen.append(request)
             XCTAssertEqual(request.url, GmailOAuth.tokenURL, "reconnect must never revoke the new project's grant")
             XCTAssertEqual(Fixtures.form(request)["refresh_token"], "new-refresh")

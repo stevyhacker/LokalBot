@@ -279,8 +279,8 @@ actor GmailAuthorizer {
         return Array(Set([credentials.refreshToken] + (credentials.pendingRevocationTokens ?? []))).sorted()
     }
 
-    /// Asks Google to revoke a refresh token, which also ends every access
-    /// token issued from it. Returns false when Google didn't confirm.
+    /// Asks Google to revoke the account's grant for the token's Cloud project.
+    /// Returns false when Google didn't confirm.
     @discardableResult
     func revoke(token: String) async -> Bool {
         for attempt in 0..<3 {
