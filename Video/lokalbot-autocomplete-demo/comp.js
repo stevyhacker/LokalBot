@@ -150,40 +150,210 @@ function glowTexture() {
 const GLOW = glowTexture();
 
 // ---------------------------------------------------------------- background
-const sky = (() => {
-  const random = rng(7), n = 3400;
-  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), phase = new Float32Array(n);
-  const palette = [new THREE.Color(MINT), new THREE.Color(TEAL), new THREE.Color(0xffffff), new THREE.Color(0x7d9ec2)];
-  for (let i = 0; i < n; i++) {
-    pos[i * 3] = lerp(-70, 150, random());
-    pos[i * 3 + 1] = lerp(-45, 45, random());
-    pos[i * 3 + 2] = lerp(60, -300, random());
-    const c = palette[Math.floor(random() * palette.length)];
-    col.set([c.r, c.g, c.b], i * 3);
-    size[i] = lerp(0.6, 2.6, random() ** 2);
-    phase[i] = random() * 6.28;
+// A circuit board: chips, buses, traces and vias on a few layers the camera
+// flies past, with signals running along some of the traces.
+const BOARD = { px: 2048, pitch: 16, tile: 64 }; // canvas px, px per grid step, world units per tile
+const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+/** One seamless tile: a texture, and the traces as grid points for the signals. */
+function boardTile(seed) {
+  const random = rng(seed), { px, pitch } = BOARD, n = px / pitch;
+  const used = new Uint8Array(n * n);
+  const at = (x, y) => (((y % n) + n) % n) * n + (((x % n) + n) % n);
+  const free = (x, y) => !used[at(x, y)];
+  const traces = [], ends = [], chips = [], parts = [];
+  const pick = (a, b) => a + Math.floor(random() * (b - a + 1));
+  // Follows `plan` ([direction, steps] runs), then wanders until `steps` run out.
+  function route(x, y, plan, steps, wander = 0.08) {
+    if (!free(x, y)) return;
+    const pts = [[x, y]];
+    used[at(x, y)] = 1;
+    let d = plan[0][0], run = 0;
+    const queue = plan.flatMap(([dir, len]) => Array(len).fill(dir));
+    for (let s = 0; s < steps; s++) {
+      let want = queue.length ? queue.shift() : d;
+      if (!queue.length && s > 2) {
+        if (want % 2 && run >= 2 && random() < 0.4) want = (want + (random() < 0.5 ? 1 : 7)) % 8;
+        else if (!(want % 2) && run >= 3 && random() < wander) want = (want + (random() < 0.5 ? 1 : 7)) % 8;
+      }
+      const tries = queue.length ? [want] : [want, (want + 1) % 8, (want + 7) % 8];
+      let moved = false;
+      for (const k of tries) {
+        const [dx, dy] = DIRS[k];
+        if (!free(x + dx, y + dy)) continue;
+        if (k % 2 && (!free(x + dx, y) || !free(x, y + dy))) continue;
+        if (k !== d) run = 0;
+        d = k; x += dx; y += dy; run++;
+        used[at(x, y)] = 1;
+        const last = pts[pts.length - 1], prev = pts[pts.length - 2];
+        if (prev && Math.sign(last[0] - prev[0]) === dx && Math.sign(last[1] - prev[1]) === dy) last.splice(0, 2, x, y);
+        else pts.push([x, y]);
+        moved = true;
+        break;
+      }
+      if (!moved) break;
+    }
+    if (pts.length < 2) return;
+    traces.push(pts);
+    ends.push({ p: pts[pts.length - 1], via: random() < 0.7 });
   }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
-  geo.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
+  // Chips first, with a bus leaving most sides.
+  for (let tries = 0; chips.length < 7 && tries < 200; tries++) {
+    const w = pick(5, 16), h = pick(5, 12), x0 = pick(0, n - 1), y0 = pick(0, n - 1);
+    let clear = true;
+    for (let y = y0 - 4; y <= y0 + h + 4 && clear; y++) for (let x = x0 - 4; x <= x0 + w + 4; x++) if (!free(x, y)) { clear = false; break; }
+    if (!clear) continue;
+    for (let y = y0; y <= y0 + h; y++) for (let x = x0; x <= x0 + w; x++) used[at(x, y)] = 1;
+    chips.push({ x0, y0, w, h });
+  }
+  for (const { x0, y0, w, h } of chips) {
+    const sides = [
+      { o: 6, pins: Array.from({ length: w - 1 }, (_, i) => [x0 + 1 + i, y0 - 1]), t: [1, 0] },
+      { o: 2, pins: Array.from({ length: w - 1 }, (_, i) => [x0 + 1 + i, y0 + h + 1]), t: [1, 0] },
+      { o: 4, pins: Array.from({ length: h - 1 }, (_, i) => [x0 - 1, y0 + 1 + i]), t: [0, 1] },
+      { o: 0, pins: Array.from({ length: h - 1 }, (_, i) => [x0 + w + 1, y0 + 1 + i]), t: [0, 1] },
+    ];
+    for (const side of sides) {
+      if (random() < 0.25) continue;
+      const diag = (side.o + (random() < 0.5 ? 1 : 7)) % 8;
+      const lean = DIRS[diag][0] * side.t[0] + DIRS[diag][1] * side.t[1];
+      // The pin furthest along the lean turns first, so the bus stays parallel.
+      const order = side.pins.filter(() => random() < 0.85)
+        .sort((a, b) => lean * ((b[0] - a[0]) * side.t[0] + (b[1] - a[1]) * side.t[1]));
+      const bend = pick(1, 6), out = pick(3, 24);
+      order.forEach((p, i) => route(p[0], p[1], [[side.o, 1 + i], [diag, bend], [side.o, out]], pick(out + i + bend, out + i + bend + 40)));
+    }
+  }
+  // Loose traces and small parts fill the rest.
+  for (let i = 0; i < 260; i++) route(pick(0, n - 1), pick(0, n - 1), [[pick(0, 3) * 2, 1]], pick(6, 46), 0.1);
+  for (let i = 0; i < 70; i++) {
+    const x = pick(0, n - 1), y = pick(0, n - 1), across = random() < 0.5;
+    const cells = across ? [[x, y], [x + 1, y]] : [[x, y], [x, y + 1]];
+    if (cells.every(([cx, cy]) => free(cx, cy))) { cells.forEach(([cx, cy]) => { used[at(cx, cy)] = 1; }); parts.push({ x, y, across }); }
+  }
+
+  const c = document.createElement('canvas'); c.width = c.height = px;
+  const ctx = c.getContext('2d');
+  const P = v => (v + 0.5) * pitch;
+  // Draws everything nine times, shifted a tile each way, so the tile repeats seamlessly.
+  const tiled = draw => { for (const ox of [-px, 0, px]) for (const oy of [-px, 0, px]) { ctx.save(); ctx.translate(ox, oy); draw(); ctx.restore(); } };
+  ctx.lineCap = ctx.lineJoin = 'round';
+  tiled(() => {
+    ctx.strokeStyle = 'rgba(255,255,255,0.62)'; ctx.lineWidth = 2.6;
+    for (const pts of traces) {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(P(x), P(y)) : ctx.moveTo(P(x), P(y))));
+      ctx.stroke();
+    }
+    for (const { p: [x, y], via } of ends) {
+      ctx.beginPath(); ctx.arc(P(x), P(y), via ? 4.6 : 3.4, 0, Math.PI * 2);
+      if (via) { ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.stroke(); ctx.strokeStyle = 'rgba(255,255,255,0.62)'; ctx.lineWidth = 2.6; }
+      else { ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fill(); }
+    }
+    for (const { x, y, across } of parts) {
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      const [w, h] = across ? [7, 9] : [9, 7];
+      ctx.fillRect(P(x) - w / 2, P(y) - h / 2, w, h);
+      ctx.fillRect(P(x + (across ? 1 : 0)) - w / 2, P(y + (across ? 0 : 1)) - h / 2, w, h);
+    }
+    for (const { x0, y0, w, h } of chips) {
+      const x = P(x0) - pitch * 0.2, y = P(y0) - pitch * 0.2, cw = w * pitch + pitch * 0.4, ch = h * pitch + pitch * 0.4;
+      roundRect(ctx, x, y, cw, ch, 6);
+      ctx.fillStyle = 'rgba(255,255,255,0.07)'; ctx.fill();
+      ctx.lineWidth = 2.4; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + 12, y + 12, 3.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = 1; i < w; i++) { ctx.fillRect(P(x0 + i) - 3, y - 7, 6, 7); ctx.fillRect(P(x0 + i) - 3, y + ch, 6, 7); }
+      for (let i = 1; i < h; i++) { ctx.fillRect(x - 7, P(y0 + i) - 3, 7, 6); ctx.fillRect(x + cw, P(y0 + i) - 3, 7, 6); }
+    }
+  });
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  return { tex, traces: traces.filter(t => t.length >= 2) };
+}
+const BOARD_VERT = `varying vec2 vUv; varying float vDepth;
+  void main(){ vUv = uv; vec4 mv = modelViewMatrix*vec4(position, 1.); vDepth = -mv.z; gl_Position = projectionMatrix*mv; }`;
+// Calmer in the middle of the frame, where the words are.
+const BOARD_FRAG = `uniform sampler2D uMap; uniform vec3 uColor; uniform float uOpacity; uniform vec2 uRepeat;
+  varying vec2 vUv; varying float vDepth;
+  void main(){
+    vec2 q = gl_FragCoord.xy/vec2(${W}., ${H}.) - .5;
+    float a = texture2D(uMap, vUv*uRepeat).a*mix(.45, 1., smoothstep(.08, .45, length(q*vec2(1., .7))));
+    float edge = smoothstep(0., .1, vUv.x)*smoothstep(1., .9, vUv.x)*smoothstep(0., .1, vUv.y)*smoothstep(1., .9, vUv.y);
+    float d = vDepth*0.01;
+    gl_FragColor = vec4(uColor, a*uOpacity*edge*smoothstep(4., 20., vDepth)*exp(-d*d));
+  }`;
+/** Fades a layer out as the camera nears it, and with distance. */
+const boardFade = d => clamp((d - 4) / 16) ** 2 * (3 - 2 * clamp((d - 4) / 16)) * Math.exp(-((d * 0.01) ** 2));
+// Each layer sits behind a part of the film: the hook and first clips, the
+// context scene, and the pick and end card. `focus` is where its signals run.
+const boards = [
+  { seed: 11, x: 44, z: -25, w: 300, h: 170, focus: [-45, 135], pulses: 60 },
+  { seed: 23, x: 88, z: -85, w: 200, h: 140, focus: [50, 126], pulses: 30 },
+  { seed: 37, x: 100, z: -275, w: 220, h: 150, focus: [55, 150], pulses: 34 },
+].map(({ seed, x, z, w, h, focus, pulses }) => {
+  const { tex, traces } = boardTile(seed), { px, pitch, tile } = BOARD;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uMap: { value: GLOW }, uBoost: { value: 1 } },
-    vertexShader: `attribute float size; attribute float phase; attribute vec3 color; varying vec3 vColor; varying float vA;
-      uniform float uTime;
-      void main(){ vec3 p = position; p.y += sin(uTime*0.35 + phase)*0.6; p.x += cos(uTime*0.27 + phase)*0.6;
-        vec4 mv = modelViewMatrix*vec4(p,1.); gl_Position = projectionMatrix*mv;
-        gl_PointSize = size * 260. / -mv.z; vColor = color; vA = 0.7 + 0.3*sin(uTime*0.8 + phase*3.); }`,
-    fragmentShader: `uniform sampler2D uMap; uniform float uBoost; varying vec3 vColor; varying float vA;
-      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(vColor*uBoost, a*vA*0.75); }`,
+    uniforms: { uMap: { value: tex }, uColor: { value: new THREE.Color(TEAL).multiplyScalar(0.9) }, uOpacity: { value: 0.32 },
+      uRepeat: { value: new THREE.Vector2(w / tile, h / tile) } },
+    vertexShader: BOARD_VERT, fragmentShader: BOARD_FRAG,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
-  const points = new THREE.Points(geo, mat);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+  mesh.position.set(x, 0, z);
+  scene.add(mesh);
+  // Signals: a trace in some tile, as world points, plus its timing.
+  const random = rng(seed * 7 + 1), unit = (pitch / px) * tile;
+  const toWorld = (i, j) => ([gx, gy]) => v3(x - w / 2 + (i + ((gx + 0.5) * pitch) / px) * tile, -h / 2 + (j + 1 - ((gy + 0.5) * pitch) / px) * tile, z + 0.05);
+  const long = traces.filter(t => t.reduce((s, p, k) => (k ? s + Math.hypot(p[0] - t[k - 1][0], p[1] - t[k - 1][1]) : 0), 0) >= 10);
+  const signals = [];
+  for (let tries = 0; signals.length < pulses && tries < pulses * 60; tries++) {
+    const trace = long[Math.floor(random() * long.length)];
+    const i = Math.floor(random() * (w / tile)), j = Math.floor(random() * (h / tile));
+    const pts = trace.map(toWorld(i, j));
+    const mid = pts[Math.floor(pts.length / 2)];
+    if (mid.x < focus[0] || mid.x > focus[1] || Math.abs(mid.y) > 22) continue;
+    const lens = [0];
+    for (let k = 1; k < pts.length; k++) lens.push(lens[k - 1] + pts[k].distanceTo(pts[k - 1]));
+    if (random() < 0.5) { pts.reverse(); lens.reverse(); const total = lens[0]; lens.forEach((l, k) => { lens[k] = total - l; }); }
+    signals.push({ pts, lens, len: lens[lens.length - 1], speed: lerp(7, 12, random()), gap: lerp(1.2, 4, random()), phase: random() * 10 });
+  }
+  const TRAIL = 14, count = signals.length * TRAIL;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const points = new THREE.Points(geo, new THREE.PointsMaterial({ map: GLOW, vertexColors: true, color: hdr(MINT, 1.2), size: 0.7,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   points.frustumCulled = false;
   scene.add(points);
-  return { points, mat };
-})();
+  return { z, signals, pos, col, geo, unit, TRAIL };
+});
+function along({ pts, lens }, s) {
+  let k = 1;
+  while (k < lens.length - 1 && lens[k] < s) k++;
+  return new THREE.Vector3().lerpVectors(pts[k - 1], pts[k], clamp((s - lens[k - 1]) / (lens[k] - lens[k - 1] || 1)));
+}
+function layoutBoards(t) {
+  for (const b of boards) {
+    const fade = boardFade(camera.position.z - b.z);
+    b.signals.forEach((sig, n) => {
+      const cycle = sig.len / sig.speed + sig.gap;
+      const head = (((t + sig.phase) % cycle) + cycle) % cycle * sig.speed;
+      for (let k = 0; k < b.TRAIL; k++) {
+        const s = head - k * 0.13, i = n * b.TRAIL + k;
+        const on = s >= 0 && s <= sig.len && head <= sig.len + b.TRAIL * 0.13;
+        const env = on ? Math.min(1, s / 1.5, (sig.len - s) / 1.5) : 0;
+        const p = on ? along(sig, s) : sig.pts[0];
+        b.pos.set([p.x, p.y, p.z], i * 3);
+        const v = env * (1 - k / b.TRAIL) ** 2 * fade * 0.8;
+        b.col.set([v, v, v], i * 3);
+      }
+    });
+    b.geo.attributes.position.needsUpdate = true;
+    b.geo.attributes.color.needsUpdate = true;
+  }
+}
 // Soft colour behind each part of the film.
 const nebulae = [[0, 0, -40, 0x0c8275, 90], [40, 4, -50, 0x23c4ae, 70], [80, -4, -40, 0x0c8275, 110],
   [80, 0, -120, 0x0c8275, 140], [80, 6, -230, 0x23c4ae, 120]].map(([x, y, z, color, s]) => {
@@ -864,8 +1034,8 @@ await Promise.all([...document.images].map(img => img.decode().catch(() => {})))
 window.__duration = DURATION;
 window.__fps = FPS;
 window.__seek = async t => {
-  sky.mat.uniforms.uTime.value = t;
   placeCamera(t);
+  layoutBoards(t);
   layoutHook(t);
   layoutDive(t);
   layoutContext(t);

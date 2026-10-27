@@ -44,9 +44,10 @@ ffmpeg -y -hide_banner -loglevel error -framerate 30 -i "$OUT/frames/%05d.png" -
   -profile:v high -c:a aac -b:a 192k -shortest -movflags +faststart "$OUT/lokalbot-autocomplete-demo.mp4"
 
 echo "== GIF and poster =="
-# 640 px at 12 fps stays under the 15 MB X allows for a GIF.
+# 480 px at 10 fps stays under the 15 MB X allows for a GIF: the circuit
+# board moves a little in every frame, so frames barely compress.
 ffmpeg -y -hide_banner -loglevel error -i "$OUT/lokalbot-autocomplete-demo.mp4" -vf \
-  "fps=12,scale=640:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=128:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
+  "fps=10,scale=480:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=96:stats_mode=diff[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
   "$OUT/lokalbot-autocomplete-demo.gif"
 cp "$OUT/frames/$(printf %05d "${POSTER_FRAME:-679}").png" "$OUT/lokalbot-autocomplete-demo-poster.png"
 ls -lh "$OUT"/lokalbot-autocomplete-demo*

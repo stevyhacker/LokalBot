@@ -18,8 +18,11 @@ then a three.js look at how a suggestion is made.
 - Sound: synthesized by `audio.py` (music bed and effects), no third-party
   audio.
 - The final cut keeps the first version's edit and pace with lighter lights
-  (softer bloom and model glow, gentle twinkle, the shattering window fading
-  before it fills the screen), the logo lockup on the opening, and no bells.
+  (softer bloom and model glow, the shattering window fading before it fills
+  the screen), the logo lockup on the opening, and no bells. The background
+  is a generated circuit board (chips, buses, traces and vias on three layers
+  the camera flies past, with signals running along some traces) in place of
+  the first version's sparkles.
   Narrated 64 s and 45 s versions were made too (ElevenLabs voice and music);
   their pipeline is in this folder's history at commit 3b78104.
 
