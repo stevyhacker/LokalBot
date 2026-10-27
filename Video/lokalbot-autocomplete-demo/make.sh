@@ -20,8 +20,12 @@ node render.cjs events "$OUT/events.json"
 python3 audio.py edit.json "$OUT/events.json" "$OUT/soundtrack.wav"
 
 echo "== picture =="
-rm -rf "$OUT/frames"
-node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
+# KEEP_FRAMES=1 reuses frames already rendered (after re-rendering a span with
+# `node render.cjs frames renders/frames --from s --to s`).
+if [[ ${KEEP_FRAMES:-} != 1 ]]; then
+  rm -rf "$OUT/frames"
+  node render.cjs frames "$OUT/frames" --workers "${WORKERS:-3}"
+fi
 
 echo "== MP4 =="
 # Two-pass EBU R128 to -14 LUFS, the level the social sites play at.

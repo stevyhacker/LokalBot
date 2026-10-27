@@ -491,13 +491,13 @@ async function layoutFootage(t) {
   jobs.push(card.word.show(t - w0, wo));
   show(wordTitle, win(t, w0 + 0.4, w1, 0.5, 0.4));
 
-  // Three languages, one after another, each sliding in as the last slides on.
+  // Three languages, one after another: each slides off before the next slides in.
   const [l0] = T.langs;
   LANGS.forEach(([c], i) => {
     const s = l0 + EDIT.langStarts[i];
     const next = i + 1 < LANGS.length ? l0 + EDIT.langStarts[i + 1] : T.dive[0] + 0.3;
-    const enter = seg(t, s - 0.3, s + 0.4);
-    const leave = seg(t, next - 0.3, next + 0.4);
+    const enter = i === 0 ? seg(t, s - 0.3, s + 0.4) : seg(t, s, s + 0.45);
+    const leave = i + 1 < LANGS.length ? seg(t, next - 0.45, next) : seg(t, next - 0.3, next + 0.4);
     const o = clamp(enter * (1 - leave));
     if (o > 0) {
       c.group.position.set(X_LANG + lerp(3, 0, enter) - 3 * leave, 0, -8 - 2 * leave);
