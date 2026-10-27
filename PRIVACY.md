@@ -305,7 +305,7 @@ The app may make these outbound connections:
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
 - **Email (optional):** nothing is read until you connect an account under
-  Settings → Day Memory → Email, after a notice that says what is read. LokalBot
+  Settings → Personal Context → Email, after a notice that says what is read. LokalBot
   signs in to Google with its own OAuth client, which has no secret: Google's
   consent page opens in macOS's sign-in sheet and returns only to LokalBot. If
   you import your own Google Cloud client instead, its id and secret are kept

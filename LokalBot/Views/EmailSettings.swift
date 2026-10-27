@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings → Day Memory → Email: connected Gmail accounts, read-only.
+/// Settings → Personal Context → Email: connected Gmail accounts, read-only.
 struct EmailSettingsSection: View {
     @ObservedObject var email: EmailController
     let focusedSettingID: String?

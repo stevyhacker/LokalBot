@@ -16,7 +16,7 @@ Google requires the **iOS** client type for macOS apps ([Google Sign-In for iOS 
 
 LokalBot shows Google's page in `ASWebAuthenticationSession`, Apple's sign-in sheet, which is what Google's own SDK uses on macOS. The sheet returns only redirects in that scheme (`GoogleSignInSheet`). A client ID is public, so it lives in the source as `GmailOAuth.builtInClientID`.
 
-People who want their own Google Cloud project can still import a Desktop-app client under Settings → Day Memory → Email → Use your own Google OAuth client. That path uses the loopback redirect.
+People who want their own Google Cloud project can still import a Desktop-app client under Settings → Personal Context → Email → Use your own Google OAuth client. That path uses the loopback redirect.
 
 ## One-time setup in Google Cloud
 
@@ -88,7 +88,7 @@ Record in English, at 1080p or higher, as one continuous take, and upload it to 
 
 1. **The client.** Open the Google Cloud console's **Clients** page with the `LokalBot for Mac` client ID visible. Then show the same ID in the source (`GmailOAuth.builtInClientID` on GitHub). The macOS sign-in sheet shows the page's host but not the full URL, so this proves which client is being reviewed.
 2. **The app's home page and privacy page.** Scroll to **Email from Gmail**.
-3. **The notice.** In LokalBot, open **Settings → Day Memory → Email → Add Gmail Account…** and show the notice that explains what is read.
+3. **The notice.** In LokalBot, open **Settings → Personal Context → Email → Add Gmail Account…** and show the notice that explains what is read.
 4. **The consent screen.** Click **Continue**. Google's consent screen appears in the sign-in sheet. Show all of it, with the language set to English at the bottom left and the read-only Gmail permission listed.
 5. **The first check.** After sign-in, show the account in Settings and the "Checked … · N conversations" line.
 6. **The feature.** Open **Today** before a meeting with someone you have emailed, and show the brief's email section citing those threads. This shot can only be filmed once that feature exists.

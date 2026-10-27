@@ -8,7 +8,7 @@ Date: 2026-10-26. Status: in progress.
 - the conversations-only filter;
 - Gmail's change history and the check schedule (morning, every three hours, and before meetings);
 - the sealed thread store;
-- Settings → Day Memory → Email, and PRIVACY.md.
+- Settings → Personal Context → Email, and PRIVACY.md.
 
 Nothing reads the stored mail yet. The "From email" section of the brief is the next PR.
 
