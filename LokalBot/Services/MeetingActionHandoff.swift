@@ -118,15 +118,16 @@ enum MeetingActionHandoff {
 extension AppState {
     /// Gives each open action of the person's from `meeting` its own Agent
     /// Mode task. With "Start handoffs automatically" on, the tasks run as
-    /// agents free up; otherwise each prompt waits in its composer. Returns
-    /// the new tasks' IDs, empty when every action already has a task.
+    /// agents free up; otherwise each prompt waits in its composer. Asked
+    /// for by hand, an action whose task was archived gets a new one.
+    /// Returns the new tasks' IDs, empty when every action already has a task.
     @discardableResult
     func handOffActions(of meeting: Meeting, automatic: Bool = false) -> [UUID] {
         guard let projection = outcomeIndex.projection(for: meeting.id) else { return [] }
         let handoffs = MeetingActionHandoff.handoffs(for: projection)
         guard !handoffs.isEmpty else { return [] }
         let start = settings.startHandoffsAutomatically && agentInstaller.phase == .installed
-        let added = agentSessions.handOff(handoffs, start: start)
+        let added = agentSessions.handOff(handoffs, start: start, againIfArchived: !automatic)
         if automatic, !added.isEmpty {
             RecordingNotifier.shared.actionsHandedOff(
                 count: added.count, meetingTitle: meeting.displayTitle, started: start)

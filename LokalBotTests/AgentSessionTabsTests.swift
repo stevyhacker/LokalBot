@@ -303,6 +303,12 @@ final class AgentSessionTabsTests: XCTestCase {
                        ["Work on action 1", "Work on action 2"])
         XCTAssertTrue(restored.handOff(handoffs, start: false).isEmpty, "handed-off actions are remembered")
         XCTAssertTrue(factory.plans.isEmpty)
+
+        await restored.setArchived(added[0], true)
+        XCTAssertTrue(restored.handOff(handoffs, start: false).isEmpty, "an archived task still counts")
+        let again = restored.handOff(handoffs, start: false, againIfArchived: true)
+        XCTAssertEqual(again.count, 1, "asked again, only the archived action gets a new task")
+        XCTAssertEqual(restored.tabs.first { $0.id == again.first }?.record.handoff, handoffs[0].source)
         await restored.shutdownAll()
     }
 
