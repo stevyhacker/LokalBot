@@ -26,20 +26,12 @@ struct DayDigestPresentation: Equatable {
 
     /// Tasks ordered for scanning: open work first, finished work last.
     struct TaskGroup: Equatable, Identifiable {
+        /// The view names each kind through the interface catalog.
         enum Kind: CaseIterable {
             case blocked
             case inProgress
             case other
             case completed
-
-            var title: String {
-                switch self {
-                case .blocked: "Blocked"
-                case .inProgress: "In progress"
-                case .other: "Other work"
-                case .completed: "Done"
-                }
-            }
         }
 
         let kind: Kind
@@ -102,6 +94,45 @@ struct DayDigestPresentation: Equatable {
             let blocks = focusBlocks.filter { Self.groupKind(of: $0) == kind }
             return blocks.isEmpty ? nil : TaskGroup(kind: kind, blocks: blocks)
         }
+    }
+
+    /// Task-first journals give their tasks a status; older journals never do.
+    var isTaskFirst: Bool {
+        focusBlocks.contains { $0.status != nil }
+    }
+
+    /// Timeline shows a group's tasks that carry a next step, and every
+    /// blocked task, in full; the rest of the group become one-line rows.
+    /// Older journals have neither statuses nor next steps, and their summary
+    /// is the only description, so all of their tasks stay in full.
+    func timelineRows(of group: TaskGroup) -> (full: [FocusBlock], brief: [FocusBlock]) {
+        guard isTaskFirst, group.kind != .blocked else { return (group.blocks, []) }
+        if group.kind == .completed { return ([], group.blocks) }
+        return (group.blocks.filter { $0.nextStep != nil },
+                group.blocks.filter { $0.nextStep == nil })
+    }
+
+    /// Splits a trailing parenthetical off a task title, such as the project
+    /// in "Review all open PRs (LokalBot)" or the pull request in
+    /// "Staging deployment (PR #487)", so the view can show it as a tag.
+    static func titleAndTag(_ title: String) -> (title: String, tag: String?) {
+        let trimmed = title.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasSuffix(")") else { return (trimmed, nil) }
+        var depth = 0
+        var open: String.Index?
+        for index in trimmed.indices.reversed() {
+            if trimmed[index] == ")" { depth += 1 }
+            if trimmed[index] == "(" {
+                depth -= 1
+                if depth == 0 { open = index; break }
+            }
+        }
+        guard let open else { return (trimmed, nil) }
+        let tag = trimmed[trimmed.index(after: open)..<trimmed.index(before: trimmed.endIndex)]
+            .trimmingCharacters(in: .whitespaces)
+        let head = trimmed[..<open].trimmingCharacters(in: .whitespaces)
+        guard !head.isEmpty, !tag.isEmpty, tag.count <= 32 else { return (trimmed, nil) }
+        return (head, tag)
     }
 
     var activityCount: Int {

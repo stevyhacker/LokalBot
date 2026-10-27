@@ -1,0 +1,8 @@
+   Compiling lokalbot-i18n v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-i18n)
+   Compiling lokalbot-audio v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-audio)
+   Compiling lokalbot-core v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-core)
+   Compiling lokalbot-ai v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-ai)
+   Compiling lokalbot-speech v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-speech)
+   Compiling lokalbot-platform v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-platform)
+   Compiling lokalbot-engine v0.11.2 (/workspace/master/LinuxWindows/crates/lokalbot-engine)
+    Finished `release` profile [optimized] target(s) in 22.31s

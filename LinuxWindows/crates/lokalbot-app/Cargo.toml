@@ -1,0 +1,59 @@
+[package]
+name = "lokalbot-app"
+description = "LokalBot for Linux and Windows: private work memory with on-device AI."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "lokalbot"
+path = "src/main.rs"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+[dependencies]
+lokalbot-i18n.workspace = true
+rust-i18n = "4.2"
+unicode-linebreak = "0.1"
+unicode-segmentation = "1"
+lokalbot-core.workspace = true
+lokalbot-cli.workspace = true
+lokalbot-ai.workspace = true
+lokalbot-agent.workspace = true
+lokalbot-audio.workspace = true
+lokalbot-engine.workspace = true
+lokalbot-platform.workspace = true
+lokalbot-speech.workspace = true
+lokalbot-update = { workspace = true, features = ["client"] }
+gpui-kit.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+directories.workspace = true
+parking_lot.workspace = true
+crossbeam-channel.workspace = true
+raw-window-handle = "0.6"
+async-channel = "2"
+smol = "2"
+# PNG for the tray icon; JPEG for screen images decrypted for display.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
+# The autocomplete probe example presses keys, raises Notepad and grabs the
+# screen through Win32.
+[target.'cfg(windows)'.dev-dependencies.windows]
+version = "0.62"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Gdi",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+]

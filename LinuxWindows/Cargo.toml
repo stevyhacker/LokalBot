@@ -1,0 +1,60 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+default-members = ["crates/lokalbot-app", "crates/lokalbot-cli"]
+
+[workspace.package]
+version = "0.11.4"
+edition = "2024"
+license = "GPL-3.0-only"
+publish = false
+rust-version = "1.99"
+repository = "https://github.com/stevyhacker/lokalbot"
+
+[workspace.dependencies]
+lokalbot-core = { path = "crates/lokalbot-core" }
+lokalbot-cli = { path = "crates/lokalbot-cli" }
+lokalbot-ai = { path = "crates/lokalbot-ai" }
+lokalbot-audio = { path = "crates/lokalbot-audio" }
+lokalbot-speech = { path = "crates/lokalbot-speech" }
+lokalbot-platform = { path = "crates/lokalbot-platform" }
+lokalbot-engine = { path = "crates/lokalbot-engine" }
+lokalbot-agent = { path = "crates/lokalbot-agent" }
+lokalbot-i18n = { path = "crates/lokalbot-i18n" }
+lokalbot-update = { path = "crates/lokalbot-update", default-features = false }
+
+# UI. GPUI Kit pins the exact GPUI snapshot it was released against; see
+# docs/dependency-provenance.md before changing either version.
+gpui-kit = "=0.7.3"
+
+anyhow = "1"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde", "std", "unstable-locales"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+directories = "6"
+log = "0.4"
+env_logger = "0.11"
+parking_lot = "0.12"
+crossbeam-channel = "0.5"
+rusqlite = { version = "0.40", features = ["bundled"] }
+clap = { version = "4", features = ["derive"] }
+ureq = { version = "3", default-features = false, features = ["rustls", "json"] }
+sha2 = "0.10"
+hex = "0.4"
+regex = "1"
+unicode-normalization = "0.1"
+tempfile = "3"
+
+[profile.dev]
+# Keep debug builds quick and small; GPUI is large.
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 1
+
+[profile.release]
+lto = "thin"
+codegen-units = 4
+strip = true

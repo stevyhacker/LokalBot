@@ -75,15 +75,16 @@ enum LibrarySearch {
 
         for (index, meeting) in all.enumerated() {
             let short = SessionLookup.shortID(meeting.id)
+            let sample: Bool? = meeting.isSample ? true : nil
             consider(meeting.title, meeting: index, kind: 0, position: 0) { _ in
                 .init(meeting_id: short, meeting_title: meeting.title, match_kind: "title",
-                      snippet: meeting.title, timestamp: nil)
+                      snippet: meeting.title, timestamp: nil, sample: sample)
             }
             if let summary = SessionLookup.summaryMarkdown(for: meeting) {
                 consider(summary, meeting: index, kind: 1, position: 0) { needle in
                     snippet(in: summary, around: needle).map {
                         .init(meeting_id: short, meeting_title: meeting.title, match_kind: "summary",
-                              snippet: $0, timestamp: nil)
+                              snippet: $0, timestamp: nil, sample: sample)
                     }
                 }
             }
@@ -91,7 +92,8 @@ enum LibrarySearch {
                 for (position, segment) in transcript.segments.enumerated() {
                     consider(segment.text, meeting: index, kind: 2, position: position) { _ in
                         .init(meeting_id: short, meeting_title: meeting.title, match_kind: "transcript",
-                              snippet: segment.text, timestamp: Transcript.stamp(segment.start))
+                              snippet: segment.text, timestamp: Transcript.stamp(segment.start),
+                              sample: sample)
                     }
                 }
             }

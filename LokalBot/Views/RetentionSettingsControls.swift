@@ -61,13 +61,7 @@ struct RetentionSettingsControls: View {
 
     private func apply(_ proposal: RetentionReview) {
         do {
-            let days = Set(proposal.evidenceDates.map { Calendar.current.startOfDay(for: $0) })
-            let failures = try app.withPrimaryEvidenceChange(on: Array(days), .removal) {
-                try app.screenshots.applyRetentionReview(proposal)
-            }
-            app.primaryEvidenceDidChange(on: Array(days))
-            app.settings.retentionDays = proposal.days
-            app.settings.keepOCRTextForever = proposal.keepTextForever
+            let failures = try app.applyRetentionReview(proposal)
             review = nil
             completion = failures.isEmpty ? "Retention updated. Reviewed cleanup completed." : nil
             error = failures.isEmpty ? nil : "Retention updated; \(failures.count) moments could not be fully cleaned up.\n" + failures.joined(separator: "\n")

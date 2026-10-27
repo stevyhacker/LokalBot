@@ -80,8 +80,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // to avoid a window-flash, so for a manual open we explicitly bring the
         // window back up as a regular, Dock-visible app. `wasLaunchedAtLogin`
         // is only reliable here in `applicationDidFinishLaunching`.
+        // `lokalbot-cli` starting the app for a terminal request counts as a
+        // background launch too: the person asked for a setting, not a window.
         if lokalbotLaunchesMenuBarOnly() {
-            if LaunchAtLogin.wasLaunchedAtLogin {
+            // An agent's setup launch opens only its request window.
+            if LaunchAtLogin.wasLaunchedAtLogin || AppControlProtocol.isBackgroundLaunch() || AgentSetup.isLaunch() {
                 DispatchQueue.main.async { DockPolicy.beginLaunchSuppression() }
             } else {
                 DispatchQueue.main.async { WindowAccess.shared.open("main") }
@@ -100,6 +103,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.async { DockPolicy.sync() }
             }
         }
+    }
+
+    /// A day counts toward the GitHub star request when LokalBot becomes the
+    /// active app, not when it only runs in the menu bar after a login launch.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        Self.appState?.githubStar.recordActiveDay()
     }
 
     /// Reopening the app (Finder/Launchpad relaunch, Dock click) brings the main
@@ -729,6 +738,11 @@ final class WindowAccess {
     /// The visible main SwiftUI window, matched by its scene identifier —
     /// `navigationTitle` retitles the window per tab (e.g. "Timeline"), so
     /// matching on the title silently stops finding it.
+    /// Closes a window scene by its identifier when it is open.
+    func close(_ id: String) {
+        NSApp?.windows.filter { $0.identifier?.rawValue == id }.forEach { $0.close() }
+    }
+
     static func visibleMainWindow(in application: NSApplication) -> NSWindow? {
         application.windows.first { window in
             guard window.isVisible else { return false }

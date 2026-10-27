@@ -1,0 +1,81 @@
+Reading package lists...
+Building dependency tree...
+Reading state information...
+ca-certificates is already the newest version (20260816ubuntu0.24.04.1).
+curl is already the newest version (8.5.0-2ubuntu10.16).
+git is already the newest version (1:2.43.0-1ubuntu7.4).
+build-essential is already the newest version (12.10ubuntu1).
+pkg-config is already the newest version (1.8.1-2build1).
+libssl-dev is already the newest version (3.0.13-0ubuntu3.16).
+libasound2-dev is already the newest version (1.2.11-1ubuntu0.3).
+libx11-dev is already the newest version (2:1.8.7-1ubuntu0.1).
+libxkbcommon-dev is already the newest version (1.6.0-1build1).
+libxkbcommon-x11-dev is already the newest version (1.6.0-1build1).
+libxcb1-dev is already the newest version (1.15-1ubuntu2).
+libwayland-dev is already the newest version (1.22.0-2.1build1).
+libvulkan1 is already the newest version (1.3.275.0-1build1).
+vulkan-tools is already the newest version (1.3.275.0+dfsg1-1).
+libxext6 is already the newest version (2:1.3.4-1build2).
+libgl1 is already the newest version (1.7.0-1build1).
+libegl1 is already the newest version (1.7.0-1build1).
+libfontconfig1-dev is already the newest version (2.15.0-1.1ubuntu2).
+ripgrep is already the newest version (14.1.0-1).
+python3 is already the newest version (3.12.3-0ubuntu2.1).
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.
+info: downloading installer
+info: profile set to minimal
+info: default host tuple is x86_64-unknown-linux-gnu
+info: syncing channel updates for 1.99.1-x86_64-unknown-linux-gnu
+info: latest update on 2026-10-15 for version 1.99.1 (58cf8f9c3 2026-10-13)
+info: downloading 3 components
+info: default toolchain set to 1.99.1-x86_64-unknown-linux-gnu
+
+  1.99.1-x86_64-unknown-linux-gnu installed - rustc 1.99.1 (58cf8f9c3 2026-10-13)
+
+
+Rust is installed now. Great!
+
+To get started you may need to restart your current shell.
+This would reload your PATH environment variable to include
+Cargo's bin directory ($HOME/.cargo/bin).
+
+To configure your current shell, you need to source the
+corresponding env file under $HOME/.cargo.
+
+Consider running the right command for your shell (note the leading DOT):
+. "$HOME/.cargo/env" # For sh/ash/dash/pdksh/bash
+cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+CC_x86_64-unknown-linux-gnu = None
+cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+CC_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=HOST_CC
+HOST_CC = None
+cargo:rerun-if-env-changed=CC
+CC = None
+cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+CRATE_CC_NO_DEFAULTS = None
+cargo:rerun-if-env-changed=CFLAGS
+CFLAGS = None
+cargo:rerun-if-env-changed=HOST_CFLAGS
+HOST_CFLAGS = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+CFLAGS_x86_64_unknown_linux_gnu = None
+cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+CFLAGS_x86_64-unknown-linux-gnu = None
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: is subject to change. To configure the initial branch name to use in all
+hint: of your new repositories, which will suppress this warning, call:
+hint: 
+hint: 	git config --global init.defaultBranch <name>
+hint: 
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint: 
+hint: 	git branch -m <name>
+Initialized empty Git repository in /workspace/lokalbot/.git/
+From https://github.com/stevyhacker/LokalBot
+ * branch            4b63346556f15776d441cf3e8c42a8ce2a7c15f6 -> FETCH_HEAD
+HEAD is now at 4b63346 fix: restore CUDA review test and localization parity
+info: syncing channel updates for 1.99.1-x86_64-unknown-linux-gnu
+error: could not download file from 'https://static.rust-lang.org/dist/channel-rust-1.99.1.toml.sha256' to '/root/.rustup/tmp/0b_h7l6zyzbwvaw3_file': error downloading file: error sending request for url (https://static.rust-lang.org/dist/channel-rust-1.99.1.toml.sha256): client error (Connect): Connection reset by peer (os error 104)

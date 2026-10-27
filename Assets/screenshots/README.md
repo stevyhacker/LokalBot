@@ -20,8 +20,8 @@ calls and Apple apps, with a different example in each frame. They are not
 composited product mockups. The isolated capture host suppresses background
 capture and inference; displayed transcripts, summaries, suggestions, and
 permission states are fixture data. The images show the interface, not proof
-of live recording or model performance. The README's hero image is a separate
-composite described in [Assets/hero/README.md](../hero/README.md).
+of live recording or model performance. The README's hero is a separate
+recorded loop described in [Assets/hero/README.md](../hero/README.md).
 
 The LokalBot UI Test Host was built from the commit above with
 `CODE_SIGNING_ALLOWED=NO` into its own DerivedData. Each frame used the

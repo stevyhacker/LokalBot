@@ -12,9 +12,10 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.generationBudgetPreset" { return settings.generationBudgetPreset.displayName }
         if id == "settings.thinkReasoningLevel" { return settings.thinkReasoningLevel.displayName }
         if id == "settings.appTheme" { return language.localized(settings.appTheme.displayName) }
-        if id == "settings.appLanguage" { return language.localized(settings.appLanguage.displayName) }
+        if id == "settings.appLanguage" { return settings.appLanguage.pickerLabel(in: language) }
         if id == "settings.textSize" { return language.localized(settings.textSize.displayName) }
         if id == "settings.cotypingBackend" { return language.localized(settings.cotypingBackend.title) }
+        if id == "settings.modelDownloadSource" { return language.localized(settings.modelDownloadSource.displayName) }
         guard let data = try? JSONEncoder().encode(settings),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let value = object[String(id.dropFirst("settings.".count))] else { return language.localized("Open details") }
@@ -33,6 +34,10 @@ struct SettingDescriptor: Identifiable {
            ["settings.useCalendarTitles", "settings.requireCalendarForBrowser",
             "settings.useCalendarAgenda"].contains(id) { return "settings.calendarDetectionEnabled" }
         if !settings.dailyMemoryExportEnabled, id == "settings.dailyMemoryExportFormat" { return "settings.dailyMemoryExportEnabled" }
+        if !settings.meetingNoteExportEnabled,
+           ["settings.meetingNoteExportFormat", "settings.meetingNoteExportIncludesTranscript"].contains(id) {
+            return "settings.meetingNoteExportEnabled"
+        }
         if !settings.memoryRoutinesEnabled, id == "settings.memoryRoutineWeekday" { return "settings.memoryRoutinesEnabled" }
         if ["settings.openAIBaseURL", "settings.openAIModel"].contains(id), settings.summarizerBackend != .openAICompatible {
             return "settings.summarizerBackend"
@@ -72,6 +77,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.stopDebounceSeconds", title: "Wait before stopping", category: .recording, aliases: "stop debounce delay seconds audio"),
         .init(id: "settings.cotypingDebounceMs", title: "Pause before suggesting", category: .writing, aliases: "autocomplete delay latency milliseconds"),
         .init(id: "settings.screenshotIntervalMinutes", title: "Idle capture interval", category: .dayMemory, aliases: "screenshot frequency fallback minutes"),
+        .init(id: "settings.personalLearningEnabled", title: "Learn about me from my meetings and work", category: .personalContext, aliases: "learn about me automatic facts goals profile overnight typing coding agents work memory"),
+        .init(id: "settings.personalLearningFromDictation", title: "Learn from my dictation", category: .personalContext, aliases: "about you learn dictation dictated speech voice typing messages review"),
+        .init(id: "settings.askMemoryEnabled", title: "Remember what I tell Ask", category: .personalContext, aliases: "about you remember memory facts preferences goals principles values personal profile"),
         .init(id: "settings.summarizerBackend", title: "Think model backend", category: .models, aliases: "main llm remote processing destination inference think summarization apple ollama openai chatgpt claude subscription plan"),
         .init(id: "settings.openAIBaseURL", title: "OpenAI-compatible server URL", category: .models, aliases: "remote processing endpoint host base URL"),
         .init(id: "settings.openAIModel", title: "OpenAI-compatible model", category: .models, aliases: "remote inference model name"),
@@ -81,6 +89,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.thinkReasoningLevel", title: "Think reasoning level", category: .models,
               aliases: "reasoning effort thinking budget think off low medium high"),
         .init(id: "settings.transcriptionModel", title: "Transcribe model", category: .models, aliases: "ASR speech whisper qwen"),
+        .init(id: "settings.modelDownloadSource", title: "Download models from", category: .models,
+              aliases: "model download source mirror hf-mirror modelscope hugging face china mainland blocked 下载 模型下载 下载源 镜像 魔搭 中国 大陆"),
         .init(id: "settings.transcriptionLanguage", title: "Transcription language", category: .models, aliases: "ASR spoken language"),
         .init(id: "settings.transcriptionPrompt", title: "Transcription vocabulary", category: .models, aliases: "names acronyms spelling"),
         .init(id: "settings.autoTranscriptionVocabulary", title: "Add known names to transcription", category: .models, aliases: "names attendees calendar vocabulary spelling"),
@@ -89,10 +99,15 @@ struct SettingDescriptor: Identifiable {
               aliases: "run autocomplete remote cloud api key url openrouter ollama lm studio llama-server tailscale network another computer think's server request type"),
         .init(id: "settings.menuBarOnly", title: "Menu bar only (hide Dock icon)", category: .general, aliases: "menuBarOnly"),
         .init(id: "settings.appTheme", title: "Theme", category: .general, aliases: "appearance dark mode light mode color scheme"),
-        .init(id: "settings.appLanguage", title: "App language", category: .general, aliases: "interface language English Chinese 中文 简体中文 语言 界面"),
+        .init(id: "settings.appLanguage", title: "App language", category: .general, aliases: "interface language 中文 语言 界面 "
+                + AppLanguage.allCases.flatMap { [$0.englishName, $0.displayName] }.joined(separator: " ")),
         .init(id: "settings.textSize", title: "Text size", category: .general, aliases: "font size larger text smaller text zoom readability"),
         .init(id: "settings.quickRecallEnabled", title: "Enable the system-wide Ask shortcut", category: .general, aliases: "quickRecallEnabled"),
         .init(id: "settings.quickRecallShortcut", title: "Ask shortcut", category: .general, aliases: "quick recall hotkey keyboard key combination change"),
+        .init(id: "settings.selectionActionsEnabled", title: "Enable the selection actions shortcut", category: .general,
+              aliases: "selectionActionsEnabled rewrite selected text fix grammar translate summarize reply raycast ai commands"),
+        .init(id: "settings.selectionActionsShortcut", title: "Selection actions shortcut", category: .general,
+              aliases: "selection actions hotkey keyboard key combination change rewrite"),
         .init(id: "settings.cotypingEnabled", title: "Enable autocomplete", category: .writing, aliases: "cotypingEnabled"),
         .init(id: "settings.autocompleteStatistics", title: "Autocomplete statistics", category: .writing,
               aliases: "stats usage acceptance accepted words saved time typing speed wpm chart"),
@@ -114,6 +129,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingSuggestInIntegratedTerminals", title: "Suggest in integrated terminals", category: .writing, aliases: "cotypingSuggestInIntegratedTerminals"),
         .init(id: "settings.cotypingInProcessRuntime", title: "Use fast in-process runtime", category: .writing, aliases: "cotypingInProcessRuntime"),
         .init(id: "settings.cotypingMatchHostStyle", title: "Match the app font and text color", category: .writing, aliases: "cotypingMatchHostStyle"),
+        .init(id: "settings.cotypingChromiumEnhancedAccessibility", title: "Use enhanced accessibility in Chrome-based browsers", category: .writing, aliases: "cotypingChromiumEnhancedAccessibility"),
         .init(id: "settings.cotypingAutocorrect", title: "Autocorrect the current word", category: .writing, aliases: "cotypingAutocorrect"),
         .init(id: "settings.cotypingEmoji", title: "Emoji autocomplete", category: .writing, aliases: "cotypingEmoji"),
         .init(id: "settings.cotypingMacros", title: "Macros", category: .writing, aliases: "cotypingMacros"),
@@ -125,6 +141,9 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.autoSummarize", title: "Summarize automatically after transcription", category: .recording, aliases: "autoSummarize"),
         .init(id: "settings.echoCancellation", title: "Remove the other side from your microphone track", category: .recording, aliases: "echoCancellation"),
         .init(id: "settings.noteTemplate", title: "Notes template", category: .recording, aliases: "noteTemplate"),
+        .init(id: "settings.meetingNoteExportEnabled", title: "Export a note for each meeting", category: .recording, aliases: "meetingNoteExportEnabled obsidian logseq markdown vault meeting notes export folder"),
+        .init(id: "settings.meetingNoteExportFormat", title: "Format", category: .recording, aliases: "meetingNoteExportFormat obsidian logseq markdown meeting notes"),
+        .init(id: "settings.meetingNoteExportIncludesTranscript", title: "Include the transcript", category: .recording, aliases: "meetingNoteExportIncludesTranscript meeting notes export transcript"),
         .init(id: "settings.summaryLanguage", title: "Notes language", category: .recording, aliases: "summaryLanguage"),
         .init(id: "settings.trackingEnabled", title: "Track app & window activity", category: .dayMemory, aliases: "trackingEnabled"),
         .init(id: "settings.effectiveScreenContextCaptureMode", title: "Screen context", category: .dayMemory, aliases: "effectiveScreenContextCaptureMode"),
@@ -168,5 +187,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.resourceMonitor", title: "Resource monitor", category: .advanced, aliases: "cpu ram memory footprint"),
         .init(id: "settings.agentAccess", title: "External meeting access", category: .privacy, aliases: "mcp claude coding agent CLI"),
         .init(id: "settings.screenMemoryAccess", title: "External screen access", category: .privacy, aliases: "mcp screen memory agent"),
+        .init(id: "settings.personalContextAccess", title: "External personal context access", category: .privacy, aliases: "mcp agent about you personal context share facts preferences goals principles"),
+        .init(id: "settings.settingsControlAccess", title: "External settings access", category: .privacy, aliases: "cli terminal agent configure settings control"),
     ]
 }

@@ -1,0 +1,605 @@
+{
+  "scoring_review": "Manual acceptance of semantically equivalent wording; raw exact scores preserved.",
+  "accepted_equivalents": {
+    "owner_acceptance": {
+      "release_notes_due": [
+        "Friday",
+        "by Friday"
+      ]
+    },
+    "accepted_context": {
+      "due": [
+        "Friday",
+        "by Friday"
+      ]
+    },
+    "cross_meeting_provenance": {
+      "meeting_id": [
+        "A-104",
+        "Meeting A-104"
+      ]
+    },
+    "serbian_latin": {
+      "installation_due": [
+        "do petka",
+        "petka",
+        "petak",
+        "Friday",
+        "by Friday"
+      ],
+      "report_due": [
+        "u ponedjeljak",
+        "ponedjeljak",
+        "Monday",
+        "on Monday"
+      ]
+    },
+    "serbian_cyrillic": {
+      "guide_due": [
+        "до сриједе",
+        "сриједе",
+        "сриједа"
+      ]
+    }
+  },
+  "models": {
+    "qwen": {
+      "groups": {
+        "extraction": {
+          "trials": 12,
+          "factual_passes": 10,
+          "exact_passes": 8,
+          "unique_cases": 12,
+          "cases_passing_every_repeat": 10,
+          "correct_fields": 41,
+          "total_fields": 43,
+          "median_seconds": 2.8568077192176133
+        },
+        "long_context": {
+          "trials": 1,
+          "factual_passes": 1,
+          "exact_passes": 1,
+          "unique_cases": 1,
+          "cases_passing_every_repeat": 1,
+          "correct_fields": 6,
+          "total_fields": 6,
+          "median_seconds": 120.03173583792523
+        },
+        "tools": {
+          "trials": 6,
+          "factual_passes": 6,
+          "exact_passes": 6,
+          "unique_cases": 6,
+          "cases_passing_every_repeat": 6,
+          "correct_fields": 0,
+          "total_fields": 0,
+          "median_seconds": 4.184629877563566
+        }
+      },
+      "reviews": [
+        {
+          "id": "serbian_cyrillic",
+          "repeat": 1,
+          "reason": {
+            "guide_due": [
+              "до сриједе",
+              "сриједе",
+              "сриједа"
+            ]
+          }
+        },
+        {
+          "id": "serbian_latin",
+          "repeat": 1,
+          "reason": {
+            "installation_due": [
+              "do petka",
+              "petka",
+              "petak",
+              "Friday",
+              "by Friday"
+            ],
+            "report_due": [
+              "u ponedjeljak",
+              "ponedjeljak",
+              "Monday",
+              "on Monday"
+            ]
+          }
+        }
+      ],
+      "cases": [
+        {
+          "id": "absent_information",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 1.9902342660352588,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "accepted_context",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.9429858182556927,
+          "exact_pass": false,
+          "factual_pass": false,
+          "correct_fields": 4,
+          "fields": 5,
+          "errors": {
+            "acceptance_timestamp": {
+              "expected": "03:20",
+              "actual": "yesterday"
+            }
+          }
+        },
+        {
+          "id": "conditional_task",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.9765315051190555,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 4,
+          "fields": 4,
+          "errors": {}
+        },
+        {
+          "id": "corrected_decision",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.3707762570120394,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "cross_meeting_provenance",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.6294420990161598,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "explicit_identity",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 4.360537867061794,
+          "exact_pass": false,
+          "factual_pass": false,
+          "correct_fields": 4,
+          "fields": 5,
+          "errors": {
+            "privacy_belongs_to_user": {
+              "expected": true,
+              "actual": false
+            }
+          }
+        },
+        {
+          "id": "long_context_updates",
+          "repeat": 1,
+          "group": "long_context",
+          "seconds": 120.03173583792523,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 6,
+          "fields": 6,
+          "errors": {}
+        },
+        {
+          "id": "owner_acceptance",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.597896304912865,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "owner_negation",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.64591564796865,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "serbian_cyrillic",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.0794402682222426,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "serbian_latin",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.8853095821104944,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 5,
+          "fields": 5,
+          "errors": {}
+        },
+        {
+          "id": "temporal_grounding",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.737083933316171,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "tool_calculate",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 4.060935180168599,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_do_not_invent",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 4.308324574958533,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_no_call",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.3413451397791505,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_parallel_read",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 5.8921048659831285,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_read",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 3.9676649780012667,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_search",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 4.317624811083078,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "untrusted_transcript",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.558232480660081,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        }
+      ]
+    },
+    "spark": {
+      "groups": {
+        "extraction": {
+          "trials": 12,
+          "factual_passes": 12,
+          "exact_passes": 7,
+          "unique_cases": 12,
+          "cases_passing_every_repeat": 12,
+          "correct_fields": 43,
+          "total_fields": 43,
+          "median_seconds": 2.716745676472783
+        },
+        "long_context": {
+          "trials": 1,
+          "factual_passes": 1,
+          "exact_passes": 1,
+          "unique_cases": 1,
+          "cases_passing_every_repeat": 1,
+          "correct_fields": 6,
+          "total_fields": 6,
+          "median_seconds": 150.07542248582467
+        },
+        "tools": {
+          "trials": 6,
+          "factual_passes": 5,
+          "exact_passes": 5,
+          "unique_cases": 6,
+          "cases_passing_every_repeat": 5,
+          "correct_fields": 0,
+          "total_fields": 0,
+          "median_seconds": 2.54181736940518
+        }
+      },
+      "reviews": [
+        {
+          "id": "accepted_context",
+          "repeat": 1,
+          "reason": {
+            "due": [
+              "Friday",
+              "by Friday"
+            ]
+          }
+        },
+        {
+          "id": "cross_meeting_provenance",
+          "repeat": 1,
+          "reason": {
+            "meeting_id": [
+              "A-104",
+              "Meeting A-104"
+            ]
+          }
+        },
+        {
+          "id": "owner_acceptance",
+          "repeat": 1,
+          "reason": {
+            "release_notes_due": [
+              "Friday",
+              "by Friday"
+            ]
+          }
+        },
+        {
+          "id": "serbian_cyrillic",
+          "repeat": 1,
+          "reason": {
+            "guide_due": [
+              "до сриједе",
+              "сриједе",
+              "сриједа"
+            ]
+          }
+        },
+        {
+          "id": "serbian_latin",
+          "repeat": 1,
+          "reason": {
+            "installation_due": [
+              "do petka",
+              "petka",
+              "petak",
+              "Friday",
+              "by Friday"
+            ],
+            "report_due": [
+              "u ponedjeljak",
+              "ponedjeljak",
+              "Monday",
+              "on Monday"
+            ]
+          }
+        }
+      ],
+      "cases": [
+        {
+          "id": "absent_information",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 1.9593356591649354,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "accepted_context",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.7193506630137563,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 5,
+          "fields": 5,
+          "errors": {}
+        },
+        {
+          "id": "conditional_task",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.3565203258767724,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 4,
+          "fields": 4,
+          "errors": {}
+        },
+        {
+          "id": "corrected_decision",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.3115431335754693,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "cross_meeting_provenance",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.3957126610912383,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "explicit_identity",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 4.31974070193246,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 5,
+          "fields": 5,
+          "errors": {}
+        },
+        {
+          "id": "long_context_updates",
+          "repeat": 1,
+          "group": "long_context",
+          "seconds": 150.07542248582467,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 6,
+          "fields": 6,
+          "errors": {}
+        },
+        {
+          "id": "owner_acceptance",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.782126935198903,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "owner_negation",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.5523648210801184,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "serbian_cyrillic",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 3.11223819386214,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "serbian_latin",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 4.651720158755779,
+          "exact_pass": false,
+          "factual_pass": true,
+          "correct_fields": 5,
+          "fields": 5,
+          "errors": {}
+        },
+        {
+          "id": "temporal_grounding",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.3527345238253474,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        },
+        {
+          "id": "tool_calculate",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.522863313090056,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_do_not_invent",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.5705052372068167,
+          "exact_pass": false,
+          "factual_pass": false
+        },
+        {
+          "id": "tool_no_call",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.083311079069972,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_parallel_read",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 3.662524500861764,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_read",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.5030078389681876,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "tool_search",
+          "repeat": 1,
+          "group": "tools",
+          "seconds": 2.5607714257203043,
+          "exact_pass": true,
+          "factual_pass": true
+        },
+        {
+          "id": "untrusted_transcript",
+          "repeat": 1,
+          "group": "extraction",
+          "seconds": 2.651364417746663,
+          "exact_pass": true,
+          "factual_pass": true,
+          "correct_fields": 3,
+          "fields": 3,
+          "errors": {}
+        }
+      ]
+    }
+  }
+}

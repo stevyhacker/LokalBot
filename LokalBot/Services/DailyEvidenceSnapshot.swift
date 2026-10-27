@@ -182,8 +182,9 @@ struct FileDailyEvidenceSource: DailyEvidenceSource {
         let end = calendar.date(byAdding: .day, value: 1, to: start)
             ?? start.addingTimeInterval(86_400)
         let interval = DateInterval(start: start, end: end)
+        // The sample meeting is made up: it never becomes part of the day.
         let meetings = allMeetings
-            .filter { interval.contains($0.startedAt) }
+            .filter { !$0.isSample && interval.contains($0.startedAt) }
             .sorted { $0.startedAt < $1.startedAt }
             .map { meeting in
                 let folder = root.appendingPathComponent(

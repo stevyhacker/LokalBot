@@ -12,7 +12,6 @@ import XCTest
         root = FileManager.default.temporaryDirectory.appendingPathComponent("speaker-service-\(UUID())")
         storage = StorageManager(rootURL: root)
         settings = AppSettings()
-        settings.rememberSpeakersOnMac = true
         key = SymmetricKey(size: .bits256)
         service = MeetingSpeakerIdentityService(storage: storage, settings: { [unowned self] in settings }, keyProvider: { [unowned self] in key })
     }
@@ -36,19 +35,20 @@ import XCTest
         return (meeting, audioURL, transcript, turns, samples)
     }
 
-    func testRemoteVoiceIsNeverRememberedAndCorrectionSurvivesReprocessing() async throws {
+    func testNamingACallVoiceRemembersItAndTheNameSurvivesReprocessing() async throws {
         let (meeting, audio, transcript, turns, samples) = try fixture()
         let processed = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
         XCTAssertTrue(processed.speakerAliases.isEmpty)
         XCTAssertEqual(processed.segments, transcript.segments)
         let state = try await service.state(for: meeting)
-        XCTAssertTrue(state.voiceSamples.isEmpty, "Remote voice samples are never retained")
-        let corrected = try await service.choose(.init(label: "them", name: "Sam", remember: true,
+        XCTAssertEqual(state.voiceSamples.count, 4, "Call voice samples are kept for remembering")
+        let corrected = try await service.choose(.init(label: "them", name: "Sam",
             expectedRevision: state.revision), meeting: meeting, transcript: processed)
         XCTAssertEqual(corrected.speakerAliases["them"], "Sam")
-        XCTAssertEqual(service.notice, "Meeting name saved. Only voices recorded by this Mac's microphone can be remembered.")
-        let profiles = try await service.profiles(managing: true)
-        XCTAssertTrue(profiles.isEmpty)
+        XCTAssertNil(service.notice)
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name), ["Sam"])
+        XCTAssertNotNil(profiles.first?.contributions.first?.voiceprint)
         let again = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
         XCTAssertEqual(again.speakerAliases["them"], "Sam")
         XCTAssertEqual(service.applyingLatestDecision(to: processed, meetingID: meeting.id).speakerAliases["them"], "Sam")
@@ -59,12 +59,11 @@ import XCTest
         var meeting = recording
         let guest = try XCTUnwrap(CalendarParticipantIdentity(id: "calendar-ana", name: nil, emailAddress: "ana@example.com"))
         meeting.calendarParticipantIdentities = [guest]
-        settings.rememberSpeakersOnMac = false
         let automatic = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
         XCTAssertTrue(automatic.speakerAliases.isEmpty)
 
         let chosen = try await service.choose(.init(label: "them", name: guest.suggestedSpeakerName,
-            calendarIdentityID: guest.id, remember: false), meeting: meeting, transcript: automatic)
+            calendarIdentityID: guest.id), meeting: meeting, transcript: automatic)
         XCTAssertEqual(chosen.speakerAliases["them"], "Ana")
         XCTAssertEqual(chosen.speakerCalendarIdentityIDs["them"], guest.id)
         XCTAssertFalse(chosen.markdown.contains("ana@example.com"))
@@ -72,11 +71,11 @@ import XCTest
         let reprocessed = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
         XCTAssertEqual(reprocessed.speakerAliases["them"], "Ana")
         XCTAssertEqual(reprocessed.speakerCalendarIdentityIDs["them"], guest.id)
-        let profiles = try await service.profiles(managing: true)
-        XCTAssertTrue(profiles.isEmpty)
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name), ["Ana"], "Confirming a calendar name remembers the voice")
     }
 
-    func testExistingRemoteProfileIsKeptButNeverSuggested() async throws {
+    func testRememberedCallVoiceNamesTheSpeakerInTheNextMeeting() async throws {
         let (first, _, _, _, samples) = try fixture()
         let assignment = SpeakerIdentityAssignment(label: "them", name: "Alex", origin: .userConfirmed,
             audioRevision: "audio", anchors: [.init(start: 0, end: 80)], source: .system)
@@ -90,17 +89,19 @@ import XCTest
 
         let (second, audio, transcript, turns, secondSamples) = try fixture()
         let result = await service.process(transcript: transcript, meeting: second, turns: turns, samples: secondSamples, audioURL: audio)
-        XCTAssertTrue(result.speakerAliases.isEmpty)
+        XCTAssertEqual(result.speakerAliases["them"], "Alex")
         let state = try await service.state(for: second)
-        XCTAssertTrue(state.suggestions["them", default: []].isEmpty)
-        let profiles = try await service.profiles(managing: true)
+        XCTAssertEqual(state.assignments.first { $0.label == "them" }?.origin, .profileAutomatic)
+        XCTAssertEqual(state.suggestions["them"]?.first?.tier, .automatic)
+        let profiles = try await service.profiles()
         XCTAssertEqual(profiles.map(\.name), ["Alex"])
+        XCTAssertEqual(profiles.first?.contributions.count, 1, "Automatic names never train profiles")
     }
 
     func testResetSuppressesSuggestionsUntilExplicitResume() async throws {
         let (first, firstAudio, firstTranscript, firstTurns, firstSamples) = try microphoneFixture()
         let initial = await service.process(transcript: firstTranscript, meeting: first, turns: firstTurns, samples: firstSamples, audioURL: firstAudio)
-        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser, remember: true), meeting: first, transcript: initial)
+        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser), meeting: first, transcript: initial)
 
         let (meeting, audio, transcript, turns, samples) = try microphoneFixture()
         let proposed = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
@@ -116,24 +117,27 @@ import XCTest
         XCTAssertEqual(resumed.suggestions["local 1"]?.first?.name, "Stevan")
     }
 
-    func testDisablingRememberingStopsMatchingInNewMeetings() async throws {
-        let (first, audio, transcript, turns, samples) = try microphoneFixture()
-        let initial = await service.process(transcript: transcript, meeting: first, turns: turns, samples: samples, audioURL: audio)
-        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser, remember: true), meeting: first, transcript: initial)
-        let (second, secondAudio, secondTranscript, secondTurns, secondSamples) = try microphoneFixture()
-        settings.rememberSpeakersOnMac = false
-        _ = await service.process(transcript: secondTranscript, meeting: second, turns: secondTurns, samples: secondSamples, audioURL: secondAudio)
-        let state = try await service.state(for: second)
-        XCTAssertTrue(state.suggestions["local 1", default: []].isEmpty)
+    func testSampleMeetingVoicesAreNeverRememberedOrMatched() async throws {
+        let (first, firstAudio, firstTranscript, firstTurns, firstSamples) = try fixture()
+        let initial = await service.process(transcript: firstTranscript, meeting: first, turns: firstTurns, samples: firstSamples, audioURL: firstAudio)
+        _ = try await service.choose(.init(label: "them", name: "Alex"), meeting: first, transcript: initial)
+        let (recorded, audio, transcript, turns, samples) = try fixture()
+        var sample = recorded
+        sample.sampleID = "synthetic-sample"
+        let result = await service.process(transcript: transcript, meeting: sample, turns: turns, samples: samples, audioURL: audio)
+        XCTAssertTrue(result.speakerAliases.isEmpty)
+        let state = try await service.state(for: sample)
         XCTAssertTrue(state.voiceSamples.isEmpty)
-        let preserved = try await service.profiles(managing: true)
-        XCTAssertEqual(preserved.count, 1)
+        XCTAssertTrue(state.suggestions["them", default: []].isEmpty)
+        _ = try await service.choose(.init(label: "them", name: "Sam"), meeting: sample, transcript: result)
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name), ["Alex"])
     }
 
     func testPrivateEvidenceAndUnappliedCandidatesNeverEnterTranscriptEncoding() async throws {
         let (first, audio, transcript, turns, samples) = try microphoneFixture()
         let initial = await service.process(transcript: transcript, meeting: first, turns: turns, samples: samples, audioURL: audio)
-        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser, remember: true), meeting: first, transcript: initial)
+        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser), meeting: first, transcript: initial)
         let (second, secondAudio, secondTranscript, secondTurns, secondSamples) = try microphoneFixture()
         let result = await service.process(transcript: secondTranscript, meeting: second, turns: secondTurns, samples: secondSamples, audioURL: secondAudio)
         let state = try await service.state(for: second)
@@ -163,7 +167,7 @@ import XCTest
         let initial = await service.process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audio)
         let before = try await service.state(for: meeting)
         let choice = MeetingSpeakerIdentityService.Choice(label: "local 1", name: "Stevan", action: .confirmUser,
-            remember: true, expectedRevision: before.revision)
+            expectedRevision: before.revision)
         _ = try await service.choose(choice, meeting: meeting, transcript: initial)
         let confirmed = try await service.state(for: meeting)
         _ = try await service.choose(choice, meeting: meeting, transcript: initial)
@@ -194,7 +198,6 @@ import XCTest
     }
 
     func testMicrophoneDefaultAndExplicitOtherSurviveRestartAndLabelReorderingWithoutEnrollment() async throws {
-        settings.rememberSpeakersOnMac = false
         let meeting = try storage.createMeetingFolder(title: "Two local voices", appName: "Manual")
         let audio = meeting.folderURL(in: storage).appendingPathComponent("mic.m4a")
         let writer = try WavWriter(url: audio, sampleRate: 16_000)
@@ -262,7 +265,6 @@ import XCTest
     }
 
     func testMicrophoneDefaultWithoutIdentificationOrDiarizationSupportsCorrectionAndReset() async throws {
-        settings.rememberSpeakersOnMac = false
         let (meeting, audio, original, _, _) = try microphoneFixture()
         var transcript = original
         for index in transcript.segments.indices { transcript.segments[index].attribution?.method = .track }
@@ -278,7 +280,7 @@ import XCTest
         let reset = try await service.choose(.init(label: "local 1", action: .reset), meeting: meeting, transcript: reprocessed)
         XCTAssertEqual(reset.confirmedUserSpeakerIDs, ["local 1"])
         XCTAssertEqual(reset.displaySpeaker(for: "local 1"), "Me")
-        let profiles = try await service.profiles(managing: true)
+        let profiles = try await service.profiles()
         XCTAssertTrue(profiles.isEmpty)
     }
 
@@ -288,7 +290,7 @@ import XCTest
         let state = try await service.state(for: first)
         XCTAssertEqual(state.voiceSamples.count, 3)
         XCTAssertEqual(state.microphoneSampleDiagnostics?["quietReference"], 3)
-        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser, remember: true), meeting: first, transcript: initial)
+        _ = try await service.choose(.init(label: "local 1", name: "Stevan", action: .confirmUser), meeting: first, transcript: initial)
         let profiles = try await service.profiles()
         let profile = try XCTUnwrap(profiles.first)
         XCTAssertEqual(profile.isLocalUser, true)
@@ -303,6 +305,163 @@ import XCTest
         let chosen = try await service.choose(.init(label: "local 1", name: "Stevan", profileID: profile.id), meeting: second, transcript: proposed)
         XCTAssertEqual(chosen.confirmedUserSpeakerIDs, ["local 1"])
         let remaining = try await service.profiles()
-        XCTAssertEqual(remaining.first?.contributions.count, 1, "Choosing a name without Remember must not enroll again")
+        XCTAssertEqual(remaining.count, 1)
+        XCTAssertEqual(remaining.first?.contributions.count, 2, "Confirming the suggested person adds this meeting to their profile")
+    }
+
+    func testUndoingAnAutomaticNameKeepsItOffAfterReprocessing() async throws {
+        let (first, firstAudio, firstTranscript, firstTurns, firstSamples) = try fixture()
+        let initial = await service.process(transcript: firstTranscript, meeting: first, turns: firstTurns, samples: firstSamples, audioURL: firstAudio)
+        _ = try await service.choose(.init(label: "them", name: "Alex"), meeting: first, transcript: initial)
+        let (second, audio, transcript, turns, samples) = try fixture()
+        let automatic = await service.process(transcript: transcript, meeting: second, turns: turns, samples: samples, audioURL: audio)
+        XCTAssertEqual(automatic.speakerAliases["them"], "Alex")
+        let undone = try await service.choose(.init(label: "them", name: "Alex", action: .undo), meeting: second, transcript: automatic)
+        XCTAssertNil(undone.speakerAliases["them"])
+        let reprocessed = await service.process(transcript: transcript, meeting: second, turns: turns, samples: samples, audioURL: audio)
+        XCTAssertNil(reprocessed.speakerAliases["them"])
+    }
+
+    func testCorrectingAnAutomaticNameRemembersTheCorrectPersonOnly() async throws {
+        let (first, firstAudio, firstTranscript, firstTurns, firstSamples) = try fixture()
+        let initial = await service.process(transcript: firstTranscript, meeting: first, turns: firstTurns, samples: firstSamples, audioURL: firstAudio)
+        _ = try await service.choose(.init(label: "them", name: "Alex"), meeting: first, transcript: initial)
+        let (second, audio, transcript, turns, samples) = try fixture()
+        let automatic = await service.process(transcript: transcript, meeting: second, turns: turns, samples: samples, audioURL: audio)
+        let corrected = try await service.choose(.init(label: "them", name: "Sam"), meeting: second, transcript: automatic)
+        XCTAssertEqual(corrected.speakerAliases["them"], "Sam")
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name).sorted(), ["Alex", "Sam"])
+        XCTAssertEqual(profiles.first { $0.name == "Alex" }?.contributions.map(\.meetingID), [first.id])
+    }
+
+    func testNamingTheSamePersonAgainAddsToTheirProfileButADifferentVoiceGetsItsOwn() {
+        func samples(axis: Int) -> [SpeakerVoiceSample] {
+            var vector = [Float](repeating: 0, count: 256); vector[axis] = 1
+            return (0..<4).map { SpeakerVoiceSample(speaker: "them", range: .init(start: Double($0 * 20), end: Double($0 * 20 + 10)),
+                                                    vector: vector, source: .system) }
+        }
+        var vector = [Float](repeating: 0, count: 256); vector[0] = 1
+        let alex = SpeakerVoiceProfile(name: "Alex", confirmedNames: ["Alex"], contributions: [
+            .init(meetingID: UUID(), audioRevision: "a", speakerID: UUID(), decisionID: UUID(), confirmedAt: Date(),
+                  samples: Array(samples(axis: 0).prefix(1)), voiceprint: vector)])
+        XCTAssertEqual(MeetingSpeakerIdentityService.samePerson(named: "alex", samples: samples(axis: 0), profiles: [alex]), alex.id)
+        XCTAssertNil(MeetingSpeakerIdentityService.samePerson(named: "Alex", samples: samples(axis: 1), profiles: [alex]))
+        XCTAssertNil(MeetingSpeakerIdentityService.samePerson(named: "Sam", samples: samples(axis: 0), profiles: [alex]))
+    }
+
+    func testNamesGivenBeforeCallVoicesWereRememberedSuggestNamesInRecentMeetings() async throws {
+        let store = try service.store()
+        let (older, olderAudio, olderTranscript, olderTurns, olderSamples) = try callFixture()
+        let processed = await service.process(transcript: olderTranscript, meeting: older, turns: olderTurns, samples: [], audioURL: olderAudio)
+        let named = try await service.choose(.init(label: "them 1", name: "Hernan"), meeting: older, transcript: processed)
+        let (recent, recentAudio, recentTranscript, recentTurns, recentSamples) = try callFixture()
+        let unnamed = await service.process(transcript: recentTranscript, meeting: recent, turns: recentTurns, samples: [], audioURL: recentAudio)
+        // Both were processed before call voices were kept.
+        for meeting in [older, recent] {
+            var saved = try await store.state(meeting: meeting)
+            saved.callVoicesAnalyzed = nil
+            _ = try await store.commit(saved, meeting: meeting, expectedRevision: saved.revision)
+        }
+        let before = try await service.profiles()
+        XCTAssertTrue(before.isEmpty)
+
+        let library = SavedLibrary(transcripts: [older.id: named, recent.id: unnamed],
+                                   samples: [older.id: olderSamples, recent.id: recentSamples])
+        await service.learnFromSavedMeetings([recent, older], recentSince: .distantPast, using: library.access)
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name), ["Hernan"])
+        // A saved transcript keeps its names, so its notes stay current; the
+        // meeting offers the recognized name instead.
+        let recentState = try await store.state(meeting: recent)
+        XCTAssertNil(recentState.assignments.first { $0.label == "them 1" }?.name)
+        let recognized = MeetingSpeakerIdentityService.recognizedSpeakers(in: recentState, transcript: unnamed)
+        XCTAssertEqual(recognized.map(\.label), ["them 1"])
+        XCTAssertEqual(recognized.first?.match.name, "Hernan")
+        XCTAssertEqual(Set(library.analyzed), [older.id, recent.id])
+
+        library.analyzed = []
+        await service.learnFromSavedMeetings([recent, older], recentSince: .distantPast, using: library.access)
+        XCTAssertTrue(library.analyzed.isEmpty, "Each saved meeting's call track is analyzed once")
+    }
+
+    func testRevisitingASavedMeetingKeepsTheNameTheUserGave() async throws {
+        let store = try service.store()
+        let (first, firstAudio, firstTranscript, firstTurns, firstSamples) = try callFixture()
+        let initial = await service.process(transcript: firstTranscript, meeting: first, turns: firstTurns, samples: firstSamples, audioURL: firstAudio)
+        _ = try await service.choose(.init(label: "them 1", name: "Hernan"), meeting: first, transcript: initial)
+        let (second, audio, transcript, turns, samples) = try callFixture()
+        let processed = await service.process(transcript: transcript, meeting: second, turns: turns, samples: [], audioURL: audio)
+        let named = try await service.choose(.init(label: "them 1", name: "Nik"), meeting: second, transcript: processed)
+        var saved = try await store.state(meeting: second)
+        saved.callVoicesAnalyzed = nil
+        _ = try await store.commit(saved, meeting: second, expectedRevision: saved.revision)
+
+        let library = SavedLibrary(transcripts: [second.id: named], samples: [second.id: samples])
+        await service.learnFromSavedMeetings([second], recentSince: .distantPast, using: library.access)
+        let revisited = try await store.state(meeting: second)
+        XCTAssertEqual(revisited.assignments.first { $0.label == "them 1" }?.name, "Nik",
+                       "A voice that sounds like a remembered person never replaces a name the user gave")
+        XCTAssertTrue(MeetingSpeakerIdentityService.recognizedSpeakers(in: revisited, transcript: named).isEmpty)
+    }
+
+    func testUnavailableVoiceModelLeavesSavedMeetingsForALaterPass() async throws {
+        let store = try service.store()
+        let (older, audio, transcript, turns, samples) = try callFixture()
+        let processed = await service.process(transcript: transcript, meeting: older, turns: turns, samples: [], audioURL: audio)
+        let named = try await service.choose(.init(label: "them 1", name: "Hernan"), meeting: older, transcript: processed)
+        var saved = try await store.state(meeting: older)
+        saved.callVoicesAnalyzed = nil
+        _ = try await store.commit(saved, meeting: older, expectedRevision: saved.revision)
+
+        let library = SavedLibrary(transcripts: [older.id: named], samples: [older.id: samples])
+        library.unavailable = true
+        await service.learnFromSavedMeetings([older], recentSince: .distantPast, using: library.access)
+        let afterFailure = try await store.state(meeting: older)
+        XCTAssertNil(afterFailure.callVoicesAnalyzed)
+        library.unavailable = false
+        await service.learnFromSavedMeetings([older], recentSince: .distantPast, using: library.access)
+        let profiles = try await service.profiles()
+        XCTAssertEqual(profiles.map(\.name), ["Hernan"])
+    }
+
+    /// Saved transcripts and call-track analysis for `learnFromSavedMeetings`.
+    @MainActor private final class SavedLibrary {
+        struct Unavailable: Error {}
+        let transcripts: [UUID: Transcript]
+        let samples: [UUID: [SpeakerVoiceSample]]
+        var analyzed: [UUID] = []
+        var unavailable = false
+        init(transcripts: [UUID: Transcript], samples: [UUID: [SpeakerVoiceSample]]) {
+            self.transcripts = transcripts
+            self.samples = samples
+        }
+        var access: MeetingSpeakerIdentityService.SavedMeetings {
+            .init(transcript: { [unowned self] in transcripts[$0.id] },
+                  callSamples: { [unowned self] meeting, _ in
+                      if unavailable { throw Unavailable() }
+                      analyzed.append(meeting.id)
+                      return samples[meeting.id] ?? []
+                  },
+                  isBusy: { _ in false })
+        }
+    }
+
+    /// One diarized call voice on a real (silent) system track.
+    private func callFixture() throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
+        let meeting = try storage.createMeetingFolder(title: "Call voice rule fixture", appName: "Google Chrome")
+        let audio = meeting.folderURL(in: storage).appendingPathComponent("system.m4a")
+        let writer = try WavWriter(url: audio, sampleRate: 16_000)
+        try writer.append([Float](repeating: 0, count: 60 * 16_000)); try writer.finish()
+        let segments: [Transcript.Segment] = (0..<4).map { index in
+            let start = Double(index * 14 + 1)
+            return .init(start: start, end: start + 10, speaker: "them 1", text: "Synthetic call turn",
+                         attribution: .init(source: .system, identity: .other, method: .diarization))
+        }
+        let transcript = Transcript(segments: segments, engine: "fixture")
+        let turns = segments.map { SpeakerAudioTurn(speaker: $0.speaker, range: .init(start: $0.start, end: $0.end), source: .system) }
+        var vector = [Float](repeating: 0, count: 256); vector[0] = 1
+        let samples = turns.map { SpeakerVoiceSample(speaker: "them 1", range: $0.range, vector: vector, source: .system) }
+        return (meeting, audio, transcript, turns, samples)
     }
 }

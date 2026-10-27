@@ -57,7 +57,10 @@ struct PinnedModelSnapshot: Sendable, Decodable {
                     temporary = try await download(source)
                 } else {
                     let priorBytes = completed
-                    temporary = try await ParallelRangeDownloader.download(from: source, session: .shared) { update in
+                    temporary = try await ModelDownloadRouting.download(
+                        from: source, session: .shared,
+                        expectedSHA256: file.digest.count == 64 ? file.digest : nil,
+                        expectedBytes: file.bytes) { update in
                         let fraction = (Double(priorBytes) + update.fractionCompleted * Double(file.bytes)) / Double(max(1, total))
                         Task { @MainActor in progress?(.init(fractionCompleted: fraction, status: "Downloading verified model files…")) }
                     }

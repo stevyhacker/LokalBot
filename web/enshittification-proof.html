@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <script src="app.js" defer></script>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://www.lokalbot.com/enshittification-proof#article","headline":"Enshittification-proof: a proof","description":"A short proof that LokalBot cannot get worse on purpose: no account to gate, no server to ransom, no data to hold hostage, no telemetry to optimize, and a GPLv3 antidote shipped with every build.","datePublished":"2026-07-15","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/enshittification-proof","image":"https://www.lokalbot.com/assets/og-enshittification-proof.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","@id":"https://www.lokalbot.com/enshittification-proof#article","headline":"Enshittification-proof: a proof","description":"A short proof that LokalBot cannot get worse on purpose: no account to gate, no server to ransom, no data to hold hostage, no telemetry to optimize, and a GPLv3 antidote shipped with every build.","datePublished":"2026-07-15","dateModified":"2026-10-20","mainEntityOfPage":"https://www.lokalbot.com/enshittification-proof","image":"https://www.lokalbot.com/assets/og-enshittification-proof.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}}]}</script>
 </head>
 <body>
   <div class="bg-field" aria-hidden="true"></div>
@@ -58,7 +58,7 @@
 
       <h2>1. Definitions</h2>
       <p><strong>Definition 1 (Enshittification, after Doctorow).</strong> The lifecycle in which a platform is first good to its users, then reallocates value away from them — toward business customers, then shareholders — until it dies. Executing it requires three instruments: <em>(a)</em> a service the vendor operates between you and your data, <em>(b)</em> a switching cost that holds you still while the terms change, and <em>(c)</em> a metric that tells the vendor how much degradation you will tolerate.</p>
-      <p><strong>Definition 2 (LokalBot).</strong> A macOS application licensed under GPLv3. Storage: Markdown files and SQLite in your home directory. Accounts: none. Telemetry: none. Servers operated by the vendor: none.</p>
+      <p><strong>Definition 2 (LokalBot).</strong> A desktop application for macOS, Windows, and Linux, licensed under GPLv3. Storage: Markdown files and SQLite in your home directory. Accounts: none. Telemetry: none. Servers operated by the vendor: none.</p>
 
       <div class="thm">
         <p><strong>Theorem.</strong> LokalBot cannot be enshittified: no move in the standard degradation playbook has a mechanism of action against it.</p>
@@ -71,7 +71,7 @@
       <p>To gate features behind an account, an account system must exist. LokalBot has none: there is no server that could check who you are, and no identity to check. The wall has nowhere to stand.<span class="qed">∎</span></p>
 
       <h3>Lemma 2 — The feature ransom</h3>
-      <p>Moving a free feature behind a paywall requires the vendor to operate that feature. Every LokalBot feature — transcription, summaries, search, autocomplete — executes on your Mac's CPU, GPU, and Neural Engine, from a binary on your disk. We cannot repossess what we do not host.<span class="qed">∎</span></p>
+      <p>Moving a free feature behind a paywall requires the vendor to operate that feature. Every LokalBot feature — transcription, summaries, search, autocomplete — executes on your computer's CPU and GPU (and, on a Mac, the Neural Engine), from a binary on your disk. We cannot repossess what we do not host.<span class="qed">∎</span></p>
 
       <h3>Lemma 3 — The data hostage</h3>
       <p>Raising switching costs requires custody of your data. Your meetings are Markdown and SQLite under your own user account. The export feature is <code>cp</code>. Custody was never transferred, so it cannot be leveraged.<span class="qed">∎</span></p>
@@ -96,12 +96,12 @@
       <ul>
         <li><strong>Abandonment.</strong> The maintainer could vanish. The app keeps working offline, the source keeps building, and the GPL lets anyone continue it. Decay by neglect is possible; decay on purpose is not.</li>
         <li><strong>Model hosts.</strong> First-use model downloads come from public hosts (Hugging Face, GitHub). A host could remove weights; once downloaded, they are cached locally and the app runs without further network access.</li>
-        <li><strong>The platform.</strong> Apple can change macOS APIs out from under any Mac app. See: entropy, above.</li>
+        <li><strong>The platform.</strong> Apple and Microsoft can change their APIs out from under any desktop app, and Linux desktops move too. See: entropy, above.</li>
       </ul>
       <p>Could the author launch a paid cloud service tomorrow? Nothing prevents it — and nothing in it could reach into this app: features cannot be moved out (Lemma&nbsp;2), your archive cannot be held (Lemma&nbsp;3), and the GPL build remains forkable (Lemma&nbsp;5).</p>
 
       <h2>4. Replication</h2>
-      <p>Our results reproduce on any Apple Silicon Mac running macOS&nbsp;15 or later: clone the <a href="https://github.com/stevyhacker/lokalbot">repository</a>, run <code>xcodegen generate</code>, and build. The entire method section is public. Peer review is welcome — if you find a mechanism this proof missed, <a href="https://github.com/stevyhacker/lokalbot/issues">open an issue</a>; refutations are a contribution.</p>
+      <p>Our results reproduce on any Apple Silicon Mac running macOS&nbsp;15 or later: clone the <a href="https://github.com/stevyhacker/lokalbot">repository</a>, run <code>xcodegen generate</code>, and build. On Windows or Linux, run <code>cargo build --release</code> in <code>LinuxWindows/</code>. The entire method section is public. Peer review is welcome — if you find a mechanism this proof missed, <a href="https://github.com/stevyhacker/lokalbot/issues">open an issue</a>; refutations are a contribution.</p>
 
       <div class="proof-cta">
         <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download the worst deal we'll ever offer</a>
@@ -113,12 +113,13 @@
   <footer class="footer footer--legal">
     <div class="footer__brand">
       <a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Find what you said or saw on your Mac.</p>
+      <p>Your personal context engine.</p>
     </div>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub</a>
       <a href="about">About</a>
+      <a href="blog">Blog</a>
       <a href="benchmarks">Benchmarks</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>

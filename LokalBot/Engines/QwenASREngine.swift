@@ -124,13 +124,15 @@ actor QwenASREngine: TranscriptionEngine {
 
     /// Decodes merged windows, because the forced aligner re-times every word
     /// afterwards: segment granularity no longer depends on the decode window.
-    func transcribeForWordAttribution(audio url: URL, language: String?, prompt: String?) async throws -> Transcript {
-        try await transcribe(audio: url, language: language, prompt: prompt,
-                             windows: Self.wordAttributionWindows(for: variant))
+    func transcribeForWordAttribution(audio url: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
+        WordTimedTranscript(try await transcribe(audio: url, language: language, prompt: prompt,
+                                                 windows: Self.wordAttributionWindows(for: variant)))
     }
 
     private func transcribe(audio url: URL, language: String?, prompt: String?,
                             windows: WordAttributionWindows?) async throws -> Transcript {
+        let choice: TranscriptionModelChoice = variant == .accuracy ? .qwenASR17B : .qwenASR06B
+        try choice.validateLanguage(language)
         activeUses += 1
         defer { finishUse() }
         try await prepare()

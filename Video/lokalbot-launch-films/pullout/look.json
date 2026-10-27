@@ -1,0 +1,32 @@
+{
+  "name": "look",
+  "from": "/private/tmp/claude-501/-Users-0xmithrandir-Documents-GitHub-LokalBot/1ac1dcdf-d832-4204-904b-f3e4e9a6f33c/scratchpad/onetake/cases/lokalbot-pullout/assets/today.png, /private/tmp/claude-501/-Users-0xmithrandir-Documents-GitHub-LokalBot/1ac1dcdf-d832-4204-904b-f3e4e9a6f33c/scratchpad/onetake/cases/lokalbot-pullout/assets/qr-thursday.png",
+  "mood": "the product's own colours, measured from its screenshots",
+  "color": {
+    "ground": "#fcfcfc",
+    "deep": "#ededed",
+    "card": "#f4f4f4",
+    "line": "#e4e4e4",
+    "mute": "#8c8c8c",
+    "ink": "#0c141c",
+    "accent": "#0c8474",
+    "accent2": "#5c74c4"
+  },
+  "type": {
+    "display": {
+      "face": "Instrument Serif",
+      "weight": 400,
+      "tracking": -0.01
+    },
+    "text": {
+      "face": "Inter",
+      "weight": 500,
+      "tracking": -0.02
+    },
+    "mono": {
+      "face": "Geist Mono",
+      "weight": 400,
+      "tracking": 0
+    }
+  }
+}

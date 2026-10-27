@@ -49,6 +49,79 @@ final class SettingsUITests: XCTestCase {
             .waitForExistence(timeout: 6), "The same host must switch back to English without relaunch")
     }
 
+    func testEveryNewInterfaceLanguageRendersAndUrduPersists() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("hi", "हिन्दी", "थीम", "ऐप की भाषा"),
+            ("es", "Español", "Tema", "Idioma de la app"),
+            ("ar", "العربية", "السمة", "لغة التطبيق"),
+            ("fr", "Français", "Thème", "Langue de l’app"),
+            ("bn", "বাংলা", "থিম", "অ্যাপের ভাষা"),
+            ("pt", "Português", "Tema", "Idioma do app"),
+            ("id", "Bahasa Indonesia", "Tema", "Bahasa aplikasi"),
+            ("ur", "اردو", "تھیم", "ایپ کی زبان")
+        ])
+    }
+
+    func testRussianGermanJapanesePidginAndEgyptianArabicRender() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("ru", "Русский", "Тема", "Язык приложения"),
+            ("de", "Deutsch", "Design", "App-Sprache"),
+            ("ja", "日本語", "テーマ", "アプリの言語"),
+            ("pcm", "Naijá", "How e look", "Language wey app dey use"),
+            ("ar-EG", "مصري", "شكل الواجهة", "لغة التطبيق")
+        ])
+    }
+
+    func testMarathiVietnameseTeluguSwahiliAndHausaRender() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("mr", "मराठी", "थीम", "अ‍ॅपची भाषा"),
+            ("vi", "Tiếng Việt", "Chủ đề", "Ngôn ngữ ứng dụng"),
+            ("te", "తెలుగు", "థీమ్", "యాప్ భాష"),
+            ("sw", "Kiswahili", "Mandhari", "Lugha ya programu"),
+            ("ha", "Hausa", "Jigo", "Harshen manhaja")
+        ])
+    }
+
+    func testKoreanInterfaceRendersAndPersists() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("ko", "한국어", "테마", "앱 언어")
+        ])
+    }
+
+    func testTraditionalChineseItalianAndSerbianRender() throws {
+        try assertInterfaceLanguagesRenderAndPersist([
+            ("zh-Hant", "繁體中文", "主題", "App 語言"),
+            ("it", "Italiano", "Tema", "Lingua dell’app"),
+            ("sr-Latn", "Srpski (latinica)", "Tema", "Jezik aplikacije")
+        ])
+    }
+
+    private func assertInterfaceLanguagesRenderAndPersist(_ languages: [(String, String, String, String)]) throws {
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        for (identifier, nativeName, theme, languageLabel) in languages {
+            UITestHarness.scrollTo(app.popUpButtons["settings.appLanguage"], in: app)
+            UITestHarness.selectSegment(nativeName, pickerIdentifier: "settings.appLanguage", in: app)
+            XCTAssertTrue(UITestHarness.staticText(containing: theme, in: app).waitForExistence(timeout: 6),
+                          "The existing settings host must render \(identifier)")
+            XCTAssertTrue(UITestHarness.staticText(containing: languageLabel, in: app).waitForExistence(timeout: 6))
+            let screenshot = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
+            screenshot.name = "settings-interface-\(identifier)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        let (identifier, _, theme, languageLabel) = try XCTUnwrap(languages.last)
+        app.terminate()
+        app = try UITestHarness.relaunch(
+            storageRoot: fixture.root, defaultsSuiteName: XCTUnwrap(defaultsSuiteName))
+        UITestHarness.clickSidebar("sidebar.settings", in: app)
+        XCTAssertTrue(UITestHarness.staticText(containing: theme, in: app).waitForExistence(timeout: 6),
+                      "The \(identifier) interface must survive relaunch")
+        XCTAssertTrue(UITestHarness.staticText(containing: languageLabel, in: app).waitForExistence(timeout: 6))
+        UITestHarness.scrollTo(app.popUpButtons["settings.appLanguage"], in: app)
+        UITestHarness.selectSegment("English", pickerIdentifier: "settings.appLanguage", in: app)
+        XCTAssertTrue(UITestHarness.staticText(containing: "Theme", in: app).waitForExistence(timeout: 6))
+    }
+
     func testPermissionRepairPaneRendersCorePermissions() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
 
@@ -105,17 +178,14 @@ final class SettingsUITests: XCTestCase {
 
     /// Hosted/remote Mac only, like the rest of this suite. No live capture or
     /// enrollment is performed; the app uses an isolated synthetic library.
-    func testRememberingSpeakersIsAnOptInWithoutMeetNaming() {
+    func testRememberingSpeakersIsAlwaysOnWithoutMeetNaming() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Meetings", in: app)
-        let remembering = app.switches["settings.rememberSpeakers"]
-        UITestHarness.scrollTo(remembering, in: app)
-        XCTAssertTrue(remembering.waitForExistence(timeout: 6))
-        XCTAssertEqual(remembering.label, "Remember speakers on this Mac")
-        XCTAssertEqual(String(describing: remembering.value ?? ""), "0")
-        XCTAssertFalse(app.switches["settings.speakerVisuals"].exists, "Meet speaker naming was removed")
         let manage = app.buttons["Manage remembered people…"]
         UITestHarness.scrollTo(manage, in: app)
+        XCTAssertTrue(manage.waitForExistence(timeout: 6))
+        XCTAssertFalse(app.switches["settings.rememberSpeakers"].exists, "Remembering speakers has no off switch")
+        XCTAssertFalse(app.switches["settings.speakerVisuals"].exists, "Meet speaker naming was removed")
         manage.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "No remembered voices yet", in: app).waitForExistence(timeout: 4))
         app.buttons["Done"].click()

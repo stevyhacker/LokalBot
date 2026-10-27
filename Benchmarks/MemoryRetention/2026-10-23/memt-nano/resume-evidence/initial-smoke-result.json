@@ -1,0 +1,20 @@
+{
+  "id": "NON_BENCHMARK_SMOKE",
+  "started": 1792751332.1010182,
+  "content": "{\"items\":[]}",
+  "reasoning": "",
+  "finish": "stop",
+  "generated_ids": [
+    4754,
+    3494,
+    763,
+    64040,
+    248046
+  ],
+  "prompt_sha256": "dece7547b0e010816ce74cfeda4ab85b745a4de19768460660bf9f6522707da0",
+  "usage": {
+    "prompt_tokens": 29,
+    "completion_tokens": 5
+  },
+  "wall_seconds": 17.872114658355713
+}

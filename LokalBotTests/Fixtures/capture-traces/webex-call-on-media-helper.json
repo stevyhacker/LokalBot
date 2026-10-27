@@ -1,0 +1,138 @@
+{
+  "header": {
+    "schemaVersion": 1,
+    "macOSVersion": "26.6.2",
+    "origin": "reconstructed",
+    "scenario": "webex-call-on-media-helper",
+    "scrubberVersion": 1,
+    "recordedAt": "2026-10-23T00:00:00Z"
+  },
+  "events": [
+    {
+      "t": 0,
+      "query": "runningApps",
+      "apps": [
+        {
+          "processIdentifier": 900,
+          "bundleIdentifier": "Cisco-Systems.Spark",
+          "localizedName": "Webex"
+        }
+      ]
+    },
+    {
+      "t": 0,
+      "query": "frontmost",
+      "app": {
+        "processIdentifier": 900,
+        "bundleIdentifier": "Cisco-Systems.Spark",
+        "localizedName": "Webex"
+      }
+    },
+    {
+      "t": 0,
+      "query": "inputRunning",
+      "processID": 900,
+      "flag": false
+    },
+    {
+      "t": 0,
+      "query": "audioProcesses",
+      "processes": [
+        {
+          "id": 900,
+          "name": "Webex",
+          "bundleID": "Cisco-Systems.Spark",
+          "objectID": 90,
+          "isRunningOutput": false
+        },
+        {
+          "id": 910,
+          "name": "Webex Hlpr",
+          "bundleID": "Cisco-Systems.SparkHelper",
+          "objectID": 91,
+          "isRunningOutput": false
+        }
+      ]
+    },
+    {
+      "t": 10,
+      "query": "audioProcesses",
+      "processes": [
+        {
+          "id": 900,
+          "name": "Webex",
+          "bundleID": "Cisco-Systems.Spark",
+          "objectID": 90,
+          "isRunningOutput": false
+        },
+        {
+          "id": 910,
+          "name": "Webex Hlpr",
+          "bundleID": "Cisco-Systems.SparkHelper",
+          "objectID": 91,
+          "isRunningOutput": true
+        }
+      ]
+    },
+    {
+      "t": 20,
+      "query": "audioProcesses",
+      "processes": [
+        {
+          "id": 900,
+          "name": "Webex",
+          "bundleID": "Cisco-Systems.Spark",
+          "objectID": 90,
+          "isRunningOutput": false
+        },
+        {
+          "id": 910,
+          "name": "Webex Hlpr",
+          "bundleID": "Cisco-Systems.SparkHelper",
+          "objectID": 91,
+          "isRunningOutput": false
+        }
+      ]
+    },
+    {
+      "t": 30,
+      "query": "audioProcesses",
+      "processes": [
+        {
+          "id": 900,
+          "name": "Webex",
+          "bundleID": "Cisco-Systems.Spark",
+          "objectID": 90,
+          "isRunningOutput": false
+        },
+        {
+          "id": 920,
+          "name": "Webex Hlpr",
+          "bundleID": "Cisco-Systems.SparkHelper",
+          "objectID": 92,
+          "isRunningOutput": false
+        }
+      ]
+    },
+    {
+      "t": 40,
+      "query": "audioProcesses",
+      "processes": [
+        {
+          "id": 900,
+          "name": "Webex",
+          "bundleID": "Cisco-Systems.Spark",
+          "objectID": 90,
+          "isRunningOutput": false
+        },
+        {
+          "id": 920,
+          "name": "Webex Hlpr",
+          "bundleID": "Cisco-Systems.SparkHelper",
+          "objectID": 92,
+          "isRunningOutput": true
+        }
+      ]
+    }
+  ]
+}

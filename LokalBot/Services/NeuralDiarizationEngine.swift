@@ -29,6 +29,18 @@ actor NeuralDiarizationEngine {
         self.nemotronLoader = nemotronLoader
     }
 
+    /// The Pyannote voice model is on disk, so background work can use it
+    /// without a download. Loading still verifies every byte.
+    nonisolated static var voiceModelInstalled: Bool {
+        guard let snapshot = try? PinnedModelSnapshot.catalog("community") else { return false }
+        let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
+            .appendingPathComponent(Repo.diarizer.folderName)
+        return snapshot.files.allSatisfy { file in
+            let size = (try? directory.appendingPathComponent(file.path).resourceValues(forKeys: [.fileSizeKey]))?.fileSize
+            return size.map(Int64.init) == file.bytes
+        }
+    }
+
     private static func loadPinnedCommunityModels() async throws -> OfflineDiarizerModels {
         let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
             .appendingPathComponent(Repo.diarizer.folderName)

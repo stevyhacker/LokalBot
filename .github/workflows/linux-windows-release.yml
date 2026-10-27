@@ -1,0 +1,244 @@
+# Builds the Linux and Windows release archives (LinuxWindows/scripts/package.sh)
+# and the Linux .deb, .rpm and Arch packages (scripts/package-linux-distros.sh).
+#
+# Release (release.yml) calls this for a v* tag, next to the macOS job, and
+# signs and attaches what it builds once the macOS release exists. Run by
+# hand, or on a pull request that changes this pipeline, it is a dry run: it
+# builds the same archives, signs their update feeds with a throwaway key
+# through the same scripts/release-feeds.sh, checks them, and keeps
+# everything as workflow artifacts. A dry run never reads SPARKLE_PRIVATE_KEY
+# and publishes nothing.
+#
+#   gh workflow run linux-windows-release.yml --ref BRANCH
+
+name: Linux & Windows release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.10.11
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag the dry run signs for (default: v<workspace version>)"
+        required: false
+        type: string
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/linux-windows-release.yml"
+      - "LinuxWindows/scripts/package.sh"
+      - "LinuxWindows/scripts/package-linux-distros.sh"
+      - "LinuxWindows/scripts/third-party-licenses.sh"
+      - "LinuxWindows/scripts/package-windows-installer.ps1"
+      - "LinuxWindows/scripts/ci/check-windows-installer.ps1"
+      - "LinuxWindows/packaging/windows/**"
+      - "LinuxWindows/scripts/release-feeds.sh"
+      - "LinuxWindows/crates/lokalbot-update/**"
+
+concurrency:
+  # A tag's run belongs to its Release run; dry runs replace older ones.
+  group: linux-windows-release-${{ github.event_name == 'pull_request' && github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: LinuxWindows
+
+jobs:
+  linux:
+    name: Linux archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the tag names the workspace version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          tag="${TAG#v}"
+          if [[ "${tag%%-*}" != "$version" ]]; then
+            echo "::error::Tag $TAG does not match LinuxWindows/Cargo.toml $version. Run Scripts/bump-version.py first." >&2
+            exit 1
+          fi
+
+      # Release builds start clean: no compiled output is restored from a cache.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-x11-dev libwayland-dev libvulkan1 libfontconfig-dev \
+            libasound2-dev libxcb1-dev libx11-xcb-dev libssl-dev pkg-config clang
+
+      # The archives and packages ship LICENSES/rust-crates.md; it must list
+      # the crates this Cargo.lock builds.
+      - name: Check the third-party license list is current
+        run: scripts/third-party-licenses.sh --check
+
+      - name: Build and package
+        run: scripts/package.sh
+
+      # nfpm builds the .deb, .rpm and Arch packages from the staged folder.
+      # Pinned by version and SHA-256 (checksums.txt of the nfpm release).
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: "2.47.0"
+          NFPM_SHA256: 0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
+        run: |
+          archive="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/$archive"
+          echo "$NFPM_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" nfpm
+
+      - name: Build distribution packages
+        run: NFPM="$RUNNER_TEMP/nfpm" scripts/package-linux-distros.sh
+
+      # Each package installs in a clean container with its declared
+      # dependencies, and every library the app links or loads resolves, as
+      # does libgomp, which the llama.cpp runtime it downloads links.
+      - name: Check the packages install
+        working-directory: LinuxWindows/dist
+        run: |
+          check='set -e
+            test -x /usr/bin/lokalbot
+            test -f /usr/share/applications/com.lokalbot.LokalBot.desktop
+            if ldd /usr/bin/lokalbot | grep "not found"; then exit 1; fi
+            for lib in libvulkan.so.1 libwayland-client.so.0 libgomp.so.1; do ldconfig -p | grep -q "$lib" || { echo "missing $lib"; exit 1; }; done
+            /usr/bin/lokalbot-cli --help > /dev/null'
+          docker run --rm -v "$PWD:/d" ubuntu:24.04 bash -c \
+            "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends /d/LokalBot-*-linux-amd64.deb > /dev/null && $check"
+          docker run --rm -v "$PWD:/d" fedora:41 bash -c \
+            "dnf install -y -q --setopt=install_weak_deps=False /d/LokalBot-*-linux-x86_64.rpm > /dev/null && $check"
+          docker run --rm -v "$PWD:/d" archlinux:latest bash -c \
+            "pacman -Sy --noconfirm > /dev/null && pacman -U --noconfirm /d/LokalBot-*-linux-x86_64.pkg.tar.zst > /dev/null && $check"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-linux-x86_64
+          path: |
+            LinuxWindows/dist/*.tar.gz*
+            LinuxWindows/dist/*.deb*
+            LinuxWindows/dist/*.rpm*
+            LinuxWindows/dist/*.pkg.tar.zst*
+          retention-days: 7
+          if-no-files-found: error
+
+  source:
+    name: Windows sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Archive the Rust workspace
+        working-directory: .
+        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting LICENSE LICENSES THIRD_PARTY_NOTICES.md
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-windows-source
+          path: ${{ runner.temp }}/lokalbot-src.tar.gz
+          retention-days: 1
+
+  windows:
+    name: Windows archive
+    needs: source
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      # The macOS fixtures have names Git for Windows cannot check out.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: release-windows-source
+          path: ${{ runner.temp }}
+
+      - name: Extract sources
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+
+      - name: Build and package
+        run: scripts/package.sh
+
+      # Inno Setup 6 comes with GitHub's Windows images.
+      - name: Build the installer
+        shell: pwsh
+        run: ./scripts/package-windows-installer.ps1
+
+      # Installs for this user, checks the files, Start menu shortcut, app id
+      # and Installed apps entry, then uninstalls and checks the cleanup.
+      - name: Check the installer
+        shell: pwsh
+        run: ./scripts/ci/check-windows-installer.ps1 (Get-Item dist/LokalBot-*-windows-x86_64-setup.exe).FullName
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-windows-x86_64
+          path: |
+            LinuxWindows/dist/*.zip*
+            LinuxWindows/dist/*-setup.exe*
+          retention-days: 7
+          if-no-files-found: error
+
+  dry-run:
+    name: Sign and check the feeds (throwaway key)
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    needs: [linux, windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: release-*-x86_64
+          path: LinuxWindows/dist
+          merge-multiple: true
+
+      - name: Build the feed tool
+        run: cargo build --release --locked -p lokalbot-update --no-default-features --bin lokalbot-update-feed
+
+      - name: Sign the feeds with a throwaway key
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          umask 077
+          key_file="$RUNNER_TEMP/dry-run.key"
+          openssl rand -base64 32 > "$key_file"
+          FEED_TOOL=target/release/lokalbot-update-feed \
+            scripts/release-feeds.sh dist "${TAG:-v$version}" "$key_file"
+          # The release key never signed these: the embedded key must refuse them.
+          for archive in dist/LokalBot-*-linux-x86_64.tar.gz dist/LokalBot-*-windows-x86_64.zip; do
+            platform=$(basename "$archive" | sed -E 's/^LokalBot-[0-9.]+-(.*)\.(tar\.gz|zip)$/\1/')
+            feed="dist/$platform.json"
+            if target/release/lokalbot-update-feed verify --feed "$feed" --archive "$archive"; then
+              echo "::error::$feed verified against the release key" >&2
+              exit 1
+            fi
+          done
+          rm -f "$key_file"
+          ls -l dist
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: dry-run-release-assets
+          path: |
+            LinuxWindows/dist/*.tar.gz*
+            LinuxWindows/dist/*.zip*
+            LinuxWindows/dist/*.deb*
+            LinuxWindows/dist/*.rpm*
+            LinuxWindows/dist/*.pkg.tar.zst*
+            LinuxWindows/dist/*-setup.exe*
+            LinuxWindows/dist/*.json
+          retention-days: 7

@@ -157,6 +157,8 @@ struct MenuBarView: View {
                 .buttonStyle(.plain).foregroundStyle(Brand.error)
             }
 
+            SettingsApprovalMenuRow(approvals: app.settingsApprovals)
+
             if !permissions.allGranted {
                 Button { WindowAccess.shared.open("onboarding") } label: {
                     Label("Grant permissions to record", systemImage: "exclamationmark.shield.fill")
@@ -377,6 +379,13 @@ struct MenuBarView: View {
             SectionHeader(text: "Tools")
             VStack(spacing: 0) {
                 dictationRow
+                if !dictation.history.entries.isEmpty {
+                    Divider().padding(.leading, 28)
+                    LastDictationMenuRow(
+                        entries: dictation.history.entries,
+                        localized: { app.settings.appLanguage.localized($0) },
+                        copy: { dictation.copyFromHistory($0) })
+                }
                 Divider().padding(.leading, 28)
                 cotypingRow
             }
@@ -397,7 +406,7 @@ struct MenuBarView: View {
     private var footer: some View {
         VStack(alignment: .leading, spacing: 2) {
             Divider().padding(.vertical, 4)
-            menuAction("Ask", icon: "sparkle.magnifyingglass") { WindowAccess.shared.open("quick-recall") }
+            menuAction("Ask", icon: "sparkle.magnifyingglass") { app.openQuickRecall() }
             menuAction("Open LokalBot", icon: "macwindow") { WindowAccess.shared.open("main") }
             menuAction("Settings…", icon: "gearshape") { app.openSettings() }
             if app.settings.trackingEnabled {
@@ -405,6 +414,7 @@ struct MenuBarView: View {
                     .padding(.horizontal, 8).padding(.vertical, 6)
             }
             Divider().padding(.vertical, 4)
+            menuAction("Star on GitHub", icon: "star") { app.githubStar.openRepository() }
             menuAction("Quit LokalBot", icon: "power") { NSApp.terminate(nil) }
         }
         .buttonStyle(.plain)

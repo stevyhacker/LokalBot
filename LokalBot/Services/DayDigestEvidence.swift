@@ -544,7 +544,7 @@ struct DayDigestEvidence: Equatable, Sendable {
                 text: burst.evidenceText(maxPrompts: 3),
                 sourceIDs: [],
                 app: burst.agent.displayName,
-                title: burst.title,
+                title: burst.workTitle,
                 agentBursts: [burst]))
         }
         events.sort { lhs, rhs in
@@ -1318,7 +1318,7 @@ enum DayDigestOverviewGenerator {
         // vanish. Those that recorded an outcome are stated from their actions
         // and added after aggregation: a small model asked to merge them
         // blends unrelated sessions.
-        let sessionCandidates = agentSessionCandidates(evidence)
+        let sessionTasks = sessionCandidates(evidence)
 
         let usesBestAvailableActivity = substantiveBlocks.isEmpty
         // Substantive work leads; lighter but identifiable work follows it
@@ -1423,7 +1423,7 @@ enum DayDigestOverviewGenerator {
                 + String(format: "%.2fs", Date().timeIntervalSince(digestStartedAt)))
 
         return DayDigestOverviewGeneration(
-            summary: render(blocks: selectedBlocks, draft: digest, sessionCandidates: sessionCandidates),
+            summary: render(blocks: selectedBlocks, draft: digest, sessionCandidates: sessionTasks),
             quality: degraded ? .partial : .complete,
             coverage: DayDigestCoverage(coveredSeconds: coveredSeconds, trackedSeconds: trackedSeconds))
     }
@@ -1501,12 +1501,29 @@ enum DayDigestOverviewGenerator {
     /// recorded facts only. Scheduled runs are left to segment extraction:
     /// their reports often describe other days.
     static func agentSessionCandidates(_ evidence: DayDigestEvidence) -> [DayDigestGeneratedFocusBlock] {
-        evidence.codingAgentSessions.compactMap { bursts -> DayDigestGeneratedFocusBlock? in
+        sessionCandidates(evidence).map(\.block)
+    }
+
+    /// A session's task, with what identifies its work when matching it to
+    /// the model's tasks.
+    private struct SessionCandidate {
+        var block: DayDigestGeneratedFocusBlock
+        /// The work title without its project.
+        var name: String
+        var project: String?
+        var pullRequests: [CodingAgentPullRequest]
+    }
+
+    /// Tasks are named by the work, not by the first request or the folder
+    /// the session started in.
+    private static func sessionCandidates(_ evidence: DayDigestEvidence) -> [SessionCandidate] {
+        evidence.codingAgentSessions.compactMap { bursts -> SessionCandidate? in
             guard let session = CodingAgentBurstBuilder.merging(bursts), session.recordedOutcome,
                   !session.isScheduledRun else { return nil }
-            let title = session.title.localizedCaseInsensitiveContains(session.project)
-                ? session.title : "\(session.title) (\(session.project))"
-            var workDone = "Worked with \(session.agent.displayName) in \(session.project)."
+            let name = session.workTitle
+            let project = session.workProject
+            let title = project.map { name.localizedCaseInsensitiveContains($0) ? name : "\(name) (\($0))" } ?? name
+            var workDone = "Worked with \(session.agent.displayName)" + (project.map { " in \($0)" } ?? "") + "."
             if !session.actions.isEmpty {
                 workDone += " Recorded actions: "
                     + session.actions.prefix(6).map(\.summary).joined(separator: "; ") + "."
@@ -1518,7 +1535,7 @@ enum DayDigestOverviewGenerator {
                 default: false
                 }
             }
-            return DayDigestGeneratedFocusBlock(
+            let block = DayDigestGeneratedFocusBlock(
                 task: cleanInline(title, maxCharacters: FieldLimit.titleCharacters),
                 workDone: cleanSummary(workDone, maxWords: FieldLimit.workDoneWords),
                 status: finished ? "completed" : "in_progress",
@@ -1526,6 +1543,8 @@ enum DayDigestOverviewGenerator {
                     ? "" : cleanSummary("Pull requests: " + pullRequests.joined(separator: ", "), maxWords: 32),
                 nextStep: "",
                 sourceIDs: [])
+            return SessionCandidate(
+                block: block, name: name, project: project, pullRequests: session.pullRequestReferences)
         }
     }
 
@@ -1567,17 +1586,17 @@ enum DayDigestOverviewGenerator {
         // Agent sessions name their work and record their actions, which
         // says more than a window title without claiming an outcome.
         for session in evidence.codingAgentSessions {
-            guard let first = session.first else { continue }
+            guard let merged = CodingAgentBurstBuilder.merging(session) else { continue }
             var actions: [String] = []
             for action in session.flatMap(\.actions) where !actions.contains(action.summary) {
                 actions.append(action.summary)
             }
-            let context = "Worked with \(first.agent.displayName) in \(first.project)"
+            let context = "Worked with \(merged.agent.displayName)" + (merged.workProject.map { " in \($0)" } ?? "")
             let workDone = actions.isEmpty
                 ? context + "."
                 : context + ". Recorded actions: " + actions.prefix(4).joined(separator: "; ") + "."
             blocks.append(DayDigestGeneratedFocusBlock(
-                task: cleanInline(first.title, maxCharacters: FieldLimit.titleCharacters),
+                task: cleanInline(merged.workTitle, maxCharacters: FieldLimit.titleCharacters),
                 workDone: cleanSummary(workDone, maxWords: FieldLimit.workDoneWords),
                 status: "unknown",
                 outcome: "",
@@ -1826,7 +1845,7 @@ enum DayDigestOverviewGenerator {
     private static func render(
         blocks: [DayDigestGeneratedFocusBlock],
         draft: DigestDraft?,
-        sessionCandidates: [DayDigestGeneratedFocusBlock] = []
+        sessionCandidates: [SessionCandidate] = []
     ) -> String {
         var normalized = normalizedDigest(draft, blocks: blocks)
         for (offset, candidate) in sessionCandidates.enumerated() {
@@ -1929,16 +1948,20 @@ enum DayDigestOverviewGenerator {
     }
 
     /// A session already described by a task adds its recorded facts to that
-    /// task; otherwise it becomes its own task after the model's.
+    /// task; otherwise it becomes its own task after the model's. A task
+    /// describes the session when its title says the same, names one of the
+    /// session's pull requests, or holds every word of the session's name.
     private static func mergeSessionCandidate(
-        _ block: DayDigestGeneratedFocusBlock,
+        _ candidate: SessionCandidate,
         index: Int,
         into tasks: inout [NormalizedTask]
     ) {
+        let block = candidate.block
         let key = normalizedTaskKey(block.task)
         guard let taskIndex = tasks.firstIndex(where: {
             normalizedTaskKey($0.title) == key || DayDigestTextSimilarity.isSimilar($0.title, block.task)
-        }) else {
+        }) ?? tasks.firstIndex(where: { namesPullRequest($0.title, of: candidate) })
+            ?? tasks.firstIndex(where: { describesSameWork($0, as: candidate) }) else {
             tasks.append(NormalizedTask(
                 title: block.task,
                 status: block.status,
@@ -1957,6 +1980,82 @@ enum DayDigestOverviewGenerator {
         if block.status == "completed" { tasks[taskIndex].status = "completed" }
         tasks[taskIndex].blockIndices.append(index)
     }
+
+    /// The title names one of the session's pull requests: `owner/repo#12`,
+    /// or `#12` or `PR 12` beside the repository's name. A number alone could
+    /// belong to another repository's pull request.
+    private static func namesPullRequest(_ title: String, of candidate: SessionCandidate) -> Bool {
+        candidate.pullRequests.contains { pullRequest in
+            let label = "\(pullRequest.owner)/\(pullRequest.repository)#\(pullRequest.number)"
+            return title.range(
+                of: NSRegularExpression.escapedPattern(for: label) + #"(?!\d)"#,
+                options: [.regularExpression, .caseInsensitive]) != nil
+                || (mentionsWord(pullRequest.repository, in: title)
+                    && pullRequestNumbers(in: title).contains(pullRequest.number))
+        }
+    }
+
+    /// Every word of the session's name is in the task's title, the task is
+    /// about the session's project, and the two name no different pull
+    /// requests: "Review all open PRs" in LokalBot is "LokalBot open PR
+    /// review and fixes", while "Review PR" is not "LokalBot PR #290 review".
+    private static func describesSameWork(_ task: NormalizedTask, as candidate: SessionCandidate) -> Bool {
+        var words = workWords(candidate.name)
+        if let project = candidate.project {
+            words.subtract(workWords(project))
+            guard mentionsWord(project, in: task.title + " " + task.summary) else { return false }
+        }
+        guard words.count >= 2, words.isSubset(of: workWords(task.title)) else { return false }
+        let named = pullRequestNumbers(in: task.title)
+        let linked = Set(candidate.pullRequests.map(\.number))
+        return named.isEmpty || linked.isEmpty || !named.isDisjoint(with: linked)
+    }
+
+    private static func mentionsWord(_ word: String, in text: String) -> Bool {
+        text.range(
+            of: #"\b"# + NSRegularExpression.escapedPattern(for: word) + #"\b"#,
+            options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// Numbers written as `#12`, `PR 12`, or `PRs #12`.
+    private static func pullRequestNumbers(in text: String) -> Set<Int> {
+        var numbers: Set<Int> = []
+        var rest = text[...]
+        while let match = rest.range(of: #"(#|\bPRs?\s*#?)\d+"#, options: [.regularExpression, .caseInsensitive]) {
+            let digits = rest[match].reversed().prefix(while: \.isNumber)
+            if let number = Int(String(digits.reversed())) { numbers.insert(number) }
+            rest = rest[match.upperBound...]
+        }
+        return numbers
+    }
+
+    /// Lowercased content words in singular form, with "pull request" as "pr",
+    /// so "Review the pull requests" and "open PR review" share their words.
+    private static func workWords(_ text: String) -> Set<String> {
+        let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+            .lowercased()
+            .replacingOccurrences(of: "pull request", with: "pr")
+        var words: Set<String> = []
+        for raw in folded.split(whereSeparator: { !$0.isLetter && !$0.isNumber }) {
+            var word = String(raw)
+            if word == "prs" {
+                word = "pr"
+            } else if word.count > 4, word.hasSuffix("ies") {
+                word = String(word.dropLast(3)) + "y"
+            } else if word.hasSuffix("xes") || word.hasSuffix("ches") || word.hasSuffix("shes") {
+                word.removeLast(2)
+            } else if word.count > 3, word.hasSuffix("s"), !["ss", "us", "is"].contains(where: word.hasSuffix) {
+                word.removeLast()
+            }
+            if !ignoredWorkWords.contains(word) { words.insert(word) }
+        }
+        return words
+    }
+
+    private static let ignoredWorkWords: Set<String> = [
+        "a", "all", "an", "and", "any", "for", "from", "in", "its", "of", "on", "or", "our",
+        "the", "these", "this", "those", "to", "with",
+    ]
 
     /// The part of a session's outcome a task does not state yet. Several
     /// sessions can merge into one task, so each adds only pull requests it

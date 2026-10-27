@@ -219,6 +219,10 @@ final class ProcessingPipeline: ObservableObject {
     var onArtifactsWillChange: ((Meeting) throws -> Void)?
     /// Fired after transcript/summary files land on disk (search re-index).
     var onArtifactsWritten: ((Meeting) -> Void)?
+    /// Fired when a job that saved a complete summary finishes. Unlike
+    /// `onArtifactsWritten`, failed, partial, and transcript-only jobs never
+    /// fire it.
+    var onSummaryCompleted: ((Meeting) -> Void)?
 
     init(storage: StorageManager, jobStore: PipelineJobStore? = nil,
          settings: @escaping () -> AppSettings,
@@ -621,6 +625,7 @@ final class ProcessingPipeline: ObservableObject {
         }
         let queueSeconds = max(0, Date().timeIntervalSince(job.enqueuedAt))
         var transcriptWrittenThisJob = false
+        var summaryWrittenThisJob = false
         var notifiedArtifactsWillChange = false
         do {
             try await yieldToCapture(meetingID: meeting.id)
@@ -684,10 +689,13 @@ final class ProcessingPipeline: ObservableObject {
                 if let speakerIdentity,
                    let audioURL = MeetingAudioFiles.transcribableURL(for: .system, in: folder)
                     ?? MeetingAudioFiles.transcribableURL(for: .mic, in: folder) {
-                    // Remote participants' voices are never remembered.
-                    let safeSamples = AttributedTrackTranscriber.samples(batch.samples, transcript: transcript, source: .microphone)
+                    // Microphone and call voices are both remembered; the
+                    // sample meeting's synthetic voices never are.
+                    let samples = meeting.isSample ? [] : [SpeakerAttribution.Source.microphone, .system].flatMap {
+                        AttributedTrackTranscriber.samples(batch.samples, transcript: transcript, source: $0)
+                    }
                     transcript = await speakerIdentity.process(transcript: transcript, meeting: meeting,
-                        turns: batch.turns, samples: safeSamples, audioURL: audioURL)
+                        turns: batch.turns, samples: samples, audioURL: audioURL)
                 } else {
                     transcript = SpeakerAutoNamer.applyingAliases(to: transcript,
                         participants: meeting.resolvedCalendarParticipantIdentities)
@@ -832,6 +840,7 @@ final class ProcessingPipeline: ObservableObject {
                     MeetingSummaryGenerator.removeCheckpoint(in: folder)
                     MeetingOutcomesGenerator.removeCheckpoint(in: folder)
                     try? FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
+                    summaryWrittenThisJob = true
                     if !revokedMeetingIDs.contains(meeting.id) {
                         await budget.saveMetrics(in: folder, outcome: "complete")
                     }
@@ -857,6 +866,7 @@ final class ProcessingPipeline: ObservableObject {
             stages[meeting.id] = nil
             if !revokedMeetingIDs.contains(meeting.id) {
                 onArtifactsWritten?(meeting)
+                if summaryWrittenThisJob { onSummaryCompleted?(meeting) }
             }
         } catch {
             guard !revokedMeetingIDs.contains(meeting.id) else { return }
@@ -954,7 +964,7 @@ final class ProcessingPipeline: ObservableObject {
         let options = MeetingGenerationContext.Options(
             includeCalendar: config.meetingNotesUseCalendarContext,
             includeAgenda: config.useCalendarAgenda,
-            includeScreenTitles: config.meetingNotesUseScreenTitles)
+            includeScreenTitles: config.meetingNotesUseScreenTitles && !meeting.isImported)
         var titles: [String] = []
         if options.includeScreenTitles {
             let end = meeting.endedAt ?? meeting.startedAt.addingTimeInterval(meeting.recordedDuration ?? 0)
@@ -973,7 +983,9 @@ final class ProcessingPipeline: ObservableObject {
     /// saved with the meeting so its per-track checkpoints stay valid.
     nonisolated static func transcriptionPrompt(for meeting: Meeting, folder: URL, root: URL,
                                                 config: AppSettings, reuseSaved: Bool) -> String {
-        guard config.autoTranscriptionVocabulary,
+        // The sample transcribes the same way in every library, so names from
+        // the user's own meetings never steer it.
+        guard config.autoTranscriptionVocabulary, !meeting.isSample,
               config.transcriptionModel.acceptsVocabularyPrompt else {
             return config.transcriptionPrompt
         }
@@ -1002,7 +1014,7 @@ final class ProcessingPipeline: ObservableObject {
         // Reject missing or unreadable recordings before any model download.
         guard !sources.isEmpty else { throw PipelineError.noAudio }
         try await yieldToCapture(meetingID: meeting.id)
-        if config.multiSpeakerDiarization { try await prepareDiarizationModels(config: config) }
+        if config.multiSpeakerDiarization { try await prepareDiarizationModels(config: config, engine: engine) }
         let language = config.transcriptionLanguage.code
         var tracks: [Transcript] = []
         var voiceSamples: [SpeakerVoiceSample] = []
@@ -1033,7 +1045,7 @@ final class ProcessingPipeline: ObservableObject {
                 let audio = prepared.0 ?? url
                 let diarization = config.multiSpeakerDiarization
                     ? try await diarizer.diarizeDetailed(url: audio, model: config.diarizationModel,
-                        includeVoiceSamples: config.rememberSpeakersOnMac)
+                        includeVoiceSamples: !meeting.isSample)
                     : SpeakerDiarizationResult(segments: [], samples: [])
                 try await yieldToCapture(meetingID: meeting.id)
                 var result: Transcript?
@@ -1156,11 +1168,14 @@ final class ProcessingPipeline: ObservableObject {
     /// Shared by recording-time prewarm and the post-meeting stage. The
     /// `NeuralDiarizationEngine` instance is retained by this pipeline, so the
     /// downloaded/prepared models are reused instead of rebuilt per job.
-    func prepareDiarizationModels(config: AppSettings) async throws {
-        try await diarizer.prepareModels(model: config.diarizationModel, includeVoiceSamples: config.rememberSpeakersOnMac)
-        guard config.transcriptionModel.engine.speakerAttribution == .alignedWords else { return }
+    func prepareDiarizationModels(config: AppSettings, engine: TranscriptionEngine) async throws {
+        try await diarizer.prepareModels(model: config.diarizationModel, includeVoiceSamples: true)
+        guard config.transcriptionModel.engine.speakerAttribution == .alignedWords,
+              !engine.providesWordTimings else { return }
         // Fetch the word aligner with the speaker models. A failure is not
-        // fatal: attribution falls back to speaker regions for this job.
+        // fatal: attribution falls back to speaker regions for this job. A
+        // server that times words itself fetches it only if a clip comes
+        // back without word times.
         do {
             try await QwenWordAligner.shared.downloadIfNeeded()
         } catch is CancellationError {
@@ -1183,6 +1198,26 @@ final class ProcessingPipeline: ObservableObject {
             try transcript.markdown.data(using: .utf8)?.write(
                 to: folder.appendingPathComponent("transcript.md"), options: .atomic)
         }
+    }
+
+    /// Call-track voice samples for an already transcribed meeting, labeled by
+    /// its saved transcript. Waits while LokalBot records or processes, and
+    /// never downloads the voice model for this background work.
+    func savedCallVoiceSamples(for meeting: Meeting, transcript: Transcript) async throws -> [SpeakerVoiceSample] {
+        guard let url = MeetingAudioFiles.transcribableURL(for: .system, in: meeting.folderURL(in: storage)) else { return [] }
+        // Unavailable is not "no voices": the meeting is revisited later.
+        guard settings().multiSpeakerDiarization, NeuralDiarizationEngine.voiceModelInstalled else {
+            throw VoiceModelUnavailable()
+        }
+        while captureActive || isDraining || !queue.isEmpty {
+            try await Task.sleep(for: .seconds(10))
+        }
+        let result = try await diarizer.diarizeDetailed(url: url, model: .community1, includeVoiceSamples: true)
+        return AttributedTrackTranscriber.samples(result.samples, transcript: transcript, source: .system)
+    }
+
+    struct VoiceModelUnavailable: LocalizedError {
+        var errorDescription: String? { "the voice model is not installed or speaker separation is off" }
     }
 
     func loadTranscript(from folder: URL) throws -> Transcript {

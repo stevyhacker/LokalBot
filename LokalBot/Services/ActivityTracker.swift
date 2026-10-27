@@ -494,13 +494,66 @@ final class ActivityStore {
                    matchAll: Bool = true, dropStopWords: Bool = false,
                    filter: ScreenSearchFilter = .all, groupResults: Bool = true) -> [OCRHit] {
         guard limit > 0 else { return [] }
+        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
+        if CJKSearch.containsCJK(query) {
+            return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
+                                      filter: filter, groupResults: groupResults, cjkRowsOnly: false)
+        }
         guard let match = SearchIndex.ftsQuery(from: query, matchAll: matchAll,
                                                dropStopWords: dropStopWords) else { return [] }
+        let hits = runOCRSearch(matchCondition: "ocr_fts MATCH ?1", bindings: [match],
+                                rankExpression: "ocr_fts.rank",
+                                snippetExpression: "snippet(ocr_fts, 0, '«', '»', '…', 14)",
+                                limit: limit, filter: filter, groupResults: groupResults)
+        guard hits.isEmpty else { return hits }
+        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
+        return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
+                                  filter: filter, groupResults: groupResults, cjkRowsOnly: true)
+    }
+
+    /// Substring counterpart of the FTS search, for text the tokenizer cannot
+    /// split. The rank is how many terms matched (most first, then newest), and
+    /// snippets are built from the stored text because `snippet()` marks
+    /// nothing without MATCH.
+    private func substringSearchOCR(_ query: String, limit: Int, matchAll: Bool, dropStopWords: Bool,
+                                    filter: ScreenSearchFilter, groupResults: Bool,
+                                    cjkRowsOnly: Bool) -> [OCRHit] {
+        let terms = SearchIndex.substringTerms(query, matchAll: matchAll, dropStopWords: dropStopWords)
+        guard !terms.isEmpty else { return [] }
+        var bindings: [Any] = []
+        let termMatches = terms.map { term -> String in
+            bindings.append(CJKSearch.likePattern(for: term))
+            let pattern = "?\(bindings.count)"
+            return "(ocr_fts.text LIKE \(pattern) \(CJKSearch.likeEscapeClause)"
+                + " OR ocr_fts.window_title LIKE \(pattern) \(CJKSearch.likeEscapeClause))"
+        }
+        var match = "(" + termMatches.joined(separator: matchAll ? " AND " : " OR ") + ")"
+        if cjkRowsOnly {
+            bindings.append(CJKSearch.rowGlobPattern)
+            let pattern = "?\(bindings.count)"
+            match += " AND (ocr_fts.text GLOB \(pattern) OR ocr_fts.window_title GLOB \(pattern))"
+        }
+        return runOCRSearch(matchCondition: match, bindings: bindings,
+                            rankExpression: "-(" + termMatches.map { "IFNULL(\($0), 0)" }
+                                .joined(separator: " + ") + ")",
+                            snippetExpression: "ocr_fts.text",
+                            limit: limit, filter: filter, groupResults: groupResults) { text in
+            CJKSearch.snippet(in: text, terms: terms) ?? String(text.prefix(72))
+        }
+    }
+
+    /// The screen search query, grouped into scenes unless `groupResults` is
+    /// false. `matchCondition` and `bindings` select the rows, and
+    /// `rankExpression` orders them (lower first) ahead of recency.
+    private func runOCRSearch(matchCondition: String, bindings matchBindings: [Any],
+                              rankExpression: String, snippetExpression: String,
+                              limit: Int, filter: ScreenSearchFilter, groupResults: Bool,
+                              snippet makeSnippet: (String) -> String = { $0 }) -> [OCRHit] {
         var conditions = [
-            "ocr_fts MATCH ?1",
+            matchCondition,
             "CAST(ocr_fts.snapshot_id AS INTEGER) > 0",
         ]
-        var bindings: [Any] = [match]
+        var bindings = matchBindings
         if let ids = filter.snapshotIDs {
             guard !ids.isEmpty else { return [] }
             let parameters = ids.sorted().map { id -> String in
@@ -519,18 +572,18 @@ final class ActivityStore {
             if !groupResults {
                 return try requiredDatabase().queryChecked("""
                     SELECT CAST(ocr_fts.snapshot_id AS INTEGER), CAST(ocr_fts.ts AS REAL),
-                           ocr_fts.app, ocr_fts.window_title, snippet(ocr_fts, 0, '«', '»', '…', 14),
+                           ocr_fts.app, ocr_fts.window_title, \(snippetExpression),
                            shot.similarity_group
                     FROM ocr_fts JOIN screenshots AS shot ON shot.id = CAST(ocr_fts.snapshot_id AS INTEGER)
                     WHERE \(conditions.joined(separator: " AND "))
-                    ORDER BY ocr_fts.rank, CAST(ocr_fts.ts AS REAL) DESC, shot.id
+                    ORDER BY \(rankExpression), CAST(ocr_fts.ts AS REAL) DESC, shot.id
                     LIMIT \(limit)
                     """, bind: bindings) { statement in
                     OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
                            ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
                            app: String(cString: sqlite3_column_text(statement, 2)),
                            windowTitle: String(cString: sqlite3_column_text(statement, 3)),
-                           snippet: String(cString: sqlite3_column_text(statement, 4)),
+                           snippet: makeSnippet(String(cString: sqlite3_column_text(statement, 4))),
                            similarityGroupID: sqlite3_column_int64(statement, 5) > 0
                                ? sqlite3_column_int64(statement, 5) : nil)
                 }
@@ -541,8 +594,8 @@ final class ActivityStore {
                            CAST(ocr_fts.ts AS REAL) AS captured_at,
                            ocr_fts.app AS app,
                            ocr_fts.window_title AS window_title,
-                           snippet(ocr_fts, 0, '«', '»', '…', 14) AS snippet_text,
-                           ocr_fts.rank AS match_rank,
+                           \(snippetExpression) AS snippet_text,
+                           \(rankExpression) AS match_rank,
                            shot.similarity_group AS similarity_group_id,
                            CASE
                                WHEN shot.similarity_group > 0
@@ -580,7 +633,7 @@ final class ActivityStore {
                        ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
                        app: String(cString: sqlite3_column_text(statement, 2)),
                        windowTitle: String(cString: sqlite3_column_text(statement, 3)),
-                       snippet: String(cString: sqlite3_column_text(statement, 4)),
+                       snippet: makeSnippet(String(cString: sqlite3_column_text(statement, 4))),
                        similarityGroupID: {
                            let groupID = sqlite3_column_int64(statement, 5)
                            return groupID > 0 ? groupID : nil

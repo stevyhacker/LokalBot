@@ -1,3 +1,8 @@
+// Contains code ported from Cotabby (https://github.com/FuJacob/cotabby),
+// copyright the Cotabby authors, under the GNU AGPL v3.0
+// (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 25 June 2026.
+// See THIRD_PARTY_NOTICES.md.
+
 import Foundation
 
 /// Final guard for visible failures at the caret seam. Ported from Cotabby's

@@ -87,7 +87,7 @@ enum CotypingMemoryContextProvider {
 
     /// A finished meeting recent enough to supply a fact.
     static func isEligible(_ meeting: Meeting, now: Date) -> Bool {
-        !meeting.isMergedSource && meeting.endedAt != nil
+        meeting.isOwnWork && meeting.endedAt != nil
             && now.timeIntervalSince(meeting.startedAt) <= CotypingMemoryContext.maxAge
     }
 
@@ -123,7 +123,7 @@ enum CotypingMemoryContextProvider {
             guard let data = boundedData(folder.appendingPathComponent("meta.json")),
                   let current = try? metadataDecoder.decode(Meeting.self, from: data),
                   current.id == meeting.id, current.relativePath == meeting.relativePath,
-                  !current.isMergedSource else { continue }
+                  current.isOwnWork else { continue }
             var texts: [(String, Date)] = []
             for path in [MeetingNotes.fileName, "summary.md"] {
                 if let data = boundedData(folder.appendingPathComponent(path)),

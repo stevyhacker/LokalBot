@@ -266,6 +266,10 @@ struct LokalBotApp: App {
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 
+                Button(app.settings.appLanguage.localized("Import Recording…")) {
+                    RecordingImportPanel.choose(into: app)
+                }
+
                 Divider()
 
                 Button(app.settings.appLanguage.localized(
@@ -293,7 +297,7 @@ struct LokalBotApp: App {
                 .keyboardShortcut("k", modifiers: [.command])
 
                 Button(app.settings.appLanguage.localized("Ask…")) {
-                    WindowAccess.shared.open("quick-recall")
+                    app.openQuickRecall()
                 }
             }
             CommandGroup(before: .textEditing) {
@@ -342,6 +346,39 @@ struct LokalBotApp: App {
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
+        Window(app.settings.appLanguage.localized("Selection actions"), id: "selection-actions") {
+            SelectionActionsView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
+        // An agent's `setup start` request.
+        Window(app.settings.appLanguage.localized("Set Up with Your Agent"), id: "agent-setup") {
+            AgentSetupView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
+        .defaultPosition(.center)
+
+        // Terminal requests that need the person: one card per request.
+        Window(app.settings.appLanguage.localized("Approve Settings Change"), id: "settings-approval") {
+            SettingsApprovalView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
         .defaultPosition(.center)
 
 #if !LOKALBOT_UI_TEST_HOST

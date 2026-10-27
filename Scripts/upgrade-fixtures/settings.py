@@ -1,16 +1,40 @@
 #!/usr/bin/env python3
 """Settings each release had when a user approved a remote model server and
 kept scheduled digests and dreams on. Written into the old app's defaults
-before it opens the fixture library."""
+before it opens the fixture library. Also picks the versions an Upgrade
+fixtures run builds."""
 import hashlib
 import json
+from pathlib import Path
+import re
 import sys
 
-VERSIONS = ["0.6.2", "0.7.2", "0.8.5", "0.9.0", "0.9.1", "0.9.2", "0.9.3", "0.9.4", "0.9.5", "0.9.6", "0.10.0", "0.10.1", "0.10.2", "0.10.3", "0.10.4", "0.10.5", "0.10.6", "0.10.7"]
+FIXTURES = Path(__file__).resolve().parents[2] / "LokalBotTests/Fixtures/upgrade"
 
 
 def _tuple(version):
     return tuple(int(part) for part in version.split("."))
+
+
+def committed_versions():
+    """Releases with a committed fixture, oldest first. The folders are the
+    only list of fixture versions."""
+    return sorted((path.name for path in FIXTURES.iterdir() if (path / "manifest.json").is_file()), key=_tuple)
+
+
+def plan(event, requested):
+    """Versions an Upgrade fixtures run builds, for its matrix: the requested
+    ones (a release tag or a dispatch), otherwise every committed fixture. A
+    pull request only checks the generator on the newest release, since the
+    release run builds each new fixture."""
+    versions = [version.removeprefix("v") for version in requested]
+    for version in versions:
+        if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+            raise ValueError(f"Not a stable release version: {version}")
+    if versions:
+        return versions
+    committed = committed_versions()
+    return committed[-1:] if event == "pull_request" else committed
 
 
 def profile(version):
@@ -39,5 +63,7 @@ def fixture_key_hex(account):
 if __name__ == "__main__":
     if sys.argv[1] == "key":
         print(fixture_key_hex(sys.argv[2]))
+    elif sys.argv[1] == "plan":
+        print(f"versions={json.dumps(plan(sys.argv[2], sys.argv[3:]))}")
     else:
         print(profile(sys.argv[1]))

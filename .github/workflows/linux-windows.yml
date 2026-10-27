@@ -1,0 +1,363 @@
+name: Linux & Windows
+
+on:
+  push:
+    branches: [master, dev]
+    paths:
+      - "LinuxWindows/**"
+      - "!LinuxWindows/docs/**"
+      - "!LinuxWindows/**/*.md"
+      - ".agents/skills/lokalbot-cli/**"
+      - "LokalBot/Resources/SampleMeeting/**"
+      - "LokalBot/Resources/*.lproj/Localizable.strings"
+      - "LokalBot/Models/AppLanguage.swift"
+      - ".github/workflows/linux-windows.yml"
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - "LinuxWindows/**"
+      - "!LinuxWindows/docs/**"
+      - "!LinuxWindows/**/*.md"
+      - ".agents/skills/lokalbot-cli/**"
+      - "LokalBot/Resources/SampleMeeting/**"
+      - "LokalBot/Resources/*.lproj/Localizable.strings"
+      - "LokalBot/Models/AppLanguage.swift"
+      - ".github/workflows/linux-windows.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: linux-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: LinuxWindows
+
+jobs:
+  # The owner's own machines run the Linux and Windows jobs when they are
+  # online and idle; otherwise GitHub's runners do. Pull requests from forks
+  # always get GitHub's runners. Listing runners needs RUNNER_STATUS_TOKEN, a
+  # fine-grained token with read-only Administration access to this
+  # repository; without it, or with the SELF_HOSTED_RUNNERS variable set to
+  # "off", every job runs on GitHub. See LinuxWindows/scripts/ci/runners.
+  pick:
+    name: Pick runners
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: .
+    outputs:
+      linux: ${{ steps.pick.outputs.linux }}
+      windows: ${{ steps.pick.outputs.windows }}
+      windows-self-hosted: ${{ steps.pick.outputs.windows-self-hosted }}
+    steps:
+      - id: pick
+        env:
+          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          FROM_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+          SWITCH: ${{ vars.SELF_HOSTED_RUNNERS }}
+        run: |
+          linux='"ubuntu-24.04"'
+          windows='"windows-2025"'
+          if [ "$FROM_FORK" = true ]; then
+            why="pull request from a fork"
+          elif [ "$SWITCH" = off ]; then
+            why="SELF_HOSTED_RUNNERS is off"
+          elif [ -z "$GH_TOKEN" ]; then
+            why="no RUNNER_STATUS_TOKEN secret"
+          elif ! idle=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.busy | not)) | .labels[].name]' 2>&1); then
+            why="couldn't list runners: $idle"
+            echo "::warning::$why"
+          else
+            why="labels of idle self-hosted runners: $idle"
+            if jq -e 'index("lokalbot-linux")' <<<"$idle" >/dev/null; then linux='["self-hosted","lokalbot-linux"]'; fi
+            if jq -e 'index("lokalbot-windows")' <<<"$idle" >/dev/null; then windows='["self-hosted","lokalbot-windows"]'; fi
+          fi
+          self_hosted_windows=false
+          if [ "$windows" != '"windows-2025"' ]; then self_hosted_windows=true; fi
+          {
+            echo "linux=$linux"
+            echo "windows=$windows"
+            echo "windows-self-hosted=$self_hosted_windows"
+          } >>"$GITHUB_OUTPUT"
+          {
+            echo "Linux: \`$linux\`, Windows: \`$windows\`"
+            echo
+            echo "Why: $why"
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  linux:
+    name: Linux
+    needs: pick
+    runs-on: ${{ fromJSON(needs.pick.outputs.linux) }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Self-hosted runners have these packages and keep a warm target
+      # directory (CARGO_TARGET_DIR) in place of the cargo cache.
+      - name: Check the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        run: scripts/ci/runners/check-runner.sh
+
+      - name: Install build and display dependencies
+        if: runner.environment == 'github-hosted'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-x11-dev libwayland-dev libvulkan1 mesa-vulkan-drivers libfontconfig-dev \
+            libasound2-dev libxcb1-dev libx11-xcb-dev libssl-dev pkg-config clang \
+            xvfb xfwm4 x11-xserver-utils xdotool ffmpeg
+
+      - name: Cache cargo
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            LinuxWindows/target
+          key: linux-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
+          restore-keys: linux-cargo-
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Check localization parity with macOS
+        run: python3 -m unittest discover -s scripts/tests
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace --locked
+
+      - name: Build release
+        run: cargo build --release --locked -p lokalbot-app -p lokalbot-cli
+
+      - name: Package
+        run: scripts/package.sh
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lokalbot-linux-x86_64
+          path: LinuxWindows/dist/*.tar.gz*
+          retention-days: 14
+
+      # Installs the archive with install.sh into a scratch home, then has it
+      # update itself from a signed feed on 127.0.0.1 and relaunch.
+      - name: Check updating from a local feed
+        run: |
+          cargo build --release --locked -p lokalbot-update --bin lokalbot-update-feed
+          archive=$(ls dist/LokalBot-*-linux-x86_64.tar.gz)
+          scripts/ci/update-e2e.sh "$archive" "$archive" \
+            "${CARGO_TARGET_DIR:-target}/release/lokalbot-update-feed" "$RUNNER_TEMP/update-e2e"
+
+      - name: Capture the app
+        run: |
+          if [ "$RUNNER_ENVIRONMENT" = github-hosted ]; then
+            sudo apt-get install -y --no-install-recommends hsetroot xfce4-panel x11-utils dbus-daemon
+          fi
+          bin="${CARGO_TARGET_DIR:-target}/release/lokalbot"
+          root="$RUNNER_TEMP/library"
+          LOKALBOT_STORAGE_ROOT="$root" "$bin" --seed-demo
+          pages="today meetings timeline people projects ask agent settings settings-models"
+          CAPTURE_WAIT=10 scripts/ci/capture-linux.sh "$bin" "$root" "$RUNNER_TEMP/screenshots" $pages
+          python3 -c "import json,sys; p=sys.argv[1]; s=json.load(open(p)) if __import__('os').path.exists(p) else {}; s['appTheme']='dark'; json.dump(s, open(p,'w'))" "$root/settings.json"
+          CAPTURE_WAIT=10 CAPTURE_SUFFIX=-dark scripts/ci/capture-linux.sh "$bin" "$root" "$RUNNER_TEMP/screenshots" today meetings ask
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: linux-screenshots
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 14
+
+  source:
+    name: Windows sources
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Archive the Rust workspace
+        working-directory: .
+        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting .github/actions LICENSE LICENSES THIRD_PARTY_NOTICES.md
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-source
+          path: ${{ runner.temp }}/lokalbot-src.tar.gz
+          retention-days: 1
+
+  windows:
+    name: Windows
+    needs: [pick, source]
+    runs-on: ${{ fromJSON(needs.pick.outputs.windows) }}
+    timeout-minutes: 75
+    steps:
+      # The repository's macOS fixtures use names with ':' that Git for Windows
+      # refuses to check out, so this job gets the Rust workspace as an archive.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-source
+          path: ${{ runner.temp }}
+
+      - name: Extract sources
+        if: runner.environment == 'github-hosted'
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+
+      # A self-hosted runner keeps its workspace and warm target between jobs.
+      # Only files that differ from the last job's get a new time, so cargo
+      # rebuilds just the crates that changed.
+      - name: Update sources
+        if: runner.environment == 'self-hosted'
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: |
+          $src = Join-Path $env:RUNNER_TEMP "src"
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $src
+          New-Item -ItemType Directory $src | Out-Null
+          tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $src
+          & (Join-Path $src "LinuxWindows\scripts\ci\runners\sync-sources.ps1") -From $src -To $env:GITHUB_WORKSPACE
+
+      - name: Check the self-hosted runner
+        if: runner.environment == 'self-hosted'
+        shell: pwsh
+        run: ./scripts/ci/runners/check-runner.ps1
+
+      - name: Cache cargo
+        if: runner.environment == 'github-hosted'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            LinuxWindows/target
+          key: windows-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
+          restore-keys: windows-cargo-
+
+      - name: Clear old build timings
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $target "cargo-timings")
+
+      - name: Test
+        run: cargo test --workspace --locked --timings
+
+      # One build for the release programs and the desktop-check programs, so
+      # they share every library and link side by side. lokalbot-update gets
+      # the features lokalbot-app asks for, not its defaults, and the examples'
+      # dev-dependencies add none, so package.sh's own release build finds
+      # nothing to do.
+      - name: Build release
+        shell: pwsh
+        run: |
+          cargo build --release --locked --timings --no-default-features --features lokalbot-update/client `
+            -p lokalbot-app -p lokalbot-cli -p lokalbot-update -p lokalbot-engine -p lokalbot-platform `
+            --bin lokalbot --bin lokalbot-cli --bin lokalbot-update-feed `
+            --example autocomplete_probe --example screen_capture --example screen_text
+
+      - name: Package
+        shell: bash
+        run: scripts/package.sh
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: lokalbot-windows-x86_64
+          path: LinuxWindows/dist/*.zip*
+          retention-days: 14
+
+      - name: Collect the desktop-check programs
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          $bin = Join-Path $env:RUNNER_TEMP "desktop-bin"
+          New-Item -ItemType Directory -Force (Join-Path $bin "examples"), (Join-Path $bin "update") | Out-Null
+          Copy-Item (Join-Path $target "release\lokalbot.exe") $bin
+          foreach ($name in "autocomplete_probe", "screen_capture", "screen_text") {
+            Copy-Item (Join-Path $target "release\examples\$name.exe") (Join-Path $bin "examples")
+          }
+          # The update check installs the packaged archive and updates it.
+          Copy-Item (Join-Path $target "release\lokalbot-update-feed.exe") (Join-Path $bin "update")
+          Copy-Item dist\LokalBot-*-windows-x86_64.zip (Join-Path $bin "update")
+
+      # The desktop checks take over the screen, so on a self-hosted runner
+      # they run in the next job, on GitHub's runner, with these programs.
+      - name: Desktop checks
+        if: runner.environment == 'github-hosted'
+        uses: ./.github/actions/windows-desktop-checks
+        with:
+          bin: ${{ runner.temp }}\desktop-bin
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always() && runner.environment == 'github-hosted'
+        with:
+          name: windows-screenshots
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 14
+
+      - name: Collect build timings
+        if: always()
+        shell: pwsh
+        run: |
+          $target = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { "target" }
+          $out = Join-Path $env:RUNNER_TEMP "cargo-timings"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Get-ChildItem (Join-Path $target "cargo-timings") -Filter "cargo-timing-*.html" -ErrorAction SilentlyContinue | Copy-Item -Destination $out
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: windows-cargo-timings
+          path: ${{ runner.temp }}/cargo-timings
+          retention-days: 14
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: runner.environment == 'self-hosted'
+        with:
+          name: windows-desktop-programs
+          path: ${{ runner.temp }}/desktop-bin
+          retention-days: 1
+
+  windows-desktop:
+    name: Windows desktop checks
+    needs: [pick, windows]
+    if: needs.pick.outputs.windows-self-hosted == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-source
+          path: ${{ runner.temp }}
+
+      - name: Extract sources
+        working-directory: ${{ github.workspace }}
+        shell: pwsh
+        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: windows-desktop-programs
+          path: ${{ runner.temp }}/desktop-bin
+
+      - name: Desktop checks
+        uses: ./.github/actions/windows-desktop-checks
+        with:
+          bin: ${{ runner.temp }}\desktop-bin
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: windows-screenshots
+          path: ${{ runner.temp }}/screenshots
+          retention-days: 14

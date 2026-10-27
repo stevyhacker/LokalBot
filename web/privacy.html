@@ -45,13 +45,13 @@
 
   <main class="legal-page">
     <header class="legal-page__head">
-      <p class="eyebrow">Effective October 2, 2026</p>
+      <p class="eyebrow">Effective October 21, 2026</p>
       <h1>Privacy Policy</h1>
-      <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service.</p>
+      <p>LokalBot is local-first. It has no LokalBot account, analytics service, advertising SDK, telemetry backend, or hosted AI service. This page describes the Mac app; <a href="#windows-and-linux">Windows and Linux</a> lists where the Windows and Linux app, an alpha, differs.</p>
     </header>
 
     <article class="legal-card">
-      <h2>What stays on your Mac</h2>
+      <h2>What stays on your computer</h2>
       <p>The project does not receive your recordings, transcripts, summaries, screenshots, prompts, files, calendar events, or usage history. LokalBot can store these in its Application Support directory:</p>
       <ul>
         <li>meeting microphone and system-audio tracks;</li>
@@ -59,17 +59,23 @@
         <li>downloaded speech, embedding, and language models;</li>
         <li>permission-gated app/window activity, screenshots, and locally extracted text;</li>
         <li>records of local Claude Code and Codex sessions for the day digest (requests, commits, pull requests, and changed file names; never tool output or file contents), on by default and removable in Settings → Day Memory;</li>
-        <li>opt-in Agent Mode sessions and runtime files; and</li>
+        <li>opt-in Agent Mode sessions and runtime files;</li>
+        <li>an encrypted Personal Context list of facts, preferences, goals, and principles about you; and</li>
         <li>preferences, diagnostic logs, and encryption keys.</li>
       </ul>
-      <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Overnight reviews and the remembered projects and goals are kept after screen text expires; Settings → Overnight review → Clear work memory deletes them. Dictation scratch audio is deleted after transcription by default.</p>
+      <p>Fresh installs select activity-only day tracking: the app name and window title. Visible text and encrypted screenshots are opt-in and require macOS Accessibility and Screen Recording permission. Screenshots are encrypted at rest and deleted after 14 days by default. Their extracted text follows the same retention unless you explicitly keep it. Overnight reviews, the one-line week and month summaries made from them for agents, and the remembered projects and goals are kept after screen text expires; Settings → Overnight review → Clear work memory deletes them. Dictation scratch audio is deleted after transcription by default. Dictated text is kept only as the last 10 results for 7 days, encrypted, so you can copy one again, and briefly for Learn from my dictation (below) while it is on.</p>
+
+      <h2>Personal Context</h2>
+      <p>Personal Context holds what you tell LokalBot about yourself: messages that start with “Remember …” in Ask, and items you add in Settings → Personal Context. With <strong>Learn about me from my meetings and work</strong>, which is on by default, LokalBot also learns from your own words after each overnight review. It reads your microphone lines from that day's meetings, the requests you typed to Claude Code or Codex, and your Ask questions. Only lines with first-person words such as “I” or “my” go to your Think model, and other people's words never do. Up to three items a night come from this, and a day is read again only when your lines from it change. Facts and goals you said in meetings are saved; preferences and anything from your typing wait for your review; principles and values are never learned. Each learned item shows the line it came from.</p>
+      <p><strong>Learn from my dictation</strong> is off by default. While it is on, LokalBot keeps the words you dictate into other apps, encrypted, until that night's learning reads them, and never more than two days. It keeps only the words you spoke, only when they were pasted into a field it could identify, and skips excluded apps and websites, private windows, and password fields. Items from dictation always wait for your review. Turning it off deletes what is kept.</p>
+      <p>Items are encrypted with the key that protects your Ask history. Ask adds the relevant ones to each question, so an approved remote Think server receives them with the question. An item is removed when the meeting, conversation, or agent session it came from is deleted, or when the line it quotes is corrected or attributed to someone else, unless you chose to keep it. You can edit or forget any item, or turn learning off, in Settings → Personal Context.</p>
 
       <h2>When LokalBot uses the network</h2>
       <ul>
-        <li><strong>Models:</strong> model metadata and files from Hugging Face or a publisher's download host. Selected first-use models can download automatically.</li>
+        <li><strong>Models:</strong> model metadata and files from Hugging Face or a publisher's download host. Selected first-use models can download automatically. If you choose HF-Mirror (hf-mirror.com) or ModelScope (modelscope.cn) in Settings, model files come from there instead, and every file is checked against the size and SHA-256 LokalBot pins.</li>
         <li><strong>Updates:</strong> the public GitHub Releases appcast and a signed update when you check or enable automatic checks.</li>
-        <li><strong>Optional remote inference:</strong> an Ollama or OpenAI-compatible URL you configure. Loopback stays on your Mac. A non-loopback origin must be explicitly approved before it receives meeting, workday, or agent context.</li>
-        <li><strong>Optional Agent Mode:</strong> setup downloads its pinned runtime. Commands you approve can access files or the network with your macOS user permissions.</li>
+        <li><strong>Optional remote inference:</strong> an Ollama or OpenAI-compatible URL you configure. Loopback stays on your computer. A non-loopback origin must be explicitly approved before it receives meeting, workday, Personal Context, or agent context.</li>
+        <li><strong>Optional Agent Mode:</strong> setup downloads its pinned runtime. Commands you approve can access files or the network with your user account's permissions.</li>
       </ul>
       <p>Those services receive ordinary connection metadata such as IP address and request headers. LokalBot adds no advertising identifier and does not use those requests for tracking. A remote server's operator controls its own privacy terms.</p>
 
@@ -78,10 +84,25 @@
       <p>On a fresh install, LokalBot asks through a notification before it records a detected meeting. You can switch to automatic recording or turn auto-record off. You are responsible for informing participants and obtaining any consent required before recording other people.</p>
 
       <h2>External-agent access</h2>
-      <p>The bundled CLI and MCP interface are read-only and refuse library access until you enable Agent Access under Settings → Privacy. An enabled external tool runs as your macOS user, so connect only tools you trust.</p>
+      <p>The bundled CLI and MCP interface are read-only and refuse library access until you enable Agent Access under Settings → Privacy. Screen memory and Personal Context each need their own, separate permission there; turning on one never turns on another. With <strong>Allow external agents to read what I shared about myself</strong> on, agents can read only the Personal Context items you mark Share with agents, at most 12 at a time, never the rest. The start-of-session briefing (<code>get_briefing</code>, <code>lokalbot-cli brief</code>) follows the same grants: with all of them off it only lists which are off, and each part, such as your open action items, current projects and goals, recent coding-agent sessions, or the overnight-review timeline, appears only under the permissions that cover its sources. An enabled external tool runs as your user account, and a connected AI client may send what it reads under its own privacy terms, so connect only tools you trust.</p>
+
+      <h2 id="windows-and-linux">Windows and Linux (alpha)</h2>
+      <p>The Windows and Linux app follows this policy, with these differences:</p>
+      <ul>
+        <li><strong>Storage:</strong> the library is in <code>%LOCALAPPDATA%\LokalBot</code> on Windows and <code>~/.local/share/LokalBot</code> on Linux. API keys, the ChatGPT sign-in, calendar links, and the screen-image key are kept in the system credential store (Windows Credential Manager, or the Secret Service on Linux).</li>
+        <li><strong>Not collected there yet:</strong> Personal Context, coding-agent session records, spoken summaries, daily memory notes, and meeting note export are Mac only for now.</li>
+        <li><strong>System audio</strong> comes from the whole output (WASAPI loopback, or a PulseAudio or PipeWire monitor), so anything else playing during a recording is recorded too. Meeting detection looks at which apps use the microphone and asks with a notification.</li>
+        <li><strong>Screen context</strong> reads visible text through accessibility (UI Automation or AT-SPI) and otherwise uses on-device OCR, downloaded only when you ask for it. The same exclusions, redaction, encryption, and 14-day default retention apply.</li>
+        <li><strong>Dictation</strong> audio stays in memory and is never written to disk. The text is pasted through the clipboard, and your previous clipboard comes back afterwards. The last 10 results are kept for 7 days, encrypted, so you can copy one again.</li>
+        <li><strong>Calendar</strong> reads private iCal or CalDAV links you add, fetched from their own servers every five minutes while calendar use is on, and on Linux the calendars of Evolution Data Server. Events stay in memory.</li>
+        <li><strong>Permissions:</strong> there are no macOS-style prompts. Windows uses its own microphone privacy setting, and Wayland desktops may ask through portals for screenshots and shortcuts.</li>
+        <li><strong>Network:</strong> models from Hugging Face and GitHub, the llama.cpp runtime from GitHub, the OCR model from the ocrs project, Agent Mode's Bun (GitHub) and pi (npm), update checks against GitHub Releases, the servers and plans you approve, and your calendar links. Updates install only when you choose.</li>
+        <li><strong>External agents:</strong> the meeting-library and screen-memory switches in Settings → Privacy &amp; Data work as on a Mac. Agents can't change settings there, and personal context stays off.</li>
+      </ul>
+      <p>The full details are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/PRIVACY.md#lokalbot-for-linux-and-windows">PRIVACY.md</a>.</p>
 
       <h2>Deletion, security, and changes</h2>
-      <p>You can delete meetings in the app or remove LokalBot's Application Support directory. No software can promise absolute security. Report vulnerabilities through the private process in the <a href="https://github.com/stevyhacker/lokalbot/blob/master/SECURITY.md">security policy</a>. Material policy changes will update this date and appear in release notes.</p>
+      <p>You can delete meetings in the app or remove LokalBot's library folder (its Application Support directory on a Mac). No software can promise absolute security. Report vulnerabilities through the private process in the <a href="https://github.com/stevyhacker/lokalbot/blob/master/SECURITY.md">security policy</a>. Material policy changes will update this date and appear in release notes.</p>
 
       <h2>Contact</h2>
       <p>Use the <a href="support">support page</a> for privacy questions. Never include recordings, transcripts, secrets, or other sensitive data in a public issue.</p>
@@ -91,12 +112,13 @@
   <footer class="footer footer--legal">
     <div class="footer__brand">
       <a class="brand" href="/"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Find what you said or saw on your Mac.</p>
+      <p>Your personal context engine.</p>
     </div>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub</a>
       <a href="about">About</a>
+      <a href="blog">Blog</a>
       <a href="benchmarks">Benchmarks</a>
       <a href="privacy">Privacy</a>
       <a href="terms">Terms</a>

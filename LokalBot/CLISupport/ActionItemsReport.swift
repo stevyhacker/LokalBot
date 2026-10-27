@@ -67,7 +67,8 @@ enum ActionItemsReport {
         let cutoff = calendar.date(byAdding: .day, value: -max(1, filter.days), to: now) ?? now
         let scoped = meetings.filter { meeting in
             if let meetingID = filter.meetingID { return meeting.id == meetingID }
-            return meeting.startedAt >= cutoff
+            // The sample meeting's actions are made up: only listed when asked for by id.
+            return meeting.isOwnWork && meeting.startedAt >= cutoff
         }
         let references = scoped
             .compactMap { MeetingOutcomeProjection.load(for: $0, root: root) }

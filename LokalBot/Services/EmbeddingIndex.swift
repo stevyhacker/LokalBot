@@ -1149,6 +1149,23 @@ final class EmbeddingIndex {
 
     // MARK: - Embedding via llama-server
 
+    /// The checkpoint's symmetric prompt, for comparing two statements
+    /// rather than ranking documents against a query.
+    nonisolated static let similarityPrefix = "task: sentence similarity | query: "
+
+    /// L2-normalized vectors for a one-off comparison, such as checking that
+    /// a learned item means what the person's line says. Waits behind typed
+    /// searches. Nil when the embedding model isn't on this Mac (this never
+    /// starts a download) or the request fails.
+    func similarityVectors(_ texts: [String]) async -> [[Float]]? {
+        guard !texts.isEmpty else { return [] }
+        let model = storage.rootURL.appendingPathComponent("models/\(Self.modelFile)")
+        guard FileManager.default.fileExists(atPath: model.path),
+              let vectors = try? await embedThroughGate(texts, prefix: Self.similarityPrefix, priority: .background),
+              vectors.count == texts.count else { return nil }
+        return vectors
+    }
+
     /// A failed or cancelled embedding is not kept, so the next search retries.
     private func embedQuery(_ query: String, prefix: String,
                             priority: InferencePriority) async -> [Float]? {
@@ -1282,8 +1299,9 @@ final class EmbeddingIndex {
             return path
         }
         DownloadIntegrity.removeFileAndMarker(at: path)
-        let stashed = try await ParallelRangeDownloader.download(
-            from: URL(string: modelURL)!, session: .shared) { _ in }
+        let stashed = try await ModelDownloadRouting.download(
+            from: URL(string: modelURL)!, session: .shared,
+            expectedSHA256: modelSHA256, expectedBytes: modelBytes) { _ in }
         do {
             guard ModelFileValidator.looksLikeGGUF(stashed) else {
                 throw TextEngineError.badResponse("embedding model download was not a GGUF model")

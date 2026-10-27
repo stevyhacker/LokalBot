@@ -1,0 +1,15 @@
+9c37c22d3c64005c704bde9c36c923178b111ec8477d921c8d32ded05852f040  llama.cpp-0.7.0/build/bin/llama-server
+c79f30896e2f6187712c26ca2f289bfc1b4968581c6f2848ab7c808a15731c00  llama.cpp-0.7.0/build/bin/libllama.so
+c79f30896e2f6187712c26ca2f289bfc1b4968581c6f2848ab7c808a15731c00  llama.cpp-0.7.0/build/bin/libllama.so.0
+c79f30896e2f6187712c26ca2f289bfc1b4968581c6f2848ab7c808a15731c00  llama.cpp-0.7.0/build/bin/libllama.so.0.7.0
+c1c9e979724fa9f4061cfe05b45ad8e3c55a8a03674133430d2b25c0e997cee8  llama.cpp-0.7.0/build/bin/libggml-base.so
+c1c9e979724fa9f4061cfe05b45ad8e3c55a8a03674133430d2b25c0e997cee8  llama.cpp-0.7.0/build/bin/libggml-base.so.0
+c1c9e979724fa9f4061cfe05b45ad8e3c55a8a03674133430d2b25c0e997cee8  llama.cpp-0.7.0/build/bin/libggml-base.so.0.27.0
+94fbbbb757fe048a5105e8de971a81fdf4aac9fadd9289f0336b45790e70f036  llama.cpp-0.7.0/build/bin/libggml-cpu.so
+94fbbbb757fe048a5105e8de971a81fdf4aac9fadd9289f0336b45790e70f036  llama.cpp-0.7.0/build/bin/libggml-cpu.so.0
+94fbbbb757fe048a5105e8de971a81fdf4aac9fadd9289f0336b45790e70f036  llama.cpp-0.7.0/build/bin/libggml-cpu.so.0.27.0
+a7ccef2d74e59820ef9f8410217bd47f5be9be545322c29a57891b3c424664ba  llama.cpp-0.7.0/build/bin/libggml.so
+a7ccef2d74e59820ef9f8410217bd47f5be9be545322c29a57891b3c424664ba  llama.cpp-0.7.0/build/bin/libggml.so.0
+a7ccef2d74e59820ef9f8410217bd47f5be9be545322c29a57891b3c424664ba  llama.cpp-0.7.0/build/bin/libggml.so.0.27.0
+
+The original source tarball was no longer present. The existing runtime reports 0.7.0-dev (build 0, commit unknown). Directory name and prior setup identify the v0.7.0 build; binary and library hashes above are the live evidence.

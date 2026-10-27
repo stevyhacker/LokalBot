@@ -33,6 +33,24 @@ struct ActionThread: Identifiable, Equatable, Sendable {
         return resolvedDueDate < calendar.startOfDay(for: now)
     }
 
+    /// Open work last mentioned this long ago, with no due day still ahead,
+    /// is worth asking about.
+    static let staleAfterDays = 21
+
+    /// Whole days since the newest meeting that mentioned this work.
+    func daysSinceLastMention(now: Date = Date(), calendar: Calendar = .current) -> Int {
+        calendar.dateComponents([.day], from: calendar.startOfDay(for: latestReference.meetingStartedAt),
+                                to: calendar.startOfDay(for: now)).day ?? 0
+    }
+
+    /// Open work nobody has mentioned for weeks and that is not due ahead,
+    /// which may be done or dropped without anyone saying so.
+    func isStale(now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard status == .open else { return false }
+        if let resolvedDueDate, resolvedDueDate >= calendar.startOfDay(for: now) { return false }
+        return daysSinceLastMention(now: now, calendar: calendar) >= Self.staleAfterDays
+    }
+
     /// A completed mention cannot hide unfinished work in another meeting.
     var status: OutcomeStatus {
         if references.contains(where: { $0.status == .open }) { return .open }

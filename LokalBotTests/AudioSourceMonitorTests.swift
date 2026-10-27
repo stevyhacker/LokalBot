@@ -285,6 +285,92 @@ final class AudioSourceMonitorTests: XCTestCase {
             "com.microsoft.teamsother", belongsTo: "com.microsoft.teams2"))
     }
 
+    // MARK: - Chinese meeting apps
+
+    /// Feishu is `com.electron.lark` but its Electron helpers keep ByteDance's
+    /// `com.bytedance.lark.helper`, and DingTalk's helper is
+    /// `com.alibaba.DingTalk-Helper`. Neither sits in its host's namespace, so
+    /// without an explicit mapping a call carried by the helper is never seen.
+    func testForeignHelpersBelongToTheirOwnHostsOnly() {
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "com.bytedance.lark.helper", belongsTo: "com.electron.lark"))
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "com.bytedance.lark.helper.Renderer", belongsTo: "com.electron.lark"))
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "com.alibaba.DingTalk-Helper", belongsTo: "com.alibaba.DingTalkMac"))
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "com.larksuite.larkApp.helper", belongsTo: "com.larksuite.larkApp"))
+
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "com.bytedance.lark.helper", belongsTo: "com.larksuite.larkApp"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "com.alibaba.DingTalk-Helper", belongsTo: "com.electron.lark"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "com.bytedance.lark.helperx", belongsTo: "com.electron.lark"))
+    }
+
+    /// Webex renders call audio in `WebexHelper`, which Core Audio lists as
+    /// `Cisco-Systems.SparkHelper` — outside the host's `Cisco-Systems.Spark.`
+    /// namespace. Without the mapping the tap lands on the silent main process
+    /// and the "Them" track records nothing.
+    func testWebexCallOnItsMediaHelperIsTheCaptureTarget() {
+        MeetingDetector.resetCaptureTargetMemory()
+        let host = AudioProcess(id: 896, name: "Webex", bundleID: "Cisco-Systems.Spark",
+                                objectID: AudioObjectID(896), isRunningOutput: false)
+        let helper = AudioProcess(id: 70531, name: "WebexHelper", bundleID: "Cisco-Systems.SparkHelper",
+                                  objectID: AudioObjectID(70531), isRunningOutput: true)
+        let app = MeetingDetector.DetectedApp(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: host.id)
+
+        XCTAssertTrue(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelper", belongsTo: "Cisco-Systems.Spark"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelper", belongsTo: "com.webex.meetingmanager"))
+        XCTAssertFalse(MeetingDetector.audioBundleID(
+            "Cisco-Systems.SparkHelperX", belongsTo: "Cisco-Systems.Spark"))
+        XCTAssertEqual(MeetingDetector.bestOutputAudioProcess(for: app, in: [host, helper])?.id, helper.id)
+        XCTAssertEqual(MeetingDetector.bestCaptureAudioProcess(for: app, in: [host, helper])?.id, helper.id)
+    }
+
+    func testDingTalkCallOnItsHelperIsTheCaptureTarget() {
+        MeetingDetector.resetCaptureTargetMemory()
+        let host = AudioProcess(id: 100,
+                                name: "DingTalk",
+                                bundleID: "com.alibaba.DingTalkMac",
+                                objectID: AudioObjectID(100),
+                                isRunningOutput: false)
+        let helper = AudioProcess(id: 200,
+                                  name: "DingTalk Helper",
+                                  bundleID: "com.alibaba.DingTalk-Helper",
+                                  objectID: AudioObjectID(200),
+                                  isRunningOutput: true)
+        let app = MeetingDetector.DetectedApp(name: "DingTalk",
+                                              bundleID: "com.alibaba.DingTalkMac",
+                                              pid: host.id)
+
+        XCTAssertEqual(MeetingDetector.bestOutputAudioProcess(for: app, in: [host, helper])?.id,
+                       helper.id)
+        XCTAssertEqual(MeetingDetector.bestCaptureAudioProcess(for: app, in: [host, helper])?.id,
+                       helper.id)
+    }
+
+    /// WeChat stays out: its voice messages and videos play long enough to
+    /// pass the sustained-audio gate and would start meetings that are not
+    /// calls.
+    func testChineseMeetingAppsAreCandidatesButWeChatIsNot() {
+        let candidates = MeetingDetector.meetingAppCandidates(bundleIDs: [
+            (bundleID: "com.tencent.meeting", pid: 10),
+            (bundleID: "com.tencent.tencentmeeting", pid: 11),
+            (bundleID: "com.electron.lark", pid: 12),
+            (bundleID: "com.larksuite.larkApp", pid: 13),
+            (bundleID: "com.alibaba.DingTalkMac", pid: 14),
+            (bundleID: "com.tencent.WeWorkMac", pid: 15),
+            (bundleID: "com.tencent.xinWeChat", pid: 16),
+        ])
+
+        XCTAssertEqual(candidates.map(\.name),
+                       ["Tencent Meeting", "VooV Meeting", "Feishu", "Lark", "DingTalk", "WeCom"])
+    }
+
     /// The helper fallback must stay a *fallback*: when the host process itself
     /// is producing output it remains the capture target, so apps that work
     /// today are unaffected.

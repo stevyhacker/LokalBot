@@ -20,6 +20,8 @@ struct SpeakerVoiceProfile: Codable, Identifiable, Sendable {
         var decisionID: UUID
         var confirmedAt: Date
         var samples: [SpeakerVoiceSample]
+        /// Call voices keep the average of every eligible chunk instead of the chunks.
+        var voiceprint: [Float]?
     }
     var id = UUID()
     var name: String

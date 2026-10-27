@@ -23,10 +23,22 @@ final class StorageManager {
 
     func createMeetingFolder(title: String, appName: String) throws -> Meeting {
         let now = Date()
+        let relative = try reserveMeetingFolder(title: title, startedAt: now)
+        let meeting = Meeting(id: UUID(), title: title, appName: appName,
+                              startedAt: now, endedAt: nil, relativePath: relative)
+        try saveMeta(meeting)
+        return meeting
+    }
+
+    /// Creates an empty, uniquely named folder for a meeting on `startedAt`'s
+    /// day and returns its library-relative path. The library lists only
+    /// folders that hold `meta.json`, so a caller can move finished files in
+    /// before the meeting appears.
+    func reserveMeetingFolder(title: String, startedAt: Date) throws -> String {
         let cal = Calendar.current
-        let y = cal.component(.year, from: now)
-        let m = String(format: "%02d", cal.component(.month, from: now))
-        let d = String(format: "%02d", cal.component(.day, from: now))
+        let y = cal.component(.year, from: startedAt)
+        let m = String(format: "%02d", cal.component(.month, from: startedAt))
+        let d = String(format: "%02d", cal.component(.day, from: startedAt))
 
         var slug = "\(d)-\(Self.slugify(title))"
         var relative = "meetings/\(y)/\(m)/\(slug)"
@@ -40,11 +52,7 @@ final class StorageManager {
 
         let folder = rootURL.appendingPathComponent(relative, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-
-        let meeting = Meeting(id: UUID(), title: title, appName: appName,
-                              startedAt: now, endedAt: nil, relativePath: relative)
-        try saveMeta(meeting)
-        return meeting
+        return relative
     }
 
     func saveMeta(_ meeting: Meeting) throws {

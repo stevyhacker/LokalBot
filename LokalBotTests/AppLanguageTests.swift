@@ -1,14 +1,88 @@
+import SwiftUI
 import XCTest
 @testable import LokalBot
 
 final class AppLanguageTests: XCTestCase {
     func testSystemLanguageUsesSupportedPreferencesAndFallsBackToEnglish() {
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-Hans-CN", "en"]), "zh-Hans")
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-TW"]), "zh-Hans")
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["fr-FR", "zh_CN"]), "zh-Hans")
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-TW"]), "zh-Hant")
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["fr-FR", "zh_CN"]), "fr")
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["en-GB", "zh-Hans"]), "en")
-        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["fr-FR"]), "en")
+        // Dutch, Croatian, and Bosnian have no catalog; Croatian and Bosnian are
+        // not folded into Serbian.
+        for unsupported in ["nl-NL", "hr-HR", "bs-BA"] {
+            XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [unsupported]), "en", unsupported)
+        }
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: []), "en")
+    }
+
+    func testRegionalAndScriptVariantsResolveToSupportedCatalogs() {
+        let variants = ["hi-IN": "hi", "es-MX": "es", "ar-SA": "ar", "fr_CA": "fr",
+                        "bn-BD": "bn", "pt-BR": "pt", "pt-PT": "pt", "id-ID": "id",
+                        "ur-Arab-PK": "ur", "arz": "ar-EG",
+                        "ru-RU": "ru", "de-AT": "de", "ja-JP": "ja", "pcm-NG": "pcm",
+                        "mr-IN": "mr", "vi-VN": "vi", "te-IN": "te", "sw-KE": "sw", "ha-Latn-NG": "ha",
+                        "ko-KR": "ko", "ko_KP": "ko", "ko-Hang-KR": "ko",
+                        "it-IT": "it", "it_CH": "it",
+                        "zh-Hant-TW": "zh-Hant", "zh-Hant-CN": "zh-Hant", "zh-HK": "zh-Hant", "zh_MO": "zh-Hant",
+                        "zh-Hans-HK": "zh-Hans", "zh-SG": "zh-Hans", "zh-Hans-CN": "zh-Hans",
+                        "sr-Latn-RS": "sr-Latn", "sr-Cyrl-RS": "sr-Latn", "sr-ME": "sr-Latn", "cnr-ME": "sr-Latn"]
+        for (variant, expected) in variants {
+            XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [variant]), expected)
+            XCTAssertEqual(AppLanguage.matching(Locale(identifier: variant)).rawValue, expected)
+        }
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["nl-NL", "ur-PK", "en"]), "ur")
+    }
+
+    func testArabicVarietiesAndUrduUseRightToLeftLayout() {
+        for language in AppLanguage.allCases where language != .system {
+            XCTAssertEqual(language.isRightToLeft, language == .arabic || language == .egyptianArabic || language == .urdu)
+        }
+        // Direction comes from Foundation, so future catalogs need no list edit.
+        XCTAssertTrue(AppLanguage.isRightToLeft(Locale(identifier: "fa")))
+        XCTAssertTrue(AppLanguage.isRightToLeft(Locale(identifier: "he")))
+    }
+
+    func testUserContentKeepsItsOwnDirection() {
+        XCTAssertEqual(ContentTextDirection.layoutDirection(of: "## Budget review"), .leftToRight)
+        XCTAssertEqual(ContentTextDirection.layoutDirection(of: "- مراجعة الميزانية"), .rightToLeft)
+        XCTAssertEqual(ContentTextDirection.layoutDirection(of: "اردو notes"), .rightToLeft)
+        XCTAssertEqual(ContentTextDirection.layoutDirection(of: "**日本語** と English"), .leftToRight)
+        XCTAssertEqual(ContentTextDirection.layoutDirection(of: "\u{200F}Zoom"), .rightToLeft)
+        XCTAssertNil(ContentTextDirection.layoutDirection(of: "12:30 — 14:00"))
+        XCTAssertNil(ContentTextDirection.layoutDirection(of: ""))
+    }
+
+    func testEgyptianArabicAndStandardArabicRemainDistinct() {
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["ar-EG", "ar"]), "ar")
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["ar", "ar-EG"]), "ar")
+        for regionalArabic in ["AR_eg", "ar-Arab-EG", "ar-SA"] {
+            XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [regionalArabic]), "ar")
+        }
+        XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["arz-EG", "ar"]), "ar-EG")
+        XCTAssertEqual(AppLanguage.egyptianArabic.localizationIdentifier(preferredLanguages: ["ar"]), "ar-EG")
+        XCTAssertEqual(AppLanguage.matching(AppLanguage.egyptianArabic.locale), .egyptianArabic)
+        XCTAssertNotEqual(AppLanguage.egyptianArabic.localized("Enable the Access You Need"),
+                          AppLanguage.arabic.localized("Enable the Access You Need"))
+    }
+
+    func testNativeLanguageNamesRemainRecognizable() {
+        for language in AppLanguage.allCases where language != .system {
+            for interfaceLanguage in AppLanguage.allCases {
+                XCTAssertEqual(language.pickerLabel(in: interfaceLanguage), language.displayName)
+            }
+        }
+        XCTAssertEqual(AppLanguage.system.pickerLabel(in: .simplifiedChinese), "跟随系统")
+    }
+
+    func testEveryLanguageHasBundledTranslationsAndMissingKeyFallback() {
+        for language in AppLanguage.allCases where language != .system {
+            XCTAssertEqual(language.localizationIdentifier(preferredLanguages: ["en"]), language.rawValue)
+            if language != .english {
+                XCTAssertNotEqual(language.localized("App language"), "App language", language.rawValue)
+            }
+            XCTAssertEqual(language.localized("unknown.localization.key"), "unknown.localization.key")
+        }
     }
 
     func testExplicitSelectionOverridesSystemLanguage() {
@@ -52,7 +126,7 @@ final class AppLanguageTests: XCTestCase {
     /// and Foundation re-reads the table on each such lookup. UTF-16 text
     /// tables made switching Settings categories take seconds.
     func testBundledStringTablesAreBinary() throws {
-        for language in ["en", "zh-Hans"] {
+        for language in AppLanguage.allCases.filter({ $0 != .system }).map(\.rawValue) {
             let url = try XCTUnwrap(Bundle.main.url(
                 forResource: "Localizable", withExtension: "strings",
                 subdirectory: nil, localization: language))
@@ -71,7 +145,8 @@ final class AppLanguageTests: XCTestCase {
 
     @MainActor
     func testSettingsSearchFindsTranslatedLabelsAndLanguageAliases() {
-        for query in ["语言", "中文", "English", "界面语言"] {
+        let englishNames = ["Chinese", "Spanish", "Egyptian Arabic", "Nigerian Pidgin", "Indonesian", "Korean"]
+        for query in ["语言", "中文", "English", "界面语言"] + englishNames + AppLanguage.allCases.map(\.displayName) {
             XCTAssertTrue(SettingDescriptor.search(query, language: .simplifiedChinese).contains { $0.id == "settings.appLanguage" })
         }
         XCTAssertTrue(SettingDescriptor.search("文字大小", language: .simplifiedChinese).contains { $0.id == "settings.textSize" })

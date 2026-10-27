@@ -230,6 +230,47 @@ struct AppLanguageRoot<Content: View>: View {
     @ObservedObject var settingsStore: SettingsStore
 
     var body: some View {
-        content.environment(\.locale, settingsStore.current.appLanguage.locale)
+        // Resolve the preference once; the direction comes from the same locale.
+        let locale = settingsStore.current.appLanguage.locale
+        content
+            .environment(\.locale, locale)
+            .environment(\.layoutDirection, AppLanguage.isRightToLeft(locale) ? .rightToLeft : .leftToRight)
+    }
+}
+
+/// User content keeps the direction of its own text rather than the
+/// interface's, so an English transcript stays left-aligned in an Arabic or
+/// Urdu interface and an Arabic one stays right-aligned in English.
+nonisolated enum ContentTextDirection {
+    /// The first strong letter decides, as in Unicode bidi rule P2. Text with
+    /// no letters returns nil and keeps the surrounding direction.
+    static func layoutDirection(of text: String) -> LayoutDirection? {
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x0590...0x08FF, 0xFB1D...0xFDFF, 0xFE70...0xFEFF, 0x061C, 0x200F:
+                return .rightToLeft
+            case 0x200E:
+                return .leftToRight
+            default:
+                if scalar.properties.isAlphabetic { return .leftToRight }
+            }
+        }
+        return nil
+    }
+}
+
+private struct ContentLayoutDirection: ViewModifier {
+    let text: String
+    @Environment(\.layoutDirection) private var interfaceDirection
+
+    func body(content: Content) -> some View {
+        content.environment(\.layoutDirection, ContentTextDirection.layoutDirection(of: text) ?? interfaceDirection)
+    }
+}
+
+extension View {
+    /// Apply after the content's frame so its leading alignment follows the text.
+    func contentLayoutDirection(of text: String) -> some View {
+        modifier(ContentLayoutDirection(text: text))
     }
 }

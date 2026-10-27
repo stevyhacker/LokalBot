@@ -24,7 +24,7 @@ struct DayDigestCard: View {
             if model.digestUpdatedAt != nil || model.digestIsStale {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     if let updated = model.digestUpdatedAt {
-                        Text("Updated " + updated.formatted(date: .omitted, time: .shortened))
+                        Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
                     }
                     if model.digestIsStale {
                         Text("New activity available · Update digest to include it")
@@ -50,6 +50,9 @@ struct DayDigestControls: View {
     @ObservedObject var model: CaptureModel
     let identifier: String
     var showsAsk = true
+    /// Timeline offers Regenerate from the digest menu once a digest exists.
+    /// It stays a visible button before the first digest and while writing.
+    var regeneratesFromMenu = false
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -70,21 +73,31 @@ struct DayDigestControls: View {
     }
 
     private var generate: some View {
-        DayDigestGenerateButton(model: model, lifecycle: app.dayDigest, identifier: identifier)
+        DayDigestGenerateButton(model: model, lifecycle: app.dayDigest, identifier: identifier,
+                                inMenu: regeneratesFromMenu)
     }
 
     @ViewBuilder private var actions: some View {
-        if let digest = model.digest {
+        if let digest = model.digest, !regeneratesFromMenu {
             Menu {
-                Button { model.copyDigest(digest) } label: { Label("Copy Digest", systemImage: "doc.on.doc") }
-                    .accessibilityIdentifier("capture.dayDigest.copyAll")
-                Button { model.exportDigest(digest) } label: { Label("Export Markdown", systemImage: "square.and.arrow.up") }
+                DayDigestExportItems(model: model, digest: digest)
             } label: { Label("Digest actions", systemImage: "ellipsis.circle") }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
                 .accessibilityLabel("Day digest actions")
                 .accessibilityIdentifier("\(identifier).dayDigest.actions")
         }
+    }
+}
+
+private struct DayDigestExportItems: View {
+    @ObservedObject var model: CaptureModel
+    let digest: String
+
+    var body: some View {
+        Button { model.copyDigest(digest) } label: { Label("Copy Digest", systemImage: "doc.on.doc") }
+            .accessibilityIdentifier("capture.dayDigest.copyAll")
+        Button { model.exportDigest(digest) } label: { Label("Export Markdown", systemImage: "square.and.arrow.up") }
     }
 }
 
@@ -95,18 +108,44 @@ private struct DayDigestGenerateButton: View {
     @ObservedObject var model: CaptureModel
     @ObservedObject var lifecycle: DayDigestLifecycle
     let identifier: String
+    /// See `DayDigestControls.regeneratesFromMenu`.
+    var inMenu = false
 
     var body: some View {
         let scheduledRun = lifecycle.isGenerating(on: model.day) && !model.generating
         let busy = model.generating || scheduledRun
-        Button { Task { await model.generateDigest(app: app) } } label: {
-            Label(busy ? "Writing Digest…" : model.digest == nil ? "Write Digest" : "Regenerate",
-                  systemImage: busy ? "hourglass" : "arrow.clockwise")
+        HStack(spacing: 8) {
+            if !inMenu || busy || model.digest == nil {
+                Button { Task { await model.generateDigest(app: app) } } label: {
+                    Label(busy ? "Writing Digest…" : model.digest == nil ? "Write Digest" : "Regenerate",
+                          systemImage: busy ? "hourglass" : "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(busy)
+                .help(scheduledRun ? "The scheduled digest for this day is being written" : "")
+                .accessibilityIdentifier("\(identifier).dayDigest.generate")
+            }
+            if inMenu, let digest = model.digest {
+                Menu {
+                    Button { Task { await model.generateDigest(app: app) } } label: {
+                        Label("Regenerate Digest", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(busy)
+                    .accessibilityIdentifier("\(identifier).dayDigest.regenerate")
+                    Divider()
+                    DayDigestExportItems(model: model, digest: digest)
+                } label: {
+                    Label("Digest actions", systemImage: "ellipsis")
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .labelStyle(.iconOnly)
+                .fixedSize()
+                .help("Digest actions")
+                .accessibilityLabel("Day digest actions")
+                .accessibilityIdentifier("\(identifier).dayDigest.actions")
+            }
         }
-        .buttonStyle(.bordered)
-        .disabled(busy)
-        .help(scheduledRun ? "The scheduled digest for this day is being written" : "")
-        .accessibilityIdentifier("\(identifier).dayDigest.generate")
         .onChange(of: scheduledRun) { wasRunning, isRunning in
             // Show the scheduled result as soon as it is saved.
             if wasRunning, !isRunning { model.refreshOverview(app: app) }

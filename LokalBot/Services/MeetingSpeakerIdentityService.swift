@@ -19,6 +19,8 @@ final class MeetingSpeakerIdentityService: ObservableObject {
     private var retentionTask: Task<Void, Never>?
     private var latestStates: [UUID: MeetingSpeakerIdentityState] = [:]
     private var unverifiedProcessing = Set<UUID>()
+    /// Profile database revision each recent meeting was last matched against.
+    private var matchedProfileRevision: [UUID: Int] = [:]
 
     init(storage: StorageManager, settings: @escaping () -> AppSettings,
          keyProvider: @escaping @MainActor () throws -> SymmetricKey = { try KeychainSecrets.symmetricKey(account: "speaker-identity-key") }) {
@@ -110,22 +112,28 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         return projection(recovery, on: transcript)
     }
 
-    func process(transcript: Transcript, meeting: Meeting, turns: [SpeakerAudioTurn], samples: [SpeakerVoiceSample], audioURL: URL) async -> Transcript {
+    /// Bumped when call voices start being analyzed differently, so saved meetings are revisited once.
+    static let callVoicesVersion = 1
+
+    /// `nameAutomatically: false` keeps automatic matches as suggestions, for
+    /// saved meetings whose notes were written from the current names.
+    func process(transcript: Transcript, meeting: Meeting, turns: [SpeakerAudioTurn], samples: [SpeakerVoiceSample], audioURL: URL,
+                 nameAutomatically: Bool = true) async -> Transcript {
         unverifiedProcessing.insert(meeting.id)
-        let config = settings()
         do {
             let store = try store()
             let folder = meeting.folderURL(in: storage)
             let audioRevision = try await Task.detached(priority: .utility) { try Self.recordingRevision(folder: folder, fallback: audioURL) }.value
             let usableTurns = timeline(transcript)
             var evidenceRevision = try await store.state(meeting: meeting).evidenceRevision
-            var remembered = config.rememberSpeakersOnMac && settings().rememberSpeakersOnMac
+            // The sample meeting's synthetic voices are never remembered or matched.
+            var remembered = !meeting.isSample
             var database = remembered ? try await store.profiles() : SpeakerVoiceProfileDatabase()
             let microphoneSelection = remembered
                 ? await SpeakerMicrophoneEvidence.select(samples: samples, transcript: transcript, turns: turns, folder: folder)
                 : SpeakerMicrophoneEvidence.Selection()
-            // Only this Mac's microphone voices are remembered or matched.
-            var compatibleSamples = microphoneSelection.samples.filter { $0.source == .microphone }
+            // Microphone samples pass the echo checks; call samples pass through unchanged.
+            var compatibleSamples = microphoneSelection.samples
             for _ in 0..<3 {
                 try Task.checkCancellation()
                 guard !deleted.contains(meeting.id) else { return transcript }
@@ -136,10 +144,11 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                 next.transcriptSignature = Self.transcriptSignature(transcript)
                 next.timeline = usableTurns
                 next.acousticTimeline = turns
-                next.microphoneSampleDiagnostics = settings().rememberSpeakersOnMac ? microphoneSelection.counts : nil
-                next.voiceSamples = settings().rememberSpeakersOnMac ? Set(usableTurns.map(\.speaker)).sorted().prefix(60).flatMap {
+                next.microphoneSampleDiagnostics = remembered ? microphoneSelection.counts : nil
+                next.voiceSamples = remembered ? Set(usableTurns.map(\.speaker)).sorted().prefix(60).flatMap {
                     SpeakerVoiceMatcher.eligible(compatibleSamples, turns: turns, speaker: $0)
                 } : []
+                next.callVoicesAnalyzed = Self.callVoicesVersion
                 next.suggestions = [:]
                 next.analyzedAt = Date()
                 // Legacy aliases have human authority, but only use their old
@@ -162,11 +171,16 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                     guard let index = next.assignments.firstIndex(where: { $0.label == label }) else { continue }
                     next.assignments[index].source = speakerTurns.first?.resolvedSource
                     var candidates: [SpeakerNameMatch] = []
-                    if remembered, settings().rememberSpeakersOnMac, speakerTurns.first?.resolvedSource == .microphone {
+                    if remembered {
                         let eligible = SpeakerVoiceMatcher.eligible(next.voiceSamples, turns: usableTurns, speaker: label)
                         candidates += SpeakerVoiceMatcher.matches(samples: eligible, profiles: database.profiles)
                     }
-                    next.suggestions[label] = SpeakerIdentityResolver.apply(candidates: candidates, to: &next.assignments[index], profiles: database.profiles)
+                    if nameAutomatically {
+                        next.suggestions[label] = SpeakerIdentityResolver.apply(candidates: candidates, to: &next.assignments[index], profiles: database.profiles)
+                    } else {
+                        var preview = next.assignments[index]
+                        next.suggestions[label] = SpeakerIdentityResolver.apply(candidates: candidates, to: &preview, profiles: database.profiles)
+                    }
                     // Calendar is a fallback only; reliable disagreement is reviewable.
                     if next.assignments[index].name == nil, !next.assignments[index].origin.isProtected,
                        !next.assignments[index].automaticDisabled, candidates.isEmpty,
@@ -197,7 +211,10 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                         .map { "\($0.key)=\($0.value)" }.joined(separator: ",")
                     lokalbotLog("speaker identity processed speakers=\(committed.assignments.count) "
                         + "named=\(committed.assignments.filter { $0.name != nil }.count) "
-                        + "suggestions=\(committed.suggestions.values.reduce(0) { $0 + $1.count }) microphone=\(microphoneReasons)")
+                        + "automatic=\(committed.assignments.filter { $0.origin == .profileAutomatic && $0.name != nil }.count) "
+                        + "suggestions=\(committed.suggestions.values.reduce(0) { $0 + $1.count }) "
+                        + "callSamples=\(committed.voiceSamples.filter { ($0.source ?? .system) == .system }.count) "
+                        + "microphone=\(microphoneReasons)")
                     revision += 1
                     return applyingLatestDecision(to: transcript, meetingID: meeting.id)
                 } catch MeetingSpeakerEvidenceStore.Failure.evidenceExpired {
@@ -208,7 +225,7 @@ final class MeetingSpeakerIdentityService: ObservableObject {
                     evidenceRevision = try await store.state(meeting: meeting).evidenceRevision
                     continue
                 } catch MeetingSpeakerEvidenceStore.Failure.stale {
-                    if remembered && settings().rememberSpeakersOnMac { database = try await store.profiles() }
+                    if remembered { database = try await store.profiles() }
                     continue
                 }
             }
@@ -225,7 +242,6 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         var name: String?
         var calendarIdentityID: String?
         var action: SpeakerAliasDecision.Action = .assign
-        var remember = false
         var profileID: UUID?
         var expectedRevision: Int?
     }
@@ -315,11 +331,8 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         }
         if choice.action == .resume {
             let acousticTurns = current.acousticTimeline ?? []
-            var candidates: [SpeakerNameMatch] = []
-            let profiles = settings().rememberSpeakersOnMac ? try await store.profiles().profiles : []
-            if settings().rememberSpeakersOnMac, assignment.source == .microphone {
-                candidates += SpeakerVoiceMatcher.matches(samples: SpeakerVoiceMatcher.eligible(current.voiceSamples, turns: acousticTurns, speaker: label), profiles: profiles)
-            }
+            let profiles = meeting.isSample ? [] : try await store.profiles().profiles
+            let candidates = SpeakerVoiceMatcher.matches(samples: SpeakerVoiceMatcher.eligible(current.voiceSamples, turns: acousticTurns, speaker: label), profiles: profiles)
             current.suggestions[label] = SpeakerIdentityResolver.apply(candidates: candidates, to: &assignment, profiles: profiles)
         }
         let decision = SpeakerAliasDecision(id: choice.id, speakerID: assignment.id, action: choice.action,
@@ -339,21 +352,19 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         rememberState(committed)
         unverifiedProcessing.remove(meeting.id)
         notice = nil
-        if choice.action == .assign || choice.action.confirmsIdentity,
-           choice.remember, settings().rememberSpeakersOnMac, assignment.source == .microphone {
+        // Every name the user gives teaches LokalBot that voice.
+        if choice.action == .assign || choice.action.confirmsIdentity, !meeting.isSample, let name = assignment.name {
             let samples = SpeakerVoiceMatcher.eligible(committed.voiceSamples, turns: committed.timeline, speaker: label)
             if SpeakerVoiceMatcher.canEnroll(samples) {
                 do {
                     let database = try await store.profiles()
-                    guard settings().rememberSpeakersOnMac else { return projection(committed, on: transcript) }
+                    let target = choice.profileID ?? Self.samePerson(named: name, samples: samples, profiles: database.profiles)
                     _ = try await store.enroll(meeting: meeting, assignment: assignment, decision: decision,
-                        samples: samples, profileID: choice.profileID, expectedDatabaseRevision: database.revision)
-                } catch { notice = "Meeting name saved. Voice profile update pending: \(error.localizedDescription)" }
-            } else {
-                notice = "Meeting name saved. Remembering this voice needs three separate clear turns totaling 15 seconds."
+                        samples: samples, profileID: target, expectedDatabaseRevision: database.revision)
+                } catch { notice = "Name saved. Voice profile update pending: \(error.localizedDescription)" }
+            } else if !samples.isEmpty || assignment.source == .microphone {
+                notice = "Name saved. Remembering this voice needs three separate clear turns totaling 15 seconds."
             }
-        } else if choice.remember, choice.action == .assign {
-            notice = "Meeting name saved. Only voices recorded by this Mac's microphone can be remembered."
         }
         revision += 1
         // Another correction could arrive while enrollment was suspended.
@@ -391,9 +402,164 @@ final class MeetingSpeakerIdentityService: ObservableObject {
         }
     }
 
-    func profiles(managing: Bool = false) async throws -> [SpeakerVoiceProfile] {
-        guard managing || settings().rememberSpeakersOnMac else { return [] }
-        return try await store().profiles().profiles
+    func profiles() async throws -> [SpeakerVoiceProfile] {
+        try await store().profiles().profiles
+    }
+
+    /// The remembered person a newly named voice belongs to: same name and an
+    /// agreeing voice, so naming someone again never splits them in two. A
+    /// person known only from the other source has nothing to compare and is reused.
+    static func samePerson(named name: String, samples: [SpeakerVoiceSample], profiles: [SpeakerVoiceProfile]) -> UUID? {
+        let key = ParticipantObservation.nameKey(name)
+        let named = profiles.filter { profile in
+            ([profile.name] + profile.confirmedNames).contains { ParticipantObservation.nameKey($0) == key }
+        }
+        if let agreeing = SpeakerVoiceMatcher.matches(samples: samples, profiles: named).first?.profileID { return agreeing }
+        let domain = samples.first?.source ?? .system
+        return named.first { profile in
+            !profile.contributions.contains { ($0.samples.first?.source ?? .system) == domain }
+        }?.id
+    }
+
+    // MARK: - Saved meetings
+
+    /// What learning from saved meetings needs from the app.
+    struct SavedMeetings {
+        var transcript: @MainActor (Meeting) -> Transcript?
+        /// Analyzes a meeting's call track; waits while LokalBot records or processes.
+        var callSamples: @MainActor (Meeting, Transcript) async throws -> [SpeakerVoiceSample]
+        var isBusy: @MainActor (Meeting) -> Bool
+    }
+
+    /// Names given before call voices were remembered teach LokalBot those
+    /// voices once, then recent meetings get suggestions from every remembered
+    /// voice. Saved transcripts never change here: a new name would mark their
+    /// notes for refresh, so the meeting offers the names to apply instead.
+    func learnFromSavedMeetings(_ meetings: [Meeting], recentSince: Date, using access: SavedMeetings) async {
+        let candidates = meetings.filter {
+            !$0.isSample && MeetingAudioFiles.transcribableURL(for: .system, in: $0.folderURL(in: storage)) != nil
+        }
+        var analyzed = 0, named = 0, renamed = 0
+        // One failed analysis (no voice model yet) stops analysis for this pass.
+        var canAnalyze = true
+        for meeting in candidates where canAnalyze {
+            guard !Task.isCancelled else { return }
+            guard let saved = try? await state(for: meeting), saved.callVoicesAnalyzed == nil,
+                  hasSavedCallNames(saved, meeting: meeting, using: access) else { continue }
+            switch await reidentify(meeting, analyzing: true, using: access) {
+            case .done: analyzed += 1
+            case .skipped: break
+            case .analysisFailed: canAnalyze = false
+            }
+            named += await enrollSavedNames(meeting)
+        }
+        for meeting in candidates where meeting.startedAt >= recentSince {
+            guard !Task.isCancelled else { return }
+            guard let profiles = try? await store().profiles().revision,
+                  matchedProfileRevision[meeting.id] != profiles,
+                  let saved = try? await state(for: meeting),
+                  (saved.callVoicesAnalyzed == nil && canAnalyze) || saved.assignments.contains(where: Self.awaitsCallName)
+            else { continue }
+            switch await reidentify(meeting, analyzing: saved.callVoicesAnalyzed == nil, using: access) {
+            case .done:
+                matchedProfileRevision[meeting.id] = profiles
+                renamed += 1
+            case .skipped: break
+            case .analysisFailed: canAnalyze = false
+            }
+        }
+        if analyzed + named + renamed > 0 {
+            lokalbotLog("speaker voices learned meetingsAnalyzed=\(analyzed) savedNames=\(named) recentMeetingsChecked=\(renamed)")
+        }
+    }
+
+    /// A name the user gave a call voice, or a legacy name the transcript still carries.
+    private static func isSavedCallName(_ assignment: SpeakerIdentityAssignment) -> Bool {
+        assignment.origin.isProtected && assignment.name != nil && !assignment.automaticDisabled
+            && assignment.isLocalUser != true && !assignment.label.hasPrefix("unresolved-")
+            && (assignment.source ?? SpeakerAudioTurn.legacySource(assignment.label)) == .system
+    }
+
+    /// An unnamed call voice that automatic naming may still fill.
+    private static func awaitsCallName(_ assignment: SpeakerIdentityAssignment) -> Bool {
+        assignment.name == nil && !assignment.origin.isProtected && !assignment.automaticDisabled
+            && !assignment.label.hasPrefix("unresolved-")
+            && (assignment.source ?? SpeakerAudioTurn.legacySource(assignment.label)) == .system
+    }
+
+    private func hasSavedCallNames(_ saved: MeetingSpeakerIdentityState, meeting: Meeting, using access: SavedMeetings) -> Bool {
+        if saved.revision > 0 { return saved.assignments.contains(where: Self.isSavedCallName) }
+        // Meetings named before speaker review existed keep their names only in the transcript.
+        guard let transcript = access.transcript(meeting) else { return false }
+        return transcript.speakerAliases.keys.contains { SpeakerAudioTurn.legacySource($0) == .system }
+    }
+
+    private enum Revisit { case done, skipped, analysisFailed }
+
+    /// Re-runs identification for a saved transcript, analyzing its call track
+    /// first when needed. Matches become suggestions; the transcript is not saved.
+    private func reidentify(_ meeting: Meeting, analyzing: Bool, using access: SavedMeetings) async -> Revisit {
+        let folder = meeting.folderURL(in: storage)
+        guard !access.isBusy(meeting), let transcript = access.transcript(meeting),
+              let audioURL = MeetingAudioFiles.transcribableURL(for: .system, in: folder),
+              let saved = try? await state(for: meeting) else { return .skipped }
+        // Saved names follow audio turns of the same recording only.
+        if saved.revision > 0 {
+            let current = try? await Task.detached(priority: .utility) { try Self.recordingRevision(folder: folder) }.value
+            guard current == saved.audioRevision else { return .skipped }
+        }
+        var samples = saved.voiceSamples
+        if analyzing {
+            do {
+                let call = try await access.callSamples(meeting, transcript)
+                samples = samples.filter { $0.source == .microphone } + call
+            } catch is CancellationError {
+                return .skipped
+            } catch {
+                lokalbotLog("speaker voices not analyzed: \(error.localizedDescription)")
+                return .analysisFailed
+            }
+            guard !access.isBusy(meeting) else { return .skipped }
+        }
+        let turns = saved.acousticTimeline.flatMap { $0.isEmpty ? nil : $0 } ?? timeline(transcript)
+        _ = await process(transcript: transcript, meeting: meeting, turns: turns, samples: samples, audioURL: audioURL,
+                          nameAutomatically: false)
+        return .done
+    }
+
+    /// Unnamed call speakers whose voice clearly matches one remembered person.
+    static func recognizedSpeakers(in state: MeetingSpeakerIdentityState?, transcript: Transcript) -> [(label: String, match: SpeakerNameMatch)] {
+        guard let state else { return [] }
+        return state.assignments.filter(awaitsCallName).sorted { $0.label < $1.label }.compactMap { assignment in
+            guard transcript.speakerAliases[assignment.label] == nil,
+                  let match = state.suggestions[assignment.label]?.first(where: { $0.tier == .automatic }) else { return nil }
+            return (assignment.label, match)
+        }
+    }
+
+    /// Enrolls the call voices the user named in one meeting; returns how many.
+    private func enrollSavedNames(_ meeting: Meeting) async -> Int {
+        guard let store = try? store(), let saved = try? await store.state(meeting: meeting) else { return 0 }
+        var enrolled = 0
+        for assignment in saved.assignments where Self.isSavedCallName(assignment) {
+            let samples = SpeakerVoiceMatcher.eligible(saved.voiceSamples, turns: saved.timeline, speaker: assignment.label)
+            guard let name = assignment.name, SpeakerVoiceMatcher.canEnroll(samples),
+                  let database = try? await store.profiles() else { continue }
+            let alreadyKnown = database.profiles.contains { profile in
+                profile.contributions.contains { $0.meetingID == meeting.id && $0.speakerID == assignment.id }
+            }
+            guard !alreadyKnown else { continue }
+            do {
+                _ = try await store.enrollSavedName(meeting: meeting, assignmentID: assignment.id, samples: samples,
+                    profileID: Self.samePerson(named: name, samples: samples, profiles: database.profiles),
+                    expectedDatabaseRevision: database.revision)
+                enrolled += 1
+            } catch {
+                lokalbotLog("speaker voice not remembered meeting=\(meeting.id): \(error.localizedDescription)")
+            }
+        }
+        if enrolled > 0 { revision += 1 }
+        return enrolled
     }
     func forgetProfile(_ id: UUID?) async throws { try await store().forgetProfile(id); revision += 1 }
     func renameProfile(_ id: UUID, name: String) async throws { try await store().renameProfile(id, name: name); revision += 1 }

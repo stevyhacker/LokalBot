@@ -10,6 +10,7 @@ final class CotypingFieldStyleTests: XCTestCase {
         XCTAssertFalse(CotypingFieldStyle(fontName: "Helvetica").isEmpty)
         XCTAssertFalse(CotypingFieldStyle(colorHex: "336699").isEmpty)
         XCTAssertFalse(CotypingFieldStyle(backgroundColorHex: "000000").isEmpty)
+        XCTAssertFalse(CotypingFieldStyle(fontPointSize: 16).isEmpty)
     }
 
     func testHexRoundTrip() {
@@ -161,5 +162,55 @@ final class CotypingFieldStyleTests: XCTestCase {
         ctx.setFillColor(red: white, green: white, blue: white, alpha: 1)
         ctx.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
         return ctx.makeImage()!
+    }
+}
+
+// MARK: - Background behind the ghost
+
+@MainActor
+final class CotypingBackgroundSamplerTests: XCTestCase {
+    private func chromeField(
+        page: String, frame: CGRect = CGRect(x: 400, y: 300, width: 640, height: 120),
+        preceding: String = "draft", element: String = "element-1"
+    ) -> CotypingField {
+        CotypingField(
+            appName: "Google Chrome", bundleID: "com.google.Chrome", processID: 42, role: "AXTextArea",
+            focusIdentityKey: element, precedingText: preceding, trailingText: "", selectionLength: 0,
+            caretRect: CGRect(x: 420, y: 380, width: 1, height: 18), inputFrameRect: frame,
+            isSecure: false, caretIsExact: true, windowTitle: page)
+    }
+
+    private func key(_ field: CotypingField) -> String {
+        CotypingFieldIdentity.background(for: field)
+    }
+
+    /// 2026-10-21: a reading from a light page in Chrome drew black ghosts in
+    /// a dark Reddit comment box, because readings were kept per app.
+    func testReadingFromOneFieldIsNotReusedInAnotherFieldOfTheSameApp() {
+        let sampler = CotypingBackgroundSampler()
+        sampler.remember(0.95, forField: key(chromeField(page: "Google")))
+
+        XCTAssertNil(sampler.cachedLuminance(forField: key(chromeField(page: "Reddit"))))
+        XCTAssertNil(sampler.cachedLuminance(forField: key(chromeField(
+            page: "Google", frame: CGRect(x: 400, y: 600, width: 640, height: 40)))))
+    }
+
+    /// Chrome hands out a new element on every read; the field's reading
+    /// must outlive that, or every suggestion would sample and recolor.
+    func testReadingIsReusedWhileTypingInTheSameField() {
+        let sampler = CotypingBackgroundSampler()
+        sampler.remember(0.1, forField: key(chromeField(page: "Reddit")))
+
+        let laterKeystroke = chromeField(page: "Reddit", preceding: "draft with more words", element: "element-2")
+        XCTAssertEqual(sampler.cachedLuminance(forField: key(laterKeystroke)), 0.1)
+    }
+
+    func testReadingExpires() {
+        let sampler = CotypingBackgroundSampler()
+        let start = Date()
+        sampler.remember(0.1, forField: "field", now: start)
+
+        XCTAssertEqual(sampler.cachedLuminance(forField: "field", now: start.addingTimeInterval(60)), 0.1)
+        XCTAssertNil(sampler.cachedLuminance(forField: "field", now: start.addingTimeInterval(301)))
     }
 }

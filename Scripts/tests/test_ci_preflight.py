@@ -15,6 +15,29 @@ SOURCE = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location("preflight", SOURCE / "Scripts/release-preflight.py")
 preflight = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preflight)
+bump_spec = importlib.util.spec_from_file_location("bump_version", SOURCE / "Scripts/bump-version.py")
+bump_version = importlib.util.module_from_spec(bump_spec)
+bump_spec.loader.exec_module(bump_version)
+STAGED = ("project.yml\nLokalBot/Info.plist\nLinuxWindows/Cargo.toml\nLinuxWindows/Cargo.lock\n"
+          "Scripts/release-notes/v0.8.1.md")
+PORT_LOCK = """version = 4
+
+[[package]]
+name = "lokalbot-app"
+version = "{version}"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "lokalbot-core"
+version = "{version}"
+
+[[package]]
+name = "serde"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+"""
 
 
 class ReleaseMetadataTests(unittest.TestCase):
@@ -25,11 +48,25 @@ class ReleaseMetadataTests(unittest.TestCase):
         (self.root / "LokalBot").mkdir()
         (self.root / "Scripts/release-notes").mkdir(parents=True)
         (self.root / "LokalBot/Info.plist").write_bytes(plistlib.dumps({
-            "CFBundleShortVersionString": "0.8.1", "CFBundleVersion": "31"}))
+            "CFBundleShortVersionString": "0.8.1", "CFBundleVersion": "31", "SUPublicEDKey": "a2V5"}))
         (self.root / "project.yml").write_text(
             '        CFBundleShortVersionString: "0.8.1"\n        CFBundleVersion: "31"\n')
         self.notes = self.root / "Scripts/release-notes/v0.8.1.md"
         self.notes.write_text('- Faster releases.\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
+        (self.root / "LinuxWindows").mkdir()
+        self.write_port("0.8.1")
+
+    def write_port(self, version, lock_version=None):
+        (self.root / "LinuxWindows/Cargo.toml").write_text(
+            f'[workspace]\nmembers = ["crates/*"]\n\n[workspace.package]\nversion = "{version}"\nedition = "2024"\n'
+            '\n[workspace.dependencies]\nserde = { version = "1" }\n')
+        (self.root / "LinuxWindows/Cargo.lock").write_text(PORT_LOCK.format(version=lock_version or version))
+        self.write_update_key("a2V5")
+
+    def write_update_key(self, key):
+        source = self.root / "LinuxWindows/crates/lokalbot-update/src/lib.rs"
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text(f'/// SUPublicEDKey\npub const PUBLIC_KEY: &str = "{key}";\n')
 
     def test_consistent_metadata(self):
         self.assertEqual(preflight.validate(self.root), ("0.8.1", "31", "v0.8.0"))
@@ -66,7 +103,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         for version, build in [("0.8", "31"), ("0.8.1", "0"), ("0.8.1", "invalid")]:
             with self.subTest(version=version, build=build):
                 (self.root / "LokalBot/Info.plist").write_bytes(plistlib.dumps({
-                    "CFBundleShortVersionString": version, "CFBundleVersion": build}))
+                    "CFBundleShortVersionString": version, "CFBundleVersion": build, "SUPublicEDKey": "a2V5"}))
                 with self.assertRaises(ValueError):
                     preflight.validate(self.root, metadata_only=True)
 
@@ -102,7 +139,7 @@ class ReleaseMetadataTests(unittest.TestCase):
                 preflight.validate(self.root, candidate=True)
 
     def test_unrelated_staged_files_are_rejected(self):
-        with patch.object(preflight, "git", return_value="project.yml\nLokalBot/Info.plist\nScripts/release-notes/v0.8.1.md\nunrelated.txt"):
+        with patch.object(preflight, "git", return_value=STAGED + "\nunrelated.txt"):
             with self.assertRaisesRegex(ValueError, "Stage only"):
                 preflight.validate(self.root, staged=True)
 
@@ -127,11 +164,44 @@ class ReleaseMetadataTests(unittest.TestCase):
                 self.assertEqual(preflight.validate(self.root, candidate=True), ("0.8.1", "31", "v0.8.0"))
 
     def test_staged_snapshot_must_match_validated_working_files(self):
-        staged = "project.yml\nLokalBot/Info.plist\nScripts/release-notes/v0.8.1.md"
-        with patch.object(preflight, "git", return_value=staged):
+        with patch.object(preflight, "git", return_value=STAGED):
             with patch.object(preflight.subprocess, "check_output", return_value=b"outdated"):
                 with self.assertRaisesRegex(ValueError, "Staged content differs"):
                     preflight.validate(self.root, staged=True)
+
+    def test_release_metadata_without_the_port_files_is_rejected(self):
+        with patch.object(preflight, "git", return_value=STAGED.replace("\nLinuxWindows/Cargo.lock", "")):
+            with self.assertRaisesRegex(ValueError, "Stage only"):
+                preflight.validate(self.root, staged=True)
+
+    def test_port_workspace_version_must_match(self):
+        self.write_port("0.1.0")
+        for metadata_only in [False, True]:
+            with self.subTest(metadata_only=metadata_only), self.assertRaisesRegex(ValueError, "Cargo.toml"):
+                preflight.validate(self.root, metadata_only=metadata_only)
+
+    def test_port_lockfile_must_match(self):
+        self.write_port("0.8.1", lock_version="0.8.0")
+        with self.assertRaisesRegex(ValueError, "Cargo.lock disagrees .*lokalbot-app, lokalbot-core"):
+            preflight.validate(self.root, metadata_only=True)
+
+    def test_port_update_key_must_match_sparkle(self):
+        self.write_update_key("b3RoZXI=")
+        with self.assertRaisesRegex(ValueError, "SUPublicEDKey"):
+            preflight.validate(self.root, metadata_only=True)
+
+    def test_bump_writes_every_version_source(self):
+        (self.root / "LokalBot/Info.plist").write_text(
+            "<plist><dict>\n\t<key>CFBundleShortVersionString</key>\n\t<string>0.8.1</string>\n"
+            "\t<key>CFBundleVersion</key>\n\t<string>31</string>\n"
+            "\t<key>SUPublicEDKey</key>\n\t<string>a2V5</string>\n</dict></plist>\n")
+        self.assertEqual(bump_version.bump(self.root, "0.9.0", "32"), ("0.9.0", "32", None))
+        info = plistlib.loads((self.root / "LokalBot/Info.plist").read_bytes())
+        self.assertEqual((info["CFBundleShortVersionString"], info["CFBundleVersion"]), ("0.9.0", "32"))
+        self.assertIn('version = "1.0.228"', (self.root / "LinuxWindows/Cargo.lock").read_text())
+        self.assertIn('serde = { version = "1" }', (self.root / "LinuxWindows/Cargo.toml").read_text())
+        with self.assertRaisesRegex(ValueError, "form"):
+            bump_version.bump(self.root, "1.0", "33")
 
 
 class HostedRunnerTests(unittest.TestCase):

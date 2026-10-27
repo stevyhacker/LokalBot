@@ -1,0 +1,8 @@
+{
+  "status": "passed",
+  "cases": 120,
+  "prompt_tokens_min": 560,
+  "prompt_tokens_max": 613,
+  "valid_empty_and_serbian_json": true,
+  "scope": "tokenizer/schema validation only; no model inference"
+}

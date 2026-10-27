@@ -233,21 +233,26 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
                       let at = CodingAgentTimestamp.date(record["timestamp"] as? String),
                       interval.contains(at),
                       let key = admit(record["uuid"] as? String) else { return }
+                // Each record names the folder and branch it ran in; its
+                // events keep them, so a burst is labeled by its own work.
+                let workingDirectory = record["cwd"] as? String
                 if transcript.workingDirectory == nil {
-                    transcript.workingDirectory = record["cwd"] as? String
+                    transcript.workingDirectory = workingDirectory
                 }
-                if let branch = record["gitBranch"] as? String, !branch.isEmpty, branch != "HEAD" {
-                    transcript.branch = branch
-                }
+                let branch = (record["gitBranch"] as? String).flatMap { $0.isEmpty || $0 == "HEAD" ? nil : $0 }
                 let content = (record["message"] as? [String: Any])?["content"]
                 let firstNew = transcript.events.count
                 if type == "user" {
                     appendPrompt(content, at: at, to: &transcript)
                 } else {
-                    appendAssistant(content, at: at, to: &transcript)
+                    appendAssistant(
+                        content, at: at, workingDirectory: workingDirectory ?? transcript.workingDirectory,
+                        to: &transcript)
                 }
                 for index in firstNew..<transcript.events.count {
                     transcript.events[index].recordKey = key
+                    transcript.events[index].workingDirectory = workingDirectory
+                    transcript.events[index].branch = branch
                 }
             default:
                 break
@@ -287,7 +292,9 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
         }
     }
 
-    private func appendAssistant(_ content: Any?, at: Date, to transcript: inout CodingAgentTranscript) {
+    private func appendAssistant(
+        _ content: Any?, at: Date, workingDirectory: String?, to transcript: inout CodingAgentTranscript
+    ) {
         guard let blocks = content as? [[String: Any]] else { return }
         var appended = false
         for block in blocks {
@@ -307,7 +314,7 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
                     transcript.events.append(CodingAgentEvent(
                         at: at,
                         kind: .fileChange(CodingAgentText.displayPath(
-                            path, workingDirectory: transcript.workingDirectory))))
+                            path, workingDirectory: workingDirectory))))
                 } else if name == "Bash", let command = input["command"] as? String {
                     for action in CodingAgentText.actions(inCommand: command) {
                         transcript.events.append(CodingAgentEvent(at: at, kind: .action(action)))

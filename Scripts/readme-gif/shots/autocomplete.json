@@ -1,0 +1,26 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "launch-email.txt",
+  "size": [520, 110],
+  "settle": 1.2,
+  "park": [640, 200],
+  "pre": 0.6,
+  "post": 1.2,
+  "also": ["me.dotenv.LokalBot"],
+  "actions": [
+    {"type": "After the launch planning call, ", "cps": 12},
+    {"wait": 0.6},
+    {"type": "the Team plan will be ", "cps": 12},
+    {"wait": 0.6},
+    {"type": "$15", "cps": 8},
+    {"wait": 2.2},
+    {"key": "tab"},
+    {"wait": 0.4},
+    {"key": "tab"},
+    {"wait": 0.4},
+    {"key": "tab"},
+    {"wait": 0.4},
+    {"key": "tab"},
+    {"wait": 1.8}
+  ]
+}

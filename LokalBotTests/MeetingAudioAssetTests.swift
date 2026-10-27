@@ -224,6 +224,29 @@ final class MeetingAudioAssetTests: XCTestCase {
                       "a decodable but truncated primary must not destroy fuller recovery audio")
     }
 
+    /// The Windows and Linux app records, imports and merges into 16 kHz
+    /// 16-bit `mic.wav` / `system.wav`. A library shared with a Mac must still
+    /// play and transcribe those meetings.
+    func testWindowsAndLinuxWAVTracksAreReadWhenNoAACTrackExists() throws {
+        let folder = try temporaryFolder()
+        let mic = folder.appendingPathComponent("mic.wav")
+        let system = folder.appendingPathComponent("system.wav")
+        try writeInt16WAVTone(to: mic, duration: 1.5)
+        try writeInt16WAVTone(to: system, duration: 2)
+
+        XCTAssertEqual(MeetingAudioFiles.readableURL(for: .mic, in: folder), mic)
+        XCTAssertEqual(MeetingAudioFiles.transcribableURL(for: .system, in: folder), system)
+        XCTAssertEqual(try XCTUnwrap(MeetingAudioFiles.longestDuration(in: folder)), 2, accuracy: 0.01)
+        XCTAssertEqual(
+            Set(MeetingAudioAsset.playbackSources(folder: folder, hasSystemTrack: true).map(\.url)),
+            [mic, system])
+
+        let aac = folder.appendingPathComponent("mic.m4a")
+        try writeTone(to: aac, frequency: 440, duration: 0.5)
+        XCTAssertEqual(MeetingAudioFiles.readableURL(for: .mic, in: folder), aac,
+                       "a Mac recording keeps its own AAC track")
+    }
+
     /// The mic and system files routinely differ in sample rate and channel
     /// count; the player must load both and report the longer duration. The
     /// previous composition-based player garbled mismatched tracks during
@@ -349,6 +372,29 @@ final class MeetingAudioAssetTests: XCTestCase {
                 AVSampleRateKey: sampleRate,
                 AVNumberOfChannelsKey: Int(channels),
             ])
+        try file.write(from: buffer)
+    }
+
+    /// Matches the port's `WavWriter`: 16 kHz, mono, 16-bit little-endian PCM.
+    private func writeInt16WAVTone(to url: URL, duration: TimeInterval) throws {
+        let sampleRate = 16_000.0
+        let frameCount = AVAudioFrameCount(sampleRate * duration)
+        let format = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                                 sampleRate: sampleRate, channels: 1, interleaved: false))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount))
+        buffer.frameLength = frameCount
+        let samples = try XCTUnwrap(buffer.floatChannelData?[0])
+        for index in 0..<Int(frameCount) {
+            samples[index] = Float(sin(2 * .pi * 330 * Double(index) / sampleRate) * 0.25)
+        }
+        let file = try AVAudioFile(forWriting: url, settings: [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: sampleRate,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+        ], commonFormat: .pcmFormatFloat32, interleaved: false)
         try file.write(from: buffer)
     }
 

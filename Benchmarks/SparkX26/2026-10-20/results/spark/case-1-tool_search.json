@@ -1,0 +1,106 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "search_meetings",
+          "arguments": "{\"query\":\"Atlas\",\"limit\":3}"
+        },
+        "id": "afkUXpy0MUZOn7q4uDTmvjOUJJHiYHND"
+      }
+    ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+    "completion_tokens": 20,
+    "prompt_tokens": 270,
+    "total_tokens": 290,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 270,
+    "prompt_ms": 1183.433,
+    "prompt_per_token_ms": 4.383085185185185,
+    "prompt_per_second": 228.1497980874287,
+    "predicted_n": 20,
+    "predicted_ms": 1188.146,
+    "predicted_per_token_ms": 62.534,
+    "predicted_per_second": 15.991300732401575
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "search_meetings",
+                "arguments": "{\"query\":\"Atlas\",\"limit\":3}"
+              },
+              "id": "afkUXpy0MUZOn7q4uDTmvjOUJJHiYHND"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1792527557,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 20,
+      "prompt_tokens": 270,
+      "total_tokens": 290,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-Ewr57arxFD1aNENTaWtQpUQDITpglMuT",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 270,
+      "prompt_ms": 1183.433,
+      "prompt_per_token_ms": 4.383085185185185,
+      "prompt_per_second": 228.1497980874287,
+      "predicted_n": 20,
+      "predicted_ms": 1188.146,
+      "predicted_per_token_ms": 62.534,
+      "predicted_per_second": 15.991300732401575
+    }
+  },
+  "wall_seconds": 2.5607714257203043,
+  "memory": {
+    "samples": 12,
+    "peak_rss_bytes": 7813718016,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_search",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "native_calls": [
+      {
+        "name": "search_meetings",
+        "args": {
+          "query": "Atlas",
+          "limit": 3
+        }
+      }
+    ],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

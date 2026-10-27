@@ -1,0 +1,105 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "calculate",
+          "arguments": "{\"expression\":\"17 * 29 + 122\"}"
+        },
+        "id": "oQvcQluwghqVR6kYuimouHT1vtSGJuUu"
+      }
+    ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+    "completion_tokens": 36,
+    "prompt_tokens": 493,
+    "total_tokens": 529,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 493,
+    "prompt_ms": 2091.865,
+    "prompt_per_token_ms": 4.2431338742393505,
+    "prompt_per_second": 235.67486429573614,
+    "predicted_n": 36,
+    "predicted_ms": 1965.063,
+    "predicted_per_token_ms": 56.14465714285715,
+    "predicted_per_second": 17.81113379062147
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "calculate",
+                "arguments": "{\"expression\":\"17 * 29 + 122\"}"
+              },
+              "id": "oQvcQluwghqVR6kYuimouHT1vtSGJuUu"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1792527765,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 36,
+      "prompt_tokens": 493,
+      "total_tokens": 529,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-eybSwwZHtz4ScF72tuChW12YvbAB3w3l",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 493,
+      "prompt_ms": 2091.865,
+      "prompt_per_token_ms": 4.2431338742393505,
+      "prompt_per_second": 235.67486429573614,
+      "predicted_n": 36,
+      "predicted_ms": 1965.063,
+      "predicted_per_token_ms": 56.14465714285715,
+      "predicted_per_second": 17.81113379062147
+    }
+  },
+  "wall_seconds": 4.060935180168599,
+  "memory": {
+    "samples": 20,
+    "peak_rss_bytes": 7650271232,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_calculate",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "native_calls": [
+      {
+        "name": "calculate",
+        "args": {
+          "expression": "17 * 29 + 122"
+        }
+      }
+    ],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

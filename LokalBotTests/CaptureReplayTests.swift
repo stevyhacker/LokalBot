@@ -175,6 +175,28 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertLessThan(ended.first ?? .infinity, 720)
     }
 
+    /// #372: Meet showed the room as /meet/abc-defg-hij, which was not taken
+    /// for a call document, so no meeting started and system audio never
+    /// attached. The call starts, binds to the room's canonical URL, and ends.
+    func testMeetCallUnderMeetPathStartsAndEnds() async throws {
+        let replay = try replay("meet-room-under-meet-path")
+        let detector = MeetingDetector()
+        var started: [(TimeInterval, MeetingDetector.DetectedApp?)] = []
+        var ended: [TimeInterval] = []
+        detector.onMeetingStarted = { started.append((replay.clock.elapsed, $0.detectedApp)) }
+        detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+        for second in stride(from: 0.0, through: 360, by: 2) {
+            await replay.clock.advance(to: second)
+            await detector.tickForTesting()
+        }
+        XCTAssertEqual(started.count, 1, "one meeting starts")
+        XCTAssertLessThan(started.first?.0 ?? .infinity, 30)
+        XCTAssertEqual(started.first?.1?.bundleID, "com.brave.Browser")
+        XCTAssertEqual(started.first?.1?.meetingURL?.absoluteString, "https://meet.google.com/bcd-fghj-klm")
+        XCTAssertEqual(ended.count, 1, "the meeting ends once")
+        XCTAssertGreaterThanOrEqual(ended.first ?? 0, 300, "must not end before the call does")
+    }
+
     /// 2026-10-03: Meet's page after the first call was not recognized as an
     /// end, so that call stayed bound but unverified, and the next meeting, in
     /// another room, was never detected. A verified call in another room must
@@ -331,6 +353,81 @@ final class CaptureReplayTests: XCTestCase {
         let call = MeetingDetector.DetectedApp(name: "Google Chrome", bundleID: "com.google.Chrome",
                                                pid: 801, meetingURL: room)
         XCTAssertEqual(RecordingSystemAudioSource.find(for: unbound), .verified(call))
+    }
+
+    /// Tencent Meeting was not a known app, so its calls never started a
+    /// recording and a hand-started one saved only the microphone. As a
+    /// dedicated conferencing app it now starts like Zoom: as soon as the call
+    /// is audible, with no sustained-audio wait.
+    func testTencentMeetingCallStartsWithoutTheChatAppWait() async throws {
+        let replay = try replay("tencent-meeting-call")
+        let detector = MeetingDetector()
+        var started: [(at: TimeInterval, bundleID: String?)] = []
+        detector.onMeetingStarted = { context in
+            started.append((replay.clock.elapsed, context.detectedApp?.bundleID))
+        }
+        for second in stride(from: 0.0, through: 260, by: 2) {
+            await replay.clock.advance(to: second)
+            await detector.tickForTesting()
+        }
+        XCTAssertEqual(started.count, 1)
+        XCTAssertEqual(started.first?.bundleID, "com.tencent.meeting")
+        XCTAssertLessThan(started.first?.at ?? .infinity,
+                          30 + MeetingDetector.nativeAudioMinimumConfirmationDuration,
+                          "a dedicated conferencing app does not wait out the chat-app gate")
+    }
+
+    /// Feishu plays calls through ByteDance-named Electron helpers outside the
+    /// `com.electron.lark` namespace. A hand-started recording must find the
+    /// call and tap the helper, not save only the microphone.
+    func testManualRecordingCapturesAFeishuCallOnItsHelper() throws {
+        _ = try replay("feishu-call-on-helper")
+        let feishu = MeetingDetector.DetectedApp(name: "Feishu", bundleID: "com.electron.lark", pid: 900)
+        let unbound = Meeting.CaptureIntent(systemAudioRequested: true)
+        XCTAssertEqual(RecordingSystemAudioSource.find(for: unbound), .verified(feishu))
+        XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: feishu)?.id, 910,
+                       "the tap goes on the helper that carries the call")
+    }
+
+    /// #363: Webex's media helper is outside its host's dot-separated bundle
+    /// namespace. A manual recording must verify the call and select its audio.
+    func testManualRecordingCapturesAWebexCallOnItsMediaHelper() async throws {
+        let replay = try replay("webex-call-on-media-helper")
+        await replay.clock.advance(to: 10)
+        let webex = MeetingDetector.DetectedApp(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: 900)
+        let unbound = Meeting.CaptureIntent(systemAudioRequested: true)
+        XCTAssertEqual(RecordingSystemAudioSource.find(for: unbound), .verified(webex))
+        XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: webex)?.id, 910,
+                       "the silent host must not take the remote participants' track")
+    }
+
+    /// The same process-family mapping must work before speech starts, through
+    /// a quiet pause, and when recovery sees a replacement helper with a new PID.
+    func testWebexCaptureFollowsItsMediaHelperAcrossSilenceAndRestart() async throws {
+        let replay = try replay("webex-call-on-media-helper")
+        let webex = MeetingDetector.DetectedApp(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: 900)
+        let bound = Meeting.CaptureIntent(systemAudioRequested: true, appBundleID: webex.bundleID)
+        for (second, pid) in [(0.0, pid_t(910)), (10, 910), (20, 910), (30, 920), (40, 920)] {
+            await replay.clock.advance(to: second)
+            XCTAssertEqual(RecordingSystemAudioSource.find(for: bound), .verified(webex))
+            XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(
+                for: webex, excluding: second >= 30 ? [910] : [])?.id, pid,
+                "capture must follow the media helper at t=\(second), even before it emits audio")
+        }
+    }
+
+    func testWebexCallOnItsMediaHelperStartsDetectionOnlyWhenAudioRuns() async throws {
+        let replay = try replay("webex-call-on-media-helper")
+        let detector = MeetingDetector()
+        var started: [MeetingDetector.DetectedApp] = []
+        detector.onMeetingStarted = { context in
+            if let app = context.detectedApp { started.append(app) }
+        }
+        await detector.tickForTesting()
+        XCTAssertTrue(started.isEmpty, "a present but quiet helper is not evidence of a call")
+        await replay.clock.advance(to: 10)
+        await detector.tickForTesting()
+        XCTAssertEqual(started, [.init(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: 900)])
     }
 
     /// Every scripted browser trace must replay to at least one text capture.

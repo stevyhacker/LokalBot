@@ -818,7 +818,8 @@ final class MemoryRoutineScheduler: ObservableObject {
         if enabled.contains(.postMeetingFollowUp) {
             let cutoff = current.addingTimeInterval(-14 * 86_400)
             let meetings = (try? SessionLookup.loadAllMeetings(root: storageRoot)) ?? []
-            for meeting in meetings where meeting.startedAt >= cutoff && meeting.startedAt <= current {
+            for meeting in meetings where !meeting.isSample
+                && meeting.startedAt >= cutoff && meeting.startedAt <= current {
                 let summary = storageRoot.appendingPathComponent(meeting.relativePath)
                     .appendingPathComponent("summary.md")
                 guard FileManager.default.fileExists(atPath: summary.path) else { continue }

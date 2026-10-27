@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 18,
+      "speaker": "me",
+      "text": "v1 export endpoints sunset at the end of Q3. Six customers still call them."
+    },
+    {
+      "start": 18,
+      "end": 36,
+      "speaker": "them",
+      "text": "I'll draft the migration email and we give ninety days' notice."
+    }
+  ]
+}

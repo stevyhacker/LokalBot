@@ -40,6 +40,10 @@ struct MainWindowView: View {
             FollowUpDraftSheet(meeting: meeting)
                 .environmentObject(app)
         }
+        .sheet(isPresented: $app.showsSampleSetup) {
+            SampleMeetingSetupSheet(modelRoles: app.modelRoles)
+                .environmentObject(app)
+        }
         .task {
             // Let non-View code (menu bar, AppDelegate reopen) open windows.
             // First-run permission onboarding is now triggered from AppState.
@@ -115,10 +119,10 @@ struct MainWindowView: View {
             .detailSplitMinimumWidth([LBTokens.Metric.contentColumnMinWidth, LBTokens.Metric.contentDetailMinWidth])
             .id("workspace.meetings")
         case .people:
-            PeopleWorkspaceView(connections: app.connections)
+            PeopleWorkspaceView(connections: app.connections, store: app.peopleStore)
                 .id("workspace.people")
         case .projects:
-            ProjectsWorkspaceView(connections: app.connections)
+            ProjectsWorkspaceView(connections: app.connections, store: app.projectStore)
                 .id("workspace.projects")
         case .ask:
             HSplitView {

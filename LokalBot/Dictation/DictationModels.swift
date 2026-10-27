@@ -546,6 +546,8 @@ struct DictationShortcut: Equatable, Sendable {
     static let handyDefault = DictationShortcut(keyCode: 49, modifiers: .maskAlternate)
     /// ⌃⇧ Space opens Ask.
     static let quickRecallDefault = DictationShortcut(keyCode: 49, modifiers: [.maskControl, .maskShift])
+    /// ⌃⇧ W ("write") opens selection actions.
+    static let selectionActionsDefault = DictationShortcut(keyCode: 13, modifiers: [.maskControl, .maskShift])
 
     var isModifierOnly: Bool { keyCode == nil }
 
@@ -574,6 +576,7 @@ struct DictationShortcut: Equatable, Sendable {
         case needsKey
         case usedByDictation
         case usedByAsk
+        case usedBySelectionActions
         case usedBySystem
         case unavailable
 
@@ -593,6 +596,8 @@ struct DictationShortcut: Equatable, Sendable {
                 "Dictation already uses this shortcut. Choose another."
             case .usedByAsk:
                 "Ask already uses this shortcut. Choose another."
+            case .usedBySelectionActions:
+                "Selection actions already use this shortcut. Choose another."
             case .usedBySystem:
                 "macOS already uses this shortcut. Choose another."
             case .unavailable:
@@ -617,9 +622,9 @@ struct DictationShortcut: Equatable, Sendable {
         return nil
     }
 
-    /// Why this combination cannot be the system-wide Ask shortcut, or nil.
-    /// Ask registers a Carbon hot key, which needs a key and never observes
-    /// modifiers alone.
+    /// Why this combination cannot be the system-wide Ask or selection actions
+    /// shortcut, or nil. Both register a Carbon hot key, which needs a key and
+    /// never observes modifiers alone.
     var quickRecallProblem: Problem? {
         isModifierOnly ? .needsKey : problem
     }

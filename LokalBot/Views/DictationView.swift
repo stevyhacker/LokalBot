@@ -47,6 +47,7 @@ struct DictationView: View {
         } else if let transcript = app.dictation.lastTranscript {
             lastSpokenRequestSection(transcript)
         }
+        recentSection
     }
 
     private var statusSection: some View {
@@ -212,6 +213,9 @@ struct DictationView: View {
             if let engine = app.dictation.lastEngine {
                 SettingsHelp(engine)
             }
+            if let latest = latestShownAbove {
+                DictationCopyButton { dictation.copyFromHistory(latest.id) }
+            }
         }
     }
 
@@ -220,6 +224,28 @@ struct DictationView: View {
             Text(transcript)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if let latest = latestShownAbove {
+                DictationCopyButton { dictation.copyFromHistory(latest.id) }
+            }
+        }
+    }
+
+    /// The kept dictation that the last-result section above already shows.
+    private var latestShownAbove: DictationHistoryEntry? {
+        guard let latest = dictation.history.entries.first,
+              latest.text == (dictation.lastComposedText ?? dictation.lastTranscript) else { return nil }
+        return latest
+    }
+
+    @ViewBuilder private var recentSection: some View {
+        let entries = dictation.history.entries
+        let earlier = latestShownAbove == nil ? entries : Array(entries.dropFirst())
+        if !earlier.isEmpty {
+            RecentDictationsSection(
+                entries: earlier,
+                localized: { app.settings.appLanguage.localized($0) },
+                copy: { dictation.copyFromHistory($0) },
+                clear: { dictation.clearHistory() })
         }
     }
 

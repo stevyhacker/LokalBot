@@ -33,6 +33,16 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("sutra"), "2026-09-23")
     }
 
+    func testLaterTheSameDayPhrases() {
+        XCTAssertEqual(resolved("during the day"), "2026-09-22")
+        XCTAssertEqual(resolved("During the day."), "2026-09-22")
+        XCTAssertEqual(resolved("later today"), "2026-09-22")
+        XCTAssertEqual(resolved("this afternoon"), "2026-09-22")
+        XCTAssertEqual(resolved("tokom dana"), "2026-09-22")
+        XCTAssertEqual(resolved("u toku dana"), "2026-09-22")
+        XCTAssertNil(resolved("during the week of the audit"))
+    }
+
     func testWeekdaysResolveToTheNextOccurrence() {
         XCTAssertEqual(resolved("Friday"), "2026-09-25")
         XCTAssertEqual(resolved("by Friday."), "2026-09-25")

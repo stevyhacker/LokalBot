@@ -70,6 +70,10 @@ struct CotypingField: Equatable, Sendable {
     /// Only filled by an explicitly requested background context capture.
     var visibleContext: CotypingVisibleContext.Snapshot?
     var visibleContextWasRequested: Bool = false
+    /// The app counts the selection without line breaks its value has
+    /// (Chromium rich text), so an accept re-reads the text the way this
+    /// snapshot was read, not through `AXStringForRange` windows.
+    var selectionSkipsParagraphBreaks: Bool = false
 
     /// Content-only fingerprint used to detect "did the field actually change"
     /// across keystrokes and to drop stale async generations. Excludes the AX

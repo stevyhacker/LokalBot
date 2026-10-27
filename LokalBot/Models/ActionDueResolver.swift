@@ -20,6 +20,10 @@ enum ActionDueResolver {
         if matches(text, #"^(?:(?:by|before|until|till) )?(?:the )?(?:today|tonight|end of (?:the )?day|eod|close of business|cob|danas|do kraja dana)$"#) {
             return spokenDay
         }
+        // "During the day" and its kin mean later the same day.
+        if matches(text, #"^(?:(?:during|later|sometime|over|within) (?:the )?day(?: today)?|(?:later|sometime) today|today during the day|(?:this|today) (?:morning|afternoon|evening)|(?:danas )?(?:tokom|u toku) dana|kasnije danas)$"#) {
+            return spokenDay
+        }
         if matches(text, #"^(?:(?:by|before|until|till) )?(?:tomorrow|sutra)(?: (?:morning|afternoon|evening|eod))?$"#) {
             return calendar.date(byAdding: .day, value: 1, to: spokenDay)
         }

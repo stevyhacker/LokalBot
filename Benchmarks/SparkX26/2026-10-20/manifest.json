@@ -1,0 +1,23 @@
+{
+  "source_revision": "1f3f64f457b42a27622160327e1ac8d17b67e9e4",
+  "date": "2026-10-20",
+  "hf_revision": "2f1d8110eb60b18920d424d7bf47f4001a956f1e",
+  "gguf_revision": "16c77db5a782d75d6953770339f7ae06be7dd3f7",
+  "runtime": "llama.cpp b11474, CPU Linux build",
+  "runtime_source_sha256": "ccbd56a50f965442b4cefdab5262b6d9b8e45a8041fb0cc6faa5d564d9b18b72",
+  "runtime_binary_sha256": "6386ec685551d651668d66f61338b84de1f85003ffeb77bd71b2b15c791c2f44",
+  "cases_origin": "Benchmarks/MiniCPM5/2026-09-10/cases.json",
+  "cases_sha256": "7b2bec3fb09838abac2662abc8f4850b1e32008a70ff34120d927994a603092e",
+  "mode": "non-thinking, greedy, seed 42, strict JSON grammar, 32768 context, one repeat",
+  "models": {
+    "spark": {
+      "file": "Spark-X2.6-4B-Q4_K_M.gguf",
+      "sha256": "d2595c12bbdda82929ac0c53ec1e79ebe98f74d92f85de2c829592e376815dca"
+    },
+    "qwen": {
+      "file": "Qwen3.5-4B-Q4_K_M.gguf",
+      "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4"
+    }
+  },
+  "data": "Existing synthetic fixtures only. No private library content."
+}

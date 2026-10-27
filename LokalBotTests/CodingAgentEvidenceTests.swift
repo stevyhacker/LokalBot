@@ -96,6 +96,107 @@ final class CodingAgentEvidenceTests: XCTestCase {
                        "a disabled agent keeps its saved records; text past retention is never stored")
     }
 
+    /// Bursts saved by earlier readers carry their session's latest branch
+    /// and folder, file names relative to another folder, and edges moved by
+    /// activity across midnight. Reading them again on a later day must not
+    /// reopen that day's digest and Dream review; changed work still does.
+    func testSameWorkReadAgainLeavesAFinishedDayAloneButChangedWorkReopensIt() throws {
+        let store = makeStore()
+        var revoked: [[Date]] = []
+        var changed: [[Date]] = []
+        let configuration = CodingAgentEvidenceIngestor.Configuration(agents: [.claudeCode])
+        let ingestor = makeIngestor(store: store, configuration: configuration,
+                                    revoked: { revoked.append($0) }, changed: { changed.append($0) })
+        let saved = try burst("A", start: "2026-09-29T09:00:00Z", end: "2026-09-29T09:20:00Z")
+        try ingestor.apply(scan([saved]), configuration: configuration, scannedAt: try date("2026-09-29T20:00:00Z"))
+        let nextDay = try date("2026-09-30T12:00:00Z")
+
+        var reread = try burst("A", start: "2026-09-29T08:59:30Z", end: "2026-09-29T09:20:30Z")
+        reread.title = "Renamed session"
+        reread.project = "Mojo"
+        reread.branch = "mojo-branding"
+        reread.changedFiles = ["Views/DayDigestCard.swift"]
+        XCTAssertNotEqual(reread.id, saved.id, "a moved first event is a new id")
+        try ingestor.apply(scan([reread]), configuration: configuration, scannedAt: nextDay)
+
+        XCTAssertEqual(store.codingAgentBursts(in: dayInterval), [saved], "the day keeps what it was digested with")
+        XCTAssertTrue(revoked.isEmpty)
+        XCTAssertEqual(changed, [[day]], "nothing new to report")
+
+        var continued = saved
+        continued.prompts.append("And the empty state")
+        continued.promptCount += 1
+        try ingestor.apply(scan([continued]), configuration: configuration, scannedAt: nextDay)
+
+        XCTAssertEqual(store.codingAgentBursts(in: dayInterval), [continued])
+        XCTAssertEqual(revoked, [[day]], "changed work revokes what used the old record")
+    }
+
+    /// 2026-10-20 and 21: Claude Code sessions that moved to another branch
+    /// or folder relabeled their earlier bursts on each refresh. Every
+    /// relabel revised those days, which rebuilt their digests and discarded
+    /// their Dream reviews several times a day.
+    func testASessionMovingOnLeavesAnEarlierDaysEvidenceAndDigestCurrent() async throws {
+        let claude = root.appendingPathComponent("claude", isDirectory: true)
+        let file = claude.appendingPathComponent("-Users-me-Code-LokalBot/S1.jsonl")
+        let app = "/Users/me/Code/LokalBot", mojo = "/Users/me/Code/Mojo"
+        var lines = [
+            claudeRecord("user", uuid: "u1", at: "2026-09-29T09:00:00Z", cwd: app, branch: "claude/fix-badge",
+                         content: #""Fix the stale digest badge""#),
+            claudeRecord("assistant", uuid: "a1", at: "2026-09-29T09:05:00Z", cwd: app, branch: "claude/fix-badge",
+                         content: #"[{"type":"text","text":"Fixed the badge."}]"#),
+        ]
+        try writeTranscript(lines, to: file, modified: "2026-09-29T09:05:00Z")
+        let store = makeStore()
+        var now = try date("2026-09-29T20:00:00Z")
+        var revoked: [[Date]] = []
+        let utc: Calendar = calendar
+        let ingestor = CodingAgentEvidenceIngestor(
+            store: store,
+            configuration: { .init(agents: [.claudeCode]) },
+            scan: { configuration, first, last, cache in
+                CodingAgentSessionScanner(readers: [ClaudeCodeSessionReader(root: claude)])
+                    .scan(from: first, through: last, calendar: utc, cache: cache)
+            },
+            mutateEvidence: { days, body in
+                revoked.append(days)
+                try body()
+            },
+            now: { now }, calendar: calendar)
+        await ingestor.refresh()
+        let lifecycle = DayDigestLifecycle(
+            storageRoot: root, calendar: calendar, now: { now },
+            blocks: { _ in [] }, screenContexts: { _ in [] },
+            codingAgentBursts: { store.codingAgentBursts(on: $0) },
+            meetings: { [] }, latestActivityEvidenceAt: { _ in nil }, settings: AppSettings.init,
+            generator: { _, _, _, _ in throw CancellationError() })
+        let evidence = try FileDailyEvidenceSource(root: root, calendar: calendar)
+            .snapshot(for: day, meetings: [], activityBlocks: [], screenContexts: [],
+                      codingAgentBursts: store.codingAgentBursts(on: day), includeScreenSummary: false)
+            .digestEvidence(calendar: calendar)
+        try DayDigestJournalWriter.write("Fixed the stale digest badge.", to: lifecycle.journalURL(for: day),
+                                        replacing: .init(digest: nil), evidence: evidence, quality: .complete)
+        XCTAssertEqual(store.codingAgentBursts(on: day).map(\.branch), ["claude/fix-badge"])
+        XCTAssertFalse(lifecycle.snapshot(for: day).isStale)
+
+        // The next day the same session works on another branch, in another repository.
+        lines += [
+            claudeRecord("user", uuid: "u2", at: "2026-09-30T10:00:00Z", cwd: mojo, branch: "mojo-branding",
+                         content: #""Apply the Mojo branding""#),
+            claudeRecord("assistant", uuid: "a2", at: "2026-09-30T10:05:00Z", cwd: mojo, branch: "mojo-branding",
+                         content: #"[{"type":"text","text":"Applied it."}]"#),
+        ]
+        try writeTranscript(lines, to: file, modified: "2026-09-30T10:05:00Z")
+        now = try date("2026-09-30T15:00:00Z")
+        await ingestor.refresh()
+
+        XCTAssertTrue(revoked.isEmpty, "the earlier day's work did not change")
+        XCTAssertFalse(lifecycle.snapshot(for: day).isStale, "so its digest stays current")
+        let nextDay = store.codingAgentBursts(on: try date("2026-09-30T00:00:00Z"))
+        XCTAssertEqual(nextDay.map(\.project), ["Mojo"])
+        XCTAssertEqual(nextDay.map(\.branch), ["mojo-branding"])
+    }
+
     func testRefreshScansTheDigestWindowAndAnOlderRequestedDay() async throws {
         let store = makeStore()
         let recorder = ScanRecorder()
@@ -143,6 +244,35 @@ final class CodingAgentEvidenceTests: XCTestCase {
         await ingestor.refresh()
 
         XCTAssertTrue(store.codingAgentBursts(in: dayInterval).isEmpty)
+    }
+
+    func testANewInstallReadsNoSessionUntilSetupIsFinished() async throws {
+        let store = makeStore()
+        let recorder = ScanRecorder()
+        let now = try date("2026-09-29T15:00:00Z")
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = AppSettings()
+        let ingestor = CodingAgentEvidenceIngestor(
+            store: store,
+            configuration: { AppState.codingAgentConfiguration(settings, defaults: defaults) },
+            scan: { _, first, last, _ in
+                recorder.record(first, last)
+                return CodingAgentDayScan(
+                    interval: DateInterval(start: first, end: last.addingTimeInterval(86_400)), bursts: [],
+                    sessionCount: 0, filesRead: 0, bytesRead: 0, unreadableFiles: [], excludedSessions: 0)
+            },
+            mutateEvidence: { _, body in try body() },
+            now: { now }, calendar: calendar)
+
+        XCTAssertTrue(settings.codingAgentEvidenceEnabled, "reading stays on by default for new installs")
+        await ingestor.refresh(including: try date("2026-09-10T12:00:00Z"))
+        XCTAssertTrue(recorder.ranges.isEmpty, "a digest's refresh reads nothing before setup is finished")
+
+        defaults.set(true, forKey: AppState.onboardingShownKey)
+        await ingestor.refresh()
+        XCTAssertEqual(recorder.ranges.map { $0.0 }, [try date("2026-09-23T00:00:00Z")],
+                       "finishing setup with the default kept starts reading")
     }
 
     // MARK: - Retention
@@ -323,6 +453,26 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertNil(CodingAgentEvidenceIngestor.Configuration(settings: settings).retentionDays)
     }
 
+    func testFinishedSetupKeepsTheSavedChoicesOfExistingInstalls() throws {
+        let (defaults, suite) = try isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: AppState.onboardingShownKey)
+        let saved = try JSONDecoder().decode(AppSettings.self, from: Data(
+            #"{"codingAgentReadsCodex": false, "codingAgentExcludedFolders": "~/Client"}"#.utf8))
+        let configuration = AppState.codingAgentConfiguration(saved, defaults: defaults)
+        XCTAssertEqual(configuration, CodingAgentEvidenceIngestor.Configuration(settings: saved),
+                       "settings alone decide once setup is finished")
+        XCTAssertEqual(configuration.agents, [.claudeCode])
+        XCTAssertEqual(configuration.excludedFolders, ["~/Client"])
+
+        let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertEqual(AppState.codingAgentConfiguration(legacy, defaults: defaults).agents, [.claudeCode, .codex],
+                       "settings saved before setup offered this choice keep reading")
+        var off = saved
+        off.codingAgentEvidenceEnabled = false
+        XCTAssertTrue(AppState.codingAgentConfiguration(off, defaults: defaults).agents.isEmpty)
+    }
+
     func testScannerSplitsASessionAtMidnight() throws {
         let transcript = CodingAgentTranscript(
             agent: .codex, sessionID: "T1", workingDirectory: "/Users/me/Code/App",
@@ -366,6 +516,12 @@ final class CodingAgentEvidenceTests: XCTestCase {
     }
 
     private var dayInterval: DateInterval { DateInterval(start: day, duration: 86_400) }
+
+    /// A defaults suite of its own, so the setup flag never touches the host's.
+    private func isolatedDefaults() throws -> (UserDefaults, String) {
+        let suite = "CodingAgentEvidenceTests.\(UUID().uuidString)"
+        return (try XCTUnwrap(UserDefaults(suiteName: suite)), suite)
+    }
 
     private func makeStore() -> ActivityStore {
         ActivityStore(databaseURL: root.appendingPathComponent("\(UUID().uuidString).sqlite"))
@@ -416,6 +572,23 @@ final class CodingAgentEvidenceTests: XCTestCase {
             prompts: prompts, promptCount: prompts.count, finalReply: "Opened the PR and pushed.",
             changedFiles: ["LokalBot/Views/DayDigestCard.swift"], changedFileCount: 1,
             actions: actions, pullRequests: pullRequests, toolCallCount: 3)
+    }
+
+    /// A Claude Code user or assistant record; `content` is the message
+    /// content as JSON.
+    private func claudeRecord(
+        _ type: String, uuid: String, at timestamp: String, cwd: String, branch: String, content: String
+    ) -> String {
+        #"{"parentUuid":null,"isSidechain":false,"type":"\#(type)","message":{"role":"\#(type)","content":\#(content)},"#
+            + #""uuid":"\#(uuid)","timestamp":"\#(timestamp)","cwd":"\#(cwd)","gitBranch":"\#(branch)","sessionId":"S1"}"#
+    }
+
+    private func writeTranscript(_ lines: [String], to url: URL, modified: String) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: url)
+        try FileManager.default.setAttributes(
+            [.creationDate: try date("2026-09-29T08:00:00Z"), .modificationDate: try date(modified)],
+            ofItemAtPath: url.path)
     }
 
     private func date(_ value: String) throws -> Date {

@@ -1,0 +1,27 @@
+    Finished `release` profile [optimized] target(s) in 0.11s
+     Running tests/e2e_runtime.rs (target/release/deps/e2e_runtime-0302f124d8ce4db7)
+
+running 1 test
+test installs_runtime_downloads_models_and_answers ...   runtime: 26% of 593.9 MB
+  runtime: 51% of 593.9 MB
+  runtime: 78% of 593.9 MB
+  runtime: 100% of 593.9 MB
+  runtime: 100% of 593.9 MB
+runtime ready in 6.0s: backend=Some("CUDA") version=Some("version: 0.7.0-dev (build 11669, commit 620d2225c)")
+  qwen3.5-0.8b: 100% of 532.5 MB
+qwen3.5-0.8b ready in 0.0s
+  embeddinggemma-2-q8: 100% of 309.9 MB
+embeddinggemma-2-q8 ready in 0.0s
+first reply (cold start) in 1.1s: "Hello! I am Qwen3.5, a large language model developed by Tongyi Lab."
+json reply in 0.1s: Colors { colors: ["red", "green", "blue"] }
+streamed: "I count from one to five in words: one, two, three, four, five."
+embeddings in 1.1s: dims=768 related=0.912 unrelated=0.575
+confirmed GPU model offload for Main
+server Main: running=true model=Some("qwen3.5-0.8b") backend=Some(Cuda)
+confirmed GPU model offload for Embedder
+server Embedder: running=true model=Some("embeddinggemma-2-q8") backend=Some(Cuda)
+server Autocomplete: running=false model=None backend=None
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 8.73s
+

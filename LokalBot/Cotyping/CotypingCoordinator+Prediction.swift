@@ -532,7 +532,8 @@ extension CotypingCoordinator {
             isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(field.precedingText),
             precedingText: field.precedingText,
             trailingText: field.trailingText,
-            emphasisLength: acceptEmphasisLength(for: text))
+            emphasisLength: acceptEmphasisLength(for: text),
+            backgroundKey: CotypingFieldIdentity.background(for: field))
     }
 
     /// A quick re-read of the field leaves out its font. The suggestion keeps

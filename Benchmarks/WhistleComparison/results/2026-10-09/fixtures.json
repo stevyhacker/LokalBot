@@ -1,0 +1,875 @@
+[
+  {
+    "id": "ami-15",
+    "group": "ami",
+    "duration": 2.61,
+    "sha256": "0c146269a7560b79170b208173a5db5427b6811418ccd4fd854ab5164e80c6c1",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/15/audio/audio.wav",
+    "referenceWords": 8
+  },
+  {
+    "id": "ami-25",
+    "group": "ami",
+    "duration": 3.17,
+    "sha256": "f7c694610d0d0125d5ac7e25a5ae1e5c7133c1fd0e468f586c2e1b5a5bc48a98",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/25/audio/audio.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "ami-27",
+    "group": "ami",
+    "duration": 2.8099375,
+    "sha256": "4a0525683f1316a61eb708f35159509639ee04ad044b23ceef7ea971bf7321ee",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/27/audio/audio.wav",
+    "referenceWords": 9
+  },
+  {
+    "id": "ami-28",
+    "group": "ami",
+    "duration": 5.14,
+    "sha256": "c5fcd5147cde2480e122d187a01181a5eafc7fb219c465f1051cc762e4f8802b",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/28/audio/audio.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "ami-31",
+    "group": "ami",
+    "duration": 5.01,
+    "sha256": "6856e58543972cde60891a48337761c380dfa94a1873e8f3c25094cce298717e",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/31/audio/audio.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "ami-35",
+    "group": "ami",
+    "duration": 2.9,
+    "sha256": "5cc299b6d635f876622c46542ce3814d56d1273c4fbd78a3be5cf0f4a994bf20",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/35/audio/audio.wav",
+    "referenceWords": 8
+  },
+  {
+    "id": "ami-500",
+    "group": "ami",
+    "duration": 4.02,
+    "sha256": "10b384a19b2d8455345661f3ad47e96814f5b84e2f495c33a01195d034868630",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/500/audio/audio.wav",
+    "referenceWords": 23
+  },
+  {
+    "id": "ami-503",
+    "group": "ami",
+    "duration": 2.1,
+    "sha256": "beb160605c7d28511ff500320279f27b753f6cb580d9a133bce512ea4e5b3507",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/503/audio/audio.wav",
+    "referenceWords": 7
+  },
+  {
+    "id": "ami-505",
+    "group": "ami",
+    "duration": 3.5,
+    "sha256": "deca020f3e57f064f14be8b6f4bb9927088481781c9fffd2519f01ce227a485c",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/505/audio/audio.wav",
+    "referenceWords": 17
+  },
+  {
+    "id": "ami-510",
+    "group": "ami",
+    "duration": 10.56,
+    "sha256": "b40d02c288e0e0baa362bed0cf7a99bc4131218a4d1a4e5bb0d2c8f801c85108",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/510/audio/audio.wav",
+    "referenceWords": 24
+  },
+  {
+    "id": "ami-511",
+    "group": "ami",
+    "duration": 3.83,
+    "sha256": "40b3c547e85970f226da8891c4c6eec82da3a3432f92a74576bbda972582df2e",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/511/audio/audio.wav",
+    "referenceWords": 14
+  },
+  {
+    "id": "ami-522",
+    "group": "ami",
+    "duration": 3.14,
+    "sha256": "34cd74932e60b69cc3bb1ed818e7a29c463003d238c91c5d9cffa82713abdd98",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/522/audio/audio.wav",
+    "referenceWords": 11
+  },
+  {
+    "id": "ami-1503",
+    "group": "ami",
+    "duration": 4.34,
+    "sha256": "8c1e1269f9e20f386cd8e4a24aa97b933c3b513b841144eb62f3c0a6408c544c",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1503/audio/audio.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "ami-1509",
+    "group": "ami",
+    "duration": 9.08,
+    "sha256": "fa746db2c5573c3efaf7cdea7925649d8624aab669e8c38fd4da627b4a928c33",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1509/audio/audio.wav",
+    "referenceWords": 26
+  },
+  {
+    "id": "ami-1513",
+    "group": "ami",
+    "duration": 9.92,
+    "sha256": "fe1bd116e3fa6fd62a51a09df04fd5d45077cbff8d2887872e1e148e903a152e",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1513/audio/audio.wav",
+    "referenceWords": 23
+  },
+  {
+    "id": "ami-1526",
+    "group": "ami",
+    "duration": 3.62,
+    "sha256": "5f95568dd6668951eb79e589ac977c5b7171201f6d9e63053ed0a5a60fab52fb",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1526/audio/audio.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "ami-1531",
+    "group": "ami",
+    "duration": 2.23,
+    "sha256": "0cec64420f69e1495edeb27f1d80fb6cb7a19e794f6697f424fef7168683369f",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1531/audio/audio.wav",
+    "referenceWords": 14
+  },
+  {
+    "id": "ami-1537",
+    "group": "ami",
+    "duration": 6.16,
+    "sha256": "feef9a1a315cdb0350b1c30698efc6bc3a28fea354c1736e97fa661daa840383",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/1537/audio/audio.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "ami-2502",
+    "group": "ami",
+    "duration": 3.46,
+    "sha256": "12e0b155f9b3e27f0b21fa72ca89e969be16ad2c939bce5cac44e5ec0a779b52",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2502/audio/audio.wav",
+    "referenceWords": 17
+  },
+  {
+    "id": "ami-2507",
+    "group": "ami",
+    "duration": 2.53,
+    "sha256": "d3b1a4bfe04be28b449216ab05d80aeb15c7868e28f8de0fd6629621a5e5cec0",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2507/audio/audio.wav",
+    "referenceWords": 13
+  },
+  {
+    "id": "ami-2508",
+    "group": "ami",
+    "duration": 7.44,
+    "sha256": "879b3a843792e0b5936f1a02fdb502ae8ff2b9cadd39117dfc5915259c227518",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2508/audio/audio.wav",
+    "referenceWords": 32
+  },
+  {
+    "id": "ami-2511",
+    "group": "ami",
+    "duration": 2.7,
+    "sha256": "6e1086129b587b54c5dbae90d0ce925af27fd1346d3feabc5f45f769e916032a",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2511/audio/audio.wav",
+    "referenceWords": 10
+  },
+  {
+    "id": "ami-2514",
+    "group": "ami",
+    "duration": 2.76,
+    "sha256": "b0b3645fbf2b65e917182da2cf2d0d13e4e7f441ed6b44b4ddceb16359de6294",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2514/audio/audio.wav",
+    "referenceWords": 12
+  },
+  {
+    "id": "ami-2516",
+    "group": "ami",
+    "duration": 3.54,
+    "sha256": "5b606b6bd7c721d92c79a923555c12841bbf03eaa555aa05b6c469394332d82d",
+    "language": null,
+    "source": "https://datasets-server.huggingface.co/cached-assets/edinburghcstr/ami/--/46f28f2503e2ec48f8867a84eef356c70476beab/--/ihm/test/2516/audio/audio.wav",
+    "referenceWords": 8
+  },
+  {
+    "id": "fleurs-en_us-00",
+    "group": "fleurs-en_us",
+    "duration": 10.56,
+    "sha256": "149261935d26ea5e9631e78444f5f5426343361cab71c6f534df7e8a05abc8c6",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1003119935936341070.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "fleurs-en_us-01",
+    "group": "fleurs-en_us",
+    "duration": 8.76,
+    "sha256": "99d53c71018e4836334cc27cb5f0bdb55575129acc939a86b8c2d507a18e93d3",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10052240106321793346.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-en_us-02",
+    "group": "fleurs-en_us",
+    "duration": 11.46,
+    "sha256": "eb08081dc9a6645e60f86b4c4c16748d54dd5afb7bc8a4cb7d4ca98b5a976c78",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10167324587744183095.wav",
+    "referenceWords": 33
+  },
+  {
+    "id": "fleurs-en_us-03",
+    "group": "fleurs-en_us",
+    "duration": 5.76,
+    "sha256": "161684ca308a1bcc27b6453cae3f55fb4ed5009c1c5385545e77a2725ad668f2",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10197164397713068203.wav",
+    "referenceWords": 14
+  },
+  {
+    "id": "fleurs-en_us-04",
+    "group": "fleurs-en_us",
+    "duration": 4.32,
+    "sha256": "1bfeac22f32d82a5e99e5452c989483d4c5c24b842c3b5bd148acbf9098a8fa1",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10233995782544396174.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-en_us-05",
+    "group": "fleurs-en_us",
+    "duration": 11.42,
+    "sha256": "fd1ee4a990035ecdbe69b6bfc91c93327ee07ef0599aab120468541a53741466",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10235738076911595987.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "fleurs-en_us-06",
+    "group": "fleurs-en_us",
+    "duration": 10.8,
+    "sha256": "5941cf0905a1dd153aa94776625e5faae833e11b847989ec520eb7bf625c6bda",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10323357556845456822.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-en_us-07",
+    "group": "fleurs-en_us",
+    "duration": 6.96,
+    "sha256": "5894637cd15d7869a99a602b903ec864fbfc612cbef700adc132a1137e9fc25b",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10335587906469246566.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-en_us-08",
+    "group": "fleurs-en_us",
+    "duration": 11.04,
+    "sha256": "efd3f5bed35e5f47faf9ca38bb4dc5a701e26ee911ff7dbbcbd28d61ca4b583b",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10344335557154974057.wav",
+    "referenceWords": 13
+  },
+  {
+    "id": "fleurs-en_us-09",
+    "group": "fleurs-en_us",
+    "duration": 9.9,
+    "sha256": "ce34fdd2da249b4eab69616196756f194e828313c5257d4aa69e89450b9b2c2b",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1036771894648013441.wav",
+    "referenceWords": 33
+  },
+  {
+    "id": "fleurs-en_us-10",
+    "group": "fleurs-en_us",
+    "duration": 4.8,
+    "sha256": "4419fe66ead7d734ff62dbd28ccafa5bdbaec868403b2ffb13d46eafebe5df7b",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1038214857203833067.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "fleurs-en_us-11",
+    "group": "fleurs-en_us",
+    "duration": 11.28,
+    "sha256": "3332c4152633ec055c74896805ab498c56796f81afe2859ae9b630305b8cfbd7",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10383288285905292158.wav",
+    "referenceWords": 38
+  },
+  {
+    "id": "fleurs-en_us-12",
+    "group": "fleurs-en_us",
+    "duration": 10.92,
+    "sha256": "e95900ffd21857b3599f7b7c8bfb9ebda74d241c847ef7902c6de533ca9f9a40",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10405958125670257178.wav",
+    "referenceWords": 24
+  },
+  {
+    "id": "fleurs-en_us-13",
+    "group": "fleurs-en_us",
+    "duration": 11.28,
+    "sha256": "25808ea000ac6da5174dee8294b38217b531f2b595a084020fd1a54ef6458046",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10411016628242228511.wav",
+    "referenceWords": 22
+  },
+  {
+    "id": "fleurs-en_us-14",
+    "group": "fleurs-en_us",
+    "duration": 5.72,
+    "sha256": "5bc3a417dd7d19948e6402f09c53ed0fb97c7a7457c8fcd8118e84c4952b6ee2",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1042003289011443756.wav",
+    "referenceWords": 10
+  },
+  {
+    "id": "fleurs-en_us-15",
+    "group": "fleurs-en_us",
+    "duration": 15.56,
+    "sha256": "fdd220cd4c02496fd77b6f1e287e86bc179f7fb748f9c64ac2d0358a0fc02808",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1043394666292127188.wav",
+    "referenceWords": 34
+  },
+  {
+    "id": "fleurs-en_us-16",
+    "group": "fleurs-en_us",
+    "duration": 13.92,
+    "sha256": "aee15cdb96339282cc5d9aa294c21764c9d9eb18bb7bb5d968b985ab6be17c69",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1045619486290403122.wav",
+    "referenceWords": 29
+  },
+  {
+    "id": "fleurs-en_us-17",
+    "group": "fleurs-en_us",
+    "duration": 8.64,
+    "sha256": "13376b83dbff3d40a7b36b99344c6e84e51171d5b352d1c9529d0dac6ed43184",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1046653381869710616.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "fleurs-en_us-18",
+    "group": "fleurs-en_us",
+    "duration": 5.36,
+    "sha256": "37327d00ec65f346e7e29e4692f1161a25c055c6f8bd589dabf59860cb87e4e3",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10471564175308895403.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "fleurs-en_us-19",
+    "group": "fleurs-en_us",
+    "duration": 10.14,
+    "sha256": "49f89bbe1cf27ab0c1b2ae323f25f556bb565e50b9f35b5592394e537ab8acdf",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10481451226514948764.wav",
+    "referenceWords": 18
+  },
+  {
+    "id": "fleurs-de_de-00",
+    "group": "fleurs-de_de",
+    "duration": 17.94,
+    "sha256": "a1f0df1686a86bbaff000902fafdd6dd44f65f456adea2c4d024c9ee8663ce70",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10004059102127011984.wav",
+    "referenceWords": 18
+  },
+  {
+    "id": "fleurs-de_de-01",
+    "group": "fleurs-de_de",
+    "duration": 11.16,
+    "sha256": "fd125035930c8671b768d7e298e51c1a334ab49e17d6d25df6b3820abd7369f8",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10009182821551087671.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-de_de-02",
+    "group": "fleurs-de_de",
+    "duration": 12.42,
+    "sha256": "f5d8ab83822a713d528104776f8a3a0eb825f41a0778e16813bdb33110fd0844",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10014044777125235464.wav",
+    "referenceWords": 23
+  },
+  {
+    "id": "fleurs-de_de-03",
+    "group": "fleurs-de_de",
+    "duration": 10.68,
+    "sha256": "f5abd1c2546faaabf208255682faca1f538d4516248b46967eb92f9cc4305130",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10030056357041867775.wav",
+    "referenceWords": 31
+  },
+  {
+    "id": "fleurs-de_de-04",
+    "group": "fleurs-de_de",
+    "duration": 9.9,
+    "sha256": "99cb8fb7fadfa40ec3bc9af9fcb5125bf56029fd1ef5f7a776c200eea16f8d71",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10058186628567796965.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-de_de-05",
+    "group": "fleurs-de_de",
+    "duration": 8.4,
+    "sha256": "588a5d0665e80204dbcf64c8504c26f0eeb9d0718f6a60da5f38b4a53a3afeb8",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10058299886985225661.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-de_de-06",
+    "group": "fleurs-de_de",
+    "duration": 12.96,
+    "sha256": "fad338c536d995c8a932031a14f7b1e0fbe2382bd8a3d071b9f8c24112cdfb6c",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10095057775426831514.wav",
+    "referenceWords": 34
+  },
+  {
+    "id": "fleurs-de_de-07",
+    "group": "fleurs-de_de",
+    "duration": 19.68,
+    "sha256": "3a524de4b7fc2e5ffc0a22f8baecabffe06329695014c92ff3cc40923c3db0d1",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/de_de/audio/test.tar.gz#10159541282515887574.wav",
+    "referenceWords": 18
+  },
+  {
+    "id": "fleurs-fr_fr-00",
+    "group": "fleurs-fr_fr",
+    "duration": 10.2,
+    "sha256": "a7cd8747215125d68c1bfcfa19574cfa8112c186d5ce5be93731de4389f92689",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10043298898524273336.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "fleurs-fr_fr-01",
+    "group": "fleurs-fr_fr",
+    "duration": 23.4,
+    "sha256": "a729247834eee3fdce0afcd7a78063f3a8c9cabbc6bf6f3351ac157278a78a61",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10097171356371990207.wav",
+    "referenceWords": 58
+  },
+  {
+    "id": "fleurs-fr_fr-02",
+    "group": "fleurs-fr_fr",
+    "duration": 8.28,
+    "sha256": "d03055e13bc8b34e0c9a9262f45927b277b8856366809de16b48fdbc58ede150",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10138021779681596478.wav",
+    "referenceWords": 26
+  },
+  {
+    "id": "fleurs-fr_fr-03",
+    "group": "fleurs-fr_fr",
+    "duration": 10.2,
+    "sha256": "6b8a13d94536223391d25ffd9d438a8ef7051463ae54fbef35264dfe04fb42b2",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10143749263702132703.wav",
+    "referenceWords": 26
+  },
+  {
+    "id": "fleurs-fr_fr-04",
+    "group": "fleurs-fr_fr",
+    "duration": 8.34,
+    "sha256": "637324f16240b02f2824d2446e8c61da17326f2c2d04ab05486f19561452c698",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10166091086920486572.wav",
+    "referenceWords": 26
+  },
+  {
+    "id": "fleurs-fr_fr-05",
+    "group": "fleurs-fr_fr",
+    "duration": 7.2,
+    "sha256": "ac07966db12fa3924aef3a89dc022adeb14ad394e56c33d7dfa39e0eefc4b8d4",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10174413140250646001.wav",
+    "referenceWords": 18
+  },
+  {
+    "id": "fleurs-fr_fr-06",
+    "group": "fleurs-fr_fr",
+    "duration": 8.4,
+    "sha256": "6fc62b3dcf6ac7816367d7e0bac420f564aa9d900fb2705e3357bf864b88fac0",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10221277978969763776.wav",
+    "referenceWords": 28
+  },
+  {
+    "id": "fleurs-fr_fr-07",
+    "group": "fleurs-fr_fr",
+    "duration": 11.64,
+    "sha256": "4ea234f202a9b32c35c9d2845f8f1b26c4d98fdd63a3a0fdae5cfbb6df9dc2cc",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/fr_fr/audio/test.tar.gz#10334413597118469552.wav",
+    "referenceWords": 25
+  },
+  {
+    "id": "fleurs-pl_pl-00",
+    "group": "fleurs-pl_pl",
+    "duration": 12.12,
+    "sha256": "4bab3e08d86026f0024b9f176bcec5d9899b9394b3a3e07d7eb331189b17f8f6",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10003602174340488201.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "fleurs-pl_pl-01",
+    "group": "fleurs-pl_pl",
+    "duration": 7.68,
+    "sha256": "e0edfa700eff745c6096b705842d4bc343d7d650b70a84e1bdf2a8aab1902701",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10013271501230525766.wav",
+    "referenceWords": 17
+  },
+  {
+    "id": "fleurs-pl_pl-02",
+    "group": "fleurs-pl_pl",
+    "duration": 6.6,
+    "sha256": "09630393c4a8ae37b0de99de9c8bd9738cd0b56146c1f96e5f86ae32410b43c2",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10047713455444904767.wav",
+    "referenceWords": 10
+  },
+  {
+    "id": "fleurs-pl_pl-03",
+    "group": "fleurs-pl_pl",
+    "duration": 7.68,
+    "sha256": "21cca088d615edb1cb2020107098da4ac18a51a77b39331135796e58caf40024",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#1005842427933298975.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "fleurs-pl_pl-04",
+    "group": "fleurs-pl_pl",
+    "duration": 7.26,
+    "sha256": "c5617f0f8a9fcf3f4f9a671585b452163982dcbab76fa1dc8ddbe88a484ca887",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10106656566031527912.wav",
+    "referenceWords": 12
+  },
+  {
+    "id": "fleurs-pl_pl-05",
+    "group": "fleurs-pl_pl",
+    "duration": 15.96,
+    "sha256": "ec496f32b043c2c3d26ec724735e5ade31e80af19252eb1d0e69382485a955c1",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10111380715278909641.wav",
+    "referenceWords": 34
+  },
+  {
+    "id": "fleurs-pl_pl-06",
+    "group": "fleurs-pl_pl",
+    "duration": 7.5,
+    "sha256": "ebe6ddd1d90dfb845e48d251a22fc9eb414c530b671b2aaa21a71f22e24f6a51",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10121623061191828121.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "fleurs-pl_pl-07",
+    "group": "fleurs-pl_pl",
+    "duration": 7.2,
+    "sha256": "f9860bc5a8f0f243135ae530a5ec926aa34dedaaf62c4f9bedf3727e1b39c4dc",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/pl_pl/audio/test.tar.gz#10128140258686156236.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-sr_rs-00",
+    "group": "fleurs-sr_rs",
+    "duration": 12.3,
+    "sha256": "2a190ae272861965c0beb52d1db2c7fe494a113fabe7713853269a2dcc07ce57",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10008837294420102619.wav",
+    "referenceWords": 22
+  },
+  {
+    "id": "fleurs-sr_rs-01",
+    "group": "fleurs-sr_rs",
+    "duration": 12.4,
+    "sha256": "cb97099e4a8370bf3d62ec22357e1217362c481ef4b806f217a58da0bb2c6fbb",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10117602722061335722.wav",
+    "referenceWords": 15
+  },
+  {
+    "id": "fleurs-sr_rs-02",
+    "group": "fleurs-sr_rs",
+    "duration": 5.28,
+    "sha256": "a5e238873676216392ddb34f07dfae14a711fda5bdcf9c5b68557b3ed9917a0d",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10133128626059240041.wav",
+    "referenceWords": 10
+  },
+  {
+    "id": "fleurs-sr_rs-03",
+    "group": "fleurs-sr_rs",
+    "duration": 8.64,
+    "sha256": "77def3e8effd12b7678de73002d322bb4720da72cb40d7ffdded02ae7c7410de",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10133555762101302363.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-sr_rs-04",
+    "group": "fleurs-sr_rs",
+    "duration": 17.06,
+    "sha256": "563d606273098400d496e0360eaecd6e5b995c35d33708aec4ae88730295f959",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10143826765138067069.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-sr_rs-05",
+    "group": "fleurs-sr_rs",
+    "duration": 11.16,
+    "sha256": "90a84471b30b24fe7cc7cfce913318a1ac498db82effa97b205e92790c69da99",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#1014567676293749947.wav",
+    "referenceWords": 25
+  },
+  {
+    "id": "fleurs-sr_rs-06",
+    "group": "fleurs-sr_rs",
+    "duration": 7.26,
+    "sha256": "c558f67a6821c2d28250ee9bf2b89232a8e23abdc6feaa1afdba5aa2fbd01a95",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10163755017999304205.wav",
+    "referenceWords": 12
+  },
+  {
+    "id": "fleurs-sr_rs-07",
+    "group": "fleurs-sr_rs",
+    "duration": 14.7,
+    "sha256": "b4198faf4930b333e310f71fde126ac69c0fc1926a4ac7e21475d697cadd6b90",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/sr_rs/audio/test.tar.gz#10175367897611271370.wav",
+    "referenceWords": 28
+  },
+  {
+    "id": "fleurs-en_us-00-noise10",
+    "group": "noise10",
+    "duration": 10.56,
+    "sha256": "2e88aaf574c4bc0269c38036378399c48491f9e8deb6551d0ab1a570dc0be7b1",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1003119935936341070.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "fleurs-en_us-01-noise10",
+    "group": "noise10",
+    "duration": 8.76,
+    "sha256": "7fc2513ef77c4cbce3d372b47d3a2be28850ff11df01d9107e59fc9c7524d48c",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10052240106321793346.wav",
+    "referenceWords": 21
+  },
+  {
+    "id": "fleurs-en_us-02-noise10",
+    "group": "noise10",
+    "duration": 11.46,
+    "sha256": "979bdd61e4eddb78a293004110e2f9c888ef93811d5408ed2ed05d232148fcc1",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10167324587744183095.wav",
+    "referenceWords": 33
+  },
+  {
+    "id": "fleurs-en_us-03-noise10",
+    "group": "noise10",
+    "duration": 5.76,
+    "sha256": "248fddcfe6acccca086b810c1512183726f74c86c477b313240ea88fb5093fe2",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10197164397713068203.wav",
+    "referenceWords": 14
+  },
+  {
+    "id": "fleurs-en_us-04-noise10",
+    "group": "noise10",
+    "duration": 4.32,
+    "sha256": "c97394f1f7a6db4f5fec6cdf4d0a752a6ce1fc5c3eb5e2a542c72ba1b8a5b216",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10233995782544396174.wav",
+    "referenceWords": 16
+  },
+  {
+    "id": "fleurs-en_us-05-noise10",
+    "group": "noise10",
+    "duration": 11.42,
+    "sha256": "dda9f0709f7a08f34870fb77fb922cffa2b2df0f8461ba9a630e9f6d58076cb3",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#10235738076911595987.wav",
+    "referenceWords": 20
+  },
+  {
+    "id": "continuous-synthetic",
+    "group": "synthetic",
+    "duration": 17.708375,
+    "sha256": "e7ab0b587fbf98c1a65e6d7e7f3805adf07f6a13586e08ca750b0ab67dab9b70",
+    "language": null,
+    "source": "LokalBot LiveTranscript fixture",
+    "referenceWords": 59
+  },
+  {
+    "id": "names-1",
+    "group": "names",
+    "duration": 5.06,
+    "sha256": "d3b83c4b9c8573c3ef6e77dbb4f30077d532c25d5a61013491962cedd750b2c1",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 15
+  },
+  {
+    "id": "names-1-hinted",
+    "group": "names-hinted",
+    "duration": 5.06,
+    "sha256": "d3b83c4b9c8573c3ef6e77dbb4f30077d532c25d5a61013491962cedd750b2c1",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 15
+  },
+  {
+    "id": "names-2",
+    "group": "names",
+    "duration": 5.7474375,
+    "sha256": "2dcab13079ea9ee36bc21ff116b0d8450750ed6116f97b7a3485ffed7fb7fd99",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 13
+  },
+  {
+    "id": "names-2-hinted",
+    "group": "names-hinted",
+    "duration": 5.7474375,
+    "sha256": "2dcab13079ea9ee36bc21ff116b0d8450750ed6116f97b7a3485ffed7fb7fd99",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 13
+  },
+  {
+    "id": "names-3",
+    "group": "names",
+    "duration": 4.284,
+    "sha256": "698d83d021a9a3e8f52681edfcb4d449ac131f44a4c6a715cdeea96147cba89d",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 13
+  },
+  {
+    "id": "names-3-hinted",
+    "group": "names-hinted",
+    "duration": 4.284,
+    "sha256": "698d83d021a9a3e8f52681edfcb4d449ac131f44a4c6a715cdeea96147cba89d",
+    "language": null,
+    "source": "macOS say Samantha 180wpm",
+    "referenceWords": 13
+  },
+  {
+    "id": "silence-1",
+    "group": "silence",
+    "duration": 1.0,
+    "sha256": "4f7988030a00d082fe445e00a2ac5dab502300ff1b80e8592dd569867b60ef74",
+    "language": null,
+    "source": "synthetic zero PCM",
+    "referenceWords": 0
+  },
+  {
+    "id": "silence-5",
+    "group": "silence",
+    "duration": 5.0,
+    "sha256": "ac2878215ad33205d1732578c89f25ededaad1b676911c540825bcf4baa42d9b",
+    "language": null,
+    "source": "synthetic zero PCM",
+    "referenceWords": 0
+  },
+  {
+    "id": "silence-15",
+    "group": "silence",
+    "duration": 15.0,
+    "sha256": "b9163d03c43083a18e6101539b555cb5e363eed61fa4b3a3b54f50ae60eb5b52",
+    "language": null,
+    "source": "synthetic zero PCM",
+    "referenceWords": 0
+  },
+  {
+    "id": "silence-30",
+    "group": "silence",
+    "duration": 30.0,
+    "sha256": "124617c1f65e92d3bc895fbd869e4bb16a30754b198f59e6e973949b9aaa1b01",
+    "language": null,
+    "source": "synthetic zero PCM",
+    "referenceWords": 0
+  },
+  {
+    "id": "steady-tone",
+    "group": "silence",
+    "duration": 10.0,
+    "sha256": "94192f9391e18f76b8c4fbac549d010cb3bd1064199b1f5eb550d272903e3890",
+    "language": null,
+    "source": "synthetic 440Hz tone",
+    "referenceWords": 0
+  },
+  {
+    "id": "steady-noise",
+    "group": "silence",
+    "duration": 10.0,
+    "sha256": "be7bbd2ca2458e4ddd6a58c61382710f0cfc417f1bb6bc71b430b77bd7a5e71d",
+    "language": null,
+    "source": "synthetic Gaussian noise",
+    "referenceWords": 0
+  },
+  {
+    "id": "quiet-minus20",
+    "group": "quiet",
+    "duration": 10.56,
+    "sha256": "75a47cf4ec750051c76bb38452254b897192ad4ab8a9b8eacbdd1b7a68b8e4d0",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1003119935936341070.wav",
+    "referenceWords": 19
+  },
+  {
+    "id": "quiet-minus40",
+    "group": "quiet",
+    "duration": 10.56,
+    "sha256": "1ff6834cbc7a2c313abdd456499f569989d9bc829555593cbf6e0ef1e13044b3",
+    "language": null,
+    "source": "https://huggingface.co/datasets/google/fleurs/resolve/70bb2e84b976b7e960aa89f1c648e09c59f894dd/data/en_us/audio/test.tar.gz#1003119935936341070.wav",
+    "referenceWords": 19
+  }
+]

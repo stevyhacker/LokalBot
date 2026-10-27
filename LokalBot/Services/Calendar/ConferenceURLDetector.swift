@@ -20,6 +20,11 @@ enum ConferenceURLDetector {
         "gotomeeting.com",
         "chime.aws",
         "around.co",
+        "meeting.tencent.com",
+        "voovmeeting.com",
+        "vc.feishu.cn",
+        "vc.larksuite.com",
+        "meeting.dingtalk.com",
     ]
 
     /// First conferencing URL in `text`, or nil. Uses `NSDataDetector` so it

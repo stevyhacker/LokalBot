@@ -11,13 +11,23 @@ struct NeedsAttentionSection: View {
     /// Today offers planning the open threads with Agent; Timeline's day view
     /// keeps the section to review only.
     var showsPlanInAgent = false
+    var style: Style = .panel
+
+    enum Style {
+        /// A grouped panel with the review actions beneath it.
+        case panel
+        /// Rows on the page itself, with Review Actions beside the heading.
+        case plain
+    }
 
     /// Nothing to act on means no card at all — an empty "Needs attention"
     /// section is dead weight on a glanceable page (the Timeline test pins the
     /// same rule for its day view).
     var body: some View {
-        if !threads.isEmpty {
-            WorkspaceSection(title: title, icon: "exclamationmark.circle") {
+        if !threads.isEmpty, style == .plain {
+            plainBody
+        } else if !threads.isEmpty {
+            WorkspaceSection(title: title, icon: "exclamationmark.circle", localizesTitle: true) {
                 VStack(spacing: 0) {
                     ForEach(Array(threads.prefix(limit))) { thread in
                         ActionThreadRow(thread: thread)
@@ -45,6 +55,37 @@ struct NeedsAttentionSection: View {
         }
     }
 
+    private var plainBody: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                // No header trait, matching the panel style's heading: a
+                // header becomes a different accessibility element, which
+                // static-text queries no longer find.
+                Text(LocalizedStringKey(title))
+                    .font(.scaled(.headline))
+                Text(threads.count, format: .number)
+                    .font(AppFont.scaled(.callout).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Button("Review Actions…") {
+                    app.openActions()
+                }
+                .buttonStyle(.workspaceLink)
+                .font(AppFont.scaled(.callout))
+                .accessibilityIdentifier("outcomes.review")
+            }
+            .padding(.bottom, 4)
+            VStack(spacing: 0) {
+                ForEach(Array(threads.prefix(limit))) { thread in
+                    ActionThreadRow(thread: thread)
+                        .padding(.vertical, 8)
+                    if thread.id != threads.prefix(limit).last?.id { Divider() }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func planInAgent() {
         let lines = threads.prefix(8).map { thread in
             let sources = thread.meetingCount == 1
@@ -64,6 +105,11 @@ struct ActionThreadRow: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let thread: ActionThread
+    /// Projects show whose work it is when it is someone else's.
+    var showsOwner = false
+    /// People show deferred work as deferred and ask about open work nobody
+    /// has mentioned for weeks.
+    var showsStaleness = false
     @State private var showingSources = false
     @State private var showingStatusConfirmation = false
     @State private var pendingStatus: OutcomeStatus = .done
@@ -90,8 +136,17 @@ struct ActionThreadRow: View {
                     .strikethrough(thread.status == .done)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 HStack(spacing: 6) {
+                    if showsOwner {
+                        Text(thread.owner.map { SpeakerDisplayName.label($0) } ?? "Owner unclear")
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                    }
                     if thread.hasMixedStatus {
                         Text("Mixed status")
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                    } else if showsStaleness && thread.status == .deferred {
+                        Text("Deferred")
                             .font(AppFont.scaled(.callout))
                             .foregroundStyle(.secondary)
                     }
@@ -149,6 +204,11 @@ struct ActionThreadRow: View {
                         onDone: { set(.done) },
                         onView: { app.openScreenSnapshot(hint.snapshotID) },
                         onDismiss: { app.dismissActionCompletionHint(hint) })
+                } else if showsStaleness && thread.isStale() {
+                    StillOpenLine(
+                        lastMentioned: thread.latestReference.meetingStartedAt,
+                        onDone: { set(.done) },
+                        onDefer: { set(.deferred) })
                 }
             }
 
@@ -181,6 +241,9 @@ struct ActionThreadRow: View {
                             + thread.text,
                         meetingID: thread.latestReference.meetingID,
                         actionID: thread.latestReference.action.id))
+                }
+                ForEach(ActionAgentAvailability.installed) { target in
+                    Button("Open in \(target.rawValue)") { app.handOff(thread, to: target) }
                 }
             } label: {
                 Image(systemName: "ellipsis")
@@ -265,6 +328,39 @@ private struct ActionCompletionHintLine: View {
         let time = hint.capturedAt.formatted(.dateTime.weekday(.abbreviated).hour().minute())
         let title = hint.title.isEmpty ? "" : " · \(hint.title)"
         return "“\(hint.cue)” in \(hint.app) · \(time)\(title)"
+    }
+}
+
+/// Asks about open work nobody has mentioned for weeks. Either answer goes
+/// through the normal status path; deferred work stops asking.
+private struct StillOpenLine: View {
+    let lastMentioned: Date
+    let onDone: () -> Void
+    let onDefer: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Label("Still open?", systemImage: "clock.badge.questionmark")
+                .font(AppFont.scaled(.callout).weight(.semibold))
+                .foregroundStyle(LBTokens.Palette.attentionText)
+            Text(age)
+                .font(AppFont.scaled(.callout))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            Spacer(minLength: 4)
+            Button("Mark Done", action: onDone).buttonStyle(.workspaceLink)
+            Button("Defer", action: onDefer).buttonStyle(.workspaceLink)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Still open? \(age)")
+        .accessibilityIdentifier("outcome.thread.stillOpen")
+        .help("Nobody has mentioned this in a meeting for a while. Mark it done, or defer it to stop this question.")
+    }
+
+    private var age: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Last mentioned " + formatter.localizedString(for: lastMentioned, relativeTo: Date())
     }
 }
 
@@ -418,6 +514,9 @@ struct OutcomeOverviewActionRow: View {
                         prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
                         meetingID: reference.meetingID,
                         actionID: reference.action.id))
+                }
+                ForEach(ActionAgentAvailability.installed) { target in
+                    Button("Open in \(target.rawValue)") { app.handOff(reference, to: target) }
                 }
             } label: {
                 Image(systemName: "ellipsis")

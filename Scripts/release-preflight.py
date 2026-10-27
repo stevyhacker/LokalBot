@@ -12,6 +12,37 @@ def git(root, *args):
     return subprocess.check_output(["git", "-C", str(root), *args], text=True).strip()
 
 
+PORT_MANIFEST = "LinuxWindows/Cargo.toml"
+PORT_LOCKFILE = "LinuxWindows/Cargo.lock"
+PORT_UPDATE_KEY = "LinuxWindows/crates/lokalbot-update/src/lib.rs"
+
+
+def validate_port_version(root, version):
+    """The Linux and Windows app ships from the same tag, so its workspace
+    version and every workspace crate in Cargo.lock repeat the marketing version."""
+    manifest = (root / PORT_MANIFEST).read_text()
+    section = re.search(r'^\[workspace\.package\]\n((?:(?!\[).*\n)*)', manifest, re.MULTILINE)
+    declared = section and re.search(r'^version\s*=\s*"([^"]+)"', section[1], re.MULTILINE)
+    if not declared or declared[1] != version:
+        raise ValueError(f"{PORT_MANIFEST} and Info.plist disagree on the version")
+    # Workspace members are the lockfile packages without a registry or git source.
+    members = [block for block in (root / PORT_LOCKFILE).read_text().split("[[package]]")[1:]
+               if "\nsource = " not in block]
+    stale = sorted(re.search(r'name = "([^"]+)"', block)[1] for block in members
+                   if re.search(r'^version = "([^"]+)"', block, re.MULTILINE)[1] != version)
+    if not members or stale:
+        raise ValueError(f"{PORT_LOCKFILE} disagrees with Info.plist for {', '.join(stale) or 'every crate'}; "
+                         "run Scripts/bump-version.py or cargo update --workspace")
+
+
+def validate_port_update_key(root, info):
+    """Linux and Windows updates verify against the macOS app's Sparkle key."""
+    source = (root / PORT_UPDATE_KEY).read_text()
+    embedded = re.search(r'^pub const PUBLIC_KEY: &str = "([^"]+)";', source, re.MULTILINE)
+    if not embedded or embedded[1] != info.get("SUPublicEDKey"):
+        raise ValueError(f"{PORT_UPDATE_KEY} and Info.plist disagree on SUPublicEDKey")
+
+
 def validate(root, *, version=None, candidate=False, staged=False, remote="origin", metadata_only=False):
     if metadata_only and (candidate or staged):
         raise ValueError("--metadata-only cannot be combined with --candidate or --staged")
@@ -29,6 +60,8 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
         matches = re.findall(rf'^\s+{key}:\s*["\']?([^\s"\'#]+)["\']?\s*(?:#.*)?$', project, re.MULTILINE)
         if matches != [value]:
             raise ValueError(f"project.yml and Info.plist disagree on {key}")
+    validate_port_version(root, actual)
+    validate_port_update_key(root, info)
     if metadata_only:
         return actual, build, None
     notes_path = f"Scripts/release-notes/v{actual}.md"
@@ -60,9 +93,9 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
             raise ValueError("Build number must increase from the changelog base")
         fixture = root / "LokalBotTests/Fixtures/upgrade" / base[1:] / "manifest.json"
         if not fixture.exists():
-            raise ValueError(f"Add the upgrade fixture for {base} (run the Upgrade fixtures workflow) before releasing")
+            raise ValueError(f"Add the upgrade fixture for {base} (Scripts/upgrade-fixtures/add.sh {base[1:]}) before releasing")
     if staged:
-        required = {"project.yml", "LokalBot/Info.plist", notes_path}
+        required = {"project.yml", "LokalBot/Info.plist", PORT_MANIFEST, PORT_LOCKFILE, notes_path}
         changed = set(git(root, "diff", "--cached", "--name-only").splitlines())
         if changed != required:
             raise ValueError(f"Stage only the release metadata together: {', '.join(sorted(required))}")

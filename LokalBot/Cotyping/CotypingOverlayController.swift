@@ -55,6 +55,8 @@ final class CotypingOverlayController {
     ///     never drawn over it.
     ///   - emphasisLength: characters of `text` the next accept takes; nil
     ///     when one accept takes all of it.
+    ///   - backgroundKey: the field, for reusing the background measured
+    ///     behind it (`CotypingFieldIdentity.background(for:)`).
     func show(
         text: String,
         caretRect: CGRect,
@@ -66,7 +68,8 @@ final class CotypingOverlayController {
         isRightToLeft: Bool = false,
         precedingText: String = "",
         trailingText: String = "",
-        emphasisLength: Int? = nil
+        emphasisLength: Int? = nil,
+        backgroundKey: String? = nil
     ) {
         guard !text.isEmpty,
               caretRect.origin.x.isFinite, caretRect.origin.y.isFinite,
@@ -81,7 +84,6 @@ final class CotypingOverlayController {
         sampleGeneration += 1
         switch placement.mode {
         case .inline:
-            let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
             let precedingLine = Self.lastParagraph(of: precedingText)
             let linesBelowAreFree = Self.linesBelowAreFree(trailingText: trailingText)
             guard let fitted = CotypingInlineGhostLayout.longestDrawable(
@@ -98,12 +100,12 @@ final class CotypingOverlayController {
                 text: fitted.text, layout: fitted.layout,
                 caretRect: caretRect, inputFrameRect: inputFrameRect, precedingLine: precedingLine,
                 linesBelowAreFree: linesBelowAreFree, visible: visible, style: style, emphasisLength: emphasis,
-                luminance: sampler.cachedLuminance(forApp: bundleID))
+                luminance: sampler.cachedLuminance(forField: backgroundKey))
             guard presentInline(state) else {
                 hide()
                 return
             }
-            if state.luminance == nil { sampleBackground(behind: caretRect, forApp: bundleID) }
+            if state.luminance == nil { sampleBackground(behind: caretRect, forField: backgroundKey) }
             self.acceptanceText = acceptanceText ?? fitted.text
         case .mirror:
             inline = nil
@@ -319,17 +321,17 @@ final class CotypingOverlayController {
         isVisible = true
     }
 
-    /// The first suggestion in an app is drawn against the field's reported
+    /// The first suggestion in a field is drawn against its reported
     /// colors; the real pixels behind it are then sampled once and the color
     /// corrected if it would be hard to read.
-    private func sampleBackground(behind caretRect: CGRect, forApp bundleID: String?) {
+    private func sampleBackground(behind caretRect: CGRect, forField fieldKey: String?) {
         guard !samplingInFlight else { return }
         samplingInFlight = true
         let generation = sampleGeneration
         Task { @MainActor [weak self] in
             guard let self else { return }
             defer { self.samplingInFlight = false }
-            let luminance = await self.sampler.sampleLuminance(at: caretRect, forApp: bundleID)
+            let luminance = await self.sampler.sampleLuminance(at: caretRect, forField: fieldKey)
             guard generation == self.sampleGeneration, self.isVisible,
                   var state = self.inline, let luminance else { return }
             state.luminance = luminance

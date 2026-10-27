@@ -1,0 +1,85 @@
+seeded the demo library in /workspace/pr354-validation/autocomplete-cuda
+  runtime: 25% of 594 MB
+  runtime: 51% of 594 MB
+  runtime: 77% of 594 MB
+  runtime: 100% of 594 MB
+  runtime: 100% of 594 MB
+  runtime: 100% of 594 MB
+  lfm2.5-1.2b-instruct: 27% of 731 MB
+  lfm2.5-1.2b-instruct: 52% of 731 MB
+  lfm2.5-1.2b-instruct: 78% of 731 MB
+  lfm2.5-1.2b-instruct: 100% of 731 MB
+  lfm2.5-1.2b-instruct: 100% of 731 MB
+model and runtime ready in 20.3s
+[2026-10-22T07:41:17Z WARN  lokalbot_platform::activity::linux] activity: No desktop session was found, so LokalBot cannot see which app is in front.
+[2026-10-22T07:41:17Z WARN  lokalbot_engine::daymemory] day memory: No desktop session was found, so LokalBot cannot see which app is in front.
+[2026-10-22T07:41:17Z INFO  lokalbot_ai::runtime] llama-server autocomplete starting pid=15373 port=17874 model=LFM2.5-1.2B-Instruct-Q4_K_M.gguf backend=CUDA
+warm-up (server start and model load) took 1.9s: Some(" neural network.")
+[2026-10-22T07:41:19Z WARN  lokalbot_platform::meeting] meeting detection: pactl is not installed
+email, next words              179 ms  " up on a few"
+email, mid-word                183 ms  "dently present a compelling"
+email, after a full stop            —  "(none)"
+email, sign-off                173 ms  " regards,"
+chat reply, after a comma      173 ms  "tomorrow!"
+chat reply, next words         177 ms  " deployment to be done."
+chat, mid-word                 184 ms  "row."
+code comment, Rust             174 ms  " up"
+code comment, Python           173 ms  " settings"
+caret inside a word            185 ms  "eived the notes or"
+commit message                 175 ms  " in progress."
+document, after a colon        174 ms  " 1. Analyze the"
+notes, list item               187 ms  " next week"
+question                       176 ms  " moving to the new"
+German                         191 ms  " bei dir, um zu"
+Montenegrin                    212 ms  "sti prijatelji Marija!"
+  saved fact from "Client call – Northwind": Deliver the captioned Northwind cut — due this week
+  saved fact from "Client call – Northwind": Priya Nair: Northwind likes the first cut; captions are required before it goes live.
+memory: Northwind captions     183 ms  " is ready to go"
+  saved fact from "Laptop refresh planning": John Park: Workstation laptops for both video editors.
+  saved fact from "Laptop refresh planning": Request a business quote from the vendor — due by Thursday
+memory: laptop quote           174 ms  " quote?"
+  saved fact from "Editor hiring debrief": Maya Chen: Move the editor candidate to references.
+  saved fact from "Editor hiring debrief": Maya Chen: Check the editor candidate's references — due this week
+memory: editor candidate       177 ms  " to check the candidate's"
+emoji shortcode                161 ms  "🚀"
+[2026-10-22T07:42:22Z INFO  lokalbot_ai::runtime] llama-server autocomplete stopped pid=15373
+
+Accepting word by word (email): …eam this morning, and I wanted to follow
+- Tab takes ` up`, ghost now ` on a few`
+- Tab takes ` on`, ghost now ` a few points.` (topped up 11 ms after the Tab)
+- Tab takes ` a`, ghost now ` few points.`
+- Tab takes ` few`, ghost now ` points.`
+- Tab takes ` points`, ghost now `.`
+- Tab takes `.`, ghost now ` First, the total revenue` (next suggestion 176 ms after the Tab)
+
+Accepting word by word (notes): …ime and fixes a crash that happened when
+- Tab takes ` the`, ghost now ` app was launched.`
+- Tab takes ` app`, ghost now ` was launched.`
+- Tab takes ` was`, ghost now ` launched.`
+- Tab takes ` launched`, ghost now `.`
+- Tab takes `.`, ghost now ``
+
+| Case | Suggestion | Last key → suggestion |
+| --- | --- | --- |
+| email, next words | ` up on a few` | 179 ms |
+| email, mid-word | `dently present a compelling` | 183 ms |
+| email, after a full stop | (none) | — |
+| email, sign-off | ` regards,` | 173 ms |
+| chat reply, after a comma | `tomorrow!` | 173 ms |
+| chat reply, next words | ` deployment to be done.` | 177 ms |
+| chat, mid-word | `row.` | 184 ms |
+| code comment, Rust | ` up` | 174 ms |
+| code comment, Python | ` settings` | 173 ms |
+| caret inside a word | `eived the notes or` | 185 ms |
+| commit message | ` in progress.` | 175 ms |
+| document, after a colon | ` 1. Analyze the` | 174 ms |
+| notes, list item | ` next week` | 187 ms |
+| question | ` moving to the new` | 176 ms |
+| German | ` bei dir, um zu` | 191 ms |
+| Montenegrin | `sti prijatelji Marija!` | 212 ms |
+| memory: Northwind captions | ` is ready to go` | 183 ms |
+| memory: laptop quote | ` quote?` | 174 ms |
+| memory: editor candidate | ` to check the candidate's` | 177 ms |
+| emoji shortcode | `🚀` | 161 ms |
+
+model lfm2.5-1.2b-instruct, backend cuda, debounce 160 ms, 140 ms per key: 19 of 20 cases got a suggestion; p50 177 ms, p95 212 ms, max 212 ms

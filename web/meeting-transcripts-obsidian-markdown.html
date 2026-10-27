@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>How to Get Meeting Transcripts into Obsidian as Markdown</title>
-  <meta name="description" content="Three ways to put local meeting transcripts and summaries into an Obsidian vault as Markdown: a one-off export, a daily note, or a short sync script." />
+  <meta name="description" content="Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -13,19 +13,19 @@
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/meeting-transcripts-obsidian-markdown" />
   <meta property="og:title" content="How to Get Meeting Transcripts into Obsidian as Markdown" />
-  <meta property="og:description" content="Three ways to put local meeting transcripts and summaries into an Obsidian vault as Markdown: a one-off export, a daily note, or a short sync script." />
+  <meta property="og:description" content="Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="How to Get Meeting Transcripts into Obsidian as Markdown" />
-  <meta name="twitter:description" content="Three ways to put local meeting transcripts and summaries into an Obsidian vault as Markdown: a one-off export, a daily note, or a short sync script." />
+  <meta name="twitter:description" content="Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How do I get meeting transcripts into Obsidian as Markdown?","description":"Three ways to put local meeting transcripts and summaries into an Obsidian vault as Markdown: a one-off export, a daily note, or a short sync script.","datePublished":"2026-10-14","dateModified":"2026-10-14","mainEntityOfPage":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I get meeting transcripts into Obsidian as Markdown?","item":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown#faq","mainEntity":[{"@type":"Question","name":"Is there an Obsidian plugin for LokalBot?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot writes plain Markdown files instead, through a meeting export, the daily note, or the CLI, so nothing needs installing in Obsidian."}},{"@type":"Question","name":"Do the exported transcripts include speaker names?","acceptedAnswer":{"@type":"Answer","text":"Yes. Each transcript line starts with a timestamp and the speaker's name, or a default label such as Me when you haven't named that speaker."}},{"@type":"Question","name":"Can I use Logseq instead?","acceptedAnswer":{"@type":"Answer","text":"Yes. The daily note also comes in Logseq and plain Markdown formats, and the meeting export and CLI output are plain Markdown."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How do I get meeting transcripts into Obsidian as Markdown?","description":"Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.","datePublished":"2026-10-14","dateModified":"2026-10-20","mainEntityOfPage":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I get meeting transcripts into Obsidian as Markdown?","item":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/meeting-transcripts-obsidian-markdown#faq","mainEntity":[{"@type":"Question","name":"Is there an Obsidian plugin for LokalBot?","acceptedAnswer":{"@type":"Answer","text":"No, and you don't need one. On a Mac, LokalBot writes a note for each meeting straight into a folder in your vault, so nothing needs installing in Obsidian. On Windows and Linux, export meetings one at a time or use the script above."}},{"@type":"Question","name":"Do the exported transcripts include speaker names?","acceptedAnswer":{"@type":"Answer","text":"Yes. Each transcript line starts with a timestamp and the speaker's name, or a default label such as Me when you haven't named that speaker."}},{"@type":"Question","name":"Can I use Logseq instead?","acceptedAnswer":{"@type":"Answer","text":"Yes, with Logseq OG, which keeps a graph as Markdown files. On a Mac, meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -42,23 +42,28 @@
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Obsidian and Markdown</span></nav>
       <p class="eyebrow">Obsidian and Markdown</p>
       <h1>How do I get meeting transcripts into Obsidian as Markdown?</h1>
-      <p class="guide-hero__lead">Record and transcribe on your Mac, then write each meeting into your vault as a plain Markdown file. LokalBot has no built-in vault sync, so you export meetings one at a time, let it write a daily note in Obsidian format, or run a short script that copies new meetings into the vault.</p>
-      <p class="guide-byline"><time datetime="2026-10-14">Updated October 14, 2026</time> · 5 min read</p>
+      <p class="guide-hero__lead">Record and transcribe on your Mac, and LokalBot can write a note for each meeting straight into your vault: the summary, the action items, the people and projects involved as links, and the transcript. You can also export one meeting at a time, add a daily note, or write the notes with your own script. Note export and the daily note are Mac only for now; on Windows and Linux (alpha), export one meeting at a time or use the script.</p>
+      <p class="guide-byline"><time datetime="2026-10-20">Updated October 20, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article">
 <h2>Why plain files work best</h2>
         <p>An Obsidian vault is a folder of Markdown files. Anything that writes a <code>.md</code> file into that folder can feed it, and the notes keep working without an account, a plugin, or a sync service in between. If the transcript is a file you own, nothing upstream can change how you get to it.</p>
 
-        <h2>Option 1: export one meeting</h2>
+        <h2>Option 1: a note for every meeting (Mac)</h2>
+        <p>In <strong>Settings → Recording → Meeting note export</strong>, turn on <strong>Export a note for each meeting</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. LokalBot writes one note per meeting, including meetings you recorded before turning it on, named like <code>2026-10-14 Atlas release sync (4f7c2a91).md</code>.</p>
+        <p>Each note starts with properties: date, time, duration, meeting app, and the people and tracked projects involved as <code>[[links]]</code>, so they show up in backlinks and the graph. Then come the summary, the action items as checkboxes with the ones you finished checked off, and the transcript, unless you turn off <strong>Include the transcript</strong>. Detected passwords and keys are redacted.</p>
+        <p>Notes stay current: marking an action done, renaming a speaker, or regenerating a summary updates the note. A note keeps its first name when you rename the meeting, so your links to it keep working. Once you edit, move, or delete a note, it is yours: LokalBot leaves it alone and does not write that meeting again.</p>
+
+        <h2>Option 2: export one meeting</h2>
         <p>Open a meeting and choose <strong>Export → Export Meeting as Markdown…</strong>, then save it into your vault. The file starts with the title, date, duration, and meeting app, followed by the summary and the full transcript. <strong>Copy Meeting as Markdown</strong> puts the same text on the clipboard. This is fine for the occasional meeting and tedious for every one.</p>
 
-        <h2>Option 2: a daily note in Obsidian format</h2>
+        <h2>Option 3: a daily note in Obsidian format (Mac)</h2>
         <p>In <strong>Settings → Day Memory → Daily note export</strong>, turn on <strong>Export a daily memory note</strong>, pick a folder in your vault, and set the format to <strong>Obsidian</strong>. Each evening (6 PM by default) LokalBot writes or refreshes one note for the day, with <code>date</code> and <code>tags</code> properties: the day's digest, a list of its meetings, app time, and saved moments. A day missed while the Mac was asleep is written later. If you edit a generated note, LokalBot keeps your edits and pauses the export until you move that note or choose another folder.</p>
-        <p>The daily note lists meetings by time, title, and ID. It doesn't include their transcripts, so pair it with option 3 if you want the full text in the vault.</p>
+        <p>The daily note lists meetings by time, title, and ID. It doesn't include their transcripts, so pair it with option 1 if you want the full text in the vault.</p>
 
-        <h2>Option 3: copy every meeting with a script</h2>
-        <p>The bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can keep a vault folder up to date. The CLI is read-only and checks the same switch agents do, so first turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>, and install the CLI from <strong>Settings → Advanced → Agent CLI</strong>. Then save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
+        <h2>Option 4: your own script</h2>
+        <p>If you want a different layout, the bundled <code>lokalbot-cli</code> prints any meeting as Markdown, so a few lines of shell can write the notes instead. The CLI is read-only and checks the same switch agents do, so first turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>, and install the CLI from <strong>Settings → Advanced → Agent CLI</strong>. Then save this as <code>lokalbot-to-obsidian.sh</code>, change the folder, and run it with <code>sh lokalbot-to-obsidian.sh</code>:</p>
         <pre class="code" aria-label="Shell script that writes each LokalBot meeting into an Obsidian vault"><span class="c-op"># Folder inside your vault</span>
 vault=<span class="c-str">"$HOME/Documents/Obsidian/Meetings"</span>
 mkdir -p <span class="c-str">"$vault"</span>
@@ -69,13 +74,13 @@ lokalbot-cli list <span class="c-op">\</span>
       note=<span class="c-str">"$vault/$day $id.md"</span>
       [ -e <span class="c-str">"$note"</span> ] <span class="c-op">||</span> lokalbot-cli get <span class="c-str">"$id"</span> <span class="c-op">&gt;</span> <span class="c-str">"$note"</span>
     done</pre>
-        <p>It uses <code>jq</code>, which ships with macOS 15 and later. Each meeting is written once its summary is ready, as a note named like <code>2026-10-14 ab12cd.md</code>. Existing notes are never overwritten, so edits you make in Obsidian are safe; delete a note to have it written again, for example after you regenerate a summary. Run the script after meetings, or from a scheduled job if you want it hands-off.</p>
+        <p>It uses <code>jq</code>, which ships with macOS 15 and later. On Linux, install jq with your package manager. On Windows, run the script in Git Bash with jq installed. Each meeting is written once its summary is ready, as a note named like <code>2026-10-14 ab12cd.md</code>. Existing notes are never overwritten, so edits you make in Obsidian are safe; delete a note to have it written again, for example after you regenerate a summary. Run the script after meetings, or from a scheduled job if you want it hands-off.</p>
 
         <h2>Things to know</h2>
         <ul>
           <li><strong>Exports are ordinary files.</strong> LokalBot doesn't encrypt them, and if you sync the vault with Obsidian Sync, iCloud, or Git, that service's terms now cover your transcripts too.</li>
-          <li><strong>Nothing syncs back.</strong> Editing a note in Obsidian doesn't change the meeting in LokalBot, and renaming a speaker in LokalBot doesn't update notes already written.</li>
-          <li><strong>The vault is readable by your other tools.</strong> Any app or agent with access to that folder can read the transcripts, so keep sensitive meetings out of shared vaults.</li>
+          <li><strong>Nothing syncs back.</strong> Editing a note in Obsidian doesn't change the meeting in LokalBot, and deleting a meeting in LokalBot leaves its note in the vault.</li>
+          <li><strong>The vault is readable by your other tools.</strong> Any app or agent with access to that folder can read the transcripts, so keep sensitive meetings out of shared vaults, or turn off <strong>Include the transcript</strong>.</li>
         </ul>
     </article>
 
@@ -85,7 +90,7 @@ lokalbot-cli list <span class="c-op">\</span>
       <div class="faq__list">
         <details class="qa">
           <summary>Is there an Obsidian plugin for LokalBot?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. LokalBot writes plain Markdown files instead, through a meeting export, the daily note, or the CLI, so nothing needs installing in Obsidian.</p>
+          <p>No, and you don't need one. On a Mac, LokalBot writes a note for each meeting straight into a folder in your vault, so nothing needs installing in Obsidian. On Windows and Linux, export meetings one at a time or use the script above.</p>
         </details>
         <details class="qa">
           <summary>Do the exported transcripts include speaker names?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -93,7 +98,7 @@ lokalbot-cli list <span class="c-op">\</span>
         </details>
         <details class="qa">
           <summary>Can I use Logseq instead?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes. The daily note also comes in Logseq and plain Markdown formats, and the meeting export and CLI output are plain Markdown.</p>
+          <p>Yes, with Logseq OG, which keeps a graph as Markdown files. On a Mac, meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own.</p>
         </details>
       </div>
     </section>
@@ -105,7 +110,7 @@ lokalbot-cli list <span class="c-op">\</span>
         <a class="guide-card" href="claude-code-codex-meeting-notes">
           <span class="guide-card__eyebrow">Agents and MCP</span>
           <strong>How do I let Claude Code or Codex search my meeting notes?</strong>
-          <span>Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your Mac, with no cloud notetaker or meeting bot.</span>
+          <span>Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.</span>
         </a>
         <a class="guide-card" href="local-ai-meeting-notes-mac">
           <span class="guide-card__eyebrow">Local meeting notes</span>
@@ -124,10 +129,11 @@ lokalbot-cli list <span class="c-op">\</span>
       <div class="download__panel">
         <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
         <p class="eyebrow">Try it locally</p>
-        <h2 class="section__title">Meeting notes that stay on your Mac by default.</h2>
-        <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
-        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>
@@ -135,43 +141,45 @@ lokalbot-cli list <span class="c-op">\</span>
   <footer class="footer">
     <div class="footer__brand">
       <a class="brand" href="/">
-        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Find what you said or saw on your Mac.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
-      <a href="system-requirements">System requirements</a>
+      <a href="/system-requirements">System requirements</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
-      <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-apple-notes">vs Apple Notes</a>
-      <a href="lokalbot-vs-otter">vs Otter</a>
-      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
-      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
-      <a href="lokalbot-vs-meetily">vs Meetily</a>
-      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
-      <a href="lokalbot-vs-wispr-flow">vs Wispr Flow</a>
-      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="about">About</a>
+      <a href="/about">About</a>
       <a href="/guides">Guides</a>
-      <a href="benchmarks">Benchmarks</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="privacy">Privacy</a>
-      <a href="terms">Terms</a>
-      <a href="support">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

@@ -86,7 +86,7 @@ struct OnboardingView: View {
             HStack {
                 Picker("App language", selection: $app.settings.appLanguage) {
                     ForEach(AppLanguage.allCases) { language in
-                        Text(LocalizedStringKey(language.displayName)).tag(language)
+                        Text(verbatim: language.pickerLabel(in: app.settings.appLanguage)).tag(language)
                     }
                 }
                 .labelsHidden()
@@ -105,8 +105,7 @@ struct OnboardingView: View {
                     Button("Done") { dismiss() }.primaryActionButton()
                 } else if step == .review {
                     Button("Apply Choices and Start") {
-                        app.settings = draft.applying(to: app.settings)
-                        UserDefaults.standard.set(true, forKey: AppState.onboardingShownKey)
+                        app.finishOnboarding(applying: draft)
                         dismiss()
                     }.primaryActionButton().accessibilityIdentifier("onboarding.finish")
                 } else {
@@ -146,6 +145,7 @@ struct OnboardingView: View {
                     }.accessibilityIdentifier("onboarding.meetingMode")
                     Text("Ask via notification waits for you to start recording. Manual mode keeps Record Now available.")
                         .workspaceTextRole(.supporting)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Divider()
                 Toggle(isOn: $draft.dayMemory) {
@@ -162,9 +162,23 @@ struct OnboardingView: View {
                     }.disabled(!draft.dayMemory)
                     Text(LocalizedStringKey(draft.contextMode.detail)).workspaceTextRole(.trust)
                 }
+                Divider()
+                Toggle(isOn: $draft.codingAgentSessions) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Coding Agent Sessions")
+                        Text("Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
+                            .workspaceTextRole(.supporting)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityLabel("Read coding agent sessions")
+                .accessibilityHint("Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
+                .accessibilityIdentifier("onboarding.codingAgentSessions")
             }.workspacePanel()
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text and images build on app activity. Images are encrypted on disk; captured text remains searchable under your retention policy.")
+                    .workspaceTextRole(.supporting)
+                Text("Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Privacy & Data.")
                     .workspaceTextRole(.supporting)
             }
             Label("These choices are applied on the final Review step.", systemImage: "checklist")
@@ -205,12 +219,27 @@ struct OnboardingView: View {
                 Text("Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once Screen Recording is allowed, the whole window with on-device text recognition. It stays on this Mac and is never saved; turn either off in Settings → Writing.")
                     .workspaceTextRole(.supporting)
             }
+            if showsDownloadSource {
+                ModelDownloadSourcePicker(source: $app.settings.modelDownloadSource,
+                                          accessibilityIdentifier: "onboarding.downloadSource")
+            }
             Button("Prepare Selected Models") {
                 app.modelRoles.startCoreModelDownloads(includeAutocomplete: includeAutocomplete)
             }.buttonStyle(.bordered).accessibilityIdentifier("onboarding.downloadModels")
             Text("Downloads use the model provider. They do not send your meeting content. Existing downloaded models are kept.")
                 .workspaceTextRole(.supporting)
         }
+    }
+
+    /// huggingface.co is blocked in mainland China, so the first download
+    /// offers HF-Mirror and ModelScope there: on a Mac set to that region or to
+    /// Simplified Chinese, or once a mirror is already chosen. Settings → Models
+    /// always has the same picker.
+    private var showsDownloadSource: Bool {
+        Locale.current.region?.identifier == "CN"
+            || Locale.preferredLanguages.first?.hasPrefix("zh-Hans") == true
+            || app.settings.appLanguage == .simplifiedChinese
+            || app.settings.modelDownloadSource != .huggingFace
     }
 
     private func modelRow(_ title: String, model: String, role: ModelRole) -> some View {
@@ -228,6 +257,9 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 18) {
             LabeledContent("Meeting recording", value: draft.meetingMode.rawValue)
             LabeledContent("Day memory", value: draft.dayMemory ? draft.contextMode.rawValue : "Off")
+            LabeledContent("Coding agent sessions") {
+                Text(LocalizedStringKey(draft.codingAgentSessions ? "On" : "Off"))
+            }
             LabeledContent("Think model", value: InferencePresentation(settings: app.settings).label)
             LabeledContent("Meeting models", value: app.modelRoles.snapshot.meetingReady ? "Ready to use · not a test result" : "Preparation can continue later")
             let missing = relevantPermissions.filter { permissions.granted[$0] != true }

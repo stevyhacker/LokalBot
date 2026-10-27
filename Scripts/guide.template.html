@@ -33,7 +33,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -70,10 +70,11 @@
       <div class="download__panel">
         <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
         <p class="eyebrow">Try it locally</p>
-        <h2 class="section__title">Meeting notes that stay on your Mac by default.</h2>
-        <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
-        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>

@@ -33,6 +33,13 @@ final class CodingAgentEvidenceIngestor {
                 excludedFolders: settings.codingAgentExcludedFolderList,
                 retentionDays: settings.keepOCRTextForever ? nil : settings.retentionDays)
         }
+
+        /// Setup shows this choice, so a new install reads nothing until setup
+        /// is finished. From then on the settings alone decide.
+        init(settings: AppSettings, onboardingFinished: Bool) {
+            self.init(settings: settings)
+            if !onboardingFinished { agents = [] }
+        }
     }
 
     typealias Scan = @Sendable (
@@ -149,18 +156,28 @@ final class CodingAgentEvidenceIngestor {
         let cutoff = configuration.retentionDays.map {
             scannedAt.addingTimeInterval(-Double($0) * 86_400)
         }
-        let fresh = scan.bursts.filter { burst in
+        var fresh = scan.bursts.filter { burst in
             burst.isSettled(at: scannedAt) && configuration.agents.contains(burst.agent)
                 && cutoff.map { burst.end >= $0 } != false
         }
-        let existing = store.codingAgentBursts(in: scan.interval)
+        var existing = store.codingAgentBursts(in: scan.interval)
             .filter { configuration.agents.contains($0.agent) }
+        // A finished day keeps the bursts its digest and Dream review were
+        // written with until a session's work there changes or the session
+        // is gone. On 2026-10-20 and 21, sessions that moved to another
+        // branch relabeled earlier days' bursts, and each relabel rebuilt
+        // those days' digests, several times a day.
+        let today = calendar.startOfDay(for: scannedAt)
+        let unchanged = sessionDaysWithUnchangedWork(existing: existing, fresh: fresh, before: today)
+        fresh.removeAll { unchanged.contains(sessionDay(of: $0)) }
+        existing.removeAll { unchanged.contains(sessionDay(of: $0)) }
         let freshIDs = Set(fresh.map(\.id))
         let existingByID = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
 
         let added = fresh.filter { existingByID[$0.id] == nil }
         let corrected = fresh.filter { burst in
-            existingByID[burst.id].map { $0 != burst } ?? false
+            guard let stored = existingByID[burst.id], stored != burst else { return false }
+            return burst.start >= today || !stored.hasSameWork(as: burst)
         }
         // An unreadable transcript is not a deleted one.
         let removed = scan.unreadableFiles.isEmpty ? existing.filter { !freshIDs.contains($0.id) } : []
@@ -183,5 +200,27 @@ final class CodingAgentEvidenceIngestor {
 
     private func days(of bursts: [CodingAgentBurst]) -> [Date] {
         Array(Set(bursts.map { calendar.startOfDay(for: $0.start) })).sorted()
+    }
+
+    /// Sessions on days before `today` whose stored bursts hold the same
+    /// work, in order, as the scan's. Ids follow a burst's first event, so
+    /// a moved edge reads as a different burst; the work does not.
+    private func sessionDaysWithUnchangedWork(
+        existing: [CodingAgentBurst], fresh: [CodingAgentBurst], before today: Date
+    ) -> Set<String> {
+        func bySessionDay(_ bursts: [CodingAgentBurst]) -> [String: [CodingAgentBurst]] {
+            Dictionary(grouping: bursts.filter { $0.start < today }.sorted { $0.start < $1.start },
+                       by: sessionDay(of:))
+        }
+        let rescanned = bySessionDay(fresh)
+        return Set(bySessionDay(existing).compactMap { key, stored in
+            guard let scanned = rescanned[key], scanned.count == stored.count,
+                  zip(stored, scanned).allSatisfy({ $0.hasSameWork(as: $1) }) else { return nil }
+            return key
+        })
+    }
+
+    private func sessionDay(of burst: CodingAgentBurst) -> String {
+        "\(burst.agent.rawValue):\(burst.sessionID):\(calendar.startOfDay(for: burst.start).timeIntervalSince1970)"
     }
 }

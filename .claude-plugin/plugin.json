@@ -1,6 +1,6 @@
 {
   "name": "lokalbot",
-  "description": "Find what you said or saw on your Mac. Gives Claude Code read-only access to your local LokalBot meeting library via the /lokalbot:recall command, the lokalbot-cli skill, and a stdio MCP server.",
+  "description": "Your personal context engine. Gives Claude Code read-only access to your local LokalBot meeting library on macOS, Windows, or Linux (alpha) via the /lokalbot:recall command, the lokalbot-cli skill, and a stdio MCP server, and /lokalbot:setup to install and set up LokalBot on a Mac with your approval.",
   "version": "0.1.0",
   "author": {
     "name": "stevyhacker",

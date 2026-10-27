@@ -33,11 +33,14 @@ enum PeopleReport {
         let meetings: [ActionItemsReport.MeetingRef]
     }
 
-    static func people(meetings: [Meeting], root: URL, now: Date = Date()) -> [PersonProfile] {
+    static func people(meetings allMeetings: [Meeting], root: URL, now: Date = Date()) -> [PersonProfile] {
+        // The sample meeting's people are made up.
+        let meetings = allMeetings.filter(\.isOwnWork)
         let projections = meetings.compactMap { MeetingOutcomeProjection.load(for: $0, root: root) }
         return PeopleDirectory.build(.init(
             meetings: meetings, projections: projections,
-            appliedNames: PeopleDirectory.loadAppliedNames(for: meetings, root: root)), now: now)
+            appliedNames: PeopleDirectory.loadAppliedNames(for: meetings, root: root),
+            curation: PeopleCuration.load(libraryRoot: root) ?? PeopleCuration()), now: now)
     }
 
     /// Opaque id, exact name, then a unique case-insensitive substring match.
@@ -60,7 +63,7 @@ enum PeopleReport {
             .map { person in
                 Summary(
                     id: person.id, name: person.name, other_names: person.otherNames,
-                    meeting_count: person.meetings.count,
+                    meeting_count: person.meetingCount,
                     last_met: person.lastMetAt.map { SessionFormatter.iso8601.string(from: $0) },
                     you_owe: person.myActions.count, they_owe: person.theirActions.count)
             }

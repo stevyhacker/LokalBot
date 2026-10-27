@@ -131,6 +131,59 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(CodingAgentBurstBuilder.bursts(from: compacted), CodingAgentBurstBuilder.bursts(from: transcript))
     }
 
+    /// A saved burst must not change when the session goes on past midnight.
+    func testCompactingKeepsADaysLastEventWhateverFollowsMidnight() throws {
+        let request = try utc("2026-09-29T23:57:00Z")
+        let events = [
+            CodingAgentEvent(at: request, kind: .prompt("Ship it")),
+            CodingAgentEvent(at: request.addingTimeInterval(120), kind: .activity),
+            CodingAgentEvent(at: request.addingTimeInterval(240), kind: .reply("Shipped.")),
+        ]
+        func firstDay(_ events: [CodingAgentEvent]) -> [CodingAgentBurst] {
+            CodingAgentBurstBuilder.bursts(from: CodingAgentTranscript(
+                agent: .codex, sessionID: "T",
+                events: events.filter { calendar.isDate($0.at, inSameDayAs: request) }))
+        }
+
+        let compacted = CodingAgentBurstBuilder.compactingActivity(events, calendar: calendar)
+
+        XCTAssertEqual(firstDay(compacted), firstDay(events))
+        XCTAssertEqual(firstDay(compacted).first?.end, request.addingTimeInterval(120))
+    }
+
+    /// 2026-10-20 and 21: a session's folder and branch were read across the
+    /// whole scan window, so a session that moved on relabeled the work it
+    /// had saved on earlier days, and each relabel rebuilt those days' digests.
+    func testClaudeBurstsAreLabeledByTheirOwnRecordsWhateverTheScanWindow() throws {
+        let app = "/Users/me/Code/LokalBot", mojo = "/Users/me/Code/Mojo"
+        try write([
+            claudeUser(uuid: "u1", at: "2026-09-29T09:00:00Z", text: "Fix the stale digest badge"),
+            claudeAssistantText(uuid: "a1", at: "2026-09-29T09:05:00Z", text: "Fixed the badge."),
+            claudeUser(uuid: "u2", at: "2026-09-29T15:00:00Z", text: "Draft the release notes",
+                       cwd: app, branch: "claude/release-notes"),
+            claudeAssistantText(uuid: "a2", at: "2026-09-29T15:05:00Z", text: "Drafted them.",
+                                cwd: app, branch: "claude/release-notes"),
+            claudeUser(uuid: "u3", at: "2026-09-30T10:00:00Z", text: "Apply the Mojo branding",
+                       cwd: mojo, branch: "mojo-branding"),
+            #"{"parentUuid":"u3","isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Edit","input":{"file_path":"/Users/me/Code/Mojo/Sources/Theme.swift","old_string":"a","new_string":"b"}}]},"#
+                + claudeTrailer(uuid: "a3", at: "2026-09-30T10:05:00Z", cwd: mojo, branch: "mojo-branding"),
+        ], to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
+           created: "2026-09-29T08:00:00Z", modified: "2026-09-30T10:05:00Z")
+        let scanner = CodingAgentSessionScanner(
+            readers: [ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))])
+        let first = try utc("2026-09-29T00:00:00Z"), second = try utc("2026-09-30T00:00:00Z")
+
+        let window = scanner.scan(from: first, through: second, calendar: calendar).bursts
+
+        XCTAssertEqual(window.map(\.branch), ["claude/fix-badge", "claude/release-notes", "mojo-branding"])
+        XCTAssertEqual(window.map(\.project), ["LokalBot", "LokalBot", "Mojo"])
+        XCTAssertEqual(window.last?.changedFiles, ["Sources/Theme.swift"])
+        XCTAssertEqual(scanner.scan(from: first, through: first, calendar: calendar).bursts, Array(window.prefix(2)),
+                       "later work never relabels an earlier day")
+        XCTAssertEqual(scanner.scan(from: second, through: second, calendar: calendar).bursts, [window[2]],
+                       "a window that starts later labels the same work the same way")
+    }
+
     func testSessionThatReadTheLokalBotLibraryWithholdsReplies() throws {
         try writeClaudeSession("S2", lines: [
             claudeUser(uuid: "u1", at: "2026-09-29T10:00:00Z", text: "What did I promise Ana?"),
@@ -232,6 +285,63 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(bursts.first?.title, "Untitled session")
         XCTAssertTrue(bursts.first?.evidenceText(calendar: calendar)
             .contains("Requests: continued work from an earlier request") == true)
+    }
+
+    func testWorkTitleNamesTheWorkWhenTheTitleIsARequestOrPlaceholder() {
+        XCTAssertEqual(workBurst(title: "Fix digest freshness", prompts: ["Fix the stale digest badge"]).workTitle,
+                       "Fix digest freshness", "a transcript title names the work")
+        let asked = "can you add short video demo recording of the new app platforms in the PR?"
+        XCTAssertEqual(
+            workBurst(title: asked, prompts: [asked], actions: [
+                .commit(message: "Temporary: record a Windows demo"),
+                .commit(message: "Demo recordings of the Linux and Windows apps."),
+            ]).workTitle,
+            "Demo recordings of the Linux and Windows apps")
+        XCTAssertEqual(
+            workBurst(title: "Untitled session", prompts: [], actions: [
+                .commit(message: "feat(onchain): map chain ids"),
+                .openedPullRequest(title: "feat(onchain): add spoke deploy scripts"),
+            ]).workTitle,
+            "Add spoke deploy scripts", "an opened pull request names the deliverable")
+        XCTAssertEqual(
+            workBurst(title: "Untitled session", prompts: [], actions: [.pushed], pullRequests: [279]).workTitle,
+            "Work on PR #279")
+        let benchmark = "let's commit the benchmark to the repository."
+        XCTAssertEqual(workBurst(title: benchmark, prompts: [benchmark], actions: [.pushed]).workTitle,
+                       "Commit the benchmark to the repository")
+        XCTAssertEqual(workBurst(title: "Review all open PRs", prompts: ["Review all open PRs"]).workTitle,
+                       "Review all open PRs", "a short instruction is a work title")
+        let wake = #"<wake reason="mention" current-time="2026-10-19T09:39:51Z"> <project…"#
+        XCTAssertEqual(workBurst(title: wake, prompts: [], actions: [.ranTests]).workTitle, "Claude Code session")
+        let question = "is it necessary to use this local aligner if i'm using a cloud transcription model?"
+        XCTAssertEqual(workBurst(title: question, prompts: [question], actions: [.ranTests]).workTitle,
+                       "Claude Code session", "a question names no work")
+    }
+
+    func testWorkProjectIsTheRepositoryForScratchCheckoutAndSiblingFolders() {
+        XCTAssertEqual(workBurst(project: "scratch-2026-10-19-6f7eb7", pullRequests: [293]).workProject, "LokalBot")
+        XCTAssertNil(workBurst(project: "scratch-2026-10-19-6f7eb7").workProject)
+        XCTAssertEqual(workBurst(project: "GitHub", pullRequests: [290]).workProject, "LokalBot")
+        XCTAssertNil(workBurst(project: "Unknown project").workProject)
+        XCTAssertEqual(workBurst(project: "LokalBot-linux-windows", pullRequests: [290]).workProject, "LokalBot")
+        XCTAssertEqual(workBurst(project: "LokalBot-linux-windows").workProject, "LokalBot-linux-windows")
+        XCTAssertEqual(workBurst(project: "Mojo", pullRequests: [290]).workProject, "Mojo",
+                       "a named project keeps its name")
+        var twoRepositories = workBurst(project: "GitHub")
+        twoRepositories.pullRequests = [
+            "https://github.com/stevyhacker/LokalBot/pull/1", "https://github.com/stevyhacker/bizstats/pull/2",
+        ]
+        XCTAssertNil(twoRepositories.workProject, "pull requests in two repositories name no single project")
+    }
+
+    func testEvidenceTextNamesTheRepositoryAndLeavesOutARequestTitle() {
+        let asked = "can you add short video demo recording of the new app platforms in the PR?"
+        let text = workBurst(title: asked, project: "GitHub", prompts: [asked], pullRequests: [290])
+            .evidenceText(calendar: calendar)
+
+        XCTAssertFalse(text.contains("Session:"), text)
+        XCTAssertTrue(text.contains("Project: LokalBot (branch master)"), text)
+        XCTAssertTrue(text.contains("- \(asked)"), "the request is still a request: \(text)")
     }
 
     func testEvidenceTextLeadsWithWorkAndLabelsTheReportAsAClaim() throws {
@@ -394,6 +504,22 @@ final class CodingAgentSessionTests: XCTestCase {
 
     // MARK: - Fixtures
 
+    private func workBurst(
+        title: String = "Fix digest freshness",
+        project: String = "LokalBot",
+        prompts: [String] = ["Fix the stale digest badge"],
+        actions: [CodingAgentAction] = [.pushed],
+        pullRequests: [Int] = []
+    ) -> CodingAgentBurst {
+        CodingAgentBurst(
+            agent: .claudeCode, sessionID: "W1", title: title, project: project, branch: "master",
+            start: day, end: day.addingTimeInterval(600), activeDuration: 600,
+            prompts: prompts, promptCount: prompts.count, finalReply: nil,
+            changedFiles: [], changedFileCount: 0, actions: actions,
+            pullRequests: pullRequests.map { "https://github.com/stevyhacker/LokalBot/pull/\($0)" },
+            toolCallCount: 1)
+    }
+
     private var dayInterval: DateInterval {
         DateInterval(start: calendar.startOfDay(for: day), duration: 86_400)
     }
@@ -460,20 +586,29 @@ final class CodingAgentSessionTests: XCTestCase {
 
     /// A user record in Claude Code's key order, which the tool-result
     /// fast path depends on.
-    private func claudeUser(uuid: String, at timestamp: String, text: String) -> String {
+    private func claudeUser(
+        uuid: String, at timestamp: String, text: String,
+        cwd: String = "/Users/me/Code/LokalBot", branch: String = "claude/fix-badge"
+    ) -> String {
         let prefix = #"{"parentUuid":null,"isSidechain":false,"type":"user","message":{"role":"user","content":"#
-        return prefix + json(text) + "}," + claudeTrailer(uuid: uuid, at: timestamp)
+        return prefix + json(text) + "}," + claudeTrailer(uuid: uuid, at: timestamp, cwd: cwd, branch: branch)
     }
 
-    private func claudeAssistantText(uuid: String, at timestamp: String, text: String) -> String {
+    private func claudeAssistantText(
+        uuid: String, at timestamp: String, text: String,
+        cwd: String = "/Users/me/Code/LokalBot", branch: String = "claude/fix-badge"
+    ) -> String {
         let prefix = #"{"parentUuid":null,"isSidechain":false,"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"#
-        return prefix + json(text) + "}]}," + claudeTrailer(uuid: uuid, at: timestamp)
+        return prefix + json(text) + "}]}," + claudeTrailer(uuid: uuid, at: timestamp, cwd: cwd, branch: branch)
     }
 
-    private func claudeTrailer(uuid: String, at timestamp: String) -> String {
+    private func claudeTrailer(
+        uuid: String, at timestamp: String,
+        cwd: String = "/Users/me/Code/LokalBot", branch: String = "claude/fix-badge"
+    ) -> String {
         let millis = timestamp.replacingOccurrences(of: "Z", with: ".000Z")
         return #""uuid":"# + json(uuid) + #","timestamp":"# + json(millis)
-            + #","cwd":"/Users/me/Code/LokalBot","gitBranch":"claude/fix-badge","sessionId":"S"}"#
+            + #","cwd":"# + json(cwd) + #","gitBranch":"# + json(branch) + #","sessionId":"S"}"#
     }
 
     /// `value` as a quoted JSON string.

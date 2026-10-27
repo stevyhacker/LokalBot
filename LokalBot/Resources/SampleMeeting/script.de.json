@@ -1,0 +1,46 @@
+{
+  "sampleID": "orders-api/de",
+  "language": "de",
+  "title": "Beispiel: delivery window in der Orders API",
+  "audio": "orders-api.de.m4a",
+  "tts": {
+    "provider": "gemini",
+    "model": "gemini-3.8-flash-tts",
+    "style": "A relaxed, natural conversation between colleagues on a work video call. Native German speaker."
+  },
+  "speakers": {
+    "maya": {"name": "Maya", "role": "API-Produktleiterin", "voice": "de-de-assistant-4", "voiceName": "Digital Assistant 4 (de-de-assistant-4, Gemini TTS)"},
+    "daniel": {"name": "Daniel", "role": "Backend-Entwickler", "voice": "de-de-assistant-9", "voiceName": "Digital Assistant 9 (de-de-assistant-9, Gemini TTS)"}
+  },
+  "turns": [
+    {"id": "t01", "speaker": "maya", "text": "Das ist die Beispielbesprechung von LokalBot. Die Stimmen sind synthetisch, und die Firma und die Personen darin sind erfunden."},
+    {"id": "t02", "speaker": "maya", "text": "Hallo Daniel. Hörst du mich gut?"},
+    {"id": "t03", "speaker": "daniel", "text": "Laut und deutlich, Maya. Sorry, dass ich eine Minute zu spät bin, mein Build lief noch."},
+    {"id": "t04", "speaker": "maya", "text": "Kein Problem. Lass uns das delivery window für die Orders API klären."},
+    {"id": "t05", "speaker": "daniel", "text": "Klar. Kurz zum Hintergrund: Der Support möchte, dass Kunden ein delivery window sehen, also zum Beispiel zwischen zwei und vier Uhr nachmittags, statt der einen ETA-Uhrzeit, die wir heute zurückgeben."},
+    {"id": "t06", "speaker": "maya", "text": "Genau. Und Priya aus dem Partner-Success-Team sagt, dass drei unserer größten Partner genau das Gleiche angefragt haben."},
+    {"id": "t07", "speaker": "maya", "text": "Also, der Plan von letzter Woche: Wir ersetzen das Feld ETA durch ein neues Objekt delivery window und bringen das als Version drei der API raus."},
+    {"id": "t08", "speaker": "daniel", "text": "So war der Plan. Das Fenster wären zwei Zeitstempel, ein Anfang und ein Ende, beide in UTC. Version drei kann ich bis zum achtzehnten November fertig haben."},
+    {"id": "t09", "speaker": "maya", "text": "Okay. Entscheidung für jetzt: Version drei, das delivery window ersetzt ETA, und unser Ziel ist der achtzehnte November."},
+    {"id": "t10", "speaker": "daniel", "text": "Von der Performance her geht beides. Ich hab's gestern gemessen, die P95-Latenz bleibt bei etwa hundertachtzig Millisekunden."},
+    {"id": "t11", "speaker": "maya", "text": "Gut. Und was ist mit der mobilen App?"},
+    {"id": "t12", "speaker": "daniel", "text": "Tomás sagt, das Mobile-Team kann es in Release vier Punkt zwei mitnehmen, aber nicht früher."},
+    {"id": "t13", "speaker": "maya", "text": "Das passt. Und das Testen?"},
+    {"id": "t14", "speaker": "daniel", "text": "Lena schreibt Contract-Tests. Sie braucht zwei Tage, sobald das Schema eingefroren ist."},
+    {"id": "t15", "speaker": "daniel", "text": "Moment, bevor wir das festzurren. Ich bin gestern Abend die Partner-Integrationen durchgegangen. Zweiundvierzig Partner rufen den Orders-Endpunkt auf, und neunzehn davon nutzen generierte Clients, die abbrechen, wenn ein erwartetes Feld fehlt. Wenn wir ETA entfernen, gehen diese neunzehn am Tag des Releases kaputt."},
+    {"id": "t16", "speaker": "maya", "text": "Neunzehn von zweiundvierzig. Das ist fast die Hälfte. Und eine Version drei heißt, dass wirklich jeder einzelne Partner migrieren muss."},
+    {"id": "t17", "speaker": "daniel", "text": "Genau. Allein Fernhill hat vier Monate gebraucht, um auf Version zwei umzusteigen."},
+    {"id": "t18", "speaker": "maya", "text": "Dann ändern wir die Entscheidung. Keine Version drei. Die Antwort bleibt abwärtskompatibel: ETA bleibt genau so, wie es ist, und das delivery window kommt als neues, optionales Feld dazu. Wenn wir das Fenster nicht kennen, lassen wir das Feld weg."},
+    {"id": "t19", "speaker": "daniel", "text": "Optional, weggelassen, wenn es unbekannt ist, ETA unverändert, und wir bleiben auf Version zwei. Das ist auch weniger Arbeit. Ich kann es bis zum elften November ausliefern statt bis zum achtzehnten."},
+    {"id": "t20", "speaker": "maya", "text": "Super. Also, fürs Protokoll: Das ersetzt, was wir am Anfang gesagt haben. Die Antwort bleibt abwärtskompatibel, das delivery window ist optional, und wir liefern am elften November aus."},
+    {"id": "t21", "speaker": "daniel", "text": "Soll ich Lena dann sagen, dass das Schema eingefroren ist?"},
+    {"id": "t22", "speaker": "maya", "text": "Ja, mach das. Und Priya schreibt den drei Partnern, die danach gefragt haben, eine E-Mail. Daniel, kannst du die API-Spezifikation und das Changelog aktualisieren?"},
+    {"id": "t23", "speaker": "daniel", "text": "Ja, beides ist bis Freitag erledigt."},
+    {"id": "t24", "speaker": "daniel", "text": "Eine Sache haben wir noch nicht geklärt: Machen wir einen Backfill der delivery windows für Bestellungen, die vor der Änderung angelegt wurden, oder nur für neue Bestellungen?"},
+    {"id": "t25", "speaker": "maya", "text": "Hm. Ein Backfill heißt, den Schätzer für rund zwei Millionen offene Bestellungen noch mal laufen zu lassen. Ehrlich gesagt weiß ich nicht, ob sich das lohnt."},
+    {"id": "t26", "speaker": "daniel", "text": "Ich auch nicht. Es hängt davon ab, ob Partner sich alte Bestellungen überhaupt ansehen."},
+    {"id": "t27", "speaker": "maya", "text": "Lassen wir das erst mal offen. Ich frage Priya, ob die Partner das für alte Bestellungen brauchen."},
+    {"id": "t28", "speaker": "daniel", "text": "Okay. Der Backfill ist also noch offen."},
+    {"id": "t29", "speaker": "maya", "text": "Ja. Danke, Daniel. Das war's für heute."}
+  ]
+}

@@ -44,6 +44,8 @@ final class ModelStorageCopyTests: XCTestCase {
             (.qwenASR06B, total([.qwenCompact])),
             (.whisperLarge, total([.catalog("whisper"), .catalog("whisperTokenizer")])),
             (.graniteTurbo, GraniteTurboEngine.artifacts.reduce(0) { $0 + $1.bytes }),
+            (.graniteSpeech5, GraniteSpeechModelConfiguration.speech5.model.sizeBytes
+                + GraniteSpeechModelConfiguration.speech5.projector.sizeBytes),
         ]
         for (choice, bytes) in downloads {
             let label = try XCTUnwrap(choice.sizeLabel, choice.rawValue)

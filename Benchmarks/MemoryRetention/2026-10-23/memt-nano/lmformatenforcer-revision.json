@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/noamgat/lm-format-enforcer",
+  "commit": "817f944fcc8851917c40300a47f62d1defc3ffc3",
+  "archive": "https://github.com/noamgat/lm-format-enforcer/archive/817f944fcc8851917c40300a47f62d1defc3ffc3.zip",
+  "reason": "Released 0.11.3 imports PreTrainedTokenizerBase from its pre-Transformers-5 location; upstream main fixes this import."
+}

@@ -6,11 +6,15 @@ struct CaptureSetupDraft: Equatable {
     var meetingMode: AppSettings.AutoRecordMode
     var dayMemory: Bool
     var contextMode: AppSettings.ScreenContextCaptureMode
+    /// The master switch for reading Claude Code and Codex sessions. The
+    /// per-agent switches and folder exclusions stay with Settings.
+    var codingAgentSessions: Bool
 
     init(settings: AppSettings) {
         meetingMode = settings.autoRecordMode
         dayMemory = settings.trackingEnabled
         contextMode = settings.effectiveScreenContextCaptureMode
+        codingAgentSessions = settings.codingAgentEvidenceEnabled
     }
 
     func applying(to settings: AppSettings) -> AppSettings {
@@ -22,6 +26,7 @@ struct CaptureSetupDraft: Equatable {
         // level for the next explicit enable action.
         result.screenContextCaptureMode = contextMode
         result.screenshotsEnabled = result.screenContextCaptureMode.capturesPixels
+        result.codingAgentEvidenceEnabled = codingAgentSessions
         return result
     }
 }

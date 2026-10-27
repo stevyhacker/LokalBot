@@ -1,0 +1,37 @@
+[package]
+name = "lokalbot-engine"
+description = "Background work: recording, processing pipeline, digests, day memory, dictation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lokalbot-core.workspace = true
+lokalbot-i18n.workspace = true
+lokalbot-ai.workspace = true
+lokalbot-audio.workspace = true
+lokalbot-speech.workspace = true
+lokalbot-platform.workspace = true
+anyhow.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+crossbeam-channel.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+# Screen images are kept as JPEG inside their sealed files.
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["async-secret-service", "async-io", "crypto-rust"] }
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3", features = ["windows-native"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+env_logger.workspace = true

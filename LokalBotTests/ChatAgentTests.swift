@@ -377,15 +377,11 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertEqual(answer, ChatPrompt.fallbackAnswer)
     }
 
-    func testCurrentTimeGoesLastSoTheModelCanResolveRelativeDays() throws {
+    func testCurrentTimeLineNamesTheLocalDayAndTimeZone() throws {
         let now = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-02T09:30:00Z"))
         let zone = try XCTUnwrap(TimeZone(identifier: "Europe/Belgrade"))
         let line = ChatPrompt.currentTimeLine(now: now, timeZone: zone)
         XCTAssertTrue(line.hasPrefix("Current local time: Friday, 2 October 2026, 11:30 (Europe/Belgrade)."), line)
-        let prompt = ChatPrompt.systemPrompt(tools: [], libraryOverview: "The user has 2 recorded meetings.",
-                                             currentTime: line)
-        XCTAssertTrue(prompt.hasSuffix(line), "a changing line must not invalidate the cached prompt prefix")
-        XCTAssertFalse(ChatPrompt.systemPrompt(tools: [], libraryOverview: "").contains("Current local time"))
     }
 
     func testHistoryReplayIsBoundedByMessagesAndCharactersAndStartsWithAQuestion() {
@@ -529,8 +525,30 @@ final class ChatAgentTests: XCTestCase {
         var agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "no meetings", results: [:]))
         agent.now = { now }
         _ = try await agent.respond(history: [], latest: "anything?") { _ in }
-        let system = try XCTUnwrap(engine.prompts.first?.system)
-        XCTAssertTrue(system.hasSuffix(ChatPrompt.currentTimeLine(now: now)), system)
+        let prompt = try XCTUnwrap(engine.prompts.first?.prompt)
+        XCTAssertTrue(prompt.hasPrefix(ChatPrompt.currentTimeLine(now: now)), prompt)
+    }
+
+    /// Anthropic caches whole blocks up to each breakpoint. A clock in the
+    /// system prompt changed it every minute, so each new message rewrote the
+    /// cached system prompt and replayed history at the cache-write price.
+    func testSystemPromptAndHistoryStayIdenticalAcrossMessagesMinutesApart() async throws {
+        let engine = ScriptedEngine(["First answer.", "Second answer."])
+        var agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "no meetings", results: [:]))
+        let first = Date(timeIntervalSince1970: 1_700_000_000)
+        let second = first.addingTimeInterval(7 * 60)
+        agent.now = { first }
+        _ = try await agent.respond(history: [], latest: "anything?") { _ in }
+        agent.now = { second }
+        _ = try await agent.respond(history: [.init(role: .user, text: "anything?"),
+                                              .init(role: .assistant, text: "First answer.")],
+                                    latest: "and yesterday?") { _ in }
+
+        XCTAssertEqual(engine.prompts.count, 2)
+        XCTAssertEqual(engine.prompts[0].system, engine.prompts[1].system)
+        XCTAssertEqual(engine.prompts[0].context, Array(engine.prompts[1].context.prefix(1)),
+                       "the earlier question must stay a cached prefix of the next request")
+        XCTAssertTrue(engine.prompts[1].prompt.hasPrefix(ChatPrompt.currentTimeLine(now: second)))
     }
 
     // MARK: - Live tool runner (planted library)

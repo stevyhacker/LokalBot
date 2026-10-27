@@ -150,6 +150,8 @@ struct SettingsView: View {
             "Meeting capture, detection, processing, and summaries."
         case .dayMemory:
             "Activity, captured context, daily briefs, routines, and exports."
+        case .personalContext:
+            "What you told LokalBot, what it learns about you, and what agents can read."
         case .writing:
             "Autocomplete and your writing profile."
         case .dictation:
@@ -168,11 +170,13 @@ struct SettingsView: View {
     @ViewBuilder private func sections(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .general:
-            generalSection; updatesSection
+            generalSection; updatesSection; aboutSection
         case .recording:
-            meetingsSection; processingSection; summarizationSection
+            meetingsSection; processingSection; summarizationSection; meetingNoteExportSection
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
+        case .personalContext:
+            personalContextSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -272,7 +276,7 @@ struct SettingsView: View {
                 Section("Appearance") {
                     Picker(selection: $app.settings.appLanguage) {
                         ForEach(AppLanguage.allCases) { language in
-                            Text(LocalizedStringKey(language.displayName)).tag(language)
+                            Text(verbatim: language.pickerLabel(in: app.settings.appLanguage)).tag(language)
                         }
                     } label: {
                         SettingsLabel("App language", help: "Changes the interface immediately. Transcription and notes languages are set separately.")
@@ -312,11 +316,33 @@ struct SettingsView: View {
                             changeHelp: "Change the Ask shortcut",
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
-                                    for: candidate, dictationShortcut: app.settings.dictationShortcut)
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
                     .settingTarget("settings.quickRecallShortcut", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.selectionActionsEnabled) {
+                        SettingsLabel("Enable the selection actions shortcut",
+                                      help: "Select text in any app and press \(app.settings.selectionActionsShortcut.displayLabel) to rewrite, translate, summarize, or answer it with your Think model. "
+                                        + "Actions marked “with my memory” also search your meetings. LokalBot reads the selection only when you press the shortcut, skips excluded apps and password fields, and keeps nothing. "
+                                        + "Apps that hide their selection from Accessibility are copied with ⌘C, then your clipboard is restored.")
+                    }
+                    .settingTarget("settings.selectionActionsEnabled", selected: app.focusedSettingID)
+                    LabeledContent("Selection actions shortcut") {
+                        ShortcutRecorder(
+                            shortcut: $app.settings.selectionActionsShortcut,
+                            defaultShortcut: .selectionActionsDefault,
+                            accessibilityIdentifier: "settings.selectionActionsShortcut",
+                            changeHelp: "Change the selection actions shortcut",
+                            validate: { candidate in
+                                QuickRecallHotKeyController.problem(
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    askShortcut: app.settings.quickRecallShortcut)
+                            },
+                            onRecordingChanged: { app.setShortcutRecording($0) })
+                    }
+                    .settingTarget("settings.selectionActionsShortcut", selected: app.focusedSettingID)
                 }
             }
 
@@ -484,6 +510,9 @@ struct SettingsView: View {
                     Toggle("Match the app font and text color",
                            isOn: $app.settings.cotypingMatchHostStyle)
                     .settingTarget("settings.cotypingMatchHostStyle", selected: app.focusedSettingID)
+                    Toggle("Use enhanced accessibility in Chrome-based browsers",
+                           isOn: $app.settings.cotypingChromiumEnhancedAccessibility)
+                    .settingTarget("settings.cotypingChromiumEnhancedAccessibility", selected: app.focusedSettingID)
                     Toggle("Autocorrect the current word",
                            isOn: $app.settings.cotypingAutocorrect)
                     .settingTarget("settings.cotypingAutocorrect", selected: app.focusedSettingID)
@@ -566,16 +595,13 @@ struct SettingsView: View {
                     .settingTarget("settings.stopDebounceSeconds", selected: app.focusedSettingID)
                 }
                 Section("Calendar") {
-                    Toggle(isOn: $app.settings.calendarDetectionEnabled) {
+                    Toggle(isOn: Binding(
+                        get: { app.settings.calendarDetectionEnabled },
+                        set: { enabled in app.changeSettings { $0.calendarDetectionEnabled = enabled } })) {
                         SettingsLabel("Use calendar to improve detection",
                                       help: "Reads your Mac Calendar to confirm meetings and suggest attendee names for speakers. Attendee emails stay in local meeting metadata.")
                     }
                     .settingTarget("settings.calendarDetectionEnabled", selected: app.focusedSettingID)
-                        .onChange(of: app.settings.calendarDetectionEnabled) { _, enabled in
-                            if enabled, app.calendar.authorizationStatus == .notDetermined {
-                                app.calendar.requestAccess { _ in }
-                            }
-                        }
                     if app.settings.calendarDetectionEnabled {
                         Toggle("Use calendar titles for recordings", isOn: $app.settings.useCalendarTitles)
                     .settingTarget("settings.useCalendarTitles", selected: app.focusedSettingID)
@@ -682,6 +708,46 @@ struct SettingsView: View {
 
     }
 
+    @ViewBuilder private var meetingNoteExportSection: some View {
+            if shows("Meeting note export", ["export", "obsidian", "logseq", "markdown", "vault",
+                                             "notes", "transcript", "folder"]) {
+                Section("Meeting note export") {
+                    Toggle(isOn: Binding(
+                        get: { app.settings.meetingNoteExportEnabled },
+                        set: { enabled in
+                            app.settings.meetingNoteExportEnabled = enabled
+                            if enabled && app.settings.meetingNoteExportFolder.isEmpty {
+                                chooseMeetingNoteExportFolder()
+                            }
+                        })) {
+                        SettingsLabel("Export a note for each meeting",
+                                      help: "Writes one unencrypted Markdown note per meeting, including meetings already recorded, to a folder you choose, such as an Obsidian vault. Each note has the summary, action items as you corrected them, and the people and tracked projects involved. A note you edit, move, or delete is yours: LokalBot leaves it alone.")
+                    }
+                    .settingTarget("settings.meetingNoteExportEnabled", selected: app.focusedSettingID)
+                    if app.settings.meetingNoteExportEnabled {
+                        Picker("Format", selection: $app.settings.meetingNoteExportFormat) {
+                            ForEach(AppSettings.DailyMemoryExportFormat.allCases) { format in
+                                Text(LocalizedStringKey(format.rawValue)).tag(format)
+                            }
+                        }
+                        .settingTarget("settings.meetingNoteExportFormat", selected: app.focusedSettingID)
+                        Toggle("Include the transcript", isOn: $app.settings.meetingNoteExportIncludesTranscript)
+                            .settingTarget("settings.meetingNoteExportIncludesTranscript", selected: app.focusedSettingID)
+                        LabeledContent("Folder") {
+                            Button(app.settings.meetingNoteExportFolder.isEmpty
+                                   ? "Choose…"
+                                   : URL(fileURLWithPath: app.settings.meetingNoteExportFolder).lastPathComponent) {
+                                chooseMeetingNoteExportFolder()
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(Brand.teal)
+                        }
+                    }
+                }
+            }
+
+    }
+
     @ViewBuilder private var dayTrackingSection: some View {
             if shows("Day tracking", ["tracking", "activity", "screenshots", "screen", "capture",
                                       "ocr", "window", "accessibility", "retention", "private",
@@ -692,14 +758,7 @@ struct SettingsView: View {
                 Section("Day Memory") {
                     Toggle(isOn: Binding(
                         get: { app.settings.trackingEnabled },
-                        set: { app.settings.trackingEnabled = $0
-                               if $0 {
-                                   PermissionGuidanceController.shared.requestAccess(
-                                       for: .accessibility)
-                               } else {
-                                   app.settings.screenContextCaptureMode = .activityOnly
-                                   app.settings.screenshotsEnabled = false
-                               } })) {
+                        set: { enabled in app.changeSettings { $0.trackingEnabled = enabled } })) {
                         SettingsLabel("Track app & window activity",
                                       help: "Records which app and window you're using for the Timeline and day digest.")
                     }
@@ -716,19 +775,7 @@ struct SettingsView: View {
                     }
                     Picker(selection: Binding(
                         get: { app.settings.effectiveScreenContextCaptureMode },
-                        set: { mode in
-                            app.settings.screenContextCaptureMode = mode
-                            app.settings.screenshotsEnabled = mode.capturesPixels
-                            if mode.capturesText {
-                                app.settings.trackingEnabled = true
-                                PermissionGuidanceController.shared.requestAccess(
-                                    for: .accessibility)
-                            }
-                            if mode.capturesPixels {
-                                PermissionGuidanceController.shared.requestAccess(
-                                    for: .screenRecording)
-                            }
-                        })) {
+                        set: { mode in app.changeSettings { $0.screenContextCaptureMode = mode } })) {
                         ForEach(AppSettings.ScreenContextCaptureMode.allCases) { mode in
                             Text(LocalizedStringKey(mode.rawValue)).tag(mode)
                         }
@@ -1028,6 +1075,13 @@ struct SettingsView: View {
         }
     }
 
+    @ViewBuilder private var personalContextSection: some View {
+        if shows("Personal Context", ["personal", "context", "about", "you", "remember", "memory", "facts", "preferences", "goals",
+                               "principles", "values", "personal", "profile", "forget"]) {
+            PersonalContextSettings(personalModel: app.personalModel, access: app.personalContextAccess)
+        }
+    }
+
     private func dreamMemoryPinRow(
         title: String,
         detail: String,
@@ -1084,6 +1138,11 @@ struct SettingsView: View {
                     .settingTarget("settings.agentAccess", selected: app.focusedSettingID)
                     ScreenMemoryAccessToggleRow(manager: app.screenMemoryAccess)
                     .settingTarget("settings.screenMemoryAccess", selected: app.focusedSettingID)
+                    PersonalContextAccessToggleRow(manager: app.personalContextAccess)
+                    .settingTarget("settings.personalContextAccess", selected: app.focusedSettingID)
+                    SettingsControlAccessToggleRow(manager: app.settingsControl)
+                    .settingTarget("settings.settingsControlAccess", selected: app.focusedSettingID)
+                    AgentSettingsChangesList(changes: app.agentSettingsChanges)
                 }
             }
 
@@ -1136,6 +1195,19 @@ struct SettingsView: View {
                 }
             }
 
+    }
+
+    /// The repository opens in the default browser; LokalBot itself sends nothing.
+    private var aboutSection: some View {
+        Section("About") {
+            LabeledContent {
+                Button("Star on GitHub") { app.githubStar.openRepository() }
+                    .accessibilityIdentifier("settings.githubStar")
+            } label: {
+                SettingsLabel("Open source",
+                              help: "LokalBot is free and built by one person. A GitHub star helps others find it.")
+            }
+        }
     }
 
     @ViewBuilder private var systemSection: some View {
@@ -1251,7 +1323,7 @@ struct SettingsView: View {
                         if let cliMessage {
                             SettingsHelp(cliMessage)
                         }
-                        SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Read-only by design.")
+                        SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own toggle under Privacy.")
                     }
                 }
             }
@@ -1317,6 +1389,28 @@ struct SettingsView: View {
                 return
             }
             app.settings.dailyMemoryExportFolder = url.path
+        }
+    }
+
+    private func chooseMeetingNoteExportFolder() {
+        let panel = NSOpenPanel()
+        panel.title = app.settings.appLanguage.localized("Choose meeting note export folder")
+        panel.prompt = app.settings.appLanguage.localized("Choose")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        if !app.settings.meetingNoteExportFolder.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: app.settings.meetingNoteExportFolder)
+        }
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else {
+                if app.settings.meetingNoteExportFolder.isEmpty {
+                    app.settings.meetingNoteExportEnabled = false
+                }
+                return
+            }
+            app.settings.meetingNoteExportFolder = url.path
         }
     }
 
@@ -1408,6 +1502,115 @@ private struct AgentAccessToggleRow: View {
                 set: { manager.setEnabled($0) })) {
                 SettingsLabel("Allow external agents to read your meeting library",
                               help: "Lets MCP clients and the lokalbot-cli skill (Claude, Cursor, …) list, read, search, and ask about your meetings — read-only and localhost only. Off by default.")
+            }
+        }
+    }
+}
+
+private struct SettingsControlAccessToggleRow: View {
+    @ObservedObject var manager: SettingsControlAccessManager
+
+    var body: some View {
+        Toggle(isOn: Binding(
+            get: { manager.isEnabled },
+            set: { manager.setEnabled($0) })) {
+            SettingsLabel("Allow external agents to change LokalBot settings",
+                          help: "Lets lokalbot-cli read and change your preferences, show you a setting, and start LokalBot in the background. Turning on capture, a data source, or sharing still needs you here. Separate from the other agent access toggles. Off by default.")
+        }
+    }
+}
+
+/// Settings an agent changed from the terminal, newest first, with Undo while
+/// the setting still holds the agent's value.
+private struct AgentSettingsChangesList: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var changes: AgentSettingsChanges
+
+    var body: some View {
+        Group {
+            if !changes.recent.isEmpty {
+                DisclosureGroup {
+                    ForEach(changes.recent.prefix(10)) { entry in
+                        LabeledContent {
+                            Button("Undo") {
+                                do {
+                                    try changes.undo(entry, in: app)
+                                } catch {
+                                    app.lastError = error.localizedDescription
+                                }
+                            }
+                            .disabled(!changes.canUndo(entry, in: app.settings))
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(verbatim: summary(entry))
+                                Text(verbatim: "\(entry.caller) · \(entry.time.formatted(date: .abbreviated, time: .shortened))")
+                                    .settingsSecondary()
+                            }
+                        }
+                    }
+                } label: {
+                    SettingsLabel("Recent changes by agents",
+                                  help: "Settings changed from the terminal. Undo restores the earlier value while the setting still holds the agent's.")
+                }
+            }
+        }
+    }
+
+    private func summary(_ entry: AgentSettingsChanges.Entry) -> String {
+        switch entry.key {
+        case "setup.access": return "Agent setup allowed: \(entry.value?.stringValue ?? "settings")"
+        case "models.preset": return "Model preset: \(entry.value?.stringValue ?? "changed")"
+        case "launchAtLogin": return "Launch at login: \(entry.value == .bool(true) ? "on" : "off")"
+        default: break
+        }
+        if let secret = AppSecret(rawValue: String(entry.key.dropFirst("secret.".count))), entry.key.hasPrefix("secret.") {
+            return "\(secret.title): \(entry.value?.stringValue ?? "changed")"
+        }
+        guard let spec = SettingRegistry.spec(for: entry.key) else { return entry.key }
+        func shown(_ value: JSONValue?) -> String {
+            guard let value else { return "default" }
+            let presented = spec.presented(value)
+            let text: String
+            switch presented {
+            case .string(let string): text = string.isEmpty ? "empty" : string
+            case .bool(let flag): text = flag ? "on" : "off"
+            case .number(let number): text = number == number.rounded() ? String(Int(number)) : String(number)
+            default: text = "changed"
+            }
+            return text.count > 40 ? String(text.prefix(39)) + "…" : text
+        }
+        return "\(spec.title): \(shown(entry.previous)) → \(shown(entry.value))"
+    }
+}
+
+private struct PersonalContextAccessToggleRow: View {
+    @EnvironmentObject private var app: AppState
+    @ObservedObject var manager: PersonalContextAccessManager
+
+    var body: some View {
+        Group {
+            Toggle(isOn: Binding(
+                get: { manager.isEnabled },
+                set: { manager.setEnabled($0) })) {
+                SettingsLabel("Allow external agents to read what I shared about myself",
+                              help: "Separate, read-only access to the Personal Context items you mark Share with agents. Nothing else in Personal Context is readable.")
+            }
+            .accessibilityIdentifier("settings.personalContextAccess")
+            if manager.isEnabled {
+                LabeledContent {
+                    Button("Choose items…") {
+                        app.settingsTab = .personalContext
+                        app.focusedSettingID = "settings.askMemoryEnabled"
+                    }
+                    .buttonStyle(.workspaceLink)
+                } label: {
+                    SettingsLabel(manager.sharedCount == 1 ? "1 item shared"
+                                                           : "\(manager.sharedCount) items shared",
+                                  help: "Agents get the most relevant shared items for their task, at most 12 at a time.")
+                }
+            }
+            if let error = manager.lastError {
+                Text(error).workspaceTextRole(.warning)
             }
         }
     }

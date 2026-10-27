@@ -38,7 +38,7 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
         destination = self.root / "Vendor" / runtime
         destination.mkdir(parents=True)
         if runtime == "llama-cpp":
-            marker = "b11474-macos15.0-arm64-generic-loader-rpath"
+            marker = "v0.7.0-macos15.0-arm64-generic-loader-rpath"
             names = [
                 "llama-server", "libllama.dylib", "libllama.0.dylib",
                 "libggml.dylib", "libggml.0.dylib",
@@ -51,7 +51,7 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
                 "include/llama.h",
             ]
         else:
-            marker = "v1.13.6-onnxruntime-v1.24.4-macos15.0-arm64-verified"
+            marker = "v1.13.8-onnxruntime-v1.28.2-macos15.0-arm64-verified"
             names = ["sherpa-onnx-offline", "sherpa-onnx-offline-tts", "libonnxruntime.dylib", "libsherpa-onnx-c-api.dylib"]
         for name in names:
             path = destination / name

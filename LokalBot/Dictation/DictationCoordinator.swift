@@ -40,6 +40,9 @@ final class DictationCoordinator: ObservableObject {
     @Published private(set) var lastComposedText: String?
     @Published private(set) var lastEngine: String?
     @Published private(set) var lastContextUse: DictationContextUse?
+    /// Recent results, so one left on the clipboard can be copied again after
+    /// something else replaced it, even after a crash or restart.
+    @Published private(set) var history = DictationHistory()
     /// Pasted text that the target field did not show afterwards.
     @Published private(set) var deliveryNotice: DictationDeliveryNotice?
     private var insertionCheckTask: Task<Void, Never>?
@@ -68,6 +71,7 @@ final class DictationCoordinator: ObservableObject {
     private static let modelPreparationGracePeriod: Duration = .milliseconds(600)
 
     private let storageRoot: URL
+    private let historyStore: DictationHistoryStore
     private let settingsProvider: () -> AppSettings
     private let makeTextEngine: (AppSettings) async throws -> TextEngine
     private let screenContextProvider:
@@ -77,6 +81,11 @@ final class DictationCoordinator: ObservableObject {
     private let onBusy: () -> Void
     private let onError: (String) -> Void
     private let onMicPermissionDenied: () -> Void
+    /// Spoken words (not Compose's draft) and the app they went to, for
+    /// Personal Context → Learn from my dictation. Called only while that is on,
+    /// after a paste into an identified field that passes the exclusions.
+    private let onDictatedForLearning: (_ spokenText: String, _ appName: String) -> Void
+    private var learningReadTask: Task<Void, Never>?
     private let focusSnapshotExecutor: DictationFocusSnapshotExecutor
     private let recorder: MicRecorder
     private let inputMonitor = DictationInputMonitor()
@@ -130,6 +139,7 @@ final class DictationCoordinator: ObservableObject {
         onBusy: @escaping () -> Void,
         onError: @escaping (String) -> Void,
         onMicPermissionDenied: @escaping () -> Void = {},
+        onDictatedForLearning: @escaping (_ spokenText: String, _ appName: String) -> Void = { _, _ in },
         focusSnapshotExecutor: DictationFocusSnapshotExecutor = .shared,
         memoryContextProvider: @escaping (CotypingField, AppSettings) async -> CotypingMemoryContextProvider.Snapshot = { _, _ in .empty },
         screenContextProvider: @escaping (
@@ -141,6 +151,7 @@ final class DictationCoordinator: ObservableObject {
         }
     ) {
         self.storageRoot = storageRoot
+        self.historyStore = DictationHistoryStore(root: storageRoot)
         self.settingsStore = settingsStore
         self.recorder = MicRecorder(
             makeInput: { [settingsStore] in
@@ -156,6 +167,7 @@ final class DictationCoordinator: ObservableObject {
         self.onBusy = onBusy
         self.onError = onError
         self.onMicPermissionDenied = onMicPermissionDenied
+        self.onDictatedForLearning = onDictatedForLearning
         self.focusSnapshotExecutor = focusSnapshotExecutor
         inputMonitor.triggerModeProvider = { [weak self] in
             self?.settingsProvider().dictationTriggerMode ?? .pushToTalk
@@ -176,6 +188,7 @@ final class DictationCoordinator: ObservableObject {
             return self.isStarting || self.state.isRecording
         }
         Self.sweepOrphanedPreviewFiles(storageRoot: storageRoot)
+        history = historyStore.load()
     }
 
     var elapsed: TimeInterval {
@@ -769,9 +782,15 @@ final class DictationCoordinator: ObservableObject {
             // the coordinator by the time it returns.
             guard generation == session else { return }
             let insertedInto = deliveryTarget
+            if let outcome = DictationHistory.outcome(for: delivery) {
+                keepInHistory(text, outcome: outcome)
+            }
             switch delivery {
             case .inserted:
-                if let insertedInto { checkInsertion(of: text, into: insertedInto, excludedApps: config.excludedAppList) }
+                if let insertedInto {
+                    checkInsertion(of: text, into: insertedInto, excludedApps: config.excludedAppList)
+                    keepForLearning(spokenText, into: insertedInto)
+                }
             case .copied, .displayed:
                 break
             case .notDelivered(let check):
@@ -798,6 +817,10 @@ final class DictationCoordinator: ObservableObject {
             complete()
         } catch {
             guard generation == session else { return }
+            // Compose failing must not lose minutes of transcribed speech.
+            if let lastTranscript {
+                keepInHistory(lastTranscript, outcome: .notInserted)
+            }
             let prefix: String
             if case .composing = state {
                 prefix = "Could not compose dictation"
@@ -934,6 +957,36 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
+    /// Reads the pasted-into window's title and page address once, and hands
+    /// the spoken words on only if they pass the same exclusions as nearby
+    /// text. Anything unreadable keeps nothing.
+    private func keepForLearning(_ spokenText: String, into target: DictationDeliveryTarget) {
+        learningReadTask?.cancel()
+        // The stored settings: the dictation provider also builds vocabulary.
+        guard settingsStore.current.learnsFromDictation, target.focusIdentityKey?.isEmpty == false else { return }
+        let appName = NSRunningApplication(processIdentifier: target.processID)?.localizedName ?? ""
+        learningReadTask = Task { [weak self] in
+            let surface = await Self.readLearningSurface(in: target)
+            guard !Task.isCancelled, let self, let surface else { return }
+            let settings = self.settingsStore.current
+            guard settings.learnsFromDictation, DictationLearningPolicy.permits(
+                appName: appName, bundleID: target.bundleID, surface: surface,
+                excludedApps: settings.excludedAppList,
+                excludedDomains: settings.excludedScreenDomainList) else { return }
+            self.onDictatedForLearning(spokenText, appName)
+        }
+    }
+
+    nonisolated private static func readLearningSurface(in target: DictationDeliveryTarget) async
+        -> DictationLearningSurface? {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .utility).async {
+                continuation.resume(returning: CotypingAXHelper.dictationLearningSurface(
+                    processID: target.processID, focusIdentityKey: target.focusIdentityKey))
+            }
+        }
+    }
+
     nonisolated private static func readTextBeforeCaret(in target: DictationDeliveryTarget) async -> String? {
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -956,6 +1009,43 @@ final class DictationCoordinator: ObservableObject {
         NSPasteboard.general.setString(notice.text, forType: .string)
         deliveryNotice?.copied = true
         scheduleNoticeDismissal(after: .seconds(2))
+    }
+
+    /// Puts a kept dictation, the newest by default, back on the clipboard.
+    @discardableResult
+    func copyFromHistory(_ id: DictationHistoryEntry.ID? = nil) -> Bool {
+        let entry = id == nil ? history.entries.first : history.entries.first { $0.id == id }
+        guard let entry else { return false }
+        NSPasteboard.general.clearContents()
+        return NSPasteboard.general.setString(entry.text, forType: .string)
+    }
+
+    /// Forgets the kept dictations, and the last result the Dictation page shows.
+    func clearHistory() {
+        history.removeAll()
+        historyStore.deleteAll()
+        guard state == .idle, !isStarting else { return }
+        lastTranscript = nil
+        lastComposedText = nil
+        lastEngine = nil
+        lastContextUse = nil
+    }
+
+    private func keepInHistory(_ text: String, outcome: DictationHistoryEntry.Outcome) {
+        history.record(text, outcome: outcome, appName: dictatedAppName)
+        do {
+            try historyStore.save(history.entries)
+        } catch {
+            lokalbotLog("recent dictations save FAILED: \(error.localizedDescription)")
+        }
+    }
+
+    /// The app dictation started in, for the history. LokalBot itself (Try
+    /// here) is left unnamed.
+    private var dictatedAppName: String? {
+        guard let processID = deliveryTarget?.processID ?? contextTarget?.processID,
+              processID != ProcessInfo.processInfo.processIdentifier else { return nil }
+        return NSRunningApplication(processIdentifier: processID)?.localizedName ?? contextTarget?.appName
     }
 
     func dismissDeliveryNotice() {

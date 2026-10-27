@@ -30,6 +30,9 @@ final class MCPDispatcherTests: XCTestCase {
         XCTAssertTrue(response!.contains(#""name":"lokalbot""#), response!)
         XCTAssertTrue(response!.contains(#""version":"1.2.3""#), response!)
         XCTAssertTrue(response!.contains(#""tools":{}"#), response!)
+        // Clients that surface server instructions tell the model to orient first.
+        XCTAssertTrue(response!.contains(#""instructions":"#), response!)
+        XCTAssertTrue(response!.contains("call get_briefing"), response!)
     }
 
     func testInitializeWithUnknownVersionAnswersOurNewest() async {

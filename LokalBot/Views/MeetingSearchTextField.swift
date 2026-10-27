@@ -31,6 +31,7 @@ struct MeetingSearchTextField: NSViewRepresentable {
         field.identifier = NSUserInterfaceItemIdentifier("meeting.search.field")
         field.setAccessibilityIdentifier("meeting.search.field")
         field.setAccessibilityLabel(AppLanguage.matching(locale).localized(placeholder))
+        field.apply(layoutDirection: context.environment.layoutDirection)
         if focusesOnAppear { field.requestFocus() }
         return field
     }
@@ -39,6 +40,7 @@ struct MeetingSearchTextField: NSViewRepresentable {
         context.coordinator.update(parent: self)
         field.placeholderString = AppLanguage.matching(locale).localized(placeholder)
         field.setAccessibilityLabel(AppLanguage.matching(locale).localized(placeholder))
+        field.apply(layoutDirection: context.environment.layoutDirection)
         if field.stringValue != text {
             field.stringValue = text
         }

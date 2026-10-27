@@ -1,0 +1,10 @@
+{
+  "header": {"schemaVersion": 1, "macOSVersion": "27.0", "origin": "reconstructed",
+             "scenario": "feishu-call-on-helper", "scrubberVersion": 1, "recordedAt": "2026-10-18T00:00:00Z"},
+  "events": [
+    {"t": 0, "query": "runningApps", "apps": [{"processIdentifier": 900, "bundleIdentifier": "com.electron.lark", "localizedName": "飞书"}]},
+    {"t": 0, "query": "frontmost", "app": {"processIdentifier": 900, "bundleIdentifier": "com.electron.lark", "localizedName": "飞书"}},
+    {"t": 0, "query": "audioProcesses", "processes": [{"id": 900, "name": "飞书", "bundleID": "com.electron.lark", "objectID": 90, "isRunningOutput": false}, {"id": 910, "name": "Feishu Hlpr", "bundleID": "com.bytedance.lark.helper", "objectID": 91, "isRunningOutput": true}]},
+    {"t": 0, "query": "inputRunning", "processID": 900, "flag": false}
+  ]
+}

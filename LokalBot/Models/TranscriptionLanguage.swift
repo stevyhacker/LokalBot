@@ -20,6 +20,7 @@ enum TranscriptionLanguage: RawRepresentable, Codable, CaseIterable, Identifiabl
     static let no: TranscriptionLanguage = .language(.no)
     static let tr: TranscriptionLanguage = .language(.tr)
     static let ru: TranscriptionLanguage = .language(.ru)
+    static let uk: TranscriptionLanguage = .language(.uk)
     static let zh: TranscriptionLanguage = .language(.zh)
     static let yue: TranscriptionLanguage = .language(.yue)
     static let ja: TranscriptionLanguage = .language(.ja)

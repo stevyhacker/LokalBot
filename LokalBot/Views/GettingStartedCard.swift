@@ -58,8 +58,23 @@ struct GettingStartedCard: View {
                     stepRow(done: modelDownloaded ? true : nil) {
                         modelStep
                     }
-                    stepRow(done: app.isRecording || !app.meetings.isEmpty) {
-                        Text("Record a meeting — it appears in the list automatically.")
+                    stepRow(done: app.sampleMeeting != nil ? true : nil) {
+                        HStack(spacing: 8) {
+                            Button(app.sampleMeeting != nil ? "Open the sample meeting" : "Try a sample meeting") {
+                                app.trySampleMeeting()
+                            }
+                            .buttonStyle(.bordered).controlSize(.small)
+                            .accessibilityIdentifier("welcome.trySample")
+                            Text("— a made-up call, to try Ask before you record.")
+                        }
+                    }
+                    stepRow(done: app.isRecording || app.meetings.contains(where: \.isOwnWork)) {
+                        HStack(spacing: 8) {
+                            Button("Import a recording") { RecordingImportPanel.choose(into: app) }
+                                .buttonStyle(.bordered).controlSize(.small)
+                                .accessibilityIdentifier("welcome.importRecording")
+                            Text("or record a meeting — it appears in the list automatically.")
+                        }
                     }
                     stepRow(done: nil) {
                         HStack(spacing: 8) {
@@ -88,6 +103,7 @@ struct GettingStartedCard: View {
             .frame(maxWidth: 560, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
+        .recordingImportDropTarget(app)
         .onAppear {
             modelDownloaded = TranscriptionModelStore.downloadedChoices(
                 graniteConfiguration: app.settings.graniteSpeechModel,

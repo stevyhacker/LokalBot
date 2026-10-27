@@ -25,10 +25,10 @@ settings:
 packages:
   FluidAudio:
     url: https://github.com/FluidInference/FluidAudio
-    exactVersion: 0.17.5   # Nemotron output-backing fixes and transcript-safe logging controls
+    exactVersion: 0.17.7   # current patch; upstream TTS changes are not used by LokalBot
   WhisperKit:
     url: https://github.com/argmaxinc/WhisperKit
-    exactVersion: 1.1.0
+    exactVersion: 1.1.1   # crash and model-download cancellation fixes
   Qwen3Speech:
     url: https://github.com/stevyhacker/speech-swift
     revision: 33f42bc0d48efa5baf39f2531f52c333d92e519a  # v0.0.28 + MLX-LM pin; upstream soniqo/speech-swift#501
@@ -65,6 +65,7 @@ targetTemplates:
           - Resources/pi
           - Resources/ModelChecks
           - Resources/ModelAssets
+          - Resources/SampleMeeting
       - path: Vendor/llama-cpp
         type: folder
         buildPhase: resources
@@ -78,6 +79,11 @@ targetTemplates:
         type: folder
         buildPhase: resources
       - path: LokalBot/Resources/ModelAssets
+        type: folder
+        buildPhase: resources
+      # The sample meeting's recording, script and reference transcript
+      # (SampleMeeting.swift); the Windows and Linux app embeds the same files.
+      - path: LokalBot/Resources/SampleMeeting
         type: folder
         buildPhase: resources
       # Bundle SKILL.md inside the app at Contents/Resources/lokalbot-cli/
@@ -101,6 +107,13 @@ targetTemplates:
             destination: resources
             subpath: Legal
       - path: THIRD_PARTY_NOTICES.md
+        buildPhase:
+          copyFiles:
+            destination: resources
+            subpath: Legal
+      # Autocomplete code ported from Cotabby keeps its AGPL-3.0 terms, so the
+      # license text ships beside the notice that names those files.
+      - path: LICENSES/AGPL-3.0.txt
         buildPhase:
           copyFiles:
             destination: resources
@@ -154,8 +167,8 @@ targetTemplates:
         CFBundleDisplayName: LokalBot
         CFBundleDevelopmentRegion: en
         CFBundleIconFile: AppIcon
-        CFBundleShortVersionString: "0.10.8"
-        CFBundleVersion: "52"
+        CFBundleShortVersionString: "0.11.4"
+        CFBundleVersion: "59"
         NSMicrophoneUsageDescription: >-
           LokalBot records your side of meetings from the microphone.
           Audio stays on this Mac unless you approve a transcription server;
@@ -372,8 +385,13 @@ targets:
       - path: LokalBot/Models/ActionDueResolver.swift
       - path: LokalBot/Models/ActionDuePresentation.swift
       - path: LokalBot/Models/PeopleDirectory.swift
+      - path: LokalBot/Models/PeopleCuration.swift
       - path: LokalBot/Services/MeetingOutcomeStore.swift
       - path: LokalBot/Support/OutcomeProse.swift
+      # `config search` ranks like Settings search; the app-control client
+      # probes the library instance lock before starting the app.
+      - path: LokalBot/Support/SettingsSearchRanker.swift
+      - path: LokalBot/Support/LibraryInstanceLock.swift
     dependencies:
       - package: ArgumentParser
         product: ArgumentParser

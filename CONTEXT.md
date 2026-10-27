@@ -1,6 +1,7 @@
 # LokalBot
 
-LokalBot is a local-first macOS work-memory app. It captures conversations,
+LokalBot is a local-first work-memory app for macOS, with a Windows and Linux
+app in alpha. It captures conversations,
 turns them into useful memory, and helps people retrieve or act on that memory
 without making remote data sharing the default.
 

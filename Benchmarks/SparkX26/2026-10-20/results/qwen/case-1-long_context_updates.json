@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\n  \"release_code\": \"AMBER-64\",\n  \"launch_date\": \"2026-09-25\",\n  \"checklist_owner\": \"Ana\",\n  \"checklist_due\": \"2026-09-23\",\n  \"launch_source\": \"R0255\",\n  \"checklist_source\": \"R0396\"\n}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 91,
+    "prompt_tokens": 19328,
+    "total_tokens": 19419,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 19328,
+    "prompt_ms": 111578.686,
+    "prompt_per_token_ms": 5.772903870033113,
+    "prompt_per_second": 173.2230472762513,
+    "predicted_n": 91,
+    "predicted_ms": 8407.876,
+    "predicted_per_token_ms": 93.42084444444444,
+    "predicted_per_second": 10.704249206339389
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"release_code\": \"AMBER-64\",\n  \"launch_date\": \"2026-09-25\",\n  \"checklist_owner\": \"Ana\",\n  \"checklist_due\": \"2026-09-23\",\n  \"launch_source\": \"R0255\",\n  \"checklist_source\": \"R0396\"\n}"
+        }
+      }
+    ],
+    "created": 1792527752,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 91,
+      "prompt_tokens": 19328,
+      "total_tokens": 19419,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-RRYT2yuIPmUDzaSwYOu3bIE5v0bF3Gbx",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 19328,
+      "prompt_ms": 111578.686,
+      "prompt_per_token_ms": 5.772903870033113,
+      "prompt_per_second": 173.2230472762513,
+      "predicted_n": 91,
+      "predicted_ms": 8407.876,
+      "predicted_per_token_ms": 93.42084444444444,
+      "predicted_per_second": 10.704249206339389
+    }
+  },
+  "wall_seconds": 120.03173583792523,
+  "memory": {
+    "samples": 600,
+    "peak_rss_bytes": 7617871872,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "long_context_updates",
+  "group": "long_context",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 6,
+    "total_fields": 6,
+    "wrong": {}
+  }
+}

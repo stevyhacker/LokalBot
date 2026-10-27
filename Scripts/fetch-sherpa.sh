@@ -13,15 +13,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION=v1.13.6
-ONNXRUNTIME_VERSION=v1.24.4  # this release variant reports macOS 14.0, satisfying our 15.0 target
+VERSION=v1.13.8
+ONNXRUNTIME_VERSION=v1.28.2  # bundled runtime reports macOS 11.0, satisfying our 15.0 target
 DEPLOYMENT_TARGET=15.0
-ARTIFACT="sherpa-onnx-$VERSION-onnxruntime-${ONNXRUNTIME_VERSION#v}-osx-arm64-shared.tar.bz2"
+ARTIFACT="sherpa-onnx-$VERSION-osx-arm64-shared.tar.bz2"
 URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/$VERSION/$ARTIFACT"
 # SHA-256 of the release artifact — a GitHub release asset can be replaced in
 # place, so verify before bundling. Recompute when bumping VERSION:
 #   shasum -a 256 <file>
-ARCHIVE_SHA256=0ab4203d8f04dfb86dc182e65105c2e3e36faceacb15aaa577bc064fbbce71f6
+ARCHIVE_SHA256=b10e5c7e2c30ea03de9c442655d14860d9edc475c6251d58a8f5f06e913a1d56
 SHERPA_LICENSE_URL="https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/$VERSION/LICENSE"
 SHERPA_LICENSE_SHA256=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
 ONNXRUNTIME_LICENSE_URL="https://raw.githubusercontent.com/microsoft/onnxruntime/$ONNXRUNTIME_VERSION/LICENSE"

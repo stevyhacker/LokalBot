@@ -19,6 +19,8 @@ struct ToolDefinition {
 enum ToolErrorCode: String {
     case accessDisabled = "access_disabled"
     case screenAccessDisabled = "screen_access_disabled"
+    case personalContextDisabled = "personal_context_disabled"
+    case personalContextUnavailable = "personal_context_unavailable"
     case screenMemoryUnavailable = "screen_memory_unavailable"
     case screenshotNotFound = "screenshot_not_found"
     case appNotRunning = "app_not_running"

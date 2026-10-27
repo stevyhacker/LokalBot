@@ -1,0 +1,33 @@
+pkgbase = lokalbot-bin
+	pkgdesc = Personal context engine: meeting notes, screen recall and dictation with on-device AI (alpha)
+	pkgver = 0.11.0
+	pkgrel = 1
+	url = https://www.lokalbot.com
+	arch = x86_64
+	license = GPL-3.0-only
+	license = AGPL-3.0-only
+	depends = glibc>=2.39
+	depends = libgcc
+	depends = libstdc++
+	depends = libgomp
+	depends = alsa-lib
+	depends = libxcb
+	depends = libxkbcommon
+	depends = libxkbcommon-x11
+	depends = vulkan-icd-loader
+	depends = wayland
+	depends = hicolor-icon-theme
+	optdepends = pipewire-pulse: record system audio and detect meetings (or pulseaudio)
+	optdepends = vulkan-driver: GPU rendering and faster local models
+	optdepends = org.freedesktop.secrets: keep sign-ins, calendar links and the screenshot key
+	optdepends = wtype: dictation on Hyprland and Sway
+	optdepends = ydotool: dictation on other Wayland desktops
+	optdepends = grim: screen context on Hyprland and Sway
+	provides = lokalbot=0.11.0
+	conflicts = lokalbot
+	options = !strip
+	options = !debug
+	source_x86_64 = https://github.com/stevyhacker/LokalBot/releases/download/v0.11.0/LokalBot-0.11.0-linux-x86_64.tar.gz
+	sha256sums_x86_64 = 1010199e8597ebe53bec3023b477a722ecfca803de8ab4920dff13b7e5ada09b
+
+pkgname = lokalbot-bin

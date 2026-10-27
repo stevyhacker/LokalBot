@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How the Windows and Linux Port Was Built with Coding Agents — LokalBot Blog</title>
+  <meta name="description" content="The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents" />
+  <link rel="alternate" type="application/atom+xml" title="LokalBot Blog" href="https://www.lokalbot.com/blog/feed.xml" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents" />
+  <meta property="og:title" content="How the Windows and Linux Port Was Built with Coding Agents — LokalBot Blog" />
+  <meta property="og:description" content="The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/blog/og/porting-to-windows-and-linux-with-agents.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="How the Windows and Linux port was built" />
+  <meta property="article:published_time" content="2026-10-20" />
+  <meta property="article:modified_time" content="2026-10-20" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="How the Windows and Linux Port Was Built with Coding Agents — LokalBot Blog" />
+  <meta name="twitter:description" content="The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/blog/og/porting-to-windows-and-linux-with-agents.png" />
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents#post","headline":"How the Windows and Linux port was built","description":"The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up.","datePublished":"2026-10-20","dateModified":"2026-10-20","url":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents","mainEntityOfPage":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents","image":"https://www.lokalbot.com/assets/blog/og/porting-to-windows-and-linux-with-agents.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"How the Windows and Linux port was built","item":"https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents"}]}]}</script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#post">Skip to post</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/guides#compare">Compare</a><a href="/blog" aria-current="page">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="post">
+    <header class="guide-hero blog-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/blog">Blog</a><span aria-hidden="true">/</span><span>Build notes</span></nav>
+      <p class="eyebrow">Build notes</p>
+      <h1>How the Windows and Linux port was built</h1>
+      <p class="guide-hero__lead">The port began with one message sent from a phone on a Sunday morning and shipped as LokalBot 0.11.0 two days later. Here is the short version, with a link to the full write-up.</p>
+      <p class="guide-byline"><time datetime="2026-10-20">October 20, 2026</time> · 3 min read</p>
+    </header>
+
+    <article class="guide-article blog-article">
+<h2>A first attempt that only looked right</h2>
+        <p>On October 2 a coding agent built a working Windows and Linux app with a native interface and CI on both platforms in one morning. It had its own data model and its own library on disk, so it couldn't open anything recorded on a Mac, and nothing would show when it drifted from how the Mac app behaves. That pull request was closed.</p>
+
+        <h2>Specs before code</h2>
+        <p>The second attempt spent its first hour on specs. Four agents read the Mac app's 150,000 lines of Swift without changing anything and wrote down the library format, the processing pipeline with every model prompt, every screen with its exact text, and the command-line tools and privacy rules. The core data types were written to match the Mac app's files, and every agent tested against a real library recorded by the Mac app. Six implementation agents then each took one part of the code.</p>
+
+        <h2>How the work was checked</h2>
+        <p>The port landed as one large pull request, so the checks mattered more than reading every line of the diff:</p>
+        <ul>
+          <li>CI runs the app on a virtual display on Linux and on Windows and takes a screenshot of every page.</li>
+          <li>The live transcript is tested by playing a scripted conversation into virtual audio devices. That caught two bugs the unit tests had missed.</li>
+          <li>Autocomplete is tested by typing into Notepad and checking that the suggestion appears after the cursor.</li>
+          <li>End-to-end runs use the real models from an empty library: they download the models, process a short meeting, and ask a question about it.</li>
+          <li>Meetings recorded on a Mac are played on Linux, with their timestamps required to line up exactly.</li>
+          <li>Afterwards, the Mac and Windows/Linux apps were compared feature by feature, and the gaps were closed in five separate pull requests.</li>
+        </ul>
+
+        <h2>Read the full write-up</h2>
+        <p>The full story, including the build machines, the rules for agents working side by side, and the decisions that were left to a person, is on Field Notes: <a href="https://bogosavljevic.me/blog/posts/porting-lokalbot-to-linux-and-windows/" target="_blank" rel="noopener">Porting LokalBot to Linux and Windows with agents</a>. The result is described in <a href="/blog/windows-and-linux-alpha">LokalBot is on Windows and Linux, in alpha</a>.</p>
+    </article>
+
+    <section class="guide-related" aria-labelledby="more-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="more-title">More from the blog</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card blog-card" href="/blog/recall-vs-restraint-memory-benchmark">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-23">October 23, 2026</time> · Benchmark</span>
+          <strong>Recall vs. restraint: which local models know when not to save a memory</strong>
+          <span>A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.</span>
+          <span class="guide-card__meta">6 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/windows-and-linux-alpha">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-20">October 20, 2026</time> · Release</span>
+          <strong>LokalBot is on Windows and Linux, in alpha</strong>
+          <span>LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.</span>
+          <span class="guide-card__meta">5 min read</span>
+        </a>
+        <a class="guide-card blog-card" href="/blog/autocomplete-that-knows-your-meetings">
+          <span class="guide-card__eyebrow"><time datetime="2026-10-13">October 13, 2026</time> · Autocomplete</span>
+          <strong>Autocomplete that knows your meetings</strong>
+          <span>LokalBot's autocomplete runs Gemma 4 E2B base at about 50 ms a suggestion on an M4 Max and can bring in facts from your own meeting notes. How it compares with Cotypist and Cotabby.</span>
+          <span class="guide-card__meta">4 min read</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="/system-requirements">requirements</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

@@ -123,7 +123,7 @@ actor MeetingSpeakerEvidenceStore {
             if meeting.startedAt < cutoff {
                 try eraseEvidence(meeting: meeting)
             } else {
-                // Recent microphone voice samples stay available for remembering.
+                // Recent voice samples stay available for remembering.
                 try removeRetiredObservations(meeting)
             }
         }
@@ -150,26 +150,70 @@ actor MeetingSpeakerEvidenceStore {
         let durable = try state(meeting: meeting)
         guard durable.decisions.last(where: { $0.speakerID == assignment.id })?.id == decision.id,
               durable.assignments.contains(where: { $0.id == assignment.id && $0.name == assignment.name && $0.origin.isProtected }) else { throw Failure.stale }
+        return try add(Self.contribution(meeting: meeting, assignment: assignment, decisionID: decision.id,
+                confirmedAt: decision.confirmedAt, samples: samples),
+            name: name, isLocalUser: assignment.isLocalUser, profileID: profileID, to: &database)
+    }
+
+    /// A name the user gave before call voices were remembered. Legacy names
+    /// have no decision, so the assignment ID stands in for one: a later
+    /// correction revokes it like any other contribution.
+    func enrollSavedName(meeting: Meeting, assignmentID: UUID, samples: [SpeakerVoiceSample],
+                         profileID: UUID?, expectedDatabaseRevision: Int) throws -> UUID {
+        try checkMeeting(meeting)
+        var database = try profiles()
+        let durable = try state(meeting: meeting)
+        guard let assignment = durable.assignments.first(where: { $0.id == assignmentID }),
+              assignment.origin.isProtected, !assignment.automaticDisabled, let name = assignment.name else { throw Failure.stale }
+        let decision = durable.decisions.last { $0.speakerID == assignmentID && $0.action.changesAttribution }
+        guard decision.map({ $0.action == .assign || $0.action.confirmsIdentity }) ?? true else { throw Failure.stale }
+        let decisionID = decision?.id ?? assignmentID
+        if let existing = database.profiles.first(where: { profile in
+            profile.contributions.contains { $0.decisionID == decisionID || ($0.meetingID == meeting.id && $0.speakerID == assignmentID) }
+        }) { return existing.id }
+        guard database.revision == expectedDatabaseRevision,
+              !database.deletedMeetings.contains(meeting.id),
+              !database.revokedDecisionIDs.contains(decisionID),
+              SpeakerVoiceMatcher.canEnroll(samples) else { throw Failure.stale }
+        return try add(Self.contribution(meeting: meeting, assignment: assignment, decisionID: decisionID,
+                confirmedAt: decision?.confirmedAt ?? Date(), samples: samples),
+            name: name, isLocalUser: assignment.isLocalUser, profileID: profileID, to: &database)
+    }
+
+    /// Call voices store their average and one chunk for provenance, which
+    /// keeps a busy team's profiles well inside the file limit.
+    private static func contribution(meeting: Meeting, assignment: SpeakerIdentityAssignment, decisionID: UUID,
+                                     confirmedAt: Date, samples: [SpeakerVoiceSample]) -> SpeakerVoiceProfile.Contribution {
+        let call = (samples.first?.source ?? .system) == .system
+        return SpeakerVoiceProfile.Contribution(meetingID: meeting.id, audioRevision: assignment.audioRevision,
+            speakerID: assignment.id, decisionID: decisionID, confirmedAt: confirmedAt,
+            samples: Array(samples.prefix(call ? 1 : 8)),
+            voiceprint: call ? SpeakerVoiceMatcher.voiceprint(samples)?.vector : nil)
+    }
+
+    private func add(_ contribution: SpeakerVoiceProfile.Contribution, name: String, isLocalUser: Bool?,
+                     profileID: UUID?, to database: inout SpeakerVoiceProfileDatabase) throws -> UUID {
         let targetID = profileID ?? UUID()
         guard !database.forgottenProfiles.contains(targetID) else { throw Failure.deleted }
-        let contribution = SpeakerVoiceProfile.Contribution(meetingID: meeting.id, audioRevision: assignment.audioRevision,
-            speakerID: assignment.id, decisionID: decision.id, confirmedAt: decision.confirmedAt, samples: Array(samples.prefix(8)))
         if let index = database.profiles.firstIndex(where: { $0.id == targetID }) {
             guard database.profiles[index].model == SpeakerVoiceSample.fingerprint else { throw Failure.stale }
             let existingIdentity = database.profiles[index].isLocalUser
-            if let existingIdentity, let confirmed = assignment.isLocalUser,
-               existingIdentity != confirmed { throw Failure.stale }
-            if let confirmed = assignment.isLocalUser { database.profiles[index].isLocalUser = confirmed }
-            database.profiles[index].contributions.removeAll { $0.meetingID == meeting.id && $0.speakerID == assignment.id }
+            if let existingIdentity, let isLocalUser,
+               existingIdentity != isLocalUser { throw Failure.stale }
+            if let isLocalUser { database.profiles[index].isLocalUser = isLocalUser }
+            database.profiles[index].contributions.removeAll {
+                $0.meetingID == contribution.meetingID && $0.speakerID == contribution.speakerID
+            }
             database.profiles[index].contributions.append(contribution)
             database.profiles[index].contributions = Array(database.profiles[index].contributions.suffix(8))
             if !database.profiles[index].confirmedNames.contains(name) { database.profiles[index].confirmedNames.append(name) }
             database.profiles[index].revision += 1
         } else {
             guard profileID == nil else { throw Failure.deleted }
-            guard database.profiles.count < 100 else { throw Failure.tooLarge }
+            // Every named call participant is remembered, so leave room for a whole company.
+            guard database.profiles.count < 250 else { throw Failure.tooLarge }
             database.profiles.append(SpeakerVoiceProfile(id: targetID, name: name,
-                isLocalUser: assignment.isLocalUser, confirmedNames: [name], contributions: [contribution]))
+                isLocalUser: isLocalUser, confirmedNames: [name], contributions: [contribution]))
         }
         database.revision += 1
         try write(database, at: profilesURL)

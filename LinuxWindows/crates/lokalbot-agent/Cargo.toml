@@ -1,0 +1,44 @@
+[package]
+name = "lokalbot-agent"
+description = "Agent Mode: the pinned Bun + pi runtime, its RPC protocol, approvals and task history."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lokalbot-core.workspace = true
+lokalbot-ai.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+sha2.workspace = true
+hex.workspace = true
+# The session inbox: engine-style threads send, the app awaits on its executor.
+async-channel = "2"
+# Canonical Windows paths without the `\\?\` prefix, so workspace and approval
+# paths compare and display as the user typed them.
+dunce = "1"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true
+env_logger.workspace = true
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }

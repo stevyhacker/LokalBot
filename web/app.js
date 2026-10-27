@@ -72,12 +72,87 @@
     demos.forEach(function (video) { demoIO.observe(video); });
   }
 
-  /* ---------- phones and tablets: a DMG is no use here, so hand the link to a Mac ---------- */
+  /* the visible label is the last non-empty text node; icons stay put */
+  var labelNode = function (el) {
+    var last = null;
+    for (var i = 0; i < el.childNodes.length; i++) {
+      var n = el.childNodes[i];
+      if (n.nodeType === 3 && n.nodeValue.trim()) last = n;
+    }
+    if (!last) { last = document.createTextNode(""); el.appendChild(last); }
+    return last;
+  };
+  var relabel = function (el, text, icon) {
+    labelNode(el).nodeValue = text;
+    var glyph = $("i.ph", el);
+    if (glyph && icon) glyph.className = "ph " + icon;
+  };
+
+  /* ---------- phones and tablets: an installer is no use here, so hand the link to a computer ---------- */
   var ua = navigator.userAgent || "";
   var handheld = /iPhone|iPad|iPod|Android/i.test(ua) ||
     (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
     !!(navigator.userAgentData && navigator.userAgentData.mobile);
-  var dmgLinks = $$('a[href$="LokalBot.dmg"]');
+  var dmgLinks = $$('a[data-asset="mac"]:not([data-download-alt])');
+
+  /* ---------- downloads: each file carries the version in its name ---------- */
+  /* (LokalBot-0.11.2-macos-arm64.dmg, LokalBot-0.11.2-windows-x86_64-setup.exe), so a link
+     points at the latest release and a click looks up the current file. */
+  var RELEASE_PAGE = "https://github.com/stevyhacker/lokalbot/releases/latest";
+  var RELEASE_API = "https://api.github.com/repos/stevyhacker/lokalbot/releases/latest";
+  var ASSETS = {
+    mac: { pattern: /^LokalBot-[0-9.]+-macos-arm64\.dmg$/, name: "macOS", icon: "ph-apple-logo" },
+    windows: { pattern: /^LokalBot-[0-9.]+-windows-x86_64-setup\.exe$/, name: "Windows", icon: "ph-windows-logo" },
+    linux: { pattern: /^LokalBot-[0-9.]+-linux-x86_64\.tar\.gz$/, name: "Linux", icon: "ph-linux-logo" }
+  };
+
+  /* ---------- Windows and Linux desktops: offer their own download ---------- */
+  var desktop = (function () {
+    if (handheld) return "";
+    var platform = (navigator.userAgentData && navigator.userAgentData.platform) || "";
+    if (/CrOS|Chrome OS|Android/i.test(platform + " " + ua)) return "";
+    if (/Win/i.test(platform) || /Windows NT/.test(ua)) return "windows";
+    if (/Linux/i.test(platform) || /Linux|X11/.test(ua)) return "linux";
+    return "";
+  })();
+  if (desktop) {
+    var target = ASSETS[desktop];
+    $$("a[data-download]").forEach(function (link) {
+      link.setAttribute("href", RELEASE_PAGE);
+      link.setAttribute("data-asset", desktop);
+      relabel(link, labelNode(link).nodeValue.replace(/(macOS|Mac)\s*$/, target.name), target.icon);
+    });
+    $$("[data-download-req]").forEach(function (el) {
+      var text = el.getAttribute("data-req-" + desktop);
+      if (text) el.textContent = text;
+    });
+  }
+  var latestRelease = null;
+  var assetUrl = function (os) {
+    if (!latestRelease) {
+      latestRelease = fetch(RELEASE_API, { headers: { Accept: "application/vnd.github+json" } })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .catch(function () { return null; });
+    }
+    return latestRelease.then(function (release) {
+      var assets = (release && release.assets) || [];
+      for (var i = 0; i < assets.length; i++) {
+        if (ASSETS[os].pattern.test(assets[i].name)) return assets[i].browser_download_url;
+      }
+      return RELEASE_PAGE;
+    });
+  };
+  $$("a[data-asset]").forEach(function (link) {
+    // On a phone the Mac buttons send the site to a computer instead (below).
+    if (handheld && dmgLinks.indexOf(link) !== -1) return;
+    link.addEventListener("click", function (e) {
+      var os = link.getAttribute("data-asset");
+      if (!ASSETS[os] || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      var timeout = new Promise(function (resolve) { setTimeout(function () { resolve(RELEASE_PAGE); }, 4000); });
+      Promise.race([assetUrl(os), timeout]).then(function (url) { window.location.href = url; });
+    });
+  });
 
   if (handheld && dmgLinks.length) {
     var SITE_URL = "https://www.lokalbot.com/";
@@ -90,21 +165,6 @@
       document.body.appendChild(status);
     }
 
-    /* the visible label is the last non-empty text node; icons stay put */
-    var labelNode = function (el) {
-      var last = null;
-      for (var i = 0; i < el.childNodes.length; i++) {
-        var n = el.childNodes[i];
-        if (n.nodeType === 3 && n.nodeValue.trim()) last = n;
-      }
-      if (!last) { last = document.createTextNode(""); el.appendChild(last); }
-      return last;
-    };
-    var relabel = function (el, text, icon) {
-      labelNode(el).nodeValue = text;
-      var glyph = $("i.ph", el);
-      if (glyph && icon) glyph.className = "ph " + icon;
-    };
 
     var legacyCopy = function () {
       var ta = document.createElement("textarea");
@@ -122,11 +182,11 @@
     };
     var flash = function (el, ok) {
       if (!ok) {
-        window.prompt("Copy this link and open it on your Mac:", SITE_URL);
+        window.prompt("Copy this link and open it on your computer:", SITE_URL);
         return;
       }
       status.textContent = "";
-      status.textContent = "Link copied. Open it on your Mac to download LokalBot.";
+      status.textContent = "Link copied. Open it on your computer to download LokalBot.";
       if (el.dataset.copying) return;
       var node = labelNode(el);
       var glyph = $("i.ph", el);
@@ -150,7 +210,7 @@
         flash(el, legacyCopy());
       }
     };
-    var sendToMac = function (e) {
+    var sendToComputer = function (e) {
       e.preventDefault();
       var el = e.currentTarget;
       if (!canShare) { copyLink(el); return; }
@@ -160,13 +220,13 @@
     };
 
     dmgLinks.forEach(function (link) {
-      relabel(link, canShare ? "Send to my Mac" : "Copy link", canShare ? "ph-share" : "ph-copy");
+      relabel(link, canShare ? "Send to my computer" : "Copy link", canShare ? "ph-share" : "ph-copy");
       link.setAttribute("href", SITE_URL);
       link.setAttribute("role", "button");
       link.removeAttribute("download");
-      link.addEventListener("click", sendToMac);
+      link.addEventListener("click", sendToComputer);
       link.addEventListener("keydown", function (e) {
-        if (e.key === " ") sendToMac(e);
+        if (e.key === " ") sendToComputer(e);
       });
     });
     $$("[data-phone-label]").forEach(function (el) {

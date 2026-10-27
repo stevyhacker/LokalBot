@@ -32,6 +32,7 @@ actor FunASRNanoEngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        try TranscriptionModelChoice.funASRNano.validateLanguage(language)
         let model = try FunASRNanoModel.load(directory: directory)
         let runtime = try SherpaOnnxRuntime.installedRuntime(executableName: "sherpa-onnx-offline")
         let work = try OnnxTranscriptionEngine.makeWorkDir()

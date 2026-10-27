@@ -58,7 +58,9 @@ actor GraniteTurboEngine: TranscriptionEngine {
             }
             let url = URL(string: "https://huggingface.co/\(Self.repository)/resolve/\(Self.revision)/\(artifact.name)")!
             let completedBeforeDownload = completedBytes
-            let stashed = try await ParallelRangeDownloader.download(from: url, session: .shared) { fraction in
+            let stashed = try await ModelDownloadRouting.download(
+                from: url, session: .shared,
+                expectedSHA256: artifact.sha256, expectedBytes: artifact.bytes) { fraction in
                 let complete = Double(completedBeforeDownload) + fraction.fractionCompleted * Double(artifact.bytes)
                 self.report(.init(fractionCompleted: complete / Double(totalBytes), status: "Downloading English fast mode..."), to: progress)
             }

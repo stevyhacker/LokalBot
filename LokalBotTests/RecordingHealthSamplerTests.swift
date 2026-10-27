@@ -56,7 +56,7 @@ final class RecordingHealthSamplerTests: XCTestCase {
         let entered = expectation(description: "Old read queued")
         var continuation: CheckedContinuation<MicRecorder.CaptureHealth, Never>?
         var oldDeliveries = 0, newReads = 0
-        let microphone = MicRecorder.CaptureHealth(duration: 12, lastAudioWriteAt: nil,
+        let microphone = MicRecorder.CaptureHealth(duration: 12, lastAudioWriteAt: nil, lastSignalAt: nil,
             isEngineRunning: true, droppedBufferCount: 0, recoveryState: .healthy)
         let system = SystemAudioRecorder.CaptureHealth(duration: 12, audibleDuration: 3,
             framesSinceAttach: 10, lastAudioWriteAt: nil, lastAudibleWriteAt: nil,

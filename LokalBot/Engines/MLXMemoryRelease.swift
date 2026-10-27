@@ -12,4 +12,15 @@ enum MLXMemoryRelease {
         Memory.clearCache()
         lokalbotLog("mlx cache released after=\(label) bytes=\(cached) active=\(Memory.activeMemory)")
     }
+
+    /// Frees the pool once it holds more than `limit` bytes, between the
+    /// passes of an engine that runs many inputs of different sizes back to
+    /// back. The result is the bytes freed, or 0 when the pool was within it.
+    @discardableResult
+    static func trimCachedBuffers(above limit: Int) -> Int {
+        let cached = Memory.cacheMemory
+        guard cached > limit else { return 0 }
+        Memory.clearCache()
+        return cached
+    }
 }

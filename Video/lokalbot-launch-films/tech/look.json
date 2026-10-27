@@ -1,0 +1,32 @@
+{
+  "name": "lokalbot-light",
+  "from": "LokalBot light appearance: DesignTokens.swift, Brand.swift, the app icon",
+  "mood": "the app's light theme: near-white surfaces, deep teal for what LokalBot does, the icon's mint on the moving parts",
+  "color": {
+    "ground": "#f3f5f5",
+    "deep": "#e4e8e8",
+    "card": "#ffffff",
+    "line": "#d9dfdf",
+    "mute": "#5f6d70",
+    "ink": "#0e141c",
+    "accent": "#0c8275",
+    "accent2": "#7d9ec2"
+  },
+  "type": {
+    "display": {
+      "face": "Inter",
+      "weight": 700,
+      "tracking": -0.03
+    },
+    "text": {
+      "face": "Inter",
+      "weight": 500,
+      "tracking": -0.01
+    },
+    "mono": {
+      "face": "Geist Mono",
+      "weight": 400,
+      "tracking": 0
+    }
+  }
+}

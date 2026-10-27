@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"release_code\": \"AMBER-64\", \"launch_date\": \"2026-09-25\", \"checklist_owner\": \"Ana\", \"checklist_due\": \"2026-09-23\", \"launch_source\": \"R0255\", \"checklist_source\": \"R0396\"}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 78,
+    "prompt_tokens": 19780,
+    "total_tokens": 19858,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 19780,
+    "prompt_ms": 141609.648,
+    "prompt_per_token_ms": 7.159233973710818,
+    "prompt_per_second": 139.67974837420684,
+    "predicted_n": 78,
+    "predicted_ms": 8430.958,
+    "predicted_per_token_ms": 109.49296103896104,
+    "predicted_per_second": 9.13300718613472
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"release_code\": \"AMBER-64\", \"launch_date\": \"2026-09-25\", \"checklist_owner\": \"Ana\", \"checklist_due\": \"2026-09-23\", \"launch_source\": \"R0255\", \"checklist_source\": \"R0396\"}"
+        }
+      }
+    ],
+    "created": 1792527555,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 78,
+      "prompt_tokens": 19780,
+      "total_tokens": 19858,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-8KgqYHlRHdj3aRP0kXqT5AlbXtVW5KiT",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 19780,
+      "prompt_ms": 141609.648,
+      "prompt_per_token_ms": 7.159233973710818,
+      "prompt_per_second": 139.67974837420684,
+      "predicted_n": 78,
+      "predicted_ms": 8430.958,
+      "predicted_per_token_ms": 109.49296103896104,
+      "predicted_per_second": 9.13300718613472
+    }
+  },
+  "wall_seconds": 150.07542248582467,
+  "memory": {
+    "samples": 750,
+    "peak_rss_bytes": 6911213568,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "long_context_updates",
+  "group": "long_context",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 6,
+    "total_fields": 6,
+    "wrong": {}
+  }
+}

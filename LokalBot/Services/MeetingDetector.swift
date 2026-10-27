@@ -55,6 +55,12 @@ final class MeetingDetector {
     }
 
     /// Known native meeting apps.
+    ///
+    /// Feishu ships as `Lark.app` with Lark's original `com.electron.lark`
+    /// identifier; current international Lark builds use
+    /// `com.larksuite.larkApp`. WeChat is deliberately absent: its voice
+    /// messages and videos play long enough to pass the sustained-audio gate,
+    /// so listing it would start meetings that are not calls.
     nonisolated static let knownApps: [String: String] = [
         "us.zoom.xos": "Zoom",
         "com.microsoft.teams2": "Teams",
@@ -63,19 +69,29 @@ final class MeetingDetector {
         "com.webex.meetingmanager": "Webex",
         "Cisco-Systems.Spark": "Webex",
         "com.apple.FaceTime": "FaceTime",
+        "com.tencent.meeting": "Tencent Meeting",
+        "com.tencent.tencentmeeting": "VooV Meeting",
+        "com.electron.lark": "Feishu",
+        "com.larksuite.larkApp": "Lark",
+        "com.alibaba.DingTalkMac": "DingTalk",
+        "com.tencent.WeWorkMac": "WeCom",
     ]
 
     /// Native bundles whose newly-started output is a strong meeting signal on
-    /// its own. Broader communication apps (Slack/Teams/FaceTime) can make short
-    /// non-meeting sounds, so the audio monitor only auto-records those when an
-    /// active calendar meeting backs the signal; the detector still picks them
+    /// its own. Broader communication apps (Slack/Teams/FaceTime, and Feishu,
+    /// Lark, DingTalk and WeCom, which also carry chat and voice messages) can
+    /// make non-meeting sounds, so the audio monitor only auto-records those when
+    /// an active calendar meeting backs the signal; the detector still picks them
     /// up on its own, but only once their audio has lasted
     /// `nativeAudioMinimumConfirmationDuration` (see
-    /// `requiresSustainedAudioForStart`).
+    /// `requiresSustainedAudioForStart`). Tencent Meeting and VooV Meeting are
+    /// dedicated conferencing apps, like Zoom.
     nonisolated private static let highConfidenceNativeAudioBundles: Set<String> = [
         "us.zoom.xos",
         "com.webex.meetingmanager",
         "Cisco-Systems.Spark",
+        "com.tencent.meeting",
+        "com.tencent.tencentmeeting",
     ]
 
     nonisolated static func shouldAutoRecordNativeAudioMonitor(bundleID: String, calendarBacked: Bool) -> Bool {
@@ -976,6 +992,21 @@ final class MeetingDetector {
         return bundle == browser || bundle.hasPrefix("\(browser).helper")
     }
 
+    /// Helper processes named outside their host's bundle namespace, keyed by
+    /// the lowercased helper identifier (its own `.`-suffixed variants match
+    /// too) and mapped to the lowercased host. Feishu's Electron helpers keep
+    /// ByteDance's identifier while the app itself is `com.electron.lark`, and
+    /// DingTalk's helper is `com.alibaba.DingTalk-Helper` beside
+    /// `com.alibaba.DingTalkMac`. Webex's media engine (`WebexHelper`, which
+    /// renders the remote participants' audio) registers with Core Audio as
+    /// `Cisco-Systems.SparkHelper`, with no dot after `Spark`, so it is not in
+    /// the `Cisco-Systems.Spark.` namespace of its host `Cisco-Systems.Spark`.
+    nonisolated static let foreignHelperHosts: [String: String] = [
+        "com.bytedance.lark.helper": "com.electron.lark",
+        "com.alibaba.dingtalk-helper": "com.alibaba.dingtalkmac",
+        "cisco-systems.sparkhelper": "cisco-systems.spark",
+    ]
+
     /// Whether an audio process belongs to the detected meeting application's
     /// process family. Zoom routes call audio through `us.zoom.CptHost`, while
     /// Chromium-family browsers use `.helper` bundle identifiers.
@@ -989,6 +1020,11 @@ final class MeetingDetector {
             return bundle == host
                 || bundle == "us.zoom.cpthost"
                 || bundle.hasPrefix("us.zoom.xos.")
+        }
+        if foreignHelperHosts.contains(where: { helper, helperHost in
+            helperHost == host && (bundle == helper || bundle.hasPrefix("\(helper)."))
+        }) {
+            return true
         }
         // Any bundle inside the host's own namespace is that app's audio.
         // Teams alone emits call audio from `<host>.helper` (WebView) *and*

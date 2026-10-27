@@ -163,7 +163,8 @@ brew install --cask lokalbot
 
 Release synchronization:
 
-1. Publish the stable GitHub release with both `LokalBot.dmg` and `appcast.xml`.
+1. Publish the stable GitHub release with both `LokalBot-<version>-macos-arm64.dmg`
+   and `appcast.xml`.
 2. The tap's [Sync LokalBot release workflow](https://github.com/stevyhacker/homebrew-tap/actions/workflows/sync-lokalbot.yml)
    checks hourly. It downloads new assets, verifies their release SHA-256 digests
    and sizes, checks appcast/DMG consistency, and updates the tap cask. It refuses

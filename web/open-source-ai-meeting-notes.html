@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Open-source AI meeting notes: what to verify","description":"A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.","datePublished":"2026-07-13","dateModified":"2026-09-24","mainEntityOfPage":"https://www.lokalbot.com/open-source-ai-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Open-source AI meeting notes: what to verify","item":"https://www.lokalbot.com/open-source-ai-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/open-source-ai-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free for commercial work?","acceptedAnswer":{"@type":"Answer","text":"LokalBot is GPLv3 software and has no usage subscription. Review the license itself for obligations that apply when you modify or distribute it."}},{"@type":"Question","name":"Can I audit network access?","acceptedAnswer":{"@type":"Answer","text":"Yes. The source is public, and the privacy policy names the normal network paths: models, updates, optional Agent Mode setup, and approved remote inference."}},{"@type":"Question","name":"Do I need an API key?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in local models work without one. API keys are relevant only if you choose an external compatible backend that requires them."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Open-source AI meeting notes: what to verify","description":"A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.","datePublished":"2026-07-13","dateModified":"2026-10-20","mainEntityOfPage":"https://www.lokalbot.com/open-source-ai-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Open-source AI meeting notes: what to verify","item":"https://www.lokalbot.com/open-source-ai-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/open-source-ai-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free for commercial work?","acceptedAnswer":{"@type":"Answer","text":"LokalBot is GPLv3 software and has no usage subscription. Review the license itself for obligations that apply when you modify or distribute it."}},{"@type":"Question","name":"Can I audit network access?","acceptedAnswer":{"@type":"Answer","text":"Yes. The source is public, and the privacy policy names the normal network paths: models, updates, optional Agent Mode setup, and approved remote inference."}},{"@type":"Question","name":"Do I need an API key?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in local models work without one. API keys are relevant only if you choose an external compatible backend that requires them."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -43,7 +43,7 @@
       <p class="eyebrow">Open source</p>
       <h1>Open-source AI meeting notes: what to verify</h1>
       <p class="guide-hero__lead">A public repository is useful, but privacy depends on the whole data path. Here is how to evaluate the license, runtime, storage, network boundaries, and distribution.</p>
-      <p class="guide-byline"><time datetime="2026-09-24">Updated September 24, 2026</time> · 6 min read</p>
+      <p class="guide-byline"><time datetime="2026-10-20">Updated October 20, 2026</time> · 6 min read</p>
     </header>
 
     <article class="guide-article">
@@ -56,22 +56,30 @@
         <h2>Trace the meeting data path</h2>
         <p>For a private notetaker, follow the recording from capture to deletion:</p>
         <ol>
-          <li>The microphone and selected meeting process produce two local audio tracks.</li>
-          <li>A downloaded speech engine creates the transcript on Apple Silicon.</li>
+          <li>The microphone and the meeting audio produce two local audio tracks. On a Mac the second track is the selected meeting app; on Windows and Linux it is everything the computer plays.</li>
+          <li>A downloaded speech engine creates the transcript on your computer.</li>
           <li>The built-in llama.cpp backend can generate a summary locally.</li>
           <li>SQLite stores the library and full-text search index.</li>
           <li>Day tracking starts activity-only: app names and window titles. Visible text and encrypted screenshots are opt-in, permission-gated, and deleted after 14 days by default.</li>
         </ol>
-        <p>Then identify the exceptions. LokalBot connects to download models and updates, to set up optional Agent Mode, and to call any non-loopback inference origin you explicitly approve. That distinction is more useful than an absolute “never connects” claim.</p>
+        <p>Then identify the exceptions. LokalBot connects to download models and updates, to set up optional Agent Mode, and to call any non-loopback inference origin you explicitly approve. On Windows and Linux it also downloads a pinned llama.cpp runtime from GitHub once. That distinction is more useful than an absolute “never connects” claim.</p>
 
         <h2>Check account and telemetry requirements</h2>
         <p>An app can be open source while its useful features depend on a hosted account. LokalBot has no account, subscription, analytics service, advertising SDK, or telemetry backend. Its public issue tracker provides community support, and the security policy points vulnerability reports to a private channel.</p>
 
         <h2>Build it yourself</h2>
-        <p>The repository includes an XcodeGen project manifest and build instructions. A source build is the strongest way to connect the code you inspected with the binary you run. It also makes the trade-off explicit: local-first software still relies on macOS frameworks and bundled or downloaded model runtimes, so dependency review remains part of a serious audit.</p>
+        <p>The repository has build instructions for both apps: an XcodeGen project for the Mac app, and a Rust workspace you build with <code>cargo</code> for the Windows and Linux app. A source build is the strongest way to connect the code you inspected with the binary you run. It also makes the trade-off explicit: local-first software still relies on operating-system frameworks and bundled or downloaded model runtimes, so dependency review remains part of a serious audit.</p>
         <pre class="code" aria-label="Build LokalBot from source"><span class="c-prompt">$</span> git clone https://github.com/stevyhacker/lokalbot.git
 <span class="c-prompt">$</span> cd lokalbot
-<span class="c-prompt">$</span> xcodegen generate <span class="c-op">&amp;&amp;</span> open LokalBot.xcodeproj</pre>
+
+<span class="c-op"># Mac</span>
+<span class="c-prompt">$</span> mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+<span class="c-prompt">$</span> xcodegen generate <span class="c-op">&amp;&amp;</span> open LokalBot.xcodeproj
+
+<span class="c-op"># Windows and Linux</span>
+<span class="c-prompt">$</span> cd LinuxWindows
+<span class="c-prompt">$</span> cargo run -p lokalbot-app</pre>
+        <p>The Rust build needs the toolchain pinned in the repository, plus system libraries on Linux and the Visual Studio 2022 Build Tools and CMake on Windows. The <a href="https://github.com/stevyhacker/lokalbot/blob/master/LinuxWindows/README.md#build-from-source" target="_blank" rel="noopener">Windows and Linux README</a> lists them.</p>
 
         <h2>A five-question evaluation</h2>
         <ul>
@@ -119,7 +127,7 @@
         <a class="guide-card" href="system-requirements">
           <span class="guide-card__eyebrow">Compatibility</span>
           <strong>LokalBot system requirements</strong>
-          <span>Check LokalBot's macOS version, Apple Silicon, memory, disk, permissions, model downloads, and offline requirements before installing.</span>
+          <span>Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.</span>
         </a>
       </div>
     </section>
@@ -128,10 +136,11 @@
       <div class="download__panel">
         <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
         <p class="eyebrow">Try it locally</p>
-        <h2 class="section__title">Meeting notes that stay on your Mac by default.</h2>
-        <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
-        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>
@@ -139,43 +148,45 @@
   <footer class="footer">
     <div class="footer__brand">
       <a class="brand" href="/">
-        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Find what you said or saw on your Mac.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
-      <a href="system-requirements">System requirements</a>
+      <a href="/system-requirements">System requirements</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
-      <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-apple-notes">vs Apple Notes</a>
-      <a href="lokalbot-vs-otter">vs Otter</a>
-      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
-      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
-      <a href="lokalbot-vs-meetily">vs Meetily</a>
-      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
-      <a href="lokalbot-vs-wispr-flow">vs Wispr Flow</a>
-      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="about">About</a>
+      <a href="/about">About</a>
       <a href="/guides">Guides</a>
-      <a href="benchmarks">Benchmarks</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="privacy">Privacy</a>
-      <a href="terms">Terms</a>
-      <a href="support">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

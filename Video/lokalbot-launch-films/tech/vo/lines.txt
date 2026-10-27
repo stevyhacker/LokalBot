@@ -1,0 +1,11 @@
+LokalBot records two tracks, your microphone and the meeting app. No bot joins the call.
+Nemotron tells the voices apart.
+Qwen3-ASR transcribes each turn, with its timestamp.
+Qwen3.5, on the built-in llama.cpp server, writes the decisions and action items.
+It all lands in a local SQLite library, searchable by keyword, and by meaning with Harrier.
+Screen text is opt-in: read from accessibility, with OCR as a fallback.
+Credentials are redacted, screenshots encrypted, and both expire in fourteen days by default.
+Search opens the exact moment.
+Agents get read-only access through the CLI and MCP, off until you turn it on.
+No account, no telemetry. Remote servers only with your approval.
+LokalBot. Free and open source.

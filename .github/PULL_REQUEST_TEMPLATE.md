@@ -19,6 +19,12 @@ Examples:
   swiftlint lint --strict --quiet
   # exit 0
 
+  # Windows and Linux app, from LinuxWindows/
+  cargo fmt --all -- --check
+  cargo clippy --workspace --all-targets --locked -- -D warnings
+  cargo test --workspace --locked
+  python3 scripts/sync-localizations.py --check
+
 For UI changes, attach a screenshot or short screen recording.
 For changes that can't be verified end-to-end yet, say so explicitly.
 -->
@@ -48,6 +54,7 @@ Anything reviewers should know that isn't visible from the diff:
 - project.yml, settings, or schema migrations
 - Behavior changes that touch existing recording / transcription / summary flows
 - Permission (TCC) or signing / notarization implications
+- Windows or Linux differences (X11 vs Wayland, desktop environments, WASAPI)
 - Performance characteristics worth flagging
 
 Skip this section entirely if there's nothing to flag.

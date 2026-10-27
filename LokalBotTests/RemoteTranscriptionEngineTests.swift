@@ -249,6 +249,18 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertTrue(text.hasSuffix("\r\n--B--\r\n"))
     }
 
+    func testUkrainianHintReachesOpenAIAndWhisperCppRequests() throws {
+        let language = try XCTUnwrap(TranscriptionLanguage(rawValue: "uk"))
+        for base in ["http://127.0.0.1:8080/v1", "http://127.0.0.1:8080/inference"] {
+            let request = RemoteTranscriptionEngine.makeRequest(
+                endpoint: try configuration(base).validatedEndpoint(), apiKey: "", model: "large-v3-turbo", boundary: "B",
+                wav: OnnxTranscriptionEngine.wavData([0]), language: language.code, prompt: nil)
+            let text = String(decoding: try XCTUnwrap(request.httpBody), as: UTF8.self)
+            XCTAssertTrue(text.contains("name=\"language\"\r\n\r\nuk\r\n"), base)
+            XCTAssertFalse(text.contains("\r\nru\r\n"), base)
+        }
+    }
+
     func testSingleModelServerGetsNoModelKeyOrLanguage() throws {
         let request = RemoteTranscriptionEngine.makeRequest(
             endpoint: try endpoint(), apiKey: "", model: "", boundary: "B",
@@ -258,13 +270,13 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
     }
 
     func testTranscriptTextReadsJSONOrPlainText() throws {
-        XCTAssertEqual(try RemoteTranscriptionEngine.transcriptText(
+        XCTAssertEqual(try RemoteTranscriptionEngine.transcription(
             from: Data(#"{"text":" Hello there. "}"#.utf8), response: response(contentType: "application/json")),
-                       " Hello there. ")
-        XCTAssertEqual(try RemoteTranscriptionEngine.transcriptText(
+                       .init(text: " Hello there. "))
+        XCTAssertEqual(try RemoteTranscriptionEngine.transcription(
             from: Data("Hello there.".utf8), response: response(contentType: "text/plain; charset=utf-8")),
-                       "Hello there.")
-        XCTAssertThrowsError(try RemoteTranscriptionEngine.transcriptText(
+                       .init(text: "Hello there."))
+        XCTAssertThrowsError(try RemoteTranscriptionEngine.transcription(
             from: Data("<html></html>".utf8), response: response(contentType: "text/html"))) {
             XCTAssertEqual($0 as? RemoteTranscriptionError, .invalidResponse)
         }
@@ -283,6 +295,170 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
                        "The transcription server rejected the API key (HTTP 401). Invalid API key")
     }
 
+    // MARK: - Word timings
+
+    func testWordTimesAreRequestedOnlyFromServersKnownToReturnThem() {
+        let rejections = WordTimingRejections()
+        func engine(_ base: String, _ model: String) -> RemoteTranscriptionEngine {
+            var engine = RemoteTranscriptionEngine(configuration: configuration(base, model: model), apiKey: { "" })
+            engine.wordTimingRejections = rejections
+            return engine
+        }
+        XCTAssertTrue(engine("https://openrouter.ai/api/v1", "microsoft/mai-transcribe-2").providesWordTimings)
+        XCTAssertTrue(engine("https://openrouter.ai/api/v1/audio/transcriptions", " Microsoft/MAI-Transcribe-2 ")
+            .providesWordTimings)
+        XCTAssertTrue(engine("https://openrouter.ai/api/v1", "google/gemini-3.5-transcribe").providesWordTimings)
+        XCTAssertTrue(engine("https://openrouter.ai/api/v1", "openai/whisper-large-v3-turbo").providesWordTimings)
+        XCTAssertFalse(engine("https://openrouter.ai/api/v1", "openai/whisper-large-v3").providesWordTimings,
+                       "One of its providers stretches words across pauses")
+        XCTAssertFalse(engine("https://openrouter.ai/api/v1", "openai/gpt-4o-mini-transcribe").providesWordTimings)
+        XCTAssertFalse(engine("https://openrouter.ai/api/v1", "microsoft/mai-transcribe-1.5").providesWordTimings)
+        XCTAssertFalse(engine("https://api.openai.com/v1", "whisper-1").providesWordTimings)
+        XCTAssertFalse(engine("http://127.0.0.1:8080/inference", "microsoft/mai-transcribe-2").providesWordTimings)
+
+        rejections.insert(configuration("https://openrouter.ai/api/v1", model: "microsoft/mai-transcribe-2").wordTimingKey)
+        XCTAssertFalse(engine("https://openrouter.ai/api/v1", "microsoft/mai-transcribe-2").providesWordTimings,
+                       "A refusal is remembered for that server and model")
+    }
+
+    func testWordTimingRequestAsksForVerboseJSONWithWordTimestamps() throws {
+        let request = RemoteTranscriptionEngine.makeRequest(
+            endpoint: try endpoint(), apiKey: "sk-test", model: "microsoft/mai-transcribe-2", boundary: "B",
+            wav: OnnxTranscriptionEngine.wavData([0]), language: "en", prompt: "Orion", wordTimings: true)
+        let body = try XCTUnwrap(request.httpBody)
+        XCTAssertEqual(formFieldNames(body), ["model", "response_format", "timestamp_granularities[]", "temperature",
+                                              "language", "prompt", "file"])
+        let text = String(decoding: body, as: UTF8.self)
+        XCTAssertTrue(text.contains("name=\"response_format\"\r\n\r\nverbose_json\r\n"))
+        XCTAssertTrue(text.contains("name=\"timestamp_granularities[]\"\r\n\r\nword\r\n"))
+    }
+
+    func testVerboseJSONWordsAreReadRelativeToTheClip() throws {
+        let reply = try RemoteTranscriptionEngine.transcription(
+            from: Data(Self.recordedVerboseJSON.utf8), response: response(contentType: "application/json"))
+
+        XCTAssertEqual(reply.text, "The quarterly plan is ready for review. Thanks. I will send my notes tomorrow.")
+        let words = try XCTUnwrap(reply.words)
+        XCTAssertEqual(words.count, 14)
+        XCTAssertEqual(words.first, AlignedWordTiming(text: "The", start: 0.08, end: 0.179))
+        XCTAssertEqual(words[7], AlignedWordTiming(text: "Thanks.", start: 5.16, end: 5.66))
+        XCTAssertEqual(words.last?.text, "tomorrow.")
+    }
+
+    func testUnusableWordTimesAreDropped() throws {
+        func words(_ list: String) throws -> [AlignedWordTiming]? {
+            try RemoteTranscriptionEngine.transcription(
+                from: Data((#"{"text":"Ready. Go","words":"# + list + "}").utf8),
+                response: response(contentType: "application/json")).words
+        }
+        XCTAssertEqual(try words(#"[{"word":" Ready.","start":0,"end":0.4},{"word":"—","start":0.4,"end":0.5},"#
+                                    + #"{"word":"Go","start":0.6,"end":0.9}]"#)?.map(\.text), ["Ready.", "Go"],
+                       "Punctuation tokens carry no word to attribute")
+        XCTAssertNil(try words(#"[{"word":"Ready.","start":0,"end":0.4},{"word":"Go","start":0.6}]"#),
+                     "One word without times leaves the window to the aligner")
+        XCTAssertNil(try words(#"[{"word":"Ready.","start":0.5,"end":0.4}]"#))
+        XCTAssertNil(try words(#"[{"word":"Ready.","start":-1,"end":0.4}]"#))
+        XCTAssertNil(try words("[]"))
+        XCTAssertNil(try RemoteTranscriptionEngine.transcription(
+            from: Data(#"{"text":"Ready. Go"}"#.utf8), response: response(contentType: "application/json")).words)
+    }
+
+    func testWindowWordsMoveOntoTheTrackTimeline() async throws {
+        let url = try writeTrack(seconds: 3)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let spans = [SpeechSpan(start: 0.5, end: 1.5, timingPrecision: .span),
+                     SpeechSpan(start: 2, end: 2.5, timingPrecision: .span)]
+
+        let segments = try await RemoteTranscriptionEngine.segments(
+            in: url, spans: spans, maximumConcurrent: 1
+        ) { wav in
+            wav.count > 20_000
+                ? .init(text: "Hello there", words: [.init(text: "Hello", start: 0.1, end: 0.4),
+                                                     .init(text: "there", start: 0.5, end: 1.2)])
+                : .init(text: "No times")
+        }
+
+        XCTAssertEqual(segments.map(\.segment.text), ["Hello there", "No times"])
+        let words = try XCTUnwrap(segments[0].words)
+        XCTAssertEqual(words.map(\.text), ["Hello", "there"])
+        // Offset by the window start, and kept inside the window.
+        for (actual, expected) in zip(words.flatMap { [$0.start, $0.end] }, [0.6, 0.9, 1.0, 1.5]) {
+            XCTAssertEqual(actual, expected, accuracy: 1e-9)
+        }
+        XCTAssertNil(segments[1].words)
+    }
+
+    func testRefusedWordTimingsFallBackToJSONAndAreRemembered() async throws {
+        RemoteTranscriptionURLProtocolStub.enqueue(
+            status: 400, headers: ["Content-Type": "application/json"],
+            body: #"{"error":{"message":"The selected model does not support response_format \"verbose_json\". "# +
+                #"Use \"json\" instead.","code":400}}"#)
+        RemoteTranscriptionURLProtocolStub.enqueue(
+            status: 200, headers: ["Content-Type": "application/json"], body: #"{"text":"Hello"}"#)
+        RemoteTranscriptionURLProtocolStub.enqueue(
+            status: 200, headers: ["Content-Type": "application/json"], body: #"{"text":"Again"}"#)
+        let session = RemoteTranscriptionURLProtocolStub.session()
+        defer { session.invalidateAndCancel() }
+        let delays = DelayLog()
+        let engine = wordTimingEngine(session: session, delays: delays)
+        XCTAssertTrue(engine.providesWordTimings)
+
+        let first = try await engine.upload(
+            OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "sk-test",
+            model: "microsoft/mai-transcribe-2", language: nil, prompt: nil, wordTimings: true)
+        let second = try await engine.upload(
+            OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "sk-test",
+            model: "microsoft/mai-transcribe-2", language: nil, prompt: nil, wordTimings: true)
+
+        XCTAssertEqual(first, .init(text: "Hello"))
+        XCTAssertEqual(second, .init(text: "Again"))
+        XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.map(responseFormat),
+                       ["verbose_json", "json", "json"])
+        XCTAssertFalse(engine.providesWordTimings, "The next meeting goes straight to the aligner")
+        let waited = await delays.values
+        XCTAssertTrue(waited.isEmpty, "The fallback is not a retry")
+    }
+
+    func testA400ForPlainJSONTooIsNotBlamedOnWordTimings() async throws {
+        for _ in 0..<2 {
+            RemoteTranscriptionURLProtocolStub.enqueue(
+                status: 400, headers: ["Content-Type": "application/json"],
+                body: #"{"error":{"message":"Audio file is too short"}}"#)
+        }
+        let session = RemoteTranscriptionURLProtocolStub.session()
+        defer { session.invalidateAndCancel() }
+        let engine = wordTimingEngine(session: session, delays: DelayLog())
+
+        do {
+            _ = try await engine.upload(
+                OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "sk-test",
+                model: "microsoft/mai-transcribe-2", language: nil, prompt: nil, wordTimings: true)
+            XCTFail("A clip the server refuses either way must surface")
+        } catch {
+            XCTAssertEqual(error as? RemoteTranscriptionError,
+                           .rejected(status: 400, detail: "Audio file is too short"))
+        }
+        XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.map(responseFormat), ["verbose_json", "json"])
+        XCTAssertTrue(engine.providesWordTimings)
+    }
+
+    func testRetriesKeepAskingForWordTimes() async throws {
+        RemoteTranscriptionURLProtocolStub.enqueue(status: 503, headers: [:], body: "busy")
+        RemoteTranscriptionURLProtocolStub.enqueue(
+            status: 200, headers: ["Content-Type": "application/json"], body: Self.recordedVerboseJSON)
+        let session = RemoteTranscriptionURLProtocolStub.session()
+        defer { session.invalidateAndCancel() }
+        let engine = wordTimingEngine(session: session, delays: DelayLog())
+
+        let reply = try await engine.upload(
+            OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "sk-test",
+            model: "microsoft/mai-transcribe-2", language: nil, prompt: nil, wordTimings: true)
+
+        XCTAssertEqual(reply.words?.count, 14)
+        XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.map(responseFormat),
+                       ["verbose_json", "verbose_json"])
+    }
+
     // MARK: - Upload
 
     func testUploadRetriesAServerErrorThenReturnsText() async throws {
@@ -296,11 +472,11 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
             configuration: configuration("https://api.openai.com/v1", approved: ["https://api.openai.com"]),
             apiKey: { "" }, session: session, sleep: { await delays.record($0) })
 
-        let text = try await engine.upload(
+        let reply = try await engine.upload(
             OnnxTranscriptionEngine.wavData([0, 0]), endpoint: try endpoint(), apiKey: "sk-test",
             model: "whisper-1", language: nil, prompt: nil)
 
-        XCTAssertEqual(text, "Hello")
+        XCTAssertEqual(reply, .init(text: "Hello"))
         XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.count, 2)
         XCTAssertEqual(RemoteTranscriptionURLProtocolStub.requests.last?.value(forHTTPHeaderField: "Authorization"),
                        "Bearer sk-test")
@@ -394,13 +570,14 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
             in: url, spans: spans, maximumConcurrent: 2
         ) { wav in
             await uploads.record(wav)
-            return wav.count > 40_000 ? " second clip " : "first clip"
+            return .init(text: wav.count > 40_000 ? " second clip " : "first clip")
         }
 
-        XCTAssertEqual(segments.map(\.text), ["first clip", "second clip"])
-        XCTAssertEqual(segments.map(\.start), [0, 1.5])
-        XCTAssertEqual(segments.map(\.end), [1, 3])
-        XCTAssertEqual(segments.map(\.timingPrecision), [.span, .span])
+        XCTAssertEqual(segments.map(\.segment.text), ["first clip", "second clip"])
+        XCTAssertEqual(segments.map(\.segment.start), [0, 1.5])
+        XCTAssertEqual(segments.map(\.segment.end), [1, 3])
+        XCTAssertEqual(segments.map(\.segment.timingPrecision), [.span, .span])
+        XCTAssertTrue(segments.allSatisfy { $0.words == nil })
         let clips = await uploads.clips
         XCTAssertEqual(clips.map(\.count).sorted(), [44 + 16_000 * 2, 44 + 24_000 * 2])
         XCTAssertTrue(clips.allSatisfy { $0.prefix(4) == Data("RIFF".utf8) })
@@ -418,7 +595,7 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
             await tracker.enter()
             try await Task.sleep(for: .milliseconds(20))
             await tracker.leave()
-            return "words"
+            return .init(text: "words")
         }
 
         XCTAssertEqual(segments.count, 6)
@@ -432,6 +609,51 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
     private func configuration(_ baseURL: String, model: String = "whisper-1",
                                approved: [String] = []) -> RemoteTranscriptionConfiguration {
         RemoteTranscriptionConfiguration(baseURL: baseURL, model: model, approvedOrigins: approved)
+    }
+
+    /// MAI-Transcribe-2 on OpenRouter, 2026-10-19: a synthetic `say` clip,
+    /// Samantha from 0 s and Daniel from 5.0 s.
+    private static let recordedVerboseJSON = #"""
+        {"text":"The quarterly plan is ready for review. Thanks. I will send my notes tomorrow.",\#
+        "usage":{"seconds":9,"cost":0.00025},"language":"en","duration":8.2,\#
+        "segments":[{"id":0,"start":0,"end":8.195,\#
+        "text":"The quarterly plan is ready for review. Thanks. I will send my notes tomorrow."}],\#
+        "words":[{"word":"The","start":0.08,"end":0.179},{"word":"quarterly","start":0.24,"end":0.62},\#
+        {"word":"plan","start":0.72,"end":0.92},{"word":"is","start":0.98,"end":1.06},\#
+        {"word":"ready","start":1.16,"end":1.36},{"word":"for","start":1.4,"end":1.519},\#
+        {"word":"review.","start":1.64,"end":1.979},{"word":"Thanks.","start":5.16,"end":5.66},\#
+        {"word":"I","start":5.96,"end":6.04},{"word":"will","start":6.08,"end":6.24},\#
+        {"word":"send","start":6.36,"end":6.539},{"word":"my","start":6.6,"end":6.719},\#
+        {"word":"notes","start":6.84,"end":7.08},{"word":"tomorrow.","start":7.16,"end":7.719}]}
+        """#
+
+    private func wordTimingEngine(session: URLSession, delays: DelayLog) -> RemoteTranscriptionEngine {
+        var engine = RemoteTranscriptionEngine(
+            configuration: configuration("https://openrouter.ai/api/v1", model: "microsoft/mai-transcribe-2",
+                                         approved: ["https://openrouter.ai"]),
+            apiKey: { "" }, session: session, sleep: { await delays.record($0) })
+        engine.wordTimingRejections = WordTimingRejections()
+        return engine
+    }
+
+    private func responseFormat(_ request: URLRequest) -> String {
+        let body = request.httpBody ?? request.httpBodyStream.map(Self.read) ?? Data()
+        let text = String(decoding: body, as: UTF8.self)
+        guard let range = text.range(of: "name=\"response_format\"\r\n\r\n") else { return "" }
+        return String(text[range.upperBound...].prefix { !$0.isNewline })
+    }
+
+    private static func read(_ stream: InputStream) -> Data {
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return data
     }
 
     private func endpoint() throws -> URL {

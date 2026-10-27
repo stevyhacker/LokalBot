@@ -54,12 +54,13 @@ final class AppState: ObservableObject {
     /// Which tab the Settings surface shows (spec §2.5 — Settings absorbs
     /// Models as a tab strip). Session-sticky like TypeTab.
     enum SettingsTab: String, CaseIterable {
-        case general, recording, dayMemory, writing, dictation, models, privacy, advanced
+        case general, recording, dayMemory, personalContext, writing, dictation, models, privacy, advanced
 
         var displayName: String {
             switch self {
             case .recording: "Meetings"
             case .dayMemory: "Day Memory"
+            case .personalContext: "Personal Context"
             case .privacy: "Privacy & Data"
             default: rawValue.capitalized
             }
@@ -70,6 +71,7 @@ final class AppState: ObservableObject {
             case .general: "gearshape"
             case .recording: "person.2"
             case .dayMemory: "calendar.day.timeline.left"
+            case .personalContext: "person.crop.circle"
             case .writing: "pencil"
             case .dictation: "mic"
             case .models: "shippingbox"
@@ -85,6 +87,8 @@ final class AppState: ObservableObject {
             case "general": self = .general
             case "recording", "meetings": self = .recording
             case "daymemory", "day memory": self = .dayMemory
+            case "personalcontext", "personal context", "personal-context", "aboutyou", "about you":
+                self = .personalContext
             case "writing", "write": self = .writing
             case "dictation": self = .dictation
             case "models": self = .models
@@ -115,10 +119,14 @@ final class AppState: ObservableObject {
     nonisolated static var isUnitTesting: Bool { UITestRuntime.isUnitTesting }
 
     /// UserDefaults flag: the permission onboarding has been shown once. Also
-    /// read by `AppDelegate` to keep the first run windowed.
+    /// read by `AppDelegate` to keep the first run windowed, and by the
+    /// coding-agent reader, which waits for it.
     nonisolated static let onboardingShownKey = "lokalbotv3.onboarding.shown"
 
     @Published private(set) var meetings: [Meeting] = []
+    /// File names of recordings still being converted for import, in order.
+    @Published private(set) var importingRecordings: [String] = []
+    private var recordingImportTask: Task<Void, Never>?
     @Published var lastError: String?
     /// A recording or dictation start was refused because microphone access
     /// is denied at the system level. Cleared when the user opens System
@@ -171,10 +179,17 @@ final class AppState: ObservableObject {
                     || settings.quickRecallShortcut != oldValue.quickRecallShortcut {
                     applyQuickRecallSetting(replacing: oldValue.quickRecallShortcut)
                 }
+                if settings.selectionActionsEnabled != oldValue.selectionActionsEnabled
+                    || settings.selectionActionsShortcut != oldValue.selectionActionsShortcut {
+                    applySelectionActionsSetting(replacing: oldValue.selectionActionsShortcut)
+                }
                 // UI retention reductions are reviewed and executed explicitly.
                 // Changing a preference must not trigger an unreviewed cleanup.
                 if Self.dailyMemoryExportChanged(from: oldValue, to: settings) {
                     applyDailyMemoryExportSetting()
+                }
+                if Self.meetingNoteExportChanged(from: oldValue, to: settings) {
+                    applyMeetingNoteExportSetting()
                 }
                 if Self.dayDigestChanged(from: oldValue, to: settings) {
                     applyDayDigestSetting()
@@ -190,6 +205,9 @@ final class AppState: ObservableObject {
                 }
                 if Self.dreamingChanged(from: oldValue, to: settings) {
                     applyDreamingSetting()
+                }
+                if settings.learnsFromDictation != oldValue.learnsFromDictation {
+                    applyDictationLearningSetting()
                 }
             }
         }
@@ -229,6 +247,14 @@ final class AppState: ObservableObject {
             || old.dailyMemoryExportFolder != new.dailyMemoryExportFolder
             || old.dailyMemoryExportFormat != new.dailyMemoryExportFormat
             || old.dailyMemoryExportHour != new.dailyMemoryExportHour
+    }
+
+    private static func meetingNoteExportChanged(from old: AppSettings,
+                                                 to new: AppSettings) -> Bool {
+        old.meetingNoteExportEnabled != new.meetingNoteExportEnabled
+            || old.meetingNoteExportFolder != new.meetingNoteExportFolder
+            || old.meetingNoteExportFormat != new.meetingNoteExportFormat
+            || old.meetingNoteExportIncludesTranscript != new.meetingNoteExportIncludesTranscript
     }
 
     /// The custom prompt is deliberately absent: it is read fresh from
@@ -306,9 +332,17 @@ final class AppState: ObservableObject {
     @Published var selectedPersonID: String?
     @Published var selectedProjectID: String?
     private(set) lazy var connections = WorkMemoryConnections()
+    /// Tracked projects and their "Where it stands" notes.
+    private(set) lazy var projectStore = ProjectStore(
+        directory: storage.rootURL.appendingPathComponent("projects", isDirectory: true))
+    /// Names, merges, and hidden entries chosen in People.
+    private(set) lazy var peopleStore = PeopleStore(
+        directory: storage.rootURL.appendingPathComponent(PeopleCuration.directoryName, isDirectory: true))
 
     /// The meeting whose follow-up draft sheet is open, from any entry point.
     @Published var followUpDraftMeeting: Meeting?
+    /// "Try a sample meeting" is waiting for its models (`SampleMeetingSetupSheet`).
+    @Published var showsSampleSetup = false
 
     func draftFollowUp(for meeting: Meeting) {
         followUpDraftMeeting = meeting
@@ -369,12 +403,46 @@ final class AppState: ObservableObject {
     }
 
     func refreshConnections() {
+        let library = meetings.filter(\.isOwnWork)
+        if libraryReady { projectStore.withdrawSummaries(missingFrom: Set(meetings.map(\.id))) }
+        let libraryIDs = Set(library.map(\.id))
         connections.refresh(.init(
-            meetings: meetings.filter { !$0.isMergedSource },
-            projections: outcomeIndex.all,
+            meetings: library,
+            projections: outcomeIndex.all.filter { libraryIDs.contains($0.id) },
             memory: dreamMemory,
+            curation: projectStore.curation,
+            peopleCuration: peopleStore.curation,
             root: storage.rootURL,
             activityDatabaseURL: activityStore.databaseURL))
+    }
+
+    /// Writes a tracked project's "Where it stands" note with the Think model.
+    /// An automatic write (opening a project whose note is missing or out of
+    /// date) runs only under the same approval as scheduled digests and
+    /// Dream runs, and never starts a model download.
+    func writeProjectSummary(for project: ProjectProfile, automatic: Bool) {
+        guard project.isTracked else { return }
+        if automatic {
+            guard settings.allowsAutomaticMainInference,
+                  ModelReadinessSnapshot.thinkReady(settings, storage: storage),
+                  projectStore.shouldWriteAutomatically(project) else { return }
+        }
+        let provenance = DreamInferenceProvenance(settings: settings)
+        let location: String
+        if provenance.location == .local {
+            location = "this Mac"
+        } else {
+            location = provenance.origin.flatMap { URL(string: $0)?.host } ?? provenance.origin ?? "a server"
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            await self.projectStore.writeSummary(for: project, automatic: automatic, location: location) { [weak self] in
+                guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+                if automatic && !self.settings.allowsAutomaticMainInference { throw CancellationError() }
+                return try await self.thinkExecution.makeTextEngine(
+                    self.settings, priority: automatic ? .background : .interactive, purpose: "project summary")
+            }
+        }
     }
     private static let typeTabDefaultsKey = "lokalbotv3.type.selectedTab"
     private static var navigationDefaults: UserDefaults {
@@ -526,12 +594,75 @@ final class AppState: ObservableObject {
     /// access: enabling one capability never grants the other.
     private(set) lazy var screenMemoryAccess = ScreenMemoryAccessManager(
         gate: ScreenMemoryAccessGate(root: storage.rootURL))
+    /// A third independent grant: agents read only the Personal Context items the
+    /// person marked as shared, from a copy kept in step with every edit.
+    private(set) lazy var personalContextAccess = PersonalContextAccessManager(
+        gate: PersonalContextAccessGate(root: storage.rootURL),
+        claims: { [weak self] in self?.personalModel.readableClaims() })
+    /// Terminal settings access is another separate grant. Its control
+    /// socket exists only while the grant is on.
+    private(set) lazy var settingsControl = SettingsControlAccessManager(
+        gate: SettingsControlGate(root: storage.rootURL),
+        makeHandler: { [weak self] in
+            guard let self else { return { _, _ in .failure(.appNotRunning("LokalBot is shutting down.")) } }
+            let handler = AppControlHandler(app: self, gate: SettingsControlGate(root: self.storage.rootURL))
+            return { request, peer in await handler.handle(request, from: peer) }
+        },
+        onError: { [weak self] message in self?.lastError = message },
+        onDisable: { [weak self] in self?.settingsApprovals.denyAll() })
+    /// Settings changed from the terminal, for the audit log and Undo.
+    private(set) lazy var agentSettingsChanges = AgentSettingsChanges(root: storage.rootURL)
+    /// Terminal requests waiting for the person: widening changes and API keys.
+    private(set) lazy var settingsApprovals = SettingsApprovals()
+    /// An agent's `setup start` request, the one way the terminal asks for access.
+    private(set) lazy var agentSetup = AgentSetupRequests(
+        controlDirectory: SettingsControlGate(root: storage.rootURL).controlDirectory)
+    var agentSecrets = AgentSecretStore.keychain
     private(set) lazy var quickRecallHotKey: QuickRecallHotKeyController = {
         let controller = QuickRecallHotKeyController()
-        controller.onInvoke = { WindowAccess.shared.open("quick-recall") }
+        controller.onInvoke = { [weak self] in self?.openQuickRecall() }
         return controller
     }()
+    /// The app in front when a system-wide shortcut opened a LokalBot panel,
+    /// so a command that acts in place can hand focus back to it.
+    var shortcutSourceApplication: NSRunningApplication?
+    private(set) lazy var selectionActionsHotKey: QuickRecallHotKeyController = {
+        let controller = QuickRecallHotKeyController(
+            identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
+        controller.onInvoke = { [weak self] in self?.selectionActions.invoke() }
+        return controller
+    }()
+    /// AI actions on text selected in other apps. Runs on the Think model,
+    /// so remote inference keeps its per-origin approval.
+    private(set) lazy var selectionActions = SelectionActionsController(dependencies: .init(
+        capture: { [weak self] in
+            await SelectionCapture.capture(excludedApps: self?.settings.excludedAppList ?? [])
+        },
+        makeEngine: { [weak self] in
+            guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+            return try await self.thinkExecution.makeTextEngine(
+                self.settings, priority: .interactive, purpose: "selection action")
+        },
+        memory: { [weak self] query in
+            await self?.selectionMemoryContext(query: query) ?? .empty
+        },
+        deliver: { text, capture in
+            await SelectionDelivery.deliver(text, capture: capture)
+        },
+        copy: { text in SelectionDelivery.copy(text) },
+        returnFocus: { source in
+            guard let application = NSRunningApplication(processIdentifier: source.processID) else { return }
+            Task { await FocusReturn.activate(application) }
+        },
+        openPanel: { WindowAccess.shared.open("selection-actions") },
+        report: { [weak self] message in self?.lastError = message }))
     private let dailyMemoryExportScheduler = DailyMemoryExportScheduler()
+    /// Notes are written while processing is idle, so a meeting's note is not
+    /// written half-finished and rewritten moments later.
+    private lazy var meetingNoteExport = MeetingNoteExportScheduler(
+        canRun: { [weak self] in self?.pipeline.hasActiveWork == false })
+    /// People and Projects choices change the names notes link to.
+    private var meetingNoteCurationObserver: AnyCancellable?
     private(set) lazy var memoryRoutines = MemoryRoutineScheduler(
         storageRoot: storage.rootURL,
         databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
@@ -621,6 +752,8 @@ final class AppState: ObservableObject {
         thinkExecution: thinkExecution,
         speakerIdentity: speakerIdentity,
         automationReadiness: ProcessingPipeline.defaultAutomationReadiness)
+    /// Today's one-time GitHub star request and the permanent links to it.
+    private(set) lazy var githubStar = GitHubStarPromptStore.live(libraryRoot: storage.rootURL)
     /// Canonical state machine for Transcribe, Think, and Autocomplete.
     private(set) lazy var modelRoles = ModelRoles(
         settings: { [store = settingsStore] in store.current },
@@ -676,10 +809,10 @@ final class AppState: ObservableObject {
         prepareEvidence: { [weak self] day in await self?.codingAgentEvidence.refresh(including: day) },
         onGenerated: { [weak self] day in self?.dayDigestDidChange(on: day) })
     /// Settled Claude Code and Codex work, read into the activity store while
-    /// the person has opted in.
+    /// the person has opted in, and never before setup is finished.
     private(set) lazy var codingAgentEvidence = CodingAgentEvidenceIngestor(
         store: activityStore,
-        configuration: { [store = settingsStore] in .init(settings: store.current) },
+        configuration: { [store = settingsStore] in AppState.codingAgentConfiguration(store.current) },
         mutateEvidence: { [weak self] days, mutation in
             try self?.withPrimaryEvidenceChange(on: days, .revision, mutation)
         },
@@ -737,6 +870,8 @@ final class AppState: ObservableObject {
         },
         onMicPermissionDenied: { [weak self] in
             self?.micRecoveryNeeded = true
+        }, onDictatedForLearning: { [weak self] spokenText, appName in
+            self?.keepDictationForLearning(spokenText, appName: appName)
         }, memoryContextProvider: { [weak self] field, settings in
             guard let self, self.libraryReady else { return .empty }
             let root = self.storage.rootURL
@@ -803,6 +938,16 @@ final class AppState: ObservableObject {
             downloads: ModelDownloadManager.shared)
     }
 
+    /// Read-only tools over the live meeting list and search indexes, shared
+    /// by Ask and selection actions' memory lookup.
+    private(set) lazy var libraryTools = MeetingChatTools(
+        meetings: { [weak self] in self?.meetings ?? [] },
+        storage: storage,
+        searchIndex: searchIndex,
+        embeddingIndex: embeddingIndex,
+        activityStore: activityStore,
+        settings: { [store = settingsStore] in store.current })
+
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
     /// and a tool-calling agent over the live meeting list + search indexes.
     private(set) lazy var chat = ChatViewModel(
@@ -813,20 +958,35 @@ final class AppState: ObservableObject {
                 priority: .interactive,
                 purpose: "chat")
         },
-        tools: MeetingChatTools(
-            meetings: { [weak self] in self?.meetings ?? [] },
-            storage: storage,
-            searchIndex: searchIndex,
-            embeddingIndex: embeddingIndex,
-            activityStore: activityStore,
-            settings: { [store = settingsStore] in store.current }),
+        tools: libraryTools,
         store: ChatStore(rootURL: storage.rootURL),
         workMemory: { [weak self] in
             guard let self else { return "" }
             return ChatPrompt.workMemoryContext(
                 memory: (try? self.dreamStore.loadMemory()) ?? nil,
                 dreamingEnabled: self.settings.dreamingEnabled)
-        }, deferHistoryLoading: true)
+        },
+        personalModel: personalModel,
+        askMemoryEnabled: { [weak self] in self?.settings.askMemoryEnabled ?? false },
+        deferHistoryLoading: true)
+
+    /// What the person told LokalBot about themselves: Ask and Quick Recall
+    /// read and add to it, Settings → Personal Context edits it.
+    /// Dictated words waiting for the overnight learning pass, while Learn
+    /// from my dictation is on.
+    private(set) lazy var dictationLearningLog = DictationLearningLog(root: storage.rootURL)
+
+    private(set) lazy var personalModel: PersonalModelController = {
+        let controller = PersonalModelController(
+            store: PersonalModelStore(root: storage.rootURL),
+            evidenceCheck: { [weak self] in self?.dreamStore.evidenceCheck() },
+            sourceStillQuotes: { [weak self] claim in self?.learnedClaimSourceStillQuotes(claim) ?? false },
+            currentRevision: { [weak self] in try? self?.dreamStore.evidenceRevision() })
+        controller.onChange = { [weak self] claims in
+            self?.personalContextAccess.refresh(claims)
+        }
+        return controller
+    }()
 
     // Agent Mode (pi). Installer and tab manager are cheap; each tab lazily
     // spawns its own controller/process when AgentView mounts it.
@@ -852,6 +1012,7 @@ final class AppState: ObservableObject {
     /// True only on the real interactive launch path (not headless / UI test) —
     /// gates recording notifications and first-run onboarding.
     private var interactive = false
+    var isInteractiveLaunch: Bool { interactive }
     private var terminationCleanupTask: Task<Bool, Never>?
     /// Serializes cotyping model lifecycle transitions. A disable must finish
     /// unloading both runtimes before a rapid re-enable can prewarm a fresh
@@ -1041,6 +1202,11 @@ final class AppState: ObservableObject {
             }
             self.primaryEvidenceDidChange(for: meeting)
         }
+        pipeline.onSummaryCompleted = { [weak self] meeting in
+            // The sample's notes don't count toward asking for a GitHub star.
+            guard !meeting.isSample else { return }
+            self?.githubStar.recordSummaryCompleted()
+        }
         if needsSynchronousLibrary {
             searchIndex.reindexAll(meetings, storage: storage)
         }
@@ -1138,12 +1304,26 @@ final class AppState: ObservableObject {
         // Resume the wake watcher when the Privacy marker was left enabled.
         agentAccess.start()
         screenMemoryAccess.start()
+        personalContextAccess.start()
+        settingsApprovals.announce = { request in RecordingNotifier.shared.settingsApprovalRequested(request) }
+        settingsApprovals.withdraw = { request in RecordingNotifier.shared.withdrawSettingsApproval(request.id) }
+        settingsControl.start()
+        // `lokalbot-cli setup start` leaves a request and launches the app,
+        // or tells a running copy to look for it.
+        DistributedNotificationCenter.default().addObserver(
+            forName: Notification.Name(AgentSetup.notificationName), object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.showAgentSetupIfRequested() }
+        }
+        showAgentSetupIfRequested()
         applyQuickRecallSetting()
+        applySelectionActionsSetting()
         applyDailyMemoryExportSetting()
+        applyMeetingNoteExportSetting()
         applyDayDigestSetting()
-        applyCodingAgentEvidenceSetting()
         applyMemoryRoutineSetting()
         applyDreamingSetting()
+        applyDictationLearningSetting()
         applyHealthCheckSetting()
         bindBackgroundActivity()
         // First-run check. A genuinely-new user with missing permissions gets
@@ -1155,10 +1335,15 @@ final class AppState: ObservableObject {
         if !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) {
             if PermissionManager.shared.allGranted {
                 UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
-            } else {
+            } else if agentSetup.pending == nil {
+                // An agent's setup request replaces the wizard; declining it
+                // opens onboarding instead.
                 WindowAccess.shared.open("onboarding")
             }
         }
+        // After the first-run check: until setup is finished, a new install
+        // reads no coding-agent session (`finishOnboarding` starts it).
+        applyCodingAgentEvidenceSetting()
         // Bring optional system-wide automation up if the user left it enabled
         // and the grants are in place; otherwise it parks itself.
         dictation.applySettings()
@@ -1204,6 +1389,7 @@ final class AppState: ObservableObject {
             self.meetings = merged
             self.libraryReady = true
             self.speakerIdentity.maintainRetention(meetings: { [weak self] in self?.meetings ?? [] })
+            self.learnSpeakerVoices(after: .seconds(60))
             Task { await self.outcomeIndex.refreshInBackground(meetings: merged) }
             self.pipeline.resumePending(meetings: merged)
             if self.settings.autoTranscribe {
@@ -1381,6 +1567,7 @@ final class AppState: ObservableObject {
             guard recording.prepareForTermination() else { return false }
             interactive = false
             settingsStore.flush()
+            settingsControl.stop()
             let pendingCotypingRuntimeTask = self.cotypingRuntimeTask
             pendingCotypingRuntimeTask?.cancel()
             await pendingCotypingRuntimeTask?.value
@@ -1403,7 +1590,10 @@ final class AppState: ObservableObject {
             sampler.stop()
             screenshots.stop()
             quickRecallHotKey.stop()
+            selectionActionsHotKey.stop()
+            selectionActions.stop()
             dailyMemoryExportScheduler.stop()
+            meetingNoteExport.stop()
             memoryRoutines.stop()
             dreaming.stop()
             chat.stop()
@@ -1587,6 +1777,81 @@ final class AppState: ObservableObject {
         return result.meeting
     }
 
+    /// Imports audio or video files as meetings, one file at a time, and
+    /// queues each for transcription and, when enabled, a summary. Choosing a
+    /// file is an explicit request, so a missing speech model downloads as it
+    /// does for Retry. Failures are reported together once the batch ends.
+    func importRecordings(_ urls: [URL]) {
+        let files = urls.filter(\.isFileURL)
+        guard !files.isEmpty else { return }
+        navSection = .meetings
+        importingRecordings += files.map(\.lastPathComponent)
+        let previous = recordingImportTask
+        recordingImportTask = Task { @MainActor [weak self] in
+            await previous?.value
+            guard let self else { return }
+            var failures: [String] = []
+            for url in files {
+                do {
+                    let meeting = try await MeetingImportService.importRecording(from: url, storage: self.storage)
+                    self.meetings.append(meeting)
+                    self.meetings.sort { $0.startedAt > $1.startedAt }
+                    self.selectedMeetingIDs = [meeting.id]
+                    lokalbotLog("recording imported meeting=\(meeting.id) extension=\(url.pathExtension.lowercased())")
+                    self.reprocess(meeting, transcribe: true, summarize: self.settings.autoSummarize)
+                } catch {
+                    // The message names the file; keep user file names out of the log.
+                    lokalbotLog("recording import failed extension=\(url.pathExtension.lowercased())")
+                    failures.append(error.localizedDescription)
+                }
+                if let index = self.importingRecordings.firstIndex(of: url.lastPathComponent) {
+                    self.importingRecordings.remove(at: index)
+                }
+            }
+            if !failures.isEmpty { self.lastError = failures.joined(separator: "\n") }
+        }
+    }
+
+    /// Adds LokalBot's sample meeting through the same import as a chosen
+    /// file, then transcribes it and writes its notes (even with automatic
+    /// notes off). The models it needs are downloaded first, as their own
+    /// step, by `SampleMeetingSetupSheet`.
+    func importSampleMeeting() {
+        showsSampleSetup = false
+        if let existing = sampleMeeting {
+            openMeeting(existing.id)
+            return
+        }
+        let recording = SampleMeeting.recording(for: settings.appLanguage.localizationIdentifier())
+        guard !importingRecordings.contains(recording.title) else { return }
+        guard let url = SampleMeeting.audioURL(for: recording) else {
+            lastError = "The sample meeting is missing from this copy of LokalBot."
+            return
+        }
+        navSection = .meetings
+        importingRecordings.append(recording.title)
+        let previous = recordingImportTask
+        recordingImportTask = Task { @MainActor [weak self] in
+            await previous?.value
+            guard let self else { return }
+            do {
+                let meeting = try await MeetingImportService.importRecording(
+                    from: url, storage: self.storage, sample: recording)
+                self.meetings.append(meeting)
+                self.meetings.sort { $0.startedAt > $1.startedAt }
+                self.selectedMeetingIDs = [meeting.id]
+                lokalbotLog("sample meeting added meeting=\(meeting.id)")
+                self.reprocess(meeting, transcribe: true, summarize: true)
+            } catch {
+                lokalbotLog("sample meeting import failed")
+                self.lastError = error.localizedDescription
+            }
+            if let index = self.importingRecordings.firstIndex(of: recording.title) {
+                self.importingRecordings.remove(at: index)
+            }
+        }
+    }
+
     /// Removes a generated merged record and restores its original source
     /// rows. Source folders are retained; their durable merge markers and
     /// search tombstones are cleared before the restored evidence is indexed.
@@ -1740,6 +2005,36 @@ final class AppState: ObservableObject {
         pipeline.retryJobsWaitingForModels()
     }
 
+    private var speakerVoiceLearning: Task<Void, Never>?
+
+    /// Remembers the voices named in saved meetings and suggests names for
+    /// speakers in recent meetings. Runs after any earlier pass, waits while
+    /// LokalBot records or processes, and never downloads the voice model.
+    func learnSpeakerVoices(after delay: Duration = .seconds(2)) {
+        guard !Self.isUnitTesting, !UITestRuntime.isEnabled else { return }
+        let previous = speakerVoiceLearning
+        speakerVoiceLearning = Task { [weak self] in
+            await previous?.value
+            try? await Task.sleep(for: delay)
+            guard let self, !Task.isCancelled else { return }
+            let access = MeetingSpeakerIdentityService.SavedMeetings(
+                transcript: { [weak self] meeting in
+                    guard let self else { return nil }
+                    return try? self.pipeline.loadTranscript(from: meeting.folderURL(in: self.storage))
+                },
+                callSamples: { [weak self] meeting, transcript in
+                    guard let self else { return [] }
+                    return try await self.pipeline.savedCallVoiceSamples(for: meeting, transcript: transcript)
+                },
+                isBusy: { [weak self] meeting in
+                    guard let self else { return true }
+                    return self.pipeline.captureActive || self.pipeline.stages[meeting.id] != nil
+                })
+            await self.speakerIdentity.learnFromSavedMeetings(self.meetings,
+                recentSince: Date().addingTimeInterval(-14 * 86_400), using: access)
+        }
+    }
+
     func saveTranscript(_ transcript: Transcript, for meeting: Meeting) throws {
         let transcript = speakerIdentity.applyingLatestDecision(to: transcript, meetingID: meeting.id)
         try withPrimaryEvidenceChange(for: [meeting], .revision) {
@@ -1759,7 +2054,7 @@ final class AppState: ObservableObject {
         let fallbackEnd = meeting.startedAt.addingTimeInterval(fallbackDuration)
         var end = meeting.endedAt.map { max($0, meeting.startedAt) } ?? fallbackEnd
         if end <= meeting.startedAt { end = fallbackEnd }
-        let ocr = activityStore.ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
+        let ocr = meeting.isImported ? "" : activityStore.ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
         return SpeakerNameHintExtractor.hints(
             calendarNames: meeting.resolvedCalendarParticipantIdentities.compactMap(\.name),
             ocrText: ocr)
@@ -1812,6 +2107,7 @@ final class AppState: ObservableObject {
         guard !days.isEmpty else { return }
         dayDigest.reconsiderEvidence(for: days)
         dailyMemoryExportScheduler.reconsider(days: days)
+        meetingNoteExport.reconsider()
         memoryRoutines.reconsiderEvidence()
         // Meetings feed later days' comparison windows; screen, activity, and
         // coding-agent evidence is read only for its own day. Treating a
@@ -1821,6 +2117,8 @@ final class AppState: ObservableObject {
         invalidateDreams(affectedDays: days, affectedMeetingIDs: meetingIDs,
                          comparisonWindowDays: activityOnly ? 1 : DreamCompiler.comparisonWindowDays,
                          activityOnly: activityOnly)
+        // Learned facts and goals go with the meeting they came from.
+        if !meetingIDs.isEmpty { personalModel.retractIfLoaded() }
     }
 
     /// Reprocessing revises a meeting; it does not delete it. On 2026-10-07 a
@@ -1879,10 +2177,13 @@ final class AppState: ObservableObject {
         if settings.cotypingUseMeetingMemory || settings.cotypingUseScreenMemory { cotyping.invalidateMemoryContext() }
         defer { primaryEvidenceDidChange(for: meetings) }
         purgeDigestSegmentAnswers(for: meetings.map(\.startedAt))
-        return try dreamStore.withMeetingEvidenceMutation(for: meetings) {
+        let result = try dreamStore.withMeetingEvidenceMutation(for: meetings) {
             if change == .removal { try dayDigest.retractGeneratedJournals(for: meetings.map(\.startedAt)) }
             return try mutation()
         }
+        // A deleted meeting withdraws every project note that used it.
+        if change == .removal { projectStore.withdrawSummaries(citing: Set(meetings.map(\.id))) }
+        return result
     }
 
     /// Deleted or corrected evidence must not survive in reused digest answers.
@@ -1973,10 +2274,15 @@ final class AppState: ObservableObject {
     /// combination reaches the recorder, including one that is already taken.
     func setShortcutRecording(_ recording: Bool) {
         dictation.setShortcutRecording(recording)
-        // Ask's hot key is only registered on the interactive launch path.
+        // Ask's and selection actions' hot keys are only registered on the
+        // interactive launch path.
         guard interactive else { return }
         quickRecallHotKey.isSuspended = recording
-        if !recording { applyQuickRecallSetting() }
+        selectionActionsHotKey.isSuspended = recording
+        if !recording {
+            applyQuickRecallSetting()
+            applySelectionActionsSetting()
+        }
     }
 
     func applyDailyMemoryExportSetting() {
@@ -2020,10 +2326,60 @@ final class AppState: ObservableObject {
         }
     }
 
+    func applyMeetingNoteExportSetting() {
+        let snapshot = settings
+        let folder = snapshot.meetingNoteExportFolder
+        let format: DailyMemoryExportKind = switch snapshot.meetingNoteExportFormat {
+        case .markdown: .markdown
+        case .obsidian: .obsidian
+        case .logseq: .logseq
+        }
+        let includesTranscript = snapshot.meetingNoteExportIncludesTranscript
+        let configuration = MeetingNoteExportScheduler.Configuration(
+            enabled: snapshot.meetingNoteExportEnabled,
+            destinationID: folder.isEmpty ? "" : "\(folder)|\(format.rawValue)|\(includesTranscript)")
+        let storageRoot = storage.rootURL
+        if meetingNoteCurationObserver == nil {
+            meetingNoteCurationObserver = peopleStore.$curation.dropFirst().map { _ in () }
+                .merge(with: projectStore.$curation.dropFirst().map { _ in () })
+                .sink { [weak self] in
+                    self?.meetingNoteExport.reconsider()
+                }
+        }
+        meetingNoteExport.configure(configuration) { previous in
+            try MeetingNoteExportService(root: storageRoot).export(
+                MeetingNoteExportConfiguration(
+                    destinationDirectory: URL(fileURLWithPath: folder, isDirectory: true),
+                    format: format,
+                    includesTranscript: includesTranscript),
+                previous: previous)
+        } onError: { [weak self] message in
+            self?.lastError = message
+        }
+    }
+
     /// Starts or stops transcript reading. Turning it off keeps what was
     /// already saved, like the other capture sources; deletion is explicit.
     func applyCodingAgentEvidenceSetting() {
         codingAgentEvidence.start()
+    }
+
+    /// What the coding-agent reader may read: the settings' choice once setup
+    /// is finished, and nothing on a new install before then.
+    static func codingAgentConfiguration(
+        _ settings: AppSettings, defaults: UserDefaults = .standard
+    ) -> CodingAgentEvidenceIngestor.Configuration {
+        .init(settings: settings, onboardingFinished: defaults.bool(forKey: onboardingShownKey))
+    }
+
+    /// Setup's final step: applies its choices and marks setup finished. A
+    /// new install has read no coding-agent session until now, so reading
+    /// starts here if the person kept it on.
+    func finishOnboarding(applying draft: CaptureSetupDraft) {
+        let firstFinish = !UserDefaults.standard.bool(forKey: Self.onboardingShownKey)
+        settings = draft.applying(to: settings)
+        UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
+        if firstFinish && interactive { applyCodingAgentEvidenceSetting() }
     }
 
     /// New settled work usually lands today, before the evening digest.
@@ -2306,10 +2662,157 @@ final class AppState: ObservableObject {
                 let report = try await service.dream(target: target)
                 self.latestDreamReport = report
                 self.refreshDreamMemory()
+                await self.learnAboutPerson(target: target)
+                await self.rollUpReviews(target: target)
             },
             onError: { [weak self] message in
                 self?.lastError = message
             })
+    }
+
+    /// After the overnight review: learn up to three facts, goals, or
+    /// suggested preferences from what the person said in that day's
+    /// meetings. Best effort; a failure never affects the review itself.
+    private func learnAboutPerson(target: DreamScheduler.Target) async {
+        guard settings.askMemoryEnabled, settings.personalLearningEnabled else { return }
+        // Goals and projects kept for weeks need no model call.
+        if let memory = (try? dreamStore.loadMemory()) ?? nil {
+            let promoted = personalModel.promoteWorkMemory(memory, dayKey: target.dayKey, calendar: target.calendar)
+            if !promoted.proposed.isEmpty {
+                lokalbotLog("personal learning: day=\(target.dayKey) work-memory suggestions=\(promoted.proposed.count)")
+            }
+        }
+        let engineSettings = settings
+        if target.isAutomatic && !engineSettings.allowsAutomaticMainInference { return }
+        let bursts = engineSettings.codingAgentEvidenceEnabled ? activityStore.codingAgentBursts(on: target.day) : []
+        let dictated = engineSettings.learnsFromDictation
+            ? dictationLearningLog.entries(on: target.day, calendar: target.calendar) : []
+        let typed = PersonalLearning.typedLines(
+            bursts: bursts, conversations: chat.conversations, dictations: dictated,
+            day: target.day, calendar: target.calendar)
+        do {
+            let lines = try PersonalLearning.utterances(
+                day: target.day, storageRoot: storage.rootURL, typed: typed, calendar: target.calendar)
+            let fingerprint = PersonalLearning.fingerprint(lines)
+            let counts = PersonalLearning.lineCounts(lines)
+            // The review rebuilds a day whenever one of its sources changes.
+            // Reading the same lines again would only reword the same items.
+            if lines.isEmpty || (dictated.isEmpty
+                && personalModel.hasLearned(dayKey: target.dayKey, fingerprint: fingerprint)) {
+                lokalbotLog("personal learning: day=\(target.dayKey) \(counts) unchanged or empty, not read again")
+                return
+            }
+            let revision = try dreamStore.evidenceRevision()
+            let engine = try await thinkExecution.makeTextEngine(
+                engineSettings, priority: .background, purpose: "personal learning")
+            try Task.checkCancellation()
+            let known = personalModel.usableClaims() + personalModel.suggestions
+            // The local embedder checks items the model translated (a Serbian
+            // line, an English item); without semantic search those are dropped.
+            let embed: PersonalLearning.Embed? = engineSettings.semanticSearchEnabled
+                ? { [weak self] texts in await self?.embeddingIndex.similarityVectors(texts) }
+                : nil
+            let candidates = try await PersonalLearning.run(
+                lines: lines, known: known, revision: revision, engine: engine, embed: embed)
+            // Read once, then gone: the day's dictation is never kept past its pass.
+            if !dictated.isEmpty {
+                try? dictationLearningLog.removeEntries(through: target.day, calendar: target.calendar)
+            }
+            let outcome = personalModel.learn(candidates, dayKey: target.dayKey, fingerprint: fingerprint)
+            lokalbotLog("personal learning: day=\(target.dayKey) \(counts) saved=\(outcome.saved.count) "
+                + "suggested=\(outcome.proposed.count) skipped=\(outcome.skipped)")
+        } catch is CancellationError {
+            return
+        } catch {
+            lokalbotLog("personal learning skipped: \(error.localizedDescription)")
+        }
+    }
+
+    /// For a learned claim whose source changed: does the source still have
+    /// the line the claim quotes, as the person's own words? Reads only that
+    /// one meeting's transcript, that day's agent requests, or work memory.
+    private func learnedClaimSourceStillQuotes(_ claim: PersonalClaim) -> Bool {
+        switch claim.origin {
+        case .learned(let meetingID, _):
+            guard let meeting = meetings.first(where: { $0.id == meetingID }) else { return false }
+            let url = storage.rootURL.appendingPathComponent(meeting.relativePath, isDirectory: true)
+                .appendingPathComponent("transcript.json")
+            guard let data = try? Data(contentsOf: url),
+                  let transcript = try? JSONDecoder().decode(Transcript.self, from: data) else { return false }
+            return PersonalLearning.quoteStillSaid(claim.quote, in: PersonalLearning.ownTurns(in: transcript.segments))
+        case .typed(.codingAgent, let dayKey):
+            guard settings.codingAgentEvidenceEnabled, let day = DreamDay.date(fromKey: dayKey) else { return false }
+            let requests = activityStore.codingAgentBursts(on: day).filter { !$0.isScheduledRun }.flatMap(\.prompts)
+            return PersonalLearning.quoteStillSaid(claim.quote, in: requests)
+        case .workMemory:
+            guard let memory = (try? dreamStore.loadMemory()) ?? nil else { return false }
+            let key = PersonalModel.duplicateKey(claim.text)
+            let texts = memory.workGoals.map(\.text) + memory.activeProjects.map { "I work on \($0.name)." }
+            return texts.contains { PersonalModel.duplicateKey($0) == key }
+        default:
+            return false
+        }
+    }
+
+    /// After the overnight review: refresh the one-line week and month
+    /// summaries the agent briefing shows below recent days. Stale lines are
+    /// always removed; new ones cost a model call, so they are written only
+    /// while agents may read all retained screen history, which the
+    /// briefing's older timeline needs, and at most once a night. Best effort.
+    private func rollUpReviews(target: DreamScheduler.Target) async {
+        let engineSettings = settings
+        // The briefing shows week and month lines only to agents allowed all
+        // retained screen history; for a shorter window they would never show.
+        let showable = screenMemoryAccess.isEnabled && screenMemoryAccess.profile.scope == .retainedHistory
+        let limit = showable ? DreamRollupService.maximumPerNight : 0
+        do {
+            let outcome = try await DreamRollupService.run(
+                root: storage.rootURL, now: Date(), calendar: target.calendar, limit: limit
+            ) { [weak self] in
+                guard let self else { throw TextEngineError.unavailable("LokalBot is shutting down.") }
+                if target.isAutomatic && !engineSettings.allowsAutomaticMainInference { throw CancellationError() }
+                return try await self.thinkExecution.makeTextEngine(
+                    engineSettings, priority: .background, purpose: "dream rollup")
+            }
+            if !outcome.written.isEmpty || !outcome.removed.isEmpty {
+                lokalbotLog("dream rollups: written=\(outcome.written.map(\.key)) removed=\(outcome.removed)")
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            lokalbotLog("dream rollups skipped: \(error.localizedDescription)")
+        }
+    }
+
+    func keepDictationForLearning(_ spokenText: String, appName: String) {
+        guard settings.learnsFromDictation else { return }
+        do {
+            try dictationLearningLog.append(spokenText, appName: appName)
+        } catch {
+            lokalbotLog("dictation for learning not kept: \(error.localizedDescription)")
+        }
+    }
+
+    /// Off deletes every kept dictation at once; on drops expired ones.
+    func applyDictationLearningSetting() {
+        do {
+            if settings.learnsFromDictation {
+                try dictationLearningLog.prune()
+            } else {
+                try dictationLearningLog.deleteAll()
+            }
+        } catch {
+            lokalbotLog("dictation learning log cleanup failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// Personal Context → Forget everything also drops dictation not yet read.
+    func forgetDictationForLearning() {
+        do {
+            try dictationLearningLog.deleteAll()
+        } catch {
+            lokalbotLog("dictation learning log delete failed: \(error.localizedDescription)")
+        }
     }
 
     func setDreamingEnabled(_ enabled: Bool) {
@@ -2317,15 +2820,20 @@ final class AppState: ObservableObject {
 
         var updated = settings
         updated.dreamingEnabled = enabled
-        if enabled {
-            let calendar = Calendar.current
-            updated.dreamingFirstEligibleDayKey = DreamDay.key(
-                for: DreamScheduler.previousDay(of: Date(), calendar: calendar),
-                calendar: calendar)
-        } else {
-            updated.dreamingFirstEligibleDayKey = nil
-        }
+        updated.dreamingFirstEligibleDayKey = Self.dreamingFirstEligibleDayKey(enabled: enabled)
         settings = updated
+    }
+
+    /// Turning dreaming on starts at yesterday, so a new opt-in never
+    /// backfills older days; turning it off clears the boundary. Shared with
+    /// changes made from the terminal.
+    nonisolated static func dreamingFirstEligibleDayKey(
+        enabled: Bool,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> String? {
+        guard enabled else { return nil }
+        return DreamDay.key(for: DreamScheduler.previousDay(of: now, calendar: calendar), calendar: calendar)
     }
 
     func dreamNow() {

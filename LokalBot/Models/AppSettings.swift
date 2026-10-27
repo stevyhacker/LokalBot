@@ -304,6 +304,12 @@ struct AppSettings: Codable, Equatable {
     var quickRecallEnabled: Bool = false
     /// The key combination that opens Ask from any app.
     var quickRecallShortcut: DictationShortcut = .quickRecallDefault
+    /// A system-wide shortcut that reads the text selected in the frontmost
+    /// app and offers local AI actions on it. Off by default for the same
+    /// reason as Ask's shortcut, and because it reads another app's text.
+    var selectionActionsEnabled: Bool = false
+    /// The key combination that opens selection actions from any app.
+    var selectionActionsShortcut: DictationShortcut = .selectionActionsDefault
 
     // MARK: - Day digest
 
@@ -363,6 +369,16 @@ struct AppSettings: Codable, Equatable {
     /// refreshed. The scheduler clamps decoded values defensively.
     var dailyMemoryExportHour: Int = 18
 
+    // MARK: - Meeting note export
+
+    /// Optional, local-only: one Markdown note per meeting in a folder the
+    /// person picks, in the same formats as the daily note. An empty folder
+    /// keeps the export parked.
+    var meetingNoteExportEnabled: Bool = false
+    var meetingNoteExportFolder: String = ""
+    var meetingNoteExportFormat: DailyMemoryExportFormat = .markdown
+    var meetingNoteExportIncludesTranscript: Bool = true
+
     // MARK: - Dreaming
 
     /// Overnight retrospective: after `dreamingHour`, once the Mac is on AC
@@ -380,6 +396,25 @@ struct AppSettings: Codable, Equatable {
     /// silently skipping the last workday, without backfilling history from
     /// before the user opted in.
     var dreamingFirstEligibleDayKey: String?
+    /// Ask saves "Remember …" statements and gives the selected ones to the
+    /// Think model with each question. On by default; nothing is saved until
+    /// the person asks. Turning it off stops saving and use but keeps what is
+    /// already remembered until the person forgets it.
+    var askMemoryEnabled: Bool = true
+    /// After the overnight review, learn facts and goals about the person
+    /// from their own lines in that day's meetings (preferences wait for
+    /// review; principles are never learned). Needs Ask memory and the review.
+    var personalLearningEnabled: Bool = true
+    /// Also learn from what the person dictates into other apps. Off by
+    /// default: while on, LokalBot keeps the raw dictated words, encrypted,
+    /// until the next learning pass reads them and for at most two days
+    /// (`DictationLearningLog`). Items found there always wait for review.
+    var personalLearningFromDictation: Bool = false
+
+    /// Dictation is kept for learning only while every switch it needs is on.
+    var learnsFromDictation: Bool {
+        askMemoryEnabled && personalLearningEnabled && personalLearningFromDictation
+    }
 
     // MARK: - Safe routines
 
@@ -412,6 +447,10 @@ struct AppSettings: Codable, Equatable {
     /// default for both new and migrated installs; following account policy is
     /// an explicit opt-in because Think requests may contain sensitive context.
     var openRouterDataPolicy: OpenRouterDataPolicy = .privateOnly
+    /// Where pinned model files download from. Hugging Face unless the user
+    /// picks HF-Mirror or ModelScope, which serve the same verified files in
+    /// mainland China; see `ModelDownloadRouting`.
+    var modelDownloadSource: ModelDownloadSource = .huggingFace
     /// Origins the user explicitly approved for sending transcript, OCR, and
     /// agent context off this Mac, including scheduled digest and Dream runs.
     /// Loopback endpoints never need approval.
@@ -516,8 +555,6 @@ struct AppSettings: Codable, Equatable {
     var multiSpeakerDiarization: Bool = true
     /// Fresh installs use Nemotron. Decoding preserves the backend of older installs.
     var diarizationModel: DiarizationModel = .nemotron3
-    /// User-confirmed voices only. No automatic enrollment from inferred names.
-    var rememberSpeakersOnMac: Bool = false
     /// Microphone speech is the user's unless corrected. Turn off when several
     /// people share this Mac's microphone.
     var microphoneIsUser: Bool = true
@@ -587,6 +624,9 @@ struct AppSettings: Codable, Equatable {
     /// Match the host field's font and text color so ghost text reads as a
     /// continuation. On by default; reads via Accessibility (cached per field).
     var cotypingMatchHostStyle: Bool = true
+    /// Ask Chrome-based browsers for their complete accessibility mode, so
+    /// the caret and font size come from the page instead of the screen.
+    var cotypingChromiumEnhancedAccessibility: Bool = true
     /// How ghost text is shown: inline at the caret, or a popup when geometry is
     /// unreliable / the caret is mid-line. `.auto` defers to caret quality.
     var cotypingMirrorPreference: CotypingMirrorPreference = .auto
@@ -647,7 +687,7 @@ struct AppSettings: Codable, Equatable {
     static let legacyPreviewCotypingMaxWords: Int = 2
     static let legacyPreviewCotypingDebounceMs: Int = 150
     static let lowLatencyCotypingDebounceMs: Int = 20
-    static let defaultCotypingDebounceMs: Int = 160
+    static let defaultCotypingDebounceMs: Int = 100
     static let legacyDefaultCotypingDebounceMs: Int = 350
     static let maximumCotypingDebounceMs: Int = 1_000
     static let minimumSpeechSpeed: Double = 0.5
@@ -869,6 +909,8 @@ struct AppSettings: Codable, Equatable {
         case keepOCRTextForever
         case quickRecallEnabled
         case quickRecallShortcut
+        case selectionActionsEnabled
+        case selectionActionsShortcut
         case dayDigestAutoEnabled
         case dayDigestHour
         case dayDigestCustomPrompt
@@ -880,9 +922,16 @@ struct AppSettings: Codable, Equatable {
         case dailyMemoryExportFolder
         case dailyMemoryExportFormat
         case dailyMemoryExportHour
+        case meetingNoteExportEnabled
+        case meetingNoteExportFolder
+        case meetingNoteExportFormat
+        case meetingNoteExportIncludesTranscript
         case dreamingEnabled
         case dreamingHour
         case dreamingFirstEligibleDayKey
+        case askMemoryEnabled
+        case personalLearningEnabled
+        case personalLearningFromDictation
         case memoryRoutinesEnabled
         case memoryRoutineFolder
         case enabledMemoryRoutines
@@ -897,6 +946,7 @@ struct AppSettings: Codable, Equatable {
         case openAIBaseURL
         case openAIModel
         case openRouterDataPolicy
+        case modelDownloadSource
         case approvedRemoteInferenceOrigins
         case chatGPTPlanModel
         case claudePlanModel
@@ -906,7 +956,6 @@ struct AppSettings: Codable, Equatable {
         case agentReasoningLevel
         case noteTemplate
         case summaryLanguage
-        case rememberSpeakersOnMac
         case microphoneIsUser
         case multiSpeakerDiarization
         case diarizationModel
@@ -933,6 +982,7 @@ struct AppSettings: Codable, Equatable {
         case cotypingUseMeetingMemory
         case cotypingUseScreenMemory
         case cotypingMatchHostStyle
+        case cotypingChromiumEnhancedAccessibility
         case cotypingMirrorPreference
         case cotypingAutocorrect
         case cotypingEmoji
@@ -1065,6 +1115,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(keepOCRTextForever, forKey: .keepOCRTextForever)
         try c.encode(quickRecallEnabled, forKey: .quickRecallEnabled)
         try c.encode(quickRecallShortcut, forKey: .quickRecallShortcut)
+        try c.encode(selectionActionsEnabled, forKey: .selectionActionsEnabled)
+        try c.encode(selectionActionsShortcut, forKey: .selectionActionsShortcut)
         try c.encode(dayDigestAutoEnabled, forKey: .dayDigestAutoEnabled)
         try c.encode(min(23, max(0, dayDigestHour)), forKey: .dayDigestHour)
         try c.encode(dayDigestCustomPrompt, forKey: .dayDigestCustomPrompt)
@@ -1076,11 +1128,18 @@ struct AppSettings: Codable, Equatable {
         try c.encode(dailyMemoryExportFolder, forKey: .dailyMemoryExportFolder)
         try c.encode(dailyMemoryExportFormat, forKey: .dailyMemoryExportFormat)
         try c.encode(min(23, max(0, dailyMemoryExportHour)), forKey: .dailyMemoryExportHour)
+        try c.encode(meetingNoteExportEnabled, forKey: .meetingNoteExportEnabled)
+        try c.encode(meetingNoteExportFolder, forKey: .meetingNoteExportFolder)
+        try c.encode(meetingNoteExportFormat, forKey: .meetingNoteExportFormat)
+        try c.encode(meetingNoteExportIncludesTranscript, forKey: .meetingNoteExportIncludesTranscript)
         try c.encode(dreamingEnabled, forKey: .dreamingEnabled)
         try c.encode(min(23, max(0, dreamingHour)), forKey: .dreamingHour)
         try c.encodeIfPresent(
             dreamingFirstEligibleDayKey,
             forKey: .dreamingFirstEligibleDayKey)
+        try c.encode(askMemoryEnabled, forKey: .askMemoryEnabled)
+        try c.encode(personalLearningEnabled, forKey: .personalLearningEnabled)
+        try c.encode(personalLearningFromDictation, forKey: .personalLearningFromDictation)
         try c.encode(memoryRoutinesEnabled, forKey: .memoryRoutinesEnabled)
         try c.encode(memoryRoutineFolder, forKey: .memoryRoutineFolder)
         try c.encode(enabledMemoryRoutines, forKey: .enabledMemoryRoutines)
@@ -1095,6 +1154,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(openAIBaseURL, forKey: .openAIBaseURL)
         try c.encode(openAIModel, forKey: .openAIModel)
         try c.encode(openRouterDataPolicy, forKey: .openRouterDataPolicy)
+        try c.encode(modelDownloadSource, forKey: .modelDownloadSource)
         try c.encode(approvedRemoteInferenceOrigins, forKey: .approvedRemoteInferenceOrigins)
         try c.encode(chatGPTPlanModel, forKey: .chatGPTPlanModel)
         try c.encode(claudePlanModel, forKey: .claudePlanModel)
@@ -1106,7 +1166,6 @@ struct AppSettings: Codable, Equatable {
         try c.encode(summaryLanguage, forKey: .summaryLanguage)
         try c.encode(multiSpeakerDiarization, forKey: .multiSpeakerDiarization)
         try c.encode(diarizationModel, forKey: .diarizationModel)
-        try c.encode(rememberSpeakersOnMac, forKey: .rememberSpeakersOnMac)
         try c.encode(microphoneIsUser, forKey: .microphoneIsUser)
         try c.encode(cotypingEnabled, forKey: .cotypingEnabled)
         try c.encode(cotypingUserName, forKey: .cotypingUserName)
@@ -1135,6 +1194,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(cotypingUseMeetingMemory, forKey: .cotypingUseMeetingMemory)
         try c.encode(cotypingUseScreenMemory, forKey: .cotypingUseScreenMemory)
         try c.encode(cotypingMatchHostStyle, forKey: .cotypingMatchHostStyle)
+        try c.encode(cotypingChromiumEnhancedAccessibility, forKey: .cotypingChromiumEnhancedAccessibility)
         try c.encode(cotypingMirrorPreference, forKey: .cotypingMirrorPreference)
         try c.encode(cotypingAutocorrect, forKey: .cotypingAutocorrect)
         try c.encode(cotypingEmoji, forKey: .cotypingEmoji)
@@ -1244,6 +1304,10 @@ struct AppSettings: Codable, Equatable {
         let storedQuickRecallShortcut = decode(.quickRecallShortcut, defaults.quickRecallShortcut)
         quickRecallShortcut = storedQuickRecallShortcut.quickRecallProblem == nil
             ? storedQuickRecallShortcut : defaults.quickRecallShortcut
+        selectionActionsEnabled = decode(.selectionActionsEnabled, defaults.selectionActionsEnabled)
+        let storedSelectionActionsShortcut = decode(.selectionActionsShortcut, defaults.selectionActionsShortcut)
+        selectionActionsShortcut = storedSelectionActionsShortcut.quickRecallProblem == nil
+            ? storedSelectionActionsShortcut : defaults.selectionActionsShortcut
         dayDigestAutoEnabled = decode(.dayDigestAutoEnabled, defaults.dayDigestAutoEnabled)
         dayDigestHour = min(23, max(0, decode(.dayDigestHour, defaults.dayDigestHour)))
         dayDigestCustomPrompt = decode(.dayDigestCustomPrompt, defaults.dayDigestCustomPrompt)
@@ -1262,9 +1326,20 @@ struct AppSettings: Codable, Equatable {
             .dailyMemoryExportFormat, defaults.dailyMemoryExportFormat)
         dailyMemoryExportHour = min(
             23, max(0, decode(.dailyMemoryExportHour, defaults.dailyMemoryExportHour)))
+        meetingNoteExportEnabled = decode(
+            .meetingNoteExportEnabled, defaults.meetingNoteExportEnabled)
+        meetingNoteExportFolder = decode(
+            .meetingNoteExportFolder, defaults.meetingNoteExportFolder)
+        meetingNoteExportFormat = decode(
+            .meetingNoteExportFormat, defaults.meetingNoteExportFormat)
+        meetingNoteExportIncludesTranscript = decode(
+            .meetingNoteExportIncludesTranscript, defaults.meetingNoteExportIncludesTranscript)
         dreamingEnabled = decode(.dreamingEnabled, defaults.dreamingEnabled)
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)
+        askMemoryEnabled = decode(.askMemoryEnabled, defaults.askMemoryEnabled)
+        personalLearningEnabled = decode(.personalLearningEnabled, defaults.personalLearningEnabled)
+        personalLearningFromDictation = decode(.personalLearningFromDictation, defaults.personalLearningFromDictation)
         memoryRoutinesEnabled = decode(.memoryRoutinesEnabled, defaults.memoryRoutinesEnabled)
         memoryRoutineFolder = decode(.memoryRoutineFolder, defaults.memoryRoutineFolder)
         enabledMemoryRoutines = decode(.enabledMemoryRoutines, defaults.enabledMemoryRoutines)
@@ -1282,6 +1357,7 @@ struct AppSettings: Codable, Equatable {
         openAIModel = decode(.openAIModel, defaults.openAIModel)
         openRouterDataPolicy = decode(
             .openRouterDataPolicy, defaults.openRouterDataPolicy)
+        modelDownloadSource = decode(.modelDownloadSource, defaults.modelDownloadSource)
         approvedRemoteInferenceOrigins = decode(
             .approvedRemoteInferenceOrigins, defaults.approvedRemoteInferenceOrigins)
         chatGPTPlanModel = decode(.chatGPTPlanModel, defaults.chatGPTPlanModel)
@@ -1299,7 +1375,6 @@ struct AppSettings: Codable, Equatable {
         // Community-1. Preserve that backend; only a fresh settings store gets
         // the new Nemotron default. Valid explicit choices always round-trip.
         diarizationModel = decode(.diarizationModel, .community1)
-        rememberSpeakersOnMac = decode(.rememberSpeakersOnMac, defaults.rememberSpeakersOnMac)
         microphoneIsUser = decode(.microphoneIsUser, defaults.microphoneIsUser)
         cotypingEnabled = decode(.cotypingEnabled, defaults.cotypingEnabled)
         cotypingUserName = decode(.cotypingUserName, defaults.cotypingUserName)
@@ -1337,6 +1412,8 @@ struct AppSettings: Codable, Equatable {
         cotypingUseMeetingMemory = decode(.cotypingUseMeetingMemory, defaults.cotypingUseMeetingMemory)
         cotypingUseScreenMemory = decode(.cotypingUseScreenMemory, defaults.cotypingUseScreenMemory)
         cotypingMatchHostStyle = decode(.cotypingMatchHostStyle, defaults.cotypingMatchHostStyle)
+        cotypingChromiumEnhancedAccessibility = decode(
+            .cotypingChromiumEnhancedAccessibility, defaults.cotypingChromiumEnhancedAccessibility)
         cotypingMirrorPreference = decode(
             .cotypingMirrorPreference, defaults.cotypingMirrorPreference)
         cotypingAutocorrect = decode(.cotypingAutocorrect, defaults.cotypingAutocorrect)

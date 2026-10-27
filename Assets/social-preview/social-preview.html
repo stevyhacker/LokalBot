@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  Source for lokalbot-social-preview.png, the GitHub social preview image
+  (Settings → General → Social preview). To regenerate it, serve Assets/ over
+  HTTP and take a 1280×640 viewport screenshot of this page with any browser
+  automation tool:
+
+    python3 -m http.server 8765 --bind 127.0.0.1 --directory Assets
+    # then screenshot http://127.0.0.1:8765/social-preview/social-preview.html
+
+  Keep the PNG under GitHub's 1 MB limit. Colors come from web/styles.css
+  (light theme); the screenshot is the README hero.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #f4f7f7;
+    --text: #0e141c;
+    --text-dim: #2e3b44;
+    --text-faint: #485660;
+    --teal: #23c4ae;
+    --accent-text: #075f55;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background: var(--bg);
+    font-family: var(--font);
+    color: var(--text);
+    position: relative;
+    -webkit-font-smoothing: antialiased;
+  }
+  .copy {
+    position: absolute;
+    left: 72px;
+    top: 72px;
+    width: 470px;
+  }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand img { width: 76px; height: 76px; }
+  .brand h1 { font-size: 54px; font-weight: 700; letter-spacing: -0.02em; }
+  .tagline {
+    margin-top: 34px;
+    font-size: 40px;
+    line-height: 1.12;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .sub {
+    margin-top: 22px;
+    font-size: 23px;
+    line-height: 1.4;
+    color: var(--text-dim);
+  }
+  .facts {
+    position: absolute;
+    left: 72px;
+    bottom: 64px;
+    width: 470px;
+    line-height: 1.35;
+    font-size: 19px;
+    font-weight: 600;
+    color: var(--accent-text);
+  }
+  .facts .repo {
+    display: block;
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 17px;
+    color: var(--text-faint);
+  }
+  /* The hero carries its own headline; show only the app windows below it. */
+  .shot {
+    position: absolute;
+    left: 584px;
+    top: 114px;
+    width: 760px;
+    height: 412px;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: 0 24px 60px rgba(14, 20, 28, 0.18), 0 2px 8px rgba(14, 20, 28, 0.10);
+  }
+  .shot img {
+    display: block;
+    width: 1000px;
+    margin-left: -20px;
+    margin-top: -150px;
+  }
+</style>
+</head>
+<body>
+  <div class="copy">
+    <div class="brand">
+      <img src="../lokalbot-icon.svg" alt="">
+      <h1>LokalBot</h1>
+    </div>
+    <p class="tagline">Find what you said or saw on your Mac.</p>
+    <p class="sub">Meeting notes, screen recall, dictation and autocomplete, with AI that runs on your Mac. Your AI agents can search it too.</p>
+  </div>
+  <p class="facts">Free and open source · No account<br>Nothing joins your calls
+    <span class="repo">github.com/stevyhacker/LokalBot</span>
+  </p>
+  <div class="shot"><img src="../hero/lokalbot-hero-light.png" alt=""></div>
+</body>
+</html>

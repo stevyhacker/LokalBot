@@ -45,7 +45,13 @@
     "settings",
     "password",
     "sign",
-    "in"
+    "in",
+    "tencent",
+    "voov",
+    "feishu",
+    "lark",
+    "dingtalk",
+    "wecom"
   ],
   "appNames": [
     "Google Chrome",
@@ -77,7 +83,17 @@
     "Numbers",
     "Google Chrome Helper",
     "Google Chrome Helper (Renderer)",
-    "Microsoft Teams (work or school)"
+    "Microsoft Teams (work or school)",
+    "Tencent Meeting",
+    "腾讯会议",
+    "VooV Meeting",
+    "Feishu",
+    "飞书",
+    "Lark",
+    "DingTalk",
+    "钉钉",
+    "WeCom",
+    "企业微信"
   ],
   "meetingHosts": [
     "meet.google.com",
@@ -87,7 +103,12 @@
     "app.zoom.us",
     "webex.com",
     "whereby.com",
-    "app.slack.com"
+    "app.slack.com",
+    "meeting.tencent.com",
+    "voovmeeting.com",
+    "vc.feishu.cn",
+    "vc.larksuite.com",
+    "meeting.dingtalk.com"
   ],
   "bundleIDs": [
     "us.zoom.xos",
@@ -96,6 +117,7 @@
     "com.tinyspeck.slackmacgap",
     "com.webex.meetingmanager",
     "Cisco-Systems.Spark",
+    "Cisco-Systems.SparkHelper",
     "com.apple.FaceTime",
     "com.google.Chrome",
     "com.apple.Safari",
@@ -104,7 +126,15 @@
     "com.brave.Browser",
     "org.mozilla.firefox",
     "com.microsoft.teams2.modulehost",
-    "me.dotenv.LokalBot"
+    "me.dotenv.LokalBot",
+    "com.tencent.meeting",
+    "com.tencent.tencentmeeting",
+    "com.electron.lark",
+    "com.bytedance.lark.helper",
+    "com.larksuite.larkApp",
+    "com.alibaba.DingTalkMac",
+    "com.alibaba.DingTalk-Helper",
+    "com.tencent.WeWorkMac"
   ],
   "bundlePrefixes": [
     "com.apple."

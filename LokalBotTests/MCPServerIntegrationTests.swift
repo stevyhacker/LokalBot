@@ -103,9 +103,9 @@ final class MCPServerIntegrationTests: XCTestCase {
         XCTAssertTrue(output[0].contains(#""protocolVersion":"2025-06-18""#))
         XCTAssertTrue(output[0].contains(#""name":"lokalbot""#))
         for tool in [
-            "list_meetings", "get_meeting", "search_meetings", "ask_library",
+            "get_briefing", "list_meetings", "get_meeting", "search_meetings", "ask_library",
             "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
-            "get_screenshot_detail",
+            "get_screenshot_detail", "get_personal_context",
         ] {
             XCTAssertTrue(output[1].contains("\"\(tool)\""), tool)
         }

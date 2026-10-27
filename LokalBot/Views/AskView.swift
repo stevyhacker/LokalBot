@@ -369,7 +369,10 @@ private struct AskContent: View {
             return
         }
         pendingQuestion = nil
-        if resultCount > 0 {
+        // A "Remember …" statement is saved as is; don't narrow Ask to the
+        // search results its words happened to match.
+        let remembers = app.settings.askMemoryEnabled && RememberIntent.parse(query) != nil
+        if resultCount > 0, !remembers {
             app.recallState.selectResultEvidence(
                 meetingIDs: Set(groupedMeetings.map(\.id)),
                 screenIDs: answerScreenIDs)

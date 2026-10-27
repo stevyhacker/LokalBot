@@ -49,6 +49,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case qwenASR17B = "qwen3-asr-1.7b"
     case qwenASR06B = "qwen3-asr-0.6b"
     case graniteSpeech = "granite-speech"
+    case graniteSpeech5 = "granite-speech-5.0-2b"
     case graniteTurbo = "granite-speech-5-turbo"
     case whisperLarge = "whisper-large-v3-turbo"
     case funASRNano = "fun-asr-nano-2512"
@@ -76,6 +77,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: "Qwen3-ASR 1.7B"
         case .qwenASR06B: "Qwen3-ASR 0.6B"
         case .graniteSpeech: "Granite Speech 4.1 2B"
+        case .graniteSpeech5: "Granite Speech 5.0 2B"
         case .graniteTurbo: "Granite Speech 5 fast (English)"
         case .whisperLarge: "Whisper large-v3 turbo"
         case .cohere: "Cohere Transcribe (multilingual)"
@@ -104,7 +106,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
     var acceptsVocabularyPrompt: Bool {
         switch self {
-        case .whisperLarge, .qwenASR17B, .qwenASR06B, .remoteServer: true
+        case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .remoteServer: true
         default: false
         }
     }
@@ -124,6 +126,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: "2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"
         case .qwenASR06B: "0.7 GB · MLX, 52 languages/dialects, compact global tier"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
+        case .graniteSpeech5: "3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"
         case .graniteTurbo: "0.95 GB · English only · fast local transcription without punctuation or vocabulary prompts"
         case .whisperLarge: "1.6 GB · 99 languages, word timestamps, wide-language legacy fallback"
         case .cohere: "2B params · legacy — no auto language detection, timestamps, or diarization"
@@ -142,6 +145,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .qwenASR17B: QwenASREngine.accuracy
         case .qwenASR06B: QwenASREngine.compact
         case .graniteSpeech: GraniteSpeechEngine.shared
+        case .graniteSpeech5: GraniteSpeechEngine.configured(.speech5)
         case .graniteTurbo: GraniteTurboEngine.shared
         case .whisperLarge: WhisperEngine.shared
         case .cohere: CohereEngine.shared
@@ -170,9 +174,39 @@ protocol TranscriptionEngine {
     func prepare(progress: ModelPreparationProgressHandler?) async throws
     func transcribe(audio: URL, language: String?) async throws -> Transcript
     func transcribe(audio: URL, language: String?, prompt: String?) async throws -> Transcript
-    /// Whole-track transcription whose words will be re-timed by forced
-    /// alignment (`.alignedWords`), so decode windows may be longer.
-    func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> Transcript
+    /// Whole-track transcription whose words will be attributed to speakers
+    /// (`.alignedWords`), so decode windows may be longer. Segments without
+    /// the engine's own word times are re-timed by forced alignment.
+    func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript
+    /// Word-attribution transcripts are expected to carry the engine's own
+    /// word times, so the forced aligner is fetched only for segments without them.
+    var providesWordTimings: Bool { get }
+}
+
+/// A whole-track transcript for word attribution. An engine that times words
+/// itself (a transcription server answering `timestamp_granularities[]=word`)
+/// fills `words`; the rest are left to the forced aligner.
+struct WordTimedTranscript {
+    struct Segment: Sendable {
+        var segment: Transcript.Segment
+        /// On the track timeline; nil when the engine returned no word times.
+        var words: [AlignedWordTiming]?
+    }
+
+    var segments: [Segment]
+    var engine: String
+
+    init(segments: [Segment], engine: String) {
+        self.segments = segments
+        self.engine = engine
+    }
+
+    /// Text without word times, for the forced aligner.
+    init(_ transcript: Transcript) {
+        self.init(segments: transcript.segments.map { Segment(segment: $0) }, engine: transcript.engine)
+    }
+
+    var transcript: Transcript { Transcript(segments: segments.map(\.segment), engine: engine) }
 }
 
 /// How a diarized (or content-trimmed) track is attributed to speakers.
@@ -189,8 +223,10 @@ extension TranscriptionEngine {
     var checkpointIdentity: String { displayName }
     var speakerAttribution: SpeakerAttributionStrategy { .regions }
 
-    func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> Transcript {
-        try await transcribe(audio: audio, language: language, prompt: prompt)
+    var providesWordTimings: Bool { false }
+
+    func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
+        WordTimedTranscript(try await transcribe(audio: audio, language: language, prompt: prompt))
     }
 }
 
@@ -440,13 +476,18 @@ actor ParakeetEngine: TranscriptionEngine {
         await ModelRuntimeRegistry.shared.unregister(id: variant.runtimeID)
     }
 
+    nonisolated static func languageHint(_ language: String?, variant: Variant) throws -> Language? {
+        if variant == .v2 { try TranscriptionModelChoice.parakeetV2.validateLanguage(language) }
+        return language.flatMap { Language(rawValue: $0) }
+    }
+
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        let hint = try Self.languageHint(language, variant: variant)
         activeUses += 1
         defer { finishUse() }
         try await prepare()
         guard let manager else { throw TranscriptionEngineError.notLoaded }
         var state = try TdtDecoderState()
-        let hint = language.flatMap { Language(rawValue: $0) }
         let result = try await manager.transcribe(url, decoderState: &state, language: hint)
         let transcript = Transcript(segments: Self.segments(from: result, speaker: "speaker"),
                                     engine: variant.transcriptEngine)
@@ -624,10 +665,7 @@ actor WhisperEngine: TranscriptionEngine {
         let promptTokens = TranscriptionPrompt.normalized(prompt).flatMap { context in
             pipe.tokenizer?.encode(text: " " + context)
         }
-        let options = DecodingOptions(
-            language: language,
-            detectLanguage: language == nil,
-            promptTokens: promptTokens)
+        let options = Self.decodingOptions(language: language, promptTokens: promptTokens)
         let results = try await pipe.transcribe(audioPath: url.path, decodeOptions: options)
         let segments = results.flatMap(\.segments).map { seg in
             Transcript.Segment(start: TimeInterval(seg.start), end: TimeInterval(seg.end),
@@ -637,6 +675,10 @@ actor WhisperEngine: TranscriptionEngine {
                                timingPrecision: .span)
         }.filter { !$0.text.isEmpty }
         return Transcript(segments: segments, engine: "whisper-large-v3-turbo (WhisperKit)")
+    }
+
+    nonisolated static func decodingOptions(language: String?, promptTokens: [Int]? = nil) -> DecodingOptions {
+        DecodingOptions(language: language, detectLanguage: language == nil, promptTokens: promptTokens)
     }
 
     private func finishUse() {
@@ -707,6 +749,7 @@ actor CohereEngine: TranscriptionEngine {
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
+        try TranscriptionModelChoice.cohere.validateLanguage(language)
         activeUses += 1
         defer { finishUse() }
         try await prepare()

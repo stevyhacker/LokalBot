@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\"onboarding_belongs_to_user\": false, \"privacy_belongs_to_user\": true, \"support_belongs_to_user\": false, \"onboarding_owner_id\": \"p2\", \"privacy_owner_id\": \"p1\"}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 55,
+    "prompt_tokens": 194,
+    "total_tokens": 249,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 194,
+    "prompt_ms": 902.052,
+    "prompt_per_token_ms": 4.649752577319588,
+    "prompt_per_second": 215.06520688386036,
+    "predicted_n": 55,
+    "predicted_ms": 3403.509,
+    "predicted_per_token_ms": 63.027944444444444,
+    "predicted_per_second": 15.865978318259186
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\"onboarding_belongs_to_user\": false, \"privacy_belongs_to_user\": true, \"support_belongs_to_user\": false, \"onboarding_owner_id\": \"p2\", \"privacy_owner_id\": \"p1\"}"
+        }
+      }
+    ],
+    "created": 1792527402,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 55,
+      "prompt_tokens": 194,
+      "total_tokens": 249,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-5Eza2hSMo3TGnNuk0Umrm2pLwvill6vf",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 194,
+      "prompt_ms": 902.052,
+      "prompt_per_token_ms": 4.649752577319588,
+      "prompt_per_second": 215.06520688386036,
+      "predicted_n": 55,
+      "predicted_ms": 3403.509,
+      "predicted_per_token_ms": 63.027944444444444,
+      "predicted_per_second": 15.865978318259186
+    }
+  },
+  "wall_seconds": 4.31974070193246,
+  "memory": {
+    "samples": 21,
+    "peak_rss_bytes": 6617821184,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "explicit_identity",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 5,
+    "total_fields": 5,
+    "wrong": {}
+  }
+}

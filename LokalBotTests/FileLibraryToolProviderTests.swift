@@ -140,14 +140,15 @@ final class FileLibraryToolProviderTests: XCTestCase {
         super.tearDown()
     }
 
-    func testAdvertisesMeetingAndScreenTools() {
+    func testAdvertisesMeetingScreenAndPersonalContextTools() {
         XCTAssertEqual(
             provider.tools.map(\.name),
             [
+                "get_briefing",
                 "list_meetings", "get_meeting", "search_meetings", "ask_library",
                 "get_action_items", "list_people", "get_person",
                 "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
-                "get_screenshot_detail",
+                "get_screenshot_detail", "get_personal_context",
             ])
         for tool in provider.tools {
             XCTAssertFalse(tool.description.isEmpty, tool.name)
@@ -350,6 +351,76 @@ final class FileLibraryToolProviderTests: XCTestCase {
             let result = await provider.call(
                 name: "list_meetings", arguments: ["limit": invalid])
             XCTAssertTrue(result.text.hasPrefix("[invalid_arguments]"), "\(invalid)")
+        }
+    }
+
+    /// `list --include summary` / `list_meetings` `include`: several
+    /// meetings' summaries in one call, sharing one character budget.
+    func testListMeetingsIncludesSummariesWithinOneBudget() async throws {
+        let withSummaries = await provider.call(name: "list_meetings", arguments: ["include": "summary"])
+        XCTAssertFalse(withSummaries.isError, withSummaries.text)
+        let rows = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(withSummaries.text.utf8)) as? [[String: Any]])
+        XCTAssertEqual(rows.compactMap { $0["summary"] as? String },
+                       ["## TL;DR\nWe chose Redis for the caching layer.", "## TL;DR\nAncient history."])
+        XCTAssertTrue(rows.allSatisfy { $0["summary_truncated"] == nil })
+
+        let plain = await provider.call(name: "list_meetings", arguments: ["include": "metadata"])
+        XCTAssertFalse(plain.text.contains("\"summary\""), plain.text)
+        let transcript = await provider.call(name: "list_meetings", arguments: ["include": "summary,transcript"])
+        XCTAssertEqual(transcript.text,
+                       "[invalid_arguments] list_meetings doesn't include transcripts. Read one meeting's with get_meeting.")
+        let unknown = await provider.call(name: "list_meetings", arguments: ["include": "audio"])
+        XCTAssertEqual(unknown.text,
+                       "[invalid_arguments] Unknown include value(s): audio. list_meetings takes \"summary\".")
+        let over = await provider.call(name: "list_meetings", arguments: ["include": "summary", "limit": 51])
+        XCTAssertEqual(over.text, "[invalid_arguments] \"limit\" must be an integer between 1 and 50.")
+
+        let meetings = try SessionLookup.loadAllMeetings()
+        let table = SessionFormatter.listTable(meetings, includeSummary: true)
+        XCTAssertTrue(table.hasPrefix("ID        Date"), table)
+        XCTAssertTrue(table.contains("\n\n── aaaaaaaa · Cache planning\n## TL;DR\nWe chose Redis"), table)
+        XCTAssertFalse(SessionFormatter.listTable(meetings).contains("TL;DR"))
+    }
+
+    /// The same numbers as the Rust CLI's `list_summaries_share_one_budget`.
+    func testListSummariesShareOneBudget() throws {
+        XCTAssertEqual(SessionFormatter.summaryShares([100, 9_000, 30_000], budget: 10_000, cap: 5_000),
+                       [100, 4_950, 4_950])
+        XCTAssertEqual(SessionFormatter.summaryShares([300, 200], budget: 20_000, cap: 5_000), [300, 200])
+        XCTAssertEqual(SessionFormatter.summaryShares(Array(repeating: 8_000, count: 4), budget: 20_000, cap: 5_000),
+                       Array(repeating: 5_000, count: 4))
+        let fifty = SessionFormatter.summaryShares(Array(repeating: 18_000, count: 50),
+                                                   budget: SessionFormatter.listSummaryBudget,
+                                                   cap: SessionFormatter.listSummaryCap)
+        XCTAssertEqual(Set(fifty), [400])
+
+        XCTAssertEqual(SessionFormatter.shortened("short", to: 10).text, "short")
+        let cut = SessionFormatter.shortened("## TL;DR\nWe chose Redis.\n\n## Key points\n- one\n- two", to: 30)
+        XCTAssertTrue(cut.truncated)
+        XCTAssertEqual(cut.text, "## TL;DR\nWe chose Redis.\n…")
+        let line = SessionFormatter.shortened("a\n" + String(repeating: "b", count: 100), to: 20)
+        XCTAssertEqual(line.text, "a\n" + String(repeating: "b", count: 16) + "\n…")
+
+        let listed = SessionFormatter.listSummaries([
+            "  ## TL;DR\nShort.\n", nil, "   ", String(repeating: "x", count: SessionFormatter.listSummaryCap + 1),
+        ])
+        XCTAssertEqual(listed[0]?.text, "## TL;DR\nShort.")
+        XCTAssertEqual(listed[0]?.truncated, false)
+        XCTAssertNil(listed[1])
+        XCTAssertNil(listed[2])
+        let long = try XCTUnwrap(listed[3])
+        XCTAssertTrue(long.truncated && long.text.hasSuffix("\n…"))
+        XCTAssertLessThanOrEqual(long.text.count, SessionFormatter.listSummaryCap)
+
+        XCTAssertFalse(try SessionFormatter.listIncludesSummary("metadata"))
+        XCTAssertFalse(try SessionFormatter.listIncludesSummary(""))
+        XCTAssertTrue(try SessionFormatter.listIncludesSummary(" Summary "))
+        XCTAssertTrue(try SessionFormatter.listIncludesSummary("metadata,summary"))
+        XCTAssertThrowsError(try SessionFormatter.listIncludesSummary("summary,transcript")) {
+            XCTAssertEqual($0 as? SessionFormatter.ListIncludeError, .transcript)
+        }
+        XCTAssertThrowsError(try SessionFormatter.listIncludesSummary("summary,audio,notes")) {
+            XCTAssertEqual($0 as? SessionFormatter.ListIncludeError, .unknown(["audio", "notes"]))
         }
     }
 

@@ -113,6 +113,9 @@ enum PromptTemplates {
         Candidates marked `Priority: secondary` are lighter but identifiable work. List them after the primary tasks, or merge one into a primary task about the same work, instead of omitting them.
 
         Return only the requested JSON object. Each object in `tasks` must contain a concrete `title`, one- or two-sentence `summary`, supported `status`, optional `next_step`, and every contributing candidate index in `block_indices`.
+        Write each `title` as a short imperative work title of about three to ten words that names the project and deliverable, like a commit subject: "Fix the release build signing failure". \
+        Never use a request, a question, a URL, or a placeholder such as "Untitled session" as a title, and name the repository rather than a scratch, worktree, or parent folder. \
+        Candidates that describe the same work in different words, such as two reviews of the same open pull requests, are one task.
         Give every fact exactly one owner: `summary` contains work performed and its outcome, while `next_step` contains only a future action. Never repeat a summary sentence in `next_step`, `decisions`, or `blockers`, and do not restate a next step inside `summary`.
         Use only `completed`, `in_progress`, `blocked`, or `unknown` for status. Keep `next_step` empty when none is supported. Put only explicit decisions in `decisions` and explicit blockers in `blockers`; otherwise return empty arrays.
         Write direct work phrases such as "Reviewed the release build and resolved the signing failure." Never begin with "User", "The user", or the person's name. Never mention evidence availability or the summarization process.
@@ -129,6 +132,7 @@ enum PromptTemplates {
         Group candidates that concern the same item. Prefer a concrete topic, document, conversation, meeting, page, or project over an app name. Do not omit a supported candidate merely because it is low-signal. Avoid browser chrome, notifications, repetitive accessibility labels, timestamps, durations, capture mechanics, and screen IDs.
 
         Return only the requested JSON object. Each object in `tasks` must contain a grounded `title`, one- or two-sentence `summary`, supported `status`, optional `next_step`, and every contributing candidate index in `block_indices`.
+        Write each `title` as a short work title that names the item; never use a request, a question, a URL, or a placeholder such as "Untitled session" as a title.
         Give every fact exactly one owner: `summary` contains observed work or activity, while `next_step` contains only an explicitly supported future action. Use only `completed`, `in_progress`, `blocked`, or `unknown` for status. Keep `next_step` empty when none is supported. Put only explicit decisions in `decisions` and explicit blockers in `blockers`; otherwise return empty arrays.
         Write directly and never begin with "User", "The user", or the person's name. Never mention the extraction, filtering, or summarization process.
         """
@@ -147,7 +151,8 @@ enum PromptTemplates {
         Its recorded actions (commits, opened or merged pull requests, releases, pushes, test runs) are the strongest evidence of what changed. \
         The agent's final report is the agent's claim: use it to describe the work, but call the work completed only when a recorded action or other evidence supports that. \
         A scheduled run's report can summarize earlier days, so count only its recorded actions as work in this segment. \
-        Name the task by its project and deliverable, such as a pull request or commit title, never by the agent. When screen text and an agent session cover the same work, prefer the session.
+        Name the task by its project and deliverable, such as a pull request or commit title, never by the agent. \
+        Write `task` as a short imperative work title, like a commit subject; never copy a request, a question, a URL, or a placeholder such as "Untitled session". When screen text and an agent session cover the same work, prefer the session.
 
         App names, window titles, timestamps, durations, screen IDs, tab or page changes, navigation, reading, typing, and tool usage are weak metadata. Use them only to understand context.
         Never mention them in `task`, `work_done`, `outcome`, or `next_step` unless the tool itself is the subject or deliverable of the work. Browser chrome, notifications, repetitive accessibility labels, and routine navigation are always noise.

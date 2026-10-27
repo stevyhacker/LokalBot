@@ -1,0 +1,261 @@
+# LokalBot on the Windows Package Manager (winget) as stevyhacker.LokalBot.
+#
+# On a pull request that changes the manifests in LinuxWindows/packaging/winget
+# or this workflow, winget validates them on a GitHub-hosted Windows runner,
+# installs LokalBot from them silently, checks the installation and its
+# Installed apps entry, and uninstalls it silently.
+#
+# Release (release.yml) calls it for every stable tag once the Windows
+# installer is attached. wingetcreate then opens the pull request that adds
+# that version to microsoft/winget-pkgs, from the owner's fork, with the
+# WINGET_TOKEN secret (a classic token with the public_repo scope). Without
+# the secret, or before winget-pkgs has the package, the job says so and
+# succeeds. It handles a secret, so it never runs on a self-hosted runner.
+#
+#   gh workflow run winget.yml -f tag=v0.11.1    (submit a release by hand)
+
+name: winget
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/winget.yml"
+      - "LinuxWindows/packaging/winget/**"
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.11.1
+        required: true
+        type: string
+    secrets:
+      WINGET_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to submit, e.g. v0.11.1
+        required: true
+        type: string
+
+concurrency:
+  group: winget-${{ github.event_name == 'pull_request' && github.head_ref || inputs.tag }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE: stevyhacker.LokalBot
+  # winget for the check (GitHub's Windows Server image has none) and
+  # wingetcreate for the submission, pinned by digest.
+  WINGET_RELEASE: https://github.com/microsoft/winget-cli/releases/download/v1.29.380
+  WINGET_BUNDLE_SHA256: 65dea9c01ce08ee7b763366b27c0e651f97db857c11ca9b9c301826c10092f2e
+  WINGET_DEPENDENCIES_SHA256: ba875afe9d190f61218985ac0292a99d1db710bf93e13c68944ca9d89f0d82d1
+  WINGET_LICENSE_SHA256: bcb15118ec47df24e3e6013a7006147c3a15b3a8104ed660fe87c8b4ed01f485
+  WINGETCREATE_URL: https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe
+  WINGETCREATE_SHA256: 24042bd37915805615e6cf969ac57c6439124c3fe85823327f5f3fb24bd9ffea
+
+jobs:
+  # Git for Windows cannot check out the macOS fixtures (names with ':'), even
+  # sparsely, so the Windows job gets the manifests from here.
+  manifests:
+    name: Manifests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: LinuxWindows/packaging/winget
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: winget-manifests
+          path: LinuxWindows/packaging/winget/manifests
+          retention-days: 1
+          if-no-files-found: error
+
+  check:
+    name: Validate, install and uninstall
+    needs: manifests
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: winget-manifests
+          path: manifests
+
+      - name: Install winget
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $dir = Join-Path $env:RUNNER_TEMP 'winget'
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $files = @{
+            'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle' = $env:WINGET_BUNDLE_SHA256
+            'DesktopAppInstaller_Dependencies.zip' = $env:WINGET_DEPENDENCIES_SHA256
+            'e53e159d00e04f729cc2180cffd1c02e_License1.xml' = $env:WINGET_LICENSE_SHA256
+          }
+          foreach ($file in $files.GetEnumerator()) {
+            $path = Join-Path $dir $file.Key
+            Invoke-WebRequest "$env:WINGET_RELEASE/$($file.Key)" -OutFile $path
+            if ((Get-FileHash $path -Algorithm SHA256).Hash -ne $file.Value) { throw "$($file.Key) does not match its pinned SHA-256" }
+          }
+          Expand-Archive (Join-Path $dir 'DesktopAppInstaller_Dependencies.zip') (Join-Path $dir 'deps')
+          $deps = Get-ChildItem (Join-Path $dir 'deps') -Recurse -Filter *.appx | Where-Object { $_.FullName -match '\\x64\\' }
+          Add-AppxProvisionedPackage -Online `
+            -PackagePath (Join-Path $dir 'Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle') `
+            -DependencyPackagePath $deps.FullName `
+            -LicensePath (Join-Path $dir 'e53e159d00e04f729cc2180cffd1c02e_License1.xml') | Out-Null
+          Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe
+          $apps = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps'
+          $apps >> $env:GITHUB_PATH
+          & (Join-Path $apps 'winget.exe') --version
+          # Delivery Optimization, winget's default downloader, can stall on
+          # CI runners; WinINet downloads directly.
+          $state = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState'
+          New-Item -ItemType Directory -Force $state | Out-Null
+          Set-Content -Path (Join-Path $state 'settings.json') -Value '{ "network": { "downloader": "wininet" } }'
+
+      - name: Validate
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dirs = Get-ChildItem manifests -Recurse -Filter "$env:PACKAGE.yaml" | ForEach-Object DirectoryName
+          if (-not $dirs) { throw 'no manifests found' }
+          foreach ($dir in $dirs) {
+            winget validate --manifest $dir --disable-interactivity
+            if ($LASTEXITCODE -ne 0) { throw "winget validate failed for $dir" }
+            # The digest must be the one the release published.
+            $installer = Get-Content (Join-Path $dir "$env:PACKAGE.installer.yaml") -Raw
+            $url = [regex]::Match($installer, '(?m)^\s*InstallerUrl:\s*(\S+)').Groups[1].Value
+            $sha = [regex]::Match($installer, '(?m)^\s*InstallerSha256:\s*(\S+)').Groups[1].Value
+            $published = ((Invoke-RestMethod "$url.sha256") -split '\s+')[0]
+            if ($published -ne $sha) { throw "InstallerSha256 $sha is not the release's $published" }
+            "$dir is valid; $url has SHA-256 $published"
+          }
+          $latest = $dirs | Sort-Object { [version](Split-Path $_ -Leaf) } | Select-Object -Last 1
+          "MANIFEST_DIR=$latest" >> $env:GITHUB_ENV
+
+      # Allowed only on this throwaway runner: installing from a local manifest.
+      # winget marks an installer from a local manifest as downloaded from the
+      # Internet (only a trusted source's installers, such as winget-pkgs',
+      # are marked trusted), so the shell's zone check would stop the unsigned
+      # installer at a prompt nobody can answer here. This skips that check
+      # for winget's launch of it only.
+      - name: Install from the manifest
+        timeout-minutes: 6
+        env:
+          SEE_MASK_NOZONECHECKS: "1"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          winget settings --enable LocalManifestFiles
+          winget install --manifest $env:MANIFEST_DIR --silent --accept-package-agreements --accept-source-agreements --disable-interactivity `
+            --verbose-logs --log (Join-Path $env:RUNNER_TEMP 'winget-install.log')
+          if ($LASTEXITCODE -ne 0) { throw "winget install exited with $LASTEXITCODE" }
+          $version = [regex]::Match((Get-Content (Join-Path $env:MANIFEST_DIR "$env:PACKAGE.yaml") -Raw), '(?m)^PackageVersion:\s*(\S+)').Groups[1].Value
+          $app = Join-Path $env:LOCALAPPDATA 'Programs\LokalBot'
+          foreach ($file in 'lokalbot.exe', 'lokalbot-cli.exe') {
+            if (-not (Test-Path (Join-Path $app $file))) { throw "no $file in $app" }
+          }
+          $entry = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}_is1'
+          if ($entry.DisplayVersion -ne $version) { throw "Installed apps lists $($entry.DisplayVersion), not $version" }
+          winget list --name LokalBot --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) { throw "winget list exited with $LASTEXITCODE" }
+          "Installed LokalBot $version for this user in $app"
+
+      - name: Uninstall silently
+        timeout-minutes: 6
+        run: |
+          $ErrorActionPreference = 'Stop'
+          winget uninstall --manifest $env:MANIFEST_DIR --silent --accept-source-agreements --disable-interactivity `
+            --verbose-logs --log (Join-Path $env:RUNNER_TEMP 'winget-uninstall.log')
+          if ($LASTEXITCODE -ne 0) { throw "winget uninstall exited with $LASTEXITCODE" }
+          # The uninstaller finishes from a copy of itself in TEMP.
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\LokalBot\lokalbot.exe'
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Test-Path $exe) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (Test-Path $exe) { throw 'uninstalling left lokalbot.exe behind' }
+          if (Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}_is1') {
+            throw 'uninstalling left the Installed apps entry behind'
+          }
+          'Uninstalled silently'
+
+      - name: Show winget's logs
+        if: failure() || cancelled()
+        run: |
+          $diag = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe\LocalState\DiagOutputDir'
+          $logs = @(Get-ChildItem $diag -Filter *.log -ErrorAction SilentlyContinue) + @(Get-ChildItem $env:RUNNER_TEMP -Filter 'winget-*.log' -ErrorAction SilentlyContinue)
+          foreach ($log in $logs | Sort-Object LastWriteTime) {
+            "::group::$($log.Name)"
+            Get-Content $log.FullName -Tail 200
+            '::endgroup::'
+          }
+          # What a stuck install waits on.
+          Get-ChildItem (Join-Path $env:TEMP 'WinGet') -Recurse -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object {
+            "$($_.FullName): $((Get-Content $_.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) -join ' ')"
+          }
+          Get-Process | Where-Object { $_.MainWindowTitle -or $_.ProcessName -match 'setup|LokalBot|smartscreen|unins' } |
+            Format-Table Id, ProcessName, MainWindowTitle -AutoSize | Out-String -Width 200
+
+  submit:
+    name: Submit to winget-pkgs
+    if: github.event_name != 'pull_request'
+    runs-on: windows-2025
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      TAG: ${{ inputs.tag }}
+      # wingetcreate reads the token from here, so it is never on a command line.
+      WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check what to submit
+        id: plan
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:TAG -notmatch '^v(\d+\.\d+\.\d+)$') { throw "$env:TAG is not a stable release tag" }
+          $version = $Matches[1]
+          "version=$version" >> $env:GITHUB_OUTPUT
+          if (-not $env:WINGET_CREATE_GITHUB_TOKEN) {
+            "::notice::WINGET_TOKEN is not set, so $env:PACKAGE $version was not submitted to winget."
+            'skip=true' >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          # wingetcreate update needs the package in winget-pkgs; the first
+          # version is submitted by hand (LinuxWindows/packaging/winget/README.md).
+          $path = 'manifests/s/stevyhacker/LokalBot'
+          gh api "repos/microsoft/winget-pkgs/contents/$path" --silent 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            "::warning::winget-pkgs has no $env:PACKAGE yet; submit the first version by hand."
+            'skip=true' >> $env:GITHUB_OUTPUT
+            exit 0
+          }
+          gh api "repos/microsoft/winget-pkgs/contents/$path/$version" --silent 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            "::notice::winget-pkgs already has $env:PACKAGE $version."
+            'skip=true' >> $env:GITHUB_OUTPUT
+          }
+          exit 0
+
+      - name: Submit the new version
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $tool = Join-Path $env:RUNNER_TEMP 'wingetcreate.exe'
+          Invoke-WebRequest $env:WINGETCREATE_URL -OutFile $tool
+          if ((Get-FileHash $tool -Algorithm SHA256).Hash -ne $env:WINGETCREATE_SHA256) { throw 'wingetcreate.exe does not match its pinned SHA-256' }
+          $url = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$env:TAG/LokalBot-$env:VERSION-windows-x86_64-setup.exe"
+          & $tool update $env:PACKAGE --version $env:VERSION --urls "$url|x64|user" `
+            --release-notes-url "https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$env:TAG" `
+            --prtitle "New version: $env:PACKAGE version $env:VERSION" --submit --no-open
+          if ($LASTEXITCODE -ne 0) { throw "wingetcreate exited with $LASTEXITCODE" }

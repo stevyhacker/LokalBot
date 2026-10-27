@@ -36,13 +36,18 @@ final class AudioSourceMonitor: ObservableObject {
         "com.microsoft.teams", "com.microsoft.teams2",
         "com.apple.FaceTime",
         "com.webex.meetingmanager", "com.cisco.webexmeetingsapp",
-        "Cisco-Systems.Spark",
+        "Cisco-Systems.Spark", "Cisco-Systems.SparkHelper",
         "com.tinyspeck.slackmacgap",
         "com.hnc.Discord",
         "com.google.Chrome", "com.apple.Safari", "org.mozilla.firefox",
         "com.microsoft.edgemac", "com.brave.Browser",
         "com.operasoftware.Opera", "company.thebrowser.Browser",
         "com.loom.desktop", "com.pop.pop.app", "com.riverside.app",
+        "com.tencent.meeting", "com.tencent.tencentmeeting",
+        "com.electron.lark", "com.bytedance.lark.helper",
+        "com.larksuite.larkApp", "com.larksuite.larkApp.helper",
+        "com.alibaba.DingTalkMac", "com.alibaba.DingTalk-Helper",
+        "com.tencent.WeWorkMac",
     ]
 
     /// Bundle IDs whose audio is uninteresting — our own app and a few system

@@ -16,6 +16,7 @@ extension CotypingCoordinator {
         let privacySettingsChanged = appliedPrivacySettings != privacySettings
         appliedPrivacySettings = privacySettings
         CotypingAXHelper.configureVisibleContextPolicy(privacySettings.visibleContextPolicy)
+        CotypingAXHelper.configureChromiumEnhancedAccessibility(settings.cotypingChromiumEnhancedAccessibility)
         let appReadPolicyChanged = CotypingAXHelper.configureAppReadPolicy(
             privacySettings.appReadPolicy)
         let shouldRefreshFocus = isRunning
@@ -130,6 +131,7 @@ extension CotypingCoordinator {
         focusRefreshTask = nil
         CotypingWindowTextCapture.shared.setUpdateHandler(nil)
         CotypingAXHelper.forgetVisibleContext()
+        CotypingAXHelper.releaseChromiumEnhancedAccessibility()
         visualCaret.reset()
         if let workspaceObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)

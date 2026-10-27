@@ -3,11 +3,14 @@ import SwiftUI
 struct DayActivityOverview: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
-    var title = "Day Overview"
+    let title: String
     var showsLegend = true
 
-    private var perApp: [(label: String, seconds: TimeInterval)] {
-        Dictionary(grouping: model.blocks.filter { !TimelineWorkSession.isSystemOnly(app: $0.app) }, by: \.app)
+    private var perApp: [(label: String, seconds: TimeInterval)] { Self.perApp(model.blocks) }
+
+    /// Tracked time per app, busiest first, without system-only processes.
+    static func perApp(_ blocks: [ActivityBlock]) -> [(label: String, seconds: TimeInterval)] {
+        Dictionary(grouping: blocks.filter { !TimelineWorkSession.isSystemOnly(app: $0.app) }, by: \.app)
             .map { (label: $0.key, seconds: $0.value.reduce(0) { $0 + $1.duration }) }
             .sorted { $0.seconds > $1.seconds }
     }
@@ -19,13 +22,17 @@ struct DayActivityOverview: View {
                 DayStatRow(trackedSeconds: perApp.reduce(0) { $0 + $1.seconds }, appCount: perApp.count,
                            momentCount: model.shots.count, meetingCount: model.meetings(in: app).count)
                 VStack(alignment: .leading, spacing: 8) {
+                    let meetingCount = model.meetings(in: app).count
                     HStack {
                         StatTile(icon: "clock", value: CaptureStyle.hm(perApp.reduce(0) { $0 + $1.seconds }), label: "tracked")
-                        StatTile(icon: "square.grid.2x2", value: "\(perApp.count)", label: "apps")
+                        StatTile(icon: "square.grid.2x2", value: perApp.count.formatted(),
+                                 label: perApp.count == 1 ? "app" : "apps")
                     }
                     HStack {
-                        StatTile(icon: "rectangle.on.rectangle", value: "\(model.shots.count)", label: "moments")
-                        StatTile(icon: "waveform", value: "\(model.meetings(in: app).count)", label: "meetings")
+                        StatTile(icon: "rectangle.on.rectangle", value: model.shots.count.formatted(),
+                                 label: model.shots.count == 1 ? "moment" : "moments")
+                        StatTile(icon: "waveform", value: meetingCount.formatted(),
+                                 label: meetingCount == 1 ? "meeting" : "meetings")
                     }
                 }
             }

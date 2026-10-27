@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible LokalBot (BotinaV2) bug
+about: Report a reproducible LokalBot bug
 title: "[Bug] "
 labels: bug
 assignees: ""
@@ -12,8 +12,11 @@ Check all that apply:
 
 - [ ] Recording / Audio capture (mic or system audio not captured, wrong source)
 - [ ] Transcription (missing, garbled, or wrong-language text)
-- [ ] Summarization / LLM (bad or empty summary, model or server errors)
-- [ ] Permissions (Microphone, Screen Recording, or Accessibility)
+- [ ] Summaries / Ask / LLM (bad or empty output, model or server errors)
+- [ ] Day memory / Screen context
+- [ ] Dictation / Autocomplete
+- [ ] Permissions (macOS permissions, or Linux desktop support)
+- [ ] Install / Updates
 - [ ] Performance / Crash (slow processing, hang, or crash)
 
 ## Summary
@@ -22,14 +25,16 @@ Describe the bug in one or two sentences.
 
 ## Environment
 
-- macOS version:
+- LokalBot version:
+- Platform: macOS / Windows (alpha) / Linux (alpha)
+- OS version (on Linux: distribution, desktop, and X11 or Wayland):
+- Mac model, or PC CPU and GPU:
+- RAM:
+- Installed with: DMG / Homebrew / Windows zip / Linux archive and install.sh / built from source
 - Audio source: microphone / system audio / both
-- Transcription model (WhisperKit):
-- Summarization engine: local llama.cpp / Ollama / OpenAI-compatible / Apple Intelligence
-- Model name (if local / Ollama):
-- Microphone permission granted: yes / no
-- Screen Recording permission granted: yes / no
-- Accessibility permission granted: yes / no
+- Transcription model:
+- Think (summaries) model: built-in / Ollama / OpenAI-compatible server / ChatGPT or Claude plan / Apple Intelligence
+- macOS only, permissions granted: Microphone / Screen Recording / Accessibility
 
 ## Steps to reproduce
 
@@ -39,7 +44,7 @@ Describe the bug in one or two sentences.
 
 ## Expected behavior
 
-Describe what you expected BotinaV2 to do.
+Describe what you expected LokalBot to do.
 
 ## Actual behavior
 
@@ -47,5 +52,7 @@ Describe what happened instead.
 
 ## Notes
 
-Add screenshots, recordings, or relevant lines from the debug log
-(`~/Library/Application Support/com.dotenv.BotinaV2/debug.log`) here if useful.
+Add screenshots or relevant lines from LokalBot's log here if useful, without
+meeting content, API keys, or other private material. On a Mac the log is
+`~/Library/Application Support/me.dotenv.LokalBot/debug.log`; on Windows and
+Linux it's in the library's `logs` folder (Settings → Advanced → Logs).

@@ -8,6 +8,14 @@ struct PiLaunchPlan: Equatable {
     let workingDirectory: URL
 }
 
+/// What the working folder is, for the extension's environment prompt section.
+enum AgentWorkspaceKind: String {
+    case agentWorkspace = "agent-workspace"
+    case chosenFolder = "chosen-folder"
+
+    static let environmentKey = "LOKALBOT_AGENT_WORKSPACE_KIND"
+}
+
 /// Builds the exact pi launch contract from the 2026-07-09 spec. pi is
 /// fully isolated from the user's ~/.pi and any repo-local pi config
 /// (--no-extensions/-e, --no-skills/--skill, --no-prompt-templates,
@@ -16,15 +24,18 @@ struct PiLaunchPlan: Equatable {
 /// Context files are disabled because pi's upward discovery is not confined
 /// to the selected workspace. Workspace files remain available through the
 /// read tool, whose extension hook canonicalizes paths and asks before any
-/// out-of-workspace access.
+/// out-of-workspace access. LokalBot's own system prompt replaces pi's
+/// coding-agent prompt; the extension appends the per-run environment.
 enum PiLaunchPlanner {
 
     static func plan(bun: URL,
                      piCLI: URL,
                      extensionDirectory: URL,
                      skillDirectory: URL?,
+                     systemPrompt: URL? = nil,
                      sessionDirectory: URL,
                      workspace: URL,
+                     workspaceKind: AgentWorkspaceKind? = nil,
                      endpoint: AgentLLMEndpoint,
                      reasoningLevelFile: URL? = nil,
                      helpersDirectory: URL?,
@@ -49,6 +60,9 @@ enum PiLaunchPlanner {
         if let skillDirectory {
             arguments += ["--skill", skillDirectory.path]
         }
+        if let systemPrompt {
+            arguments += ["--system-prompt", systemPrompt.path]
+        }
         arguments += [
             "--no-prompt-templates",
             "--no-context-files",
@@ -62,9 +76,14 @@ enum PiLaunchPlanner {
         environment["LOKALBOT_LLM_MODEL"] = endpoint.model
         environment["LOKALBOT_LLM_CTX"] = String(endpoint.contextTokens)
         environment["LOKALBOT_LLM_REASONING_DIALECT"] = endpoint.reasoningDialect.rawValue
+        environment["LOKALBOT_LLM_API"] = endpoint.api.rawValue
+        // A plan relay is on this Mac; the model is not. The extension's
+        // environment section says who serves it.
+        environment["LOKALBOT_LLM_SERVED_BY"] = endpoint.plan.map { "\($0.providerName) on the user's \($0.title)" }
         // The host rewrites this file when the Agent reasoning level changes;
         // the extension reads it for every model request. Absent: Automatic.
         environment["LOKALBOT_LLM_REASONING_FILE"] = reasoningLevelFile?.path
+        environment[AgentWorkspaceKind.environmentKey] = workspaceKind?.rawValue
         let privateRootsJSON = try? JSONEncoder().encode(privateRoots.map { $0.standardizedFileURL.path })
         // An encoding failure must stop the extension at startup, never omit
         // the protected roots. `null` is rejected by its launch validation.
@@ -81,6 +100,13 @@ enum PiLaunchPlanner {
         }
         environment["PI_SKIP_VERSION_CHECK"] = "1"
         environment["PI_TELEMETRY"] = "0"
+        // Bun's transpiler cache, pi's compile cache and jiti's extension cache
+        // would keep compiled copies of pi and of the approval extension in
+        // ~/Library/Caches/bun and the temporary folder, outside the verified
+        // runtime. Later launches would run those copies instead.
+        environment["BUN_RUNTIME_TRANSPILER_CACHE_PATH"] = "0"
+        environment["NODE_DISABLE_COMPILE_CACHE"] = "1"
+        environment["JITI_FS_CACHE"] = "false"
         environment["PI_CODING_AGENT_DIR"] = sessionDirectory.deletingLastPathComponent()
             .appendingPathComponent("pi-config", isDirectory: true).path
         if let helpersDirectory {

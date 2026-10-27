@@ -1,0 +1,49 @@
+{
+  "sampleID": "orders-api/zh",
+  "language": "zh",
+  "speakers": 2,
+  "entities": [
+    {"kind": "name", "label": "Maya", "turn": "t03", "any": ["maya", "玛雅", "玛娅", "马雅"]},
+    {"kind": "name", "label": "Daniel", "turn": "t02", "any": ["daniel", "丹尼尔"]},
+    {"kind": "name", "label": "Priya", "turn": "t06", "any": ["priya", "普丽娅", "普里亚", "普莉亚", "普莉娅", "普丽亚", "普瑞亚"]},
+    {"kind": "name", "label": "Tomás", "turn": "t12", "any": ["tomás", "tomas", "thomas", "托马斯", "托马什"]},
+    {"kind": "name", "label": "Lena", "turn": "t14", "any": ["lena", "lina", "莉娜", "丽娜", "蕾娜", "琳娜"]},
+    {"kind": "name", "label": "Fernhill", "turn": "t17", "any": ["fernhill", "fern hill", "芬希尔", "弗恩希尔"]},
+    {"kind": "number", "label": "42 个合作伙伴", "turn": "t15", "any": ["42", "四十二"]},
+    {"kind": "number", "label": "19 个生成的客户端", "turn": "t15", "any": ["19", "十九"]},
+    {"kind": "number", "label": "P95 为 180 毫秒", "turn": "t10", "any": ["180", "一百八十", "一百八"]},
+    {"kind": "number", "label": "移动端 4.2 版本", "turn": "t12", "any": ["4.2", "四点二"]},
+    {"kind": "number", "label": "约两百万个未完成订单", "turn": "t25", "any": ["两百万", "二百万", "200万", "200 万", "2000000", "2,000,000"]},
+    {"kind": "date", "label": "11 月 18 日（最初目标）", "turn": "t08", "any": ["11月18", "11 月 18", "十一月十八"]},
+    {"kind": "date", "label": "11 月 11 日（新目标）", "turn": "t19", "any": ["11月11", "11 月 11", "十一月十一"]},
+    {"kind": "date", "label": "周五（规范和变更日志）", "turn": "t23", "any": ["周五", "星期五", "礼拜五"]}
+  ],
+  "decision": {
+    "text": "Priya 给提出 delivery window 需求的三个合作伙伴发邮件；Daniel 在周五之前更新 API 规范和变更日志。",
+    "turns": ["t22", "t23"]
+  },
+  "changedDecision": {
+    "before": "在 11 月 18 日之前发布 API 第三版，用 delivery window 对象替换 ETA 字段。",
+    "beforeTurns": ["t07", "t09"],
+    "after": "不做第三版。响应保持向后兼容：ETA 不变，delivery window 是新的可选字段，未知时不返回。继续用第二版，11 月 11 日上线。",
+    "afterTurns": ["t18", "t19", "t20"]
+  },
+  "openQuestion": {
+    "text": "变更之前创建的订单（约两百万个未完成订单）要不要回填 delivery window。Maya 去问 Priya；还没有决定。",
+    "turns": ["t24", "t27", "t28"]
+  },
+  "ask": {
+    "question": "Orders API 的响应中，delivery window 字段是必填的吗？",
+    "answerPoints": [
+      "不是：delivery window 是一个新的可选字段。",
+      "时间窗口未知时不返回这个字段。",
+      "ETA 保持不变；响应在第二版上保持向后兼容。",
+      "这取代了之前的计划：发布第三版，用 delivery window 替换 ETA。"
+    ],
+    "citesTurns": ["t18", "t19", "t20"]
+  },
+  "codingAgent": {
+    "search": "delivery window",
+    "finds": "Orders API 的响应必须保持向后兼容：ETA 保持不变，新增可选字段 delivery_window，未知时不返回。"
+  }
+}

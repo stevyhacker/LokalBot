@@ -1,0 +1,14 @@
+{
+  "header": {"schemaVersion": 1, "macOSVersion": "27.0", "origin": "reconstructed",
+             "scenario": "tencent-meeting-call", "scrubberVersion": 1, "recordedAt": "2026-10-18T00:00:00Z"},
+  "events": [
+    {"t": 0, "query": "runningApps", "apps": [{"processIdentifier": 950, "bundleIdentifier": "com.tencent.meeting", "localizedName": "腾讯会议"}]},
+    {"t": 0, "query": "frontmost", "app": {"processIdentifier": 950, "bundleIdentifier": "com.tencent.meeting", "localizedName": "腾讯会议"}},
+    {"t": 0, "query": "audioProcesses", "processes": [{"id": 950, "name": "腾讯会议", "bundleID": "com.tencent.meeting", "objectID": 95, "isRunningOutput": false}]},
+    {"t": 0, "query": "inputRunning", "processID": 950, "flag": false},
+    {"t": 30, "query": "audioProcesses", "processes": [{"id": 950, "name": "腾讯会议", "bundleID": "com.tencent.meeting", "objectID": 95, "isRunningOutput": true}]},
+    {"t": 30, "query": "inputRunning", "processID": 950, "flag": true},
+    {"t": 200, "query": "audioProcesses", "processes": [{"id": 950, "name": "腾讯会议", "bundleID": "com.tencent.meeting", "objectID": 95, "isRunningOutput": false}]},
+    {"t": 200, "query": "inputRunning", "processID": 950, "flag": false}
+  ]
+}

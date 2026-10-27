@@ -123,4 +123,6 @@ struct MeetingSpeakerIdentityState: Codable, Sendable {
     var analyzedAt = Date()
     var voiceSamples: [SpeakerVoiceSample] = []
     var microphoneSampleDiagnostics: [String: Int]?
+    /// Set once call voices were analyzed; meetings processed before that are revisited once.
+    var callVoicesAnalyzed: Int?
 }

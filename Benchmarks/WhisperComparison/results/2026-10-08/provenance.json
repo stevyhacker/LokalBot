@@ -1,0 +1,40 @@
+{
+  "host": {
+    "chip": "Apple M4 Max",
+    "memoryBytes": 51539607552,
+    "macOS": "27.0.1",
+    "architecture": "arm64"
+  },
+  "appSourceCommit": "3c7d093bbcf09ec69536a80abdae91f1887d7844",
+  "whisperKit": {
+    "version": "1.1.0",
+    "revision": "1e2a163736dfa5a198e637ae44c114e1c6d5cc2d"
+  },
+  "theWhisperSourceRevision": "af7eebaa53154d7d1edd545274e4a2df5a855ace",
+  "nativeModels": {
+    "repository": "argmaxinc/whisperkit-coreml",
+    "revision": "0f63a7800b00dd0226abd051b906c246e1907482",
+    "baselineCatalogFilesVerified": 20,
+    "baselineCatalogMismatches": 0,
+    "fullModelBytes": 3090319899
+  },
+  "stageTurbo": {
+    "repository": "TheStageAI/thewhisper-large-v3-turbo",
+    "revision": "5ce95e7a5890cb2191c5c783d8f818f799930705",
+    "variant": "free/macos_15_ios_18/S/10sec",
+    "downloadBytes": 712088251,
+    "loader": "JSON model skeleton, Core ML encoder, safetensors MLX decoder; no pickle deserialization",
+    "timestampMode": "word"
+  },
+  "stageLarge": {
+    "repository": "TheStageAI/thewhisper-large-v3",
+    "revision": "b585e07e1299f7f6017e529b75726a0c8599323b",
+    "status": "not run: no Apple/Core ML assets present in repository listing; supplied Apple loader expects free/macos_15_ios_18"
+  },
+  "privacy": {
+    "inferenceOutboundNetwork": "blocked with macOS sandbox-exec",
+    "cloudReferencesRequested": false,
+    "libraryWrites": false
+  },
+  "memoryCaveat": "Process maximum RSS does not include all ANE/GPU/system allocations."
+}

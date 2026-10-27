@@ -1,0 +1,4 @@
+d2595c12bbdda82929ac0c53ec1e79ebe98f74d92f85de2c829592e376815dca  models/Spark-X2.6-4B-Q4_K_M.gguf
+00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4  models/Qwen3.5-4B-Q4_K_M.gguf
+6386ec685551d651668d66f61338b84de1f85003ffeb77bd71b2b15c791c2f44  /home/ubuntu/hy-memory-eval-20261016/llama.cpp-b11474/build/bin/llama-server
+ccbd56a50f965442b4cefdab5262b6d9b8e45a8041fb0cc6faa5d564d9b18b72  /home/ubuntu/hy-memory-eval-20261016/b11474.tar.gz

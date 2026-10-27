@@ -8,7 +8,10 @@ struct ListCommand: AsyncParsableCommand {
         discussion: """
             JSON by default — one object per meeting with id, title, date,
             duration, `has_system_track`, `has_summary`, `has_transcript`.
-            Use --table for human-readable output.
+            --include summary adds each meeting's `summary`. The summaries
+            share \(SessionFormatter.listSummaryBudget) characters; a cut one has `summary_truncated`,
+            and `get` reads it whole. With it, --limit defaults to \(SessionFormatter.defaultSummaryListCount)
+            and is at most \(SessionFormatter.maximumSummaryListCount). Use --table for human-readable output.
             """
     )
 
@@ -24,6 +27,15 @@ struct ListCommand: AsyncParsableCommand {
     @Option(name: .long, help: "Maximum number of meetings to return.")
     var limit: Int?
 
+    @Option(
+        name: .long,
+        help: ArgumentHelp(
+            "Add each meeting's summary: --include summary.",
+            discussion: "Read transcripts one meeting at a time with `get <id> --include transcript`."
+        )
+    )
+    var include: String = "metadata"
+
     @Flag(name: .long, help: "Plain-text table instead of JSON.")
     var table: Bool = false
 
@@ -31,9 +43,23 @@ struct ListCommand: AsyncParsableCommand {
         try AgentAccessGate().requireAuthorized()
         let sinceDate = try since.map { try Self.requireDate($0, option: "--since") }
         let untilDate = try until.map { try Self.requireDate($0, option: "--until") }
-        if let limit, !(1...LibraryInputPolicy.maximumMeetingCount).contains(limit) {
+        let includeSummary: Bool
+        do {
+            includeSummary = try SessionFormatter.listIncludesSummary(include)
+        } catch SessionFormatter.ListIncludeError.transcript {
             throw ValidationError(
-                "--limit must be between 1 and \(LibraryInputPolicy.maximumMeetingCount).")
+                "list doesn't include transcripts. Read one meeting's with `get <id> --include transcript`.")
+        } catch SessionFormatter.ListIncludeError.unknown(let values) {
+            throw ValidationError(
+                "Unknown --include value(s): \(values.joined(separator: ", ")). list takes summary.")
+        }
+        let maximum = includeSummary
+            ? SessionFormatter.maximumSummaryListCount
+            : LibraryInputPolicy.maximumMeetingCount
+        if let limit, !(1...maximum).contains(limit) {
+            throw ValidationError(includeSummary
+                ? "--limit must be between 1 and \(maximum) with --include summary."
+                : "--limit must be between 1 and \(maximum).")
         }
         var meetings = try SessionLookup.loadAllMeetings()
 
@@ -48,13 +74,13 @@ struct ListCommand: AsyncParsableCommand {
         if let query {
             meetings = meetings.filter { $0.title.localizedCaseInsensitiveContains(query) }
         }
-        if let limit {
+        if let limit = limit ?? (includeSummary ? SessionFormatter.defaultSummaryListCount : nil) {
             meetings = Array(meetings.prefix(limit))
         }
 
         print(table
-            ? SessionFormatter.listTable(meetings)
-            : SessionFormatter.listJSON(meetings))
+            ? SessionFormatter.listTable(meetings, includeSummary: includeSummary)
+            : SessionFormatter.listJSON(meetings, includeSummary: includeSummary))
     }
 
     private static func requireDate(_ value: String, option: String) throws -> Date {

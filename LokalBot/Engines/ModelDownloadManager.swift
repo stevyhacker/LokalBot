@@ -12,8 +12,11 @@ final class ModelDownloadManager: ObservableObject {
         let publish: @Sendable (ParallelRangeDownloader.Progress) -> Void
     }
 
+    /// Downloads a model to a staged temp file: the network URL, the session,
+    /// the resume stash directory, the pinned SHA-256 (nil when there is none),
+    /// and the progress sink.
     typealias StagedDownloader = @Sendable (
-        URL, URLSession, URL, ProgressSink
+        URL, URLSession, URL, String?, ProgressSink
     ) async throws -> URL
     typealias SHA256Digest = @Sendable (URL) async throws -> String
 
@@ -53,10 +56,11 @@ final class ModelDownloadManager: ObservableObject {
 
     init(
         session: URLSession? = nil,
-        stagedDownloader: @escaping StagedDownloader = { url, session, stashDirectory, progress in
-            try await ParallelRangeDownloader.download(
+        stagedDownloader: @escaping StagedDownloader = { url, session, stashDirectory, expectedSHA256, progress in
+            try await ModelDownloadRouting.download(
                 from: url,
                 session: session,
+                expectedSHA256: expectedSHA256,
                 stashDirectory: stashDirectory,
                 progress: progress.publish)
         },
@@ -230,7 +234,7 @@ final class ModelDownloadManager: ObservableObject {
             var stagedURL: URL?
             do {
                 let stashed = try await stagedDownloader(
-                    url, session, stashDirectory,
+                    url, session, stashDirectory, requiredSHA256,
                     ProgressSink(publish: progressHandler))
                 stagedURL = stashed
                 try Task.checkCancellation()

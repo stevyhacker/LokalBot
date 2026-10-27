@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 20,
+      "speaker": "me",
+      "text": "What went well: zero rollbacks, docs ready on day one."
+    },
+    {
+      "start": 20,
+      "end": 42,
+      "speaker": "them",
+      "text": "What didn't: the announcement went out before the CDN cache had the new build."
+    },
+    {
+      "start": 42,
+      "end": 60,
+      "speaker": "me",
+      "text": "Next launch we gate the announcement on a checksum check against the CDN."
+    }
+  ]
+}

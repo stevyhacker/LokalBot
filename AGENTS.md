@@ -1,6 +1,6 @@
 # LokalBot
 
-LokalBot is a private work-memory app for macOS. Meetings are one input. Preserve local processing defaults, capture exclusions, retention behavior, and separate consent boundaries for meeting-library access, screen memory, remote inference origins, and Agent Mode actions. [PRIVACY.md](PRIVACY.md) defines the data and network contract.
+LokalBot is a private work-memory app for macOS, with a Windows and Linux app (`LinuxWindows/`, Rust + GPUI) in alpha. Meetings are one input. Preserve local processing defaults, capture exclusions, retention behavior, and separate consent boundaries for meeting-library access, screen memory, remote inference origins, and Agent Mode actions. [PRIVACY.md](PRIVACY.md) defines the data and network contract.
 
 ## Working agreements
 
@@ -19,7 +19,8 @@ LokalBot is a private work-memory app for macOS. Meetings are one input. Preserv
 Read the relevant sections when the task touches them:
 
 - Build, schemes, CLI packaging, runtime, or tests: [DEVELOPMENT.md](DEVELOPMENT.md).
-- Capture, retention, or data leaving the Mac: [PRIVACY.md](PRIVACY.md).
+- Capture, retention, or data leaving the computer: [PRIVACY.md](PRIVACY.md).
+- The Windows and Linux app: [LinuxWindows/README.md](LinuxWindows/README.md).
 - Signing, release artifacts, or publication: [RELEASING.md](RELEASING.md).
 - Website changes: [web/CLAUDE.md](web/CLAUDE.md).
 - Video work: [Video/AGENTS.md](Video/AGENTS.md) and the selected project's guide.

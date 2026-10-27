@@ -1,7 +1,7 @@
 import Foundation
 import FluidAudio
 
-/// IBM Granite Speech 4.1 2B through the bundled llama.cpp server. The model is
+/// IBM Granite Speech 4.1/5.0 2B through the bundled llama.cpp server. The model is
 /// local-only: first use downloads the GGUF model and multimodal projector from
 /// Hugging Face, then LokalBot talks to llama-server's OpenAI-compatible audio
 /// transcription endpoint on localhost.
@@ -15,6 +15,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         GraniteSpeechModelConfiguration.defaultModel.localModelFileName
     private static let prompt = "transcribe the speech with proper punctuation and capitalization."
     private static let maxSegmentSeconds = 30.0
+    // Leave room for audio and decoded text in the 4,096-token server context.
+    private static let maximumVocabularyCharacters = 480
 
     private var server: LlamaServer?
     private let preparation = AsyncSingleFlight()
@@ -79,7 +81,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
     }
 
     func transcribe(configuration: GraniteSpeechModelConfiguration,
-                    audio url: URL, language: String?) async throws -> Transcript {
+                    audio url: URL, language: String?, prompt: String? = nil) async throws -> Transcript {
+        try configuration.transcriptionChoice.validateLanguage(language)
         let pin = await ModelResidency.shared.pin(id: LlamaServerRole.graniteASR.residencyID)
         defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
         await acquire(configuration)
@@ -90,6 +93,7 @@ actor GraniteSpeechEngine: TranscriptionEngine {
             in: url, maxSegmentSeconds: Self.maxSegmentSeconds)
         let work = try Self.makeWorkDir()
         defer { try? FileManager.default.removeItem(at: work) }
+        let vocabulary = configuration.supportsVocabularyPrompt ? prompt : nil
 
         let segments = try await SpanTranscription.segments(in: url, spans: regions) { samples, index in
             let wav = work.appendingPathComponent("\(index).wav")
@@ -97,7 +101,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
             return try await self.transcribeWav(
                 wav,
                 modelFileName: configuration.localModelFileName,
-                language: language)
+                language: language,
+                vocabularyPrompt: vocabulary)
         }
 
         let elapsed = Date().timeIntervalSince(started)
@@ -299,7 +304,9 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         DownloadIntegrity.removeFileAndMarker(at: destination)
         report(.init(fractionCompleted: 0, status: status), to: progress)
 
-        let stashed = try await ParallelRangeDownloader.download(from: source, session: .shared) { update in
+        let stashed = try await ModelDownloadRouting.download(
+            from: source, session: .shared,
+            expectedSHA256: expectedSHA256, expectedBytes: expectedBytes) { update in
             report(.init(fractionCompleted: update.fractionCompleted, status: status), to: progress)
         }
         do {
@@ -334,7 +341,7 @@ actor GraniteSpeechEngine: TranscriptionEngine {
     // MARK: - llama-server request
 
     private func transcribeWav(_ wav: URL, modelFileName: String,
-                               language: String?) async throws -> String {
+                               language: String?, vocabularyPrompt: String?) async throws -> String {
         guard let server else { throw EngineError.serverUnavailable }
         let boundary = "lokalbot-\(UUID().uuidString)"
         let authenticationToken = await server.authenticationToken()
@@ -344,7 +351,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
             boundary: boundary,
             wav: wav,
             language: language,
-            modelFileName: modelFileName)
+            modelFileName: modelFileName,
+            vocabularyPrompt: vocabularyPrompt)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw EngineError.transcriptionFailed("no response") }
@@ -381,7 +389,8 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         boundary: String,
         wav: URL,
         language: String?,
-        modelFileName: String
+        modelFileName: String,
+        vocabularyPrompt: String? = nil
     ) throws -> URLRequest {
         var request = URLRequest(
             url: serverBaseURL.appendingPathComponent("audio/transcriptions"))
@@ -393,6 +402,10 @@ actor GraniteSpeechEngine: TranscriptionEngine {
             "model": modelFileName,
             "prompt": Self.prompt,
         ]
+        if let vocabulary = TranscriptionPrompt.normalized(vocabularyPrompt) {
+            fields["prompt"] = Self.prompt + " Keywords: "
+                + String(vocabulary.prefix(Self.maximumVocabularyCharacters))
+        }
         if let language, !language.isEmpty {
             // llama.cpp's transcription endpoint appends this ISO language
             // hint to the ASR prompt. Omitting it preserves real auto-detect.
@@ -467,6 +480,14 @@ private struct ConfiguredGraniteSpeechEngine: TranscriptionEngine {
             configuration: configuration,
             audio: audio,
             language: language)
+    }
+
+    func transcribe(audio: URL, language: String?, prompt: String?) async throws -> Transcript {
+        try await GraniteSpeechEngine.shared.transcribe(
+            configuration: configuration,
+            audio: audio,
+            language: language,
+            prompt: prompt)
     }
 }
 

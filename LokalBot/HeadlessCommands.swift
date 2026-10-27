@@ -535,6 +535,14 @@ struct HeadlessCommandRunner {
                 agent.workMemory = ChatPrompt.workMemoryContext(
                     memory: (try? app.dreamStore.loadMemory()) ?? nil,
                     dreamingEnabled: app.settings.dreamingEnabled)
+                if app.settings.askMemoryEnabled {
+                    let selection = PersonalContextBuilder.select(
+                        claims: app.personalModel.usableClaims(), question: question)
+                    agent.personalContext = selection.block
+                    if !selection.claims.isEmpty {
+                        print("LokalBot --chat: using \(selection.claims.count) personal claim(s)")
+                    }
+                }
                 let answer = try await agent.respond(history: [], latest: question) { event in
                     switch event {
                     case .answerPartial: break

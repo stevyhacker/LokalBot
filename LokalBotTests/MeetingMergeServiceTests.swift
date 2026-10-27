@@ -346,6 +346,35 @@ final class MeetingMergeServiceTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(transcript.segments[2].start, 20)
     }
 
+    /// Screen context is gated on the import marker, so a merge that folds in
+    /// an imported recording, directly or through an earlier merge, keeps it.
+    func testMergeKeepsImportedFileNamesThroughMixedAndNestedMerges() async throws {
+        let (storage, recordings) = try await mergeFixture()
+        XCTAssertFalse(recordings.meeting.isImported, "a merge of recordings stays a recording")
+        let start = Date(timeIntervalSince1970: 1_752_010_000)
+        try MeetingFixture.write([
+            .init(title: "Imported call", startedAt: start, transcriptLines: ["Imported evidence"]),
+            .init(title: "Recorded call", startedAt: start.addingTimeInterval(3_600),
+                  transcriptLines: ["Recorded evidence"])
+        ], under: storage.rootURL)
+        var imported = try XCTUnwrap(storage.loadMeetings().first { $0.title == "Imported call" })
+        imported.importedFileNames = ["Imported call.mp3"]
+        try storage.saveMeta(imported)
+        let recorded = try XCTUnwrap(storage.loadMeetings().first { $0.title == "Recorded call" })
+
+        let mixed = try await MeetingMergeService.merge(
+            meetings: [imported, recorded], title: "Mixed", storage: storage)
+        XCTAssertEqual(mixed.meeting.importedFileNames, ["Imported call.mp3"])
+        XCTAssertEqual(try persistedMeeting(mixed.meeting, storage: storage).importedFileNames,
+                       ["Imported call.mp3"])
+
+        let nested = try await MeetingMergeService.merge(
+            meetings: [recordings.meeting, mixed.meeting], title: "Nested", storage: storage)
+        XCTAssertTrue(nested.meeting.isImported)
+        XCTAssertEqual(try persistedMeeting(nested.meeting, storage: storage).importedFileNames,
+                       ["Imported call.mp3"])
+    }
+
     func testMergeRequiresTwoCompletedMeetings() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("MeetingMergeValidation-\(UUID().uuidString)", isDirectory: true)

@@ -85,7 +85,9 @@ final class TimelineWorkSessionTests: XCTestCase {
             block(1, app: "Terminal", title: "Terminal", start: 0, end: 2_400),
             block(2, app: "Safari", title: "Sign in", start: 2_400, end: 2_408),
         ]).first)
-        XCTAssertEqual(session.title, "Terminal and Safari")
+        // Eight seconds of Safari stay evidence without joining the title.
+        XCTAssertEqual(session.title, "Terminal")
+        XCTAssertTrue(session.titleNamesApps)
         XCTAssertEqual(session.activeDuration, 2_408)
         XCTAssertEqual(session.titleEvidence.map(\.title), ["Sign in"])
         XCTAssertEqual(session.titleEvidence.first?.duration, 8)
@@ -98,6 +100,7 @@ final class TimelineWorkSessionTests: XCTestCase {
             block(2, app: "Preview", title: "Plan.pdf", start: 380, end: 400),
         ]).first)
         XCTAssertEqual(session.title, "Plan.pdf")
+        XCTAssertFalse(session.titleNamesApps)
         XCTAssertEqual(session.activeDuration, 100)
     }
 
@@ -218,5 +221,52 @@ final class TimelineWorkSessionTests: XCTestCase {
         ])
         XCTAssertEqual(sessions[0].title, "Vault.swift · Resume.pdf")
         XCTAssertEqual(sessions[0].titleEvidence.map(\.duration), [500, 300])
+    }
+
+    func testUntitledSessionNamesItsTwoBusiestAppsAndCountsTheRest() throws {
+        let session = try XCTUnwrap(TimelineWorkSession.sessions(from: [
+            block(1, app: "Claude", title: "", start: 0, end: 600),
+            block(2, app: "Google Chrome", title: "", start: 600, end: 1_000),
+            block(3, app: "Discord", title: "", start: 1_000, end: 1_100),
+            block(4, app: "Spotify", title: "", start: 1_100, end: 1_150),
+        ]).first)
+        // Spotify's 50 seconds don't count toward "+1".
+        XCTAssertEqual(session.title, "Claude, Google Chrome +1")
+        XCTAssertEqual(session.apps.count, 4)
+        XCTAssertTrue(session.titleNamesApps)
+        XCTAssertEqual(TimelineWorkSession.appSummary(["Claude"]), "Claude")
+    }
+
+    /// The rail marks a long stretch with nothing recorded. A meeting that
+    /// runs past the next session must not open a gap that never happened.
+    func testRailMarksLongGapsFromTheLatestEndSoFar() {
+        let sessions = TimelineWorkSession.sessions(from: [
+            block(1, app: "Xcode", title: "A.swift", start: 0, end: 600),
+            block(2, app: "Xcode", title: "B.swift", start: 3_000, end: 3_300),
+            block(3, app: "Xcode", title: "C.swift", start: 6_000, end: 6_300),
+            block(4, app: "Xcode", title: "D.swift", start: 9_000, end: 9_600),
+        ])
+        XCTAssertEqual(sessions.count, 4)
+        let meeting = Meeting(
+            id: UUID(),
+            title: "Planning",
+            appName: "Zoom",
+            startedAt: base.addingTimeInterval(4_000),
+            endedAt: base.addingTimeInterval(8_000),
+            relativePath: "meetings/planning")
+        let items = TimelineDayItem.items(
+            sessions: sessions, meetings: [meeting], now: base.addingTimeInterval(10_000))
+
+        let rows = TimelineRailRow.rows(items: items)
+
+        let gaps: [(TimeInterval, TimeInterval)] = rows.compactMap { row in
+            guard case .away(let start, let end) = row else { return nil }
+            return (start.timeIntervalSince(base), end.timeIntervalSince(base))
+        }
+        // 600 → 3,000 is 40 minutes away. 3,300 → 4,000 is under 30 minutes,
+        // and the meeting covers C.swift and ends 1,000 s before D.swift.
+        XCTAssertEqual(gaps.map(\.0), [600])
+        XCTAssertEqual(gaps.map(\.1), [3_000])
+        XCTAssertEqual(rows.count, items.count + 1)
     }
 }

@@ -1,0 +1,62 @@
+[package]
+name = "lokalbot-ai"
+description = "Think, Autocomplete and embeddings: model catalog, downloads, llama.cpp runtime, prompts."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lokalbot-core.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+ureq.workspace = true
+sha2.workspace = true
+hex.workspace = true
+regex.workspace = true
+libloading = "0.8.9"
+unicode-normalization.workspace = true
+# Look-around in the spoken-undertaking patterns (`SpokenUndertaking.swift`).
+fancy-regex = "0.19"
+# "Match transcript" summary language detection.
+whatlang = "0.18"
+# Autocomplete: word bounds for scripts without spaces, grapheme counts.
+unicode-segmentation = "1"
+# Runtime and model archives: llama.cpp ships .zip (Windows) and .tar.gz
+# (Linux); sherpa-onnx models are .tar.bz2. All decoders are pure Rust.
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+tar = "0.4"
+flate2 = "1"
+bzip2 = "0.6"
+# ChatGPT plan sign-in: PKCE, the system random source, and ID-token
+# signatures (RS256, ES256). ring already backs rustls here.
+ring = "0.17"
+base64 = "0.22"
+# Claude plan requests run in a private, temporary working folder.
+tempfile.workspace = true
+# Screen text recognition (`ocr`): a pure-Rust engine and its ONNX models.
+ocrs = { version = "0.13", default-features = false, features = ["onnx"] }
+rten = { version = "0.26", default-features = false, features = ["onnx_format"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_JobObjects",
+    "Win32_System_LibraryLoader",
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+env_logger.workspace = true

@@ -1,0 +1,46 @@
+{
+  "sampleID": "orders-api/sr-Latn",
+  "language": "sr-Latn",
+  "title": "Primer: delivery window u Orders API-ju",
+  "audio": "orders-api.sr-Latn.m4a",
+  "tts": {
+    "provider": "gemini",
+    "model": "gemini-3.8-flash-tts",
+    "style": "A relaxed, natural conversation between colleagues on a work video call. Native Serbian speaker from Belgrade, standard ekavian pronunciation."
+  },
+  "speakers": {
+    "maya": {"name": "Maja", "role": "Produkt menadžerka za API", "voice": "kore", "voiceName": "Kore (Gemini TTS prebuilt)"},
+    "daniel": {"name": "Danijel", "role": "Bekend inženjer", "voice": "achird", "voiceName": "Achird (Gemini TTS prebuilt)"}
+  },
+  "turns": [
+    {"id": "t01", "speaker": "maya", "text": "Ovo je primer sastanka u LokalBotu. Glasovi su sintetički, a firma i ljudi u njemu su izmišljeni."},
+    {"id": "t02", "speaker": "maya", "text": "Ćao, Danijele. Čuješ li me dobro?"},
+    {"id": "t03", "speaker": "daniel", "text": "Čujem te odlično, Majo. Izvini što kasnim minut, još mi se vrteo build."},
+    {"id": "t04", "speaker": "maya", "text": "Nema problema. Hajde da rešimo delivery window za Orders API."},
+    {"id": "t05", "speaker": "daniel", "text": "Može. Ukratko, kontekst: podrška želi da kupci vide delivery window, recimo između dva i četiri popodne, umesto jednog ETA vremena koje danas vraćamo."},
+    {"id": "t06", "speaker": "maya", "text": "Tako je. A Prija iz partner success tima kaže da su tri naša najveća partnera tražila isto."},
+    {"id": "t07", "speaker": "maya", "text": "Znači, plan od prošle nedelje: ETA polje menjamo novim delivery window objektom i to puštamo kao verziju tri API-ja."},
+    {"id": "t08", "speaker": "daniel", "text": "To je bio plan. Prozor bi imao dva timestampa, početak i kraj, oba u UTC-u. Verziju tri mogu da spremim do osamnaestog novembra."},
+    {"id": "t09", "speaker": "maya", "text": "Okej. Odluka za sada: verzija tri, delivery window zamenjuje ETA, a cilj je osamnaesti novembar."},
+    {"id": "t10", "speaker": "daniel", "text": "Performanse su u redu u oba slučaja. Merio sam juče, i P95 latencija ostaje na oko sto osamdeset milisekundi."},
+    {"id": "t11", "speaker": "maya", "text": "Dobro. A mobilna aplikacija?"},
+    {"id": "t12", "speaker": "daniel", "text": "Tomas kaže da mobilni tim to može da ubaci u reliz četiri tačka dva, ali ne ranije."},
+    {"id": "t13", "speaker": "maya", "text": "To je u redu. A testiranje?"},
+    {"id": "t14", "speaker": "daniel", "text": "Lena će dodati contract testove. Treba joj dva dana kad se šema zamrzne."},
+    {"id": "t15", "speaker": "daniel", "text": "Zapravo, pre nego što ovo zaključamo. Sinoć sam prošao kroz integracije partnera. Četrdeset dva partnera pozivaju orders endpoint, a devetnaest njih koristi generisane klijente koji pucaju kad nedostaje polje koje očekuju. Ako uklonimo ETA, tih devetnaest pada onog dana kad pustimo izmenu."},
+    {"id": "t16", "speaker": "maya", "text": "Devetnaest od četrdeset dva. To je skoro polovina. A verzija tri znači da baš svaki partner mora da migrira."},
+    {"id": "t17", "speaker": "daniel", "text": "Tačno. Samo je Fernhillu trebalo četiri meseca da pređe na verziju dva."},
+    {"id": "t18", "speaker": "maya", "text": "Onda menjamo odluku. Nema verzije tri. Odgovor ostaje unazad kompatibilan: ETA ostaje tačno onakav kakav je, a delivery window dodajemo kao novo, opciono polje. Ako ne znamo prozor, to polje izostavljamo."},
+    {"id": "t19", "speaker": "daniel", "text": "Opciono, izostavljeno kad je nepoznato, ETA bez promene, i ostajemo na verziji dva. To je i manje posla. Mogu to da pustim do jedanaestog novembra umesto do osamnaestog."},
+    {"id": "t20", "speaker": "maya", "text": "Odlično. Znači, za beleške: ovo zamenjuje ono što smo rekli na početku. Odgovor ostaje unazad kompatibilan, delivery window je opciono polje, i puštamo jedanaestog novembra."},
+    {"id": "t21", "speaker": "daniel", "text": "Da onda javim Leni da je šema zamrznuta?"},
+    {"id": "t22", "speaker": "maya", "text": "Da, javi joj. I Prija će mejlom obavestiti ta tri partnera koja su to tražila. Danijele, možeš li da ažuriraš API specifikaciju i changelog?"},
+    {"id": "t23", "speaker": "daniel", "text": "Da, završiću oba do petka."},
+    {"id": "t24", "speaker": "daniel", "text": "Jednu stvar još nismo rešili: da li radimo backfill delivery windowa za porudžbine koje su napravljene pre izmene, ili samo za nove porudžbine?"},
+    {"id": "t25", "speaker": "maya", "text": "Hm. Backfill znači da ponovo pokrenemo estimator nad oko dva miliona otvorenih porudžbina. Iskreno, ne znam da li se to isplati."},
+    {"id": "t26", "speaker": "daniel", "text": "Ne znam ni ja. Zavisi od toga da li partneri uopšte gledaju stare porudžbine."},
+    {"id": "t27", "speaker": "maya", "text": "Hajde da to zasad ostavimo otvoreno. Pitaću Priju da li partnerima to treba za stare porudžbine."},
+    {"id": "t28", "speaker": "daniel", "text": "Okej. Znači, backfill je i dalje otvoreno pitanje."},
+    {"id": "t29", "speaker": "maya", "text": "Da. Hvala, Danijele. To je to za danas."}
+  ]
+}

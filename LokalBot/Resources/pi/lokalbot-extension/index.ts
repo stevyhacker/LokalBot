@@ -1,21 +1,36 @@
-// LokalBot pi extension: registers the app-configured local LLM as a
-// provider and gates every tool except workspace reads behind the host UI.
+// LokalBot pi extension: registers the app-configured model as a provider,
+// gates every tool except workspace reads behind the host UI, and adds the
+// per-run facts that LokalBot's system prompt refers to.
 //
 // Runs inside pi (RPC mode) under Bun. The env contract comes from
 // PiLaunchPlanner; the confirm() below surfaces in LokalBot as an
 // extension_ui_request on stdout, answered over stdin.
+//
+// Paths are resolved exactly as pi 1.3.0's file tools resolve them (a leading
+// "@", "~", file URLs, Unicode spaces, look-alike names, the session folder),
+// so the boundary check and the approval card name the file pi will open.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { openAICompletionsApi } from "@earendil-works/pi-ai/compat";
-import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { openAICompletionsApi, openAIResponsesApi } from "@earendil-works/pi-ai/compat";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 
 // Tools whose approval card shows a dedicated preview. Any other tool is
 // reviewed from its exact arguments, which must fit in full.
 const PREVIEWED_TOOLS = new Set(["read", "write", "edit", "bash"]);
+const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 const REASONING_DIALECTS = ["llama-server", "openai", "openrouter", "ollama", "generic"] as const;
 type ReasoningDialect = typeof REASONING_DIALECTS[number];
+/// Chat completions for local and OpenAI-compatible servers; the Responses
+/// API for LokalBot's ChatGPT plan relay.
+const PROVIDER_APIS = ["openai-completions", "openai-responses"] as const;
+type ProviderAPI = typeof PROVIDER_APIS[number];
+/// pi-ai sends a reasoning model's instructions as a developer message (the
+/// plan route rejects system messages) and replays its encrypted reasoning.
+/// The route also rejects output caps.
+const RESPONSES_MODEL_TRAITS = { reasoning: true, compat: { supportsMaxOutputTokens: false } } as const;
 const REASONING_LEVELS = ["automatic", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 type ReasoningLevel = typeof REASONING_LEVELS[number];
 /// ThinkReasoningLevel.budgetTokens, so a level means the same thinking
@@ -64,25 +79,29 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
     throw new Error("Remote LokalBot LLM endpoints must use HTTPS");
   }
   const dialect = reasoningDialect(process.env.LOKALBOT_LLM_REASONING_DIALECT);
+  const api = providerAPI(process.env.LOKALBOT_LLM_API);
+  const servedBy = process.env.LOKALBOT_LLM_SERVED_BY || undefined;
   const reasoningFile = process.env.LOKALBOT_LLM_REASONING_FILE;
-  const completions = openAICompletionsApi();
+  const streams = api === "openai-responses" ? openAIResponsesApi() : openAICompletionsApi();
   const inferenceFetch = retryRejectedReasoning(inferenceFetchForOrigin(endpoint));
 
   pi.registerProvider("lokalbot", {
     baseUrl,
-    api: "openai-completions",
+    api,
     // Pi has its own HTTP client: the host's URLSession redirect policy does
     // not cover it. Inject only this provider's supported transport hook.
     // LokalBot writes the Agent reasoning level (already limited to what the
     // model accepts) to a file it may change mid-task; read it per request.
-    streamSimple: (selectedModel, context, options) => completions.streamSimple(
+    streamSimple: (selectedModel, context, options) => streams.streamSimple(
       selectedModel, context, {
         ...options,
         fetch: inferenceFetch,
         onPayload: async (payload, payloadModel) => {
           const upstream = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
-          return applyReasoningLevel(
-            upstream as Record<string, unknown>, readReasoningLevel(reasoningFile), dialect, model);
+          const level = readReasoningLevel(reasoningFile);
+          return api === "openai-responses"
+            ? applyResponsesReasoningLevel(upstream as Record<string, unknown>, level)
+            : applyReasoningLevel(upstream as Record<string, unknown>, level, dialect, model);
         },
       },
     ),
@@ -97,6 +116,7 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         // completion with "undefined is not an object".
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        ...(api === "openai-responses" ? RESPONSES_MODEL_TRAITS : {}),
       },
     ],
   });
@@ -116,13 +136,16 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         return { block: true, reason: `The ${event.toolName} request cannot be reviewed in full. Keep its arguments within 65,536 characters; this request was not run.` };
       }
     }
-    if (!requiresApproval(event.toolName, event.input, protectedRoots)) return undefined;
+    // pi's tools resolve relative paths against the session folder: the
+    // folder a resumed session was saved with, not necessarily this process's.
+    const toolCwd = ctx.cwd || process.cwd();
+    if (!requiresApproval(event.toolName, event.input, protectedRoots, toolCwd)) return undefined;
 
     // Machine-parseable payload: the host renders exact commands and file
     // changes, rather than relying on a model-authored summary.
     const approved = await ctx.ui.confirm(
       "lokalbot_tool_approval",
-      JSON.stringify(approvalPayload(event.toolName, event.input)),
+      JSON.stringify(approvalPayload(event.toolName, event.input, toolCwd)),
     );
     if (!approved) {
       return {
@@ -133,6 +156,39 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
     }
     return undefined;
   });
+
+  pi.on("before_agent_start", (event) => {
+    event.systemPromptOptions.sections.environment = environmentSection(
+      new Date(), process.env.LOKALBOT_AGENT_WORKSPACE_KIND, model, endpoint, loopback, servedBy);
+  });
+}
+
+/// The facts LokalBot's system prompt points to: today's date, what the
+/// working folder is, and which model answers. It is the last prompt section,
+/// and pi folds a changed section into the leading system message for this
+/// provider, so the date only changes the cached prompt once a day.
+/// `servedBy` names a plan's provider when a local relay forwards to it.
+export function environmentSection(
+  now: Date,
+  workspaceKind: string | undefined,
+  model: string,
+  endpoint: URL,
+  local: boolean,
+  servedBy?: string,
+): string {
+  const day = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((part) => String(part).padStart(2, "0")).join("-");
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const lines = [`Today is ${weekday}, ${day} (${zone}). Run \`date\` for the exact time.`];
+  if (workspaceKind === "agent-workspace") {
+    lines.push("The working folder is the Agent Workspace, a folder LokalBot keeps for these tasks. The user's own documents are elsewhere.");
+  } else if (workspaceKind === "chosen-folder") {
+    lines.push("The working folder is one the user chose for this task.");
+  }
+  const server = servedBy ? `by ${servedBy}` : local ? "on this computer" : `by ${endpoint.host}`;
+  lines.push(`You run on the model ${model}, served ${server}.`);
+  return lines.join("\n");
 }
 
 /// A launched Agent task has approval for one origin. Reject redirects before
@@ -150,6 +206,14 @@ export function inferenceFetchForOrigin(endpoint: URL, implementation = globalTh
     }
     return implementation(input, { ...init, redirect: "error" });
   };
+}
+
+export function providerAPI(value: string | undefined): ProviderAPI {
+  if (value === undefined || value === "") return "openai-completions";
+  if (!(PROVIDER_APIS as readonly string[]).includes(value)) {
+    throw new Error("Invalid model API in the LokalBot launch configuration");
+  }
+  return value as ProviderAPI;
 }
 
 export function reasoningDialect(value: string | undefined): ReasoningDialect {
@@ -210,6 +274,17 @@ export function applyReasoningLevel(
   }
 }
 
+/// The Responses API takes a level as `reasoning.effort`, as
+/// ChatGPTPlanEngine sends it. Automatic leaves pi's request as built.
+export function applyResponsesReasoningLevel(
+  payload: Record<string, unknown>,
+  level: ReasoningLevel,
+): Record<string, unknown> {
+  if (level === "automatic") return payload;
+  const reasoning = (payload.reasoning ?? {}) as Record<string, unknown>;
+  return { ...payload, reasoning: { ...reasoning, effort: level === "off" ? "none" : level } };
+}
+
 /// A chosen level can be one the selected model does not accept. When the
 /// server names reasoning in a 400/422, retry once: `none` becomes `low` for
 /// models that always reason; any other level falls back to the server's
@@ -249,28 +324,82 @@ function isIPv4Loopback(hostname: string): boolean {
     && Number(octets[0]) === 127;
 }
 
-function requestedPath(value: unknown): string | undefined {
-  const path = String(value ?? "");
-  if (!path) return undefined;
-  if (path === "~") return homedir();
-  if (path.startsWith("~/")) return resolve(homedir(), path.slice(2));
-  return resolve(process.cwd(), path);
+/// pi 1.3.0 `normalizePath` (utils/paths.js). `forTool` adds the options its
+/// file tools pass. pi's Windows drive-path conversions never apply on macOS.
+function normalizeToolPath(input: string, forTool: boolean): string {
+  let normalized = input;
+  if (forTool) {
+    normalized = normalized.replace(UNICODE_SPACES, " ");
+    if (normalized.startsWith("@")) normalized = normalized.slice(1);
+  }
+  const home = homedir();
+  if (normalized === "~") return home;
+  if (normalized.startsWith("~/")) return join(home, normalized.slice(2));
+  if (/^file:\/\//.test(normalized)) return fileURLToPath(normalized);
+  return normalized;
 }
 
-function canonicalPath(value: unknown): string | undefined {
-  const requested = requestedPath(value);
-  if (!requested) return undefined;
+/// pi 1.3.0 `resolveToCwd`, which its write and edit tools use.
+export function resolveToCwd(path: string, cwd: string): string {
+  const normalized = normalizeToolPath(path, true);
+  return isAbsolute(normalized)
+    ? resolve(normalized)
+    : resolve(normalizeToolPath(cwd, false), normalized);
+}
+
+/// pi 1.3.0 `resolveReadPath`: a missing file is opened through a look-alike
+/// name when one exists, so a read is checked against the file pi will open.
+export function resolveReadPath(path: string, cwd: string): string {
+  const resolved = resolveToCwd(path, cwd);
+  if (existsSync(resolved)) return resolved;
+  const amPm = resolved.replace(/ (AM|PM)\./gi, "\u202F$1.");
+  if (amPm !== resolved && existsSync(amPm)) return amPm;
+  const nfd = resolved.normalize("NFD");
+  if (nfd !== resolved && existsSync(nfd)) return nfd;
+  const curly = resolved.replace(/'/g, "\u2019");
+  if (curly !== resolved && existsSync(curly)) return curly;
+  const nfdCurly = nfd.replace(/'/g, "\u2019");
+  if (nfdCurly !== resolved && existsSync(nfdCurly)) return nfdCurly;
+  return resolved;
+}
+
+/// The file pi's tool will open, or undefined when that is not certain.
+function requestedPath(value: unknown, toolName: string, cwd: string): string | undefined {
+  if (typeof value !== "string" || !value || value.includes("\0")) return undefined;
+  try {
+    return toolName === "read" ? resolveReadPath(value, cwd) : resolveToCwd(value, cwd);
+  } catch {
+    return undefined;
+  }
+}
+
+function entryExists(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function canonicalPath(value: unknown, toolName: string, cwd: string): string | undefined {
+  const requested = requestedPath(value, toolName, cwd);
+  return requested === undefined ? undefined : canonicalize(requested);
+}
+
+function canonicalize(requested: string): string | undefined {
   try {
     return realpathSync(requested);
   } catch {
     // Canonicalize the nearest existing ancestor so a path through a symlink
     // cannot escape merely because its final component does not exist yet.
+    // A dangling link stops the walk and fails closed.
     let ancestor = requested;
     const suffix: string[] = [];
-    while (!existsSync(ancestor)) {
+    while (!entryExists(ancestor)) {
       const parent = dirname(ancestor);
       if (parent === ancestor) return undefined;
-      suffix.unshift(ancestor.slice(parent.length).replace(/^\//, ""));
+      suffix.unshift(basename(ancestor));
       ancestor = parent;
     }
     try {
@@ -283,7 +412,7 @@ function canonicalPath(value: unknown): string | undefined {
 
 function isInside(path: string, root: string): boolean {
   const child = relative(root, path);
-  return child === "" || (child !== ".." && !child.startsWith("../") && !isAbsolute(child));
+  return child === "" || (child !== ".." && !child.startsWith(`..${sep}`) && !isAbsolute(child));
 }
 
 function privateRoots(): string[] {
@@ -292,7 +421,7 @@ function privateRoots(): string[] {
     throw new Error("Invalid private-library roots in the LokalBot launch configuration");
   }
   return value.map((root) => {
-    const path = canonicalPath(root);
+    const path = canonicalize(resolve(root));
     if (!path) throw new Error("Could not resolve a private-library root");
     return path;
   });
@@ -301,10 +430,10 @@ function privateRoots(): string[] {
 /// Allowlist: a read inside the selected workspace and outside the private
 /// library is the only call that runs without asking. Every other tool asks,
 /// including MCP tools, codemode, and tools that later Pi releases add.
-function requiresApproval(toolName: string, input: unknown, protectedRoots: string[]): boolean {
+function requiresApproval(toolName: string, input: unknown, protectedRoots: string[], cwd: string): boolean {
   if (toolName !== "read") return true;
   const args = (input ?? {}) as Record<string, unknown>;
-  const path = canonicalPath(args.path ?? args.file_path);
+  const path = canonicalPath(args.path ?? args.file_path, "read", cwd);
   // Missing/unresolvable paths are never silently treated as in-workspace.
   // Choosing Home or another ancestor as a workspace does not silently make
   // the private library, server credentials, or Agent history normal files.
@@ -327,7 +456,7 @@ function boundedText(value: unknown): { text: string; truncated: boolean } {
   return { text: text.slice(0, MAX_APPROVAL_TEXT), truncated: true };
 }
 
-function approvalPayload(toolName: string, input: unknown): Record<string, unknown> {
+function approvalPayload(toolName: string, input: unknown, cwd: string): Record<string, unknown> {
   const args = (input ?? {}) as Record<string, unknown>;
   const payload: Record<string, unknown> = {
     tool: toolName,
@@ -343,7 +472,8 @@ function approvalPayload(toolName: string, input: unknown): Record<string, unkno
       break;
     }
     case "write": {
-      payload.path = canonicalPath(args.path ?? args.file_path) ?? requestedPath(args.path ?? args.file_path);
+      payload.path = canonicalPath(args.path ?? args.file_path, toolName, cwd)
+        ?? requestedPath(args.path ?? args.file_path, toolName, cwd);
       const bounded = boundedText(args.content);
       payload.content = bounded.text;
       payload.truncated = bounded.truncated;
@@ -363,13 +493,15 @@ function approvalPayload(toolName: string, input: unknown): Record<string, unkno
             };
           })
         : [];
-      payload.path = canonicalPath(args.path ?? args.file_path) ?? requestedPath(args.path ?? args.file_path);
+      payload.path = canonicalPath(args.path ?? args.file_path, toolName, cwd)
+        ?? requestedPath(args.path ?? args.file_path, toolName, cwd);
       payload.edits = edits.slice(0, 100);
       payload.truncated = wasTruncated || edits.length > 100;
       break;
     }
     case "read": {
-      payload.path = canonicalPath(args.path ?? args.file_path) ?? requestedPath(args.path ?? args.file_path);
+      payload.path = canonicalPath(args.path ?? args.file_path, toolName, cwd)
+        ?? requestedPath(args.path ?? args.file_path, toolName, cwd);
       break;
     }
     default:

@@ -97,7 +97,8 @@ final class DictationGroundingTests: XCTestCase {
 
     func testOnlyExplicitWritingRequestsCanUseContext() {
         for speech in ["Please reply to this email.", "Could you draft a note?", "Molim te napiši odgovor.",
-                       "Odgovori na srpskom.", "Bitte schreibe eine Antwort.", "Écris une réponse."] {
+                       "Odgovori na srpskom.", "Bitte schreibe eine Antwort.", "Écris une réponse.",
+                       "Per favore rispondi a questa email.", "Scrivi una risposta breve."] {
             XCTAssertTrue(DictationGrounding.requestsContext(speech), speech)
         }
         for speech in ["I cannot approve the 42 items yet.", "Mina, not Mira, owns it.", "We might send it tomorrow.",

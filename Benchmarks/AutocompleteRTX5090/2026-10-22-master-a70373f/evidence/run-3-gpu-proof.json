@@ -1,0 +1,48 @@
+[
+  {
+    "pid": 10649,
+    "binaryPath": "/workspace/5090-validation/autocomplete-vulkan/runtimes/llama-cpp/b11669-ubuntu-vulkan-x64/llama-b11669/llama-server",
+    "modelPath": "/workspace/5090-validation/autocomplete-vulkan/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+    "contextTokens": 4096,
+    "extraArgs": [
+      "--parallel",
+      "1",
+      "--cache-ram",
+      "512"
+    ],
+    "arguments": [
+      "/workspace/5090-validation/autocomplete-vulkan/runtimes/llama-cpp/b11669-ubuntu-vulkan-x64/llama-b11669/llama-server",
+      "-m",
+      "/workspace/5090-validation/autocomplete-vulkan/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "17874",
+      "-c",
+      "4096",
+      "-ngl",
+      "99",
+      "--jinja",
+      "--no-ui",
+      "--api-key",
+      "[redacted]",
+      "--parallel",
+      "1",
+      "--cache-ram",
+      "512",
+      ""
+    ],
+    "gpuLibraries": [
+      "/usr/lib/x86_64-linux-gnu/libnvidia-allocator.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-egl-gbm.so.1.1.3",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-eglcore.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-glcore.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-glsi.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-glvkspirv.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-rtcore.so.595.71.05",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-tls.so.595.71.05",
+      "/workspace/5090-validation/autocomplete-vulkan/runtimes/llama-cpp/b11669-ubuntu-vulkan-x64/llama-b11669/libggml-vulkan.so"
+    ]
+  }
+]

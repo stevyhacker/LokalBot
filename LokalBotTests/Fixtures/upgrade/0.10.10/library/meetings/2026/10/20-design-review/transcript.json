@@ -1,0 +1,65 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 12,
+      "speaker": "me",
+      "text": "Let's lock the caching layer. I propose Redis for the pub-sub support."
+    },
+    {
+      "start": 12,
+      "end": 26,
+      "speaker": "them",
+      "text": "Agreed on Redis. Open question: do we need cluster mode from day one?"
+    },
+    {
+      "start": 26,
+      "end": 38,
+      "speaker": "me",
+      "text": "I'll draft the eviction-policy doc by Thursday."
+    },
+    {
+      "start": 38,
+      "end": 52,
+      "speaker": "them",
+      "text": "Please benchmark failover latency before we commit to a cluster."
+    },
+    {
+      "start": 52,
+      "end": 66,
+      "speaker": "me",
+      "text": "Fair. I'll borrow the load harness from the search team for that."
+    },
+    {
+      "start": 66,
+      "end": 82,
+      "speaker": "them",
+      "text": "While we're here: the session store. Does it move to Redis too, or stay in Postgres?"
+    },
+    {
+      "start": 82,
+      "end": 96,
+      "speaker": "me",
+      "text": "Stay in Postgres for now. One migration at a time."
+    },
+    {
+      "start": 96,
+      "end": 110,
+      "speaker": "them",
+      "text": "Okay. TTLs: product wants recaps cached for a week, search results for an hour."
+    },
+    {
+      "start": 110,
+      "end": 124,
+      "speaker": "me",
+      "text": "That maps to two keyspaces with separate eviction. I'll put it in the doc."
+    },
+    {
+      "start": 124,
+      "end": 138,
+      "speaker": "them",
+      "text": "Ship it. Let's reconvene once the failover numbers are in."
+    }
+  ]
+}

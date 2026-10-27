@@ -40,6 +40,19 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertTrue(ConferenceURLDetector.isMeetingURL(URL(string: "https://acme.webex.com/meet/jane")))
     }
 
+    func testDetectsChineseMeetingLinks() {
+        for link in ["https://meeting.tencent.com/dm/AbCdEf12", "https://voovmeeting.com/dm/AbCdEf12",
+                     "https://vc.feishu.cn/j/123456789", "https://vc.larksuite.com/j/123456789",
+                     "https://meeting.dingtalk.com/j/AbCdEf12"] {
+            XCTAssertTrue(ConferenceURLDetector.isMeetingURL(URL(string: link)), link)
+        }
+        let invite = "腾讯会议：https://meeting.tencent.com/dm/AbCdEf12 会议号：123 456 789"
+        XCTAssertEqual(ConferenceURLDetector.firstMeetingURL(in: invite)?.host, "meeting.tencent.com")
+        // Other Feishu and DingTalk pages are documents and downloads, not calls.
+        XCTAssertFalse(ConferenceURLDetector.isMeetingURL(URL(string: "https://www.feishu.cn/docx/AbC")))
+        XCTAssertFalse(ConferenceURLDetector.isMeetingURL(URL(string: "https://www.dingtalk.com/download")))
+    }
+
     func testIgnoresNonMeetingURL() {
         XCTAssertNil(ConferenceURLDetector.firstMeetingURL(in: "Agenda at https://docs.example.com/agenda"))
         XCTAssertFalse(ConferenceURLDetector.isMeetingURL(URL(string: "https://example.com/zoom.us-lookalike")))
@@ -535,6 +548,29 @@ final class CalendarDetectionTests: XCTestCase {
             bundleID: "com.tinyspeck.slackmacgap", calendarBacked: false))
         XCTAssertTrue(MeetingDetector.shouldAutoRecordNativeAudioMonitor(
             bundleID: "com.tinyspeck.slackmacgap", calendarBacked: true))
+    }
+
+    /// Tencent Meeting and VooV are dedicated conferencing apps, like Zoom.
+    /// Feishu, Lark, DingTalk and WeCom also carry chat and voice messages, so
+    /// they wait out the same sustained-audio gate as Teams and Slack.
+    func testChineseConferencingAppsStartLikeZoomAndChatAppsLikeTeams() {
+        for dedicated in ["com.tencent.meeting", "com.tencent.tencentmeeting"] {
+            XCTAssertTrue(MeetingDetector.shouldAutoRecordNativeAudioMonitor(
+                bundleID: dedicated, calendarBacked: false), dedicated)
+            XCTAssertFalse(MeetingDetector.requiresSustainedAudioForStart(
+                bundleID: dedicated, calendarBacked: false), dedicated)
+        }
+        for chat in ["com.electron.lark", "com.larksuite.larkApp", "com.alibaba.DingTalkMac",
+                     "com.tencent.WeWorkMac"] {
+            XCTAssertFalse(MeetingDetector.shouldAutoRecordNativeAudioMonitor(
+                bundleID: chat, calendarBacked: false), chat)
+            XCTAssertTrue(MeetingDetector.requiresSustainedAudioForStart(
+                bundleID: chat, calendarBacked: false), chat)
+            XCTAssertFalse(MeetingDetector.requiresSustainedAudioForStart(
+                bundleID: chat, calendarBacked: true), chat)
+        }
+        XCTAssertNil(MeetingDetector.knownApps["com.tencent.xinWeChat"],
+                     "WeChat voice messages must never count as a meeting")
     }
 
     func testDoesNotStartWithoutMicOrCalendarAudio() {

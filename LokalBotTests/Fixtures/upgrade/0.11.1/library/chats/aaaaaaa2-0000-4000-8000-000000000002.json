@@ -1,0 +1,34 @@
+{
+  "id": "aaaaaaa2-0000-4000-8000-000000000002",
+  "title": "Northwind rollout blocker",
+  "createdAt": "2026-10-20T15:09:03Z",
+  "updatedAt": "2026-10-20T15:09:03Z",
+  "messages": [
+    {
+      "id": "aaaaaaa2-0000-4000-8000-000000000101",
+      "role": "user",
+      "text": "What is blocking the Northwind rollout?"
+    },
+    {
+      "id": "aaaaaaa2-0000-4000-8000-000000000102",
+      "role": "assistant",
+      "text": "SSO. Northwind loves the export feature but needs SSO before a company-wide rollout [meeting:44444444-4444-4444-8444-444444444444@0:00]. You owe them the security overview and a 250-seat quote this week. SSO scope itself is already locked: SAML and OIDC in Q3, SCIM out [meeting:00000015-0000-4000-8000-000000000015@0:00].",
+      "activity": [
+        {
+          "id": "aaaaaaa2-0000-4000-8000-000000000201",
+          "tool": "search_meetings",
+          "icon": "magnifyingglass",
+          "text": "searched meetings for \u201cNorthwind\u201d",
+          "done": true
+        },
+        {
+          "id": "aaaaaaa2-0000-4000-8000-000000000202",
+          "tool": "get_meeting",
+          "icon": "doc.text",
+          "text": "read \u201cCustomer call - Northwind\u201d",
+          "done": true
+        }
+      ]
+    }
+  ]
+}

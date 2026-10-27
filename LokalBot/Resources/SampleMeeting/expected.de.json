@@ -1,0 +1,49 @@
+{
+  "sampleID": "orders-api/de",
+  "language": "de",
+  "speakers": 2,
+  "entities": [
+    {"kind": "name", "label": "Maya", "turn": "t03", "any": ["maya", "maja"]},
+    {"kind": "name", "label": "Daniel", "turn": "t02", "any": ["daniel"]},
+    {"kind": "name", "label": "Priya", "turn": "t06", "any": ["priya", "prija", "pria"]},
+    {"kind": "name", "label": "Tomás", "turn": "t12", "any": ["tomás", "tomas", "thomas"]},
+    {"kind": "name", "label": "Lena", "turn": "t14", "any": ["lena"]},
+    {"kind": "name", "label": "Fernhill", "turn": "t17", "any": ["fernhill", "fern hill", "fernhil"]},
+    {"kind": "number", "label": "42 Partner", "turn": "t15", "any": ["42", "zweiundvierzig", "zwei und vierzig"]},
+    {"kind": "number", "label": "19 generierte Clients", "turn": "t15", "any": ["19", "neunzehn"]},
+    {"kind": "number", "label": "P95 von 180 ms", "turn": "t10", "any": ["180", "hundertachtzig", "hundert achtzig"]},
+    {"kind": "number", "label": "Mobile-Release 4.2", "turn": "t12", "any": ["4.2", "4,2", "vier punkt zwei", "vier komma zwei"]},
+    {"kind": "number", "label": "zwei Millionen offene Bestellungen", "turn": "t25", "any": ["zwei millionen", "2 millionen", "2.000.000", "2000000", "2 mio", "zwei mio"]},
+    {"kind": "date", "label": "18. November (erstes Ziel)", "turn": "t08", "any": ["18. november", "18 november", "achtzehnten november", "achtzehnte november", "18.11."]},
+    {"kind": "date", "label": "11. November (neues Ziel)", "turn": "t19", "any": ["11. november", "11 november", "elften november", "elfte november", "11.11."]},
+    {"kind": "date", "label": "Freitag (Spezifikation und Changelog)", "turn": "t23", "any": ["freitag"]}
+  ],
+  "decision": {
+    "text": "Priya schreibt den drei Partnern, die das delivery window angefragt haben, eine E-Mail; Daniel aktualisiert bis Freitag die API-Spezifikation und das Changelog.",
+    "turns": ["t22", "t23"]
+  },
+  "changedDecision": {
+    "before": "Version 3 der API bis zum 18. November ausliefern, mit einem Objekt delivery window anstelle des Felds ETA.",
+    "beforeTurns": ["t07", "t09"],
+    "after": "Keine Version 3. Die Antwort bleibt abwärtskompatibel: ETA bleibt unverändert, und delivery window ist ein neues optionales Feld, das weggelassen wird, wenn es unbekannt ist. Auslieferung auf Version 2 bis zum 11. November.",
+    "afterTurns": ["t18", "t19", "t20"]
+  },
+  "openQuestion": {
+    "text": "Ob es einen Backfill der delivery windows für Bestellungen gibt, die vor der Änderung angelegt wurden (rund zwei Millionen offene Bestellungen). Maya fragt Priya; entschieden wurde nichts.",
+    "turns": ["t24", "t27", "t28"]
+  },
+  "ask": {
+    "question": "Ist das Feld delivery window in der Antwort der Orders API ein Pflichtfeld?",
+    "answerPoints": [
+      "Nein: delivery window ist ein neues optionales Feld.",
+      "Es wird weggelassen, wenn das Fenster unbekannt ist.",
+      "ETA bleibt unverändert; die Antwort bleibt auf Version 2 abwärtskompatibel.",
+      "Das ersetzt den früheren Plan, Version 3 auszuliefern, in der delivery window ETA ersetzt."
+    ],
+    "citesTurns": ["t18", "t19", "t20"]
+  },
+  "codingAgent": {
+    "search": "delivery window",
+    "finds": "Die Antwort der Orders API muss abwärtskompatibel bleiben: ETA bleibt, wie es ist, und delivery_window kommt als optionales Feld dazu, das weggelassen wird, wenn es unbekannt ist."
+  }
+}

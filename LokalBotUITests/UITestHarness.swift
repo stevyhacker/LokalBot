@@ -293,6 +293,9 @@ enum UITestHarness {
         process.executableURL = executableURL
         process.arguments = [
             "-ApplePersistenceIgnoreState", "YES",
+            // Follow System is the default; pin English so label assertions
+            // don't depend on the runner's macOS language.
+            "-AppleLanguages", "(en)",
             "--lokalbot-ui-test",
             "--lokalbot-storage-root", storageRoot.path,
             "--lokalbot-defaults-suite", defaultsSuiteName,

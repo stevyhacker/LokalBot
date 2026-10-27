@@ -116,6 +116,20 @@ struct ScreenMemoryTimeline: Codable, Equatable {
     }
 }
 
+/// One saved coding-agent burst, reduced to what an agent briefing shows:
+/// where the work happened and what came out of it, never the prompts,
+/// replies, or file contents.
+struct ScreenMemoryAgentSession: Equatable, Sendable {
+    var agent: String
+    var project: String
+    var title: String
+    var start: Date
+    /// One coding-agent session is stored as several activity bursts.
+    var sessionID: String
+    var pullRequests: [String]
+    var actionCount: Int
+}
+
 struct ScreenMemoryAppUsage: Codable, Equatable, Sendable {
     var app: String
     var durationSeconds: TimeInterval
@@ -204,6 +218,9 @@ struct ScreenMemoryDaySummary: Codable, Equatable, Sendable {
 
 /// Read-only query seam shared by MCP and the canonical daily evidence loader.
 protocol ScreenMemoryReading {
+    /// Saved Claude Code and Codex bursts that began in the interval,
+    /// newest first.
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession]
     func search(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit]
     func timeline(from start: Date, to end: Date, limit: Int) throws -> ScreenMemoryTimeline
     func recentActivity(since: Date, limit: Int) throws -> [ScreenMemoryActivityBlock]
@@ -222,8 +239,50 @@ protocol ScreenMemoryReading {
 /// Opens LokalBot's SQLite store in `SQLITE_OPEN_READONLY` mode for every
 /// request. It never creates or migrates schema and never exposes screenshot
 /// file paths or decrypted pixels.
+extension ScreenMemoryReading {
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession] { [] }
+}
+
 struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     var databaseURL: URL
+
+    func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession] {
+        try withConnection { connection in
+            guard try connection.tableExists("coding_agent_bursts") else { return [] }
+            let rows = try connection.query("""
+                SELECT start, payload FROM coding_agent_bursts
+                WHERE start >= ?1 AND start < ?2 ORDER BY start DESC, id LIMIT ?3
+                """, bindings: [
+                    .double(start.timeIntervalSince1970),
+                    .double(end.timeIntervalSince1970),
+                    .int64(Int64(limit)),
+                ]) { row -> ScreenMemoryAgentSession? in
+                guard let payload = try? JSONSerialization.jsonObject(
+                    with: Data(Self.text(row, 1).utf8)) as? [String: Any],
+                      let rawAgent = payload["agent"] as? String else { return nil }
+                // Runs started by a schedule, not the person (as in
+                // `CodingAgentBurst.isScheduledRun`), aren't their recent work.
+                let prompts = payload["prompts"] as? [String] ?? []
+                if !prompts.isEmpty && prompts.allSatisfy({
+                    $0.hasPrefix("Scheduled automation:") || $0.hasPrefix("Scheduled task:")
+                }) { return nil }
+                let agent: String
+                switch rawAgent {
+                case "claude-code": agent = "Claude Code"
+                case "codex": agent = "Codex"
+                default: agent = rawAgent
+                }
+                return ScreenMemoryAgentSession(
+                    agent: agent, project: payload["project"] as? String ?? "",
+                    title: payload["title"] as? String ?? "",
+                    start: Date(timeIntervalSince1970: sqlite3_column_double(row, 0)),
+                    sessionID: payload["sessionID"] as? String ?? "",
+                    pullRequests: payload["pullRequests"] as? [String] ?? [],
+                    actionCount: (payload["actions"] as? [Any])?.count ?? 0)
+            }
+            return rows.compactMap { $0 }
+        }
+    }
 
     init(databaseURL: URL = SessionLookup.storageRootURL
         .appendingPathComponent("lokalbotv3.sqlite")) {
@@ -231,6 +290,71 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     }
 
     func search(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit] {
+        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
+        if CJKSearch.containsCJK(request.query) {
+            return try substringSearch(request, cjkRowsOnly: false)
+        }
+        let hits = try ftsSearch(request)
+        guard hits.isEmpty else { return hits }
+        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
+        return try substringSearch(request, cjkRowsOnly: true)
+    }
+
+    /// Substring counterpart of `ftsSearch`: any term in the text or window
+    /// title, ranked by how many terms matched and then by recency, with
+    /// snippets built from the stored text.
+    private func substringSearch(_ request: ScreenMemorySearchRequest,
+                                 cjkRowsOnly: Bool) throws -> [ScreenMemorySearchHit] {
+        let terms = CJKSearch.terms(from: request.query)
+        guard !terms.isEmpty else { return [] }
+        return try withConnection { connection in
+            var bindings: [SQLiteReadValue] = []
+            let termMatches = terms.map { term -> String in
+                bindings.append(.text(CJKSearch.likePattern(for: term)))
+                let pattern = "?\(bindings.count)"
+                return "(text LIKE \(pattern) \(CJKSearch.likeEscapeClause)"
+                    + " OR window_title LIKE \(pattern) \(CJKSearch.likeEscapeClause))"
+            }
+            var sql = """
+                SELECT CAST(snapshot_id AS INTEGER), CAST(ts AS REAL), app,
+                       window_title, text_source, text
+                FROM ocr_fts WHERE (\(termMatches.joined(separator: " OR ")))
+                  AND CAST(snapshot_id AS INTEGER) > 0
+                """
+            if cjkRowsOnly {
+                bindings.append(.text(CJKSearch.rowGlobPattern))
+                sql += " AND (text GLOB ?\(bindings.count) OR window_title GLOB ?\(bindings.count))"
+            }
+            if let start = request.start {
+                bindings.append(.double(start.timeIntervalSince1970))
+                sql += " AND CAST(ts AS REAL) >= ?\(bindings.count)"
+            }
+            if let end = request.end {
+                bindings.append(.double(end.timeIntervalSince1970))
+                sql += " AND CAST(ts AS REAL) < ?\(bindings.count)"
+            }
+            if let app = request.app, !app.isEmpty {
+                bindings.append(.text(app))
+                sql += " AND instr(lower(app), lower(?\(bindings.count))) > 0"
+            }
+            bindings.append(.int64(Int64(request.limit)))
+            let matchedTerms = termMatches.map { "IFNULL(\($0), 0)" }.joined(separator: " + ")
+            sql += " ORDER BY (\(matchedTerms)) DESC, CAST(ts AS REAL) DESC LIMIT ?\(bindings.count)"
+
+            return try connection.query(sql, bindings: bindings) { row in
+                let text = Self.text(row, 5)
+                return ScreenMemorySearchHit(
+                    snapshotID: sqlite3_column_int64(row, 0),
+                    capturedAt: Date(timeIntervalSince1970: sqlite3_column_double(row, 1)),
+                    app: Self.text(row, 2),
+                    windowTitle: Self.text(row, 3),
+                    textSource: Self.text(row, 4),
+                    snippet: CJKSearch.snippet(in: text, terms: terms) ?? String(text.prefix(72)))
+            }
+        }
+    }
+
+    private func ftsSearch(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit] {
         let terms = request.query
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }

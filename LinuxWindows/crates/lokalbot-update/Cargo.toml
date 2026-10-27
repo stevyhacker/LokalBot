@@ -1,0 +1,47 @@
+[package]
+name = "lokalbot-update"
+description = "Signed automatic updates: the release feed, Ed25519 verification and the staged swap."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["client"]
+# Checking, downloading and unpacking an update. The release tool that signs
+# feeds builds without it (`--no-default-features`), so the release job does
+# not compile the AI crates.
+client = ["dep:lokalbot-ai", "dep:lokalbot-core", "dep:ureq", "dep:log", "dep:uuid"]
+
+[[bin]]
+name = "lokalbot-update-feed"
+path = "src/bin/lokalbot-update-feed.rs"
+
+[dependencies]
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+hex.workspace = true
+base64 = "0.22"
+# Sparkle's Ed25519. `hazmat` signs with the older 96-byte Sparkle key format
+# (an expanded secret key), which only the release tool uses; `digest`
+# exposes the SHA-512 it signs with.
+ed25519-dalek = { version = "=3.0.0", default-features = false, features = ["fast", "zeroize", "hazmat", "digest"] }
+lokalbot-ai = { workspace = true, optional = true }
+lokalbot-core = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
+log = { workspace = true, optional = true }
+uuid = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies]
+# The installer's Installed apps entry (`installed_apps`).
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Registry"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+tar = "0.4"
+flate2 = "1"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }

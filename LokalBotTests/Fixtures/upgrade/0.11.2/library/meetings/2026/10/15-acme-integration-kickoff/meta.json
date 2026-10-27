@@ -1,0 +1,9 @@
+{
+  "appName" : "Microsoft Teams",
+  "endedAt" : "2026-10-15T10:45:00Z",
+  "hasSystemTrack" : false,
+  "id" : "00000010-0000-4000-8000-000000000010",
+  "relativePath" : "meetings\/2026\/10\/15-acme-integration-kickoff",
+  "startedAt" : "2026-10-15T10:00:00Z",
+  "title" : "Acme integration kickoff"
+}

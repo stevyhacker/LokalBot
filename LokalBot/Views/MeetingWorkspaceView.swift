@@ -149,7 +149,6 @@ private struct MeetingWorkspaceDetail: View {
     @State private var returningToReview = false
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
     @State private var speakerIdentityState: MeetingSpeakerIdentityState?
-    @State private var speakerProfiles: [SpeakerVoiceProfile] = []
     @State private var speakerIdentityNotice: String?
     @State private var savingSpeakerIdentity = false
     @State private var speakerSummaryNeedsRefresh = false
@@ -363,15 +362,13 @@ private struct MeetingWorkspaceDetail: View {
                 calendarCandidates: calendarCandidates(for: draft.speaker),
                 assignedCalendarIdentityIDs: assignedCalendarIdentityIDs,
                 identityState: speakerIdentityState,
-                profiles: speakerProfiles,
-                rememberingEnabled: app.settings.rememberSpeakersOnMac,
                 notice: speakerIdentityNotice,
                 busy: savingSpeakerIdentity,
                 onPlay: { player.playExcerpt(from: $0.start, to: min($0.end, $0.start + 12)) },
                 onPlayEvidence: { player.playExcerpt(from: $0, to: $0 + 12) },
-                onAction: { action, name, remember, profileID in
+                onAction: { action, name, profileID in
                     performSpeakerChoice(.init(label: draft.speaker, name: name,
-                        action: action, remember: remember, profileID: profileID,
+                        action: action, profileID: profileID,
                         expectedRevision: speakerIdentityState?.revision))
                 },
                 onDeleteEvidence: {
@@ -382,11 +379,11 @@ private struct MeetingWorkspaceDetail: View {
                         } catch { speakerIdentityNotice = error.localizedDescription }
                     }
                 },
-                onSave: { name, identityID, remember, profileID in
+                onSave: { name, identityID, profileID in
                     saveSpeakerAlias(
                         name,
                         calendarIdentityID: identityID,
-                        for: draft.speaker, remember: remember, profileID: profileID)
+                        for: draft.speaker, profileID: profileID)
                 },
                 onReset: {
                     saveSpeakerAlias(
@@ -541,6 +538,11 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     @ViewBuilder private var meetingStatusContent: some View {
+        if meeting.isSample {
+            SampleMeetingBanner(meeting: meeting,
+                                hasTranscript: transcript?.segments.isEmpty == false,
+                                hasNotes: summary?.isEmpty == false)
+        }
         if captureNeedsAttention {
             Label("Audio capture was interrupted or saving reported an error. Review the saved recording for missing audio.",
                   systemImage: "exclamationmark.triangle.fill")
@@ -606,7 +608,21 @@ private struct MeetingWorkspaceDetail: View {
         if let speakerIdentityNotice {
             Text(speakerIdentityNotice).workspaceTextRole(.supporting)
         }
-        if tab == .summary, !unnamedRemoteSpeakers.isEmpty, !notesNeedRefresh {
+        if !recognizedSpeakers.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Image(systemName: "person.wave.2").foregroundStyle(.tint)
+                Text("Recognized voices: \(recognizedSpeakers.map(\.match.name).joined(separator: ", "))")
+                    .workspaceTextRole(.supporting)
+                Spacer(minLength: 8)
+                Button("Apply Names", action: applyRecognizedSpeakers)
+                    .buttonStyle(.bordered)
+                    .disabled(savingSpeakerIdentity)
+                    .accessibilityIdentifier("meeting.applyRecognizedSpeakers")
+            }
+            .padding(12)
+            .lbStatusSurface(.accentColor)
+        }
+        if tab == .summary, !unnamedRemoteSpeakers.isEmpty, !notesNeedRefresh, recognizedSpeakers.isEmpty {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "person.2").foregroundStyle(LBTokens.Palette.attentionText)
                 Text("\(unnamedRemoteSpeakers.count) \(unnamedRemoteSpeakers.count == 1 ? "speaker needs a name" : "speakers need names"). Review action-linked voices first.")
@@ -1185,6 +1201,34 @@ private struct MeetingWorkspaceDetail: View {
         Set(transcript?.speakerCalendarIdentityIDs.values.map { $0 } ?? [])
     }
 
+    /// Unnamed call speakers in a saved meeting that match people named before.
+    private var recognizedSpeakers: [(label: String, match: SpeakerNameMatch)] {
+        guard let transcript else { return [] }
+        return MeetingSpeakerIdentityService.recognizedSpeakers(in: speakerIdentityState, transcript: transcript)
+    }
+
+    /// Applies every recognized name as if the user named each speaker.
+    private func applyRecognizedSpeakers() {
+        guard !savingSpeakerIdentity, var current = transcript else { return }
+        let recognized = recognizedSpeakers
+        savingSpeakerIdentity = true
+        Task {
+            defer { savingSpeakerIdentity = false }
+            do {
+                for item in recognized {
+                    current = try await app.speakerIdentity.choose(.init(label: item.label, name: item.match.name),
+                                                                    meeting: meeting, transcript: current)
+                }
+                try app.saveTranscript(current, for: meeting)
+                updateTranscript(current)
+                searchContentRevision += 1
+                speakerIdentityNotice = app.speakerIdentity.notice
+                await refreshSpeakerIdentity()
+                app.learnSpeakerVoices()
+            } catch { speakerIdentityNotice = "Could not save speaker names: \(error.localizedDescription)" }
+        }
+    }
+
     private var unnamedRemoteSpeakers: [String] {
         guard let transcript else { return [] }
         var seen = Set<String>()
@@ -1205,12 +1249,8 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func refreshSpeakerIdentity(recover: Bool = false) async {
-        let sidecar = folder.appendingPathComponent("speaker-evidence/identity.sealed")
-        guard FileManager.default.fileExists(atPath: sidecar.path)
-                || app.settings.rememberSpeakersOnMac else { return }
         do {
             speakerIdentityState = try await app.speakerIdentity.state(for: meeting)
-            speakerProfiles = try await app.speakerIdentity.profiles()
             let latestChoice = speakerIdentityState?.decisions.filter {
                 $0.action.changesAttribution
             }.map(\.confirmedAt).max()
@@ -1229,9 +1269,9 @@ private struct MeetingWorkspaceDetail: View {
     }
 
     private func saveSpeakerAlias(_ alias: String?, calendarIdentityID: String?, for speaker: String,
-                                  remember: Bool = false, profileID: UUID? = nil) {
+                                  profileID: UUID? = nil) {
         performSpeakerChoice(.init(label: speaker, name: alias, calendarIdentityID: calendarIdentityID,
-            action: alias == nil ? .reset : .assign, remember: remember, profileID: profileID,
+            action: alias == nil ? .reset : .assign, profileID: profileID,
             expectedRevision: speakerIdentityState?.revision))
     }
 
@@ -1250,6 +1290,8 @@ private struct MeetingWorkspaceDetail: View {
                 await refreshSpeakerIdentity()
                 if choice.action.changesAttribution {
                     speakerRenameDraft = nil
+                    // A newly remembered voice can name speakers in other recent meetings.
+                    app.learnSpeakerVoices()
                 }
             } catch { speakerIdentityNotice = "Could not save speaker name: \(error.localizedDescription)" }
         }
@@ -1573,7 +1615,12 @@ private func meetingWorkspaceMetadataItems(
             warning: meeting.hasSystemTrack ? nil
                 : "Only your microphone was recorded. Other participants are captured only if your mic picked them up."),
     ]
-    return items.filter { !meeting.isMergedMeeting || $0.field != .app }
+    // An imported file's audio came from neither this Mac's microphone nor
+    // its system audio, so "Mic + system" would be wrong.
+    return items.filter {
+        !(meeting.isMergedMeeting && $0.field == .app)
+            && !(meeting.isImported && $0.field == .audioSource)
+    }
 }
 
 private func transcriptEngineDescription(_ engine: String) -> String {
@@ -1793,23 +1840,33 @@ private struct OutcomeActionRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             WorkspaceMenu(title: "Action options", symbol: "ellipsis",
                           label: "Options for action: \(reference.text)",
-                          identifier: "meeting.action.status.\(reference.action.id)", items:
-                OutcomeStatus.allCases.map { status in
-                    .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
-                          action: { onStatus(status) })
-                } + [.separator, .init(title: "Correct owner or due date", action: onCorrect),
-                     .init(title: "Open in Agent", action: {
-                    app.openAgent(.init(
-                        title: reference.text,
-                        prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
-                        meetingID: reference.meetingID,
-                        actionID: reference.action.id))
-                })])
+                          identifier: "meeting.action.status.\(reference.action.id)", items: menuItems)
             .frame(minWidth: 32, minHeight: 24)
             .fixedSize()
             .disabled(!isEditable)
         }
         .padding(.vertical, WorkspaceMetric.rowVerticalPadding)
+    }
+
+    private var menuItems: [WorkspaceMenu.Item] {
+        var items: [WorkspaceMenu.Item] = OutcomeStatus.allCases.map { status in
+            .init(title: status.label, enabled: canSetStatus, selected: status == reference.status,
+                  action: { onStatus(status) })
+        }
+        items += [.separator, .init(title: "Correct owner or due date", action: onCorrect),
+                  .init(title: "Open in Agent", action: {
+            app.openAgent(.init(
+                title: reference.text,
+                prompt: "Help me complete this action from \(reference.meetingTitle): \(reference.text)",
+                meetingID: reference.meetingID,
+                actionID: reference.action.id))
+        })]
+        for target in ActionAgentAvailability.installed {
+            items.append(.init(title: "Open in \(target.rawValue)", action: {
+                app.handOff(reference, owner: displayOwner, to: target)
+            }))
+        }
+        return items
     }
 
     private func activeOccurrence(
@@ -2056,6 +2113,7 @@ private struct TranscriptEvidenceList: View {
                                 .font(LBTokens.Typography.reading)
                                 .lineSpacing(3)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentLayoutDirection(of: row.text)
                                 .textSelection(.enabled)
                                 .help("Select text and press Command-C to copy")
                                 .accessibilityIdentifier("transcript.segment.\(index).text")
@@ -2126,25 +2184,23 @@ private struct WorkspaceSpeakerRenameSheet: View {
     let calendarCandidates: [CalendarParticipantIdentity]
     let assignedCalendarIdentityIDs: Set<String>
     let identityState: MeetingSpeakerIdentityState?
-    let profiles: [SpeakerVoiceProfile]
-    let rememberingEnabled: Bool
     let notice: String?
     let busy: Bool
     let onPlay: (Transcript.Segment) -> Void
     let onPlayEvidence: (Double) -> Void
-    let onAction: (SpeakerAliasDecision.Action, String?, Bool, UUID?) -> Void
+    let onAction: (SpeakerAliasDecision.Action, String?, UUID?) -> Void
     let onDeleteEvidence: () -> Void
-    let onSave: (String, String?, Bool, UUID?) -> Void
+    let onSave: (String, String?, UUID?) -> Void
     let onReset: () -> Void
     let onCancel: () -> Void
 
-    @State private var remember: Bool
     @State private var profileID: UUID?
     @State private var name: String
     @State private var selectedCalendarIdentityID: String?
-    @State private var suggestionQuery = ""
+    /// The name as last typed, which searches the suggestions.
+    @State private var typedName = ""
+    @State private var suggestionListHeight: CGFloat = 0
     @FocusState private var nameFocused: Bool
-    @FocusState private var searchFocused: Bool
 
     init(
         draft: WorkspaceSpeakerRenameDraft,
@@ -2152,15 +2208,13 @@ private struct WorkspaceSpeakerRenameSheet: View {
         calendarCandidates: [CalendarParticipantIdentity],
         assignedCalendarIdentityIDs: Set<String>,
         identityState: MeetingSpeakerIdentityState?,
-        profiles: [SpeakerVoiceProfile],
-        rememberingEnabled: Bool,
         notice: String?,
         busy: Bool,
         onPlay: @escaping (Transcript.Segment) -> Void,
         onPlayEvidence: @escaping (Double) -> Void,
-        onAction: @escaping (SpeakerAliasDecision.Action, String?, Bool, UUID?) -> Void,
+        onAction: @escaping (SpeakerAliasDecision.Action, String?, UUID?) -> Void,
         onDeleteEvidence: @escaping () -> Void,
-        onSave: @escaping (String, String?, Bool, UUID?) -> Void,
+        onSave: @escaping (String, String?, UUID?) -> Void,
         onReset: @escaping () -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -2169,15 +2223,12 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.calendarCandidates = calendarCandidates
         self.assignedCalendarIdentityIDs = assignedCalendarIdentityIDs
         self.identityState = identityState
-        self.profiles = profiles
-        self.rememberingEnabled = rememberingEnabled
         self.notice = notice
         self.busy = busy
         self.onPlay = onPlay
         self.onPlayEvidence = onPlayEvidence
         self.onAction = onAction
         self.onDeleteEvidence = onDeleteEvidence
-        _remember = State(initialValue: false)
         self.onSave = onSave
         self.onReset = onReset
         self.onCancel = onCancel
@@ -2217,9 +2268,14 @@ private struct WorkspaceSpeakerRenameSheet: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text("Name").font(.scaled(.callout)).foregroundStyle(.secondary)
-                TextField("Speaker name", text: $name, prompt: Text("Name this speaker"))
+                TextField("Speaker name", text: nameBinding, prompt: Text("Name this speaker"))
                     .textFieldStyle(.roundedBorder)
                     .focused($nameFocused)
+                    // A field with a submit action keeps Return from the
+                    // default button, so Return saves from here as well.
+                    .onSubmit {
+                        if let match = returnSuggestion { choose(match) } else { save() }
+                    }
                     .accessibilityIdentifier("speaker.rename.name")
             }
             ScrollView {
@@ -2230,9 +2286,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
                         Text("Listen, choose a name, then save. These sources suggest names; attendance does not identify a voice.")
                             .workspaceTextRole(.supporting)
                             .fixedSize(horizontal: false, vertical: true)
-                        if showsSuggestionSearch { suggestionSearchField }
+                        let returnID = returnSuggestion?.id
                         ForEach(visibleSuggestions) { suggestion in
-                            suggestionRow(suggestion)
+                            suggestionRow(suggestion, isReturnTarget: suggestion.id == returnID)
                         }
                         if visibleSuggestions.isEmpty {
                             Text("No suggested names match this search.")
@@ -2247,17 +2303,19 @@ private struct WorkspaceSpeakerRenameSheet: View {
                     }
 
                     SpeakerIdentityReview(speaker: draft.speaker, state: identityState,
-                        profiles: profiles, rememberingEnabled: rememberingEnabled,
-                        name: $name, remember: $remember, profileID: $profileID,
+                        name: $name, profileID: $profileID,
                         onPlay: onPlayEvidence, onAction: onAction, onDeleteEvidence: onDeleteEvidence,
                         canConfirmIdentity: draft.canConfirmIdentity, microphoneIsUser: draft.microphoneIsUser)
                     if let notice { Text(notice).font(.scaled(.caption)).foregroundStyle(.secondary) }
                 }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
+                    suggestionListHeight = max(suggestionListHeight, $0)
+                }
             }
-            // Keep the sheet from resizing on every keystroke while filtering.
-            .frame(minHeight: showsSuggestionSearch ? 280 : nil, maxHeight: 280)
+            // Keep the sheet from shrinking on every keystroke while filtering.
+            .frame(minHeight: min(suggestionListHeight, 280), maxHeight: 280)
 
-            Label("Names are saved with this meeting. Only confirmed microphone voices can be remembered on this Mac.",
+            Label("Names you save also teach LokalBot this voice, so it can name the person in later meetings. Voices stay encrypted on this Mac.",
                   systemImage: "lock.shield")
                 .font(.scaled(.callout)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -2268,11 +2326,11 @@ private struct WorkspaceSpeakerRenameSheet: View {
                     .accessibilityIdentifier("speaker.rename.leaveUnidentified")
                 Spacer()
                 Button("Cancel", action: onCancel).keyboardShortcut(.cancelAction)
-                Button("Save") { onSave(name, selectedCalendarIdentityID, remember, profileID) }
+                Button("Save", action: save)
                     .primaryActionButton()
-                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    // Return in the search field picks a match instead of saving.
-                    .keyboardShortcut(searchFocused ? nil : .defaultAction)
+                    .disabled(nameIsBlank)
+                    // Return fills in the top match first, then saves.
+                    .keyboardShortcut(returnSuggestion == nil ? .defaultAction : nil)
                     .accessibilityIdentifier("speaker.rename.save")
             }
         }
@@ -2290,62 +2348,64 @@ private struct WorkspaceSpeakerRenameSheet: View {
         MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, hints: hints)
     }
 
-    /// Short lists fit the scroll area without searching.
-    private var showsSuggestionSearch: Bool { suggestions.count > 3 }
-
-    private var visibleSuggestions: [MeetingSpeakerSuggestion] {
-        showsSuggestionSearch ? suggestions.filter { $0.matches(suggestionQuery) } : suggestions
+    /// Typing records the name as the search; a name filled in by a choice,
+    /// here or in the voice review, doesn't filter.
+    private var nameBinding: Binding<String> {
+        Binding(get: { name }, set: { newValue in
+            if newValue != name { typedName = newValue }
+            name = newValue
+        })
     }
 
-    private var suggestionSearchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-                .accessibilityHidden(true)
-            TextField("Search suggested names", text: $suggestionQuery)
-                .textFieldStyle(.plain)
-                .focused($searchFocused)
-                .onSubmit {
-                    guard let first = visibleSuggestions.first else { return }
-                    choose(first)
-                    nameFocused = true
-                }
-                .accessibilityIdentifier("speaker.rename.searchSuggestions")
-            if !suggestionQuery.isEmpty {
-                Button {
-                    suggestionQuery = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .help("Clear search")
-                .accessibilityLabel("Clear search")
-                .accessibilityIdentifier("speaker.rename.searchSuggestions.clear")
-            }
+    private var nameQuery: String {
+        typedName == name ? name.trimmingCharacters(in: .whitespacesAndNewlines) : ""
+    }
+
+    private var visibleSuggestions: [MeetingSpeakerSuggestion] {
+        let query = nameQuery
+        guard !query.isEmpty else { return suggestions }
+        // The chosen guest stays listed while its name is edited, since
+        // saving keeps that guest.
+        return suggestions.filter { $0.matches(query) || isChosen($0) }
+    }
+
+    /// The top match not already chosen, which Return fills in. With none,
+    /// Return saves the name as typed.
+    private var returnSuggestion: MeetingSpeakerSuggestion? {
+        let query = nameQuery
+        guard !query.isEmpty else { return nil }
+        return suggestions.first { $0.matches(query) && !isChosen($0) }
+    }
+
+    private func isChosen(_ suggestion: MeetingSpeakerSuggestion) -> Bool {
+        if let selectedCalendarIdentityID {
+            return suggestion.calendar?.id == selectedCalendarIdentityID
         }
-        .font(AppFont.scaled(.body))
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .workspaceControl()
+        return suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
+            == MeetingSpeakerSuggestion.nameKey(name)
+    }
+
+    private var nameIsBlank: Bool { name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    private func save() {
+        guard !nameIsBlank else { return }
+        onSave(name, selectedCalendarIdentityID, profileID)
     }
 
     private func choose(_ suggestion: MeetingSpeakerSuggestion) {
         name = suggestion.name ?? ""
+        typedName = ""
         selectedCalendarIdentityID = suggestion.calendar?.id
         profileID = nil
     }
 
-    private func suggestionRow(_ suggestion: MeetingSpeakerSuggestion) -> some View {
+    private func suggestionRow(
+        _ suggestion: MeetingSpeakerSuggestion, isReturnTarget: Bool
+    ) -> some View {
         let assignedElsewhere = suggestion.calendar.map {
             assignedCalendarIdentityIDs.contains($0.id) && $0.id != draft.currentCalendarIdentityID
         } ?? false
-        let selected: Bool = if let selectedCalendarIdentityID {
-            suggestion.calendar?.id == selectedCalendarIdentityID
-        } else {
-            suggestion.calendar == nil && suggestion.name.map(MeetingSpeakerSuggestion.nameKey)
-                == MeetingSpeakerSuggestion.nameKey(name)
-        }
+        let selected = isChosen(suggestion)
         let title = suggestion.name ?? "Enter a name for this guest"
         let label = ([title] + suggestion.sources + [suggestion.calendar?.emailAddress,
                       assignedElsewhere ? "Also assigned to another voice" : nil].compactMap { $0 })
@@ -2354,8 +2414,17 @@ private struct WorkspaceSpeakerRenameSheet: View {
             choose(suggestion)
         } label: {
             VStack(alignment: .leading, spacing: 5) {
-                Label(title, systemImage: selected ? "checkmark.circle.fill" : "person.crop.circle")
-                    .font(AppFont.scaled(.body))
+                HStack(alignment: .firstTextBaseline) {
+                    Label(title, systemImage: selected ? "checkmark.circle.fill" : "person.crop.circle")
+                        .font(AppFont.scaled(.body))
+                    Spacer(minLength: 8)
+                    if isReturnTarget {
+                        Image(systemName: "return")
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                }
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 6) { sourceBadges(suggestion) }
                     VStack(alignment: .leading, spacing: 4) { sourceBadges(suggestion) }
@@ -2464,6 +2533,9 @@ struct EvidencePill: View {
 struct WorkspaceSection<Content: View>: View {
     let title: String
     let icon: String
+    /// App copy looks the title up in the interface catalog. Titles that
+    /// carry names or other content stay verbatim.
+    var localizesTitle = false
     var searchQuery = ""
     var activeMatchIndex: Int?
     var searchLocation: MeetingPageSearchMatch.Location?
@@ -2478,6 +2550,8 @@ struct WorkspaceSection<Content: View>: View {
                         query: searchQuery,
                         activeMatchIndex: activeMatchIndex)
                     .id(searchLocation)
+                } else if localizesTitle {
+                    Text(LocalizedStringKey(title))
                 } else {
                     Text(title)
                 }

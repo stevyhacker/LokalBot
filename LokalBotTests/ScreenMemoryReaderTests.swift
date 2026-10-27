@@ -97,6 +97,29 @@ final class ScreenMemoryReaderTests: XCTestCase {
             limit: 10)).isEmpty)
     }
 
+    /// The MCP `search_screen` reader ORs exact FTS phrases, so a Chinese word
+    /// inside a phrase found nothing at all. It now matches by substring.
+    func testSearchFindsAChineseWordInsideAPhrase() throws {
+        try database.run("""
+            INSERT INTO screenshots (ts, path, app, window_title, capture_trigger)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            """, bind: [dayStart.timeIntervalSince1970 + 6_000,
+                          "/private/secret/review.heic.enc", "Feishu", "发布评审纪要", "window_change"])
+        try database.run("""
+            INSERT INTO ocr_fts (text, window_title, ts, app, text_source, snapshot_id)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            """, bind: ["深色模式下设置页面有几行字对比度太低", "发布评审纪要",
+                          dayStart.timeIntervalSince1970 + 6_000, "Feishu", "accessibility", 3])
+
+        let hits = try reader.search(ScreenMemorySearchRequest(
+            query: "对比度", start: nil, end: nil, app: nil, limit: 10))
+        XCTAssertEqual(hits.map(\.snapshotID), [3])
+        XCTAssertTrue(hits.first?.snippet.contains("«对比度»") == true)
+        XCTAssertEqual(try reader.search(ScreenMemorySearchRequest(
+            query: "revenue", start: nil, end: nil, app: nil, limit: 10)).map(\.snapshotID), [1],
+                       "English search keeps the FTS path")
+    }
+
     func testTimelineRecentActivityAndUsageAreMetadataOnly() throws {
         let end = dayStart.addingTimeInterval(86_400)
         let timeline = try reader.timeline(from: dayStart, to: end, limit: 100)

@@ -156,6 +156,32 @@ import XCTest
         XCTAssertEqual(historical.assignments.first?.name, "Alex")
     }
 
+    func testLegacyNameEnrollsOnceAndACorrectionRevokesIt() async throws {
+        let (base, _, samples) = enrollment()
+        var assignment = base
+        assignment.origin = .legacy
+        var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
+        saved.assignments = [assignment]
+        _ = try await store.commit(saved, meeting: meeting, expectedRevision: 0)
+        let profile = try await store.enrollSavedName(meeting: meeting, assignmentID: assignment.id, samples: samples,
+            profileID: nil, expectedDatabaseRevision: 0)
+        let again = try await store.enrollSavedName(meeting: meeting, assignmentID: assignment.id, samples: samples,
+            profileID: nil, expectedDatabaseRevision: 0)
+        XCTAssertEqual(profile, again)
+        let enrolled = try await store.profiles()
+        XCTAssertEqual(enrolled.profiles.count, 1)
+        XCTAssertEqual(enrolled.profiles.first?.contributions.first?.samples.count, 1, "Call voices keep their average, not chunks")
+        XCTAssertNotNil(enrolled.profiles.first?.contributions.first?.voiceprint)
+
+        try await store.revoke(meetingID: meeting.id, speakerID: assignment.id)
+        let database = try await store.profiles()
+        do {
+            _ = try await store.enrollSavedName(meeting: meeting, assignmentID: assignment.id, samples: samples,
+                profileID: nil, expectedDatabaseRevision: database.revision)
+            XCTFail("A corrected legacy name was remembered again")
+        } catch { XCTAssertTrue(error is MeetingSpeakerEvidenceStore.Failure) }
+    }
+
     private func enrollment() -> (SpeakerIdentityAssignment, SpeakerAliasDecision, [SpeakerVoiceSample]) {
         let assignment = SpeakerIdentityAssignment(label: "them", name: "Alex", origin: .userConfirmed,
             audioRevision: "audio", anchors: [.init(start: 0, end: 60)])

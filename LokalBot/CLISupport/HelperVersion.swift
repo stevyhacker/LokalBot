@@ -1,8 +1,13 @@
 import Foundation
 
-/// Reads the enclosing app bundle's version for the MCP server handshake.
+/// Reads the enclosing app bundle's version for `--version` and the MCP
+/// server handshake.
 enum HelperVersion {
-    static func current(binaryPath: String = CommandLine.arguments[0]) -> String {
+    /// Defaults to the executable's real path: a shell that finds the helper
+    /// on PATH passes only the bare name as argv[0].
+    static func current(
+        binaryPath: String = Bundle.main.executablePath ?? CommandLine.arguments[0]
+    ) -> String {
         let binary = URL(fileURLWithPath: binaryPath).resolvingSymlinksInPath()
         let contents = binary
             .deletingLastPathComponent()

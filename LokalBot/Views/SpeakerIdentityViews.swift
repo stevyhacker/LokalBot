@@ -5,11 +5,7 @@ struct SpeakerIdentitySettingsControls: View {
     @State private var managingProfiles = false
 
     var body: some View {
-        Toggle(isOn: $app.settings.rememberSpeakersOnMac) {
-            SettingsLabel("Remember speakers on this Mac",
-                          help: "When you confirm who spoke into this Mac's microphone, eligible voice samples can create an encrypted local profile that suggests the name in later recordings. Remote participants' voices are never remembered, and automatic guesses never train profiles.")
-        }
-            .accessibilityLabel("Remember speakers on this Mac")
+        SettingsHelp("When you name a speaker, LokalBot remembers their voice in an encrypted profile on this Mac and names them in later meetings. Automatic names never train profiles, and you can undo one in the transcript.")
             .accessibilityIdentifier("settings.rememberSpeakers")
         if !app.settings.multiSpeakerDiarization {
             SettingsHelp("Turn on “Separate voices by speaker” to collect the voice samples remembering needs.")
@@ -61,7 +57,7 @@ private struct SpeakerVoiceProfileManager: View {
         .task { await reload() }
     }
     private func reload() async {
-        do { people = try await identity.profiles(managing: true) } catch { self.error = "Could not read remembered people: \(error.localizedDescription)" }
+        do { people = try await identity.profiles() } catch { self.error = "Could not read remembered people: \(error.localizedDescription)" }
     }
     private func perform(_ action: @escaping @MainActor () async throws -> Void) {
         busy = true
@@ -99,21 +95,14 @@ private struct SpeakerVoiceProfileRow: View {
 struct SpeakerIdentityReview: View {
     let speaker: String
     let state: MeetingSpeakerIdentityState?
-    let profiles: [SpeakerVoiceProfile]
-    let rememberingEnabled: Bool
     @Binding var name: String
-    @Binding var remember: Bool
     @Binding var profileID: UUID?
     let onPlay: (Double) -> Void
-    let onAction: (SpeakerAliasDecision.Action, String?, Bool, UUID?) -> Void
+    let onAction: (SpeakerAliasDecision.Action, String?, UUID?) -> Void
     let onDeleteEvidence: () -> Void
     var canConfirmIdentity = false
     var microphoneIsUser = false
     private var assignment: SpeakerIdentityAssignment? { state?.assignments.first { $0.label == speaker } }
-    /// Only voices recorded by this Mac's microphone can be remembered.
-    private var isMicrophoneVoice: Bool {
-        (assignment?.source ?? state?.timeline.first { $0.speaker == speaker }?.resolvedSource) == .microphone
-    }
 
     private var identityDescription: String {
         if let isUser = assignment?.isLocalUser { return isUser ? "Confirmed as you" : "Confirmed as someone else" }
@@ -127,8 +116,8 @@ struct SpeakerIdentityReview: View {
                     .font(.scaled(.subheadline).weight(.semibold))
                 HStack {
                     if let time = assignment?.anchors.first?.start { Button("Play Speech") { onPlay(time) } }
-                    Button("This Is Me") { onAction(.confirmUser, name, remember, profileID) }
-                    Button("Someone Else") { onAction(.confirmOther, name, remember, profileID) }
+                    Button("This Is Me") { onAction(.confirmUser, name, profileID) }
+                    Button("Someone Else") { onAction(.confirmOther, name, profileID) }
                 }
             } else {
                 Text("This audio mixes voices, so it can't be confirmed as one person. You can still name it.")
@@ -139,12 +128,12 @@ struct SpeakerIdentityReview: View {
                 Text(match.explanation).font(.scaled(.caption)).foregroundStyle(.secondary)
                 HStack {
                     if let time = match.evidence.first?.start { Button("Play supporting speech") { onPlay(time) } }
-                    Button("Undo") { onAction(.undo, assignment?.name, false, nil) }
+                    Button("Undo") { onAction(.undo, assignment?.name, nil) }
                 }
             }
             if assignment?.automaticDisabled == true {
                 Text("Automatic naming is paused for this speaker.").font(.scaled(.caption)).foregroundStyle(.secondary)
-                Button("Resume automatic identification") { onAction(.resume, nil, false, nil) }
+                Button("Resume automatic identification") { onAction(.resume, nil, nil) }
             }
             if let candidates = state?.suggestions[speaker], !candidates.isEmpty, assignment?.origin.isProtected != true {
                 Text("Suggested Names").font(.scaled(.headline))
@@ -154,29 +143,13 @@ struct SpeakerIdentityReview: View {
                             Button(candidate.name) { name = candidate.name; profileID = candidate.profileID }
                             Spacer()
                             if let time = candidate.evidence.first?.start { Button("Play") { onPlay(time) } }
-                            Button("Dismiss") { onAction(.dismiss, candidate.name, false, nil) }
+                            Button("Dismiss") { onAction(.dismiss, candidate.name, nil) }
                         }
                         Text(candidate.explanation).font(.scaled(.caption)).foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(12)
                     .lbGroupedSurface()
-                }
-            }
-            if rememberingEnabled && speaker != "me" && isMicrophoneVoice {
-                Picker("Remember this choice", selection: $remember) {
-                    Text("This meeting only").tag(false)
-                    Text("Remember on this Mac").tag(true)
-                }
-                if remember {
-                    Picker("Person", selection: $profileID) {
-                        Text("Create a new person").tag(UUID?.none)
-                        ForEach(profiles) { profile in
-                            Text("\(profile.name) · \(profile.id.uuidString.prefix(6))").tag(Optional(profile.id))
-                        }
-                    }
-                    Text("Select an existing person explicitly to add voice samples to their profile. Similar names are never merged automatically.")
-                        .font(.scaled(.caption)).foregroundStyle(.secondary)
                 }
             }
             if let previous = state?.assignments.filter({ $0.label.hasPrefix("unresolved-") && $0.name != nil }), !previous.isEmpty {

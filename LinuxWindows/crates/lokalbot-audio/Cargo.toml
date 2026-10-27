@@ -1,0 +1,33 @@
+[package]
+name = "lokalbot-audio"
+description = "Microphone and system-audio capture, WAV tracks, playback and waveforms."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+crossbeam-channel.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+cpal = "0.18.2"
+rodio = { version = "0.23", default-features = false, features = ["playback"] }
+# Decodes the AAC (.m4a) tracks a macOS library keeps, FLAC, and the audio
+# and video files people import (MP3, WAV, AIFF, CAF, Ogg Vorbis, MKV, ALAC).
+symphonia = { version = "0.6.1", default-features = false, features = [
+    "aac", "isomp4", "flac", "mp3", "pcm", "wav", "aiff", "caf", "vorbis", "ogg", "mkv", "alac", "adpcm",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# PulseAudio (and PipeWire through pipewire-pulse) over its native protocol,
+# in pure Rust: no libpulse needed at build or run time.
+cpal = { version = "0.18.2", features = ["pulseaudio"] }
+pulseaudio = "0.3.2"
+futures-executor = "0.3"
+
+[dev-dependencies]
+tempfile.workspace = true

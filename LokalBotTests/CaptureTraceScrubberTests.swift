@@ -60,6 +60,19 @@ final class CaptureTraceScrubberTests: XCTestCase {
         }
     }
 
+    /// Helpers outside their host's namespace need their own entries, or a
+    /// recorded Feishu or DingTalk trace loses the process that carries the call.
+    func testForeignMeetingHelpersSurviveScrubbing() {
+        for helper in ["com.bytedance.lark.helper", "com.bytedance.lark.helper.Renderer",
+                       "com.alibaba.DingTalk-Helper", "Cisco-Systems.SparkHelper"] {
+            XCTAssertEqual(scrubber.scrubBundleID(helper), helper)
+            XCTAssertTrue(MeetingDetector.foreignHelperHosts.keys.contains { helper.lowercased().hasPrefix($0) },
+                          helper)
+        }
+        XCTAssertEqual(scrubber.scrubAppName("腾讯会议"), "腾讯会议")
+        XCTAssertEqual(scrubber.scrubAppName("飞书"), "飞书")
+    }
+
     func testKnownAppNamesSurviveAndUnknownOnesDoNot() {
         XCTAssertEqual(scrubber.scrubAppName("Google Chrome"), "Google Chrome")
         XCTAssertNotEqual(scrubber.scrubAppName("Acme Payroll"), "Acme Payroll")

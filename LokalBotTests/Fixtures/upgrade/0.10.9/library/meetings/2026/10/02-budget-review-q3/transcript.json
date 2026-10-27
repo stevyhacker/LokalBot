@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 18,
+      "speaker": "them",
+      "text": "Infra spend is flat; the only new line is the load-testing cluster."
+    },
+    {
+      "start": 18,
+      "end": 34,
+      "speaker": "me",
+      "text": "Approved. Everything else rolls over unchanged."
+    }
+  ]
+}

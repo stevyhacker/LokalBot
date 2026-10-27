@@ -1,0 +1,57 @@
+[
+  {
+    "pid": 16814,
+    "binaryPath": "/workspace/pr354-validation/autocomplete-cuda/runtimes/llama-cpp/b11669-ubuntu-cuda-13.4-x64/llama-b11669/llama-server",
+    "modelPath": "/workspace/pr354-validation/autocomplete-cuda/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+    "contextTokens": 4096,
+    "extraArgs": [
+      "--parallel",
+      "1",
+      "--cache-ram",
+      "512",
+      "--device",
+      "CUDA0",
+      "--log-verbosity",
+      "4",
+      "--log-colors",
+      "off",
+      "--no-log-jsonl"
+    ],
+    "gpuOffloaded": true,
+    "arguments": [
+      "/workspace/pr354-validation/autocomplete-cuda/runtimes/llama-cpp/b11669-ubuntu-cuda-13.4-x64/llama-b11669/llama-server",
+      "-m",
+      "/workspace/pr354-validation/autocomplete-cuda/models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "17874",
+      "-c",
+      "4096",
+      "-ngl",
+      "99",
+      "--jinja",
+      "--no-ui",
+      "--api-key",
+      "[redacted]",
+      "--parallel",
+      "1",
+      "--cache-ram",
+      "512",
+      "--device",
+      "CUDA0",
+      "--log-verbosity",
+      "4",
+      "--log-colors",
+      "off",
+      "--no-log-jsonl",
+      ""
+    ],
+    "gpuLibraries": [
+      "/usr/lib/x86_64-linux-gnu/libcuda.so.595.58.03",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-gpucomp.so.595.58.03",
+      "/usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.595.58.03",
+      "/workspace/pr354-validation/autocomplete-cuda/runtimes/llama-cpp/b11669-ubuntu-cuda-13.4-x64/llama-b11669/libggml-cuda.so"
+    ]
+  }
+]

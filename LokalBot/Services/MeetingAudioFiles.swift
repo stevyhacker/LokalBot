@@ -4,6 +4,9 @@ import Foundation
 /// meeting. A process crash can leave `mic.m4a` / `system.m4a` unreadable
 /// because their MP4 containers were never finalized; the append-only CAF tees
 /// remain readable and must stay available for transcription and playback.
+/// Meetings recorded, imported or merged by the Windows and Linux app keep
+/// 16 kHz `mic.wav` / `system.wav` tracks instead; they are read only when a
+/// folder has neither an AAC track nor a recovery tee.
 enum MeetingAudioFiles {
 
     /// Container finalization and the PCM tee can differ by a small encoder
@@ -16,6 +19,9 @@ enum MeetingAudioFiles {
         case system
 
         var primaryFileName: String { "\(rawValue).m4a" }
+
+        /// Written by the Windows and Linux app, which has no AAC encoder.
+        var portableFileName: String { "\(rawValue).wav" }
 
         var recoveryFileName: String {
             switch self {
@@ -31,6 +37,10 @@ enum MeetingAudioFiles {
 
     static func recoveryURL(for track: Track, in folder: URL) -> URL {
         folder.appendingPathComponent(track.recoveryFileName)
+    }
+
+    static func portableURL(for track: Track, in folder: URL) -> URL {
+        folder.appendingPathComponent(track.portableFileName)
     }
 
     /// Prefer the compact AAC track, falling back to the crash-safe CAF only
@@ -104,7 +114,10 @@ enum MeetingAudioFiles {
         case (.none, .some):
             return recovery
         case (.none, .none):
-            return nil
+            let portable = portableURL(for: track, in: folder)
+            guard let duration = AudioFileInspector.duration(at: portable),
+                  duration >= minimumDuration, duration > 0 else { return nil }
+            return portable
         }
     }
 

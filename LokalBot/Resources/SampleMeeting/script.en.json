@@ -1,0 +1,46 @@
+{
+  "sampleID": "orders-api/en",
+  "language": "en",
+  "title": "Sample: Orders API delivery window",
+  "audio": "orders-api.en.m4a",
+  "tts": {
+    "provider": "elevenlabs",
+    "model": "eleven_v4",
+    "seed": 7
+  },
+  "speakers": {
+    "maya": {"name": "Maya", "role": "API product lead", "voice": "hpp4J3VqNfWAUOO0d1Us", "voiceName": "Bella (ElevenLabs premade)"},
+    "daniel": {"name": "Daniel", "role": "Backend engineer", "voice": "iP95p4xoKVk53GoZ742B", "voiceName": "Chris (ElevenLabs premade)"}
+  },
+  "turns": [
+    {"id": "t01", "speaker": "maya", "text": "This is the LokalBot sample meeting. The voices are synthetic, and the company and the people in it are made up."},
+    {"id": "t02", "speaker": "maya", "text": "Hi Daniel. Can you hear me okay?"},
+    {"id": "t03", "speaker": "daniel", "text": "Loud and clear, Maya. Sorry I'm a minute late, my build was still running."},
+    {"id": "t04", "speaker": "maya", "text": "No problem. Let's sort out the delivery window for the Orders API."},
+    {"id": "t05", "speaker": "daniel", "text": "Sure. Quick context: support wants customers to see a delivery window, like between two and four in the afternoon, instead of the single ETA time we return today."},
+    {"id": "t06", "speaker": "maya", "text": "Right. And Priya from partner success says three of our biggest partners asked for the same thing."},
+    {"id": "t07", "speaker": "maya", "text": "So, the plan from last week: we replace the ETA field with a new delivery window object, and we ship it as version three of the API."},
+    {"id": "t08", "speaker": "daniel", "text": "That was the plan. The window would be two timestamps, a start and an end, both in UTC. I can have version three ready by November eighteenth."},
+    {"id": "t09", "speaker": "maya", "text": "Okay. Decision for now: version three, the delivery window replaces ETA, and we target November eighteenth."},
+    {"id": "t10", "speaker": "daniel", "text": "Performance is fine either way. I measured it yesterday, and p95 latency stays at about a hundred and eighty milliseconds."},
+    {"id": "t11", "speaker": "maya", "text": "Good. What about the mobile app?"},
+    {"id": "t12", "speaker": "daniel", "text": "Tomás says the mobile team can pick it up in release four point two, but not earlier."},
+    {"id": "t13", "speaker": "maya", "text": "That's fine. And testing?"},
+    {"id": "t14", "speaker": "daniel", "text": "Lena will add contract tests. She needs two days once the schema is frozen."},
+    {"id": "t15", "speaker": "daniel", "text": "Actually, before we lock this in. I went through the partner integrations last night. Forty-two partners call the orders endpoint, and nineteen of them use generated clients that fail when a field they expect is missing. If we remove ETA, those nineteen break the day we ship."},
+    {"id": "t16", "speaker": "maya", "text": "Nineteen out of forty-two. That's almost half of them. And a version three means every single partner has to migrate."},
+    {"id": "t17", "speaker": "daniel", "text": "Exactly. Fernhill alone took four months to move to version two."},
+    {"id": "t18", "speaker": "maya", "text": "Then let's change the decision. No version three. The response stays backward-compatible: ETA stays exactly as it is, and the delivery window is added as a new, optional field. If we don't know the window, we leave the field out."},
+    {"id": "t19", "speaker": "daniel", "text": "Optional, left out when it's unknown, ETA unchanged, and we stay on version two. That's less work, too. I can ship it by November eleventh instead of the eighteenth."},
+    {"id": "t20", "speaker": "maya", "text": "Great. So, for the notes: this replaces what we said at the start. The response stays backward-compatible, the delivery window is optional, and we ship on November eleventh."},
+    {"id": "t21", "speaker": "daniel", "text": "Should I tell Lena the schema is frozen, then?"},
+    {"id": "t22", "speaker": "maya", "text": "Yes, go ahead. And Priya will email the three partners who asked for it. Daniel, can you update the API spec and the changelog?"},
+    {"id": "t23", "speaker": "daniel", "text": "Yes, I'll have both done by Friday."},
+    {"id": "t24", "speaker": "daniel", "text": "One thing we still haven't figured out: do we backfill delivery windows for orders that were created before the change, or only for new orders?"},
+    {"id": "t25", "speaker": "maya", "text": "Hm. A backfill means rerunning the estimator on about two million open orders. I honestly don't know if that's worth it."},
+    {"id": "t26", "speaker": "daniel", "text": "Me neither. It depends on whether partners even look at old orders."},
+    {"id": "t27", "speaker": "maya", "text": "Let's leave it open for now. I'll ask Priya whether partners need it for old orders."},
+    {"id": "t28", "speaker": "daniel", "text": "Okay. So the backfill is still open."},
+    {"id": "t29", "speaker": "maya", "text": "Yes. Thanks, Daniel. That's it for today."}
+  ]
+}

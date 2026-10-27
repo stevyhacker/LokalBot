@@ -88,6 +88,14 @@ enum ChatCitationParser {
     private static let pattern =
         #"\[(meeting|screen):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]"#
 
+    /// Several meetings in one marker — `[meetings:A, B]` or
+    /// `[meeting:A; meeting:B@00:01:10]` — which small models write despite
+    /// the prompt.
+    private static let groupedPattern: String = {
+        let one = #"(?:meeting:)?[A-Za-z0-9_-]{1,64}(?:@\d{1,2}(?::\d{2}){1,2})?"#
+        return #"\[meetings?:\s*("# + one + #"(?:\s*[,;]\s*"# + one + #")*)\]"#
+    }()
+
     /// Replace markers with ordered `[n]` references and return the matching,
     /// deduped citations. Repeated sources retain their first source number.
     static func extract(_ text: String, linked: Bool = false) -> (display: String, citations: [ChatCitation]) {
@@ -140,11 +148,11 @@ enum ChatCitationParser {
         if streaming, let bracket = text.lastIndex(of: "["),
            !text[bracket...].contains("]") {
             let suffix = text[bracket...]
-            if "[meeting:".hasPrefix(suffix) || "[screen:".hasPrefix(suffix)
-                || suffix.hasPrefix("[meeting:") || suffix.hasPrefix("[screen:") {
+            if ["[meeting:", "[meetings:", "[screen:"].contains(where: { $0.hasPrefix(suffix) || suffix.hasPrefix($0) }) {
                 text = String(text[..<bracket])
             }
         }
+        text = splitGrouped(text)
         guard let regex = try? NSRegularExpression(pattern: #"\[(?:meeting|screen):[^\]\n]*\]"#) else { return text }
         let ns = text as NSString
         for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
@@ -153,6 +161,27 @@ enum ChatCitationParser {
             if citation.map(evidence.contains) != true,
                let range = Range(match.range, in: text) {
                 text.replaceSubrange(range, with: "(source not verified)")
+            }
+        }
+        return text
+    }
+
+    /// Rewrite each grouped meeting marker as one `[meeting:…]` marker per
+    /// meeting, so every meeting is verified on its own.
+    private static func splitGrouped(_ text: String) -> String {
+        guard text.contains("[meeting"),
+              let regex = try? NSRegularExpression(pattern: groupedPattern) else { return text }
+        var text = text
+        let ns = text as NSString
+        for match in regex.matches(in: text, range: NSRange(location: 0, length: ns.length)).reversed() {
+            let markers = ns.substring(with: match.range(at: 1))
+                .split(whereSeparator: { $0 == "," || $0 == ";" })
+                .map { part -> String in
+                    let part = part.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return "[meeting:\(part.hasPrefix("meeting:") ? String(part.dropFirst(8)) : part)]"
+                }
+            if let range = Range(match.range, in: text) {
+                text.replaceSubrange(range, with: markers.joined(separator: " "))
             }
         }
         return text

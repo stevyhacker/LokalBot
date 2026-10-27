@@ -32,6 +32,7 @@ struct CommandPaletteTextField: NSViewRepresentable {
         field.identifier = NSUserInterfaceItemIdentifier("palette.input")
         field.setAccessibilityIdentifier("palette.input")
         field.setAccessibilityLabel(AppLanguage.matching(locale).localized("Command palette input"))
+        field.apply(layoutDirection: context.environment.layoutDirection)
         field.requestFocus()
         return field
     }
@@ -40,6 +41,7 @@ struct CommandPaletteTextField: NSViewRepresentable {
         context.coordinator.update(parent: self)
         field.placeholderString = AppLanguage.matching(locale).localized("Type a command or search meetings…")
         field.setAccessibilityLabel(AppLanguage.matching(locale).localized("Command palette input"))
+        field.apply(layoutDirection: context.environment.layoutDirection)
         if field.stringValue != text {
             field.stringValue = text
         }
@@ -113,6 +115,15 @@ struct CommandPaletteTextField: NSViewRepresentable {
 /// a single next-run-loop `makeFirstResponder` call.
 final class FocusOwningTextField: NSTextField {
     private var focusRequestToken = 0
+
+    /// AppKit controls don't read SwiftUI's layout direction. Mirror it so the
+    /// field and its placeholder start at the leading edge of a right-to-left
+    /// window; the text's own bidi order is unaffected.
+    func apply(layoutDirection: LayoutDirection) {
+        let rightToLeft = layoutDirection == .rightToLeft
+        userInterfaceLayoutDirection = rightToLeft ? .rightToLeft : .leftToRight
+        alignment = rightToLeft ? .right : .left
+    }
 
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()

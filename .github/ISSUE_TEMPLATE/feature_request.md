@@ -1,6 +1,6 @@
 ---
 name: Feature request
-about: Suggest an improvement to LokalBot (BotinaV2)
+about: Suggest an improvement to LokalBot
 title: "[Feature] "
 labels: enhancement
 assignees: ""

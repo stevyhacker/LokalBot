@@ -1,0 +1,20 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "team-update.txt",
+  "size": [560, 130],
+  "bottom": 236,
+  "below": 236,
+  "settle": 1.2,
+  "park": [720, 120],
+  "pre": 0.6,
+  "post": 2.0,
+  "also": ["me.dotenv.LokalBot"],
+  "actions": [
+    {"hold": ["option", "space"], "during": [
+      {"wait": 0.5},
+      {"run": ["/usr/bin/say", "-v", "Samantha", "-r", "175", "Write a short team update with the launch pricing."]},
+      {"wait": 3.4}
+    ]},
+    {"wait": 6.0}
+  ]
+}

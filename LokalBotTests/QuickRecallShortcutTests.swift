@@ -56,6 +56,56 @@ final class QuickRecallShortcutTests: XCTestCase {
             dictationShortcut: .handyDefault), .needsKey)
     }
 
+    @MainActor
+    func testGlobalShortcutsCannotShareACombination() {
+        XCTAssertEqual(QuickRecallHotKeyController.problem(
+            for: hyperF19, dictationShortcut: .handyDefault, askShortcut: hyperF19), .usedByAsk)
+        XCTAssertEqual(QuickRecallHotKeyController.problem(
+            for: hyperF19, dictationShortcut: .handyDefault, selectionActionsShortcut: hyperF19),
+                       .usedBySelectionActions)
+        XCTAssertNil(QuickRecallHotKeyController.problem(
+            for: hyperF19, dictationShortcut: .handyDefault, askShortcut: hyperF18,
+            selectionActionsShortcut: hyperF18))
+        XCTAssertNotEqual(DictationShortcut.selectionActionsDefault, .quickRecallDefault)
+        XCTAssertNotEqual(DictationShortcut.selectionActionsDefault, .handyDefault)
+        XCTAssertNil(DictationShortcut.selectionActionsDefault.quickRecallProblem)
+        XCTAssertEqual(DictationShortcut.selectionActionsDefault.keyCode, CGKeyCode(kVK_ANSI_W))
+    }
+
+    func testSelectionActionsAreOffByDefaultAndPersist() throws {
+        XCTAssertFalse(AppSettings().selectionActionsEnabled, "reading another app's selection is opt-in")
+        var settings = AppSettings()
+        settings.selectionActionsEnabled = true
+        settings.selectionActionsShortcut = controlOptionK
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertTrue(decoded.selectionActionsEnabled)
+        XCTAssertEqual(decoded.selectionActionsShortcut, controlOptionK)
+
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(AppSettings())) as? [String: Any])
+        json["selectionActionsShortcut"] = ["modifiers": ["control", "shift"]]
+        XCTAssertEqual(try decode(json).selectionActionsShortcut, .selectionActionsDefault,
+                       "a hot key cannot be modifiers alone")
+    }
+
+    @MainActor
+    func testAskAndSelectionActionsRegisterSideBySide() {
+        let ask = QuickRecallHotKeyController()
+        let selection = QuickRecallHotKeyController(identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
+        defer {
+            ask.stop()
+            selection.stop()
+        }
+        XCTAssertTrue(ask.setShortcut(hyperF18))
+        XCTAssertTrue(selection.setShortcut(hyperF19))
+        XCTAssertEqual(ask.registeredShortcut, hyperF18)
+        XCTAssertEqual(selection.registeredShortcut, hyperF19)
+
+        selection.isSuspended = true
+        XCTAssertNil(selection.registeredShortcut)
+        XCTAssertEqual(ask.registeredShortcut, hyperF18, "suspending one leaves the other registered")
+    }
+
     func testShortcutPersistsWithSettings() throws {
         var settings = AppSettings()
         settings.quickRecallShortcut = controlOptionK

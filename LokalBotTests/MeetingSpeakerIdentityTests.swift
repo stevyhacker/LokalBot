@@ -145,8 +145,48 @@ final class SpeakerVoiceMatcherTests: XCTestCase {
         XCTAssertTrue(SpeakerVoiceMatcher.matches(samples: samples(axis: 1), profiles: [profile(axis: 0)]).isEmpty)
     }
     func testConfusableProfilesCannotBothAutomaticallyWin() {
-        XCTAssertTrue(SpeakerVoiceMatcher.matches(samples: samples(axis: 0), profiles: [profile(axis: 0), profile(axis: 0)])
-            .allSatisfy { $0.tier == .suggested })
+        var sam = profile(axis: 0); sam.name = "Sam"; sam.confirmedNames = ["Sam"]
+        let matches = SpeakerVoiceMatcher.matches(samples: samples(axis: 0), profiles: [profile(axis: 0), sam])
+        XCTAssertEqual(matches.count, 2)
+        XCTAssertTrue(matches.allSatisfy { $0.tier == .suggested })
+    }
+    func testPeopleRememberedTwiceUnderOneNameDoNotBlockEachOther() {
+        let matches = SpeakerVoiceMatcher.matches(samples: samples(axis: 0), profiles: [profile(axis: 0), profile(axis: 0)])
+        XCTAssertEqual(matches.first?.tier, .automatic)
+        XCTAssertEqual(matches.first?.name, "Alex")
+    }
+    /// Codec-compressed call chunks disagree with each other, but their average
+    /// is stable; the old all-pairs gate rejected every real call voice.
+    func testCallVoiceMatchesByItsAverageWhenSingleChunksDisagree() {
+        let noisy = (0..<4).map { index -> SpeakerVoiceSample in
+            var embedding = [Float](repeating: 0, count: 256)
+            embedding[0] = 0.8; embedding[10 + index] = 0.6
+            let start = Double(index * 20)
+            return SpeakerVoiceSample(speaker: "them", range: .init(start: start, end: start + 10), vector: embedding, source: .system)
+        }
+        XCTAssertLessThan(SpeakerVoiceMatcher.cosine(noisy[0].vector, noisy[1].vector), 0.75)
+        let turns = noisy.map { SpeakerAudioTurn(speaker: "them", range: $0.range, source: .system) }
+        let eligible = SpeakerVoiceMatcher.eligible(noisy, turns: turns, speaker: "them")
+        XCTAssertEqual(eligible.count, 4)
+        XCTAssertTrue(SpeakerVoiceMatcher.canEnroll(eligible))
+        XCTAssertEqual(SpeakerVoiceMatcher.matches(samples: eligible, profiles: [profile(axis: 0)]).first?.tier, .automatic)
+    }
+    func testCallLabelMixingTwoVoicesIsNeitherMatchedNorEnrolled() {
+        let mixed = (0..<4).map { index -> SpeakerVoiceSample in
+            let start = Double(index * 20)
+            return SpeakerVoiceSample(speaker: "them", range: .init(start: start, end: start + 10),
+                                      vector: vector(index < 2 ? 0 : 1), source: .system)
+        }
+        XCTAssertFalse(SpeakerVoiceMatcher.canEnroll(mixed))
+        XCTAssertTrue(SpeakerVoiceMatcher.matches(samples: mixed, profiles: [profile(axis: 0)]).isEmpty)
+    }
+    func testCallProfileUsesStoredMeetingAveragesAndIgnoresMicrophoneContributions() {
+        var remembered = profile(axis: 1)
+        remembered.contributions[0].voiceprint = vector(0)
+        XCTAssertEqual(SpeakerVoiceMatcher.matches(samples: samples(axis: 0), profiles: [remembered]).first?.tier, .automatic)
+        var microphone = profile(axis: 0)
+        for index in microphone.contributions[0].samples.indices { microphone.contributions[0].samples[index].source = .microphone }
+        XCTAssertTrue(SpeakerVoiceMatcher.matches(samples: samples(axis: 0), profiles: [microphone]).isEmpty)
     }
     func testOverlappingChunksDoNotQualifyForEnrollment() {
         let one = samples(axis: 0)[0]
@@ -157,8 +197,10 @@ final class SpeakerVoiceMatcherTests: XCTestCase {
         XCTAssertFalse(SpeakerVoiceMatcher.canEnroll(eligible))
     }
     func testMixedClusterCorruptVectorsAndModelMismatchRejected() {
-        var query = samples(axis: 0)
-        let turns = query.map { SpeakerAudioTurn(speaker: "them", range: $0.range) }
+        var query = samples(axis: 0).map { sample -> SpeakerVoiceSample in
+            var microphone = sample; microphone.source = .microphone; return microphone
+        }
+        let turns = query.map { SpeakerAudioTurn(speaker: "them", range: $0.range, source: .microphone) }
         query[1].vector = vector(1)
         XCTAssertTrue(SpeakerVoiceMatcher.eligible(query, turns: turns, speaker: "them").isEmpty)
         XCTAssertNil(SpeakerVoiceMatcher.normalized([.nan]))

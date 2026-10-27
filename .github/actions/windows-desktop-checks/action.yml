@@ -1,0 +1,94 @@
+name: Windows desktop checks
+description: >
+  Captures the app's pages and checks autocomplete and screen capture on the
+  runner's real desktop. Runs only on GitHub's Windows runners: it changes
+  the resolution, minimizes every window, types into Notepad, reads the
+  screen and starts the packaged app to update itself. Expects the Rust
+  workspace in LinuxWindows/.
+inputs:
+  bin:
+    description: >
+      Folder with lokalbot.exe, examples\ (autocomplete_probe, screen_capture,
+      screen_text) and update\ (the packaged zip and lokalbot-update-feed.exe).
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Show display details
+      shell: pwsh
+      run: |
+        Get-CimInstance Win32_VideoController | Select-Object Name, CurrentHorizontalResolution, CurrentVerticalResolution | Format-Table | Out-String | Write-Host
+        [System.Diagnostics.Process]::GetCurrentProcess().SessionId
+
+    - name: Capture the app
+      shell: pwsh
+      working-directory: LinuxWindows
+      env:
+        BIN: ${{ inputs.bin }}
+      run: |
+        ./scripts/ci/set-resolution.ps1 -Width 1920 -Height 1080
+        (New-Object -ComObject Shell.Application).MinimizeAll()
+        $root = Join-Path $env:RUNNER_TEMP "library"
+        $exe = Join-Path $env:BIN "lokalbot.exe"
+        $env:LOKALBOT_STORAGE_ROOT = $root
+        # A release build is a GUI-subsystem program; wait for it explicitly.
+        Start-Process -FilePath $exe -ArgumentList "--seed-demo" -Wait -NoNewWindow
+        $out = Join-Path $env:RUNNER_TEMP "screenshots"
+        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,meetings,timeline,people,projects,ask,agent,settings,settings-models -WaitSeconds 8
+        $settingsPath = Join-Path $root "settings.json"
+        $settings = if (Test-Path $settingsPath) { Get-Content $settingsPath -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
+        $settings | Add-Member -NotePropertyName appTheme -NotePropertyValue "dark" -Force
+        $settings | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 $settingsPath
+        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,meetings,ask -Suffix "-dark" -WaitSeconds 8
+
+    # Checks autocomplete in another app on the runner's real desktop: the
+    # UI Automation field read, the ghost after the caret, Tab through the
+    # keyboard hook and the inserted text, in Notepad.
+    - name: Check autocomplete
+      shell: pwsh
+      working-directory: LinuxWindows
+      env:
+        BIN: ${{ inputs.bin }}
+      run: |
+        $out = Join-Path $env:RUNNER_TEMP "screenshots\autocomplete-probe"
+        Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force
+        & (Join-Path $env:BIN "examples\autocomplete_probe.exe") --out $out 2>&1 |
+          Tee-Object (Join-Path $env:RUNNER_TEMP "autocomplete-probe.txt")
+        $code = $LASTEXITCODE
+        New-Item -ItemType Directory -Force $out | Out-Null
+        Copy-Item (Join-Path $env:RUNNER_TEMP "autocomplete-probe.txt") $out
+        if ($code -ne 0) { throw "autocomplete_probe failed with $code" }
+
+    # Checks screen capture, UI Automation text and OCR on the runner's real
+    # desktop (an SSH session has none). Downloads the 12 MB OCR model.
+    - name: Check screen capture
+      shell: pwsh
+      working-directory: LinuxWindows
+      env:
+        BIN: ${{ inputs.bin }}
+      run: |
+        $out = Join-Path $env:RUNNER_TEMP "screenshots"
+        New-Item -ItemType Directory -Force $out | Out-Null
+        Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force
+        & (Join-Path $env:BIN "examples\screen_capture.exe") --download-ocr `
+          --notepad "LokalBot screen check: the Zephyr invoice is 4821 euros." --delay 4 `
+          --save (Join-Path $out "screen-check.jpg") 2>&1 | Tee-Object (Join-Path $out "screen-check.txt")
+        if ($LASTEXITCODE -ne 0) { throw "screen_capture failed with $LASTEXITCODE" }
+        if (-not (Select-String -Path (Join-Path $out "screen-check.txt") -Pattern "4821" -Quiet)) {
+          throw "the known sentence was not read back"
+        }
+        & (Join-Path $env:BIN "examples\screen_text.exe") --delay 3 2>&1 |
+          Tee-Object (Join-Path $out "screen-text.txt")
+
+    # Runs the extracted archive with lokalbot-cli serving MCP, then has it
+    # update itself from a signed feed on 127.0.0.1 and relaunch.
+    - name: Check updating from a local feed
+      shell: pwsh
+      working-directory: LinuxWindows
+      env:
+        BIN: ${{ inputs.bin }}
+      run: |
+        $update = Join-Path $env:BIN "update"
+        $zip = (Get-ChildItem (Join-Path $update "LokalBot-*-windows-x86_64.zip")).FullName
+        ./scripts/ci/update-e2e.ps1 -Archive $zip -Update $zip `
+          -Tool (Join-Path $update "lokalbot-update-feed.exe") -Work (Join-Path $env:RUNNER_TEMP "update-e2e")

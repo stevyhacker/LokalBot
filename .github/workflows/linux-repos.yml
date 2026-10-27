@@ -1,0 +1,293 @@
+# Publishes LokalBot's apt and dnf repositories at https://pkg.lokalbot.com
+# (apt at /apt, rpm at /rpm, the public key at /lokalbot.gpg and
+# /lokalbot.asc) from a stable release's .deb and .rpm, with
+# LinuxWindows/scripts/linux-repos.sh. The packages add these repositories
+# once their key is in LinuxWindows/packaging/linux (RELEASING.md, "Linux
+# package repositories").
+#
+# Release (release.yml) calls this for a stable v* tag after it attached the
+# Linux packages. To publish a release that is already out:
+#
+#   gh workflow run linux-repos.yml -f tag=v0.11.0
+#
+# Pre-releases never reach the repositories. Without the secrets below it
+# skips with a notice, unless the packages already point at the
+# repositories: then a missing secret fails the run.
+#
+#   LINUX_REPO_GPG_PRIVATE_KEY       armored secret key that signs the
+#                                    repositories and RPMs
+#   LINUX_REPO_R2_ACCOUNT_ID         Cloudflare account that has the bucket
+#   LINUX_REPO_R2_ACCESS_KEY_ID      R2 API token with Object Read & Write
+#   LINUX_REPO_R2_SECRET_ACCESS_KEY  on the lokalbot-packages bucket only
+#
+# The key decides what every subscribed computer installs as root, so
+# signing runs only on GitHub's runners, never on a self-hosted one.
+#
+# On a pull request that changes the repositories or the packages, it
+# packages the latest release's Linux binaries with a throwaway key and
+# checks that apt and dnf upgrade from a local copy of the repositories and
+# refuse tampered files (scripts/ci/check-linux-repos.sh). That publishes
+# nothing and reads no secret.
+
+name: Linux package repositories
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The stable release tag, e.g. v0.11.1
+        required: true
+        type: string
+    secrets:
+      LINUX_REPO_GPG_PRIVATE_KEY:
+        required: false
+      LINUX_REPO_R2_ACCOUNT_ID:
+        required: false
+      LINUX_REPO_R2_ACCESS_KEY_ID:
+        required: false
+      LINUX_REPO_R2_SECRET_ACCESS_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Stable release tag to publish, e.g. v0.11.0"
+        required: true
+        type: string
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/linux-repos.yml"
+      - "LinuxWindows/scripts/linux-repos.sh"
+      - "LinuxWindows/scripts/ci/check-linux-repos.sh"
+      - "LinuxWindows/scripts/package-linux-distros.sh"
+      - "LinuxWindows/packaging/linux/lokalbot*"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: LinuxWindows
+
+env:
+  BUCKET: lokalbot-packages
+  KEY_FILE: packaging/linux/lokalbot-archive-keyring.asc
+
+jobs:
+  check:
+    name: Check apt and dnf upgrades (throwaway key)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    concurrency:
+      group: linux-repos-check-${{ github.head_ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The same nfpm as linux-windows-release.yml.
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: "2.47.0"
+          NFPM_SHA256: 0660ca602b2d2d2ae4781a06c692b3eeb9d437ffea05b831d76e41f4a3188783
+        run: |
+          archive="nfpm_${NFPM_VERSION}_Linux_x86_64.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/$archive"
+          echo "$NFPM_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" nfpm
+
+      # Packaging needs binaries, not this branch's build: the latest
+      # release's are enough.
+      - name: Download the latest release's Linux binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/release"
+          cd "$RUNNER_TEMP/release"
+          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'LokalBot-*-linux-x86_64.tar.gz*'
+          sha256sum -c LokalBot-*-linux-x86_64.tar.gz.sha256
+          tar -xzf LokalBot-*-linux-x86_64.tar.gz
+
+      - name: Check the repositories in Ubuntu, Debian and Fedora containers
+        run: NFPM="$RUNNER_TEMP/nfpm" scripts/ci/check-linux-repos.sh "$RUNNER_TEMP"/release/LokalBot-*-linux-x86_64/
+
+  ready:
+    name: Check the tag and repository secrets
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      publish: ${{ steps.check.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: LinuxWindows/packaging/linux
+
+      - id: check
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          LINUX_REPO_GPG_PRIVATE_KEY: ${{ secrets.LINUX_REPO_GPG_PRIVATE_KEY }}
+          LINUX_REPO_R2_ACCOUNT_ID: ${{ secrets.LINUX_REPO_R2_ACCOUNT_ID }}
+          LINUX_REPO_R2_ACCESS_KEY_ID: ${{ secrets.LINUX_REPO_R2_ACCESS_KEY_ID }}
+          LINUX_REPO_R2_SECRET_ACCESS_KEY: ${{ secrets.LINUX_REPO_R2_SECRET_ACCESS_KEY }}
+        run: |
+          prerelease=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)
+          if [[ "$TAG" == *-* || "$prerelease" == true ]]; then
+            echo "::notice title=Linux repositories::$TAG is a pre-release; the apt and dnf repositories take stable releases only."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          missing=()
+          for name in LINUX_REPO_GPG_PRIVATE_KEY LINUX_REPO_R2_ACCOUNT_ID \
+            LINUX_REPO_R2_ACCESS_KEY_ID LINUX_REPO_R2_SECRET_ACCESS_KEY; do
+            [[ -n "${!name:-}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            if [[ -f "$KEY_FILE" ]]; then
+              echo "::error title=Linux repositories::Missing ${missing[*]}. This release's packages add the repositories at pkg.lokalbot.com, so they must get it (RELEASING.md, Linux package repositories)."
+              exit 1
+            fi
+            echo "::notice title=Linux repositories not updated::Missing ${missing[*]}; see RELEASING.md, Linux package repositories."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Publish to pkg.lokalbot.com
+    needs: ready
+    if: needs.ready.outputs.publish == 'true'
+    runs-on: ubuntu-24.04 # GitHub-hosted: the signing key never reaches a self-hosted runner
+    timeout-minutes: 30
+    # One publish at a time: each one rebuilds the indexes from the bucket.
+    concurrency:
+      group: linux-repos-publish
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends apt-utils createrepo-c rpm gnupg
+
+      # Ubuntu 24.04's rclone (1.60.1, from 2022) failed its first attempt at
+      # every R2 upload with 501 NotImplemented and succeeded only on retry.
+      - name: Install rclone
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" \
+            https://github.com/rclone/rclone/releases/download/v1.75.2/rclone-v1.75.2-linux-amd64.zip
+          echo "349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702  $RUNNER_TEMP/rclone.zip" | sha256sum --check
+          unzip -q -j "$RUNNER_TEMP/rclone.zip" rclone-v1.75.2-linux-amd64/rclone -d "$RUNNER_TEMP/rclone"
+          sudo install -m 0755 "$RUNNER_TEMP/rclone/rclone" /usr/local/bin/rclone
+          rclone version
+
+      # The repositories serve the same .deb users download; the .rpm gets a
+      # signature on the way in.
+      - name: Download the release's packages
+        env:
+          TAG: ${{ inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/packages"
+          cd "$RUNNER_TEMP/packages"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern 'LokalBot-*-linux-amd64.deb*' --pattern 'LokalBot-*-linux-x86_64.rpm*'
+          sha256sum -c ./*.sha256
+          version="${TAG#v}-1"
+          [[ "$(dpkg-deb --field LokalBot-*.deb Version)" == "$version" ]] || { echo "::error::The .deb is not lokalbot $version" >&2; exit 1; }
+          [[ "$(rpm -qp --queryformat '%{VERSION}-%{RELEASE}' LokalBot-*.rpm)" == "$version" ]] || { echo "::error::The .rpm is not lokalbot $version" >&2; exit 1; }
+          rm ./*.sha256
+
+      - name: Import the signing key
+        env:
+          LINUX_REPO_GPG_PRIVATE_KEY: ${{ secrets.LINUX_REPO_GPG_PRIVATE_KEY }}
+        run: |
+          umask 077
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME"
+          printf '%s\n' "$LINUX_REPO_GPG_PRIVATE_KEY" | gpg --batch --quiet --import
+          keys=$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "sec"' | wc -l)
+          if (( keys != 1 )); then
+            echo "::error::LINUX_REPO_GPG_PRIVATE_KEY must hold exactly one secret key, not $keys" >&2
+            exit 1
+          fi
+          fpr=$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "fpr" {print $10; exit}')
+          expires=$(gpg --batch --with-colons --list-secret-keys | awk -F: '$1 == "sec" {print $7}')
+          if [[ -f "$KEY_FILE" ]]; then
+            if ! gpg --batch --show-keys --with-colons "$KEY_FILE" | awk -F: '$1 == "fpr" {print $10}' | grep -qx "$fpr"; then
+              echo "::error::The signing key $fpr is not in $KEY_FILE, which the packages install" >&2
+              exit 1
+            fi
+          else
+            echo "::warning::$KEY_FILE does not exist yet, so the packages do not add the repositories. Commit the public key (RELEASING.md, Linux package repositories)."
+          fi
+          if [[ -n "$expires" ]] && (( expires < $(date +%s) + 180 * 86400 )); then
+            echo "::warning::The repository key $fpr expires on $(date -u -d "@$expires" +%F). Extend it now (RELEASING.md, Linux package repositories)."
+          fi
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+          echo "FPR=$fpr" >> "$GITHUB_ENV"
+
+      - name: Download the published packages
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.LINUX_REPO_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.LINUX_REPO_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.LINUX_REPO_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+        run: rclone copy "r2:$BUCKET" "$RUNNER_TEMP/repo" --include '/apt/pool/**' --include '/rpm/*.rpm'
+
+      - name: Add the release and sign the repositories
+        run: |
+          # Publish the keyring the packages install.
+          if [[ -f "$KEY_FILE" ]]; then export PUBLIC_KEY="$KEY_FILE"; fi
+          scripts/linux-repos.sh "$RUNNER_TEMP/repo" "$FPR" "$RUNNER_TEMP"/packages/*
+          find "$RUNNER_TEMP/repo" -type f | sed "s|^$RUNNER_TEMP/repo/||" | sort
+
+      - name: Remove the signing key
+        if: always()
+        run: |
+          gpgconf --kill all || true
+          rm -rf "$RUNNER_TEMP/gnupg"
+
+      # Packages and the indexes named by their hash go up first and never
+      # change, then the signed indexes that list them, which no cache keeps.
+      # Pruned packages go last. Old by-hash indexes and repodata stay (a few
+      # KB per release), so a client or cache holding the previous index
+      # still finds its files.
+      - name: Upload to the bucket
+        env:
+          RCLONE_CONFIG_R2_TYPE: s3
+          RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+          RCLONE_CONFIG_R2_ENDPOINT: https://${{ secrets.LINUX_REPO_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.LINUX_REPO_R2_ACCESS_KEY_ID }}
+          RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.LINUX_REPO_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+        run: |
+          repo="$RUNNER_TEMP/repo"
+          rclone copy "$repo" "r2:$BUCKET" --checksum \
+            --header-upload 'Cache-Control: public, max-age=31536000, immutable' \
+            --filter '- /rpm/repodata/repomd.xml*' \
+            --filter '+ /apt/pool/**' --filter '+ /apt/dists/**/by-hash/**' \
+            --filter '+ /rpm/*.rpm' --filter '+ /rpm/repodata/**' --filter '- **'
+          rclone copy "$repo" "r2:$BUCKET" --checksum --header-upload 'Cache-Control: no-cache'
+          rclone sync "$repo" "r2:$BUCKET" --checksum \
+            --filter '- /apt/dists/**/by-hash/**' --filter '- /rpm/repodata/**'
+
+      - name: Check what pkg.lokalbot.com serves
+        run: |
+          repo="$RUNNER_TEMP/repo"
+          for path in apt/dists/stable/InRelease rpm/repodata/repomd.xml rpm/repodata/repomd.xml.asc lokalbot.gpg; do
+            if ! curl -fsS --retry 3 -o "$RUNNER_TEMP/served" "https://pkg.lokalbot.com/$path"; then
+              echo "::error::https://pkg.lokalbot.com/$path is unreachable. Is the bucket connected to the domain?" >&2
+              exit 1
+            fi
+            if cmp -s "$RUNNER_TEMP/served" "$repo/$path"; then
+              echo "https://pkg.lokalbot.com/$path is the new copy"
+            else
+              echo "::warning::https://pkg.lokalbot.com/$path is not the copy just uploaded; a cache may still hold the old one."
+            fi
+          done

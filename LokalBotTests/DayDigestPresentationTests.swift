@@ -245,6 +245,67 @@ final class DayDigestPresentationTests: XCTestCase {
                        [false, false])
     }
 
+    /// Timeline gives full rows to open tasks with a next step and to blocked
+    /// tasks; the rest of a group, and all of Done, become one-line rows.
+    func testTimelineRowsKeepNextStepsAndBlockersInFull() {
+        let presentation = DayDigestPresentation(markdown: """
+            ## Day summary
+
+            ### Tasks
+            - **Publish the release** — Completed. Pushed the release branch.
+            - **Fix overlay positioning (PR #169)** — In progress. Pushed a fix.
+            - **Review open PRs** — In progress. Read three diffs.
+            - **Generate voiceover** — Blocked. Waiting for audio credits.
+
+            ### Decisions and next steps
+            - Next — Fix overlay positioning (PR #169): Enable text metrics in Chrome.
+            """)
+        func ids(_ kind: DayDigestPresentation.TaskGroup.Kind)
+            -> (full: [Int], brief: [Int]) {
+            guard let group = presentation.taskGroups.first(where: { $0.kind == kind }) else {
+                return ([], [])
+            }
+            let rows = presentation.timelineRows(of: group)
+            return (rows.full.map(\.id), rows.brief.map(\.id))
+        }
+        XCTAssertTrue(presentation.isTaskFirst)
+        XCTAssertEqual(ids(.inProgress).full, [1])
+        XCTAssertEqual(ids(.inProgress).brief, [2])
+        XCTAssertEqual(ids(.blocked).full, [3])
+        XCTAssertEqual(ids(.completed).full, [])
+        XCTAssertEqual(ids(.completed).brief, [0])
+
+        let legacy = DayDigestPresentation(markdown: """
+            ## Day summary
+
+            ### Focus blocks
+            - **09:00–10:30 · Fixture implementation** — User updated the Timeline UI.
+            """)
+        XCTAssertFalse(legacy.isTaskFirst)
+        let rows = legacy.timelineRows(of: legacy.taskGroups[0])
+        XCTAssertEqual(rows.full.map(\.id), [0], "older journals keep every summary visible")
+        XCTAssertTrue(rows.brief.isEmpty)
+    }
+
+    func testTitleTagSplitsOnlyATrailingParenthetical() {
+        func split(_ title: String) -> [String?] {
+            let parts = DayDigestPresentation.titleAndTag(title)
+            return [parts.title, parts.tag]
+        }
+        XCTAssertEqual(split("Review all open PRs (LokalBot)"), ["Review all open PRs", "LokalBot"])
+        XCTAssertEqual(split("alpha: Base/Monad staging deployment (PR #487)"),
+                       ["alpha: Base/Monad staging deployment", "PR #487"])
+        XCTAssertEqual(split("Protocol fee extraction code review (fork 2) (alpha)"),
+                       ["Protocol fee extraction code review (fork 2)", "alpha"])
+        XCTAssertEqual(split("Fix layout (overlay (caret))"), ["Fix layout", "overlay (caret)"])
+        XCTAssertEqual(split("Machine maintenance, Mojo PR #230"), ["Machine maintenance, Mojo PR #230", nil])
+        XCTAssertEqual(split("(LokalBot)"), ["(LokalBot)", nil], "a title is never only its tag")
+        XCTAssertEqual(split("Ship it (and then (a long aside that keeps going))"),
+                       ["Ship it (and then (a long aside that keeps going))", nil],
+                       "a long parenthetical is part of the sentence, not a tag")
+        XCTAssertEqual(split("Unbalanced)"), ["Unbalanced)", nil])
+    }
+
     private func assertNoFollowUps(
         _ presentation: DayDigestPresentation,
         file: StaticString = #filePath,

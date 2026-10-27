@@ -1,0 +1,121 @@
+# The lokalbot-bin AUR package (LinuxWindows/packaging/aur/lokalbot-bin).
+#
+# Release (release.yml) calls this for a v* tag without a pre-release suffix,
+# once the Linux archive is attached to the GitHub release. It points the
+# PKGBUILD at that release (scripts/update-aur.sh), builds and installs it in
+# a clean Arch container with namcap (scripts/ci/check-aur-package.sh), and
+# pushes PKGBUILD and .SRCINFO to aur.archlinux.org with the
+# AUR_SSH_PRIVATE_KEY secret. The push needs both the secret and the
+# AUR_PUBLISH repository variable set to true, which says an AUR account
+# holds that key; without either it is skipped. On a pull request that
+# changes the package it only runs the checks.
+#
+# To publish a release again, from master:
+#   gh workflow run aur.yml -f tag=v0.11.0
+#
+# Always GitHub-hosted: the AUR key never reaches the self-hosted runners.
+
+name: AUR package
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.11.1
+        required: true
+        type: string
+    secrets:
+      AUR_SSH_PRIVATE_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. v0.11.0
+        required: true
+        type: string
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/aur.yml"
+      - "LinuxWindows/packaging/aur/**"
+      - "LinuxWindows/scripts/update-aur.sh"
+      - "LinuxWindows/scripts/ci/check-aur-package.sh"
+
+concurrency:
+  # Publishing runs one at a time; pull request checks replace older ones.
+  group: aur-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+    working-directory: LinuxWindows
+
+jobs:
+  aur:
+    name: Check and publish lokalbot-bin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Point the PKGBUILD at the release
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: scripts/update-aur.sh "$TAG"
+
+      - name: Build, install and check the package in Arch
+        run: scripts/ci/check-aur-package.sh
+
+      # The key alone isn't enough: a key no AUR account holds fails the push
+      # (and the release run) with "Permission denied (publickey)".
+      - name: Check for the AUR key and account
+        id: key
+        if: inputs.tag != ''
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_PUBLISH: ${{ vars.AUR_PUBLISH }}
+        run: |
+          if [ "$AUR_PUBLISH" != "true" ]; then
+            echo "::notice::The AUR_PUBLISH repository variable is not true, so lokalbot-bin was not pushed to the AUR."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$AUR_SSH_PRIVATE_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::AUR_SSH_PRIVATE_KEY is not set, so lokalbot-bin was not pushed to the AUR."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A manual run publishes only what master holds.
+      - name: Push to the AUR
+        if: steps.key.outputs.present == 'true' && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/master')
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          umask 077
+          ssh_dir="$RUNNER_TEMP/aur-ssh"
+          mkdir -p "$ssh_dir"
+          trap 'rm -rf "$ssh_dir"' EXIT
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          # Checked against the Ed25519 fingerprint on aur.archlinux.org.
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' > "$ssh_dir/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $ssh_dir/key -o IdentitiesOnly=yes -o UserKnownHostsFile=$ssh_dir/known_hosts -o StrictHostKeyChecking=yes -o HostKeyAlgorithms=ssh-ed25519"
+
+          repo="$RUNNER_TEMP/aur-lokalbot-bin"
+          git clone ssh://aur@aur.archlinux.org/lokalbot-bin.git "$repo"
+          cp packaging/aur/lokalbot-bin/PKGBUILD packaging/aur/lokalbot-bin/.SRCINFO "$repo/"
+          cd "$repo"
+          git add PKGBUILD .SRCINFO
+          if git diff --cached --quiet; then
+            echo "The AUR already has this PKGBUILD."
+            exit 0
+          fi
+          version="$(sed -n 's/^pkgver=//p' PKGBUILD)-$(sed -n 's/^pkgrel=//p' PKGBUILD)"
+          git -c user.name="LokalBot release" -c user.email="stevyhacker@users.noreply.github.com" \
+            commit -q -m "Update to $version"
+          git push origin HEAD:master
+          git log -1 --stat

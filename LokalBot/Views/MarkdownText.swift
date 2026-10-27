@@ -45,6 +45,7 @@ struct SelectableDigestText: View {
             style: style))
             .lineSpacing(lineSpacing)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contentLayoutDirection(of: text)
             .textSelection(.enabled)
             .help("Select any part and press ⌘C to copy")
     }

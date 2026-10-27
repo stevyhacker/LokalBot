@@ -7,14 +7,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-TAG=b11474
+TAG=v0.7.0
 # The source archive has no .git, so upstream's build-info would report build
-# 0. Pass the build tag's number explicitly so `llama-server --version`
-# identifies the pinned build.
-BUILD_NUMBER=11474
+# 0. Pass the number of the build tag on the same commit (b11669) explicitly so
+# `llama-server --version` identifies the pinned build.
+BUILD_NUMBER=11669
 DEPLOYMENT_TARGET=15.0
 SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
-SOURCE_SHA256=ccbd56a50f965442b4cefdab5262b6d9b8e45a8041fb0cc6faa5d564d9b18b72
+SOURCE_SHA256=55d67acf3ad2ad747a9bbeb75f9f0e173dbcc0d1753a471038a90c819421c5e1
 SERVER_DIR=Vendor/llama-cpp
 BUILD_MARKER="$TAG-macos$DEPLOYMENT_TARGET-arm64-generic-loader-rpath"
 RUNTIME_MANIFEST=.lokalbot-runtime.sha256

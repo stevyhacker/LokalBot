@@ -203,6 +203,86 @@ final class CodingAgentDigestModelTests: XCTestCase {
         XCTAssertTrue(summary.contains("o/r#11"), summary)
     }
 
+    /// The 2026-10-19 journal named tasks "can you add short video demo
+    /// recording of the new app platforms in the PR? (GitHub)", "Untitled
+    /// session (GitHub)", and "… (scratch-2026-10-19-6f7eb7)", and listed two
+    /// PR review sessions beside the model's own review task.
+    func testSessionTasksAreNamedByTheirWorkAndProjectNotTheRequestOrFolder() async throws {
+        let github = "/Users/me/Documents/GitHub"
+        let scratch = "/Users/me/Library/Application Support/Claude/scratch-workspaces/bbf0/1b98/scratch-2026-10-19-6f7eb7"
+        let bursts = try [
+            session("A", folder: github, at: "2026-09-29T08:00:00Z",
+                    prompts: ["can you add short video demo recording of the new app platforms in the PR?"],
+                    actions: [.commit(message: "Temporary: record a Windows demo of LokalBot for PR #290"), .pushed,
+                              .commit(message: "Demo recordings of the Linux and Windows apps")],
+                    pullRequests: [290]),
+            session("B", folder: github, at: "2026-09-29T09:00:00Z",
+                    prompts: ["we should update the https://github.com/stevyhacker/LokalBot/pull/289 pr to make it "
+                        + "general not only macOS as we are going to merge in linux and windows"],
+                    actions: [.commit(message: "Drop macOS from the context engine tagline"), .pushed],
+                    pullRequests: [289]),
+            session("C", folder: github, at: "2026-09-29T10:00:00Z",
+                    actions: [.commit(message: "Merge master into claude/agent-sessions-disclosure"), .pushed],
+                    pullRequests: [279]),
+            session("D", title: "Fix macOS Agent Mode '@'-path read-approval bypass", folder: scratch,
+                    at: "2026-09-29T11:00:00Z",
+                    prompts: ["Background (from the session that started this one): a session found that reads bypass approval"],
+                    actions: [.pushed, .openedPullRequest(
+                        title: "Agent Mode: check reads against the file pi opens; turn off runtime caches")],
+                    pullRequests: [293]),
+            session("E", agent: .codex, title: "Review all open PRs", folder: github + "/LokalBot",
+                    at: "2026-09-29T12:00:00Z",
+                    prompts: ["Review all open PRs", "any high or critical issues"], actions: [.ranTests]),
+            session("F", agent: .codex, title: "Review the pull requests", folder: github + "/LokalBot",
+                    at: "2026-09-29T13:00:00Z",
+                    prompts: ["review these prs", "just submit a pr with that file deleted"],
+                    actions: [.commit(message: "Disable Dependabot version update PRs"), .pushed,
+                              .openedPullRequest(title: "Disable Dependabot version update PRs")],
+                    pullRequests: [262, 261, 300]),
+        ].flatMap { $0 }
+        let engine = StubEngine(digestTasks: [
+            ("LokalBot PR #290 Linux/Windows demos and recording fixes",
+             "Committed Linux and Windows demo recordings to PR #290."),
+            ("LokalBot open PR review and fixes", "Reviewed the open LokalBot pull requests and fixed the findings."),
+        ])
+
+        let summary = try await DayDigestOverviewGenerator.generateResult(
+            evidence: build(bursts: bursts), engine: engine,
+            customPrompt: "", calendar: calendar, sleep: { _ in }).summary
+
+        let tasks = summary.split(separator: "\n").filter { $0.hasPrefix("- **") }.map(String.init)
+        for raw in ["can you add", "we should update", "pull/289", "Untitled session", "scratch-2026", "GitHub"] {
+            XCTAssertFalse(tasks.contains { $0.contains(raw) }, "\(raw) is not a name for work: \(summary)")
+        }
+        XCTAssertTrue(summary.contains("- **Drop macOS from the context engine tagline (LokalBot)** — In progress."), summary)
+        XCTAssertTrue(summary.contains(
+            "- **Merge master into claude/agent-sessions-disclosure (LokalBot)** — In progress. "
+                + "Worked with Claude Code in LokalBot."), summary)
+        XCTAssertTrue(summary.contains("- **Fix macOS Agent Mode '@'-path read-approval bypass (LokalBot)**"), summary)
+        XCTAssertFalse(summary.contains("Demo recordings of the Linux and Windows apps (LokalBot)**"),
+                       "the task naming PR #290 already describes it: \(summary)")
+        XCTAssertFalse(summary.contains("**Review"), "both review sessions are the model's review task: \(summary)")
+        XCTAssertTrue(summary.contains("stevyhacker/LokalBot#300"), summary)
+        XCTAssertEqual(tasks.count, 5, summary)
+    }
+
+    func testASessionNamingOtherPullRequestsStaysItsOwnTask() async throws {
+        let bursts = try session(
+            "F", agent: .codex, title: "Review the pull requests", folder: "/Users/me/Code/LokalBot",
+            at: "2026-09-29T13:00:00Z", prompts: ["review these prs"], actions: [.pushed],
+            pullRequests: [262, 300])
+        let engine = StubEngine(digestTasks: [
+            ("LokalBot open PR review and PR #283 merge", "Reviewed the open LokalBot pull requests and merged #283."),
+        ])
+
+        let summary = try await DayDigestOverviewGenerator.generateResult(
+            evidence: build(bursts: bursts), engine: engine,
+            customPrompt: "", calendar: calendar, sleep: { _ in }).summary
+
+        XCTAssertTrue(summary.contains("- **Review the pull requests (LokalBot)** — In progress."),
+                      "shared words are not enough when the task names a different pull request: \(summary)")
+    }
+
     func testSessionCandidatesComeFromRecordedFactsAndSkipScheduledRuns() throws {
         let evidence = build(bursts: [
             try burst("A", start: "2026-09-29T09:00:00Z", end: "2026-09-29T09:10:00Z",
@@ -259,6 +339,64 @@ final class CodingAgentDigestModelTests: XCTestCase {
                 {"tasks":[{"title":"Keep the digest badge fresh","status":"in_progress","summary":"Opened a pull request that keeps the digest badge fresh.","next_step":"","block_indices":[0]}],"decisions":[],"blockers":[]}
                 """
         }
+    }
+
+    /// Answers every segment with the first task and the recap with `digestTasks`.
+    private struct StubEngine: TextEngine {
+        let digestTasks: [(title: String, summary: String)]
+        var displayName: String { "stub-test" }
+
+        func generate(system: String, prompt: String, context: [String]) async throws -> String { "unused" }
+
+        func generate(system: String, prompt: String, context: [String],
+                      schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+            func json(_ object: Any) throws -> String {
+                String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
+            }
+            guard system != PromptTemplates.dayDigestFocusSystem else {
+                return try json([
+                    "substantive": true, "task": digestTasks[0].title, "work_done": digestTasks[0].summary,
+                    "status": "in_progress", "outcome": "", "next_step": "", "source_ids": [Int](),
+                ] as [String: Any])
+            }
+            return try json([
+                "tasks": digestTasks.map {
+                    ["title": $0.title, "status": "in_progress", "summary": $0.summary,
+                     "next_step": "", "block_indices": [0]] as [String: Any]
+                },
+                "decisions": [String](), "blockers": [String](),
+            ] as [String: Any])
+        }
+    }
+
+    /// Bursts read the way the transcript readers produce them, so an
+    /// untitled session is labeled with its first request or the placeholder.
+    private func session(
+        _ id: String,
+        agent: CodingAgentKind = .claudeCode,
+        title: String? = nil,
+        folder: String,
+        at start: String,
+        prompts: [String] = [],
+        actions: [CodingAgentAction] = [],
+        pullRequests: [Int] = []
+    ) throws -> [CodingAgentBurst] {
+        var at = try date(start)
+        var events: [CodingAgentEvent] = []
+        for prompt in prompts {
+            events.append(CodingAgentEvent(at: at, kind: .prompt(prompt)))
+            at = at.addingTimeInterval(60)
+        }
+        for action in actions {
+            events.append(CodingAgentEvent(at: at, kind: .action(action)))
+            at = at.addingTimeInterval(60)
+        }
+        for number in pullRequests {
+            events.append(CodingAgentEvent(
+                at: at, kind: .pullRequest("https://github.com/stevyhacker/LokalBot/pull/\(number)")))
+        }
+        return CodingAgentBurstBuilder.bursts(from: CodingAgentTranscript(
+            agent: agent, sessionID: id, title: title, workingDirectory: folder, events: events))
     }
 
     private func build(

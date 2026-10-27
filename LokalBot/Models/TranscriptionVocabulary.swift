@@ -1,7 +1,7 @@
 import Foundation
 
 /// Names and terms LokalBot already knows, offered to speech models that
-/// accept a vocabulary prompt (Whisper and Qwen). Every source is local and
+/// accept a vocabulary prompt (Whisper, Qwen and Granite 5). Every source is local and
 /// already part of the library: calendar attendee display names (never
 /// addresses or names derived from addresses), speaker names the user applied
 /// in related meetings, Dream project names, and distinctive meeting-title
@@ -71,7 +71,7 @@ enum TranscriptionVocabulary {
         let related = library
             .filter { candidate in
                 guard candidate.id != meeting.id, candidate.startedAt < meeting.startedAt,
-                      candidate.mergedIntoMeetingID == nil else { return false }
+                      candidate.isOwnWork else { return false }
                 let names = Set(candidate.resolvedCalendarParticipantIdentities
                     .compactMap(\.name).map(normalizedKey))
                 let sameSeries = !seriesTitle.isEmpty
@@ -91,6 +91,8 @@ enum TranscriptionVocabulary {
         if let memory {
             sources.projectNames = Self.endorsedProjectNames(memory)
         }
+        // Names the person tracks in Projects are confirmed spellings too.
+        sources.projectNames += ProjectCuration.load(libraryRoot: root)?.trackedNames ?? []
         sources.titleTerms = titleTerms(meeting.calendarTitle ?? meeting.title)
         return sources
     }
@@ -101,7 +103,7 @@ enum TranscriptionVocabulary {
                               now: Date = Date(), days: Int = 45) -> Sources {
         let cutoff = now.addingTimeInterval(-TimeInterval(days) * 86_400)
         var counts: [String: (name: String, count: Int, last: Date)] = [:]
-        for meeting in library where meeting.startedAt >= cutoff && meeting.mergedIntoMeetingID == nil {
+        for meeting in library where meeting.startedAt >= cutoff && meeting.isOwnWork {
             for name in meeting.resolvedCalendarParticipantIdentities.compactMap(\.name) {
                 let key = normalizedKey(name)
                 let previous = counts[key]

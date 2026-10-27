@@ -1,3 +1,4 @@
+import ApplicationServices
 import Foundation
 
 /// Builds the focused-element key used to authorize a consuming accept. AX
@@ -206,5 +207,14 @@ enum CotypingAXHitTestFocusValidator {
             return false
         }
         return isEditable && isFocused
+    }
+}
+
+/// Chrome turned on enhanced accessibility in testing (2026-10-21) although
+/// setting `AXEnhancedUserInterface` reported an error, so only a timeout
+/// means the browser was not asked; anything else is not asked again.
+enum CotypingEnhancedAccessibilityRequest {
+    static func wasDelivered(_ result: AXError) -> Bool {
+        result != .cannotComplete
     }
 }

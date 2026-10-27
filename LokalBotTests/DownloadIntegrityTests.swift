@@ -47,7 +47,7 @@ final class ModelDownloadManagerCancellationTests: XCTestCase {
         let storage = StorageManager(rootURL: root)
         defer { try? FileManager.default.removeItem(at: root) }
         let manager = ModelDownloadManager(
-            stagedDownloader: { _, _, _, _ in
+            stagedDownloader: { _, _, _, _, _ in
                 XCTFail("a plaintext download must never start")
                 throw URLError(.badURL)
             },
@@ -97,7 +97,7 @@ final class ModelDownloadManagerCancellationTests: XCTestCase {
         let storage = StorageManager(rootURL: root)
         defer { try? FileManager.default.removeItem(at: root) }
         let manager = ModelDownloadManager(
-            stagedDownloader: { _, _, _, _ in
+            stagedDownloader: { _, _, _, _, _ in
                 XCTFail("an unpinned Hugging Face download must never start")
                 throw URLError(.badURL)
             },
@@ -187,7 +187,7 @@ final class ModelDownloadManagerCancellationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
 
         let manager = ModelDownloadManager(
-            stagedDownloader: { _, _, passedStashDirectory, _ in
+            stagedDownloader: { _, _, passedStashDirectory, _, _ in
                 XCTAssertEqual(passedStashDirectory, stashDirectory)
                 try FileManager.default.createDirectory(
                     at: stashDirectory, withIntermediateDirectories: true)

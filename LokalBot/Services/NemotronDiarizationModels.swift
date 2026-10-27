@@ -38,7 +38,9 @@ enum NemotronDiarizationModels {
             let destination = directory.appendingPathComponent(artifact.path)
             if await DownloadIntegrity.verifiedExisting(at: destination, expectedBytes: artifact.bytes,
                                                        expectedSHA256: artifact.sha256) { continue }
-            let stashed = try await ParallelRangeDownloader.download(from: artifact.remoteURL, session: .shared) { _ in }
+            let stashed = try await ModelDownloadRouting.download(
+                from: artifact.remoteURL, session: .shared,
+                expectedSHA256: artifact.sha256, expectedBytes: artifact.bytes) { _ in }
             defer { DownloadIntegrity.removeFileAndMarker(at: stashed) }
             try Task.checkCancellation()
             try await DownloadIntegrity.verifyDownloaded(at: stashed, expectedBytes: artifact.bytes,

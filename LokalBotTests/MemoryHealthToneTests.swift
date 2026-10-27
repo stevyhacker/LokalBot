@@ -16,7 +16,8 @@ final class MemoryHealthToneTests: XCTestCase {
         for quiet in ["Idle", "Silent", "Waiting for audio"] {
             XCTAssertEqual(MemoryHealthTone.audio(quiet), .idle, quiet)
         }
-        for fault in ["Stopped", "No recent audio", "Not attached", "Recovering (attempt 2)", "Degraded: tap lost"] {
+        for fault in ["Stopped", "No recent audio", "Receiving silence", "Not attached", "Recovering (attempt 2)",
+                      "Degraded: tap lost"] {
             XCTAssertEqual(MemoryHealthTone.audio(fault), .attention, fault)
         }
     }

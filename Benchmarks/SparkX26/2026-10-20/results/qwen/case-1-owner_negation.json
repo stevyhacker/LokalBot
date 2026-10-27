@@ -1,0 +1,78 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "{\n  \"migration_guide_owner\": \"Iva\",\n  \"alex_has_new_task\": false,\n  \"screenshots_committed\": false\n}"
+  },
+  "finish_reason": "stop",
+  "usage": {
+    "completion_tokens": 34,
+    "prompt_tokens": 139,
+    "total_tokens": 173,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 139,
+    "prompt_ms": 725.769,
+    "prompt_per_token_ms": 5.221359712230216,
+    "prompt_per_second": 191.52099359438057,
+    "predicted_n": 34,
+    "predicted_ms": 1888.179,
+    "predicted_per_token_ms": 57.21754545454546,
+    "predicted_per_second": 17.47715656195731
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "{\n  \"migration_guide_owner\": \"Iva\",\n  \"alex_has_new_task\": false,\n  \"screenshots_committed\": false\n}"
+        }
+      }
+    ],
+    "created": 1792527601,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 34,
+      "prompt_tokens": 139,
+      "total_tokens": 173,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-LpzZgzas6xdyDZBhoI1Zu6GG8FPZNPxf",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 139,
+      "prompt_ms": 725.769,
+      "prompt_per_token_ms": 5.221359712230216,
+      "prompt_per_second": 191.52099359438057,
+      "predicted_n": 34,
+      "predicted_ms": 1888.179,
+      "predicted_per_token_ms": 57.21754545454546,
+      "predicted_per_second": 17.47715656195731
+    }
+  },
+  "wall_seconds": 2.64591564796865,
+  "memory": {
+    "samples": 13,
+    "peak_rss_bytes": 5760249856,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "owner_negation",
+  "group": "extraction",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "json_valid": true,
+    "correct_fields": 3,
+    "total_fields": 3,
+    "wrong": {}
+  }
+}

@@ -31,14 +31,18 @@ struct MeetingDocumentSnapshot: Sendable {
         }
         let fallback = meeting.startedAt.addingTimeInterval(max(meeting.recordedDuration ?? 60, 60))
         let end = meeting.endedAt.map { $0 > meeting.startedAt ? $0 : fallback } ?? fallback
-        let screenStore = ActivityStore(databaseURL: databaseURL, readOnly: true)
-        let text = screenStore.ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
-        let screenContext = MeetingScreenContext.build(
-            meeting: meeting,
-            screenshots: screenStore.screenshots(
-                forMeeting: meeting.id,
-                from: meeting.startedAt.addingTimeInterval(-5),
-                to: end.addingTimeInterval(5)))
+        var text = ""
+        var screenContext = MeetingScreenContext()
+        if !meeting.isImported {
+            let screenStore = ActivityStore(databaseURL: databaseURL, readOnly: true)
+            text = screenStore.ocrText(from: meeting.startedAt, to: end, maxChars: 12_000)
+            screenContext = MeetingScreenContext.build(
+                meeting: meeting,
+                screenshots: screenStore.screenshots(
+                    forMeeting: meeting.id,
+                    from: meeting.startedAt.addingTimeInterval(-5),
+                    to: end.addingTimeInterval(5)))
+        }
         return Self(notes: MeetingNotes.load(from: folder), transcript: transcript,
                     partialNotes: partial, partialProjection: projection, summary: summary,
                     speakerNameHints: SpeakerNameHintExtractor.hints(

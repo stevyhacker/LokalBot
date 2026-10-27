@@ -186,6 +186,8 @@ struct DreamStore {
             for url in urls where fileManager.fileExists(atPath: url.path) {
                 try fileManager.removeItem(at: url)
             }
+            // Week and month lines drawn from this day go with it.
+            DreamRollupService.removeRollups(covering: key, root: root)
         }
     }
 
@@ -430,6 +432,19 @@ struct DreamStore {
                 if fileManager.fileExists(atPath: url.path) { try fileManager.removeItem(at: url) }
             }
         }
+    }
+
+    /// For evidence-backed data kept outside this store (learned personal
+    /// claims): a check that is true when a later deletion or correction of a
+    /// source invalidated the provenance. Nil while a revocation is pending or
+    /// the state can't be read, so callers withhold that data until cleanup.
+    func evidenceCheck() -> ((DreamEvidenceProvenance) -> Bool)? {
+        let state: EvidenceState?? = try? withLock {
+            guard evidenceIsAvailable else { return nil }
+            return try evidenceState()
+        }
+        guard let state = state ?? nil else { return nil }
+        return { provenance in self.isInvalidated(provenance, by: state) }
     }
 
     // MARK: - Plumbing

@@ -1,0 +1,33 @@
+[package]
+name = "lokalbot-core"
+description = "LokalBot's local library: data model, storage, search and settings."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+lokalbot-i18n.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+directories.workspace = true
+log.workspace = true
+parking_lot.workspace = true
+rusqlite.workspace = true
+sha2.workspace = true
+hex.workspace = true
+regex.workspace = true
+unicode-normalization.workspace = true
+# Screen images at rest (`AES.GCM` on macOS).
+aes-gcm = "0.10"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Security_Authentication_Identity"] }
+
+[dev-dependencies]
+tempfile.workspace = true

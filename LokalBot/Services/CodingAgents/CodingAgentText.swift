@@ -50,6 +50,47 @@ enum CodingAgentText {
         return clean.isEmpty ? nil : clean
     }
 
+    /// Text said to an agent rather than a name for work: a question, a
+    /// truncated or harness-tagged request, a link, or a conversational
+    /// opening such as "can you" or "we should".
+    static func readsAsRequest(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return true }
+        return trimmed.hasPrefix("<") || trimmed.hasSuffix("?") || trimmed.hasSuffix("…")
+            || trimmed.contains("://")
+            || trimmed.range(of: conversationalOpening, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    /// A request that is a short instruction, as a work title: "Review all
+    /// open PRs" as is, "let's commit the benchmark." as "Commit the
+    /// benchmark". `nil` for anything else, such as a question, a long or
+    /// truncated request, a terminal command, or pasted text.
+    static func instruction(_ request: String) -> String? {
+        var clean = request.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.hasPrefix("/"), !clean.hasPrefix("Ran in terminal:"),
+              !clean.contains("[pasted text]") else { return nil }
+        while let opening = clean.range(of: politeOpening, options: [.regularExpression, .caseInsensitive]) {
+            clean.removeSubrange(opening)
+        }
+        while let last = clean.last, ".!".contains(last) { clean.removeLast() }
+        let words = clean.split(whereSeparator: \.isWhitespace)
+        guard (2...10).contains(words.count), !readsAsRequest(clean), let first = clean.first else { return nil }
+        // "iOS …" keeps its case.
+        let second = clean.dropFirst().first
+        return first.isLowercase && second?.isUppercase != true
+            ? first.uppercased() + clean.dropFirst() : clean
+    }
+
+    private static let conversationalOpening =
+        #"^((can|could|would|will) (you|we)|(should|shall) we|we (should|need|must|have to)|"#
+        + #"i('d| would)? (want|need|like)|let['’]?s|let us|help me|please|pls|hey|hi|hello|"#
+        + #"yes|no|ok|okay|thanks|try again|go ahead|how|why|what|which|where|when|who|"#
+        + #"(is|are|do|does|did) (there|it|we|you|this|that))\b"#
+
+    private static let politeOpening =
+        #"^((can|could|would|will) you|please|pls|let['’]?s|let us|we should|we need to|"#
+        + #"i('d like| want| need) you to|go ahead and|ok(ay)?|so|now|and)\b[,:]?\s*"#
+
     static func truncated(_ text: String, maxCharacters: Int) -> String {
         PromptContextSanitizer.sanitize(text, maxCharacters: maxCharacters)
     }

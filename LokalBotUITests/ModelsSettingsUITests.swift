@@ -19,6 +19,84 @@ final class ModelsSettingsUITests: XCTestCase {
         fixture?.cleanUp()
     }
 
+    func testGraniteSpeech5IsOfferedAndCancelKeepsTheCurrentModel() throws {
+        try launch(approved: true)
+        let change = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+        let currentDetails = app.staticTexts["2.47 GB · MLX, 52 languages/dialects, best Qwen accuracy tier"]
+        XCTAssertTrue(currentDetails.waitForExistence(timeout: 5), "Qwen remains the initial selection")
+
+        let search = app.textFields["models.picker.search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.click()
+        search.typeText("Granite Speech 5.0 2B")
+        // The combined picker row exposes its text through value on macOS.
+        let choice = app.staticTexts.matching(
+            NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@",
+                        "Granite Speech 5.0 2B", "Granite Speech 5.0 2B")).firstMatch
+        XCTAssertTrue(choice.waitForExistence(timeout: 5))
+        choice.click()
+        let details = app.staticTexts["3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"]
+        XCTAssertTrue(details.waitForExistence(timeout: 5))
+        let apply = app.buttons["models.picker.apply"]
+        XCTAssertTrue(apply.isEnabled)
+        XCTAssertEqual(apply.label, "Download and use", "The optional model must be downloaded before activation")
+        capture("models-granite-speech5-option")
+
+        app.buttons["models.picker.cancel"].click()
+        change.click()
+        XCTAssertTrue(currentDetails.waitForExistence(timeout: 5), "Cancel must preserve the selected model")
+        app.buttons["models.picker.cancel"].click()
+    }
+
+    func testWhisperUkrainianSelectionPersistsAfterRelaunch() throws {
+        try launch(approved: false, transcriptionModel: "whisper-large-v3-turbo")
+        openTranscriptionLanguageOptions()
+        UITestHarness.selectSegment("Ukrainian", pickerIdentifier: "settings.transcriptionLanguage", in: app)
+        let picker = app.popUpButtons["settings.transcriptionLanguage"]
+        XCTAssertTrue(UITestHarness.waitUntil { (picker.value as? String) == "Ukrainian" })
+        capture("models-ukrainian-whisper-selected")
+        app.buttons["Done"].click()
+        app.terminate()
+        app = try UITestHarness.relaunch(storageRoot: fixture.root, defaultsSuiteName: XCTUnwrap(suite),
+                                        environment: ["LOKALBOT_INITIAL_SECTION": "models", "LOKALBOT_MODELS_DEMO_READY": "1"])
+        openTranscriptionLanguageOptions()
+        XCTAssertEqual(app.popUpButtons["settings.transcriptionLanguage"].value as? String, "Ukrainian")
+    }
+
+    func testUnsupportedModelPreservesUkrainianAndExplainsHowToRecover() throws {
+        try launch(approved: false, transcriptionModel: "qwen3-asr-1.7b", transcriptionLanguage: "uk")
+        openTranscriptionLanguageOptions()
+        let picker = app.popUpButtons["settings.transcriptionLanguage"]
+        XCTAssertEqual(picker.value as? String, "Ukrainian", "Changing model must not reset the saved language")
+        let explanation = app.staticTexts["models.transcription.languageSupport"]
+        XCTAssertTrue(explanation.waitForExistence(timeout: 5))
+        // macOS exposes SwiftUI static text through value on some SDKs.
+        let explanationText = explanation.label + " " + (explanation.value as? String ?? "")
+        XCTAssertTrue(explanationText.contains("does not support Ukrainian"), explanationText)
+        capture("models-ukrainian-unsupported")
+        picker.click()
+        let ukrainian = app.menuItems["Ukrainian"]
+        XCTAssertTrue(ukrainian.waitForExistence(timeout: 3))
+        XCTAssertFalse(ukrainian.isEnabled)
+        app.menuItems["Auto-detect"].click()
+        XCTAssertTrue(UITestHarness.waitUntil { (picker.value as? String) == "Auto-detect" })
+    }
+
+    private func openTranscriptionLanguageOptions() {
+        let change = app.buttons["models.stack.change.transcribe"]
+        XCTAssertTrue(change.waitForExistence(timeout: 8))
+        change.click()
+        let advanced = app.buttons["models.picker.advanced"]
+        XCTAssertTrue(advanced.waitForExistence(timeout: 5))
+        advanced.click()
+        let options = app.buttons["Language & vocabulary…"]
+        XCTAssertTrue(options.waitForExistence(timeout: 5))
+        options.click()
+        XCTAssertTrue(app.popUpButtons["settings.transcriptionLanguage"].waitForExistence(timeout: 5))
+    }
+
     func testFunASRFolderClearCanBeCancelledAndPersistsWhenSaved() throws {
         let model = fixture.root.appendingPathComponent("user-model", isDirectory: true)
         try FileManager.default.createDirectory(at: model, withIntermediateDirectories: true)
@@ -220,10 +298,14 @@ final class ModelsSettingsUITests: XCTestCase {
         }
     }
 
-    private func launch(approved: Bool, size: String = "1180x740", appearance: String = "light", funASRDirectory: String? = nil) throws {
+    private func launch(approved: Bool, size: String = "1180x740", appearance: String = "light", funASRDirectory: String? = nil,
+                        transcriptionModel: String? = nil, transcriptionLanguage: String = "auto") throws {
         let origins = approved ? "[\"https://openrouter.ai\"]" : "[]"
         let localModel = try funASRDirectory.map {
             "\"transcriptionModel\": \"fun-asr-nano-2512\", \"funASRNanoModelDirectory\": \(String(decoding: try JSONEncoder().encode($0), as: UTF8.self)),"
+        } ?? ""
+        let transcription = try transcriptionModel.map {
+            "\"transcriptionModel\": \(String(decoding: try JSONEncoder().encode($0), as: UTF8.self)),"
         } ?? ""
         let result = try UITestHarness.launch(
             storageRoot: fixture.root,
@@ -231,6 +313,8 @@ final class ModelsSettingsUITests: XCTestCase {
             settingsJSON: """
             {
               \(localModel)
+              \(transcription)
+              "transcriptionLanguage": "\(transcriptionLanguage)",
               "menuBarOnly": false, "trackingEnabled": false,
               "screenshotsEnabled": false, "calendarDetectionEnabled": false,
               "semanticSearchEnabled": false, "cotypingEnabled": false,

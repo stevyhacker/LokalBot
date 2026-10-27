@@ -1,0 +1,31 @@
+[package]
+name = "lokalbot-cli"
+description = "Read-only command-line and MCP access to the LokalBot library."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "lokalbot-cli"
+path = "src/main.rs"
+
+[lib]
+name = "lokalbot_cli"
+path = "src/lib.rs"
+
+[dependencies]
+lokalbot-core.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+rusqlite.workspace = true
+ureq.workspace = true
+directories.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

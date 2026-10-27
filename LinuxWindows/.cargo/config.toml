@@ -1,0 +1,10 @@
+# The sherpa-onnx and onnxruntime static libraries for Windows are built with
+# the static CRT (/MT). Link the whole program the same way: mixing them with
+# Rust's default /MD gives two C runtimes in one process (LNK4098). This also
+# makes lokalbot.exe independent of the Visual C++ redistributable.
+# A RUSTFLAGS environment variable replaces these flags; keep +crt-static in it.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.aarch64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

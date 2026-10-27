@@ -38,7 +38,7 @@ struct AgentRuntimeManifest: Equatable, Sendable {
     }
 
     static let bunVersion = "1.4.2"
-    static let piVersion = "1.0.3"
+    static let piVersion = "1.3.0"
 
     static let current = AgentRuntimeManifest(
         bun: AgentRuntimeArtifact(
@@ -48,9 +48,9 @@ struct AgentRuntimeManifest: Equatable, Sendable {
             archiveKind: .zip),
         bunBinarySHA256: "35d20dd0263e5c950194434b925454fdfa9ba6e4467da960410fa05b08a7a5b5",
         piCLISHA256: "e79626f2dd6f94aa45d30f3fa63cd84319a6eefcd150b353cfaf274366926774",
-        packageJSONSHA256: "5a41203882920f2f8755d65edad2986716cce33763f2a609a6fdf6fc44655593",
-        lockfileSHA256: "57e90e19397b5c26641da2ed2cf388b895dc6fed7490d06dc62cc1712d160c75",
-        piRuntimeTreeSHA256: "3d1e29c921b68a7873d996a2d1f41038b2939f137cd35b9e66dbcacb220dd268")
+        packageJSONSHA256: "bdc29089f9460b2fda49be93cc4a804fb852bdcc88ff6915fb9bea85ce01a40b",
+        lockfileSHA256: "7acf67d8ff01a8118e447d5494fcd17a23d8d8ec90f2836385e99bb7f7e474ff",
+        piRuntimeTreeSHA256: "c9ee7086e5c6b38f6362f095704519b9a91d27200415382d0d733342f2b974be")
 }
 
 struct AgentRuntimeVersionMarker: Codable, Equatable {

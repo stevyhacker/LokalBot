@@ -21,6 +21,20 @@ enum CotypingFieldIdentity {
         fieldIdentity(for: field)
     }
 
+    /// Identity for reusing the background sampled behind a field's ghost:
+    /// the app, kind of field, window title and frame. Not the app alone: a
+    /// browser shows light and dark pages, and a reading from a light page drew
+    /// black ghosts on dark ones. Not the element: Chrome hands out a new one
+    /// on every read, which would sample again for every suggestion.
+    static func background(for field: CotypingField) -> String {
+        [
+            String(field.processID),
+            field.role,
+            field.windowTitle ?? "",
+            field.inputFrameRect.map(roundedRectIdentity) ?? field.fieldPlaceholder ?? "",
+        ].joined(separator: "\u{1f}")
+    }
+
     private static func fieldIdentity(for field: CotypingField) -> String {
         let fieldPart: String
         if let focusIdentityKey = field.focusIdentityKey, !focusIdentityKey.isEmpty {

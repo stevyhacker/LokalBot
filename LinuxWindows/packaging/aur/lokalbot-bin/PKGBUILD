@@ -1,0 +1,61 @@
+# Maintainer: stevyhacker <stevyhacker@users.noreply.github.com>
+#
+# Repackages the Linux release archive the LokalBot release workflow builds,
+# with the files, dependencies and licenses of the release's own Arch package
+# (LinuxWindows/scripts/package-linux-distros.sh). Source and update steps:
+# https://github.com/stevyhacker/LokalBot/tree/master/LinuxWindows/packaging/aur
+
+pkgname=lokalbot-bin
+_pkgname=lokalbot
+pkgver=0.11.0
+pkgrel=1
+pkgdesc='Personal context engine: meeting notes, screen recall and dictation with on-device AI (alpha)'
+arch=('x86_64')
+url='https://www.lokalbot.com'
+license=('GPL-3.0-only' 'AGPL-3.0-only')
+# The binaries need glibc 2.39. They link ALSA, xcb and xkbcommon, and load
+# Vulkan and the Wayland client at run time. The llama.cpp runtime the app
+# downloads links libgomp (OpenMP).
+depends=(
+  'glibc>=2.39'
+  'libgcc'
+  'libstdc++'
+  'libgomp'
+  'alsa-lib'
+  'libxcb'
+  'libxkbcommon'
+  'libxkbcommon-x11'
+  'vulkan-icd-loader'
+  'wayland'
+  'hicolor-icon-theme'
+)
+optdepends=(
+  'pipewire-pulse: record system audio and detect meetings (or pulseaudio)'
+  'vulkan-driver: GPU rendering and faster local models'
+  'org.freedesktop.secrets: keep sign-ins, calendar links and the screenshot key'
+  'wtype: dictation on Hyprland and Sway'
+  'ydotool: dictation on other Wayland desktops'
+  'grim: screen context on Hyprland and Sway'
+)
+provides=("$_pkgname=$pkgver")
+conflicts=("$_pkgname")
+# The release binaries are already stripped.
+options=('!strip' '!debug')
+source_x86_64=("https://github.com/stevyhacker/LokalBot/releases/download/v$pkgver/LokalBot-$pkgver-linux-$CARCH.tar.gz")
+sha256sums_x86_64=('1010199e8597ebe53bec3023b477a722ecfca803de8ab4920dff13b7e5ada09b')
+
+package() {
+  cd "LokalBot-$pkgver-linux-$CARCH"
+  install -Dm755 lokalbot lokalbot-cli -t "$pkgdir/usr/bin/"
+  install -Dm644 com.lokalbot.LokalBot.desktop -t "$pkgdir/usr/share/applications/"
+  local size
+  for size in 16 24 32 48 64 128 256 512; do
+    install -Dm644 "icons/lokalbot-$size.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/com.lokalbot.LokalBot.png"
+  done
+  # GPL-3.0 for LokalBot. THIRD_PARTY_NOTICES.md names every other license
+  # (AGPL-3.0 for the Autocomplete code ported from Cotabby, the Rust crates'
+  # licenses) by its path under LICENSES/, so keep that layout.
+  install -Dm644 LICENSE THIRD_PARTY_NOTICES.md -t "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm644 LICENSES/* -t "$pkgdir/usr/share/licenses/$pkgname/LICENSES/"
+}

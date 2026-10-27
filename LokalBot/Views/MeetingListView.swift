@@ -24,6 +24,15 @@ struct MeetingListView: View {
                     }
                     Spacer(minLength: 4)
                     Button {
+                        RecordingImportPanel.choose(into: app)
+                    } label: {
+                        Label("Import Recording…", systemImage: "square.and.arrow.down")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                    .help("Import an audio or video recording")
+                    .accessibilityIdentifier("meeting.importRecording")
+                    Button {
                         app.isRecording ? app.stopRecording()
                             : app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
                     } label: {
@@ -55,6 +64,16 @@ struct MeetingListView: View {
                         .accessibilityIdentifier("meeting.retryFailed")
                     }
                     .accessibilityIdentifier("meeting.failures")
+                }
+                if let name = app.importingRecordings.first {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Importing \(name)…")
+                            .font(.scaled(.callout)).foregroundStyle(.secondary).lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("meeting.importing")
                 }
 
             }
@@ -111,6 +130,7 @@ struct MeetingListView: View {
         .onDeleteCommand {
             if !app.selectedMeetingIDs.isEmpty { pendingDelete = app.selectedMeetingIDs }
         }
+        .recordingImportDropTarget(app)
         .task { app.selectDefaultMeetingIfNeeded(); searchContent() }
         .onChange(of: query) { app.evidenceMeetingID = nil; searchContent() }
         .onDisappear { searchTask?.cancel() }
@@ -162,7 +182,12 @@ struct MeetingListView: View {
             ContentUnavailableView {
                 Label("No meetings yet", systemImage: "waveform.circle")
             } description: {
-                Text("LokalBot detects meeting apps automatically, or start a recording now.")
+                Text("LokalBot detects meeting apps automatically, or start a recording now. You can also drop an audio or video file here.")
+            } actions: {
+                Button("Import Recording…") { RecordingImportPanel.choose(into: app) }
+                    .accessibilityIdentifier("meeting.emptyImport")
+                Button("Try a sample meeting") { app.trySampleMeeting() }
+                    .accessibilityIdentifier("meeting.emptySample")
             }
         } else {
             ContentUnavailableView(
@@ -274,8 +299,9 @@ struct MeetingRowView: View {
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
                     }
                 }
+                // The sample says what it is where a meeting names its app.
                 Text(meeting.isMergedMeeting ? "\(time) · \(duration)"
-                     : "\(meeting.appName) · \(time) · \(duration)")
+                     : "\(meeting.isSample ? app.settings.appLanguage.localized("Sample") : meeting.appName) · \(time) · \(duration)")
                     .font(.scaled(.callout))
                     // Selected rows take the title's own foreground, which the
                     // list turns white on teal and keeps dark on the inactive

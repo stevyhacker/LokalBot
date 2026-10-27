@@ -7,35 +7,41 @@ import ScreenCaptureKit
 /// SDKs, so this is the supported way to read what's actually on screen.
 ///
 /// The overlay panel sets `sharingType = .none`, so a capture never includes our
-/// own ghost. Results are cached per app and light or dark mode: a field's
+/// own ghost. Results are cached per field and light or dark mode: a field's
 /// background rarely changes, and a fresh capture would recolor the ghost a
-/// moment after it appears.
+/// moment after it appears. Not per app: one browser shows light and dark pages.
 @MainActor
 final class CotypingBackgroundSampler {
     private var cache: [String: (luminance: CGFloat, at: Date)] = [:]
     private static let cacheTTL: TimeInterval = 300
 
-    /// A still-fresh luminance for `bundleID`, used to color the ghost instantly
-    /// (no capture, no flash) for repeat suggestions in the same app.
-    func cachedLuminance(forApp bundleID: String?) -> CGFloat? {
-        guard let key = Self.key(bundleID), let hit = cache[key],
-              Date().timeIntervalSince(hit.at) < Self.cacheTTL else { return nil }
+    /// A still-fresh luminance for the field `fieldKey` names, used to color
+    /// the ghost instantly (no capture, no flash) for repeat suggestions there.
+    func cachedLuminance(forField fieldKey: String?, now: Date = Date()) -> CGFloat? {
+        guard let key = Self.key(fieldKey), let hit = cache[key],
+              now.timeIntervalSince(hit.at) < Self.cacheTTL else { return nil }
         return hit.luminance
     }
 
-    private static func key(_ bundleID: String?) -> String? {
-        guard let bundleID else { return nil }
+    func remember(_ luminance: CGFloat, forField fieldKey: String?, now: Date = Date()) {
+        guard let key = Self.key(fieldKey) else { return }
+        cache = cache.filter { now.timeIntervalSince($0.value.at) < Self.cacheTTL }
+        cache[key] = (luminance, now)
+    }
+
+    private static func key(_ fieldKey: String?) -> String? {
+        guard let fieldKey else { return nil }
         let dark = NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-        return bundleID + (dark ? "/dark" : "/light")
+        return fieldKey + (dark ? "/dark" : "/light")
     }
 
     /// Capture the strip behind `caretRect` and return its average luminance
-    /// (0…1), caching it for `bundleID`. `nil` when Screen Recording isn't
+    /// (0…1), caching it for `fieldKey`. `nil` when Screen Recording isn't
     /// authorized or the capture fails — the caller keeps its AX/appearance guess.
-    func sampleLuminance(at caretRect: CGRect, forApp bundleID: String?) async -> CGFloat? {
+    func sampleLuminance(at caretRect: CGRect, forField fieldKey: String?) async -> CGFloat? {
         guard CGPreflightScreenCaptureAccess(),
               let luminance = await Self.captureLuminance(at: caretRect) else { return nil }
-        if let key = Self.key(bundleID) { cache[key] = (luminance, Date()) }
+        remember(luminance, forField: fieldKey)
         return luminance
     }
 

@@ -1,14 +1,16 @@
 import Foundation
 
 /// Finds the proper nouns that recur across meetings (products, protocols,
-/// clients, codenames) so Projects has useful content even when the overnight
-/// review has not named any projects. Deterministic and local: it counts
-/// capitalized terms in meeting titles, summaries, actions, and decisions,
-/// and keeps only terms that are nearly always capitalized, appear in several
-/// meetings, and are not people, apps, or generic work vocabulary.
+/// clients, codenames) so Projects can suggest names worth tracking.
+/// Deterministic and local: it counts capitalized terms in meeting titles,
+/// summaries, actions, and decisions, and keeps only terms that are nearly
+/// always capitalized, appear in several meetings, and are not people, apps,
+/// or generic work vocabulary. A capitalized word that starts a sentence
+/// ("**Them 4:** Vireo shipped…") counts only for terms also seen
+/// capitalized mid-sentence, so sentence starters stay out.
 enum ProjectTopicDetector {
     static let minimumMeetings = 3
-    static let maximumTopics = 8
+    static let maximumTopics = 10
 
     struct Topic: Equatable, Sendable {
         let name: String
@@ -26,7 +28,14 @@ enum ProjectTopicDetector {
         var lastMentioned: [String: Date] = [:]
         var capitalizedCount: [String: Int] = [:]
         var lowercaseCount: [String: Int] = [:]
+        // Sentence-initial capitals, kept apart until mid-sentence use
+        // shows the term is a name rather than a sentence starter.
+        var sentenceStartMeetings: [String: Set<UUID>] = [:]
+        var sentenceStartDates: [String: Date] = [:]
         let excluded = Set(excludedWords.map { $0.lowercased() }).union(stopWords).union(commonApps)
+        // A known name spelled one letter differently ("Milana" for Milena)
+        // is still that person.
+        let nearNames = Set(excludedWords.map { $0.lowercased() }.filter { $0.count >= 5 })
 
         func record(_ word: String, meeting: Meeting) {
             let key = word.lowercased()
@@ -47,7 +56,14 @@ enum ProjectTopicDetector {
                         lowercaseCount[word, default: 0] += 1
                         continue
                     }
-                    if skipSentenceStart, index == 0 { continue }
+                    if skipSentenceStart, index == 0 {
+                        let key = word.lowercased()
+                        if word.count >= 3, !excluded.contains(key) {
+                            sentenceStartMeetings[key, default: []].insert(meeting.id)
+                            sentenceStartDates[key] = max(sentenceStartDates[key] ?? .distantPast, meeting.startedAt)
+                        }
+                        continue
+                    }
                     record(word, meeting: meeting)
                 }
             }
@@ -63,9 +79,15 @@ enum ProjectTopicDetector {
             }
         }
 
+        for (key, meetingIDs) in sentenceStartMeetings where meetingsByTerm[key] != nil {
+            meetingsByTerm[key, default: []].formUnion(meetingIDs)
+            if let date = sentenceStartDates[key] { lastMentioned[key] = max(lastMentioned[key] ?? date, date) }
+        }
+
         return meetingsByTerm.compactMap { key, meetingIDs -> Topic? in
             guard meetingIDs.count >= minimumMeetings,
                   capitalizedCount[key, default: 0] >= 3 * lowercaseCount[key, default: 0],
+                  !isNearName(key, names: nearNames),
                   let form = surfaceForms[key]?.max(by: { $0.value == $1.value ? $0.key > $1.key : $0.value < $1.value })?.key
             else { return nil }
             return Topic(name: form, meetingIDs: meetingIDs, lastMentioned: lastMentioned[key] ?? .distantPast)
@@ -77,6 +99,39 @@ enum ProjectTopicDetector {
         }
         .prefix(maximumTopics)
         .map { $0 }
+    }
+
+    static func isNearName(_ word: String, names: Set<String>) -> Bool {
+        guard word.count >= 5 else { return false }
+        return names.contains { $0.first == word.first && withinOneEdit($0, word) }
+    }
+
+    /// One substitution, insertion, or deletion apart, or equal.
+    static func withinOneEdit(_ lhs: String, _ rhs: String) -> Bool {
+        let left = Array(lhs)
+        let right = Array(rhs)
+        guard abs(left.count - right.count) <= 1 else { return false }
+        var leftIndex = 0
+        var rightIndex = 0
+        var edits = 0
+        while leftIndex < left.count, rightIndex < right.count {
+            if left[leftIndex] == right[rightIndex] {
+                leftIndex += 1
+                rightIndex += 1
+                continue
+            }
+            edits += 1
+            if edits > 1 { return false }
+            if left.count > right.count {
+                leftIndex += 1
+            } else if left.count < right.count {
+                rightIndex += 1
+            } else {
+                leftIndex += 1
+                rightIndex += 1
+            }
+        }
+        return edits + (left.count - leftIndex) + (right.count - rightIndex) <= 1
     }
 
     static func tokens(_ text: String) -> [String] {
@@ -142,5 +197,7 @@ enum ProjectTopicDetector {
         "urls", "http", "https", "sql", "csv", "pdf", "ids", "okr", "okrs", "kpi", "kpis", "gpu",
         "cpu", "ram", "eod", "eow", "fyi", "tbd", "utc", "cet", "cest", "usd", "eur", "moe", "qa",
         "faq", "etc", "asap", "cto", "ceo", "cfo", "dev", "devs", "ops", "repo", "repos", "doc",
+        // Company suffixes ("Corvid Labs") name no project on their own.
+        "labs", "inc", "ltd", "llc",
     ]
 }

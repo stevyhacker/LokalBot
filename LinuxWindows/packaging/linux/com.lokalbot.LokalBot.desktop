@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=LokalBot
+GenericName=Work memory
+Comment=Private meeting notes, workday recall and dictation with on-device AI
+Exec=lokalbot %U
+Icon=com.lokalbot.LokalBot
+Terminal=false
+Categories=Office;Utility;AudioVideo;
+Keywords=meeting;notes;transcription;dictation;recall;memory;
+StartupWMClass=com.lokalbot.LokalBot
+StartupNotify=true

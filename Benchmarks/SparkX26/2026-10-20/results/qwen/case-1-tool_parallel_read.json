@@ -1,0 +1,127 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_meeting",
+          "arguments": "{\"meeting_id\":\"A-104\"}"
+        },
+        "id": "seXrlJX1IlRCmbWqxbbwnACfkCk8wqJz"
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "read_meeting",
+          "arguments": "{\"meeting_id\":\"H-209\"}"
+        },
+        "id": "gaPy74bCYSAN5WRUByO1clD52oSTeYdo"
+      }
+    ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+    "completion_tokens": 64,
+    "prompt_tokens": 503,
+    "total_tokens": 567,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 503,
+    "prompt_ms": 2288.483,
+    "prompt_per_token_ms": 4.549667992047714,
+    "prompt_per_second": 219.79625804517664,
+    "predicted_n": 64,
+    "predicted_ms": 3599.581,
+    "predicted_per_token_ms": 57.136206349206354,
+    "predicted_per_second": 17.502037042644684
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_meeting",
+                "arguments": "{\"meeting_id\":\"A-104\"}"
+              },
+              "id": "seXrlJX1IlRCmbWqxbbwnACfkCk8wqJz"
+            },
+            {
+              "type": "function",
+              "function": {
+                "name": "read_meeting",
+                "arguments": "{\"meeting_id\":\"H-209\"}"
+              },
+              "id": "gaPy74bCYSAN5WRUByO1clD52oSTeYdo"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1792527777,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 64,
+      "prompt_tokens": 503,
+      "total_tokens": 567,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-CJyGM0SHgn0nWoT357rKGUSVJUcFNZAz",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 503,
+      "prompt_ms": 2288.483,
+      "prompt_per_token_ms": 4.549667992047714,
+      "prompt_per_second": 219.79625804517664,
+      "predicted_n": 64,
+      "predicted_ms": 3599.581,
+      "predicted_per_token_ms": 57.136206349206354,
+      "predicted_per_second": 17.502037042644684
+    }
+  },
+  "wall_seconds": 5.8921048659831285,
+  "memory": {
+    "samples": 29,
+    "peak_rss_bytes": 7650861056,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_parallel_read",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "native_calls": [
+      {
+        "name": "read_meeting",
+        "args": {
+          "meeting_id": "A-104"
+        }
+      },
+      {
+        "name": "read_meeting",
+        "args": {
+          "meeting_id": "H-209"
+        }
+      }
+    ],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

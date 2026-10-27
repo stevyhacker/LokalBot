@@ -1,3 +1,8 @@
+// Contains code ported from Cotabby (https://github.com/FuJacob/cotabby),
+// copyright the Cotabby authors, under the GNU AGPL v3.0
+// (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
+// See THIRD_PARTY_NOTICES.md.
+
 import AppKit
 import Foundation
 
@@ -17,7 +22,8 @@ nonisolated struct CotypingFieldStyle: Equatable, Sendable {
     /// when no foreground color is reported.
     let backgroundColorHex: String?
 
-    var isEmpty: Bool { fontName == nil && colorHex == nil && backgroundColorHex == nil }
+    /// Chromium reports a size with no font name, which is still a style.
+    var isEmpty: Bool { fontName == nil && fontPointSize == nil && colorHex == nil && backgroundColorHex == nil }
 
     init(fontName: String? = nil, fontPointSize: CGFloat? = nil,
          colorHex: String? = nil, backgroundColorHex: String? = nil) {

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{META_DESCRIPTION}}" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/blog/{{SLUG}}" />
+  <link rel="alternate" type="application/atom+xml" title="LokalBot Blog" href="https://www.lokalbot.com/blog/feed.xml" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/blog/{{SLUG}}" />
+  <meta property="og:title" content="{{TITLE}}" />
+  <meta property="og:description" content="{{META_DESCRIPTION}}" />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/blog/og/{{SLUG}}.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{H1}}" />
+  <meta property="article:published_time" content="{{PUBLISHED_DATE}}" />
+  <meta property="article:modified_time" content="{{UPDATED_DATE}}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{TITLE}}" />
+  <meta name="twitter:description" content="{{META_DESCRIPTION}}" />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/blog/og/{{SLUG}}.png" />
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{{STRUCTURED_DATA}}</script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#post">Skip to post</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/guides#compare">Compare</a><a href="/blog" aria-current="page">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="post">
+    <header class="guide-hero blog-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/blog">Blog</a><span aria-hidden="true">/</span><span>{{EYEBROW}}</span></nav>
+      <p class="eyebrow">{{EYEBROW}}</p>
+      <h1>{{H1}}</h1>
+      <p class="guide-hero__lead">{{LEAD}}</p>
+      <p class="guide-byline">{{BYLINE}}</p>
+    </header>
+
+    <article class="guide-article blog-article">
+{{BODY}}
+    </article>
+
+    <section class="guide-related" aria-labelledby="more-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="more-title">More from the blog</h2>
+      <div class="guide-card-grid">
+{{MORE_POSTS}}
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="/system-requirements">requirements</a></p>
+      </div>
+    </section>
+  </main>
+
+{{FOOTER}}
+</body>
+</html>

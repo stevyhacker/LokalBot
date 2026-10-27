@@ -1,0 +1,105 @@
+{
+  "message": {
+    "role": "assistant",
+    "content": "",
+    "tool_calls": [
+      {
+        "type": "function",
+        "function": {
+          "name": "read_meeting",
+          "arguments": "{\"meeting_id\":\"A-104\"}"
+        },
+        "id": "ZEUXCBAGkdcq7Tvrnu6yDyqhXHjnNYRU"
+      }
+    ]
+  },
+  "finish_reason": "tool_calls",
+  "usage": {
+    "completion_tokens": 19,
+    "prompt_tokens": 273,
+    "total_tokens": 292,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    }
+  },
+  "timings": {
+    "cache_n": 0,
+    "prompt_n": 273,
+    "prompt_ms": 1347.149,
+    "prompt_per_token_ms": 4.934611721611721,
+    "prompt_per_second": 202.65018939998473,
+    "predicted_n": 19,
+    "predicted_ms": 1147.245,
+    "predicted_per_token_ms": 63.735833333333325,
+    "predicted_per_second": 15.689761123386898
+  },
+  "raw": {
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "",
+          "tool_calls": [
+            {
+              "type": "function",
+              "function": {
+                "name": "read_meeting",
+                "arguments": "{\"meeting_id\":\"A-104\"}"
+              },
+              "id": "ZEUXCBAGkdcq7Tvrnu6yDyqhXHjnNYRU"
+            }
+          ]
+        }
+      }
+    ],
+    "created": 1792527560,
+    "model": "/home/ubuntu/spark-x26-eval-20261020/models/Spark-X2.6-4B-Q4_K_M.gguf",
+    "system_fingerprint": "b0-unknown",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 19,
+      "prompt_tokens": 273,
+      "total_tokens": 292,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "id": "chatcmpl-nwNTuCPkQNTq2i5Dr4RhukN8OJabBsIk",
+    "timings": {
+      "cache_n": 0,
+      "prompt_n": 273,
+      "prompt_ms": 1347.149,
+      "prompt_per_token_ms": 4.934611721611721,
+      "prompt_per_second": 202.65018939998473,
+      "predicted_n": 19,
+      "predicted_ms": 1147.245,
+      "predicted_per_token_ms": 63.735833333333325,
+      "predicted_per_second": 15.689761123386898
+    }
+  },
+  "wall_seconds": 2.5030078389681876,
+  "memory": {
+    "samples": 13,
+    "peak_rss_bytes": 7758745600,
+    "peak_physical_footprint_bytes": null
+  },
+  "id": "tool_read",
+  "group": "tools",
+  "repeat": 1,
+  "score": {
+    "passed": true,
+    "native_calls": [
+      {
+        "name": "read_meeting",
+        "args": {
+          "meeting_id": "A-104"
+        }
+      }
+    ],
+    "xml_calls_diagnostic": [],
+    "parse_errors": [],
+    "xml_semantically_correct": false
+  }
+}

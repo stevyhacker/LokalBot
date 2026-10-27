@@ -564,7 +564,7 @@ struct SectionHeader: View {
 struct StatTile: View {
     let icon: String
     let value: String
-    let label: String
+    let label: LocalizedStringKey
 
     var body: some View {
         HStack(spacing: 5) {

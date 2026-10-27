@@ -1,0 +1,49 @@
+{
+  "sampleID": "orders-api/sr-Latn",
+  "language": "sr-Latn",
+  "speakers": 2,
+  "entities": [
+    {"kind": "name", "label": "Maja", "turn": "t03", "any": ["maja", "majo", "maji", "maju", "maje", "maya"]},
+    {"kind": "name", "label": "Danijel", "turn": "t02", "any": ["danijel", "daniel"]},
+    {"kind": "name", "label": "Prija", "turn": "t06", "any": ["prija", "priju", "priji", "priya"]},
+    {"kind": "name", "label": "Tomas", "turn": "t12", "any": ["tomas", "tomás", "thomas"]},
+    {"kind": "name", "label": "Lena", "turn": "t14", "any": ["lena", "leni", "lenu"]},
+    {"kind": "name", "label": "Fernhill", "turn": "t17", "any": ["fernhil", "fern hil"]},
+    {"kind": "number", "label": "42 partnera", "turn": "t15", "any": ["42", "četrdeset dva", "četrdeset i dva", "cetrdeset dva"]},
+    {"kind": "number", "label": "19 generisanih klijenata", "turn": "t15", "any": ["19", "devetnaest"]},
+    {"kind": "number", "label": "P95 od 180 ms", "turn": "t10", "any": ["180", "sto osamdeset"]},
+    {"kind": "number", "label": "mobilni reliz 4.2", "turn": "t12", "any": ["4.2", "4,2", "četiri tačka dva", "četiri zarez dva", "cetiri tacka dva"]},
+    {"kind": "number", "label": "dva miliona otvorenih porudžbina", "turn": "t25", "any": ["dva miliona", "2 miliona", "2.000.000", "2000000", "2 mil"]},
+    {"kind": "date", "label": "18. novembar (prvi cilj)", "turn": "t08", "any": ["18. novemb", "18 novemb", "osamnaestog novembra", "osamnaesti novembar", "18.11."]},
+    {"kind": "date", "label": "11. novembar (novi cilj)", "turn": "t19", "any": ["11. novemb", "11 novemb", "jedanaestog novembra", "jedanaesti novembar", "11.11."]},
+    {"kind": "date", "label": "petak (specifikacija i changelog)", "turn": "t23", "any": ["petk", "petak"]}
+  ],
+  "decision": {
+    "text": "Prija mejlom obaveštava tri partnera koja su tražila delivery window; Danijel do petka ažurira API specifikaciju i changelog.",
+    "turns": ["t22", "t23"]
+  },
+  "changedDecision": {
+    "before": "Do 18. novembra izbaciti verziju 3 API-ja, u kojoj delivery window objekat zamenjuje ETA polje.",
+    "beforeTurns": ["t07", "t09"],
+    "after": "Nema verzije 3. Odgovor ostaje unazad kompatibilan: ETA ostaje nepromenjen, a delivery window je novo opciono polje koje se izostavlja kad je nepoznato. Izlazi na verziji 2 do 11. novembra.",
+    "afterTurns": ["t18", "t19", "t20"]
+  },
+  "openQuestion": {
+    "text": "Da li raditi backfill delivery windowa za porudžbine napravljene pre izmene (oko dva miliona otvorenih porudžbina). Maja pita Priju; ništa nije odlučeno.",
+    "turns": ["t24", "t27", "t28"]
+  },
+  "ask": {
+    "question": "Da li je polje delivery window obavezno u odgovoru Orders API-ja?",
+    "answerPoints": [
+      "Ne: delivery window je novo opciono polje.",
+      "Izostavlja se kad prozor nije poznat.",
+      "ETA ostaje nepromenjen; odgovor ostaje unazad kompatibilan na verziji 2.",
+      "Ovo je zamenilo raniji plan da se izbaci verzija 3 u kojoj delivery window zamenjuje ETA."
+    ],
+    "citesTurns": ["t18", "t19", "t20"]
+  },
+  "codingAgent": {
+    "search": "delivery window",
+    "finds": "Odgovor Orders API-ja mora ostati unazad kompatibilan: ETA ostaje kakav je, a delivery_window se dodaje kao opciono polje koje se izostavlja kad je nepoznato."
+  }
+}

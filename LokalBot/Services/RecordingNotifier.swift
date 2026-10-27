@@ -95,6 +95,27 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
              userInfo: [Self.healthReportPathKey: reportURL.path])
     }
 
+    private static let settingsApprovalKey = "lokalbot.settings-approval"
+
+    /// A terminal request waiting for the person. Clicking the notification
+    /// opens the approval window; with notifications off, the window opens
+    /// right away, because only the person can answer.
+    func settingsApprovalRequested(_ request: SettingsApprovals.Request) {
+        post(title: "Approve a settings change?",
+             body: "\(request.caller) asks: \(request.headline). Review it in LokalBot.",
+             identifier: Self.settingsApprovalIdentifier(request.id),
+             userInfo: [Self.settingsApprovalKey: request.id.uuidString],
+             undelivered: { WindowAccess.shared.open("settings-approval") })
+    }
+
+    func withdrawSettingsApproval(_ id: UUID) {
+        removeNotifications(withIdentifiers: [Self.settingsApprovalIdentifier(id)])
+    }
+
+    private static func settingsApprovalIdentifier(_ id: UUID) -> String {
+        "settings-approval-\(id.uuidString)"
+    }
+
     func recordingStarted(title: String) {
         post(title: "Recording started", body: title)
     }
@@ -138,7 +159,8 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                       body: String,
                       identifier: String = UUID().uuidString,
                       categoryIdentifier: String? = nil,
-                      userInfo: [String: String] = [:]) {
+                      userInfo: [String: String] = [:],
+                      undelivered: (@MainActor () -> Void)? = nil) {
         // System notifications stay off in every UI test, background mode included.
         guard !UITestRuntime.isEnabled else { return }
         let content = UNMutableNotificationContent()
@@ -162,6 +184,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
             }
             guard authorized else {
                 pendingDetections.deliveryFailed(identifier)
+                undelivered?()
                 return
             }
             if categoryIdentifier == Self.detectionCategory,
@@ -174,6 +197,7 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                 if categoryIdentifier == Self.detectionCategory {
                     pendingDetections.deliveryFailed(identifier)
                 }
+                undelivered?()
                 return
             }
             // `add` suspends. A meeting can end while the notification center
@@ -220,6 +244,10 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
     private func handle(_ response: UNNotificationResponse) {
         if let path = response.notification.request.content.userInfo[Self.healthReportPathKey] as? String {
             NSWorkspace.shared.open(URL(fileURLWithPath: path))
+            return
+        }
+        if response.notification.request.content.userInfo[Self.settingsApprovalKey] != nil {
+            WindowAccess.shared.open("settings-approval")
             return
         }
         let identifier = response.notification.request.identifier

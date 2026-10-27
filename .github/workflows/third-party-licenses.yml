@@ -1,0 +1,54 @@
+# Fails when LICENSES/rust-crates.md, the license notice for every crate in the
+# Linux and Windows app, no longer matches LinuxWindows/Cargo.lock. Fix it by
+# running LinuxWindows/scripts/third-party-licenses.sh and committing the
+# result (RELEASING.md, "Third-party licenses").
+
+name: Third-party licenses
+
+on:
+  pull_request:
+    branches: [master, dev]
+    paths:
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/Cargo.toml"
+      - "LinuxWindows/crates/*/Cargo.toml"
+      - "LinuxWindows/about.toml"
+      - "LinuxWindows/about.hbs"
+      - "LinuxWindows/scripts/third-party-licenses.sh"
+      - "LICENSES/rust-crates.md"
+      - ".github/workflows/third-party-licenses.yml"
+  push:
+    branches: [master, dev]
+    paths:
+      - "LinuxWindows/Cargo.lock"
+      - "LinuxWindows/Cargo.toml"
+      - "LinuxWindows/crates/*/Cargo.toml"
+      - "LinuxWindows/about.toml"
+      - "LinuxWindows/about.hbs"
+      - "LinuxWindows/scripts/third-party-licenses.sh"
+      - "LICENSES/rust-crates.md"
+      - ".github/workflows/third-party-licenses.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: third-party-licenses-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rust-crates:
+    name: Rust crate licenses are current
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: LinuxWindows
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Downloads the pinned cargo-about and the crates' sources; nothing is
+      # compiled.
+      - name: Check LICENSES/rust-crates.md
+        run: scripts/third-party-licenses.sh --check

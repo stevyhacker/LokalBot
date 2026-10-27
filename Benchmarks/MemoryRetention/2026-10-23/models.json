@@ -1,0 +1,6 @@
+[
+  {"arm":"qwen35-4b","label":"Qwen3.5 4B","quantization":"Q4_K_M","repo":"unsloth/Qwen3.5-4B-GGUF","revision":"e87f176479d0855a907a41277aca2f8ee7a09523","file":"Qwen3.5-4B-Q4_K_M.gguf","sha256":"00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4","reuse":"/home/ubuntu/spark-x26-eval-20261020/models/Qwen3.5-4B-Q4_K_M.gguf"},
+  {"arm":"qwen35-9b","label":"Qwen3.5 9B","quantization":"Q4_K_M","repo":"unsloth/Qwen3.5-9B-GGUF","revision":"3885219b6810b007914f3a7950a8d1b469d598a5","file":"Qwen3.5-9B-Q4_K_M.gguf","sha256":"03b74727a860a56338e042c4420bb3f04b2fec5734175f4cb9fa853daf52b7e8"},
+  {"arm":"hy-memory-q4","label":"Hy-Memory 30B-A3B","quantization":"Official Q4_K_M","repo":"tencent/Hy-Memory-30B-A3B-GGUF","revision":"38e10a37701e1caff4a6dc3831448aaf8c2e15d1","file":"Hy-Memory-30B-A3B-Q4_K_M.gguf","sha256":"e417fc86d0a2bb058ed253028f4617d144aa874b8af35711cca0c7009bd63446"},
+  {"arm":"lfm25-24b","label":"LFM2.5 24B-A2B","quantization":"QAD Q4_0","repo":"LiquidAI/LFM2.5-24B-A2B-GGUF","revision":"0912d33141f77e10705345a6732bfd83f0252fdc","file":"LFM2.5-24B-A2B-QAD-Q4_0.gguf","sha256":"d1c03f73ecaf61017d70419eec9e5dc0b05d50ae26c23d522829b934fbabf8a5"}
+]

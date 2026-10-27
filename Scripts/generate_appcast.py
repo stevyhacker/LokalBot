@@ -6,7 +6,8 @@ LokalBot's release flow is small and predictable, so this script renders one
 `generate_appcast` helper (which expects a directory of archives and a private
 hosting layout):
 
-1. a notarized + stapled `LokalBot.dmg` is uploaded to a GitHub Release
+1. a notarized + stapled DMG is uploaded to a GitHub Release as
+   `LokalBot-<version>-macos-arm64.dmg` (pass that name as --archive-filename)
 2. Sparkle's `sign_update` tool produces the EdDSA enclosure signature + length
 3. this script reads the marketing/build version from the .app and renders the
    feed from Scripts/appcast.template.xml
@@ -17,6 +18,7 @@ AFTER notarization/stapling and never modify the DMG afterward.
 Usage:
     python3 Scripts/generate_appcast.py \
         --archive build/LokalBot.dmg \
+        --archive-filename LokalBot-1.0.0-macos-arm64.dmg \
         --app build/export/LokalBot.app \
         --repo OWNER/REPO \
         --ed-key-file ~/secure/LokalBot-sparkle-key.txt

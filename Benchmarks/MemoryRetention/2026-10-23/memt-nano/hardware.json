@@ -1,0 +1,9 @@
+﻿{
+    "gpu":  {
+                "DriverDesc":  "AMD Radeon RX 6600 XT",
+                "HardwareInformation.qwMemorySize":  8573157376
+            },
+    "freeRamKiB":  22793808,
+    "utc":  "2026-10-23T09:43:04.9854459Z",
+    "ramBytes":  34183815168
+}

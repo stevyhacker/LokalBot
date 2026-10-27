@@ -4,6 +4,8 @@ private enum DayDigestTaskType {
     static var sectionTitle: AppFont { AppFont.scaled(.headline) }
     static var taskTitle: AppFont { AppFont.scaled(.body).weight(.semibold) }
     static var summary: AppFont { AppFont.scaled(.callout) }
+    static var briefTitle: AppFont { AppFont.scaled(.body) }
+    static var tag: AppFont { AppFont.scaled(.subheadline) }
 }
 
 /// Human-first rendering of the lossless Markdown day journal. Summary and
@@ -55,13 +57,19 @@ struct DayDigestView: View {
             }
 
             if !presentation.decisions.isEmpty {
-                digestSection("Decisions", icon: "checkmark.seal") {
-                    SelectableDigestText(Self.bulletList(presentation.decisions))
-                        .frame(maxWidth: proseMaxWidth, alignment: .leading)
+                if mode == .timeline {
+                    timelineDecisions
+                } else {
+                    digestSection("Decisions", icon: "checkmark.seal") {
+                        SelectableDigestText(Self.bulletList(presentation.decisions))
+                            .frame(maxWidth: proseMaxWidth, alignment: .leading)
+                    }
                 }
             }
 
-            if !presentation.focusBlocks.isEmpty {
+            if !presentation.focusBlocks.isEmpty, mode == .timeline {
+                timelineTaskSections
+            } else if !presentation.focusBlocks.isEmpty {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 6) {
                         Image(systemName: "briefcase")
@@ -97,7 +105,8 @@ struct DayDigestView: View {
                         Label("Other activity", systemImage: "ellipsis.circle")
                             .font(.scaled(.subheadline).weight(.medium))
                         Spacer()
-                        Text("\(presentation.otherActivityBlocks.count) item\(presentation.otherActivityBlocks.count == 1 ? "" : "s")")
+                        let count = presentation.otherActivityBlocks.count
+                        Text(count == 1 ? "\(count) item" : "\(count) items")
                             .font(.scaled(.caption).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -135,7 +144,8 @@ struct DayDigestView: View {
                         Label("Full activity log", systemImage: "clock.arrow.circlepath")
                             .font(.scaled(.subheadline).weight(.semibold))
                         Spacer()
-                        Text("\(presentation.activityCount) events")
+                        let count = presentation.activityCount
+                        Text(count == 1 ? "\(count) event" : "\(count) events")
                             .font(.scaled(.caption).monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -185,7 +195,7 @@ struct DayDigestView: View {
             ForEach(groups) { group in
                 VStack(alignment: .leading, spacing: 2) {
                     if groups.count > 1 {
-                        Text("\(group.kind.title) · \(group.blocks.count)")
+                        (Text(listTitle(of: group.kind)) + Text(verbatim: " · ") + Text(group.blocks.count, format: .number))
                             .font(.scaled(.subheadline).weight(.semibold))
                             .foregroundStyle(.secondary)
                             .accessibilityAddTraits(.isHeader)
@@ -198,11 +208,88 @@ struct DayDigestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func taskRows(_ blocks: [DayDigestPresentation.FocusBlock]) -> some View {
+    /// Timeline gives each status its own section. Tasks with a next step stay
+    /// in full, the rest of the open work becomes one-line rows, and finished
+    /// work folds into a single Done line.
+    private var timelineTaskSections: some View {
+        let groups = presentation.taskGroups
+        return VStack(alignment: .leading, spacing: 22) {
+            ForEach(groups) { group in
+                let rows = presentation.timelineRows(of: group)
+                let isFirst = group.id == groups.first?.id
+                if group.kind == .completed, presentation.isTaskFirst {
+                    DayDigestDoneSection(blocks: rows.brief, identifiesTasks: isFirst)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Text(timelineTitle(of: group.kind))
+                                .font(DayDigestTaskType.sectionTitle)
+                                .accessibilityAddTraits(.isHeader)
+                                .accessibilityIdentifier(isFirst ? "dayDigest.tasks" : "dayDigest.tasks.\(group.kind)")
+                            Text(group.blocks.count, format: .number)
+                                .font(.scaled(.callout).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.bottom, 2)
+                        taskRows(rows.full, showsTags: true)
+                        if !rows.brief.isEmpty {
+                            DayDigestBriefTaskList(
+                                blocks: rows.brief,
+                                followsFullRows: !rows.full.isEmpty)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func listTitle(of kind: DayDigestPresentation.TaskGroup.Kind) -> LocalizedStringKey {
+        switch kind {
+        case .blocked: "Blocked"
+        case .inProgress: "In progress"
+        case .other: "Other work"
+        case .completed: "Done"
+        }
+    }
+
+    private func timelineTitle(of kind: DayDigestPresentation.TaskGroup.Kind) -> LocalizedStringKey {
+        switch kind {
+        case .blocked: "Blocked"
+        case .inProgress: "In Progress"
+        case .other: presentation.isTaskFirst ? "Other Work" : "Work Summary"
+        case .completed: "Done"
+        }
+    }
+
+    private var timelineDecisions: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Plain text like the other modes' Decisions label, so a
+            // static-text query can tell whether the section is shown.
+            Text("Decisions")
+                .font(DayDigestTaskType.sectionTitle)
+            ForEach(Array(presentation.decisions.enumerated()), id: \.offset) { _, decision in
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "checkmark.seal")
+                        .font(DayDigestTaskType.summary)
+                        .foregroundStyle(LBTokens.Palette.accentText)
+                        .frame(width: DayDigestTaskRow.textInset - 8)
+                        .accessibilityHidden(true)
+                    SelectableDigestText(decision)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func taskRows(_ blocks: [DayDigestPresentation.FocusBlock],
+                          showsTags: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(blocks) { block in
                 DayDigestTaskRow(block: block,
-                                 collapsesDetails: presentation.collapsesDetails(of: block))
+                                 collapsesDetails: presentation.collapsesDetails(of: block),
+                                 showsTag: showsTags)
                     .padding(.vertical, 7)
                 if block.id != blocks.last?.id {
                     Divider().padding(.leading, DayDigestTaskRow.textInset)
@@ -246,7 +333,7 @@ struct DayDigestView: View {
     }
 
     private func digestSection<Content: View>(
-        _ title: String,
+        _ title: LocalizedStringKey,
         icon: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
@@ -355,6 +442,8 @@ private struct DayDigestTaskRow: View {
     let block: DayDigestPresentation.FocusBlock
     /// See `DayDigestPresentation.collapsesDetails(of:)`.
     let collapsesDetails: Bool
+    /// Timeline shows a title's trailing "(Project)" as a tag.
+    var showsTag = false
     @State private var expanded = false
 
     var body: some View {
@@ -426,10 +515,13 @@ private struct DayDigestTaskRow: View {
                     .foregroundStyle(.secondary)
             }
             if let title = block.title {
-                Text(title)
+                let parts: (title: String, tag: String?) = showsTag
+                    ? DayDigestPresentation.titleAndTag(title) : (title, nil)
+                Text(parts.title)
                     .font(DayDigestTaskType.taskTitle)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
+                if let tag = parts.tag { DayDigestTaskTag(text: tag) }
             }
         }
     }
@@ -450,7 +542,7 @@ private struct DayDigestTaskRow: View {
         }
     }
 
-    private func statusSymbol(_ name: String, _ color: Color, label: String) -> some View {
+    private func statusSymbol(_ name: String, _ color: Color, label: LocalizedStringKey) -> some View {
         Image(systemName: name)
             .font(DayDigestTaskType.taskTitle)
             .foregroundStyle(color)
@@ -470,6 +562,216 @@ private struct DayDigestTaskRow: View {
             }
         }
         DayDigestSourceLinks(ids: block.sourceIDs)
+    }
+}
+
+/// A project or pull request split off a task title.
+private struct DayDigestTaskTag: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(DayDigestTaskType.tag)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 1)
+            .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
+            .fixedSize()
+    }
+}
+
+/// One line for a task without a next step. What was done opens in place.
+private struct DayDigestBriefTaskRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let block: DayDigestPresentation.FocusBlock
+    var isDone = false
+    @State private var expanded = false
+    @State private var hovering = false
+
+    private var hasDetails: Bool {
+        block.title != nil && (!block.summaryMarkdown.isEmpty || !block.sourceIDs.isEmpty)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if hasDetails {
+                Button {
+                    withAnimation(WorkspaceMotion.animation(.disclosure, reduceMotion: reduceMotion)) {
+                        expanded.toggle()
+                    }
+                } label: {
+                    line.contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering = $0 }
+                .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+                .accessibilityHint(expanded ? "Hides what was done" : "Shows what was done")
+                .accessibilityIdentifier("dayDigest.task.\(block.id)")
+
+                if expanded {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if !block.summaryMarkdown.isEmpty {
+                            SelectableDigestText(block.summaryMarkdown, font: DayDigestTaskType.summary)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        DayDigestSourceLinks(ids: block.sourceIDs)
+                    }
+                    .padding(.leading, DayDigestTaskRow.textInset)
+                    .transition(WorkspaceMotion.disclosureTransition(reduceMotion: reduceMotion))
+                }
+            } else {
+                line
+            }
+        }
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var line: some View {
+        let parts = DayDigestPresentation.titleAndTag(block.title ?? block.summaryMarkdown)
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            marker
+                .frame(width: DayDigestTaskRow.textInset - 8)
+            Text(parts.title)
+                .font(DayDigestTaskType.briefTitle)
+                .foregroundStyle(.primary)
+                .lineLimit(expanded ? nil : 1)
+                .truncationMode(.tail)
+                .help(block.title ?? "")
+            if let tag = parts.tag { DayDigestTaskTag(text: tag) }
+            Spacer(minLength: 0)
+            if hasDetails {
+                Image(systemName: "chevron.right")
+                    .font(.scaled(.caption).weight(.semibold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(expanded ? 90 : 0))
+                    .opacity(hovering || expanded ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder private var marker: some View {
+        if isDone {
+            Image(systemName: "checkmark")
+                .font(DayDigestTaskType.summary.weight(.semibold))
+                .foregroundStyle(LBTokens.Palette.success)
+                .accessibilityLabel("Done")
+        } else {
+            Text("•")
+                .font(DayDigestTaskType.briefTitle)
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+/// One-line rows for open tasks without a next step. A long list shows its
+/// first rows until asked for the rest.
+private struct DayDigestBriefTaskList: View {
+    let blocks: [DayDigestPresentation.FocusBlock]
+    /// Below full rows, a heading says what these rows are.
+    let followsFullRows: Bool
+    var visibleLimit = 8
+    @State private var showsAll = false
+
+    var body: some View {
+        // Hiding a single row would cost as much room as showing it.
+        let folds = blocks.count > visibleLimit + 1
+        let visible = folds && !showsAll ? Array(blocks.prefix(visibleLimit)) : blocks
+        VStack(alignment: .leading, spacing: 0) {
+            if followsFullRows {
+                Text("\(blocks.count) more without a next step")
+                    .font(.scaled(.subheadline).weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 12)
+                    .padding(.bottom, 2)
+            }
+            ForEach(visible) { block in
+                DayDigestBriefTaskRow(block: block)
+            }
+            if folds {
+                Button(showsAll ? "Show fewer" : "Show \(blocks.count - visibleLimit) more") {
+                    showsAll.toggle()
+                }
+                .buttonStyle(.workspaceLink)
+                .font(AppFont.scaled(.callout))
+                .padding(.leading, DayDigestTaskRow.textInset)
+                .padding(.top, 4)
+                .accessibilityIdentifier("dayDigest.showAllTasks")
+            }
+        }
+    }
+}
+
+/// Finished tasks fold into one line that names them; opening it lists each.
+private struct DayDigestDoneSection: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let blocks: [DayDigestPresentation.FocusBlock]
+    /// With no open work, Done is the first task section and carries its
+    /// identifier.
+    let identifiesTasks: Bool
+    @State private var expanded = false
+
+    private var preview: String {
+        blocks.compactMap { block in
+            block.title.map { DayDigestPresentation.titleAndTag($0).title }
+        }.joined(separator: ", ")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Button {
+                withAnimation(WorkspaceMotion.animation(.disclosure, reduceMotion: reduceMotion)) {
+                    expanded.toggle()
+                }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(DayDigestTaskType.taskTitle)
+                        .foregroundStyle(LBTokens.Palette.success)
+                        .frame(width: DayDigestTaskRow.textInset - 8)
+                        .accessibilityHidden(true)
+                    Text("Done")
+                        .font(DayDigestTaskType.sectionTitle)
+                    Text(blocks.count, format: .number)
+                        .font(.scaled(.callout).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    if !expanded {
+                        Text(preview)
+                            .font(DayDigestTaskType.summary)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.scaled(.caption).weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(expanded ? "Expanded" : "Collapsed")
+            .accessibilityHint(expanded ? "Hides the finished tasks" : "Lists the finished tasks")
+            .accessibilityIdentifier(identifiesTasks ? "dayDigest.tasks" : "dayDigest.done")
+
+            if expanded {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(blocks) { block in
+                        DayDigestBriefTaskRow(block: block, isDone: true)
+                    }
+                }
+                .padding(.top, 4)
+                .transition(WorkspaceMotion.disclosureTransition(reduceMotion: reduceMotion))
+            }
+        }
+        .padding(.top, 12)
+        .overlay(alignment: .top) { Divider() }
     }
 }
 
@@ -596,7 +898,8 @@ private struct DayDigestActivityHourView: View {
                 Text(group.label)
                     .font(.scaled(.callout).weight(.medium).monospacedDigit())
                 Spacer()
-                Text("\(group.entries.count) event\(group.entries.count == 1 ? "" : "s")")
+                let count = group.entries.count
+                Text(count == 1 ? "\(count) event" : "\(count) events")
                     .font(.scaled(.caption).monospacedDigit())
                     .foregroundStyle(.secondary)
             }

@@ -33,6 +33,40 @@ final class ChatCitationTests: XCTestCase {
         XCTAssertEqual(ChatCitationParser.verified("Answer [meeting:aaaa", evidence: evidence, streaming: true), "Answer ")
     }
 
+    func testGroupedMeetingMarkerSplitsIntoOneMarkerPerMeeting() {
+        let text = "Still open: send the deck [meetings:00000024, 00000026]."
+        let verified = ChatCitationParser.verified(text, evidence: groupedEvidence())
+        XCTAssertEqual(verified, "Still open: send the deck [meeting:00000024] [meeting:00000026].")
+        XCTAssertEqual(ChatCitationParser.extract(verified).citations, [
+            .init(meetingID: "00000024", seconds: nil), .init(meetingID: "00000026", seconds: nil),
+        ])
+    }
+
+    func testGroupedMeetingMarkerKeepsVerifiedMeetingsOnly() {
+        let text = "Mixed [meeting:00000026@00:01:10; meeting:99999999] and [meetings:99999999,00000024]."
+        let verified = ChatCitationParser.verified(text, evidence: groupedEvidence())
+        XCTAssertEqual(verified,
+                       "Mixed [meeting:00000026@00:01:10] (source not verified) and (source not verified) [meeting:00000024].")
+        XCTAssertEqual(ChatCitationParser.extract(verified).citations, [
+            .init(meetingID: "00000026", seconds: 70), .init(meetingID: "00000024", seconds: nil),
+        ])
+        XCTAssertFalse(verified.contains("99999999"))
+    }
+
+    func testStreamingHoldsBackPartialGroupedMarker() {
+        let evidence = groupedEvidence()
+        XCTAssertEqual(ChatCitationParser.verified("Cut [meetings:0000", evidence: evidence, streaming: true), "Cut ")
+        XCTAssertEqual(ChatCitationParser.verified("Cut [meetings", evidence: evidence, streaming: true), "Cut ")
+        XCTAssertEqual(ChatCitationParser.verified("Cut [meetings:00000024, 0000", evidence: evidence, streaming: true), "Cut ")
+    }
+
+    private func groupedEvidence() -> ChatEvidence {
+        var evidence = ChatEvidence()
+        evidence.addMeeting(UUID(uuidString: "00000024-0000-4000-8000-000000000024")!)
+        evidence.addMeeting(UUID(uuidString: "00000026-0000-4000-8000-000000000026")!, seconds: 70)
+        return evidence
+    }
+
 
     func testExtractTimedMarker() {
         let (display, citations) = ChatCitationParser.extract(

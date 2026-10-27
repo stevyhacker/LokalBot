@@ -104,6 +104,10 @@ enum MeetingMergeService {
             merged.endedAt = merged.startedAt.addingTimeInterval(totalDuration)
             merged.recordedDuration = totalDuration
             merged.mergedSourceMeetingIDs = sources.map { $0.meeting.id }
+            // Screen context reads this marker. An imported source's span
+            // shows unrelated screen activity, so the merge stays imported.
+            let importedFileNames = sources.flatMap { $0.meeting.importedFileNames ?? [] }
+            merged.importedFileNames = importedFileNames.isEmpty ? nil : importedFileNames
 
             let transcriptBuild = try makeTranscript(from: sources)
             let mergedTranscript = transcriptBuild.transcript

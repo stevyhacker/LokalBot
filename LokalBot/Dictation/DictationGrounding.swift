@@ -38,11 +38,12 @@ enum DictationGrounding {
         "summarize", "summarise", "translate", "odgovori", "napisi", "sastavi", "prevedi", "preformulisi",
         "ecris", "redige", "reponds", "reformule", "traduis", "schreibe", "verfasse", "antworte",
         "ubersetze", "escribe", "redacta", "responde", "traduce", "напиши", "ответь", "переведи",
+        "rispondi", "scrivi", "redigi", "componi", "riscrivi", "riformula", "traduci", "riassumi",
     ]
     private static let politePhrases: [[String]] = [
         ["please"], ["can", "you"], ["could", "you"], ["would", "you"], ["i", "want", "you", "to"],
         ["i'd", "like", "you", "to"], ["molim", "te"], ["molim", "vas"], ["mozes", "li"], ["mozete", "li"],
-        ["bitte"], ["por", "favor"], ["s'il", "te", "plait"],
+        ["bitte"], ["por", "favor"], ["s'il", "te", "plait"], ["per", "favore"],
     ]
     private static let fillerWords: Set<String> = [
         "hey", "ok", "okay", "so", "um", "uh", "alright", "well", "okej", "dobro", "ajde", "hajde", "evo",
@@ -93,7 +94,8 @@ enum DictationGrounding {
     private static func requestsContextByCommand(_ speech: String) -> Bool {
         var text = LibrarySearch.folded(speech).trimmingCharacters(in: .whitespacesAndNewlines)
         let prefixes = ["please ", "can you ", "could you ", "would you ", "i want you to ", "i'd like you to ",
-                        "molim te ", "molim vas ", "mozes li ", "mozete li ", "bitte ", "por favor ", "s'il te plait "]
+                        "molim te ", "molim vas ", "mozes li ", "mozete li ", "bitte ", "por favor ", "s'il te plait ",
+                        "per favore "]
         for _ in 0..<3 {
             guard let prefix = prefixes.first(where: text.hasPrefix) else { break }
             text.removeFirst(prefix.count)
@@ -102,7 +104,8 @@ enum DictationGrounding {
         return ["reply", "respond", "answer", "draft", "write", "compose", "rewrite", "rephrase", "edit", "polish",
                 "summarize", "summarise", "translate", "odgovori", "napisi", "sastavi", "prevedi", "preformulisi",
                 "ecris", "redige", "reponds", "reformule", "traduis", "schreibe", "verfasse", "antworte",
-                "ubersetze", "escribe", "redacta", "responde", "traduce", "напиши", "ответь", "переведи"].contains(command)
+                "ubersetze", "escribe", "redacta", "responde", "traduce", "напиши", "ответь", "переведи",
+                "rispondi", "scrivi", "redigi", "componi", "riscrivi", "riformula", "traduci", "riassumi"].contains(command)
     }
 
     static func memorySettings(_ settings: AppSettings) -> AppSettings {

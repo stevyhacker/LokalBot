@@ -39,7 +39,7 @@ final class OutcomeIndex: ObservableObject {
     }
 
     var openUserActions: [OutcomeActionReference] {
-        all.flatMap(\.actionReferences)
+        all.filter(\.meeting.isOwnWork).flatMap(\.actionReferences)
             .filter { $0.isForUser && $0.status == .open }
             .sorted {
                 let first = $0.resolvedDueDate ?? .distantFuture
@@ -298,8 +298,11 @@ final class OutcomeIndex: ObservableObject {
         if !changed.isEmpty { onEvidenceChanged(changed) }
     }
 
+    /// Action lists come from the user's own meetings: the sample meeting's
+    /// made-up actions stay on its own page.
     private func rebuildActionThreads() {
-        allActionThreads = ActionThreadClusterer.cluster(all.flatMap(\.actionReferences))
+        allActionThreads = ActionThreadClusterer.cluster(
+            all.filter(\.meeting.isOwnWork).flatMap(\.actionReferences))
         userActionThreads = allActionThreads.filter(\.isForUser)
     }
 

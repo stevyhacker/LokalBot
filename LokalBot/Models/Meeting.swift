@@ -45,8 +45,27 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     /// old row across launches without deleting its original evidence.
     var mergedIntoMeetingID: UUID?
 
+    /// The original file names when this meeting came from audio or video
+    /// files the user imported rather than recordings made on this Mac. The
+    /// screen during their time span shows what the user was doing then, not
+    /// this meeting, so imported meetings take no screen context. A merge
+    /// keeps every imported source's names, so it stays imported.
+    var importedFileNames: [String]?
+
+    /// Set on LokalBot's bundled sample meeting ("orders-api/en"): a made-up
+    /// call with synthetic voices (`SampleMeeting`). Ask, search and agents
+    /// still see it; personal memory (the day, digests, people, projects,
+    /// action lists, Personal Context) leaves it out.
+    var sampleID: String?
+
     var isMergedMeeting: Bool { !(mergedSourceMeetingIDs ?? []).isEmpty }
     var isMergedSource: Bool { mergedIntoMeetingID != nil }
+    var isImported: Bool { !(importedFileNames ?? []).isEmpty }
+    var isSample: Bool { sampleID != nil }
+    /// The user's own work: what memory, digests, people, projects, action
+    /// lists and briefings are built from. Merged sources live on in their
+    /// merged meeting, and the sample is made up.
+    var isOwnWork: Bool { !isMergedSource && !isSample }
 
     /// Shared, read-only library projection for the app and CLI/MCP. Parent
     /// manifests cover interrupted source-marker writes; missing parents make

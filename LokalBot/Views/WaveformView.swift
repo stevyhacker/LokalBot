@@ -96,6 +96,10 @@ struct WaveformView: View {
         }
         .help("Click or drag to seek. Left and Right arrows move 5 seconds.")
         .task(id: request) { await load(request) }
+        // Media timelines stay left to right in right-to-left interfaces, like
+        // platform playback controls. It also keeps the Canvas, the timestamp
+        // bubble and pointer positions in one coordinate space.
+        .environment(\.layoutDirection, .leftToRight)
     }
 
     private func waveform(in size: CGSize) -> some View {

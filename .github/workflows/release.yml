@@ -5,7 +5,9 @@
 # builds), briefly import Developer ID only to export/sign the finished bytes,
 # build the styled DMG, notarize + staple both the app and the DMG, Sparkle-
 # sign the DMG, render appcast.xml, and upload DMG + appcast to the GitHub
-# Release for the tag.
+# Release for the tag. In parallel, linux-windows-release.yml builds the Linux
+# and Windows archives; once the macOS release exists, their update feeds are
+# signed with the same Sparkle key and attached to it.
 #
 # Required repo secrets (see RELEASING.md "CI release"):
 #   MACOS_CERTIFICATE      base64 of the Developer ID Application .p12
@@ -15,8 +17,18 @@
 #   NOTARY_APPLE_TEAM_ID   team ID (3N8B4562P4)
 #   NOTARY_APPLE_PWD       app-specific password for notarytool
 #   SPARKLE_PRIVATE_KEY    base64 Ed25519 private key; written to a temp file
-#                          and passed to generate_appcast.py --ed-key-file.
+#                          and passed to generate_appcast.py --ed-key-file
+#                          (and to LinuxWindows/scripts/release-feeds.sh).
 #                          The private key must NEVER be committed to the repo.
+#
+# Optional:
+#   AUR_SSH_PRIVATE_KEY    SSH key of the AUR account that maintains
+#                          lokalbot-bin (aur.yml). Without it, or without the
+#                          AUR_PUBLISH repository variable set to true, the
+#                          AUR package is checked but not pushed.
+#   WINGET_TOKEN           classic token (public_repo) of the account whose
+#                          microsoft/winget-pkgs fork wingetcreate pushes to
+#                          (winget.yml). Without it nothing goes to winget.
 
 name: Release
 
@@ -39,6 +51,7 @@ concurrency:
 permissions:
   contents: write # create the Release and upload DMG + appcast
   actions: read # verify validation provenance and retrieve trusted preparation
+  pull-requests: read # find the merged pull request whose UI run covers the candidate
 
 defaults:
   run:
@@ -69,7 +82,7 @@ jobs:
           CANDIDATE_VERSION: ${{ inputs.version }}
         run: python3 Scripts/ci/release-candidate.py prepare
 
-      - name: Require all five exact-commit release gates
+      - name: Require all five release gates
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -297,7 +310,7 @@ jobs:
         run: python3 Scripts/ci/release-candidate.py pack
       - name: Save prepared candidate
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           overwrite: true # full reruns replace artifacts from earlier attempts
           name: prepared-app-${{ github.sha }}
@@ -420,12 +433,18 @@ jobs:
           umask 077
           key_file="$RUNNER_TEMP/sparkle-ed25519.key"
           printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
+          # The DMG is published as LokalBot-<version>-macos-arm64.dmg, like
+          # the Linux and Windows files; the Publish step uploads it under
+          # this name.
+          dmg_name="LokalBot-${GITHUB_REF_NAME#v}-macos-arm64.dmg"
+          echo "DMG_NAME=$dmg_name" >> "$GITHUB_ENV"
           # --release-tag: the DMG uploads to THIS tag's release, so the
           # enclosure URL must embed it verbatim. Deriving it from the app's
           # version would drop a pre-release suffix (v1.0.0-beta → v1.0.0)
           # and point the feed at a release that doesn't exist.
           python3 Scripts/generate_appcast.py \
             --archive build/LokalBot.dmg \
+            --archive-filename "$dmg_name" \
             --app build/export/LokalBot.app \
             --repo "$GITHUB_REPOSITORY" \
             --release-tag "$GITHUB_REF_NAME" \
@@ -434,7 +453,7 @@ jobs:
             --ed-key-file "$key_file"
           rm -f "$key_file"
 
-      # Upload both assets: the Sparkle feed resolves via
+      # Upload the DMG, its checksum and the appcast: the Sparkle feed resolves via
       # releases/latest/download/appcast.xml, so the appcast must live on the
       # Release next to the DMG it signs. Hyphenated tags (v1.0.0-beta) become
       # pre-releases and never become "latest" (RELEASING.md step 7).
@@ -465,10 +484,13 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --notes-file "$notes_file"
           fi
+          # A copy under the published name keeps the signed bytes untouched.
+          cp build/LokalBot.dmg "build/$DMG_NAME"
+          (cd build && shasum -a 256 -b "$DMG_NAME" > "$DMG_NAME.sha256")
           gh release upload "$GITHUB_REF_NAME" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            build/LokalBot.dmg build/appcast.xml
+            "build/$DMG_NAME" "build/$DMG_NAME.sha256" build/appcast.xml
 
       - name: Delete temp keychain
         if: always()
@@ -477,3 +499,131 @@ jobs:
           security delete-keychain "$RUNNER_TEMP/release-dmg-signing.keychain-db" || true
           rm -f "$RUNNER_TEMP/release-app-signing.p12" "$RUNNER_TEMP/release-dmg-signing.p12"
           security list-keychains -d user -s login.keychain-db
+
+  # The Linux and Windows archives build while the macOS job runs, from the
+  # same tag, without any secret.
+  linux-windows:
+    name: Linux and Windows archives
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/linux-windows-release.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+
+  # Adds a stable release's .deb and .rpm to the apt and dnf repositories at
+  # pkg.lokalbot.com once they are attached (linux-repos.yml, which lists its
+  # LINUX_REPO_* secrets and skips without them). GitHub-hosted, like every
+  # job that sees a secret.
+  linux-repos:
+    name: apt and dnf repositories
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: linux-windows-publish
+    uses: ./.github/workflows/linux-repos.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      LINUX_REPO_GPG_PRIVATE_KEY: ${{ secrets.LINUX_REPO_GPG_PRIVATE_KEY }}
+      LINUX_REPO_R2_ACCOUNT_ID: ${{ secrets.LINUX_REPO_R2_ACCOUNT_ID }}
+      LINUX_REPO_R2_ACCESS_KEY_ID: ${{ secrets.LINUX_REPO_R2_ACCESS_KEY_ID }}
+      LINUX_REPO_R2_SECRET_ACCESS_KEY: ${{ secrets.LINUX_REPO_R2_SECRET_ACCESS_KEY }}
+    permissions:
+      contents: read
+
+  # Runs only after the macOS job published the release (so its release gates
+  # passed), signs the Linux and Windows update feeds with the Sparkle key the
+  # DMG uses, checks them against SUPublicEDKey, and attaches archives and
+  # feeds to the same release. Installed copies read
+  # releases/latest/download/<platform>.json.
+  linux-windows-publish:
+    name: Sign and attach Linux and Windows updates
+    if: github.event_name == 'push'
+    needs: [release, linux-windows]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write # upload release assets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: release-*-x86_64
+          path: LinuxWindows/dist
+          merge-multiple: true
+
+      # Built before the key exists, so no build script runs beside it.
+      - name: Build the feed tool
+        working-directory: LinuxWindows
+        run: cargo build --release --locked -p lokalbot-update --no-default-features --bin lokalbot-update-feed
+
+      - name: Sign the update feeds
+        working-directory: LinuxWindows
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          umask 077
+          key_file="$RUNNER_TEMP/sparkle-ed25519.key"
+          trap 'rm -f "$key_file"' EXIT
+          printf '%s' "$SPARKLE_PRIVATE_KEY" > "$key_file"
+          expected=$(/usr/bin/python3 -c 'import plistlib,sys; print(plistlib.load(open(sys.argv[1], "rb"))["SUPublicEDKey"])' ../LokalBot/Info.plist)
+          FEED_TOOL=target/release/lokalbot-update-feed \
+            scripts/release-feeds.sh dist "$GITHUB_REF_NAME" "$key_file" "$expected"
+
+      - name: Attach to the release
+        working-directory: LinuxWindows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber \
+            dist/*.tar.gz dist/*.zip dist/*-setup.exe dist/*.deb dist/*.rpm dist/*.pkg.tar.zst dist/*.sha256 \
+            dist/linux-x86_64.json dist/windows-x86_64.json
+
+  # Points the lokalbot-bin AUR package at this release once its Linux archive
+  # is attached, checks it in a clean Arch container and pushes it with the
+  # AUR_SSH_PRIVATE_KEY secret (skipped without it or the AUR_PUBLISH
+  # variable). Pre-releases stay off the
+  # AUR. GitHub-hosted, like every job that sees a secret.
+  aur:
+    name: AUR package
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: linux-windows-publish
+    uses: ./.github/workflows/aur.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+    permissions:
+      contents: read
+
+  # Opens the winget-pkgs pull request for this version once the Windows
+  # installer is attached, with the WINGET_TOKEN secret (skipped without it).
+  # Pre-releases stay off winget. GitHub-hosted, like every job that sees a
+  # secret.
+  winget:
+    name: winget package
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: linux-windows-publish
+    uses: ./.github/workflows/winget.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    permissions:
+      contents: read
+
+  # Builds this release's upgrade fixture on a clean hosted Mac once the DMG
+  # is published and keeps it for 90 days, so the next release adds it with
+  # Scripts/upgrade-fixtures/add.sh instead of waiting for a runner
+  # (RELEASING.md step 0). Pre-releases are never a changelog base.
+  upgrade-fixture:
+    name: Upgrade fixture
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: release
+    uses: ./.github/workflows/upgrade-fixtures.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read

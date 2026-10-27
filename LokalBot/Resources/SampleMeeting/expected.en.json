@@ -1,0 +1,49 @@
+{
+  "sampleID": "orders-api/en",
+  "language": "en",
+  "speakers": 2,
+  "entities": [
+    {"kind": "name", "label": "Maya", "turn": "t03", "any": ["maya"]},
+    {"kind": "name", "label": "Daniel", "turn": "t02", "any": ["daniel"]},
+    {"kind": "name", "label": "Priya", "turn": "t06", "any": ["priya"]},
+    {"kind": "name", "label": "Tomás", "turn": "t12", "any": ["tomás", "tomas", "thomas"]},
+    {"kind": "name", "label": "Lena", "turn": "t14", "any": ["lena"]},
+    {"kind": "name", "label": "Fernhill", "turn": "t17", "any": ["fernhill", "fern hill"]},
+    {"kind": "number", "label": "42 partners", "turn": "t15", "any": ["42", "forty-two", "forty two"]},
+    {"kind": "number", "label": "19 generated clients", "turn": "t15", "any": ["19", "nineteen"]},
+    {"kind": "number", "label": "p95 of 180 ms", "turn": "t10", "any": ["180", "a hundred and eighty", "one hundred and eighty", "hundred eighty"]},
+    {"kind": "number", "label": "mobile release 4.2", "turn": "t12", "any": ["4.2", "four point two"]},
+    {"kind": "number", "label": "two million open orders", "turn": "t25", "any": ["two million", "2 million", "2,000,000", "2000000"]},
+    {"kind": "date", "label": "November 18 (first target)", "turn": "t08", "any": ["november 18", "november eighteenth", "november the eighteenth", "18 november", "nov 18"]},
+    {"kind": "date", "label": "November 11 (new target)", "turn": "t19", "any": ["november 11", "november eleventh", "november the eleventh", "11 november", "nov 11"]},
+    {"kind": "date", "label": "Friday (spec and changelog)", "turn": "t23", "any": ["friday"]}
+  ],
+  "decision": {
+    "text": "Priya emails the three partners who asked for the delivery window; Daniel updates the API spec and the changelog by Friday.",
+    "turns": ["t22", "t23"]
+  },
+  "changedDecision": {
+    "before": "Ship version 3 of the API, with a delivery window object replacing the ETA field, by November 18.",
+    "beforeTurns": ["t07", "t09"],
+    "after": "No version 3. The response stays backward-compatible: ETA is unchanged, and delivery window is a new optional field that is left out when unknown. Ship on version 2 by November 11.",
+    "afterTurns": ["t18", "t19", "t20"]
+  },
+  "openQuestion": {
+    "text": "Whether to backfill delivery windows for orders created before the change (about two million open orders). Maya will ask Priya; nothing was decided.",
+    "turns": ["t24", "t27", "t28"]
+  },
+  "ask": {
+    "question": "Is the delivery window field required in the Orders API response?",
+    "answerPoints": [
+      "No: the delivery window is a new optional field.",
+      "It is left out when the window is unknown.",
+      "ETA stays unchanged; the response stays backward-compatible on version 2.",
+      "This replaced the earlier plan to ship version 3 with the delivery window replacing ETA."
+    ],
+    "citesTurns": ["t18", "t19", "t20"]
+  },
+  "codingAgent": {
+    "search": "delivery window",
+    "finds": "The Orders API response must stay backward-compatible: keep ETA as it is and add delivery_window as an optional field, omitted when unknown."
+  }
+}

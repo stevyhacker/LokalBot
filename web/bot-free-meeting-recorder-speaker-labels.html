@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Can a bot-free meeting recorder tell who said what?","description":"How a recorder that never joins the call separates speakers, where the names come from, and measured speaker-separation accuracy for LokalBot on Mac.","datePublished":"2026-10-14","dateModified":"2026-10-14","mainEntityOfPage":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Can a bot-free meeting recorder tell who said what?","item":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot read participant names from Zoom, Meet, or Teams?","acceptedAnswer":{"@type":"Answer","text":"No. It doesn't read the meeting app's participant list or who is speaking. Names come from you, with calendar attendees offered as suggestions."}},{"@type":"Question","name":"Does speaker separation upload audio?","acceptedAnswer":{"@type":"Answer","text":"No. It runs on your Mac. The speaker model downloads once on first use, and with Qwen3-ASR a word-timing model of about 1 GB downloads too."}},{"@type":"Question","name":"Can I turn speaker separation off?","acceptedAnswer":{"@type":"Answer","text":"Yes. Turn off Separate voices by speaker in Settings → Meetings → Speaker names. Your microphone and the call audio stay on separate tracks either way."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Can a bot-free meeting recorder tell who said what?","description":"How a recorder that never joins the call separates speakers, where the names come from, and measured speaker-separation accuracy for LokalBot on Mac.","datePublished":"2026-10-14","dateModified":"2026-10-20","mainEntityOfPage":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Can a bot-free meeting recorder tell who said what?","item":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot read participant names from Zoom, Meet, or Teams?","acceptedAnswer":{"@type":"Answer","text":"No. It doesn't read the meeting app's participant list or who is speaking. Names come from you, with calendar attendees offered as suggestions."}},{"@type":"Question","name":"Does speaker separation upload audio?","acceptedAnswer":{"@type":"Answer","text":"No. It runs on your computer. The speaker model downloads once on first use. On a Mac with Qwen3-ASR, a word-timing model of about 1 GB downloads too."}},{"@type":"Question","name":"Can I turn speaker separation off?","acceptedAnswer":{"@type":"Answer","text":"Yes. Turn off Separate voices by speaker in Settings → Meetings → Speaker names. Your microphone and the call audio stay on separate tracks either way."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -33,7 +33,7 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a></nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/guides#compare">Compare</a><a href="/blog">Blog</a></nav>
     <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
   </header>
 
@@ -42,26 +42,26 @@
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Speaker labels</span></nav>
       <p class="eyebrow">Speaker labels</p>
       <h1>Can a bot-free meeting recorder tell who said what?</h1>
-      <p class="guide-hero__lead">Partly. A recorder that doesn't join the call can't see the meeting app's participant list, so it doesn't know names on its own. It can tell your microphone from the call audio and separate the distinct voices in each, and then you put a name on each voice. LokalBot does all of this on your Mac.</p>
-      <p class="guide-byline"><time datetime="2026-10-14">Updated October 14, 2026</time> · 5 min read</p>
+      <p class="guide-hero__lead">Partly. A recorder that doesn't join the call can't see the meeting app's participant list, so it doesn't know names on its own. It can tell your microphone from the call audio and separate the distinct voices in each, and then you put a name on each voice. LokalBot does all of this on your computer.</p>
+      <p class="guide-byline"><time datetime="2026-10-20">Updated October 20, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article">
 <h2>Why bots know names and local recorders don't</h2>
-        <p>A meeting bot is a participant, so the meeting platform can tell it who is talking. A bot-free recorder hears what your Mac hears: your microphone, and the meeting app's audio with every remote participant mixed into one stream. To split that stream it has to group voices by how they sound, which is called speaker diarization. Diarization can say “three different people spoke, and here is when,” but not who they are.</p>
+        <p>A meeting bot is a participant, so the meeting platform can tell it who is talking. A bot-free recorder hears what your computer hears: your microphone, and the meeting app's audio with every remote participant mixed into one stream. To split that stream it has to group voices by how they sound, which is called speaker diarization. Diarization can say “three different people spoke, and here is when,” but not who they are.</p>
 
         <h2>How LokalBot labels speakers</h2>
         <ol>
-          <li><strong>Two tracks first.</strong> Your microphone and the meeting app are recorded separately, so your side and the call stay apart before any model runs. By default, speech on the microphone counts as yours (<strong>My microphone is me</strong>), which also puts your commitments first in action items.</li>
-          <li><strong>Voices within each track.</strong> After the meeting, <strong>Separate voices by speaker</strong>, on by default, groups the voices in both tracks on your Mac. New installs use Nemotron 3.</li>
+          <li><strong>Two tracks first.</strong> Your microphone and the call audio are recorded separately, so your side and the call stay apart before any model runs. By default, speech on the microphone counts as yours (<strong>My microphone is me</strong>), which also puts your commitments first in action items.</li>
+          <li><strong>Voices within each track.</strong> After the meeting, <strong>Separate voices by speaker</strong>, on by default, groups the voices in both tracks on your computer. New Mac installs use Nemotron 3; Windows and Linux (alpha) use pyannote segmentation with TitaNet embeddings.</li>
           <li><strong>Names from you.</strong> When you rename a speaker, calendar attendees appear as suggestions. They stay suggestions: even a one-on-one invite doesn't prove who spoke, so LokalBot never applies a calendar name on its own.</li>
-          <li><strong>Voices on this Mac, remembered.</strong> The optional <strong>Remember speakers on this Mac</strong> setting can suggest names for voices you've confirmed on this Mac's microphone in later recordings. Remote participants' voices are never enrolled or matched, so you name them in each meeting.</li>
+          <li><strong>Voices on this Mac, remembered.</strong> On a Mac, the optional <strong>Remember speakers on this Mac</strong> setting can suggest names for voices you've confirmed on this Mac's microphone in later recordings. Remote participants' voices are never enrolled or matched, so you name them in each meeting. This setting is Mac only for now.</li>
         </ol>
         <p>All of these settings are in <strong>Settings → Meetings → Speaker names</strong>.</p>
 
         <h2>How accurate is it?</h2>
-        <p>The test used four public AMI meeting recordings, each scored twice (headset mix and distant microphone), for 184.55 minutes of audio with four speakers per meeting. Nemotron 3 had a 14.6% diarization error rate with no forgiveness collar, against 43.4% for the previous default, Pyannote Community-1. It found the right number of speakers in all eight cases and ran about 500 times faster than real time. The error rate adds up missed speech, false alarms, and speech credited to the wrong person. See the <a href="benchmarks">benchmarks</a> for methods and raw results.</p>
-        <p>The test has limits: English only, four speakers, and meeting-room recordings rather than audio that went through a video call. Larger calls and other languages haven't been measured.</p>
+        <p>The test ran on a Mac and used four public AMI meeting recordings, each scored twice (headset mix and distant microphone), for 184.55 minutes of audio with four speakers per meeting. Nemotron 3 had a 14.6% diarization error rate with no forgiveness collar, against 43.4% for the previous default, Pyannote Community-1. It found the right number of speakers in all eight cases and ran about 500 times faster than real time. The error rate adds up missed speech, false alarms, and speech credited to the wrong person. See the <a href="benchmarks">benchmarks</a> for methods and raw results.</p>
+        <p>The test has limits: English only, four speakers, and meeting-room recordings rather than audio that went through a video call. Larger calls, other languages, and the speaker models used on Windows and Linux haven't been measured.</p>
 
         <h2>When labels go wrong</h2>
         <ul>
@@ -83,7 +83,7 @@
         </details>
         <details class="qa">
           <summary>Does speaker separation upload audio?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. It runs on your Mac. The speaker model downloads once on first use, and with Qwen3-ASR a word-timing model of about 1 GB downloads too.</p>
+          <p>No. It runs on your computer. The speaker model downloads once on first use. On a Mac with Qwen3-ASR, a word-timing model of about 1 GB downloads too.</p>
         </details>
         <details class="qa">
           <summary>Can I turn speaker separation off?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -109,7 +109,7 @@
         <a class="guide-card" href="claude-code-codex-meeting-notes">
           <span class="guide-card__eyebrow">Agents and MCP</span>
           <strong>How do I let Claude Code or Codex search my meeting notes?</strong>
-          <span>Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your Mac, with no cloud notetaker or meeting bot.</span>
+          <span>Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.</span>
         </a>
       </div>
     </section>
@@ -118,10 +118,11 @@
       <div class="download__panel">
         <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
         <p class="eyebrow">Try it locally</p>
-        <h2 class="section__title">Meeting notes that stay on your Mac by default.</h2>
-        <p class="section__lead">Free, open source, and no account. Apple Silicon · macOS 15.0+</p>
-        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener"><i class="ph ph-download-simple" aria-hidden="true"></i>Download for macOS</a>
-        <p class="download__sub">Or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>
@@ -129,43 +130,45 @@
   <footer class="footer">
     <div class="footer__brand">
       <a class="brand" href="/">
-        <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Find what you said or saw on your Mac.</p>
-      <p class="footer__meta">Apple Silicon &middot; macOS 15.0+ &middot; Free &amp; open source</p>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
-      <a href="system-requirements">System requirements</a>
+      <a href="/system-requirements">System requirements</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
-      <a href="lokalbot-vs-granola">vs Granola</a>
-      <a href="lokalbot-vs-apple-notes">vs Apple Notes</a>
-      <a href="lokalbot-vs-otter">vs Otter</a>
-      <a href="lokalbot-vs-fireflies">vs Fireflies</a>
-      <a href="lokalbot-vs-hyprnote">vs Hyprnote</a>
-      <a href="lokalbot-vs-meetily">vs Meetily</a>
-      <a href="lokalbot-vs-macwhisper">vs MacWhisper</a>
-      <a href="lokalbot-vs-superwhisper">vs Superwhisper</a>
-      <a href="lokalbot-vs-wispr-flow">vs Wispr Flow</a>
-      <a href="lokalbot-vs-screenpipe">vs Screenpipe</a>
-      <a href="lokalbot-vs-rewind">vs Rewind</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="about">About</a>
+      <a href="/about">About</a>
       <a href="/guides">Guides</a>
-      <a href="benchmarks">Benchmarks</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
-      <a href="privacy">Privacy</a>
-      <a href="terms">Terms</a>
-      <a href="support">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

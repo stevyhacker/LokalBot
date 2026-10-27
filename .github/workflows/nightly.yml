@@ -73,7 +73,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: unit-products
           path: .build/transfer
@@ -95,7 +95,7 @@ jobs:
       - name: Compare with committed recordings
         id: compare
         run: python3 Scripts/ci/model-drift.py LokalBotTests/Fixtures/model-recordings .build/model-recordings --report .build/model-recordings/drift.md
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
           name: model-recordings
@@ -126,7 +126,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: unit-products
           path: .build/transfer
@@ -149,7 +149,7 @@ jobs:
           export LOKALBOT_DAY_ROOT="$RUNNER_TEMP/workday"
           mkdir -p "$LOKALBOT_DAY_ROOT"
           bash Scripts/day-in-the-life.sh --real-asr 2>&1 | tee .build/day-in-the-life-real.log
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: failure()
         with:
           name: day-in-the-life-real
@@ -185,7 +185,7 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
         with:
           xcode-version: "26.4.1"
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: unit-products
           path: .build/transfer

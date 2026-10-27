@@ -130,8 +130,34 @@ struct URLSessionLlamaChatClient: LlamaChatClient {
     }
 }
 
+/// What one `AskLibraryEngine` request produced.
+enum AskLibraryOutcome: Equatable {
+    /// The model's text and the meetings its context came from.
+    case answered(String, citations: [AskLibraryContext.Citation])
+    /// A friendly non-error result: the library is empty or nothing matched.
+    case notFound(String)
+    case failed(ToolErrorCode, String)
+
+    /// The MCP `ask_library` form: the answer with a Sources list appended.
+    var toolResult: ToolResult {
+        switch self {
+        case .answered(let text, let citations):
+            guard !citations.isEmpty else { return .text(text) }
+            let sources = citations.map {
+                "- \($0.title) (\($0.date), id \($0.meeting_id))"
+            }
+            return .text(text + "\n\nSources:\n" + sources.joined(separator: "\n"))
+        case .notFound(let text):
+            return .text(text)
+        case .failed(let code, let message):
+            return .error(code, message)
+        }
+    }
+}
+
 /// Question in, local model reads the library, synthesized answer and
 /// citations out. Owns the health probe, app wake, and error taxonomy.
+/// The same path drafts a reply to a message from what the meetings say.
 struct AskLibraryEngine {
     var gate: AgentAccessGate
     var client: LlamaChatClient = URLSessionLlamaChatClient()
@@ -142,21 +168,71 @@ struct AskLibraryEngine {
     var maxPollAttempts = 60
 
     func ask(_ question: String) async -> ToolResult {
-        guard let authorization = gate.authorizationID() else {
-            return .error(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
+        await answer(question).toolResult
+    }
+
+    /// Answers `question` from the meeting library.
+    func answer(_ question: String) async -> AskLibraryOutcome {
+        // Access comes first: a disabled library says so before anything else.
+        guard gate.authorizationID() != nil else {
+            return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
         }
         let trimmed = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            return .error(
+            return .failed(
                 .invalidArguments,
                 "ask_library requires a non-empty \"question\" string.")
         }
         guard trimmed.count <= LibraryInputPolicy.maximumQuestionCharacters else {
-            return .error(
+            return .failed(
                 .invalidArguments,
                 "ask_library questions are limited to \(LibraryInputPolicy.maximumQuestionCharacters) characters.")
         }
+        return await respond(
+            retrievalText: trimmed,
+            notFound: "I couldn't find anything in your meetings matching that question. Try search_meetings with a specific keyword."
+        ) { contextText in
+            AskLibraryContext.messages(question: trimmed, contextText: contextText)
+        }
+    }
 
+    /// Drafts the user's reply to `message` from what their meetings say.
+    /// Meetings are retrieved by the message's own words (and the
+    /// instruction's); a message nothing matches gets no draft, since the
+    /// point is to add what the user's meetings know.
+    func draftReply(to message: String, instruction: String? = nil) async -> AskLibraryOutcome {
+        guard gate.authorizationID() != nil else {
+            return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
+        }
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let extra = instruction?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !trimmed.isEmpty else {
+            return .failed(.invalidArguments, "A reply needs the message being answered.")
+        }
+        guard trimmed.count + extra.count <= LibraryInputPolicy.maximumQuestionCharacters else {
+            return .failed(
+                .invalidArguments,
+                "The message and instruction are limited to \(LibraryInputPolicy.maximumQuestionCharacters) characters together.")
+        }
+        return await respond(
+            retrievalText: extra.isEmpty ? trimmed : trimmed + "\n" + extra,
+            notFound: "Nothing in your meetings matches this message, so LokalBot did not draft a reply."
+        ) { contextText in
+            AskLibraryContext.replyMessages(
+                message: trimmed,
+                instruction: extra.isEmpty ? nil : extra,
+                contextText: contextText)
+        }
+    }
+
+    private func respond(
+        retrievalText: String,
+        notFound: String,
+        messages: (String) -> [[String: String]]
+    ) async -> AskLibraryOutcome {
+        guard let authorization = gate.authorizationID() else {
+            return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
+        }
         if await !client.healthy(), let failure = await wakeAndWait(authorization: authorization) {
             return failure
         }
@@ -164,78 +240,65 @@ struct AskLibraryEngine {
 
         let meetings = (try? loadMeetings()) ?? []
         guard !meetings.isEmpty else {
-            return .text("The meeting library is empty — record a meeting in LokalBot first.")
+            return .notFound("The meeting library is empty — record a meeting in LokalBot first.")
         }
-        let bundle = AskLibraryContext.build(question: trimmed, meetings: meetings)
+        let bundle = AskLibraryContext.build(question: retrievalText, meetings: meetings)
         guard !bundle.contextText.isEmpty else {
-            return .text("I couldn't find anything in your meetings matching that question. Try search_meetings with a specific keyword.")
+            return .notFound(notFound)
         }
 
         let answer: String
         do {
             if let failure = authorizationFailure(authorization) { return failure }
-            answer = try await client.complete(messages: AskLibraryContext.messages(
-                question: trimmed,
-                contextText: bundle.contextText))
+            answer = try await client.complete(messages: messages(bundle.contextText))
         } catch {
             if let failure = authorizationFailure(authorization) { return failure }
-            return .error(
+            return .failed(
                 .appNotRunning,
                 "Lost the connection to LokalBot's model server mid-answer (\(error.localizedDescription)). Make sure the LokalBot app is running and try again.")
         }
         if let failure = authorizationFailure(authorization) { return failure }
-        return render(answer: answer, citations: bundle.citations)
+        return .answered(answer, citations: bundle.citations)
     }
 
-    private func authorizationFailure(_ authorization: String) -> ToolResult? {
+    private func authorizationFailure(_ authorization: String) -> AskLibraryOutcome? {
         guard gate.authorizationID() == authorization else {
-            return .error(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
+            return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
         }
-        if Task.isCancelled { return .error(.appNotRunning, "ask_library was cancelled.") }
+        if Task.isCancelled { return .failed(.appNotRunning, "ask_library was cancelled.") }
         return nil
     }
 
-    private func wakeAndWait(authorization: String) async -> ToolResult? {
+    private func wakeAndWait(authorization: String) async -> AskLibraryOutcome? {
         if let failure = authorizationFailure(authorization) { return failure }
         gate.clearWakeError()
         do {
             try gate.touchWake()
         } catch {
-            return .error(
+            return .failed(
                 .appNotRunning,
                 "Could not signal the LokalBot app (\(error.localizedDescription)). Open LokalBot and try again.")
         }
 
         for _ in 0..<max(0, maxPollAttempts) {
             if Task.isCancelled {
-                return .error(.appNotRunning, "ask_library was cancelled.")
+                return .failed(.appNotRunning, "ask_library was cancelled.")
             }
             await pollDelay()
             if let failure = authorizationFailure(authorization) { return failure }
             if await client.healthy() { return nil }
             if let failure = authorizationFailure(authorization) { return failure }
             if let reason = gate.readWakeError() {
-                return .error(.engineUnavailable, reason)
+                return .failed(.engineUnavailable, reason)
             }
         }
         if gate.pendingWake {
-            return .error(
+            return .failed(
                 .appNotRunning,
                 "ask_library needs the LokalBot app running (read tools still work without it). Open LokalBot and try again.")
         }
-        return .error(
+        return .failed(
             .modelLoadingTimeout,
             "The model is still loading. Try again in a moment — the first question after a cold start takes the longest.")
-    }
-
-    private func render(
-        answer: String,
-        citations: [AskLibraryContext.Citation]
-    ) -> ToolResult {
-        guard !citations.isEmpty else { return .text(answer) }
-        let sources = citations.map {
-            "- \($0.title) (\($0.date), id \($0.meeting_id))"
-        }
-        return .text(answer + "\n\nSources:\n" + sources.joined(separator: "\n"))
     }
 }

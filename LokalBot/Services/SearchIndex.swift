@@ -297,6 +297,23 @@ final class SearchIndex {
                 meetingIDs: Set<UUID>? = nil) -> [Hit] {
         guard limit > 0 else { return [] }
         if let meetingIDs, meetingIDs.isEmpty { return [] }
+        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
+        if CJKSearch.containsCJK(query) {
+            return substringSearch(query, kind: kind, limit: limit, matchAll: matchAll,
+                                   dropStopWords: dropStopWords, meetingIDs: meetingIDs,
+                                   cjkRowsOnly: false)
+        }
+        let hits = ftsSearch(query, kind: kind, limit: limit, matchAll: matchAll,
+                             dropStopWords: dropStopWords, meetingIDs: meetingIDs)
+        guard hits.isEmpty else { return hits }
+        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
+        return substringSearch(query, kind: kind, limit: limit, matchAll: matchAll,
+                               dropStopWords: dropStopWords, meetingIDs: meetingIDs,
+                               cjkRowsOnly: true)
+    }
+
+    private func ftsSearch(_ query: String, kind: Kind?, limit: Int, matchAll: Bool,
+                           dropStopWords: Bool, meetingIDs: Set<UUID>?) -> [Hit] {
         guard let match = Self.ftsQuery(from: query, matchAll: matchAll,
                                         dropStopWords: dropStopWords),
               let database else { return [] }
@@ -342,6 +359,7 @@ final class SearchIndex {
     /// shows all matches; ranked search fetched 2,000 rows and kept the first
     /// 40 meetings, so a common word hid older ones.
     func matchingMeetingIDs(_ query: String) -> Set<UUID> {
+        if CJKSearch.containsCJK(query) { return substringMeetingIDs(query, cjkRowsOnly: false) }
         guard let match = Self.ftsQuery(from: query, matchAll: true, dropStopWords: false),
               let database else { return [] }
         let ids: [UUID] = database.query("""
@@ -351,6 +369,113 @@ final class SearchIndex {
                   WHERE deleted.meeting_id = docs.meeting_id
               )
             """, bind: [match]) { statement in
+            sqlite3_column_text(statement, 0).flatMap { UUID(uuidString: String(cString: $0)) }
+        }
+        let found = Set(ids).subtracting(locallyDeletedMeetingIDs)
+        return found.isEmpty ? substringMeetingIDs(query, cjkRowsOnly: true) : found
+    }
+
+    // MARK: - Substring matching (CJK)
+
+    /// Search terms for the substring path, honouring the same AND/OR and
+    /// stop-word choices as `ftsQuery`.
+    static func substringTerms(_ query: String, matchAll: Bool, dropStopWords: Bool) -> [String] {
+        var terms = matchAll ? CJKSearch.terms(from: query) : CJKSearch.relaxedTerms(from: query)
+        if dropStopWords {
+            let content = terms.filter { !stopWords.contains($0.lowercased()) }
+            if !content.isEmpty { terms = content }
+        }
+        return terms
+    }
+
+    /// The WHERE clause shared by substring search and the meeting filter:
+    /// every term (or, relaxed, any term) occurs in the text, optionally only
+    /// in rows that contain CJK text, and the meeting is not deleted.
+    private static func substringConditions(terms: [String], matchAll: Bool, cjkRowsOnly: Bool,
+                                            values: inout [Any]) -> [String] {
+        let termClauses = terms.map { term -> String in
+            values.append(CJKSearch.likePattern(for: term))
+            return "text LIKE ?\(values.count) \(CJKSearch.likeEscapeClause)"
+        }
+        var conditions = ["(" + termClauses.joined(separator: matchAll ? " AND " : " OR ") + ")"]
+        if cjkRowsOnly {
+            values.append(CJKSearch.rowGlobPattern)
+            conditions.append("text GLOB ?\(values.count)")
+        }
+        conditions.append("""
+            NOT EXISTS (
+                SELECT 1 FROM deleted_meetings AS deleted
+                WHERE deleted.meeting_id = docs.meeting_id
+            )
+            """)
+        return conditions
+    }
+
+    /// Substring counterpart of `ftsSearch`. Shorter documents come first, the
+    /// way bm25 favours them; relaxed (OR) results rank by how many pieces
+    /// matched. Snippets are built here because `snippet()` marks nothing
+    /// without MATCH.
+    private func substringSearch(_ query: String, kind: Kind?, limit: Int, matchAll: Bool,
+                                 dropStopWords: Bool, meetingIDs: Set<UUID>?,
+                                 cjkRowsOnly: Bool) -> [Hit] {
+        let terms = Self.substringTerms(query, matchAll: matchAll, dropStopWords: dropStopWords)
+        guard !terms.isEmpty, let database else { return [] }
+        var values: [Any] = []
+        var conditions = Self.substringConditions(terms: terms, matchAll: matchAll,
+                                                  cjkRowsOnly: cjkRowsOnly, values: &values)
+        if let kind {
+            values.append(kind.rawValue)
+            conditions.append("kind = ?\(values.count)")
+        }
+        if let meetingIDs {
+            let placeholders = meetingIDs.map(\.uuidString).sorted().map { id -> String in
+                values.append(id)
+                return "?\(values.count)"
+            }
+            conditions.append("meeting_id IN (\(placeholders.joined(separator: ", ")))")
+        }
+        let fetchLimit = matchAll ? limit : max(limit * 4, 200)
+        let rows: [(meetingID: UUID, kind: Kind, start: TimeInterval, speaker: String, text: String)] =
+            database.query("""
+                SELECT meeting_id, kind, start, speaker, text FROM docs
+                WHERE \(conditions.joined(separator: " AND "))
+                ORDER BY length(text), rowid DESC
+                LIMIT \(fetchLimit)
+                """, bind: values) { statement in
+                guard let idText = sqlite3_column_text(statement, 0),
+                      let meetingID = UUID(uuidString: String(cString: idText)),
+                      let kindText = sqlite3_column_text(statement, 1),
+                      let kind = Kind(rawValue: String(cString: kindText)),
+                      let body = sqlite3_column_text(statement, 4) else { return nil }
+                return (meetingID, kind, sqlite3_column_double(statement, 2),
+                        sqlite3_column_text(statement, 3).map { String(cString: $0) } ?? "",
+                        String(cString: body))
+            }
+        let ranked = matchAll ? rows : rows.enumerated().sorted { left, right in
+            let leftCount = CJKSearch.matchedTermCount(in: left.element.text, terms: terms)
+            let rightCount = CJKSearch.matchedTermCount(in: right.element.text, terms: terms)
+            return leftCount == rightCount ? left.offset < right.offset : leftCount > rightCount
+        }.map(\.element)
+        let deleted = locallyDeletedMeetingIDs
+        var hits: [Hit] = []
+        for row in ranked where !deleted.contains(row.meetingID) {
+            guard let snippet = CJKSearch.snippet(in: row.text, terms: terms) else { continue }
+            hits.append(Hit(meetingID: row.meetingID, kind: row.kind, start: row.start,
+                            snippet: snippet, speaker: row.speaker, sourceText: row.text))
+            if hits.count == limit { break }
+        }
+        return hits
+    }
+
+    private func substringMeetingIDs(_ query: String, cjkRowsOnly: Bool) -> Set<UUID> {
+        let terms = Self.substringTerms(query, matchAll: true, dropStopWords: false)
+        guard !terms.isEmpty, let database else { return [] }
+        var values: [Any] = []
+        let conditions = Self.substringConditions(terms: terms, matchAll: true,
+                                                  cjkRowsOnly: cjkRowsOnly, values: &values)
+        let ids: [UUID] = database.query("""
+            SELECT DISTINCT meeting_id FROM docs WHERE \(conditions.joined(separator: " AND "))
+            """, bind: values) { statement in
             sqlite3_column_text(statement, 0).flatMap { UUID(uuidString: String(cString: $0)) }
         }
         return Set(ids).subtracting(locallyDeletedMeetingIDs)
