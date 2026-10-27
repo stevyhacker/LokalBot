@@ -87,6 +87,13 @@ final class GmailOAuthTests: XCTestCase {
 
     static let builtIn = GoogleOAuthClient.builtIn(id: "123456789-lokalbot.apps.googleusercontent.com")!
 
+    func testBuiltInSignInIsConfiguredForLokalBotsProject() throws {
+        let client = try XCTUnwrap(GoogleOAuthClient.builtIn())
+        XCTAssertTrue(client.clientID.hasPrefix("158325362655-"))
+        XCTAssertNil(client.clientSecret)
+        XCTAssertTrue(client.returnsToApp)
+    }
+
     func testLokalBotsClientHasNoSecretAndReturnsThroughItsOwnScheme() {
         let client = Self.builtIn
         XCTAssertNil(client.clientSecret)

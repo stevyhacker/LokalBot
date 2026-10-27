@@ -25,11 +25,11 @@ enum GmailOAuth {
         URL(string: "http://127.0.0.1:\(port)\(callbackPath)")!
     }
 
-    /// LokalBot's own client: Google Cloud project "LokalBot", type iOS,
+    /// LokalBot's own client: Google Cloud project `lokalbot-512410`, type iOS,
     /// bundle `me.dotenv.LokalBot`. A client id is public and this type has no
-    /// secret, so it belongs in the source. Nil until the project exists;
-    /// Settings then offers only the person's own client.
-    static let builtInClientID: String? = nil
+    /// secret, so it belongs in the source. See Docs/google-oauth-verification.md.
+    static let builtInClientID: String? =
+        "158325362655-2mgcaii20niarfkaj9kl8966m4h58k3s.apps.googleusercontent.com"
 
     struct AuthorizationRequest: Equatable, Sendable {
         var client: GoogleOAuthClient
