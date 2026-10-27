@@ -224,7 +224,7 @@
   "meeting": "Launch planning · 75 min ago",
   "quote": "“Final pricing: <mark>$15 per seat, billed annually.</mark>”"
  },
- "footageNote": "Real recording · on-device model · typing sped up",
+ "footageNote": "Real recording · on-device model · sped up",
  "hook": {
   "typed": "Autocomplete for",
   "ghost": " your whole Mac.",
@@ -240,7 +240,7 @@
  "prompt": [
   {
    "label": "Relevant saved facts",
-   "text": "Launch planning: final pricing is $15 per seat, billed annually.",
+   "text": "Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.",
    "source": "← your meeting notes",
    "from": [
     16,
@@ -250,7 +250,7 @@
   },
   {
    "label": "Text before the cursor",
-   "text": "Hi all, After the launch planning call, the Team plan will be $15",
+   "text": "Hi all,\nAfter the launch planning call, the Team plan will be $15",
    "source": "← this text field",
    "from": [
     0,
@@ -278,23 +278,23 @@
    "options": [
     [
      " per",
-     0.62
+     0.67
+    ],
+    [
+     "/",
+     0.194
     ],
     [
      " a",
-     0.14
-    ],
-    [
-     " for",
-     0.07
+     0.022
     ],
     [
      ".",
-     0.05
+     0.015
     ],
     [
      " USD",
-     0.03
+     0.015
     ]
    ]
   },
@@ -303,15 +303,23 @@
    "options": [
     [
      " seat",
-     0.91
-    ],
-    [
-     " user",
-     0.05
+     0.841
     ],
     [
      " month",
-     0.02
+     0.048
+    ],
+    [
+     " user",
+     0.029
+    ],
+    [
+     " team",
+     0.023
+    ],
+    [
+     " person",
+     0.017
     ]
    ]
   },
@@ -320,15 +328,23 @@
    "options": [
     [
      ",",
-     0.58
+     0.556
     ],
     [
      " per",
-     0.21
+     0.112
+    ],
+    [
+     " billed",
+     0.089
     ],
     [
      ".",
-     0.12
+     0.054
+    ],
+    [
+     " and",
+     0.051
     ]
    ]
   },
@@ -337,15 +353,23 @@
    "options": [
     [
      " billed",
-     0.83
+     0.894
+    ],
+    [
+     " per",
+     0.027
+    ],
+    [
+     " and",
+     0.014
+    ],
+    [
+     "\n",
+     0.008
     ],
     [
      " paid",
-     0.06
-    ],
-    [
-     " with",
-     0.05
+     0.005
     ]
    ]
   },
@@ -354,15 +378,23 @@
    "options": [
     [
      " annually",
-     0.88
+     0.915
+    ],
+    [
+     "\n",
+     0.043
     ],
     [
      " yearly",
-     0.07
+     0.014
     ],
     [
-     " monthly",
-     0.03
+     " per",
+     0.004
+    ],
+    [
+     " once",
+     0.003
     ]
    ]
   },
@@ -371,20 +403,27 @@
    "options": [
     [
      ".",
-     0.81
+     0.761
     ],
     [
      ",",
-     0.09
+     0.127
+    ],
+    [
+     " (",
+     0.025
     ],
     [
      " and",
-     0.05
+     0.015
+    ],
+    [
+     " for",
+     0.01
     ]
    ]
   }
  ],
- "placeholderCandidates": true,
  "pickSteps": [
   0.0,
   0.952,
@@ -404,7 +443,17 @@
    0.952,
    1.19,
    1.429,
-   1.667
+   1.667,
+   1.905,
+   2.143
+  ],
+  "chunks": [
+   " per",
+   " seat",
+   ",",
+   " billed",
+   " annually",
+   "."
   ]
  },
  "end": {

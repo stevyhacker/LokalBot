@@ -80,13 +80,15 @@ const TAB_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="#0e141c" stroke-w
 
 // ---------------------------------------------------------------- text textures
 function wrap(ctx, text, width) {
-  const words = text.split(' '), lines = [];
-  let line = '';
-  for (const word of words) {
-    const next = line ? line + ' ' + word : word;
-    if (ctx.measureText(next).width > width && line) { lines.push(line); line = word; } else line = next;
+  const lines = [];
+  for (const paragraph of text.split('\n')) {
+    let line = '';
+    for (const word of paragraph.split(' ')) {
+      const next = line ? line + ' ' + word : word;
+      if (ctx.measureText(next).width > width && line) { lines.push(line); line = word; } else line = next;
+    }
+    lines.push(line);
   }
-  if (line) lines.push(line);
   return lines;
 }
 function roundRect(ctx, x, y, w, h, r) {
@@ -575,8 +577,9 @@ function keyState(t, presses) {
 }
 const caretAt = on => `<span style="display:inline-block;position:relative;width:0"><span class="caret" style="position:absolute;left:-2px;bottom:-0.16em;margin:0;opacity:${on ? 1 : 0}"></span></span>`;
 /** typed + ghost words on one stable line; `lit` ghost words accepted. */
+/** `ghost` is the suggestion, or the pieces Tab accepts it in. */
 function ghostLine(typed, shown, ghost, lit, ghostOpacity, blinkOn) {
-  const words = ghost.split(/(?=\s)/);
+  const words = Array.isArray(ghost) ? ghost : ghost.split(/(?=\s)/);
   const accepted = words.slice(0, lit).join('');
   const rest = words.slice(lit).map(w => `<span class="ghostw" style="color:var(--ghost);opacity:${ghostOpacity}">${w}</span>`).join('');
   const typing = shown < typed.length;
@@ -809,7 +812,7 @@ function layoutGhost(t) {
   const G = EDIT.ghostScene;
   const lit = G.presses.map(p => g0 + p).filter(p => t >= p).length;
   const blink = Math.floor(t * 2.4) % 2 === 0;
-  sentence.innerHTML = ghostLine(G.typed, G.typed.length, G.ghost, lit, seg(t, g0 + G.ghostAt, g0 + G.ghostAt + 0.3), blink);
+  sentence.innerHTML = ghostLine(G.typed, G.typed.length, G.chunks || G.ghost, lit, seg(t, g0 + G.ghostAt, g0 + G.ghostAt + 0.3), blink);
 }
 
 function layoutEnd(t) {

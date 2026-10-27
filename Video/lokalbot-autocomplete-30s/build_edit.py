@@ -7,7 +7,9 @@
 logs/, takes/). For each clip this writes the source frames the edit shows to
 footage/<clip>/NNNN.jpg and updates edit.json in place: the map from the
 clip's slot time to recording time, and when each key press, the suggestion
-and each Tab land in the slot.
+and each Tab land in the slot. The explainer gets the memory take's prompt,
+the model's candidates at each step and the suggestion as the app showed it,
+split where each Tab accepted it.
 
 The edit speeds the recording up but never reorders it: typing plays 2 to 4
 times faster, the wait for the suggestion is shortened, and the suggestion
@@ -137,6 +139,14 @@ def steps(probabilities):
     return out
 
 
+def swift_string(literal):
+    """The value of a Swift string literal as `String(reflecting:)` writes it."""
+    escapes = {'0': '\0', 't': '\t', 'n': '\n', 'r': '\r'}
+    return re.sub(r'\\(u\{([0-9a-fA-F]+)\}|.)',
+                  lambda m: chr(int(m.group(2), 16)) if m.group(2) else escapes.get(m.group(1), m.group(1)),
+                  literal[1:-1])
+
+
 def suggestions(states_log):
     """(prefix, suggestion) for each suggestion the app showed, from the filming log."""
     shown, prefix = [], None
@@ -144,8 +154,42 @@ def suggestions(states_log):
         if 'film: request ' in line:
             prefix = json.loads(line.split('film: request ', 1)[1])['prefix']
         elif m := re.search(r'film: cotyping ready\(text: (".*")\)$', line):
-            shown.append((prefix, json.loads(m.group(1))))
+            shown.append((prefix, swift_string(m.group(1))))
     return shown
+
+
+def chunks(shown, prefix, ghost):
+    """The suggestion for `prefix` split where each Tab accepted it: each accept leaves a suffix."""
+    texts = [text for p, text in shown if p == prefix]
+    run = texts[texts.index(ghost):]
+    out = []
+    for text, rest in zip(run, run[1:] + ['']):
+        if rest and not text.endswith(rest) or rest == text:
+            rest = ''
+        out.append(text[:len(text) - len(rest)])
+        if not rest:
+            break
+    return out
+
+
+def explainer(edit, logs):
+    """The prompt, candidates and accepted chunks of the memory take, as the app and model had them."""
+    memory = json.loads((logs / 'probabilities.json').read_text())['memory']
+    facts = re.search(r'Relevant saved facts: (.*?)\n\n', memory['prompt'], re.S)
+    edit['prompt'][0]['text'] = facts.group(1)
+    edit['prompt'][1]['text'] = re.sub(r'\n+', '\n', memory['prefix'])
+    edit['candidates'] = [{'chosen': token, 'options': [[o, round(p, 3)] for o, p in options[:5]]}
+                          for token, options in steps(memory['probabilities'])]
+    edit.pop('placeholderCandidates', None)
+    shown = suggestions(logs / 'autocomplete-states.log')
+    ghost = next(text for prefix, text in shown if prefix == memory['prefix'])
+    if ghost != memory['content']:
+        print(f'note: the app showed {ghost!r}, the replayed prompt gave {memory["content"]!r}')
+    parts = chunks(shown, memory['prefix'], ghost)
+    beat = 60 / edit['bpm']
+    edit['ghostScene'].update({'ghost': ghost, 'chunks': parts,
+                               'presses': [round(2 * beat + i * beat / 2, 3) for i in range(len(parts))]})
+    print(f'explainer: {len(edit["candidates"])} steps, accepted as {parts}')
 
 
 def main():
@@ -177,6 +221,7 @@ def main():
             'keys': thinned, 'background': meta.get('background'),
         })
         print(f'{name}: {len(needed)} frames, {stats}')
+    explainer(edit, root / 'logs')
     (HERE / 'edit.json').write_text(json.dumps(edit, indent=1, ensure_ascii=False) + '\n')
 
 
