@@ -1,0 +1,132 @@
+# Films the after-meeting agent handoff (Scripts/agent-handoff-demo) on a
+# hosted Mac: a call ends, LokalBot transcribes it with Parakeet, an
+# OpenRouter model writes the notes, and each action the person took on
+# starts as its own Agent Mode task. Never a required check.
+#
+# The cut, stills, logs, the meeting's notes and what the agents wrote are
+# kept as the `agent-handoff-demo` artifact and force-pushed to
+# `pr-assets/<pr>-agent-handoff-demo`, an orphan branch holding only them, so
+# a pull request can show the GIF.
+name: Agent handoff demo
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/agent-handoff-demo.yml"
+      - "Scripts/agent-handoff-demo/**"
+      - "LokalBot/Support/FilmDirector.swift"
+
+concurrency:
+  group: agent-handoff-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      cache_mode: warm
+      products_only: true
+
+  film:
+    name: Film the agent handoff
+    needs: build
+    # Fork pull requests get no secrets and no write token.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    env:
+      ASSETS_BRANCH: pr-assets/${{ github.event.pull_request.number || 'manual' }}-agent-handoff-demo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: unit-products
+          path: .build/transfer
+      - name: Verify and restore compiled products
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/test-products.py unpack unit
+      - name: Restore Parakeet
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/Library/Application Support/FluidAudio
+          key: parakeet-${{ runner.os }}-v1
+      # The 1280×800 window needs more room than the default hosted desktop.
+      - name: Prepare the display
+        continue-on-error: true
+        run: swift Scripts/ci/prepare-display.swift
+      - name: Install ffmpeg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: command -v ffmpeg || brew install ffmpeg
+      - name: Film
+        env:
+          LOKALBOT_APP: ${{ github.workspace }}/.build/dd/Build/Products/Debug/LokalBot.app
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: bash Scripts/agent-handoff-demo/film.sh .build/agent-handoff-demo
+      - name: Gather the results
+        if: ${{ !cancelled() }}
+        run: |
+          OUT=.build/agent-handoff-demo
+          PUB=.build/agent-handoff-demo-publish
+          rm -rf "$PUB"
+          mkdir -p "$PUB/frames"
+          [[ -d "$OUT" ]] || exit 0
+          cp "$OUT"/agent-handoff.mp4 "$OUT"/agent-handoff.gif "$OUT"/*.png "$PUB"/ 2>/dev/null || true
+          for dir in logs meeting agent-work; do
+            [[ -d "$OUT/$dir" ]] && cp -R "$OUT/$dir" "$PUB/"
+          done
+          for file in director.log scenes.jsonl frames.jsonl window.json rect-probe.png; do
+            cp "$OUT/film/$file" "$PUB/logs/" 2>/dev/null || true
+          done
+          # Every twentieth frame, to check the cut against what happened.
+          if [[ -d "$OUT/film/frames" ]]; then
+            ls "$OUT/film/frames" | awk 'NR % 20 == 1' | while read -r frame; do
+              cp "$OUT/film/frames/$frame" "$PUB/frames/"
+            done
+          fi
+          {
+            echo "# Agent handoff demo"
+            echo
+            echo "Filmed by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${{ github.event.pull_request.head.sha || github.sha }}."
+            echo "Model: $(cat "$OUT/logs/model.txt" 2>/dev/null || echo unknown)"
+          } > "$PUB/README.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ !cancelled() }}
+        with:
+          name: agent-handoff-demo
+          path: .build/agent-handoff-demo-publish
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Push to the assets branch
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PUB=.build/agent-handoff-demo-publish
+          [[ -f "$PUB/README.md" ]] || exit 0
+          cd "$PUB"
+          git init -q
+          git checkout -q -b "$ASSETS_BRANCH"
+          git add -A
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Agent handoff demo from run ${GITHUB_RUN_ID}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$ASSETS_BRANCH"
+          echo "Pushed to $ASSETS_BRANCH" >> "$GITHUB_STEP_SUMMARY"
