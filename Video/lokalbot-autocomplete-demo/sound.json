@@ -1,15 +1,74 @@
 {
  "music_length_ms": 70000,
  "music": [
-  {"id": "bed-a", "prompt": "Calm, warm and modern instrumental underscore for a short product film about a Mac app that finishes your sentences. Around 92 BPM in D major. Soft felt piano and a gentle electric piano playing slow arpeggios over warm analog pads, a soft round sub bass, very light brushed percussion and a quiet shaker entering after the first few seconds. Hopeful, focused and unhurried, like a quiet morning at a desk. Steady energy throughout with a slight lift in the middle, no drops, no risers, no big hits, no vocals. Leaves plenty of space for a voiceover. Ends on a warm, resolved chord with a natural decay."},
-  {"id": "bed-b", "prompt": "Minimal ambient electronic underscore for a calm tech product video. Around 90 BPM. A gentle plucked synth arpeggio and soft mallet bells over a warm pad, a subtle soft pulse, a soft kick on the downbeats after the intro and quiet hi-hat ticks. Optimistic, clean and modern, calm like a product keynote. No vocals, no drops, no risers, no crashes. Leaves plenty of room for narration. Settles into a warm final chord at the end."}
+  {
+   "id": "bed-a",
+   "prompt": "Calm, warm and modern instrumental underscore for a short product film about a Mac app that finishes your sentences. Around 92 BPM in D major. Soft felt piano and a gentle electric piano playing slow arpeggios over warm analog pads, a soft round sub bass, very light brushed percussion and a quiet shaker entering after the first few seconds. Hopeful, focused and unhurried, like a quiet morning at a desk. Steady energy throughout with a slight lift in the middle, no drops, no risers, no big hits, no vocals. Leaves plenty of space for a voiceover. Ends on a warm, resolved chord with a natural decay."
+  },
+  {
+   "id": "bed-b",
+   "prompt": "Minimal ambient electronic underscore for a calm tech product video. Around 90 BPM. A gentle plucked synth arpeggio and soft mallet bells over a warm pad, a subtle soft pulse, a soft kick on the downbeats after the intro and quiet hi-hat ticks. Optimistic, clean and modern, calm like a product keynote. No vocals, no drops, no risers, no crashes. Leaves plenty of room for narration. Settles into a warm final chord at the end."
+  }
  ],
  "effects": [
-  {"id": "typing", "duration": 4.0, "influence": 0.6, "text": "Close-up gentle typing on a modern laptop keyboard, soft quiet keystrokes, evenly spaced, dry room, no music"},
-  {"id": "tab", "duration": 0.6, "influence": 0.7, "variants": 2, "text": "A single soft press of a laptop key, a muted low thock, close microphone, dry, no reverb"},
-  {"id": "ghost", "duration": 1.2, "influence": 0.6, "variants": 2, "text": "Very soft, airy user interface shimmer, a gentle glassy chime that fades quickly, subtle and calm"},
-  {"id": "whoosh", "duration": 1.6, "influence": 0.6, "text": "Soft, gentle, airy whoosh for a slow camera move, smooth and quiet, no impact"},
-  {"id": "tick", "duration": 0.5, "influence": 0.7, "text": "Tiny soft wooden user interface tick, clean and short, dry"},
-  {"id": "reveal", "duration": 3.0, "influence": 0.5, "text": "Warm, soft, shimmering swell for a logo reveal, gentle and calm, no impact, fades out"}
- ]
+  {
+   "id": "typing",
+   "duration": 4.0,
+   "influence": 0.6,
+   "text": "Close-up gentle typing on a modern laptop keyboard, soft quiet keystrokes, evenly spaced, dry room, no music"
+  },
+  {
+   "id": "tab",
+   "duration": 0.6,
+   "influence": 0.7,
+   "variants": 2,
+   "text": "A single soft press of a laptop key, a muted low thock, close microphone, dry, no reverb"
+  },
+  {
+   "id": "ghost",
+   "duration": 1.2,
+   "influence": 0.6,
+   "variants": 2,
+   "text": "Very soft, airy user interface shimmer, a gentle glassy chime that fades quickly, subtle and calm"
+  },
+  {
+   "id": "whoosh",
+   "duration": 1.6,
+   "influence": 0.6,
+   "text": "Soft, gentle, airy whoosh for a slow camera move, smooth and quiet, no impact"
+  },
+  {
+   "id": "tick",
+   "duration": 0.5,
+   "influence": 0.7,
+   "text": "Tiny soft wooden user interface tick, clean and short, dry"
+  },
+  {
+   "id": "reveal",
+   "duration": 3.0,
+   "influence": 0.5,
+   "text": "Warm, soft, shimmering swell for a logo reveal, gentle and calm, no impact, fades out"
+  }
+ ],
+ "mix": {
+  "music": "bed-a",
+  "music_db": -11,
+  "effects": {
+   "type": "typing",
+   "tab": "tab-v1",
+   "ghost": "ghost-v1",
+   "whoosh": "whoosh",
+   "tick": "tick",
+   "reveal": "reveal"
+  },
+  "effect_db": {
+   "type": -20,
+   "tab": -14,
+   "ghost": -18,
+   "whoosh": -22,
+   "tick": -18,
+   "token": -26,
+   "reveal": -14
+  }
+ }
 }
