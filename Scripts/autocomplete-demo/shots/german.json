@@ -1,0 +1,49 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "Lena",
+  "file": "Lena.txt",
+  "opening": "Hallo Lena,\n\n",
+  "size": [
+    1040,
+    330
+  ],
+  "settle": 1.0,
+  "park": [
+    -240,
+    -160
+  ],
+  "pre": 0.6,
+  "post": 1.4,
+  "also": [
+    "me.dotenv.LokalBot"
+  ],
+  "setup": [
+    {
+      "key": "down",
+      "mods": [
+        "cmd"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "danke für das Gespräch heute. Ich schicke dir ",
+      "cps": 13
+    },
+    {
+      "mark": "typed"
+    },
+    {
+      "ghost": 25
+    },
+    {
+      "wait": 0.9
+    },
+    {
+      "accept": 7
+    },
+    {
+      "wait": 0.4
+    }
+  ]
+}

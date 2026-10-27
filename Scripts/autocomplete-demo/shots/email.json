@@ -1,0 +1,49 @@
+{
+  "bundle": "com.apple.TextEdit",
+  "title": "Note to Sam",
+  "file": "Note to Sam.txt",
+  "opening": "Hi Sam,\n\n",
+  "size": [
+    1040,
+    330
+  ],
+  "settle": 1.0,
+  "park": [
+    -240,
+    -160
+  ],
+  "pre": 0.6,
+  "post": 1.4,
+  "also": [
+    "me.dotenv.LokalBot"
+  ],
+  "setup": [
+    {
+      "key": "down",
+      "mods": [
+        "cmd"
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "type": "Thanks for the call today. I'll send you the ",
+      "cps": 13
+    },
+    {
+      "mark": "typed"
+    },
+    {
+      "ghost": 25
+    },
+    {
+      "wait": 0.9
+    },
+    {
+      "accept": 7
+    },
+    {
+      "wait": 0.4
+    }
+  ]
+}

@@ -20,6 +20,15 @@ enum TestHooks {
     static var backgroundAudioDirectory: URL? {
         value("LOKALBOT_UI_TEST_AUDIO").map { URL(fileURLWithPath: $0, isDirectory: true) }
     }
+
+    /// Filming the autocomplete demo (`Scripts/autocomplete-demo`): the ghost
+    /// panel stays visible to screen capture and autocomplete logs its states.
+    /// Set by `LOKALBOT_TEST_FILM_GHOST=1` or the `--lokalbot-film-ghost`
+    /// launch argument, which `open --args` can pass.
+    static var filmsAutocomplete: Bool {
+        value("LOKALBOT_TEST_FILM_GHOST") == "1"
+            || ProcessInfo.processInfo.arguments.contains("--lokalbot-film-ghost")
+    }
 }
 
 /// Returns the golden transcript for a meeting track instead of running ASR.

@@ -1,0 +1,132 @@
+# Films LokalBot's autocomplete (Scripts/autocomplete-demo) on a hosted Mac:
+# the default on-device model suggests as real keystrokes type into TextEdit,
+# and each suggestion is accepted word by word with Tab. Never a required
+# check; no secrets are used.
+#
+# The clips (one MP4 per take and appearance, with its event times), the
+# app's log and the takes' metadata are kept as the `autocomplete-demo`
+# artifact and force-pushed to `pr-assets/<pr>-autocomplete-demo`, an orphan
+# branch holding only them, for the launch video's edit.
+name: Autocomplete demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      takes:
+        description: "Takes to film (Scripts/autocomplete-demo/shots), space-separated; empty films all"
+        required: false
+        default: ""
+      appearances:
+        description: "Appearances to film"
+        required: false
+        default: "dark light"
+  pull_request:
+    paths:
+      - ".github/workflows/autocomplete-demo.yml"
+      - "Scripts/autocomplete-demo/**"
+
+concurrency:
+  group: autocomplete-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      cache_mode: warm
+      products_only: true
+
+  film:
+    name: Film autocomplete
+    needs: build
+    # Fork pull requests get no write token.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-26
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    env:
+      ASSETS_BRANCH: pr-assets/${{ github.event.pull_request.number || 'manual' }}-autocomplete-demo
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: unit-products
+          path: .build/transfer
+      - name: Verify and restore compiled products
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/test-products.py unpack unit
+      - name: Prepare the display
+        continue-on-error: true
+        run: swift Scripts/autocomplete-demo/display.swift
+      - name: Install ffmpeg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: command -v ffmpeg || brew install ffmpeg
+      - name: Film
+        env:
+          LOKALBOT_APP: ${{ github.workspace }}/.build/dd/Build/Products/Debug/LokalBot.app
+          APPEARANCES: ${{ inputs.appearances || 'dark light' }}
+          TAKES: ${{ inputs.takes }}
+        run: |
+          # TAKES is a space-separated list of names; empty films every take.
+          # shellcheck disable=SC2086
+          bash Scripts/autocomplete-demo/film.sh .build/autocomplete-demo $TAKES
+      - name: Gather the results
+        if: ${{ !cancelled() }}
+        run: |
+          OUT=.build/autocomplete-demo
+          PUB=.build/autocomplete-demo-publish
+          rm -rf "$PUB"
+          mkdir -p "$PUB"
+          [[ -d "$OUT" ]] || exit 0
+          cp -R "$OUT/clips" "$OUT/logs" "$PUB/" 2>/dev/null || true
+          mkdir -p "$PUB/takes"
+          (cd "$OUT/takes" 2>/dev/null && find . -name take.json | while read -r file; do
+            mkdir -p "$GITHUB_WORKSPACE/$PUB/takes/$(dirname "$file")"
+            cp "$file" "$GITHUB_WORKSPACE/$PUB/takes/$file"
+          done) || true
+          {
+            echo "# Autocomplete demo footage"
+            echo
+            echo "Filmed by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${{ github.event.pull_request.head.sha || github.sha }}."
+            echo "Model: the default on-device autocomplete model (ModelCatalog.qualityCotypingID), in-process llama.cpp."
+            echo "Hardware: $(sysctl -n machdep.cpu.brand_string), $(($(sysctl -n hw.memsize) / 1073741824)) GB."
+          } > "$PUB/README.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ !cancelled() }}
+        with:
+          name: autocomplete-demo
+          path: .build/autocomplete-demo-publish
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Push to the assets branch
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PUB=.build/autocomplete-demo-publish
+          [[ -f "$PUB/README.md" ]] || exit 0
+          cd "$PUB"
+          git init -q
+          git checkout -q -b "$ASSETS_BRANCH"
+          git add -A
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "Autocomplete demo footage from run ${GITHUB_RUN_ID}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$ASSETS_BRANCH"
+          echo "Pushed to $ASSETS_BRANCH" >> "$GITHUB_STEP_SUMMARY"
