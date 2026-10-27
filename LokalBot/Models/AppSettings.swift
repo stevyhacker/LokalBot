@@ -317,6 +317,12 @@ struct AppSettings: Codable, Equatable {
     var selectionActionsEnabled: Bool = false
     /// The key combination that opens selection actions from any app.
     var selectionActionsShortcut: DictationShortcut = .selectionActionsDefault
+    /// A system-wide shortcut that reads the focused window and hands the
+    /// task on it to another agent. Off by default: it reads another app's
+    /// window, including text that is scrolled out of view.
+    var windowHandoffEnabled: Bool = false
+    /// The key combination that hands off the focused window.
+    var windowHandoffShortcut: DictationShortcut = .windowHandoffDefault
 
     // MARK: - Day digest
 
@@ -920,6 +926,8 @@ struct AppSettings: Codable, Equatable {
         case quickRecallShortcut
         case selectionActionsEnabled
         case selectionActionsShortcut
+        case windowHandoffEnabled
+        case windowHandoffShortcut
         case dayDigestAutoEnabled
         case dayDigestHour
         case dayDigestCustomPrompt
@@ -1128,6 +1136,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(quickRecallShortcut, forKey: .quickRecallShortcut)
         try c.encode(selectionActionsEnabled, forKey: .selectionActionsEnabled)
         try c.encode(selectionActionsShortcut, forKey: .selectionActionsShortcut)
+        try c.encode(windowHandoffEnabled, forKey: .windowHandoffEnabled)
+        try c.encode(windowHandoffShortcut, forKey: .windowHandoffShortcut)
         try c.encode(dayDigestAutoEnabled, forKey: .dayDigestAutoEnabled)
         try c.encode(min(23, max(0, dayDigestHour)), forKey: .dayDigestHour)
         try c.encode(dayDigestCustomPrompt, forKey: .dayDigestCustomPrompt)
@@ -1321,6 +1331,10 @@ struct AppSettings: Codable, Equatable {
         let storedSelectionActionsShortcut = decode(.selectionActionsShortcut, defaults.selectionActionsShortcut)
         selectionActionsShortcut = storedSelectionActionsShortcut.quickRecallProblem == nil
             ? storedSelectionActionsShortcut : defaults.selectionActionsShortcut
+        windowHandoffEnabled = decode(.windowHandoffEnabled, defaults.windowHandoffEnabled)
+        let storedWindowHandoffShortcut = decode(.windowHandoffShortcut, defaults.windowHandoffShortcut)
+        windowHandoffShortcut = storedWindowHandoffShortcut.quickRecallProblem == nil
+            ? storedWindowHandoffShortcut : defaults.windowHandoffShortcut
         dayDigestAutoEnabled = decode(.dayDigestAutoEnabled, defaults.dayDigestAutoEnabled)
         dayDigestHour = min(23, max(0, decode(.dayDigestHour, defaults.dayDigestHour)))
         dayDigestCustomPrompt = decode(.dayDigestCustomPrompt, defaults.dayDigestCustomPrompt)

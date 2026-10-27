@@ -257,7 +257,7 @@ struct SettingsView: View {
                                  "appearance", "theme", "dark", "light", "text size", "font",
                                  "menu bar", "menubar", "dock", "dock icon", "hide dock",
                                  "window", "background", "tray", "ask", "quick recall", "shortcut",
-                                 "hotkey", "global search"]) {
+                                 "hotkey", "global search", "hand off", "handoff", "agent"]) {
                 Section("General") {
                     LaunchAtLoginToggleRow(state: LaunchAtLoginState.shared)
                         .accessibilityLabel("Launch LokalBot at login")
@@ -317,7 +317,8 @@ struct SettingsView: View {
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
                                     for: candidate, dictationShortcut: app.settings.dictationShortcut,
-                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut,
+                                    windowHandoffShortcut: app.settings.windowHandoffShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
@@ -338,11 +339,32 @@ struct SettingsView: View {
                             validate: { candidate in
                                 QuickRecallHotKeyController.problem(
                                     for: candidate, dictationShortcut: app.settings.dictationShortcut,
-                                    askShortcut: app.settings.quickRecallShortcut)
+                                    askShortcut: app.settings.quickRecallShortcut,
+                                    windowHandoffShortcut: app.settings.windowHandoffShortcut)
                             },
                             onRecordingChanged: { app.setShortcutRecording($0) })
                     }
                     .settingTarget("settings.selectionActionsShortcut", selected: app.focusedSettingID)
+                    Toggle(isOn: $app.settings.windowHandoffEnabled) {
+                        SettingsLabel("Enable the Hand off shortcut",
+                                      help: "Press the shortcut below in any app to hand the task in its window to Agent Mode, Claude Code, Codex, or the clipboard. LokalBot reads that window's full text and takes a screenshot only when you press it, skips excluded apps, sites, and password fields, and shows you the brief before anything is handed off.")
+                    }
+                    .settingTarget("settings.windowHandoffEnabled", selected: app.focusedSettingID)
+                    LabeledContent("Hand off shortcut") {
+                        ShortcutRecorder(
+                            shortcut: $app.settings.windowHandoffShortcut,
+                            defaultShortcut: .windowHandoffDefault,
+                            accessibilityIdentifier: "settings.windowHandoffShortcut",
+                            changeHelp: "Change the Hand off shortcut",
+                            validate: { candidate in
+                                QuickRecallHotKeyController.problem(
+                                    for: candidate, dictationShortcut: app.settings.dictationShortcut,
+                                    askShortcut: app.settings.quickRecallShortcut,
+                                    selectionActionsShortcut: app.settings.selectionActionsShortcut)
+                            },
+                            onRecordingChanged: { app.setShortcutRecording($0) })
+                    }
+                    .settingTarget("settings.windowHandoffShortcut", selected: app.focusedSettingID)
                 }
             }
 

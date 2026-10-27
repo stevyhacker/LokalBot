@@ -32,9 +32,10 @@ struct AgentHandoffSource: Codable, Equatable, Hashable {
 
 /// One task to hand to Agent Mode: its title, the prompt for its composer,
 /// the sources attached to that prompt, and a folder in the workspace made
-/// for what the agent produces.
+/// for what the agent produces. A handoff with no source, such as a window
+/// handed off by hand, is never matched against earlier tasks.
 struct AgentHandoff: Equatable {
-    var source: AgentHandoffSource
+    var source: AgentHandoffSource?
     var title: String
     var prompt: String
     var attachments: [AgentAttachment]

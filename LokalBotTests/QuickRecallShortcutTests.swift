@@ -89,6 +89,39 @@ final class QuickRecallShortcutTests: XCTestCase {
     }
 
     @MainActor
+    func testHandOffHasItsOwnShortcutThatOthersCannotTake() {
+        XCTAssertEqual(QuickRecallHotKeyController.problem(
+            for: hyperF19, dictationShortcut: .handyDefault, windowHandoffShortcut: hyperF19), .usedByWindowHandoff)
+        XCTAssertEqual(QuickRecallHotKeyController.problem(
+            for: hyperF19, dictationShortcut: .handyDefault, askShortcut: hyperF19,
+            windowHandoffShortcut: hyperF19), .usedByAsk)
+        let defaults = [DictationShortcut.quickRecallDefault, .selectionActionsDefault, .handyDefault]
+        XCTAssertFalse(defaults.contains(.windowHandoffDefault))
+        XCTAssertNil(DictationShortcut.windowHandoffDefault.quickRecallProblem)
+        XCTAssertEqual(DictationShortcut.windowHandoffDefault.keyCode, CGKeyCode(kVK_ANSI_H))
+        XCTAssertFalse(DictationShortcut.windowHandoffDefault.modifiers.contains(.maskAlternate),
+                       "VoiceOver uses Control-Option for its own commands")
+        XCTAssertNotEqual(QuickRecallHotKeyController.windowHandoffIdentifier,
+                          QuickRecallHotKeyController.selectionActionsIdentifier)
+    }
+
+    func testHandOffIsOffByDefaultAndPersists() throws {
+        XCTAssertFalse(AppSettings().windowHandoffEnabled, "reading a whole window is opt-in")
+        var settings = AppSettings()
+        settings.windowHandoffEnabled = true
+        settings.windowHandoffShortcut = controlOptionK
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertTrue(decoded.windowHandoffEnabled)
+        XCTAssertEqual(decoded.windowHandoffShortcut, controlOptionK)
+
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(AppSettings())) as? [String: Any])
+        json["windowHandoffShortcut"] = ["modifiers": ["control", "shift"]]
+        XCTAssertEqual(try decode(json).windowHandoffShortcut, .windowHandoffDefault,
+                       "a hot key cannot be modifiers alone")
+    }
+
+    @MainActor
     func testAskAndSelectionActionsRegisterSideBySide() {
         let ask = QuickRecallHotKeyController()
         let selection = QuickRecallHotKeyController(identifier: QuickRecallHotKeyController.selectionActionsIdentifier)
