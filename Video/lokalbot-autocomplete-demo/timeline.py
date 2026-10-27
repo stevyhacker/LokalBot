@@ -183,7 +183,11 @@ def captions(words, start):
 
 
 def grid():
-    """The music's beat in film time, from sound.json's "music_edit": (first beat, beat length, final hit), or None."""
+    """The music's beat in film time, from sound.json's "music_edit": (first beat, beat length, final hit), or None.
+
+    The first beat is where the bed comes in; before it, under the hook, plays
+    the synthesized intro, so the hook cuts to the first clip right there.
+    """
     edit = json.loads((HERE / 'sound.json').read_text())['mix'].get('music_edit')
     if not edit:
         return None
@@ -221,6 +225,11 @@ def main():
         if g and name == 'end':
             # The film ends as the music's last chord rings out.
             length = max(need + 0.3, g[2] + TAIL - t)
+        elif g and t == 0 and g[0] > 1:
+            # The music drops on the first cut.
+            if g[0] - t < need:
+                raise SystemExit(f'the {name} line ({need:.2f} s) runs past the drop at {g[0]:.2f} s')
+            length = g[0] + OVERLAP
         elif g:
             # Each cut lands on a beat of the music.
             cut = on_beat(t + length - OVERLAP, g)
@@ -239,20 +248,16 @@ def main():
     duration = round(T['end'][1], 2)
     edit.update({'duration': duration, 'timeline': T, 'voice': voice, 'captions': caps, 'subtitles': subs})
 
-    # The hook types its headline as the voice says it; Tab takes the rest.
+    # The hook types its headline from the first moments, as the first cut did;
+    # the suggestion shows, and Tab takes each word as the voice says it.
     hook = spoken['hook']
     edit['hook'].update({
         'logoAt': round(word_time(hook['words'], hook['start'], 'Lokal') - 0.25, 3),
-        'typeFrom': round(word_time(hook['words'], hook['start'], 'Autocomplete') - 0.05, 3),
-        'typeTo': round(word_time(hook['words'], hook['start'], 'for', 2), 3),
-        'ghostAt': round(word_time(hook['words'], hook['start'], 'your') - 0.05, 3),
+        'typeFrom': 0.25, 'typeTo': 1.0, 'ghostAt': 1.12,
+        'presses': [round(word_time(hook['words'], hook['start'], w) - 0.03, 3) for w in ('your', 'whole', 'Mac')],
     })
-    after = word_time(hook['words'], hook['start'], 'Mac', 2) + 0.08
     # Tab presses on the music's eighth notes when there is a beat to follow.
     eighth = (lambda t: on_beat(t, g, 0.5, up=True)) if g else (lambda t: t)
-    tick = g[1] / 2 if g else 0.22
-    first = eighth(after - 0.05)
-    edit['hook']['presses'] = [round(first + i * tick, 3) for i in range(3)]
 
     # Languages share their section evenly, each coming in on a beat.
     l0, l1 = T['langs']

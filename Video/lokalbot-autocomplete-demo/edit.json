@@ -24,22 +24,22 @@
   ],
   "context": [
    17.51,
-   23.31
+   22.81
   ],
   "model": [
-   23.01,
-   30.31
+   22.51,
+   29.31
   ],
   "pick": [
-   30.01,
-   35.31
+   29.01,
+   34.31
   ],
   "ghost": [
-   35.01,
-   40.31
+   34.01,
+   39.31
   ],
   "end": [
-   40.01,
+   39.01,
    45.11
   ]
  },
@@ -319,15 +319,15 @@
  "hook": {
   "typed": "Autocomplete for",
   "ghost": " your whole Mac.",
-  "typeFrom": 1.201,
-  "typeTo": 1.978,
-  "ghostAt": 2.001,
+  "typeFrom": 0.25,
+  "typeTo": 1.0,
+  "ghostAt": 1.12,
   "presses": [
-   3.26,
-   3.51,
-   3.76
+   2.195,
+   2.423,
+   2.652
   ],
-  "logoAt": 0.273
+  "logoAt": 0.318
  },
  "prompt": [
   {
@@ -534,14 +534,14 @@
  "ghostScene": {
   "typed": "the Team plan will be $15",
   "ghost": " per seat, billed annually.",
-  "ghostAt": 2.141,
+  "ghostAt": 2.14,
   "presses": [
+   3.0,
    3.25,
    3.5,
    3.75,
    4.0,
-   4.25,
-   4.5
+   4.25
   ],
   "chunks": [
    " per",
@@ -694,7 +694,7 @@
    "inOutCubic"
   ],
   [
-   22.86,
+   22.36,
    [
     47.6,
     0.3,
@@ -709,7 +709,7 @@
    "linear"
   ],
   [
-   23.71,
+   23.21,
    [
     48,
     0,
@@ -724,7 +724,7 @@
    "inOutCubic"
   ],
   [
-   30.01,
+   29.01,
    [
     48,
     0,
@@ -739,7 +739,7 @@
    "linear"
   ],
   [
-   30.71,
+   29.71,
    [
     48,
     0,
@@ -754,7 +754,7 @@
    "inOutCubic"
   ],
   [
-   35.01,
+   34.01,
    [
     48,
     0,
@@ -769,7 +769,7 @@
    "linear"
   ],
   [
-   35.61,
+   34.61,
    [
     48,
     0,
@@ -784,7 +784,7 @@
    "inOutCubic"
   ],
   [
-   40.11,
+   39.11,
    [
     48,
     0,
@@ -799,7 +799,7 @@
    "linear"
   ],
   [
-   40.71,
+   39.71,
    [
     48,
     2,
@@ -838,353 +838,353 @@
  "voice": [
   {
    "id": "v3-01-hook",
-   "file": "assets/voice/tight/v3-01-hook-s11.wav",
-   "trim": 0.024,
+   "file": "assets/voice/tight/v3-01-hook-eric-s11.wav",
+   "trim": 0,
    "at": 0.12,
-   "end": 3.014
+   "end": 3.053
   },
   {
    "id": "v3-02-memory",
-   "file": "assets/voice/tight/v3-02-memory-s29.wav",
+   "file": "assets/voice/tight/v3-02-memory-eric-s11.wav",
    "trim": 0,
    "at": 4.31,
-   "end": 7.755
+   "end": 7.548
   },
   {
    "id": "v3-03-word",
-   "file": "assets/voice/tight/v3-03-word-s42.wav",
+   "file": "assets/voice/tight/v3-03-word-eric-s11.wav",
    "trim": 0,
    "at": 9.71,
-   "end": 11.555
+   "end": 11.281
   },
   {
    "id": "v3-04-langs",
-   "file": "assets/voice/tight/v3-04-langs-s29.wav",
+   "file": "assets/voice/tight/v3-04-langs-eric-s11.wav",
    "trim": 0,
    "at": 12.11,
-   "end": 13.637
+   "end": 13.586
   },
   {
    "id": "v3-05-how",
-   "file": "assets/voice/tight/v3-05-how-s29.wav",
+   "file": "assets/voice/tight/v3-05-how-eric-s11.wav",
    "trim": 0,
    "at": 16.21,
-   "end": 17.31
+   "end": 17.277
   },
   {
    "id": "v3-06-context",
-   "file": "assets/voice/tight/v3-06-context-s29.wav",
+   "file": "assets/voice/tight/v3-06-context-eric-s11.wav",
    "trim": 0,
    "at": 17.86,
-   "end": 22.269
+   "end": 22.089
   },
   {
    "id": "v3-07-model",
-   "file": "assets/voice/tight/v3-07-model-s29.wav",
+   "file": "assets/voice/tight/v3-07-model-eric-s11.wav",
    "trim": 0,
-   "at": 23.36,
-   "end": 29.46
+   "at": 22.86,
+   "end": 28.603
   },
   {
    "id": "v3-08-pick",
-   "file": "assets/voice/tight/v3-08-pick-s11.wav",
+   "file": "assets/voice/tight/v3-08-pick-eric-s11.wav",
    "trim": 0,
-   "at": 30.36,
-   "end": 34.505
+   "at": 29.36,
+   "end": 33.35
   },
   {
    "id": "v3-09-ghost",
-   "file": "assets/voice/tight/v3-09-ghost-s42.wav",
+   "file": "assets/voice/tight/v3-09-ghost-eric-s11.wav",
    "trim": 0,
-   "at": 35.31,
-   "end": 39.619
+   "at": 34.31,
+   "end": 38.529
   },
   {
    "id": "v3-10-end",
-   "file": "assets/voice/tight/v3-10-end-s42.wav",
-   "trim": 0.033,
-   "at": 40.36,
-   "end": 43.818
+   "file": "assets/voice/tight/v3-10-end-eric-s11.wav",
+   "trim": 0,
+   "at": 39.36,
+   "end": 42.931
   }
  ],
  "captions": [
   [
    4.31,
-   6.383,
+   6.215,
    "It remembers what your team decided,",
    [
     4.31,
-    4.455,
-    4.965,
-    5.11,
-    5.365,
-    5.619
+    4.462,
+    4.996,
+    5.148,
+    5.3,
+    5.605
    ]
   ],
   [
-   6.383,
-   8.105,
+   6.215,
+   7.898,
    "and finishes your sentence.",
    [
-    6.383,
-    6.565,
-    7.001,
-    7.619
+    6.215,
+    6.52,
+    6.977,
+    7.51
    ]
   ],
   [
    9.71,
-   11.905,
+   11.631,
    "It finishes the word you're typing,",
    [
     9.71,
-    10.001,
-    10.437,
-    10.583,
-    10.874,
-    11.419
+    9.939,
+    10.396,
+    10.586,
+    10.739,
+    11.081
    ]
   ],
   [
    12.11,
-   13.987,
+   13.936,
    "in any language you write.",
    [
     12.11,
-    12.401,
-    12.692,
-    13.128,
-    13.419
+    12.339,
+    12.643,
+    13.1,
+    13.367
    ]
   ],
   [
    17.86,
-   20.105,
+   20.05,
    "It reads the text before your cursor,",
    [
     17.86,
-    18.205,
-    18.424,
-    18.569,
-    19.042,
-    19.296,
-    19.442
+    18.079,
+    18.384,
+    18.65,
+    19.031,
+    19.298,
+    19.45
    ]
   ],
   [
-   20.105,
-   22.619,
+   20.05,
+   22.439,
    "and saved notes, like that pricing call.",
    [
-    20.105,
-    20.324,
-    20.615,
-    21.251,
-    21.469,
-    21.615,
-    22.051
+    20.05,
+    20.393,
+    20.584,
+    21.193,
+    21.346,
+    21.689,
+    22.203
    ]
   ],
   [
-   23.36,
-   25.46,
+   22.86,
+   24.993,
    "A small model, Gemma 4,",
    [
-    23.36,
-    23.505,
-    23.869,
-    24.478,
-    24.805
+    22.86,
+    23.012,
+    23.317,
+    23.927,
+    24.308
    ]
   ],
   [
-   25.46,
-   27.151,
+   24.993,
+   26.336,
    "runs right inside the app.",
    [
-    25.46,
-    25.824,
-    26.115,
-    26.551,
-    26.696
+    24.993,
+    25.222,
+    25.45,
+    25.831,
+    25.984
    ]
   ],
   [
-   27.151,
-   29.81,
+   26.336,
+   28.953,
    "No server, no cloud, no account.",
    [
-    27.151,
-    27.296,
-    28.024,
-    28.242,
-    28.824,
-    28.969
+    26.336,
+    26.565,
+    27.174,
+    27.631,
+    28.012,
+    28.165
    ]
   ],
   [
-   30.36,
-   32.405,
+   29.36,
+   31.408,
    "It weighs every next word.",
    [
-    30.36,
-    30.578,
-    31.16,
-    31.524,
-    31.887
+    29.36,
+    29.589,
+    30.122,
+    30.503,
+    31.227
    ]
   ],
   [
-   32.405,
-   34.855,
+   31.408,
+   33.7,
    "When it isn't sure, it stays quiet.",
    [
-    32.405,
-    32.551,
-    32.696,
-    32.987,
-    33.569,
-    33.715,
-    34.078
+    31.408,
+    31.522,
+    31.674,
+    32.208,
+    32.56,
+    32.712,
+    33.017
    ]
   ],
   [
-   35.31,
-   37.931,
+   34.31,
+   36.786,
    "When it is, the rest appears in gray.",
    [
-    35.31,
-    35.492,
-    35.674,
-    36.21,
-    36.355,
-    36.719,
-    37.155,
-    37.301
+    34.31,
+    34.5,
+    34.691,
+    35.234,
+    35.386,
+    35.691,
+    36.148,
+    36.3
    ]
   ],
   [
-   37.931,
-   39.969,
+   36.786,
+   38.879,
    "Tab takes it, word by word.",
    [
-    37.931,
-    38.101,
-    38.601,
-    38.728,
-    39.092,
-    39.31
+    36.786,
+    37.091,
+    37.396,
+    37.748,
+    38.053,
+    38.281
    ]
   ]
  ],
  "subtitles": [
   [
-   0.16,
-   1.251,
+   0.12,
+   1.387,
    "Meet LokalBot."
   ],
   [
-   1.251,
-   3.364,
+   1.387,
+   3.403,
    "Autocomplete for your whole Mac."
   ],
   [
    4.31,
-   6.383,
+   6.215,
    "It remembers what your team decided,"
   ],
   [
-   6.383,
-   8.105,
+   6.215,
+   7.898,
    "and finishes your sentence."
   ],
   [
    9.71,
-   11.905,
+   11.631,
    "It finishes the word you're typing,"
   ],
   [
    12.11,
-   13.987,
+   13.936,
    "in any language you write."
   ],
   [
    16.21,
-   17.66,
+   17.627,
    "So how does it work?"
   ],
   [
    17.86,
-   20.105,
+   20.05,
    "It reads the text before your cursor,"
   ],
   [
-   20.105,
-   22.619,
+   20.05,
+   22.439,
    "and saved notes, like that pricing call."
   ],
   [
-   23.36,
-   25.46,
+   22.86,
+   24.993,
    "A small model, Gemma 4,"
   ],
   [
-   25.46,
-   27.151,
+   24.993,
+   26.336,
    "runs right inside the app."
   ],
   [
-   27.151,
-   29.81,
+   26.336,
+   28.953,
    "No server, no cloud, no account."
   ],
   [
-   30.36,
-   32.405,
+   29.36,
+   31.408,
    "It weighs every next word."
   ],
   [
-   32.405,
-   34.855,
+   31.408,
+   33.7,
    "When it isn't sure, it stays quiet."
   ],
   [
-   35.31,
-   37.931,
+   34.31,
+   36.786,
    "When it is, the rest appears in gray."
   ],
   [
-   37.931,
-   39.969,
+   36.786,
+   38.879,
    "Tab takes it, word by word."
   ],
   [
-   40.4,
-   41.309,
+   39.36,
+   40.35,
    "LokalBot."
   ],
   [
-   41.309,
-   44.168,
+   40.35,
+   43.281,
    "Free, open source, and it runs on your Mac."
   ]
  ],
  "beats": {
-  "ctxText": 18.369,
-  "ctxNotes": 20.124,
-  "ctxMark": 21.515,
+  "ctxText": 18.45,
+  "ctxNotes": 20.193,
+  "ctxMark": 21.589,
   "modelStream": [
+   25.01,
+   25.26,
    25.51,
    25.76,
    26.01,
-   26.26,
-   26.51,
-   26.76
+   26.26
   ],
   "modelPills": [
-   26.015,
-   27.051
+   25.35,
+   26.236
   ],
-  "pickGate": 32.305
+  "pickGate": 31.308
  }
 }

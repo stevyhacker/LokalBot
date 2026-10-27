@@ -98,14 +98,10 @@
   "music_edit": {
    "bpm": 120,
    "downbeat": 0.016,
-   "at": 0.01,
+   "at": 4.01,
    "bars": [
     [
-     0,
-     3
-    ],
-    [
-     2,
+     1,
      7
     ],
     [
@@ -118,6 +114,22 @@
     ]
    ],
    "button": 24
+  },
+  "synth": {
+   "intro": true,
+   "impacts": [
+    1,
+    8
+   ],
+   "cues": [
+    "tab",
+    "ghost",
+    "whoosh",
+    "tick",
+    "token",
+    "reveal"
+   ],
+   "db": -4
   }
  }
 }

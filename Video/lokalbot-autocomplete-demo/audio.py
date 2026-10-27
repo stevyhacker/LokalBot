@@ -6,8 +6,10 @@
 The voice takes and their placement come from edit.json (timeline.py), the
 effect cues from the composition (node render.cjs events events.json), and
 the music and effects from assets/sound/eleven/ (eleven_sound.py), picked in
-sound.json's "mix". The music ducks under the voice; loudness normalization
-happens later, in ffmpeg.
+sound.json's "mix". With "synth" in the mix, synth.py makes the intro under
+the hook, the impacts on the drops and the cues it lists, as in the first cut.
+The music ducks under the voice; loudness normalization happens later, in
+ffmpeg.
 
 Needs numpy, scipy and ffmpeg.
 """
@@ -19,6 +21,8 @@ from pathlib import Path
 import numpy as np
 from scipy.io import wavfile
 from scipy.signal import butter, sosfilt
+
+import synth
 
 SR = 48000
 HERE = Path(__file__).resolve().parent
@@ -115,26 +119,37 @@ def voice_bus(edit, n):
 
 
 def edited(bed, cut, n):
-    """The bed re-cut by whole bars (sound.json "music_edit"), from the film's first frame.
+    """The bed re-cut by whole bars (sound.json "music_edit").
 
     "bars" lists [first, end) bar ranges to play in order; "at" is where the
-    first one's downbeat lands in the film. Each splice sits just before a
-    downbeat, with a short crossfade.
+    first one's downbeat lands in the film, and the bed is silent before it.
+    Each splice sits just before a downbeat, with a short crossfade.
     """
     bar = 4 * 60 / cut['bpm']
-    xf = int(0.012 * SR)
+    xf, pre = int(0.012 * SR), 0.01
     out = np.zeros(0)
     for a, b in cut['bars']:
-        lo = int((cut['downbeat'] + a * bar - cut['at']) * SR)
-        hi = min(int((cut['downbeat'] + b * bar - cut['at']) * SR) + xf, len(bed))
-        part = bed[max(lo, 0):hi].copy()
+        lo = int((cut['downbeat'] + a * bar - pre) * SR)
+        hi = min(int((cut['downbeat'] + b * bar - pre) * SR) + xf, len(bed))
+        part = bed[lo:hi].copy()
         if len(out):
             ramp = np.linspace(0, 1, xf)
             out[-xf:] = out[-xf:] * (1 - ramp) + part[:xf] * ramp
             part = part[xf:]
         out = np.concatenate([out, part])
+    out = np.concatenate([np.zeros(int(round((cut['at'] - pre) * SR))), fade(out, 0.004, 0)])
     out = np.pad(out, (0, max(n - len(out), 0)))[:n]
-    return fade(out, 0.004, 0.3)
+    return fade(out, 0, 0.3)
+
+
+def bar_time(cut, bar):
+    """Film time of a bar of the bed in the re-cut."""
+    length, t = 4 * 60 / cut['bpm'], cut['at']
+    for a, b in cut['bars']:
+        if a <= bar < b:
+            return t + (bar - a) * length
+        t += (b - a) * length
+    raise SystemExit(f'bar {bar} is not in the music edit')
 
 
 def music_bed(path, n, fade_in, cut=None):
@@ -160,23 +175,39 @@ def main():
     n = int(round(edit['duration'] * SR))
 
     voice = voice_bus(edit, n)
-    music = music_bed(sound / f"{mix['music']}.mp3", n, mix.get('music_fade_in', 1.2), mix.get('music_edit'))
+    cut = mix.get('music_edit')
+    music = music_bed(sound / f"{mix['music']}.mp3", n, mix.get('music_fade_in', 1.2), cut)
+    music = np.stack([music, music], 1) * db(mix.get('music_db', -11))
+    reveal_at = mix.get('reveal_at', 1.0)
+    fx = np.zeros((n, 2))
+    made = mix.get('synth', {})
+    if made:
+        # The first cut's sound: an intro into the drop, impacts, and synthesized cues.
+        gain = db(made.get('db', 0))
+        if made.get('intro') and cut:
+            pad, kicks = synth.intro(n, cut['at'], 60 / cut['bpm'])
+            music += pad * gain
+            fx += kicks * gain
+        drops = [bar_time(cut, b) for b in made.get('impacts', [])] if cut else []
+        ends = [t + reveal_at for t, kind in events if kind == 'reveal' and 'reveal' in made['cues']]
+        fx += gain * synth.cues(n, [(t, k) for t, k in events if k.split(':')[0] in made['cues']],
+                                drops, ends[0] if ends else None)
     # Duck the music about 7 dB under speech, easing back between lines.
     duck = envelope(voice, 0.08, 0.5)
     duck = 1 - 0.55 * np.clip(duck / max(duck.max() * 0.3, 1e-9), 0, 1)
-    music *= duck * db(mix.get('music_db', -11))
+    music *= duck[:, None]
 
-    fx = np.zeros((n, 2))
     clips = {name: load(sound / f'{file}.mp3') for name, file in mix['effects'].items()}
     keys = keystrokes(clips.pop('type'))
     for name in ('tab', 'ghost', 'tick'):
         clips[name] = from_onset(clips[name])
     # Swells peak on their cue: the whoosh on the cut, the reveal as the logo settles.
     whoosh_peak, reveal_peak = peak_time(clips['whoosh']), peak_time(clips['reveal'])
-    reveal_at = mix.get('reveal_at', 1.0)
     gains = {k: db(v) for k, v in mix['effect_db'].items()}
     for t, kind in events:
         name = kind.split(':')[0]
+        if name in made.get('cues', ()):
+            continue
         if name == 'type':
             place(fx, keys[rng.integers(len(keys))], t - 0.004, gains['type'] * rng.uniform(0.75, 1.0), rng.uniform(-0.2, 0.2))
         elif name == 'whoosh':
@@ -188,7 +219,7 @@ def main():
         elif name in clips:
             place(fx, clips[name], t, gains[name])
 
-    stereo = fx + music[:, None] + voice[:, None]
+    stereo = fx + music + voice[:, None]
     peak = np.abs(stereo).max()
     if peak > 0.98:
         stereo *= 0.98 / peak

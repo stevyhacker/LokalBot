@@ -21,14 +21,20 @@ the beat of the music.
   llama.cpp on the same runner (`logs/probabilities.json`).
 - Voice: synthetic, from `narration.json`. `take` picks the engine, voice and
   take: ElevenLabs (`../lokalbot-autocomplete-launch/tts_elevenlabs.py` with
-  `CUT_DIR` set to this folder) or OpenAI (`tts.py`). `tighten.py` shortens
-  the pauses in the chosen takes and quickens them 10% (Rubber Band, formants
-  kept). Say it is synthetic where the video is posted.
+  `CUT_DIR` set to this folder, `--name` for a voice other than the default)
+  or OpenAI (`tts.py`). The cut uses Eric, a premade ElevenLabs narrator.
+  `tighten.py` shortens the pauses in the chosen takes and quickens them 5%
+  (Rubber Band, formants kept). Say it is synthetic where the video is posted.
 - Music and effects: ElevenLabs Music and Sound Effects (`eleven_sound.py`,
   prompts in `sound.json`). The 120 BPM bed is re-cut by whole bars
-  (`sound.json` "music_edit") so its one-bar break falls on "So how does it
-  work?" and its final hit on the last word. Commercial use follows the plan
-  of the ElevenLabs account that made them.
+  (`sound.json` "music_edit"): it drops in on the first clip, its one-bar
+  break falls on "So how does it work?" and its final hit after the last
+  word. Commercial use follows the plan of the ElevenLabs account that made
+  them. Under the hook, `synth.py` plays the first cut's intro (a pad that
+  opens up, a riser and four kicks into the drop), and it makes the impacts,
+  the Tab thock with a bell that climbs the scale, the ghost-text shimmer,
+  the swishes, the model's blips and the logo's bells, in the bed's key
+  (`sound.json` "synth").
 
 ## Files
 
@@ -50,6 +56,7 @@ the beat of the music.
   `pr-assets/<pr>-autocomplete-voice` branch, not into the repository.
 - `audio.py`: mixes voice, music (re-cut to the film and ducked under the
   voice) and effects from `edit.json` and the composition's cue list.
+- `synth.py`: the synthesized intro and effects `audio.py` uses.
 - `render.cjs`: headless Chromium renderer (frames, stills, cue list).
 - `make.sh [out-dir]`: everything after the footage and sound, through MP4,
   GIF and poster in `renders/`.

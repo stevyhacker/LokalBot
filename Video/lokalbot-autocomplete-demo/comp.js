@@ -139,12 +139,55 @@ function glowTexture() {
 }
 const GLOW = glowTexture();
 
+// ---------------------------------------------------------------- background
+// Drifting teal dust and soft colour behind each part of the film, as in the first cut.
+const sky = (() => {
+  const random = rng(7), n = 2400;
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), size = new Float32Array(n), phase = new Float32Array(n);
+  const palette = [new THREE.Color(MINT), new THREE.Color(TEAL), new THREE.Color(0xffffff), new THREE.Color(0x7d9ec2)];
+  for (let i = 0; i < n; i++) {
+    pos[i * 3] = lerp(-60, 110, random());
+    pos[i * 3 + 1] = lerp(-40, 40, random());
+    pos[i * 3 + 2] = lerp(60, -300, random());
+    const c = palette[Math.floor(random() * palette.length)];
+    col.set([c.r, c.g, c.b], i * 3);
+    size[i] = lerp(0.6, 2.4, random() ** 2);
+    phase[i] = random() * 6.28;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
+  geo.setAttribute('phase', new THREE.BufferAttribute(phase, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uMap: { value: GLOW } },
+    vertexShader: `attribute float size; attribute float phase; attribute vec3 color; varying vec3 vColor; varying float vA;
+      uniform float uTime;
+      void main(){ vec3 p = position; p.y += sin(uTime*0.35 + phase)*0.6; p.x += cos(uTime*0.27 + phase)*0.6;
+        vec4 mv = modelViewMatrix*vec4(p,1.); gl_Position = projectionMatrix*mv;
+        gl_PointSize = size * 260. / -mv.z; vColor = color; vA = 0.7 + 0.3*sin(uTime*0.8 + phase*3.); }`,
+    fragmentShader: `uniform sampler2D uMap; varying vec3 vColor; varying float vA;
+      void main(){ float a = texture2D(uMap, gl_PointCoord).a; gl_FragColor = vec4(vColor, a*vA*0.55); }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  scene.add(points);
+  return { points, mat };
+})();
+[[0, 0, -40, 0x0c8275, 90], [24, 4, -50, 0x23c4ae, 70], [48, -4, -40, 0x0c8275, 110],
+  [48, 0, -120, 0x0c8275, 140], [48, 6, -230, 0x23c4ae, 120]].forEach(([x, y, z, color, size]) => {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color, transparent: true, opacity: 0.07, depthWrite: false, blending: THREE.AdditiveBlending }));
+  sprite.position.set(x, y, z); sprite.scale.set(size, size * 0.7, 1);
+  scene.add(sprite);
+});
+
 // ---------------------------------------------------------------- footage cards
 const CARD_VERT = `
   varying vec2 vUv;
   void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const CARD_FRAG = `
-  uniform sampler2D uMap; uniform float uOpacity; uniform vec2 uSize; uniform float uRadius;
+  uniform sampler2D uMap; uniform float uOpacity; uniform vec2 uSize; uniform float uRadius; uniform float uRim;
   varying vec2 vUv;
   float sdRound(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
   void main(){
@@ -152,7 +195,10 @@ const CARD_FRAG = `
     float d = sdRound(p, uSize * 0.5, uRadius);
     float aa = fwidth(d);
     float inside = 1.0 - smoothstep(-aa, aa, d);
-    gl_FragColor = vec4(texture2D(uMap, vUv).rgb, inside * uOpacity);
+    // A thin mint rim light, as in the first cut.
+    float rim = (1.0 - smoothstep(0.0, uRadius * 0.6, abs(d))) * uRim;
+    vec3 c = mix(texture2D(uMap, vUv).rgb, vec3(0.43, 0.95, 0.86), clamp(rim, 0., 1.));
+    gl_FragColor = vec4(c, inside * uOpacity);
     #include <colorspace_fragment>
   }`;
 
@@ -193,7 +239,7 @@ class Card {
     this.material = new THREE.ShaderMaterial({
       uniforms: {
         uMap: { value: this.texture }, uOpacity: { value: 1 }, uSize: { value: new THREE.Vector2(this.width, this.height) },
-        uRadius: { value: this.width * 0.014 },
+        uRadius: { value: this.width * 0.014 }, uRim: { value: 0.5 },
       },
       vertexShader: CARD_VERT, fragmentShader: CARD_FRAG, transparent: true, depthWrite: false,
     });
@@ -202,7 +248,11 @@ class Card {
     this.shadow = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: 0x000000, transparent: true, opacity: 0.7, depthWrite: false }));
     this.shadow.scale.set(this.width * 1.4, this.height * 1.9, 1);
     this.shadow.position.set(0, -this.height * 0.1, -0.6);
-    this.group.add(this.shadow, this.mesh);
+    // A soft teal glow under the card.
+    this.halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: GLOW, color: TEAL, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.halo.scale.set(this.width * 1.6, this.height * 2.2, 1);
+    this.halo.position.set(0, 0, -0.8);
+    this.group.add(this.shadow, this.halo, this.mesh);
     this.group.visible = false;
     scene.add(this.group);
     this.frame = -1;
@@ -216,6 +266,7 @@ class Card {
     if (!this.group.visible) return;
     this.material.uniforms.uOpacity.value = opacity;
     this.shadow.material.opacity = 0.7 * opacity;
+    this.halo.material.opacity = 0.22 * opacity;
     const src = sourceTime(this.clip.map, t);
     const frame = clamp(Math.round(src * FPS), 0, this.clip.frames - 1);
     if (frame !== this.frame) {
@@ -448,19 +499,22 @@ function typedHook(t) {
 
 function layoutHook(t) {
   const [, h1] = T.hook;
-  const o = 1 - seg(t, h1 - 0.35, h1 + 0.05);
+  const o = 1 - seg(t, h1 - 0.3, h1 + 0.05);
   show(hook, o);
   if (o <= 0) return;
   typedHook(t);
-  hook.style.transform = `translateY(${(-24 * (1 - o)).toFixed(1)}px) scale(${lerp(1, 1.04, 1 - o).toFixed(4)})`;
+  // It flies past the camera as the first clip comes in, as in the first cut.
+  const out = seg(t, h1 - 0.5, h1 + 0.05, ease.inCubic);
+  hook.style.transform = `scale(${(1 + out * 0.9).toFixed(4)})`;
+  hook.style.filter = out > 0.001 ? `blur(${(out * 10).toFixed(2)}px)` : 'none';
   // On from the first frame, so a muted autoplay or a thumbnail already says what this is.
   const b = seg(t, 0, 0.45, ease.outBack);
   hookBrand.style.opacity = '1';
   hookBrand.style.transform = `scale(${lerp(0.9, 1, b).toFixed(4)})`;
 }
 
-function cardEnter(c, t, t0, from, to, rotFrom, rotTo, dur) {
-  const k = seg(t, t0, t0 + dur, ease.outCubic);
+function cardEnter(c, t, t0, from, to, rotFrom, rotTo, dur, e = ease.outCubic) {
+  const k = seg(t, t0, t0 + dur, e);
   c.group.position.lerpVectors(from, to, k);
   c.group.rotation.set(lerp(rotFrom[0], rotTo[0], k), lerp(rotFrom[1], rotTo[1], k), lerp(rotFrom[2], rotTo[2], k));
 }
@@ -471,8 +525,8 @@ async function layoutFootage(t) {
   const [m0, m1] = T.memory;
   const mo = clamp(seg(t, m0, m0 + 0.35) * (1 - seg(t, m1 - 0.35, m1 + 0.15)));
   if (mo > 0) {
-    cardEnter(card.memory, t, m0, v3(0, -1.2, -6), v3(0, 0, 0), [0.1, -0.3, 0], [0.02, -0.08, 0], 0.85);
-    card.memory.group.rotation.y += seg(t, m0 + 0.85, m1, ease.linear) * 0.05;
+    cardEnter(card.memory, t, m0, v3(0, -2, -30), v3(0, 0, 0), [0.35, -0.75, 0.08], [0.02, -0.08, 0], 0.9, ease.outExpo);
+    card.memory.group.rotation.y += seg(t, m0 + 0.9, m1, ease.linear) * 0.06;
   }
   jobs.push(card.memory.show(t - m0, mo));
   rise(memTitle, win(t, m0 + 0.35, m1 - 0.1, 0.35, 0.3));
@@ -482,9 +536,9 @@ async function layoutFootage(t) {
   show(memcard, mc);
   if (mc > 0) {
     const k = seg(t, ghostAt - 0.1, ghostAt + 0.4, ease.outBack);
-    memcard.style.left = `${lerp(1290, 1250, k)}px`;
-    memcard.style.top = `${lerp(700, 676, k)}px`;
-    memcard.style.transform = 'rotate(-1.5deg)';
+    memcard.style.left = `${lerp(1950, 1250, k)}px`;
+    memcard.style.top = `${lerp(640, 676, k)}px`;
+    memcard.style.transform = `rotate(${lerp(8, -1.5, k).toFixed(2)}deg)`;
   }
 
   // The second clip
@@ -687,6 +741,7 @@ await Promise.all([...document.images].map(img => img.decode().catch(() => {})))
 window.__duration = DURATION;
 window.__fps = FPS;
 window.__seek = async t => {
+  sky.mat.uniforms.uTime.value = t;
   placeCamera(t);
   layoutBackground();
   layoutHook(t);
