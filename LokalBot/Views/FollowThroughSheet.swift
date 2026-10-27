@@ -78,6 +78,8 @@ struct FollowThroughSheet: View {
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .lbStatusSurface(LBTokens.Palette.success)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("followThrough.done")
         case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.scaled(.callout)).foregroundStyle(Brand.error)
@@ -128,6 +130,9 @@ private struct ProposalCard: View {
     @State private var minutes = 30
     @State private var agent: ActionAgentHandoff = .claudeCode
     @State private var loaded = false
+    /// Set on Approve or Decline, so a second click can't send twice while the
+    /// step runs.
+    @State private var submitted = false
 
     private var isPending: Bool { proposal.status == .pending }
 
@@ -145,12 +150,20 @@ private struct ProposalCard: View {
             fields.disabled(!isPending)
             if isPending {
                 HStack {
-                    Button(approveTitle) { approve(edited()) }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier("followThrough.approve")
-                    Button("Decline") { decline() }
-                        .accessibilityIdentifier("followThrough.decline")
+                    Button(approveTitle) {
+                        submitted = true
+                        approve(edited())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("followThrough.approve")
+                    Button("Decline") {
+                        submitted = true
+                        decline()
+                    }
+                    .accessibilityIdentifier("followThrough.decline")
+                    if submitted { ProgressView().controlSize(.small) }
                 }
+                .disabled(submitted)
             }
         }
         .padding(12)

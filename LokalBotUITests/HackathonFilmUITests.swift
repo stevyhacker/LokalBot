@@ -4,10 +4,16 @@ import XCTest
 
 /// Clicks through Live Radar and Follow-through end to end and films it: the
 /// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
-/// line by line, and Follow-through on the commitment it caught. Muse replies
-/// are scripted in the host (`LOKALBOT_MUSE_UI_TEST`), so no key or network
-/// is used. With `LOKALBOT_FILM_FRAMES` set, frames and their durations are
-/// written there for `.github/workflows/meta-hackathon-film.yml` to encode.
+/// line by line, and Follow-through on the commitment it caught.
+///
+/// By default Muse replies are scripted in the host (`LOKALBOT_MUSE_UI_TEST=1`),
+/// so no key or network is used and the checks name exact items. With
+/// `LOKALBOT_FILM_MUSE=live` and `LOKALBOT_FILM_META_KEY_FILE` naming a file
+/// that holds a Meta Model API key, the host calls Muse Spark and Muse Wonder
+/// on this fixture, and the checks look for kinds of items and approve
+/// whatever steps Follow-through proposes. With `LOKALBOT_FILM_FRAMES` set,
+/// frames and their durations are written there for
+/// `.github/workflows/meta-hackathon-film.yml` to encode.
 final class HackathonFilmUITests: XCTestCase {
     private var library: URL!
     private var defaultsSuiteName: String?
@@ -28,7 +34,24 @@ final class HackathonFilmUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
+    /// The host's Muse mode, and the key file for live replies.
+    private var muse: [String: String] {
+        let env = ProcessInfo.processInfo.environment
+        if env["LOKALBOT_FILM_MUSE"] == "live", let file = env["LOKALBOT_FILM_META_KEY_FILE"],
+           FileManager.default.fileExists(atPath: file) {
+            return ["LOKALBOT_MUSE_UI_TEST": "live", "LOKALBOT_UI_TEST_META_API_KEY_FILE": file]
+        }
+        return ["LOKALBOT_MUSE_UI_TEST": "1"]
+    }
+
+    private var isLive: Bool { muse["LOKALBOT_MUSE_UI_TEST"] == "live" }
+
+    private func radarItems(_ kind: String = "", in app: XCUIApplication) -> XCUIElementQuery {
+        app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "radar.item.\(kind)"))
+    }
+
     func testFilmLiveRadarAndFollowThrough() throws {
+        XCTContext.runActivity(named: isLive ? "Muse replies: live" : "Muse replies: scripted") { _ in }
         // 1. Connect Meta Muse in Settings → Recording.
         let launch = try UITestHarness.launch(
             storageRoot: library, suitePrefix: "Film", settingsJSON: FilmFixture.settingsJSON,
@@ -52,18 +75,28 @@ final class HackathonFilmUITests: XCTestCase {
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
-                          "LOKALBOT_MUSE_UI_TEST": "1",
-                          "LOKALBOT_DISMISS_ONBOARDING": "1"])
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new })
         let start = app.buttons["live.radar.start"]
         XCTAssertTrue(film.wait(for: start, timeout: 15), "Live Radar pane did not render")
         film.hold(2)
         start.click()
-        let contradiction = UITestHarness.staticText(containing: "Launch moved to Friday", in: app)
-        XCTAssertTrue(film.wait(for: contradiction, timeout: 60), "the launch-date contradiction never appeared")
-        let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
-        XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
-        XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
+        let started = Date()
+        if isLive {
+            // Real replies vary: require a contradiction with the earlier
+            // meeting and a few items, and let the last pass after the final
+            // line (about 60 s in) finish.
+            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 75),
+                          "Muse found no contradiction with the earlier meeting")
+            film.hold(max(0, 78 - Date().timeIntervalSince(started)))
+            XCTAssertGreaterThanOrEqual(radarItems(in: app).count, 3, "Muse caught fewer than three items")
+        } else {
+            let contradiction = UITestHarness.staticText(containing: "Launch moved to Friday", in: app)
+            XCTAssertTrue(film.wait(for: contradiction, timeout: 60), "the launch-date contradiction never appeared")
+            let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
+            XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
+            XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
+            XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
+        }
         film.hold(3)
         // Contradictions lead the list; scroll to the commitments, decision and answered question.
         let radarList = app.scrollViews["radar.items"]
@@ -80,28 +113,49 @@ final class HackathonFilmUITests: XCTestCase {
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_INITIAL_SECTION": "meetings",
                           "LOKALBOT_SELECT_FIRST": "1",
-                          "LOKALBOT_MUSE_UI_TEST": "1",
-                          "LOKALBOT_DISMISS_ONBOARDING": "1"])
+                          "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new })
         let followThrough = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH 'radar.followThrough.'")).firstMatch
         XCTAssertTrue(film.wait(for: app.descendants(matching: .any)["radar.items"], timeout: 20),
                       "the meeting page has no Live Radar section")
         UITestHarness.scrollTo(followThrough, in: app)
-        XCTAssertTrue(film.wait(for: followThrough, timeout: 10), "no Follow Through button on the commitment")
-        film.hold(2.5)
-        followThrough.click()
+        if film.wait(for: followThrough, timeout: 10) {
+            film.hold(2.5)
+            followThrough.click()
+        } else {
+            // A live run may not attribute the commitment to the user; the
+            // saved action's menu offers the same Follow-through.
+            XCTAssertTrue(isLive, "no Follow Through button on the commitment")
+            let menu = app.descendants(matching: .any)["meeting.action.status.film-action-0"]
+            UITestHarness.scrollTo(menu, in: app, upward: true)
+            XCTAssertTrue(film.wait(for: menu, timeout: 10), "no action menu to follow through from")
+            menu.click()
+            let item = app.menuItems["Follow Through with Muse…"]
+            XCTAssertTrue(film.wait(for: item, timeout: 5))
+            item.click()
+        }
 
-        let approve = app.buttons["followThrough.approve"]
-        XCTAssertTrue(film.wait(for: approve, timeout: 30), "Follow-through never proposed the email")
-        XCTAssertEqual(approve.label, "Open in Mail")
-        film.hold(3)
-        approve.click()
-        let calendar = app.buttons.matching(NSPredicate(format: "label == 'Open in Calendar'")).firstMatch
-        XCTAssertTrue(film.wait(for: calendar, timeout: 30), "Follow-through never proposed the invitation")
-        film.hold(3)
-        calendar.click()
-        let done = UITestHarness.staticText(containing: "Drafted the deck email to Marko", in: app)
-        XCTAssertTrue(film.wait(for: done, timeout: 30), "Follow-through did not finish")
+        // Approve every step Muse proposes, until it finishes.
+        let approve = app.buttons.matching(NSPredicate(format: "identifier == 'followThrough.approve' AND isEnabled == true")).firstMatch
+        let done = app.descendants(matching: .any)["followThrough.done"]
+        let failure = app.descendants(matching: .any)["followThrough.error"]
+        var approved: [String] = []
+        for _ in 0..<5 {
+            let deadline = Date().addingTimeInterval(isLive ? 120 : 30)
+            while !approve.exists, !done.exists, !failure.exists, Date() < deadline { film.hold(0.4) }
+            if done.exists || failure.exists || !approve.exists { break }
+            film.hold(3)
+            approved.append(approve.label)
+            approve.click()
+            film.hold(1.5)
+        }
+        XCTAssertFalse(failure.exists, "Follow-through failed: \(failure.exists ? failure.label : "")")
+        XCTAssertTrue(film.wait(for: done, timeout: 10), "Follow-through did not finish")
+        XCTAssertFalse(approved.isEmpty, "Follow-through proposed nothing")
+        if !isLive {
+            XCTAssertEqual(approved, ["Open in Mail", "Open in Calendar"])
+            XCTAssertTrue(UITestHarness.staticText(containing: "Drafted the deck email to Marko", in: app).exists)
+        }
         film.hold(4)
     }
 }

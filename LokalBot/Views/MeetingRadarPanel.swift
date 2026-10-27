@@ -198,6 +198,6 @@ struct RadarItemList: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("radar.item.\(item.id)")
+        .accessibilityIdentifier("radar.item.\(item.kind.rawValue).\(item.id)")
     }
 }

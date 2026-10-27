@@ -556,12 +556,13 @@ struct AppSettings: Codable, Equatable {
     /// Meta's own key, else Think's key when Think already points at
     /// api.meta.ai, so one key serves both.
     var effectiveMetaModelAPIKey: String {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's key (or none for scripted replies) wins over what the
+        // test typed into Settings, and a runner's Keychain never decides the run.
+        if let key = MuseUITestTransport.apiKey { return key }
+#endif
         let own = metaModelAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if !own.isEmpty { return own }
-#if LOKALBOT_UI_TEST_HOST
-        // Scripted replies need no key; a runner's Keychain must not decide the run.
-        if MuseUITestTransport.isEnabled { return "ui-test-key" }
-#endif
         guard let think = URL(string: openAIBaseURL),
               RemoteInferenceGate.origin(for: think) == MetaModelAPI.origin else { return "" }
         return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)

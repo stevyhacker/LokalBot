@@ -71,7 +71,7 @@ enum MetaModelAPI {
         var client = MuseChatClient(apiKey: key, model: model, reasoningEffort: reasoningEffort,
                                     maxTokens: maxTokens, priority: priority, purpose: purpose)
 #if LOKALBOT_UI_TEST_HOST
-        if MuseUITestTransport.isEnabled { client.transport = MuseUITestTransport.reply }
+        if MuseUITestTransport.isScripted { client.transport = MuseUITestTransport.reply }
 #endif
         return client
     }

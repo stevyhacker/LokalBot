@@ -1,15 +1,31 @@
 #if LOKALBOT_UI_TEST_HOST
 import Foundation
 
-/// UI-test host only. With `LOKALBOT_MUSE_UI_TEST=1`, Meta Model API requests
-/// get scripted replies instead of reaching api.meta.ai, so the hosted UI
-/// suite can drive Live Radar and Follow-through without a key, network, or
-/// model. Replies follow the demo call in `Docs/meta-hackathon/demo-script.md`
-/// and still pass through `MuseChatClient` parsing and the radar's grounding
-/// checks: a contradiction appears only if local search put the earlier
-/// passage in the request.
+/// UI-test host only. `LOKALBOT_MUSE_UI_TEST` puts Live Radar and
+/// Follow-through in a mode the hosted UI suite can film:
+/// - `1`: Meta Model API requests get scripted replies instead of reaching
+///   api.meta.ai, so no key, network, or model is used. Replies follow the
+///   demo call in `Docs/meta-hackathon/demo-script.md` and still pass through
+///   `MuseChatClient` parsing and the radar's grounding checks: a
+///   contradiction appears only if local search put the earlier passage in
+///   the request.
+/// - `live`: requests go to Meta with the key read from the file named by
+///   `LOKALBOT_UI_TEST_META_API_KEY_FILE`, so the key never appears in the
+///   test configuration or its result bundle.
+/// In both modes approved Follow-through steps do not open Mail or Calendar.
 enum MuseUITestTransport {
-    static var isEnabled: Bool { ProcessInfo.processInfo.environment["LOKALBOT_MUSE_UI_TEST"] == "1" }
+    private static var mode: String? { ProcessInfo.processInfo.environment["LOKALBOT_MUSE_UI_TEST"] }
+    static var isEnabled: Bool { mode == "1" || mode == "live" }
+    static var isScripted: Bool { mode == "1" }
+
+    /// The key for `live` mode, or a placeholder the scripted replies ignore.
+    static var apiKey: String? {
+        if isScripted { return "ui-test-key" }
+        guard mode == "live", let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_META_API_KEY_FILE"],
+              let key = try? String(contentsOfFile: path, encoding: .utf8)
+                .trimmingCharacters(in: .whitespacesAndNewlines), !key.isEmpty else { return nil }
+        return key
+    }
 
     static func reply(to request: URLRequest) async throws -> (Data, URLResponse) {
         // Long enough for the in-flight states to be visible.
