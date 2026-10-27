@@ -278,7 +278,7 @@ const BOARD_FRAG = `uniform sampler2D uMap; uniform vec3 uColor; uniform float u
   varying vec2 vUv; varying float vDepth;
   void main(){
     vec2 q = gl_FragCoord.xy/vec2(${W}., ${H}.) - .5;
-    float a = texture2D(uMap, vUv*uRepeat).a*mix(.45, 1., smoothstep(.08, .45, length(q*vec2(1., .7))));
+    float a = texture2D(uMap, vUv*uRepeat).a*mix(.35, 1., smoothstep(.1, .5, length(q*vec2(1., .7))));
     float edge = smoothstep(0., .1, vUv.x)*smoothstep(1., .9, vUv.x)*smoothstep(0., .1, vUv.y)*smoothstep(1., .9, vUv.y);
     float d = vDepth*0.01;
     gl_FragColor = vec4(uColor, a*uOpacity*edge*smoothstep(4., 20., vDepth)*exp(-d*d));
@@ -294,7 +294,7 @@ const boards = [
 ].map(({ seed, x, z, w, h, focus, pulses }) => {
   const { tex, traces } = boardTile(seed), { px, pitch, tile } = BOARD;
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uMap: { value: tex }, uColor: { value: new THREE.Color(TEAL).multiplyScalar(0.9) }, uOpacity: { value: 0.32 },
+    uniforms: { uMap: { value: tex }, uColor: { value: new THREE.Color(TEAL).multiplyScalar(0.9) }, uOpacity: { value: 0.21 },
       uRepeat: { value: new THREE.Vector2(w / tile, h / tile) } },
     vertexShader: BOARD_VERT, fragmentShader: BOARD_FRAG,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
@@ -346,7 +346,7 @@ function layoutBoards(t) {
         const env = on ? Math.min(1, s / 1.5, (sig.len - s) / 1.5) : 0;
         const p = on ? along(sig, s) : sig.pts[0];
         b.pos.set([p.x, p.y, p.z], i * 3);
-        const v = env * (1 - k / b.TRAIL) ** 2 * fade * 0.8;
+        const v = env * (1 - k / b.TRAIL) ** 2 * fade * 0.55;
         b.col.set([v, v, v], i * 3);
       }
     });
