@@ -1,0 +1,49 @@
+{
+  "calendarUsed": false,
+  "callbackScheme": "com.googleusercontent.apps.158325362655-2mgcaii20niarfkaj9kl8966m4h58k3s",
+  "cleanupConfirmed": true,
+  "clientID": "158325362655-2mgcaii20niarfkaj9kl8966m4h58k3s.apps.googleusercontent.com",
+  "finishedAt": "2026-10-27T07:33:36Z",
+  "firstSyncCapped": true,
+  "firstSyncMessages": 3,
+  "firstSyncThreads": 3,
+  "forcedRefresh": true,
+  "fullInstalledAppUI": false,
+  "gmailThreadLimit": 3,
+  "googleReturnedOnlyGmailReadonly": true,
+  "googleRevocationConfirmed": true,
+  "historyCursorSaved": true,
+  "historyReplay": true,
+  "httpStatusCounts": {
+    "gmailReadOnlyGET:200": 12,
+    "googleCodeExchange:200": 2,
+    "googleRefresh:200": 2,
+    "googleRefresh:400": 1,
+    "googleRevocation:200": 1,
+    "googleRevocation:400": 3
+  },
+  "installedLibraryUsed": false,
+  "limitations": [
+    "Native probe with production OAuth and Gmail sources; not the full installed app UI.",
+    "Credentials were held in memory; production Keychain persistence was not exercised by this live test.",
+    "No calendar-attendee queries or multi-account mailbox synchronization were exercised by this live test."
+  ],
+  "localCredentialsAndMailDeleted": true,
+  "nativeAuthComponent": "production GoogleSignInSheet / ASWebAuthenticationSession",
+  "nativeCallbackAndCodeExchange": true,
+  "passed": true,
+  "probeBundleID": "me.dotenv.LokalBot.dev",
+  "reconnectAndRefresh": true,
+  "refreshRejectedAfterDisconnect": true,
+  "refreshTokenIssued": true,
+  "requestCounts": {
+    "gmailReadOnlyGET": 12,
+    "googleCodeExchange": 2,
+    "googleRefresh": 3,
+    "googleRevocation": 4
+  },
+  "sourceRevision": "a2815a7654d75356906fbc5d657db7a9305d8fe9",
+  "startedAt": "2026-10-27T07:33:14Z",
+  "storage": "temporary AES-GCM files; ephemeral key; in-memory credentials",
+  "tokensWrittenToDisk": false
+}
