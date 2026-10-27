@@ -14,11 +14,9 @@ struct MeetingRadarPanel: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
-                Text("Live Radar").font(.scaled(.headline))
-                BrandChip(icon: "sparkles", text: MetaModelAPI.displayName(for: app.settings.museRadarModel),
-                          size: .compact)
-                Spacer()
-                controls
+                Text("Live Radar").font(.scaled(.headline)).lineLimit(1)
+                Spacer(minLength: 4)
+                controls.fixedSize()
             }
             status
             RadarItemList(items: items, emptyMessage: emptyMessage)
@@ -62,7 +60,7 @@ struct MeetingRadarPanel: View {
                 if radar.isAnalyzing {
                     LoadingStateLabel("Reading the newest lines…", font: .scaled(.callout))
                 } else {
-                    Text("Listening for commitments, decisions, questions and contradictions.")
+                    Text("Listening with \(modelName).")
                         .workspaceTextRole(.supporting)
                 }
             }
@@ -72,10 +70,14 @@ struct MeetingRadarPanel: View {
         } else if let reason = unavailableReason {
             Text(reason).workspaceTextRole(.supporting)
         } else {
-            Text("Sends new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings to api.meta.ai. Starts the live preview if it is off.")
+            Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. Sends \(modelName) new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings at api.meta.ai. Starts the live preview if it is off.")
                 .workspaceTextRole(.supporting)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var modelName: String {
+        MetaModelAPI.displayName(for: isThisMeeting ? radar.model : app.settings.museRadarModel)
     }
 
     private var passSummary: String {

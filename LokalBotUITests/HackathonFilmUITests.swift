@@ -64,7 +64,16 @@ final class HackathonFilmUITests: XCTestCase {
         XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
         XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
         XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
-        film.hold(4)
+        film.hold(3)
+        // Contradictions lead the list; scroll to the commitments, decision and answered question.
+        let radarList = app.scrollViews["radar.items"]
+        if radarList.exists {
+            for _ in 0..<4 {
+                radarList.scroll(byDeltaX: 0, deltaY: -220)
+                film.hold(1.6)
+            }
+        }
+        film.hold(2)
 
         // 3. After the meeting: its page keeps what the radar caught. Follow through.
         app = try UITestHarness.relaunch(

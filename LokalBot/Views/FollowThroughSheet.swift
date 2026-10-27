@@ -164,9 +164,9 @@ private struct ProposalCard: View {
         case .pending:
             EmptyView()
         case .approved(let result):
-            Label(result.isEmpty ? "Approved" : result, systemImage: "checkmark.circle.fill")
+            Label(approvedTitle, systemImage: "checkmark.circle.fill")
                 .font(.scaled(.caption)).foregroundStyle(LBTokens.Palette.successText)
-                .lineLimit(2)
+                .help(result)
         case .declined:
             Label("Declined", systemImage: "xmark.circle").font(.scaled(.caption)).foregroundStyle(.secondary)
         case .failed(let message):
@@ -224,6 +224,15 @@ private struct ProposalCard: View {
             .frame(minHeight: minHeight)
             .background(Color(nsColor: .textBackgroundColor).opacity(0.6),
                         in: RoundedRectangle(cornerRadius: 6))
+    }
+
+    private var approvedTitle: String {
+        switch proposal.kind {
+        case .email: "Opened in Mail"
+        case .event: "Opened in Calendar"
+        case .codingTask(let agent, _): "Filled into \(agent.rawValue)"
+        case .markDone: "Marked done"
+        }
     }
 
     private var approveTitle: String {
