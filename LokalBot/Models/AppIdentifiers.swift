@@ -192,6 +192,22 @@ enum KeychainSecrets {
         data(service: AppIdentifiers.bundleID, account: account)
     }
 
+    /// The item's data, or nil when it was never saved. Throws for any other
+    /// failure (a locked keychain, denied access), so a caller can tell
+    /// "signed out" from "can't read it right now".
+    static func existingData(account: String) throws -> Data? {
+        var query = baseQuery(service: AppIdentifiers.bundleID, account: account)
+        query[kSecReturnData as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var existing: CFTypeRef?
+        let status = SecItemCopyMatching(query as CFDictionary, &existing)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess else {
+            throw EncryptionKeyFailure.operation("read", account: account, status: status)
+        }
+        return existing as? Data
+    }
+
     static func setString(_ value: String, account: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
