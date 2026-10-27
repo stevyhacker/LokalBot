@@ -307,6 +307,24 @@ kbd {
   opacity: 0;
   background-image: none;
 }
+/* the circuit board from the autocomplete video, behind every page: a white
+   tile from Scripts/render_circuit_board.py used as a mask, so each theme
+   picks its colour. Faint in the middle of the window, where the words are. */
+.bg-field::before {
+  content: "";
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background: radial-gradient(110% 85% at 50% 45%, rgba(35, 196, 174, 0.018) 25%, rgba(35, 196, 174, 0.075) 80%);
+  -webkit-mask: url("assets/circuit-board.svg") 0 0 / 1200px 1200px repeat;
+  mask: url("assets/circuit-board.svg") 0 0 / 1200px 1200px repeat;
+}
+/* on a phone the words run close to the edges, so the board stays fainter */
+@media (max-width: 640px) {
+  .bg-field::before { opacity: 0.7; }
+}
+@media (prefers-contrast: more) {
+  .bg-field::before { display: none; }
+}
 
 /* =========================================================================
    buttons & chips
@@ -1795,6 +1813,9 @@ kbd {
   }
   .bg-glow--a { background: radial-gradient(circle, rgba(35, 196, 174, 0.22), transparent 62%); }
   .bg-glow--b { background: radial-gradient(circle, rgba(12, 130, 117, 0.14), transparent 62%); }
+  .bg-field::before {
+    background: radial-gradient(110% 85% at 50% 45%, rgba(12, 130, 117, 0.015) 25%, rgba(12, 130, 117, 0.055) 80%);
+  }
 
   .btn--ghost { box-shadow: var(--glass-inset), 0 8px 22px -12px rgba(14, 20, 28, 0.18); }
   .btn--ghost:hover {
