@@ -68,8 +68,12 @@ enum MetaModelAPI {
         guard settings.metaModelAPIApproved else { throw ConnectionError.notApproved }
         let key = settings.effectiveMetaModelAPIKey
         guard !key.isEmpty else { throw ConnectionError.missingKey }
-        return MuseChatClient(apiKey: key, model: model, reasoningEffort: reasoningEffort,
-                              maxTokens: maxTokens, priority: priority, purpose: purpose)
+        var client = MuseChatClient(apiKey: key, model: model, reasoningEffort: reasoningEffort,
+                                    maxTokens: maxTokens, priority: priority, purpose: purpose)
+#if LOKALBOT_UI_TEST_HOST
+        if MuseUITestTransport.isEnabled { client.transport = MuseUITestTransport.reply }
+#endif
+        return client
     }
 }
 

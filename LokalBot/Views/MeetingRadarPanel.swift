@@ -195,6 +195,7 @@ struct RadarItemList: View {
                     .accessibilityIdentifier("radar.followThrough.\(item.id)")
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("radar.item.\(item.id)")
     }
 }

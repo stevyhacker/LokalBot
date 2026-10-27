@@ -48,7 +48,7 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
             draft.reviewed = true
             let saved = app.outcomeIndex.saveFollowUp(draft, meetingID: target.meetingID)
             guard let url = FollowThroughTools.mailtoURL(to: toAddresses, cc: ccAddresses, subject: subject, body: body),
-                  NSWorkspace.shared.open(url) else {
+                  Self.open(url) else {
                 throw PerformError.unavailable("No mail app opened the draft."
                     + (saved ? " It is saved as the meeting's follow-up draft." : ""))
             }
@@ -66,14 +66,14 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
             try FollowThroughTools.icsDocument(title: title, start: start, minutes: minutes,
                                                attendees: invitees, notes: notes)
                 .write(to: file, atomically: true, encoding: .utf8)
-            guard NSWorkspace.shared.open(file) else {
+            guard Self.open(file) else {
                 throw PerformError.unavailable("Calendar didn't open the invitation.")
             }
             return "Opened the invitation in Calendar; the person adds and sends it there."
         case .codingTask(let agent, let prompt):
             let text = String(prompt.prefix(ActionAgentHandoff.promptCharacterLimit))
             guard let url = ActionAgentAvailability.route(for: agent)?.url(prompt: text),
-                  NSWorkspace.shared.open(url) else {
+                  Self.open(url) else {
                 throw PerformError.unavailable("Couldn't open \(agent.rawValue).")
             }
             return "Filled the task into \(agent.rawValue); the person sends it there."
@@ -84,6 +84,14 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
             }
             return "Marked the action done in LokalBot."
         }
+    }
+
+    private static func open(_ url: URL) -> Bool {
+#if LOKALBOT_UI_TEST_HOST
+        // The hosted UI suite must not launch Mail or Calendar on the runner.
+        if MuseUITestTransport.isEnabled { return true }
+#endif
+        return NSWorkspace.shared.open(url)
     }
 
     /// The calendar address for a name said in the meeting, matched on the

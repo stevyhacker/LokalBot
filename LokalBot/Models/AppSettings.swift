@@ -558,6 +558,10 @@ struct AppSettings: Codable, Equatable {
     var effectiveMetaModelAPIKey: String {
         let own = metaModelAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if !own.isEmpty { return own }
+#if LOKALBOT_UI_TEST_HOST
+        // Scripted replies need no key; a runner's Keychain must not decide the run.
+        if MuseUITestTransport.isEnabled { return "ui-test-key" }
+#endif
         guard let think = URL(string: openAIBaseURL),
               RemoteInferenceGate.origin(for: think) == MetaModelAPI.origin else { return "" }
         return openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)

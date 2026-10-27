@@ -1,0 +1,136 @@
+# Films the Meta hackathon features on a hosted Mac: builds the UI test host,
+# runs HackathonFilmUITests (Meta Muse settings, Start Radar on a scripted
+# live meeting, Follow-through on what it caught), and uploads an MP4 of the
+# run with the result bundle. Muse replies are scripted in the host
+# (LOKALBOT_MUSE_UI_TEST), so the job needs no key or secret and sends
+# nothing to Meta. Runs on pushes to the hackathon branch and on demand.
+name: Meta hackathon film
+
+on:
+  push:
+    branches: [meta-hackathon]
+    paths:
+      - "LokalBot/**"
+      - "LokalBotUITests/**"
+      - "project.yml"
+      - ".github/workflows/meta-hackathon-film.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: meta-hackathon-film-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  film:
+    name: Film Live Radar and Follow-through
+    runs-on: macos-26
+    # A cold checksum-pinned llama.cpp build takes close to an hour when the
+    # vendor cache misses; the film itself takes about three minutes.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.4.1"
+
+      - name: Install build tools
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          command -v cmake >/dev/null || brew install cmake
+          command -v ffmpeg >/dev/null || brew install ffmpeg
+
+      - name: Create vendor dirs for XcodeGen
+        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # Same keys as ui-tests.yml, so the default branch's caches are reused.
+      - name: Cache native vendors
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: Vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+
+      - name: Fetch llama.cpp vendor
+        run: bash Scripts/fetch-llama.sh
+
+      - name: Cache Swift packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/SourcePackages
+          key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.4.1-${{ hashFiles('**/Package.resolved') }}
+
+      - name: Build the UI test host
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: Scripts/ui-tests.sh --build-only
+
+      - name: Point the film test at the frames folder
+        run: |
+          mkdir -p .build/film/frames
+          python3 - <<'EOF'
+          import plistlib
+          from pathlib import Path
+          frames = str(Path('.build/film/frames').resolve())
+          for run in Path('.build/dd/Build/Products').glob('*.xctestrun'):
+              value = plistlib.loads(run.read_bytes())
+              for config in value['TestConfigurations']:
+                  for target in config['TestTargets']:
+                      target.setdefault('EnvironmentVariables', {})['LOKALBOT_FILM_FRAMES'] = frames
+                      # Ask XCTest to keep its own screen recording of the run too.
+                      target['PreferredScreenCaptureFormat'] = 'video'
+                      target['SystemAttachmentLifetime'] = 'keepAlways'
+              run.write_bytes(plistlib.dumps(value))
+          EOF
+
+      - name: Film
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: Scripts/ui-tests.sh --test-only --only HackathonFilmUITests --result .build/film/film.xcresult
+
+      - name: Encode the film
+        if: always()
+        run: |
+          cd .build/film/frames
+          if [ -s frames.txt ]; then
+            ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i frames.txt \
+              -vf "scale=1440:-2:flags=lanczos,format=yuv420p" -r 30 -c:v libx264 -crf 22 -movflags +faststart \
+              ../lokalbot-live-radar-and-follow-through.mp4
+            ls -la ../*.mp4
+          else
+            echo "No frames were written." >&2
+          fi
+          cd ..
+          xcrun xcresulttool export attachments --path film.xcresult --output-path attachments 2>/dev/null || true
+          find attachments -type f 2>/dev/null | head -20 || true
+
+      - name: Upload the film
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: meta-hackathon-film
+          path: |
+            .build/film/*.mp4
+            .build/film/attachments
+            .build/film/frames/frames.txt
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload the result bundle
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: meta-hackathon-film-xcresult
+          path: .build/film/film.xcresult
+          retention-days: 14
+          if-no-files-found: warn

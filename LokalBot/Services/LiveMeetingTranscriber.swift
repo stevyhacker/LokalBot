@@ -258,6 +258,16 @@ final class LiveMeetingTranscriber: ObservableObject {
     /// The start choice applies only to the first activation. Retry and resume
     /// retain their cursors even if the recording has grown in the meantime.
     func activate(from position: StartPosition = .recent) {
+#if LOKALBOT_UI_TEST_HOST
+        if let script = Self.uiTestScript, !isRunning {
+            generation += 1
+            let session = generation
+            state = .running
+            statusMessage = nil
+            task = Task { [weak self] in await self?.play(script, session: session) }
+            return
+        }
+#endif
         guard !isRunning, let folder = pendingFolder else { return }
         generation += 1
         let session = generation
@@ -299,6 +309,31 @@ final class LiveMeetingTranscriber: ObservableObject {
         isWorking = false
         statusMessage = nil
     }
+
+#if LOKALBOT_UI_TEST_HOST
+    /// UI-test host only: `LOKALBOT_UI_TEST_LIVE_SCRIPT` names a JSON array of
+    /// `{time, speaker, text}`. Each line appears `time` seconds after the
+    /// preview starts, as transcribed chunks would, with no audio or model.
+    private static var uiTestScript: [Line]? {
+        guard let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_LIVE_SCRIPT"],
+              let data = FileManager.default.contents(atPath: path),
+              let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+        return rows.compactMap { row in
+            guard let time = row["time"] as? Double, let speaker = row["speaker"] as? String,
+                  let text = row["text"] as? String else { return nil }
+            return Line(time: time, speaker: speaker, text: text)
+        }
+    }
+
+    private func play(_ script: [Line], session: Int) async {
+        let start = ContinuousClock.now
+        for line in script.sorted(by: { $0.time < $1.time }) {
+            try? await Task.sleep(until: start + .seconds(line.time), clock: .continuous)
+            guard isCurrent(session) else { return }
+            lines.append(line)
+        }
+    }
+#endif
 
     private struct TrackState {
         let fileName: String
