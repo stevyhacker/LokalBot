@@ -27,12 +27,18 @@ struct AgentApprovalPolicy: Equatable {
     var protectedWriteRoots: [URL] = []
     private(set) var sessionAllowedTools: Set<String> = []
     private(set) var automationApprovesWorkspaceFileChanges = false
+    /// Lets read-only `lokalbot-cli` lookups through in the read modes. Set
+    /// for tasks handed off from a meeting's actions, which may start with no
+    /// one watching. It belongs to the task, like `mode`, so session resets
+    /// keep it.
+    var allowsLibraryLookups = false
 
     enum Verdict: Equatable { case allow, ask }
 
     func verdict(
         tool: String,
         path: String?,
+        command: String? = nil,
         requestWorkspace: String?,
         selectedWorkspace: URL
     ) -> Verdict {
@@ -46,6 +52,8 @@ struct AgentApprovalPolicy: Equatable {
         if Self.requestMatchesSelectedWorkspace(
             requestWorkspace: requestWorkspace,
             selectedWorkspace: selectedWorkspace) {
+            if allowsLibraryLookups, mode != .askBeforeChanges, normalizedTool == "bash",
+               Self.isLibraryLookup(command) { return .allow }
             switch mode {
             case .askBeforeChanges:
                 break
@@ -129,6 +137,39 @@ struct AgentApprovalPolicy: Equatable {
               let requestedRoot = canonicalFileURL(URL(fileURLWithPath: requestWorkspace)),
               let selectedRoot = canonicalFileURL(selectedWorkspace) else { return false }
         return requestedRoot.path == selectedRoot.path
+    }
+
+    /// One `lokalbot-cli brief`, `list`, `get` or `search` call made of plain
+    /// and quoted words, so nothing can chain, redirect, substitute or expand
+    /// into another command. Those four only read the library and print. A
+    /// trailing `2>&1` and `| head` or `| tail` with a line count are allowed.
+    static func isLibraryLookup(_ command: String?) -> Bool {
+        guard let command = command?.replacingOccurrences(
+            of: #"(\s+2>&1)?(\s*\|\s*(head|tail)(\s+-n\s+[0-9]+|\s+-[0-9]+))?\s*$"#,
+            with: "", options: .regularExpression) else { return false }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " -_.,:=\"'"))
+        guard command.unicodeScalars.allSatisfy(allowed.contains) else { return false }
+        // With `$`, backticks and backslashes excluded, quotes only group words.
+        var words: [String] = []
+        var word: String?
+        var quote: Character?
+        for character in command {
+            if let open = quote {
+                if character == open { quote = nil } else { word?.append(character) }
+            } else if character == "\"" || character == "'" {
+                quote = character
+                word = word ?? ""
+            } else if character == " " {
+                if let finished = word { words.append(finished) }
+                word = nil
+            } else {
+                word = (word ?? "") + String(character)
+            }
+        }
+        guard quote == nil else { return false }
+        if let finished = word { words.append(finished) }
+        return words.count >= 2 && words[0] == "lokalbot-cli"
+            && ["brief", "list", "get", "search"].contains(words[1])
     }
 
     private static func isFileChange(tool: String) -> Bool {
