@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>LokalBot autocomplete, 30 s</title>
+<link rel="stylesheet" href="vendor/fonts.css">
+<style>
+  :root {
+    --bg: #070b10;
+    --ink: #eaf6f3;
+    --dim: #8ca3a0;
+    --ghost: #7d8b8a;
+    --mint: #6ef2dc;
+    --teal: #23c4ae;
+    --amber: #fbbf24;
+  }
+  html, body { margin: 0; background: var(--bg); overflow: hidden; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg);
+           font-family: Inter, sans-serif; color: var(--ink); }
+  #gl { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+  .layer { position: absolute; inset: 0; opacity: 0; }
+  .abs { position: absolute; }
+  .center { left: 0; right: 0; text-align: center; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Hook: the headline types itself and Tab accepts the rest. */
+  #hook-line { top: 446px; font-size: 104px; font-weight: 800; letter-spacing: -0.035em; white-space: pre; }
+  #hook-typed { color: var(--ink); }
+  #hook-ghost { color: var(--ghost); }
+  #hook-ghost .lit { color: var(--ink); }
+  .caret { display: inline-block; width: 7px; height: 0.95em; margin: 0 4px 0 6px; vertical-align: -0.12em;
+           background: var(--mint); border-radius: 3px; box-shadow: 0 0 22px rgba(110, 242, 220, 0.9); }
+  #hook-kicker { top: 352px; font-size: 30px; font-weight: 600; letter-spacing: 0.32em; text-transform: uppercase;
+                 color: var(--mint); }
+
+  /* Keycaps */
+  .key { position: absolute; display: flex; align-items: center; justify-content: center; gap: 12px;
+         height: 92px; min-width: 176px; padding: 0 28px; box-sizing: border-box; border-radius: 20px;
+         font: 600 34px Inter, sans-serif; color: #0e141c; letter-spacing: 0.01em;
+         background: linear-gradient(180deg, #f4fffc 0%, #c9efe7 100%);
+         box-shadow: 0 10px 0 #5fae9f, 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 60px rgba(110, 242, 220, 0.35); }
+  .key.down { transform: translateY(8px); box-shadow: 0 2px 0 #5fae9f, 0 8px 20px rgba(0, 0, 0, 0.5), 0 0 90px rgba(110, 242, 220, 0.75); }
+  .key svg { width: 34px; height: 34px; }
+
+  /* Section titles over footage and the explainer */
+  .title { left: 120px; top: 92px; font-size: 64px; font-weight: 800; letter-spacing: -0.03em; white-space: nowrap;
+           text-shadow: 0 4px 28px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.6); }
+  .shadowed { text-shadow: 0 6px 40px rgba(0, 0, 0, 0.9), 0 0 3px rgba(0, 0, 0, 0.7); }
+  .title small { display: block; margin-bottom: 14px; font-size: 24px; font-weight: 700; letter-spacing: 0.28em;
+                 text-transform: uppercase; color: var(--mint); }
+  .title em { font-style: normal; color: var(--mint); }
+  .pill { display: inline-flex; align-items: center; gap: 12px; padding: 14px 26px; border-radius: 999px;
+          font-size: 28px; font-weight: 600; color: var(--ink); background: rgba(14, 20, 28, 0.82);
+          border: 1px solid rgba(110, 242, 220, 0.35); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); white-space: nowrap; }
+  .pill b { color: var(--mint); font-weight: 700; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 16px var(--mint); }
+
+  /* Memory card that flies in beside the footage */
+  .memcard { width: 560px; padding: 26px 30px; border-radius: 26px; box-sizing: border-box;
+             background: rgba(16, 24, 33, 0.92); border: 1px solid rgba(110, 242, 220, 0.45);
+             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(110, 242, 220, 0.18); }
+  .memcard .head { display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 700;
+                   letter-spacing: 0.16em; text-transform: uppercase; color: var(--mint); }
+  .memcard .meet { margin-top: 14px; font-size: 26px; font-weight: 600; color: var(--dim); }
+  .memcard .quote { margin-top: 10px; font-size: 34px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; }
+  .memcard .quote mark { background: none; color: var(--amber); }
+
+  /* Language tags under the three cards */
+  .lang { font-size: 44px; font-weight: 800; letter-spacing: -0.01em; color: var(--mint); }
+
+  /* Explainer: prompt anatomy, model, candidates */
+  .tag { font: 600 27px 'JetBrains Mono', monospace; letter-spacing: 0.02em; color: var(--mint); white-space: nowrap; }
+  .cand { display: flex; align-items: center; gap: 18px; height: 64px; }
+  .cand .tok { width: 250px; text-align: right; font: 600 38px 'JetBrains Mono', monospace; white-space: pre; color: var(--ink); }
+  .cand .bar { height: 26px; border-radius: 13px; background: linear-gradient(90deg, rgba(35, 196, 174, 0.65), rgba(110, 242, 220, 0.95)); }
+  .cand .pct { width: 120px; font: 600 30px 'JetBrains Mono', monospace; color: var(--dim); }
+  .cand.win .tok { color: var(--amber); }
+  .cand.win .bar { background: linear-gradient(90deg, #f59e0b, var(--amber)); box-shadow: 0 0 26px rgba(251, 191, 36, 0.6); }
+  .cand.win .pct { color: var(--amber); }
+  #gate { height: 0; border-top: 3px dashed rgba(251, 191, 36, 0.7); }
+
+  #sentence { font-size: 76px; font-weight: 700; letter-spacing: -0.02em; white-space: pre; }
+  #sentence .ghost { color: var(--ghost); }
+  #sentence .lit { color: var(--ink); }
+
+  /* End card */
+  #end-logo { width: 220px; height: 220px; left: 850px; top: 196px; filter: drop-shadow(0 30px 60px rgba(0,0,0,.6)) drop-shadow(0 0 50px rgba(110,242,220,.25)); }
+  #end-name { top: 496px; font-size: 120px; font-weight: 800; letter-spacing: -0.04em; }
+  #end-tag { top: 644px; font-size: 46px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; }
+  #end-tag em { font-style: normal; color: var(--mint); }
+  #end-sub { top: 732px; font-size: 32px; font-weight: 500; color: var(--dim); letter-spacing: 0.01em; }
+  #end-url { top: 814px; font-size: 38px; font-weight: 700; color: var(--mint); letter-spacing: 0.02em; }
+
+  #grain { position: absolute; inset: 0; pointer-events: none; opacity: 0.06; mix-blend-mode: overlay; }
+  #vignette { position: absolute; inset: 0; pointer-events: none;
+              background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%); }
+  #fade { position: absolute; inset: 0; background: #000; pointer-events: none; opacity: 0; }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage">
+  <canvas id="gl" width="1920" height="1080"></canvas>
+  <div id="ui"></div>
+  <div id="vignette"></div>
+  <canvas id="grain" width="480" height="270"></canvas>
+  <div id="fade"></div>
+</div>
+<script type="module" src="comp.js"></script>
+</body>
+</html>

@@ -1,0 +1,692 @@
+{
+ "fps": 30,
+ "duration": 30,
+ "timeline": {
+  "hook": [
+   0.0,
+   2.8
+  ],
+  "memory": [
+   2.55,
+   7.562
+  ],
+  "word": [
+   7.312,
+   10.419
+  ],
+  "langs": [
+   10.169,
+   14.229
+  ],
+  "dive": [
+   13.979,
+   15.131
+  ],
+  "context": [
+   14.931,
+   17.988
+  ],
+  "model": [
+   17.788,
+   20.845
+  ],
+  "pick": [
+   20.645,
+   24.179
+  ],
+  "ghost": [
+   23.979,
+   27.036
+  ],
+  "end": [
+   26.836,
+   30
+  ]
+ },
+ "wordClip": "midword",
+ "clips": {
+  "memory": {
+   "src": "footage/placeholder-memory",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "Remembers your meetings",
+   "title": "Knows what you <em>decided</em>."
+  },
+  "email": {
+   "src": "footage/placeholder-email",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "Works in every app",
+   "title": "Writes the rest. <em>You press Tab.</em>"
+  },
+  "midword": {
+   "src": "footage/placeholder-midword",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "Mid-word",
+   "title": "Finishes the word <em>you're typing</em>."
+  },
+  "german": {
+   "src": "footage/placeholder-german",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "",
+   "title": ""
+  },
+  "french": {
+   "src": "footage/placeholder-french",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "",
+   "title": ""
+  },
+  "spanish": {
+   "src": "footage/placeholder-spanish",
+   "frames": 360,
+   "size": [
+    2080,
+    660
+   ],
+   "map": [
+    [
+     0,
+     0
+    ],
+    [
+     4.6,
+     11.5
+    ]
+   ],
+   "accepts": [
+    2.6,
+    2.9,
+    3.2,
+    3.5,
+    3.8
+   ],
+   "ghostAt": 2.0,
+   "keys": [],
+   "kicker": "",
+   "title": ""
+  }
+ },
+ "memory": {
+  "meeting": "Launch planning · 75 min ago",
+  "quote": "“Final pricing: <mark>$15 per seat, billed annually.</mark>”"
+ },
+ "footageNote": "Real recording · on-device model · typing sped up",
+ "hook": {
+  "typed": "Autocomplete for",
+  "ghost": " your whole Mac.",
+  "typeFrom": 0.25,
+  "typeTo": 1.0,
+  "ghostAt": 1.121,
+  "presses": [
+   1.598,
+   1.836,
+   2.074
+  ]
+ },
+ "prompt": [
+  {
+   "label": "Relevant saved facts",
+   "text": "Launch planning: final pricing is $15 per seat, billed annually.",
+   "source": "← your meeting notes",
+   "from": [
+    16,
+    10,
+    -4
+   ]
+  },
+  {
+   "label": "Text before the cursor",
+   "text": "Hi all, After the launch planning call, the Team plan will be $15",
+   "source": "← this text field",
+   "from": [
+    0,
+    -16,
+    6
+   ]
+  }
+ ],
+ "model": [
+  "Gemma 4 E2B · 3.85 GB",
+  "llama.cpp, in the app",
+  "No server, no cloud, no account"
+ ],
+ "modelPasses": [
+  0.1,
+  1.429,
+  1.786,
+  2.143,
+  2.5,
+  2.857
+ ],
+ "candidates": [
+  {
+   "chosen": " per",
+   "options": [
+    [
+     " per",
+     0.62
+    ],
+    [
+     " a",
+     0.14
+    ],
+    [
+     " for",
+     0.07
+    ],
+    [
+     ".",
+     0.05
+    ],
+    [
+     " USD",
+     0.03
+    ]
+   ]
+  },
+  {
+   "chosen": " seat",
+   "options": [
+    [
+     " seat",
+     0.91
+    ],
+    [
+     " user",
+     0.05
+    ],
+    [
+     " month",
+     0.02
+    ]
+   ]
+  },
+  {
+   "chosen": ",",
+   "options": [
+    [
+     ",",
+     0.58
+    ],
+    [
+     " per",
+     0.21
+    ],
+    [
+     ".",
+     0.12
+    ]
+   ]
+  },
+  {
+   "chosen": " billed",
+   "options": [
+    [
+     " billed",
+     0.83
+    ],
+    [
+     " paid",
+     0.06
+    ],
+    [
+     " with",
+     0.05
+    ]
+   ]
+  },
+  {
+   "chosen": " annually",
+   "options": [
+    [
+     " annually",
+     0.88
+    ],
+    [
+     " yearly",
+     0.07
+    ],
+    [
+     " monthly",
+     0.03
+    ]
+   ]
+  },
+  {
+   "chosen": ".",
+   "options": [
+    [
+     ".",
+     0.81
+    ],
+    [
+     ",",
+     0.09
+    ],
+    [
+     " and",
+     0.05
+    ]
+   ]
+  }
+ ],
+ "placeholderCandidates": true,
+ "pickSteps": [
+  0.0,
+  0.952,
+  1.429,
+  1.905,
+  2.381,
+  2.857
+ ],
+ "pickPrefix": "…the Team plan will be $15",
+ "gate": 0.1,
+ "gateLabel": "First word under 10% likely? It stays quiet.",
+ "ghostScene": {
+  "typed": "the Team plan will be $15",
+  "ghost": " per seat, billed annually.",
+  "ghostAt": 0.476,
+  "presses": [
+   0.952,
+   1.19,
+   1.429,
+   1.667
+  ]
+ },
+ "end": {
+  "tag": "Autocomplete for <em>your whole Mac</em>.",
+  "sub": "Runs on your Mac · Free and open source",
+  "url": "lokalbot.com"
+ },
+ "camera": [
+  [
+   0.0,
+   [
+    0,
+    0,
+    40
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   38
+  ],
+  [
+   2.5,
+   [
+    0,
+    0,
+    36
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   38,
+   "linear"
+  ],
+  [
+   3.344,
+   [
+    1.2,
+    0.5,
+    19
+   ],
+   [
+    0,
+    0,
+    0
+   ],
+   38,
+   "outCubic"
+  ],
+  [
+   7.259,
+   [
+    2.5,
+    0.2,
+    15
+   ],
+   [
+    1.0,
+    -0.4,
+    0
+   ],
+   36,
+   "linear"
+  ],
+  [
+   7.618,
+   [
+    44,
+    1.5,
+    13
+   ],
+   [
+    44,
+    1.5,
+    -6
+   ],
+   38,
+   "inOutExpo"
+  ],
+  [
+   10.1,
+   [
+    45,
+    1.8,
+    10
+   ],
+   [
+    44,
+    1.4,
+    -6
+   ],
+   36,
+   "linear"
+  ],
+  [
+   10.45,
+   [
+    88,
+    0,
+    10.6
+   ],
+   [
+    88,
+    0,
+    -8
+   ],
+   38,
+   "inOutExpo"
+  ],
+  [
+   13.979,
+   [
+    88,
+    0,
+    9.2
+   ],
+   [
+    88,
+    0,
+    -8
+   ],
+   38,
+   "linear"
+  ],
+  [
+   15.074,
+   [
+    88,
+    0,
+    -34
+   ],
+   [
+    88,
+    1.5,
+    -62
+   ],
+   38,
+   "inOutCubic"
+  ],
+  [
+   17.598,
+   [
+    87,
+    0.3,
+    -37
+   ],
+   [
+    88,
+    1.5,
+    -62
+   ],
+   38,
+   "linear"
+  ],
+  [
+   18.055,
+   [
+    88,
+    0,
+    -88
+   ],
+   [
+    88,
+    0,
+    -140
+   ],
+   50,
+   "inExpo"
+  ],
+  [
+   20.743,
+   [
+    88,
+    0,
+    -180
+   ],
+   [
+    88,
+    0,
+    -230
+   ],
+   50,
+   "linear"
+  ],
+  [
+   21.135,
+   [
+    88,
+    0,
+    -193.5
+   ],
+   [
+    88,
+    0,
+    -205
+   ],
+   38,
+   "outCubic"
+  ],
+  [
+   23.979,
+   [
+    88,
+    0,
+    -194.5
+   ],
+   [
+    88,
+    0,
+    -205
+   ],
+   38,
+   "linear"
+  ],
+  [
+   24.419,
+   [
+    88,
+    0,
+    -200
+   ],
+   [
+    88,
+    0,
+    -215
+   ],
+   38,
+   "inOutCubic"
+  ],
+  [
+   26.926,
+   [
+    88,
+    0,
+    -205
+   ],
+   [
+    88,
+    0,
+    -215
+   ],
+   38,
+   "linear"
+  ],
+  [
+   27.469,
+   [
+    88,
+    2,
+    -232
+   ],
+   [
+    88,
+    3,
+    -250
+   ],
+   38,
+   "inOutCubic"
+  ],
+  [
+   30.0,
+   [
+    88,
+    2,
+    -229
+   ],
+   [
+    88,
+    3,
+    -250
+   ],
+   38,
+   "linear"
+  ]
+ ],
+ "bpm": 126,
+ "langStarts": [
+  0.15,
+  1.429,
+  2.857
+ ]
+}
