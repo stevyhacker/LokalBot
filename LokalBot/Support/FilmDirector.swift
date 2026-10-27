@@ -7,13 +7,14 @@ import AppKit
 /// - `install-agent` installs Agent Mode's runtime, prints the result and quits.
 /// - `agent-handoff` opens the meeting `LOKALBOT_TEST_FILM_MEETING` while it is
 ///   transcribed and summarized, then Agent Mode once its actions are handed
-///   off, moving between their tasks until the agents finish. Non-file tool
-///   requests are allowed once after two seconds, as a person would.
+///   off, moving between their tasks until the agents finish, then each
+///   task's report and the last one's results. A tool request that still
+///   asks is allowed once after two seconds, as a person would.
 ///
-/// `LOKALBOT_TEST_FILM_DIR` receives `director.log`, a `done` marker, and with
-/// `LOKALBOT_TEST_FILM_FRAMES=1` the main window as numbered PNGs twice a
-/// second, rendered in-process so no Screen Recording grant is needed, listed
-/// with their times and scenes in `frames.jsonl`.
+/// `LOKALBOT_TEST_FILM_DIR` receives `director.log`, a `done` marker,
+/// `scenes.jsonl` (each scene and when it began, in seconds since 1970) and
+/// `window.json` (the main window's number and top-left frame), which the
+/// script recording the screen reads.
 @MainActor
 final class FilmDirector {
     enum Scene: String {
@@ -27,14 +28,13 @@ final class FilmDirector {
     private let app: AppState
     private let meetingID: UUID?
     private let folder: URL
-    private let writesFrames: Bool
     private let agentSeconds: TimeInterval
     private let started = Date()
     private var scene = Scene.waiting
     private var sceneStarted = Date()
     private var timer: Timer?
-    private var frameNumber = 0
     private var sizedWindow = false
+    private var windowRecord = ""
     private var lastStage: String?
     private var sawStage = false
     private var stageEnded: Date?
@@ -43,6 +43,8 @@ final class FilmDirector {
     private var taskShownAt = Date()
     private var taskStates: [UUID: String] = [:]
     private var approvalsSeen: [String: Date] = [:]
+    private var reviewOrder: [UUID] = []
+    private var openedResults = false
 
     static func startIfRequested(app: AppState) {
         let environment = ProcessInfo.processInfo.environment
@@ -69,14 +71,13 @@ final class FilmDirector {
         meetingID = environment["LOKALBOT_TEST_FILM_MEETING"].flatMap(UUID.init(uuidString:))
         folder = URL(fileURLWithPath: environment["LOKALBOT_TEST_FILM_DIR"]
             ?? NSTemporaryDirectory() + "lokalbot-film", isDirectory: true)
-        writesFrames = environment["LOKALBOT_TEST_FILM_FRAMES"] == "1"
         agentSeconds = environment["LOKALBOT_TEST_FILM_AGENT_SECONDS"].flatMap(TimeInterval.init) ?? 420
     }
 
     private func begin() {
-        try? FileManager.default.createDirectory(at: folder.appendingPathComponent("frames"),
-                                                 withIntermediateDirectories: true)
-        note("start meeting=\(meetingID?.uuidString ?? "none") frames=\(writesFrames)")
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        note("start meeting=\(meetingID?.uuidString ?? "none")")
+        recordScene()
         WindowAccess.shared.open("main")
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
@@ -90,14 +91,13 @@ final class FilmDirector {
     }
 
     private func tick() {
-        sizeWindowOnce()
-        if writesFrames { captureFrame() }
+        trackWindow()
         switch scene {
         case .waiting: openMeeting()
         case .meeting: followMeeting()
         case .handedOff: if inScene > 6 { showAgents() }
         case .agents: followAgents()
-        case .done: if inScene > 5 { finish() }
+        case .done: review()
         }
     }
 
@@ -105,6 +105,7 @@ final class FilmDirector {
         note("scene \(scene.rawValue) -> \(next.rawValue)")
         scene = next
         sceneStarted = Date()
+        recordScene()
     }
 
     // MARK: - Script
@@ -175,12 +176,14 @@ final class FilmDirector {
         let finished = tasks.filter(isFinished)
         if !tasks.isEmpty, finished.count == tasks.count || inScene > agentSeconds {
             note("\(finished.count) of \(tasks.count) tasks finished")
-            if let first = finished.first ?? tasks.first { show(first.id) }
+            // The first task handed off is reviewed last, with its results open.
+            let shown = finished.isEmpty ? tasks : finished
+            reviewOrder = (shown.dropFirst() + shown.prefix(1)).map(\.id)
             move(to: .done)
             return
         }
         // Each task in turn, skipping ones still waiting for a free agent.
-        guard Date().timeIntervalSince(taskShownAt) > 8, tasks.count > 1 else { return }
+        guard Date().timeIntervalSince(taskShownAt) > 20, tasks.count > 1 else { return }
         let begun = tasks.filter { $0.controller.state != .idle }
         let order = begun.isEmpty ? tasks : begun
         let index = order.firstIndex { $0.id == shownTask }.map { ($0 + 1) % order.count } ?? 0
@@ -211,10 +214,37 @@ final class FilmDirector {
         }
     }
 
+    /// Three seconds on each task's report, then the Results panel on the last.
+    private func review() {
+        guard !reviewOrder.isEmpty else {
+            if inScene > 5 { finish() }
+            return
+        }
+        let last = Double(reviewOrder.count - 1) * 3
+        let id = reviewOrder[min(Int(inScene / 3), reviewOrder.count - 1)]
+        if shownTask != id { show(id) }
+        if !openedResults, inScene > last + 1.5 {
+            openedResults = true
+            app.agentSessions.resultsRequest += 1
+        }
+        if inScene > last + 9 { finish() }
+    }
+
     private func show(_ id: UUID) {
         app.agentSessions.select(id)
         shownTask = id
         taskShownAt = Date()
+        // Open on the latest output, and again once the transcript has laid out.
+        let end = "agent.transcript.end"
+        guard let controller = app.agentSessions.tabs.first(where: { $0.id == id })?.controller else { return }
+        controller.visibleTranscriptID = end
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard self?.shownTask == id else { return }
+            controller.visibleTranscriptID = nil
+            try? await Task.sleep(for: .milliseconds(100))
+            controller.visibleTranscriptID = end
+        }
     }
 
     private func finish() {
@@ -226,28 +256,29 @@ final class FilmDirector {
 
     // MARK: - Recording
 
-    private func sizeWindowOnce() {
-        guard !sizedWindow, let window = WindowAccess.visibleMainWindow(in: NSApp) else { return }
-        sizedWindow = true
-        window.setContentSize(NSSize(width: 1280, height: 800))
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-        note("window \(Int(window.frame.width))x\(Int(window.frame.height))")
+    /// Sizes the main window once, then keeps `window.json` current for the recorder.
+    private func trackWindow() {
+        guard let window = WindowAccess.visibleMainWindow(in: NSApp) else { return }
+        if !sizedWindow {
+            sizedWindow = true
+            window.setContentSize(NSSize(width: 1280, height: 800))
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        let frame = window.frame
+        let screenTop = NSScreen.screens.first?.frame.maxY ?? frame.maxY
+        let record = "{\"id\":\(window.windowNumber),\"x\":\(Int(frame.minX)),\"y\":\(Int(screenTop - frame.maxY)),"
+            + "\"w\":\(Int(frame.width)),\"h\":\(Int(frame.height))}"
+        guard record != windowRecord else { return }
+        windowRecord = record
+        note("window \(record)")
+        try? Data((record + "\n").utf8).write(to: folder.appendingPathComponent("window.json"), options: .atomic)
     }
 
-    private func captureFrame() {
-        guard sizedWindow, let window = WindowAccess.visibleMainWindow(in: NSApp),
-              let view = window.contentView?.superview ?? window.contentView,
-              view.bounds.width > 0, view.bounds.height > 0,
-              let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
-        view.cacheDisplay(in: view.bounds, to: rep)
-        guard let png = rep.representation(using: .png, properties: [:]) else { return }
-        frameNumber += 1
-        let name = String(format: "%05d.png", frameNumber)
-        try? png.write(to: folder.appendingPathComponent("frames/\(name)"))
-        let elapsed = String(format: "%.2f", Date().timeIntervalSince(started))
-        append("{\"frame\":\"\(name)\",\"t\":\(elapsed),\"scene\":\"\(scene.rawValue)\"}\n", to: "frames.jsonl")
+    private func recordScene() {
+        let at = String(format: "%.2f", Date().timeIntervalSince1970)
+        append("{\"scene\":\"\(scene.rawValue)\",\"at\":\(at)}\n", to: "scenes.jsonl")
     }
 
     private func note(_ message: String) {

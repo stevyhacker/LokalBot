@@ -3,54 +3,91 @@
 
     edit.py <film-dir> <out-dir>
 
-Reads the frames FilmDirector wrote (`frames/*.png`, `frames.jsonl`) and
-plays each scene for a set length: waiting for transcription and the agents
-is sped up, the moment the summary lands and the finished result play near
-real time. A caption names what each scene shows. Needs ffmpeg.
+Reads the window frames record.py took (`frames/*.png`, `frames.jsonl`) and
+the scenes FilmDirector logged (`scenes.jsonl`), and plays each scene for a
+set length: the agents' work is sped up, the rest plays in real time. Each
+frame sits on a light backdrop with the scene's caption under it. Needs
+ffmpeg and Pillow.
 """
 import json
 import os
 import shutil
-import struct
 import subprocess
 import sys
 from pathlib import Path
 
+from PIL import Image, ImageDraw, ImageFont
+
 FPS = 10
+MAX_WIDTH = 1280
+PAD = 24
+BAR = 72
+BACKDROP = "#ececef"
+INK = "#1d1d1f"
 # Seconds on screen per scene; None keeps the scene's real length.
 SCENES = [
-    ("meeting", 14, "The call ends. LokalBot transcribes it and writes the notes."),
-    ("handed-off", None, "Each action you took on becomes its own Agent Mode task."),
-    ("agents", 30, "Agents start on their own, up to four at once."),
-    ("done", None, "Finished work waits in each task for your review."),
+    ("meeting", None, "The call ends. LokalBot transcribes it and writes the notes."),
+    ("handed-off", None, "Each action you took on becomes its own agent task."),
+    ("agents", 36, "The agents start on their own and work side by side."),
+    ("done", None, "Each task ends with a report and the files it wrote, ready for review."),
 ]
 FONTS = ["/System/Library/Fonts/SFNS.ttf", "/System/Library/Fonts/Helvetica.ttc",
-         "/System/Library/Fonts/Supplemental/Arial.ttf"]
+         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"]
+
+
+def read_rows(path):
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def by_scene(frames, scenes):
+    """Each frame under the scene that had begun when it was taken."""
+    grouped = {}
+    for row in frames:
+        begun = [scene["scene"] for scene in scenes if scene["at"] <= row["at"]]
+        if begun:
+            grouped.setdefault(begun[-1], []).append(row)
+    return grouped
 
 
 def sample(frames, seconds):
-    """Frames at FPS covering the scene's time span in `seconds`."""
-    if not frames:
-        return []
-    start, end = frames[0]["t"], frames[-1]["t"]
-    length = max(end - start, 0.5)
-    count = max(1, round((seconds if seconds else length) * FPS))
+    """Frame names at FPS covering the scene in `seconds`, or in its real length."""
+    start, end = frames[0]["at"], frames[-1]["at"]
+    length = max(end - start, 1 / FPS)
+    count = max(1, round((seconds or length) * FPS))
     picked, index = [], 0
     for n in range(count):
         t = start + length * n / count
-        while index + 1 < len(frames) and frames[index + 1]["t"] <= t:
+        while index + 1 < len(frames) and frames[index + 1]["at"] <= t:
             index += 1
         picked.append(frames[index]["frame"])
     return picked
 
 
-def png_size(path):
-    with open(path, "rb") as f:
-        return struct.unpack(">II", f.read(24)[16:24])
+def caption_font(size):
+    for path in FONTS:
+        try:
+            face = ImageFont.truetype(path, size)
+        except OSError:
+            continue
+        try:
+            face.set_variation_by_name("Semibold")
+        except Exception:  # not a variable font, or no such instance
+            pass
+        return face
+    return ImageFont.load_default(size)
 
 
-def escape(text):
-    return text.replace("\\", "\\\\").replace(":", "\\:").replace("'", "’")
+def compose(source, size, caption, face, dest):
+    width, height = size
+    canvas = Image.new("RGB", (width + 2 * PAD, height + PAD + BAR), BACKDROP)
+    with Image.open(source) as frame:
+        frame = frame.convert("RGBA")
+        if frame.size != size:
+            frame.thumbnail(size, Image.LANCZOS)
+        canvas.paste(frame, (PAD + (width - frame.width) // 2, PAD + (height - frame.height) // 2), frame)
+    ImageDraw.Draw(canvas).text((canvas.width / 2, PAD + height + BAR / 2), caption,
+                                font=face, fill=INK, anchor="mm")
+    canvas.save(dest)
 
 
 def main():
@@ -58,51 +95,45 @@ def main():
         raise SystemExit(__doc__)
     film, out = Path(sys.argv[1]), Path(sys.argv[2])
     out.mkdir(parents=True, exist_ok=True)
-    rows = [json.loads(line) for line in (film / "frames.jsonl").read_text().splitlines() if line.strip()]
-    timeline, captions, stills = [], [], {}
+    grouped = by_scene(read_rows(film / "frames.jsonl"), read_rows(film / "scenes.jsonl"))
+    timeline, stills = [], {}
     for scene, seconds, caption in SCENES:
-        picked = sample([row for row in rows if row["scene"] == scene], seconds)
-        if not picked:
-            continue
-        begin = len(timeline) / FPS
-        timeline += picked
-        captions.append((begin, len(timeline) / FPS, caption))
-        stills[scene] = picked[-1]
+        if scene in grouped:
+            picked = sample(grouped[scene], seconds)
+            timeline += [(name, caption) for name in picked]
+            stills[scene] = picked[-1]
     if not timeline:
         raise SystemExit("no frames to cut")
-    listing = out / "frames.txt"
-    with open(listing, "w") as f:
-        for name in timeline:
-            f.write(f"file '{(film / 'frames' / name).resolve()}'\nduration {1 / FPS}\n")
-        f.write(f"file '{(film / 'frames' / timeline[-1]).resolve()}'\n")
 
-    # Every frame at the size most of them have, in case the window changed.
-    sizes = [png_size(film / "frames" / name) for name in timeline[::10]]
+    # Every frame at the size most of them have, no wider than MAX_WIDTH,
+    # with even sides for H.264.
+    sizes = [Image.open(film / "frames" / name).size for name, _ in timeline[::10]]
     width, height = max(set(sizes), key=sizes.count)
-    font = next((path for path in FONTS if os.path.exists(path)), None)
-    filters = [f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
-               f"pad={width}:{height + 64}:(ow-iw)/2:0:color=white"]
-    if font:
-        for begin, end, caption in captions:
-            filters.append(
-                f"drawtext=fontfile='{font}':text='{escape(caption)}':fontsize=26:fontcolor=0x1d1d1f:"
-                f"x=(w-text_w)/2:y=h-46:enable='between(t,{begin:.2f},{end:.2f})'")
-    filters.append("scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuv420p")
+    scale = min(1.0, MAX_WIDTH / width)
+    size = (round(width * scale) // 2 * 2, round(height * scale) // 2 * 2)
+    face = caption_font(26)
+    cut = out / "cut"
+    shutil.rmtree(cut, ignore_errors=True)
+    (cut / "sequence").mkdir(parents=True)
+    composed = {}
+    for number, (name, caption) in enumerate(timeline):
+        key = (name, caption)
+        if key not in composed:
+            composed[key] = cut / f"{len(composed):05d}.png"
+            compose(film / "frames" / name, size, caption, face, composed[key])
+        os.link(composed[key], cut / "sequence" / f"{number:05d}.png")
+
     mp4 = out / "agent-handoff.mp4"
-    encode = ["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", str(listing),
-              "-r", str(FPS), "-c:v", "libx264", "-crf", "22", "-preset", "slow", "-movflags", "+faststart"]
-    try:
-        subprocess.run(encode + ["-vf", ",".join(filters), str(mp4)], check=True)
-    except subprocess.CalledProcessError:
-        # A build without drawtext still gets the film, uncaptioned.
-        subprocess.run(encode + ["-vf", ",".join([filters[0], filters[-1]]), str(mp4)], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS),
+                    "-i", str(cut / "sequence" / "%05d.png"), "-c:v", "libx264", "-crf", "20",
+                    "-preset", "slow", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(mp4)], check=True)
     gif = out / "agent-handoff.gif"
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", str(mp4), "-vf",
                     "fps=8,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];"
                     "[b][p]paletteuse=dither=bayer:bayer_scale=4", str(gif)], check=True)
     for scene, name in stills.items():
         shutil.copy(film / "frames" / name, out / f"{scene}.png")
-    listing.unlink()
+    shutil.rmtree(cut)
     print(f"{mp4} ({len(timeline) / FPS:.0f} s), {gif}")
 
 

@@ -9,8 +9,10 @@
 # Transcription runs on this Mac (Parakeet); the summary and the agents use
 # an OpenRouter model (DEMO_MODELS, first that answers with private routing).
 # The library, settings suite and keychain are throwaway; the key is only
-# written to that keychain. Writes the cut (agent-handoff.mp4/.gif, stills)
-# and evidence (logs, the meeting's notes, what the agents wrote) to <out-dir>.
+# written to that keychain. The window is recorded with screencapture, so the
+# shell running this needs Screen Recording (hosted runners have it). Writes
+# the cut (agent-handoff.mp4/.gif, stills) and evidence (logs, the meeting's
+# notes, what the agents wrote) to <out-dir>.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 HERE="$ROOT/Scripts/agent-handoff-demo"
@@ -28,10 +30,12 @@ KEYCHAIN="$WORK/demo.keychain-db"
 OLD_KEYCHAINS=$(security list-keychains -d user | tr -d '"' || true)
 OLD_DEFAULT=$(security default-keychain -d user | tr -d '" ' || true)
 APP_PID=""
+RECORDER_PID=""
 mkdir -p "$OUT/logs" "$FILM"
 
 cleanup() {
   [[ -n "$APP_PID" ]] && kill "$APP_PID" 2>/dev/null || true
+  [[ -n "$RECORDER_PID" ]] && kill "$RECORDER_PID" 2>/dev/null || true
   pkill -f "$BIN" 2>/dev/null || true
   # shellcheck disable=SC2086
   security list-keychains -d user -s $OLD_KEYCHAINS >/dev/null 2>&1 || true
@@ -52,6 +56,11 @@ run_for() {
   done
   wait "$pid"
 }
+
+echo "== Pillow for the cut =="
+python3 -m venv "$WORK/venv"
+"$WORK/venv/bin/pip" install -q --disable-pip-version-check pillow
+PY="$WORK/venv/bin/python"
 
 echo "== OpenRouter model =="
 MODEL=""
@@ -106,8 +115,10 @@ read -r MEETING MEETING_FOLDER < <(python3 "$HERE/stage.py" meeting "$LIB")
 echo "meeting $MEETING in $MEETING_FOLDER"
 cp "$MEETING_FOLDER/mic.m4a" "$MEETING_FOLDER/system.m4a" "$OUT/logs/"
 LOKALBOT_STORAGE_ROOT="$LIB" LOKALBOT_TEST_FILM_SCRIPT=agent-handoff LOKALBOT_TEST_FILM_MEETING="$MEETING" \
-  LOKALBOT_TEST_FILM_DIR="$FILM" LOKALBOT_TEST_FILM_FRAMES=1 "$BIN" > "$OUT/logs/app.log" 2>&1 &
+  LOKALBOT_TEST_FILM_DIR="$FILM" "$BIN" > "$OUT/logs/app.log" 2>&1 &
 APP_PID=$!
+"$PY" "$HERE/record.py" "$FILM" > "$OUT/logs/record.log" 2>&1 &
+RECORDER_PID=$!
 mkdir -p "$OUT/logs/screen"
 waited=0
 until [[ -f "$FILM/done" ]]; do
@@ -117,6 +128,9 @@ until [[ -f "$FILM/done" ]]; do
   (( waited % 60 == 0 )) && screencapture -x "$OUT/logs/screen/$(printf %04d "$waited").png" 2>/dev/null || true
   sleep 5; waited=$((waited + 5))
 done
+touch "$FILM/stop"
+wait "$RECORDER_PID" 2>/dev/null || true
+RECORDER_PID=""
 kill "$APP_PID" 2>/dev/null || true
 wait "$APP_PID" 2>/dev/null || true
 APP_PID=""
@@ -132,8 +146,8 @@ WORKSPACE="$LIB.agent-workspace"
 find "$OUT/agent-work" -type f | sed "s|$OUT/||" || true
 cp "$LIB/debug.log" "$OUT/logs/debug.log" 2>/dev/null || true
 
-if [[ -f "$FILM/frames.jsonl" ]]; then
-  python3 "$HERE/edit.py" "$FILM" "$OUT"
+if [[ -s "$FILM/frames.jsonl" ]]; then
+  "$PY" "$HERE/edit.py" "$FILM" "$OUT"
 fi
 # Nothing written here may carry the key.
 if grep -rqF "$OPENROUTER_API_KEY" "$OUT"; then

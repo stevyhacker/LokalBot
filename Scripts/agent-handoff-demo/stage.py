@@ -27,12 +27,15 @@ seed = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(seed)
 
 RATE = 22_050
-GAP = 0.7
+GAP = 1.0
+TAIL = 4
 
 # Priya owns the website; the four things the person takes on go to agents.
 FOLLOW_UP = [
-    ("them", "Quick follow-up on the launch. Pricing is locked: fifteen dollars per seat, "
-             "billed annually, plus the free plan for teams of up to three."),
+    ("them", "Hi! Thanks for making time. I know the week is packed, so this will be quick."),
+    ("me", "No problem. I have the pricing sheet open, so let's go through what is left before the launch."),
+    ("them", "Pricing is locked: fifteen dollars per seat, billed annually, "
+             "plus the free plan for teams of up to three."),
     ("me", "Great. I'll draft the launch announcement email for our customers today."),
     ("them", "Support will get questions about annual billing and refunds."),
     ("me", "I'll write a short pricing FAQ that covers annual billing, refunds, and the free plan."),
@@ -41,6 +44,7 @@ FOLLOW_UP = [
     ("them", "Perfect. I'll update the pricing page on the website myself by Monday."),
     ("me", "And I'll write the release notes for the launch. That's everything from me."),
     ("them", "Thanks. Talk on Tuesday."),
+    ("me", "Talk then. Bye!"),
 ]
 
 WARMUP = [
@@ -94,7 +98,7 @@ def write_tracks(lines, folder):
         track.extend(bytes(max(0, cursor - len(track))))
         track[cursor:cursor + len(speech)] = speech
         cursor += len(speech) + int(GAP * RATE) * 2
-    cursor += RATE * 2 * 2
+    cursor += TAIL * RATE * 2
     for speaker, name in (("me", "mic"), ("them", "system")):
         track = tracks[speaker]
         track.extend(bytes(max(0, cursor - len(track))))
@@ -133,8 +137,9 @@ def write_settings(suite, model):
     for args in (["lokalbotv3.settings", "-data", blob.hex()],
                  ["lokalbotv3.onboarding.shown", "-bool", "YES"],
                  ["lokalbotv3.gettingStartedDismissed", "-bool", "YES"],
-                 # Reads and file edits in the agents' workspace run without a card.
-                 ["lokalbotv3.agent.approvalMode", "-int", "2"]):
+                 # Full access: no tool asks first, so the agents run unattended.
+                 # In the narrower modes each lokalbot-cli lookup waits for a click.
+                 ["lokalbotv3.agent.approvalMode", "-int", "3"]):
         subprocess.run(["defaults", "write", suite, *args], check=True)
 
 

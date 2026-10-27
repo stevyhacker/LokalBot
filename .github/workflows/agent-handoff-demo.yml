@@ -91,7 +91,9 @@ jobs:
           for dir in logs meeting agent-work; do
             [[ -d "$OUT/$dir" ]] && cp -R "$OUT/$dir" "$PUB/"
           done
-          cp "$OUT"/film/director.log "$OUT"/film/frames.jsonl "$PUB/logs/" 2>/dev/null || true
+          for file in director.log scenes.jsonl frames.jsonl window.json rect-probe.png; do
+            cp "$OUT/film/$file" "$PUB/logs/" 2>/dev/null || true
+          done
           # Every twentieth frame, to check the cut against what happened.
           if [[ -d "$OUT/film/frames" ]]; then
             ls "$OUT/film/frames" | awk 'NR % 20 == 1' | while read -r frame; do

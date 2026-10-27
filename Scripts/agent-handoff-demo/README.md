@@ -7,9 +7,13 @@ on starts as its own Agent Mode task with no one touching the app.
 | File | Role |
 | --- | --- |
 | `stage.py` | Seeds the fictional launch-pricing library from `Scripts/readme-gif/seed_library.py`, adds "Launch follow-up" (a two-track call in macOS speech: the person on the microphone, Priya on the system track), and writes the settings. Only microphone speech is the person's, so only their four actions are handed off; Priya's stays in the notes. |
-| `film.sh` | Picks the first OpenRouter model in `DEMO_MODELS` that answers with private routing, puts the key in a throwaway keychain, warms up Parakeet with a user-initiated `--process`, installs Agent Mode, then launches the app on the call and waits for the director. Copies the logs, the meeting's notes and what the agents wrote. |
-| `edit.py` | Cuts the frames into `agent-handoff.mp4` and `agent-handoff.gif` with a caption per scene, speeding up the waiting. |
-| `LokalBot/Support/FilmDirector.swift` | Debug-only (`LOKALBOT_TEST_HOOKS`). Opens the meeting, then Agent Mode once the tasks exist, moves between them, allows a non-file tool request once after two seconds as a person would, and renders the main window to PNGs in-process, so no Screen Recording grant is needed. |
+| `film.sh` | Picks the first OpenRouter model in `DEMO_MODELS` that answers with private routing, puts the key in a throwaway keychain, warms up Parakeet with a user-initiated `--process`, installs Agent Mode, then launches the app on the call and records it until the director is done. Copies the logs, the meeting's notes and what the agents wrote. |
+| `record.py` | Captures the main window with `screencapture` twice a second, so the shell running it needs Screen Recording (hosted runners have it). |
+| `edit.py` | Cuts the frames into `agent-handoff.mp4` and `agent-handoff.gif` with a caption per scene, speeding up the agents' work. Uses Pillow, which `film.sh` installs in a throwaway virtualenv. |
+| `LokalBot/Support/FilmDirector.swift` | Debug-only (`LOKALBOT_TEST_HOOKS`). Opens the meeting, then Agent Mode once the tasks exist, moves between them while they work, and ends on each task's report and the last one's results. Logs the scenes and the window's frame for the recorder. |
+
+The film runs Agent Mode on Full access, so no tool asks first and the agents
+work unattended; in the narrower modes each `lokalbot-cli` lookup asks.
 
 `.github/workflows/agent-handoff-demo.yml` runs it on pull requests that
 change these files and on dispatch. The transcription runs on the runner;
