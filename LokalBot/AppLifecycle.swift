@@ -90,6 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 DispatchQueue.main.async { WindowAccess.shared.open("main") }
             }
         }
+#if LOKALBOT_TEST_HOOKS
+        if let app = Self.appState { FilmDirector.startIfRequested(app: app) }
+#endif
         // Read off the main thread now so General's toggle opens on the real value.
         LaunchAtLoginState.shared.refresh()
         let center = NotificationCenter.default
