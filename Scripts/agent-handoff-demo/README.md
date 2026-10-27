@@ -15,8 +15,8 @@ on starts as its own Agent Mode task with no one touching the app.
 The film runs Agent Mode on Full access, so no tool asks first and the agents
 work unattended; in the narrower modes each `lokalbot-cli` lookup asks.
 
-`.github/workflows/agent-handoff-demo.yml` runs it on pull requests that
-change these files and on dispatch. The transcription runs on the runner;
+`.github/workflows/agent-handoff-demo.yml` runs it on dispatch and when a
+pull request is labeled `film demo`. The transcription runs on the runner;
 the notes and the agents use OpenRouter through the `OPENROUTER_API_KEY`
 secret. Results are the `agent-handoff-demo` artifact and the orphan branch
 `pr-assets/<pr>-agent-handoff-demo`.
