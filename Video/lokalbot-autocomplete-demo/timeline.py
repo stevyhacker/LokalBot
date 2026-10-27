@@ -204,6 +204,21 @@ def on_beat(t, g, step=1.0, up=False):
     return first + (math.ceil(k - 1e-6) if up else round(k)) * beat * step
 
 
+def kept(line):
+    """The [first, last] words of the line that the film plays (narration.json "say"), or None for none."""
+    words = line['words']
+    if 'say' not in line:
+        return 0, len(words) - 1
+    say = [norm(w) for w in line['say'].split()]
+    if not say:
+        return None
+    have = [norm(w[0]) for w in words]
+    for i in range(len(have) - len(say) + 1):
+        if have[i:i + len(say)] == say:
+            return i, i + len(say) - 1
+    raise SystemExit(f"{line['id']}: {line['say']!r} is not in the line")
+
+
 def word_time(words, start, pattern, edge=1):
     """Film time of the first word matching `pattern`: its start (edge 1) or end (edge 2)."""
     for w in words:
@@ -238,11 +253,21 @@ def main():
             length = cut + OVERLAP - t
         T[name] = [round(t, 3), round(t + length, 3)]
         start = t + lead
-        voice.append({'id': line['id'], 'file': line['file'], 'trim': line['trim'], 'at': round(start, 3),
-                      'end': round(start + line['words'][-1][2], 3)})
-        subs += [c[:3] for c in captions(line['words'], start)]
-        if name not in NO_CAPTIONS:
-            caps += captions(line['words'], start)
+        # The whole take times the section; only the part in "say" is heard and captioned.
+        part = kept(line)
+        if part:
+            i, j = part
+            words = line['words'][i:j + 1]
+            v = {'id': line['id'], 'file': line['file'], 'trim': round(line['trim'] + words[0][1], 3),
+                 'at': round(start + words[0][1], 3), 'end': round(start + words[-1][2], 3)}
+            if i > 0:
+                v['cut'] = True  # starts in the pause before its first word
+            if j + 1 < len(line['words']):
+                v['until'] = round(line['trim'] + line['words'][j + 1][1], 3)  # stops before the next word
+            voice.append(v)
+            subs += [c[:3] for c in captions(words, start)]
+            if name not in NO_CAPTIONS:
+                caps += captions(words, start)
         line['start'] = start
         t += length - OVERLAP
     duration = round(T['end'][1], 2)
@@ -256,6 +281,10 @@ def main():
         'typeFrom': 0.25, 'typeTo': 1.0, 'ghostAt': 1.12,
         'presses': [round(word_time(hook['words'], hook['start'], w) - 0.03, 3) for w in ('your', 'whole', 'Mac')],
     })
+    if g and not kept(hook):
+        # No voice over the hook: Tab takes the words on the intro's kicks instead.
+        first = on_beat(edit['hook']['presses'][0], g)
+        edit['hook']['presses'] = [round(first + k * g[1], 3) for k in range(3)]
     # Tab presses on the music's eighth notes when there is a beat to follow.
     eighth = (lambda t: on_beat(t, g, 0.5, up=True)) if g else (lambda t: t)
 
@@ -295,7 +324,8 @@ def main():
     (HERE / 'edit.json').write_text(json.dumps(edit, indent=1, ensure_ascii=False) + '\n')
     for name, (a, b) in T.items():
         print(f'{name:8s} {a:6.2f} – {b:6.2f}  ({b - a:4.2f} s)')
-    print(f'duration {duration} s; voice {"recorded" if all(v["file"] for v in voice) else "estimated"}'
+    print(f'duration {duration} s; {len(voice)} lines heard, {sum(v["end"] - v["at"] for v in voice):.1f} s of voice; '
+          f'voice {"recorded" if all(v["file"] for v in voice) else "estimated"}'
           + (f'; music on the beat, final hit at {g[2]:.2f} s' if g else ''))
 
 

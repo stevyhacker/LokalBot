@@ -1,11 +1,10 @@
 """Synthesized sound design from the first cut, for audio.py.
 
 The intro (a dark pad swelling under the hook, a riser and a kick build into
-the first clip), impacts on the drops, and the interface sounds: key clicks, a
-Tab thock with a bell that climbs the scale on each press in a run, a shimmer
-when the suggestion appears, swishes on the cuts, blips for the model's picks
-and a bell arpeggio for the logo. Everything is made here, in the music bed's
-key (E major), so it sits with the bed.
+the first clip), impacts on the drops and the logo, and the interface sounds:
+key clicks, a Tab thock, a breath of air when the suggestion appears, swishes
+on the cuts and blips for the model's picks. No bells. Everything pitched is
+in the music bed's key (E major), so it sits with the bed.
 """
 import numpy as np
 from scipy.signal import butter, fftconvolve, sosfilt, sosfilt_zi
@@ -14,7 +13,6 @@ SR = 48000
 rng = np.random.default_rng(11)
 PENT = [76, 78, 80, 83, 85, 88, 90, 92]  # E major pentatonic, from E5
 PAD = (56, 61, 64, 68)                    # C#m over G#, resolving to the bed's E at the drop
-SHIMMER = (83, 88, 92, 95)                # B, E, G#, B
 
 
 def midi(n):
@@ -96,15 +94,6 @@ def supersaw(notes, dur, voices=5, detune=0.13):
     return out / (len(notes) * voices) * 2.2
 
 
-def bell(note, dur=1.6):
-    n = int(dur * SR)
-    t = np.arange(n) / SR
-    f = midi(note)
-    mod = np.sin(2 * np.pi * f * 3.5 * t) * 2.2 * np.exp(-t / 0.25)
-    x = np.sin(2 * np.pi * f * t + mod) + 0.25 * np.sin(2 * np.pi * f * 2.01 * t) * np.exp(-t / 0.3)
-    return x * adsr(n, 0.002, 0.55, 0.0, 0.1)
-
-
 def noise_sweep(dur, f0, f1, shape=2.0):
     n = int(dur * SR)
     y = sweep(rng.standard_normal(n), 'band', lambda s: f0 * (f1 / f0) ** min(s / dur, 1))
@@ -168,11 +157,7 @@ def cues(n, events, drops, end=None):
         add(bus, end, boom, 0.45)
         add(bus, end, crash, 0.2)
         add(send, end, crash, 0.3)
-        for i, note in enumerate((76, 80, 83, 88, 92)):
-            b = bell(note, 2.0)
-            add(bus, end + 0.3 + i * 0.09, b, 0.10, -0.5 + i * 0.25)
-            add(send, end + 0.3 + i * 0.09, b, 0.12)
-    last_tab, run, last_tick, tick_run = -9, 0, -9, 0
+    last_tick, tick_run = -9, 0
     for t, kind in events:
         if kind == 'type':
             m = int(0.05 * SR)
@@ -181,24 +166,16 @@ def cues(n, events, drops, end=None):
             thock = sine(380 * (0.85 + 0.3 * rng.random()), m) * np.exp(-tt / 0.012) * 0.6
             add(bus, t, click + thock, 0.16 * (0.75 + 0.5 * rng.random()), rng.uniform(-0.25, 0.25))
         elif kind == 'tab':
-            run = run + 1 if t - last_tab < 0.6 else 0
-            last_tab = t
             m = int(0.16 * SR)
             tt = np.arange(m) / SR
             thock = sine(160 + 90 * np.exp(-tt / 0.01), m) * np.exp(-tt / 0.045)
             click = filt(rng.standard_normal(m), 'band', (1500, 5000)) * np.exp(-tt / 0.005) * 0.5
             add(bus, t, thock + click, 0.32)
-            b = bell(PENT[min(run, len(PENT) - 1)], 0.9)
-            add(bus, t, b, 0.07, 0.2)
-            add(send, t, b, 0.1)
         elif kind == 'ghost':
-            m = int(0.9 * SR)
-            tt = np.arange(m) / SR
-            s = sum(sine(midi(k) * (1 + 0.003 * np.sin(2 * np.pi * 5 * tt)), m) for k in SHIMMER)
-            s = s * adsr(m, 0.05, 0.3, 0.0, 0.2) / 4
-            air = filt(rng.standard_normal(m), 'high', 6000) * adsr(m, 0.03, 0.15, 0, 0.1) * 0.25
-            add(bus, t - 0.03, s + air, 0.12)
-            add(send, t - 0.03, s, 0.18)
+            m = int(0.6 * SR)
+            air = filt(rng.standard_normal(m), 'band', (3000, 9000)) * adsr(m, 0.06, 0.15, 0, 0.15)
+            add(bus, t - 0.05, air, 0.05)
+            add(send, t - 0.05, air, 0.04)
         elif kind.startswith('whoosh'):
             if kind in ('whoosh:memory', 'whoosh:context'):
                 continue  # the drops have their impacts

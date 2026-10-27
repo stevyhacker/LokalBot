@@ -99,6 +99,23 @@ def keystrokes(typing):
     return hits or [fade(typing[:int(0.09 * SR)])]
 
 
+def quiet_before(x, t):
+    """The middle of the last pause (40 ms or more, 35 dB down) that ends just before time t in x, in seconds."""
+    hop = int(0.01 * SR)
+    m = len(x) // hop
+    rms = 20 * np.log10(np.sqrt(np.mean(x[:m * hop].reshape(m, hop) ** 2, axis=1)) + 1e-9)
+    quiet = rms < rms.max() - 35
+    best, i = None, 0
+    while i < m:
+        j = i
+        while j < m and quiet[j]:
+            j += 1
+        if j - i >= 4 and t - 0.4 <= i * 0.01 and j * 0.01 <= t + 0.06:
+            best = (i + j) / 2 * 0.01
+        i = max(j, i + 1)
+    return best if best is not None else t - 0.05
+
+
 def voice_bus(edit, n):
     bus = np.zeros(n)
     hp = butter(2, 70 / (SR / 2), 'highpass', output='sos')
@@ -107,12 +124,13 @@ def voice_bus(edit, n):
             continue
         x = sosfilt(hp, load(HERE / line['file']))
         # From the first word to just after the last, so a breath or click after it is left out.
-        a = int(line['trim'] * SR)
-        b = a + int((line['end'] - line['at'] + 0.18) * SR)
-        x = fade(x[a:b], 0.012, 0.09)
+        # Part of a line starts and stops in the pauses around it.
+        start = quiet_before(x, line['trim']) if line.get('cut') else line['trim']
+        stop = quiet_before(x, line['until']) if line.get('until') else line['trim'] + line['end'] - line['at'] + 0.18
+        x = fade(x[int(start * SR):int(stop * SR)], 0.012, 0.04 if line.get('until') else 0.09)
         speech = x[np.abs(x) > np.abs(x).max() * 0.05]
         x *= db(-20) / max(np.sqrt(np.mean(speech ** 2)), 1e-6)  # every line at the same level
-        i = int(round(line['at'] * SR))
+        i = int(round((line['at'] + start - line['trim']) * SR))
         m = min(len(x), n - i)
         bus[i:i + m] += x[:m]
     return bus

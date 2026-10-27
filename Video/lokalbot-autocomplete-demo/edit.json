@@ -323,9 +323,9 @@
   "typeTo": 1.0,
   "ghostAt": 1.12,
   "presses": [
-   2.195,
-   2.423,
-   2.652
+   2.01,
+   2.51,
+   3.01
   ],
   "logoAt": 0.318
  },
@@ -837,72 +837,40 @@
  ],
  "voice": [
   {
-   "id": "v3-01-hook",
-   "file": "assets/voice/tight/v3-01-hook-eric-s11.wav",
-   "trim": 0,
-   "at": 0.12,
-   "end": 3.053
-  },
-  {
    "id": "v3-02-memory",
    "file": "assets/voice/tight/v3-02-memory-eric-s11.wav",
-   "trim": 0,
+   "trim": 0.0,
    "at": 4.31,
    "end": 7.548
   },
   {
-   "id": "v3-03-word",
-   "file": "assets/voice/tight/v3-03-word-eric-s11.wav",
-   "trim": 0,
-   "at": 9.71,
-   "end": 11.281
-  },
-  {
-   "id": "v3-04-langs",
-   "file": "assets/voice/tight/v3-04-langs-eric-s11.wav",
-   "trim": 0,
-   "at": 12.11,
-   "end": 13.586
-  },
-  {
-   "id": "v3-05-how",
-   "file": "assets/voice/tight/v3-05-how-eric-s11.wav",
-   "trim": 0,
-   "at": 16.21,
-   "end": 17.277
-  },
-  {
-   "id": "v3-06-context",
-   "file": "assets/voice/tight/v3-06-context-eric-s11.wav",
-   "trim": 0,
-   "at": 17.86,
-   "end": 22.089
-  },
-  {
    "id": "v3-07-model",
    "file": "assets/voice/tight/v3-07-model-eric-s11.wav",
-   "trim": 0,
-   "at": 22.86,
-   "end": 28.603
+   "trim": 3.476,
+   "at": 26.336,
+   "end": 28.603,
+   "cut": true
   },
   {
    "id": "v3-08-pick",
    "file": "assets/voice/tight/v3-08-pick-eric-s11.wav",
-   "trim": 0,
-   "at": 29.36,
-   "end": 33.35
+   "trim": 2.048,
+   "at": 31.408,
+   "end": 33.35,
+   "cut": true
   },
   {
    "id": "v3-09-ghost",
    "file": "assets/voice/tight/v3-09-ghost-eric-s11.wav",
-   "trim": 0,
+   "trim": 0.0,
    "at": 34.31,
-   "end": 38.529
+   "end": 36.748,
+   "until": 2.476
   },
   {
    "id": "v3-10-end",
    "file": "assets/voice/tight/v3-10-end-eric-s11.wav",
-   "trim": 0,
+   "trim": 0.0,
    "at": 39.36,
    "end": 42.931
   }
@@ -933,83 +901,6 @@
    ]
   ],
   [
-   9.71,
-   11.631,
-   "It finishes the word you're typing,",
-   [
-    9.71,
-    9.939,
-    10.396,
-    10.586,
-    10.739,
-    11.081
-   ]
-  ],
-  [
-   12.11,
-   13.936,
-   "in any language you write.",
-   [
-    12.11,
-    12.339,
-    12.643,
-    13.1,
-    13.367
-   ]
-  ],
-  [
-   17.86,
-   20.05,
-   "It reads the text before your cursor,",
-   [
-    17.86,
-    18.079,
-    18.384,
-    18.65,
-    19.031,
-    19.298,
-    19.45
-   ]
-  ],
-  [
-   20.05,
-   22.439,
-   "and saved notes, like that pricing call.",
-   [
-    20.05,
-    20.393,
-    20.584,
-    21.193,
-    21.346,
-    21.689,
-    22.203
-   ]
-  ],
-  [
-   22.86,
-   24.993,
-   "A small model, Gemma 4,",
-   [
-    22.86,
-    23.012,
-    23.317,
-    23.927,
-    24.308
-   ]
-  ],
-  [
-   24.993,
-   26.336,
-   "runs right inside the app.",
-   [
-    24.993,
-    25.222,
-    25.45,
-    25.831,
-    25.984
-   ]
-  ],
-  [
    26.336,
    28.953,
    "No server, no cloud, no account.",
@@ -1020,18 +911,6 @@
     27.631,
     28.012,
     28.165
-   ]
-  ],
-  [
-   29.36,
-   31.408,
-   "It weighs every next word.",
-   [
-    29.36,
-    29.589,
-    30.122,
-    30.503,
-    31.227
    ]
   ],
   [
@@ -1050,7 +929,7 @@
   ],
   [
    34.31,
-   36.786,
+   37.098,
    "When it is, the rest appears in gray.",
    [
     34.31,
@@ -1062,32 +941,9 @@
     36.148,
     36.3
    ]
-  ],
-  [
-   36.786,
-   38.879,
-   "Tab takes it, word by word.",
-   [
-    36.786,
-    37.091,
-    37.396,
-    37.748,
-    38.053,
-    38.281
-   ]
   ]
  ],
  "subtitles": [
-  [
-   0.12,
-   1.387,
-   "Meet LokalBot."
-  ],
-  [
-   1.387,
-   3.403,
-   "Autocomplete for your whole Mac."
-  ],
   [
    4.31,
    6.215,
@@ -1099,49 +955,9 @@
    "and finishes your sentence."
   ],
   [
-   9.71,
-   11.631,
-   "It finishes the word you're typing,"
-  ],
-  [
-   12.11,
-   13.936,
-   "in any language you write."
-  ],
-  [
-   16.21,
-   17.627,
-   "So how does it work?"
-  ],
-  [
-   17.86,
-   20.05,
-   "It reads the text before your cursor,"
-  ],
-  [
-   20.05,
-   22.439,
-   "and saved notes, like that pricing call."
-  ],
-  [
-   22.86,
-   24.993,
-   "A small model, Gemma 4,"
-  ],
-  [
-   24.993,
-   26.336,
-   "runs right inside the app."
-  ],
-  [
    26.336,
    28.953,
    "No server, no cloud, no account."
-  ],
-  [
-   29.36,
-   31.408,
-   "It weighs every next word."
   ],
   [
    31.408,
@@ -1150,13 +966,8 @@
   ],
   [
    34.31,
-   36.786,
+   37.098,
    "When it is, the rest appears in gray."
-  ],
-  [
-   36.786,
-   38.879,
-   "Tab takes it, word by word."
   ],
   [
    39.36,

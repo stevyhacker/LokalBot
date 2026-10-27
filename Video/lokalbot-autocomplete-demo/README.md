@@ -1,9 +1,10 @@
 # LokalBot autocomplete demo
 
-An upbeat, narrated 45 s cut for X, YouTube and Reddit: real autocomplete
-footage first, then a three.js look at how a suggestion is made. The voice
-starts on the first frame, and every cut, Tab press and model pick lands on
-the beat of the music.
+An upbeat 45 s cut for X, YouTube and Reddit: real autocomplete footage
+first, then a three.js look at how a suggestion is made. It opens on the
+typed headline over a synthesized build into the first clip; a narrator says
+only what the screen doesn't, and every cut, Tab press and model pick lands
+on the beat of the music.
 
 - Canvas: 1920 × 1080, 30 fps. lokalbot.com's look: the navy gradient, teal
   accents, glass panels, the logo lockup and Inter. Titles and captions are
@@ -23,6 +24,9 @@ the beat of the music.
   take: ElevenLabs (`../lokalbot-autocomplete-launch/tts_elevenlabs.py` with
   `CUT_DIR` set to this folder, `--name` for a voice other than the default)
   or OpenAI (`tts.py`). The cut uses Eric, a premade ElevenLabs narrator.
+  A scene's `say` keeps only part of its line (or none of it): the whole
+  take still times the section, but only those words are heard and
+  captioned, so the voice doesn't repeat the titles.
   `tighten.py` shortens the pauses in the chosen takes and quickens them 5%
   (Rubber Band, formants kept). Say it is synthetic where the video is posted.
 - Music and effects: ElevenLabs Music and Sound Effects (`eleven_sound.py`,
@@ -31,9 +35,9 @@ the beat of the music.
   break falls on "So how does it work?" and its final hit after the last
   word. Commercial use follows the plan of the ElevenLabs account that made
   them. Under the hook, `synth.py` plays the first cut's intro (a pad that
-  opens up, a riser and four kicks into the drop), and it makes the impacts,
-  the Tab thock with a bell that climbs the scale, the ghost-text shimmer,
-  the swishes, the model's blips and the logo's bells, in the bed's key
+  opens up, a riser and four kicks into the drop, with Tab on the kicks),
+  and it makes the impacts, the Tab thock, a breath of air as ghost text
+  shows, the swishes and the model's blips, in the bed's key, with no bells
   (`sound.json` "synth").
 
 ## Files
