@@ -173,6 +173,7 @@ private struct UpcomingMeetingCard: View {
         max(0, evidence.decisions.count - 1)
             + max(0, evidence.commitments.count - 1)
             + max(0, evidence.projects.count - 1)
+            + max(0, evidence.emailThreads.count - 1)
     }
 
     var body: some View {
@@ -258,6 +259,9 @@ private struct UpcomingMeetingCard: View {
                 if let project = evidence.projects.first {
                     projectRow(project)
                 }
+                if let thread = evidence.emailThreads.first {
+                    emailRow(thread)
+                }
                 if evidence.decisions.isEmpty,
                    evidence.commitments.isEmpty,
                    evidence.projects.isEmpty,
@@ -289,7 +293,29 @@ private struct UpcomingMeetingCard: View {
             ForEach(Array(evidence.projects.dropFirst())) { project in
                 projectRow(project)
             }
+            ForEach(Array(evidence.emailThreads.dropFirst())) { thread in
+                emailRow(thread)
+            }
         }
+    }
+
+    /// A conversation with the attendees from the downloaded mail. It opens in
+    /// Gmail, signed in as the account that holds it.
+    private func emailRow(_ thread: UpcomingMeetingEmailThread) -> some View {
+        var source = [thread.subject, thread.lastSender,
+                      thread.lastMessageAt.formatted(.relative(presentation: .named))]
+        if thread.awaitingReply { source.append("waiting on your reply") }
+        let service = "Gmail"
+        return Button {
+            NSWorkspace.shared.open(thread.gmailURL)
+        } label: {
+            contextRow(title: "From email", icon: "envelope",
+                       text: thread.excerpt.isEmpty ? thread.subject : thread.excerpt,
+                       source: source.joined(separator: " · "))
+        }
+        .buttonStyle(.plain)
+        .help("Open in \(service)")
+        .accessibilityIdentifier("today.upcomingMeeting.email")
     }
 
     private func referenceRow(title: String, icon: String,

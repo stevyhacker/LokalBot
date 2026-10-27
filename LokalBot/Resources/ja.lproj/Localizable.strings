@@ -1476,7 +1476,7 @@
 "Change Client File…" = "クライアントファイルを変更…";
 "Connect a Gmail account?" = "Gmail アカウントを接続しますか？";
 "Privacy Policy" = "プライバシーポリシー";
-"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them." = "LokalBot は Google に Gmail への読み取り専用アクセスを求めます。過去 90 日間のうちあなたが書き込んだスレッドと、カレンダー上の相手とのメールをダウンロードしてこの Mac に暗号化して保存し、LokalBot やほかの誰にも送信しません。接続を解除すると削除されます。";
+"LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, and uses them to brief you before meetings with those people. Mail stays encrypted on this Mac and is never sent to LokalBot or anyone else. Disconnecting deletes it." = "LokalBot は Google に Gmail への読み取り専用アクセスを求めます。過去 90 日間のうちあなたが書き込んだスレッドと、カレンダー上の相手とのメールをダウンロードし、その相手との会議の前に概要をお伝えするために使います。メールはこの Mac に暗号化して保存され、LokalBot やほかの誰にも送信されません。接続を解除すると削除されます。";
 "For your own Google Cloud project: enable the Gmail API, create an OAuth client of type Desktop app, publish it, download its JSON file, and choose it here. New sign-ins then use your client instead of LokalBot's." = "ご自身の Google Cloud プロジェクトを使う場合は、Gmail API を有効にし、種類が「デスクトップ アプリ」の OAuth クライアントを作成して公開し、JSON ファイルをダウンロードしてここで選択してください。以降の新しいサインインでは、LokalBot のクライアントではなくご自身のクライアントが使われます。";
 "Use LokalBot's Client" = "LokalBot のクライアントを使用";
 "Use your own Google OAuth client" = "自分の Google OAuth クライアントを使用";

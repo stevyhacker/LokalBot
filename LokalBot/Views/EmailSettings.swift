@@ -82,7 +82,7 @@ struct EmailSettingsSection: View {
             Button("Privacy Policy") { NSWorkspace.shared.open(Self.privacyPolicyURL) }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, keeps them encrypted on this Mac, and never sends them to LokalBot or anyone else. Disconnecting deletes them.")
+            Text("LokalBot asks Google for read-only access to Gmail. It downloads conversations you wrote in and mail with people on your calendar from the last 90 days, and uses them to brief you before meetings with those people. Mail stays encrypted on this Mac and is never sent to LokalBot or anyone else. Disconnecting deletes it.")
         }
         .confirmationDialog(
             Text("Disconnect \(disconnecting?.address ?? "")?"),
