@@ -57,6 +57,7 @@ def main():
     out_dir = P / 'assets/voice/eleven'
     out_dir.mkdir(parents=True, exist_ok=True)
     report_path = P / 'production/eleven-generation.json'
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     report = json.loads(report_path.read_text()) if report_path.exists() else {'rows': []}
     report.update({'provider': 'elevenlabs', 'model_id': args.model, 'voice_id': args.voice,
                    'output_format': 'mp3_44100_128',

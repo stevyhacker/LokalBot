@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1080, height=1920">
+<title>LokalBot UGC demo</title>
+<style>
+  @font-face { font-family: 'Inter'; font-weight: 100 900; src: url(assets/fonts/inter-latin.woff2) format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  @font-face { font-family: 'Inter'; font-weight: 100 900; src: url(assets/fonts/inter-latin-ext.woff2) format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+  :root { --ink: #0e141c; --mint: #6ef2dc; --teal: #23c4ae; --amber: #fbbf24; --field: #e9eef3; --paper: #f5f7fa; --muted: #8b98a7; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
+  #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--ink);
+    font-family: 'Inter', system-ui, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+
+  /* Top band: the post's title, as a creator would put it. */
+  #title { position: absolute; left: 70px; right: 70px; top: 150px; text-align: center; }
+  #title .head { font-size: 54px; font-weight: 800; line-height: 1.12; letter-spacing: -0.015em; }
+  #title .head em { font-style: normal; color: var(--mint); }
+  #title .note { margin-top: 14px; font-size: 24px; font-weight: 500; color: var(--muted); letter-spacing: 0.01em; }
+
+  /* The screen recording, full width. */
+  #viewport { position: absolute; left: 0; top: 330px; width: 1080px; height: 1120px; overflow: hidden; background: var(--field); }
+  #cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  #cam img { display: block; }
+  #cam.window img { border-radius: 14px; box-shadow: 0 30px 70px -30px rgba(14, 20, 28, 0.45), 0 0 0 1px rgba(14, 20, 28, 0.08); }
+  .pill { position: absolute; padding: 10px 20px; border-radius: 999px; font-size: 26px; font-weight: 650; white-space: nowrap; }
+  #sped { right: 28px; top: 26px; background: rgba(14, 20, 28, 0.78); color: #fff; }
+  #keycap { left: 50%; top: 830px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px;
+    padding: 18px 34px; border-radius: 22px; background: #fff; color: var(--ink); font-size: 44px; font-weight: 700;
+    box-shadow: 0 10px 0 #c9d2dc, 0 26px 40px -18px rgba(14, 20, 28, 0.55); }
+  #keycap svg { width: 44px; height: 44px; }
+
+  /* Captions: a few words at a time, the spoken word lit. */
+  #caps { position: absolute; left: 60px; right: 60px; top: 1478px; height: 170px; display: flex; align-items: center; justify-content: center; }
+  #caps .chunk { text-align: center; font-size: 76px; font-weight: 850; line-height: 1.04; letter-spacing: -0.02em; transform-origin: 50% 60%; }
+  #caps .w { display: inline-block; margin: 0 0.12em; color: #fff; }
+  #caps .w.on { color: var(--mint); }
+  #caps .w.past { color: #fff; }
+  #caps .w.next { color: rgba(255, 255, 255, 0.45); }
+
+  /* End card. */
+  #end { position: absolute; left: 0; top: 330px; width: 1080px; height: 1120px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; }
+  #end img { width: 230px; height: 230px; }
+  #end .name { margin-top: 26px; font-size: 118px; font-weight: 850; letter-spacing: -0.035em; }
+  #end .chips { margin-top: 34px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; width: 900px; }
+  #end .chip { padding: 14px 26px; border-radius: 999px; background: rgba(110, 242, 220, 0.12); color: var(--mint);
+    font-size: 34px; font-weight: 650; border: 2px solid rgba(110, 242, 220, 0.35); }
+  #end .url { margin-top: 40px; font-size: 40px; font-weight: 600; color: #fff; opacity: 0.9; }
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="title">
+    <div class="head">POV: your Mac <em>remembers</em> your meetings</div>
+    <div class="note">Real app · fictional demo data</div>
+  </div>
+  <div id="viewport">
+    <div id="cam"><img id="foot" alt=""></div>
+    <div id="sped" class="pill">sped up</div>
+    <div id="keycap" class="pill"><span>tab</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0e141c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h15"/><path d="M13 6l6 6-6 6"/><path d="M21 5v14"/></svg>
+    </div>
+  </div>
+  <div id="end">
+    <img src="assets/brand/lokalbot-icon.svg" alt="">
+    <div class="name">LokalBot</div>
+    <div class="chips"><span class="chip" data-word="free">Free</span><span class="chip" data-word="open">Open source</span><span class="chip" data-word="runs">AI on your Mac</span></div>
+    <div class="url">lokalbot.com</div>
+  </div>
+  <div id="caps"></div>
+</div>
+<script type="module" src="comp.js"></script>
+</body>
+</html>
