@@ -71,7 +71,8 @@ enum MeetingRadarAnalyzer {
     - Skip greetings, small talk, filler, and anything you would have to guess.
     - text: one short sentence of at most 20 words, in the language the meeting is held in. For a \
     commitment, write only the task, as an instruction without its owner or deadline ("Book the venue \
-    for the offsite", not "Me will book the venue by Monday"); owner and due carry the rest.
+    for the offsite", not "Me will book the venue by Monday"); owner and due carry the rest. Write a \
+    question as the question itself ("What was trial-to-paid conversion last month?").
     - evidence is "" for everything except contradictions.
     - Most passes add nothing. Then return {"items": [], "answered": []}.
     """

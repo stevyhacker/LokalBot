@@ -232,42 +232,67 @@ struct RadarItemList: View {
     }
 }
 
-/// The answer to a meeting question, with the crop of the earlier screen
-/// capture it came from. Clicking opens the capture in screen memory.
+/// The answer to a meeting question, with the line it quotes and the crop
+/// of the earlier screen capture it came from. Clicking the crop shows it
+/// full size, with a way into screen memory.
 private struct RadarScreenAnswerView: View {
     @EnvironmentObject var app: AppState
     let answer: RadarScreenAnswer
     let folder: URL?
     @State private var image: NSImage?
+    @State private var enlarged = false
 
     var body: some View {
-        Button { app.openScreenSnapshot(answer.snapshotID) } label: {
-            VStack(alignment: .leading, spacing: 6) {
-                Label("On your screen", systemImage: "rectangle.on.rectangle")
-                    .font(.scaled(.caption).weight(.semibold))
-                Text(answer.text)
-                    .font(.scaled(.title3).weight(.semibold))
-                    .textSelection(.enabled)
-                if let image {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("On your screen", systemImage: "rectangle.on.rectangle")
+                .font(.scaled(.caption).weight(.semibold))
+            Text(verbatim: answer.text)
+                .font(.scaled(.title3).weight(.semibold))
+                .textSelection(.enabled)
+            Text(verbatim: "“\(answer.quote)”")
+                .font(.scaled(.callout))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+            if let image {
+                Button { enlarged = true } label: {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: 150, alignment: .leading)
+                        .frame(maxWidth: .infinity, maxHeight: 160, alignment: .leading)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
-                        .accessibilityLabel("Screen capture: \(answer.quote)")
                 }
-                Text(source)
-                    .font(.scaled(.caption))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Screen capture: \(answer.quote)"))
+                .accessibilityIdentifier("radar.screenAnswer.image")
+                .popover(isPresented: $enlarged) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(maxWidth: 760, maxHeight: 520)
+                        HStack {
+                            Text(verbatim: source).font(.scaled(.caption)).foregroundStyle(.secondary)
+                            Spacer()
+                            Button("Open Capture") {
+                                enlarged = false
+                                app.openScreenSnapshot(answer.snapshotID)
+                            }
+                            .help("Open this capture in screen memory")
+                        }
+                    }
+                    .padding(12)
+                }
             }
-            .padding(8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .lbStatusSurface(LBTokens.Palette.success)
+            Text(verbatim: source)
+                .font(.scaled(.caption))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
         }
-        .buttonStyle(.plain)
-        .help("Open this capture in screen memory")
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .lbStatusSurface(LBTokens.Palette.success)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("radar.screenAnswer")
         .task(id: answer.image) {
             guard let folder else { return }

@@ -131,8 +131,9 @@ enum RadarScreenAnswers {
         try? VNImageRequestHandler(cgImage: image).perform([request])
     }
 
-    /// Reads the capture's text on this Mac and keeps a full-width band
-    /// around the lines that mention the question's words. Nil when none do.
+    /// Reads the capture's text on this Mac and keeps a band around the lines
+    /// that mention the question's words, as wide as the text in it. Nil when
+    /// none do.
     nonisolated static func crop(_ data: Data, terms: [String]) -> RadarScreenCrop? {
         guard !terms.isEmpty,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
@@ -165,11 +166,17 @@ enum RadarScreenAnswers {
             band = CGRect(x: 0, y: top.midY - 0.25, width: 1, height: 0.5)
         }
         band = CGRect(x: 0, y: max(0, band.minY), width: 1, height: min(1, band.maxY) - max(0, band.minY))
+        let inside = lines.filter { band.contains(CGPoint(x: $0.box.midX, y: $0.box.midY)) }
+        // Only as wide as the text in the band, so the crop stays readable
+        // in the narrow radar pane and leaves the rest of the screen out.
+        let columns = inside.map(\.box).reduce(top) { $0.union($1) }
+        band.origin.x = max(0, columns.minX - 0.03)
+        band.size.width = min(1, columns.maxX + 0.03) - band.origin.x
         let width = CGFloat(image.width), height = CGFloat(image.height)
         // Vision's origin is bottom-left; CGImage cropping is top-left.
-        let pixels = CGRect(x: 0, y: (1 - band.maxY) * height, width: width, height: band.height * height).integral
+        let pixels = CGRect(x: band.minX * width, y: (1 - band.maxY) * height,
+                            width: band.width * width, height: band.height * height).integral
         guard let cropped = image.cropping(to: pixels), let jpeg = jpegData(cropped) else { return nil }
-        let inside = lines.filter { $0.box.intersects(band) && band.contains(CGPoint(x: $0.box.midX, y: $0.box.midY)) }
         return RadarScreenCrop(jpeg: jpeg, text: readingOrder(inside))
     }
 
