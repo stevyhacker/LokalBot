@@ -1,0 +1,25 @@
+{
+  "voice_direction": "Casual creator voice showing a friend an app on their laptop: relaxed, quick, a little amused, natural American English. Not a narrator, not salesy, no announcer energy.",
+  "scenes": [
+    {
+      "id": "01-hook",
+      "caption": "Forgot what you agreed on in that meeting? Your Mac didn't."
+    },
+    {
+      "id": "02-notes",
+      "caption": "LokalBot records your calls locally. No bot joins the meeting. Then it writes up the recap and every decision."
+    },
+    {
+      "id": "03-cite",
+      "caption": "Each one links back to the exact moment it was said."
+    },
+    {
+      "id": "04-tab",
+      "caption": "So when you write the follow-up, it already knows. Just hit Tab."
+    },
+    {
+      "id": "05-end",
+      "caption": "It's free, open source, and the AI runs on your Mac. It's called LokalBot."
+    }
+  ]
+}
