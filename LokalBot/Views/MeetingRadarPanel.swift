@@ -19,10 +19,10 @@ struct MeetingRadarPanel: View {
                 controls.fixedSize()
             }
             status
-            RadarItemList(items: items, emptyMessage: emptyMessage)
+            RadarItemList(items: items, emptyMessage: emptyMessage, folder: meeting.folderURL(in: app.storage))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .lbGroupedSurface()
-            Text("Muse reads new transcript lines as text. Audio and speakers stay on this Mac.")
+            Text(footnote)
                 .font(.scaled(.caption2))
                 .foregroundStyle(.tertiary)
         }
@@ -76,6 +76,14 @@ struct MeetingRadarPanel: View {
         }
     }
 
+    private var footnote: String {
+        var sent = ["new transcript lines as text"]
+        if app.settings.museScreenAnswersEnabled { sent.append("crops of screen captures that answer a question") }
+        let audio = app.settings.museLiveTextEnabled ? "Speakers stay on this Mac; fast live text streams audio."
+            : "Audio and speakers stay on this Mac."
+        return "Muse reads " + sent.joined(separator: " and ") + ". " + audio
+    }
+
     private var modelName: String {
         MetaModelAPI.displayName(for: isThisMeeting ? radar.model : app.settings.museRadarModel)
     }
@@ -105,6 +113,8 @@ struct RadarItemList: View {
     /// Offered on the person's own commitments once the meeting has ended.
     var followThrough: ((RadarItem) -> Void)?
     var openSource: ((RadarItem) -> Void)?
+    /// The meeting folder, where screen-answer crops are saved.
+    var folder: URL?
     /// False inside a page that already scrolls.
     var scrolls = true
 
@@ -133,8 +143,16 @@ struct RadarItemList: View {
 
     private var groups: some View {
         VStack(alignment: .leading, spacing: 12) {
+            let fromScreen = items.filter { $0.screenAnswer != nil }
+            if !fromScreen.isEmpty {
+                Text("Answered from your screen")
+                    .font(.scaled(.caption).weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                ForEach(fromScreen) { item in row(item) }
+            }
             ForEach(Self.order, id: \.self) { kind in
-                let group = items.filter { $0.kind == kind }
+                let group = items.filter { $0.kind == kind && $0.screenAnswer == nil }
                 if !group.isEmpty {
                     Text(kind.pluralLabel)
                         .font(.scaled(.caption).weight(.semibold))
@@ -190,6 +208,9 @@ struct RadarItemList: View {
                 .buttonStyle(.plain)
                 .help(earlier.isCurrentMeeting ? "" : "Open the earlier meeting at this passage")
             }
+            if let answer = item.screenAnswer {
+                RadarScreenAnswerView(answer: answer, folder: folder)
+            }
             if let followThrough, item.isUserCommitment {
                 Button("Follow Through…") { followThrough(item) }
                     .buttonStyle(.bordered)
@@ -199,5 +220,56 @@ struct RadarItemList: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("radar.item.\(item.kind.rawValue).\(item.id)")
+    }
+}
+
+/// The answer to a meeting question, with the crop of the earlier screen
+/// capture it came from. Clicking opens the capture in screen memory.
+private struct RadarScreenAnswerView: View {
+    @EnvironmentObject var app: AppState
+    let answer: RadarScreenAnswer
+    let folder: URL?
+    @State private var image: NSImage?
+
+    var body: some View {
+        Button { app.openScreenSnapshot(answer.snapshotID) } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("On your screen", systemImage: "rectangle.on.rectangle")
+                    .font(.scaled(.caption).weight(.semibold))
+                Text(answer.text)
+                    .font(.scaled(.title3).weight(.semibold))
+                    .textSelection(.enabled)
+                if let image {
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: 150, alignment: .leading)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.separator))
+                        .accessibilityLabel("Screen capture: \(answer.quote)")
+                }
+                Text(source)
+                    .font(.scaled(.caption))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .lbStatusSurface(LBTokens.Palette.success)
+        }
+        .buttonStyle(.plain)
+        .help("Open this capture in screen memory")
+        .accessibilityIdentifier("radar.screenAnswer")
+        .task(id: answer.image) {
+            guard let folder else { return }
+            let url = folder.appendingPathComponent(answer.image)
+            let data = await Task.detached { try? Data(contentsOf: url) }.value
+            image = data.flatMap(NSImage.init(data:))
+        }
+    }
+
+    private var source: String {
+        let title = answer.windowTitle.isEmpty ? "" : " · \(answer.windowTitle)"
+        return "\(answer.app)\(title) · \(answer.capturedAt.formatted(date: .abbreviated, time: .shortened))"
     }
 }

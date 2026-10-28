@@ -78,6 +78,7 @@ final class MeetingRadar: ObservableObject {
 
     private let transcriber: RadarLineFeed
     private let evidenceSource: RadarEvidenceSource
+    private let screenSource: RadarScreenSource?
     private let settings: () -> AppSettings
     private let call: ModelCall
     private let availability: (AppSettings) -> String?
@@ -101,9 +102,15 @@ final class MeetingRadar: ObservableObject {
     private var linesSubscription: AnyCancellable?
     private var loop: Task<Void, Never>?
     private var generation = 0
+    /// Screen answers in flight, by question item id.
+    private var answerTasks: [String: Task<Void, Never>] = [:]
+    /// Changes when answers are cancelled, so a late reply can't land in the
+    /// next meeting. `finish()` keeps it, so answers still arriving are saved.
+    private var answerEpoch = 0
 
     init(transcriber: RadarLineFeed,
          evidenceSource: RadarEvidenceSource,
+         screenSource: RadarScreenSource? = nil,
          settings: @escaping () -> AppSettings,
          call: ModelCall? = nil,
          availability: @escaping (AppSettings) -> String? = MeetingRadar.unavailableReason,
@@ -111,6 +118,7 @@ final class MeetingRadar: ObservableObject {
          now: @escaping () -> Date = Date.init) {
         self.transcriber = transcriber
         self.evidenceSource = evidenceSource
+        self.screenSource = screenSource
         self.settings = settings
         self.availability = availability
         self.timing = timing
@@ -142,6 +150,9 @@ final class MeetingRadar: ObservableObject {
         retryAfter = nil
         statusMessage = nil
         state = .running
+        if screenSource != nil, settings().museScreenAnswersEnabled {
+            Task.detached(priority: .utility) { RadarScreenAnswers.warmUp() }
+        }
         if !transcriber.isRunning { transcriber.activatePreview() }
         linesSubscription = transcriber.linesPublisher.sink { [weak self] lines in
             Task { @MainActor in self?.ingest(lines) }
@@ -155,6 +166,7 @@ final class MeetingRadar: ObservableObject {
     /// The person pressed Stop Radar. Lines not yet read stay unread.
     func stop() {
         cancelLoop()
+        cancelAnswers()
         linesSubscription = nil
         if state != .off { state = .off }
         statusMessage = nil
@@ -175,6 +187,7 @@ final class MeetingRadar: ObservableObject {
         while !pending.isEmpty, failures < Self.maximumConsecutiveFailures, generation == session {
             await pass(session: session)
         }
+        for task in answerTasks.values { await task.value }
         save()
         if generation == session { state = .off }
         statusMessage = nil
@@ -184,6 +197,7 @@ final class MeetingRadar: ObservableObject {
 
     private func reset(for meeting: Meeting?, folder: URL?) {
         cancelLoop()
+        cancelAnswers()
         linesSubscription = nil
         self.meeting = meeting
         self.folder = folder
@@ -287,6 +301,9 @@ final class MeetingRadar: ObservableObject {
                 if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
             }
             items.append(contentsOf: outcome.added)
+            if screenSource != nil, settings().museScreenAnswersEnabled {
+                for question in outcome.added where question.kind == .question { answerFromScreen(question) }
+            }
             let consumed = Set(batch)
             pending.removeAll { consumed.contains($0) }
             analyzed.append(contentsOf: batch)
@@ -316,6 +333,75 @@ final class MeetingRadar: ObservableObject {
             statusMessage = "Radar request failed: \(error.localizedDescription)"
             lokalbotLog("live radar pass failed attempt=\(failures) error=\(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Screen answers
+
+    private func cancelAnswers() {
+        answerTasks.values.forEach { $0.cancel() }
+        answerTasks = [:]
+        answerEpoch += 1
+    }
+
+    /// Looks for the answer to a question the radar just caught in earlier
+    /// screen captures: local search and cropping on this Mac, then one
+    /// request with up to three crops. Runs beside the passes.
+    private func answerFromScreen(_ question: RadarItem) {
+        guard let screenSource, let meeting, let folder, answerTasks[question.id] == nil else { return }
+        let model = model, call = call, epoch = answerEpoch
+        let asked = RadarScreenAnswers.question(question)
+        answerTasks[question.id] = Task { [weak self] in
+            let crops = await RadarScreenAnswers.crops(for: asked, from: screenSource)
+            guard !crops.isEmpty, !Task.isCancelled else { return }
+            let started = ContinuousClock.now
+            do {
+                let reply = try await call(
+                    RadarScreenAnswers.messages(question: asked, meetingTitle: meeting.displayTitle,
+                                                meetingDate: meeting.startedAt, crops: crops),
+                    RadarScreenAnswers.schema, model)
+                guard let self, self.answerEpoch == epoch else { return }
+                self.recordScreenAnswer(reply, crops: crops, question: question.id, folder: folder,
+                                        model: model, started: started)
+            } catch {
+                lokalbotLog("live radar screen answer failed error=\(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func recordScreenAnswer(_ reply: MuseChatClient.Reply,
+                                    crops: [(capture: RadarScreenCapture, crop: RadarScreenCrop)],
+                                    question id: String, folder: URL, model: String, started: ContinuousClock.Instant) {
+        let elapsed = (ContinuousClock.now - started).components
+        let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+        let found = RadarScreenAnswers.answer(from: reply.content, crops: crops.map(\.crop))
+        var stored: RadarScreenAnswer?
+        if let found, let index = items.firstIndex(where: { $0.id == id }) {
+            let capture = crops[found.index].capture
+            let name = "\(RadarScreenAnswers.folderName)/\(id).jpg"
+            do {
+                let directory = folder.appendingPathComponent(RadarScreenAnswers.folderName, isDirectory: true)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                try crops[found.index].crop.jpeg.write(to: folder.appendingPathComponent(name), options: .atomic)
+                stored = RadarScreenAnswer(text: found.text, quote: found.quote, snapshotID: capture.snapshotID,
+                                           capturedAt: capture.capturedAt, app: capture.app,
+                                           windowTitle: capture.windowTitle, image: name, model: model)
+                items[index].screenAnswer = stored
+            } catch {
+                lokalbotLog("live radar screen answer save failed error=\(error.localizedDescription)")
+            }
+        }
+        let request = RadarPass(
+            at: now(), seconds: seconds, newLines: 0, evidence: crops.count,
+            inputTokens: reply.usage.inputTokens, outputTokens: reply.usage.outputTokens,
+            reasoningTokens: reply.usage.reasoningTokens, cost: MetaModelAPI.cost(of: reply.usage, model: model),
+            added: stored == nil ? 0 : 1, rejected: found == nil ? 1 : 0)
+        let earlier = record?.screenAnswerRequests ?? []
+        record?.screenAnswerRequests = earlier + [request]
+        totals.cost += request.cost
+        answerTasks[id] = nil
+        lokalbotLog("live radar screen answer crops=\(crops.count) found=\(stored != nil) "
+            + "seconds=\(String(format: "%.2f", seconds))")
+        save()
     }
 
     private func save() {

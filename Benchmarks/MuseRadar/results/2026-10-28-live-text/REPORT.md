@@ -1,6 +1,8 @@
-# Fast live text on a voiced meeting — 28 October 2026
+# Fast live text and screen answers on voiced meetings — 28 October 2026
 
 **Result:** with fast live text, Live Radar showed each planted item a median **8.0 s** after the sentence began, about **3 s after the speaker finished**. With the local preview's 12-second chunks and 20-second passes, the text replays of this meeting showed items 15–25 s after they were said, and the AMI replays a median 23 s ([AMI evaluation](../2026-10-27/REPORT.md)). It caught all six planted items from the audio, including both contradictions with the earlier meeting, and rejected nothing.
+
+**Screen answers:** on the demo call, a question asked out loud was answered from a synthetic capture of a metrics dashboard 2.6 s after the radar caught it, with the quote checked against the capture's own text. The radar also caught the launch-date check as a question, and screen answers answered it from a synthetic launch plan: "No, Monday November 3".
 
 ## Setup
 
@@ -30,6 +32,20 @@
 - **Passes.** 14 passes, a median 2.16 s each (max 3.08 s), $0.025 in all, about $0.81 per meeting hour at this pace of turns.
 - **Audio.** Muse Voice Transcribe is $0.18 per audio hour per track, $0.36 per meeting hour for two tracks.
 
+## Screen answers on the demo call
+
+- **Run.** `--radar-replay fixtures/synthetic-demo-call.json --audio <voiced folder> --screens fixtures/screens`: the demo video's call, voiced the same way (87 s per track, [line timings](voiced-demo-call-lines.json)), with two synthetic captures standing in for screen memory: a Safari metrics dashboard and a Notion launch plan, both from the week before ([output](synthetic-demo-call-audio-screens.jsonl)).
+- **Radar.** All six planted items again (two commitments, two contradictions, the decision, and the open question), a median 7.0 s after each sentence began, none rejected. It also caught "Is the launch now Friday the 7th?" as a question.
+- **Answers.**
+
+  | Question | Answer | Quote, found in the crop's text | Crop | Request | Shown after the question began |
+  |---|---|---|---:|---:|---:|
+  | What was trial-to-paid conversion last month? | 4.1% (Safari) | "Trial to paid, September 4.1%" | 0.26 s | 2.3 s | 10.6 s |
+  | Is the launch now Friday the 7th? | No, Monday November 3 (Notion) | "Launch Monday, November 3" | 0.17 s | 4.2 s | 14.6 s |
+
+  Each request sent one crop: a full-width band around the matching rows, not the whole capture. They cost $0.006 together.
+- **Cold start.** An earlier run the same morning took 28.7 s for the first answer: the first use of Vision's accurate text recognizer on this Mac took 26 s to load, and later uses took 0.07–0.15 s, in a fresh process too. That run's quote was only "4.1%"; the prompt now asks for the whole line, label and value. Start Radar now warms the recognizer up in the background when screen answers are on.
+
 ## Limits
 
-One synthetic meeting, two synthetic voices, clean audio with no crosstalk or echo, and one run. Real calls bring overlap, echo on the microphone track, and accents. The run sent only synthetic speech and text to Meta.
+Two synthetic meetings, two synthetic voices, clean audio with no crosstalk or echo, one run each with the current code, and two synthetic captures in place of a real screen history, where many more captures would match a question's words. Real calls bring overlap, echo on the microphone track, and accents. The runs sent only synthetic speech, text, and images to Meta.

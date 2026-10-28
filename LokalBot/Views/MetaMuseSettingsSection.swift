@@ -15,6 +15,11 @@ struct MetaMuseSettingsSection: View {
         + "tools read. Audio stays on this Mac unless you turn on fast live text, and voices and calendar email "
         + "addresses always do. The same approval covers Think if you point it at this server."
 
+    static let screenAnswersHelp = "When Live Radar catches a question, LokalBot searches your screen memory on this "
+        + "Mac for captures that mention it, crops each to the rows that do, and sends up to three crops with their app, "
+        + "window title, and time to Muse Spark. An answer is shown only when its quote is in the crop's own text. "
+        + "Whole screenshots and the search stay on this Mac."
+
     static let liveTextHelp = "While the live transcript preview runs, streams the microphone and call audio to "
         + "\(MuseLiveText.displayName), which returns each turn's text about a second after it ends. Without it, the "
         + "preview transcribes 12-second chunks on this Mac. Who said what still comes from your microphone and the "
@@ -36,6 +41,13 @@ struct MetaMuseSettingsSection: View {
             .disabled(!app.settings.metaModelAPIApproved)
             .accessibilityIdentifier("settings.metaMuse.liveText")
             .settingTarget("settings.museLiveTextEnabled", selected: app.focusedSettingID)
+
+            Toggle(isOn: $app.settings.museScreenAnswersEnabled) {
+                SettingsLabel("Answer meeting questions from your screen", help: Self.screenAnswersHelp)
+            }
+            .disabled(!app.settings.metaModelAPIApproved)
+            .accessibilityIdentifier("settings.metaMuse.screenAnswers")
+            .settingTarget("settings.museScreenAnswersEnabled", selected: app.focusedSettingID)
 
             LabeledContent("API key") { keyControl }
                 .settingTarget("settings.metaModelAPIKey", selected: app.focusedSettingID)

@@ -345,7 +345,7 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
-- **Optional Meta Muse (Live Radar, fast live text, and Follow-through):** off until you add a
+- **Optional Meta Muse (Live Radar, fast live text, screen answers, and Follow-through):** off until you add a
   Meta Model API key and turn on "Allow sending meeting text to
   https://api.meta.ai" in Settings → Recording → Meta Muse. That switch adds
   the origin to the same approved-server list Think uses, so revoking it in
@@ -374,6 +374,18 @@ The app may make these outbound connections:
     from which track the audio is on, not from Muse. The full transcript is
     still made on this Mac after the meeting, and the recording is never
     uploaded as a file.
+  - **Screen answers** is another separate switch, off by default. While it
+    is on and Live Radar catches a question, LokalBot searches your screen
+    memory on this Mac for earlier captures whose text matches the question,
+    leaving out LokalBot's own windows. Vision on this Mac crops each match to
+    a full-width band around the lines that mention the question's words, and
+    up to three crops go to Muse Spark with their app name, window title, and
+    capture time. Whole screenshots, the search, and the rest of screen memory
+    stay on this Mac, and what screen memory never captured (excluded apps
+    and sites, private windows) can't be sent. An answer is kept only when the
+    quote Muse gives is in the crop's own text, as read on this Mac; its crop
+    is saved in the meeting folder (`radar-answers/`) and deleted with the
+    meeting.
   - **Follow-through** runs only when you choose Follow Through with Muse on
     one action. It sends Muse Wonder (or the model you choose) the action, its
     quoted source lines, the meeting title, date, invited names, the meeting

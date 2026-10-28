@@ -764,6 +764,7 @@ private struct MeetingWorkspaceDetail: View {
                 RadarItemList(items: radar.items,
                               followThrough: { app.followThrough($0, in: meeting) },
                               openSource: { revealEvidence(at: $0.time) },
+                              folder: meeting.folderURL(in: app.storage),
                               scrolls: false)
                 Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · "
                      + RadarItemList.costLabel(radar.cost))

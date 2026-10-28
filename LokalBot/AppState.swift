@@ -940,6 +940,7 @@ final class AppState: ObservableObject {
             searchIndex: searchIndex,
             embeddingIndex: embeddingIndex,
             settings: { [store = settingsStore] in store.current }),
+        screenSource: LibraryRadarScreenSource(store: activityStore),
         settings: { [store = settingsStore] in store.current })
 
     @MainActor

@@ -30,12 +30,17 @@ Both read the key from `META_API_KEY`. `--radar-replay` also takes `--base-url <
 
 `fixtures/synthetic-follow-through.json` is the follow-through case for the user's commitment from that meeting.
 
+`fixtures/synthetic-demo-call.json` is the demo video's call. It swaps the annual-discount question for one the screen can answer ("What was our trial-to-paid conversion last month?"). `fixtures/screens/` holds two synthetic captures for `--screens`, a metrics dashboard and a launch plan, with `screens.json` giving each one's app, window title, and capture time.
+
 ```bash
 APP="path/to/DerivedData/Build/Products/Debug/LokalBot Dev.app"
 "$APP/Contents/MacOS/LokalBot Dev" --radar-replay fixtures/synthetic-launch-sync.json --model muse-spark-1.3
 "$APP/Contents/MacOS/LokalBot Dev" --follow-through-replay fixtures/synthetic-follow-through.json --model muse-wonder-1.0
 python3 -I voice_fixture.py fixtures/synthetic-launch-sync.json /private/tmp/voiced-launch-sync
 "$APP/Contents/MacOS/LokalBot Dev" --radar-replay fixtures/synthetic-launch-sync.json --audio /private/tmp/voiced-launch-sync
+python3 -I voice_fixture.py fixtures/synthetic-demo-call.json /private/tmp/voiced-demo-call
+"$APP/Contents/MacOS/LokalBot Dev" --radar-replay fixtures/synthetic-demo-call.json --audio /private/tmp/voiced-demo-call \
+  --screens fixtures/screens
 ```
 
 ## AMI meetings

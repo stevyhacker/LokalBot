@@ -2,7 +2,7 @@
 
 This branch is LokalBot's entry to the Meta Global AI Developer Hackathon (26 October – 4 November 2026). It adds two features to LokalBot, a private work-memory app for macOS:
 
-- **Live Radar.** While a meeting is recorded, it catches commitments, decisions, and open questions as they are said. It also flags contradictions with earlier meetings, such as "On 19 Oct you agreed the launch is Monday the 3rd". With fast live text, Muse Voice Transcribe streams the transcript turn by turn, and items appear about 3 seconds after the speaker finishes.
+- **Live Radar.** While a meeting is recorded, it catches commitments, decisions, and open questions as they are said. It also flags contradictions with earlier meetings, such as "On 19 Oct you agreed the launch is Monday the 3rd". With fast live text, Muse Voice Transcribe streams the transcript turn by turn, and items appear about 3 seconds after the speaker finishes. With screen answers, a question asked in the meeting is answered from something you had on screen earlier: local search finds the capture, Vision on the Mac crops it, and Muse Spark reads the crop.
 - **Follow-through.** After the meeting, Muse plans the work for one of your commitments. It reads what it needs from your meetings, then proposes an email, a calendar invitation, or a task for a coding agent. You approve each step, and each opens as a draft.
 
 ## What is new
@@ -17,6 +17,7 @@ git diff --stat v0.11.4...meta-hackathon
 - **Live Radar.**
   - Services: [`LokalBot/Services/MeetingRadar/`](LokalBot/Services/MeetingRadar/). `MeetingRadar` runs the passes, `MeetingRadarAnalyzer` builds the prompt and checks grounding, `LibraryRadarEvidenceSource` searches earlier meetings locally, and `MeetingRadarReplay` is the replay harness.
   - Fast live text: [`MuseLiveText.swift`](LokalBot/Services/MeetingRadar/MuseLiveText.swift) streams each recorded track to Muse Voice Transcribe's realtime endpoint, and `LiveMeetingTranscriber` uses it in place of local chunks when the setting is on.
+  - Screen answers: [`RadarScreenAnswers.swift`](LokalBot/Services/MeetingRadar/RadarScreenAnswers.swift) searches screen memory, crops captures with Vision, asks Muse Spark with images, and checks the answer's quote against the crop's text.
   - Views: the live pane and saved-results list in [`MeetingRadarPanel.swift`](LokalBot/Views/MeetingRadarPanel.swift).
 - **Follow-through.**
   - Services: [`LokalBot/Services/FollowThrough/`](LokalBot/Services/FollowThrough/). It holds the tool definitions and proposals, the approval-gated agent loop, the app's read tools and hand-offs, and the replay harness.
@@ -39,7 +40,7 @@ Recording, transcription, speaker separation, search, meeting notes, actions, an
 
 | Model | Where | Why |
 |---|---|---|
-| Muse Spark 1.3 | Live Radar, one structured-output request about every 20 s | Fast enough to keep up with a meeting: median 1.05 s per request on AMI, $0.49 per meeting hour. Wonder is offered for more decisions at 2.5× the cost |
+| Muse Spark 1.3 | Live Radar, one structured-output request per turn or about every 20 s; screen answers, with crops of earlier screen captures as images | Fast enough to keep up with a meeting: median 1.05 s per request on AMI, $0.49 per meeting hour. Wonder is offered for more decisions at 2.5× the cost |
 | Muse Wonder 1.0 | Follow-through, tool calling with approval | Plans the work, reads meetings, and writes drafts you can send as they are |
 | Muse Voice Transcribe 1.0 | Fast live text (opt-in): the live transcript, streamed turn by turn | Each turn's text arrives within about a second, so radar items land about 3 s after the speaker finishes instead of about 20 s ([check](Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)). Speakers come from the microphone and call tracks, because its own labels measured less accurate than local diarization ([report](Benchmarks/MuseVoiceTranscribe/results/2026-10-27/REPORT.md)) |
 
@@ -56,6 +57,7 @@ LokalBot keeps meetings on the Mac by default, and the hackathon features keep t
 ## Results so far
 
 - **Synthetic meeting:** the radar caught all 6 planted items, including both contradictions with an earlier meeting, in 6 passes and $0.016 with Spark. Wonder caught the same 6 for $0.033.
+- **Screen answers on the voiced demo call:** "What was our trial-to-paid conversion last month?" was answered "4.1%" from a synthetic dashboard capture 2.6 s after the radar caught it, quoting "Trial to paid, September 4.1%". The launch-date question was answered "No, Monday November 3" from a synthetic launch plan ([check](Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
 - **Voiced synthetic meeting, fast live text:** streamed in real time through Muse Voice Transcribe, the radar caught the same 6 items from audio and showed them a median 8.0 s after each sentence began, about 3 s after the speaker finished ([check](Benchmarks/MuseRadar/results/2026-10-28-live-text/REPORT.md)).
 - **Follow-through:** a synthetic case took 4 model turns, 20 s and $0.06 with Wonder. The result was an email draft signed with the user's name and a meeting proposal to settle the two open conflicts.
 - **AMI meetings (6.4 hours, 12 meetings, manual transcripts):** run live on Muse Spark, Live Radar caught 22 of AMI's 62 human-annotated decisions and 8 of its 20 actions. LokalBot's post-meeting notes from the local Qwen3.5 4B, on the same text, caught 2 and 3.

@@ -1,7 +1,7 @@
 import Foundation
 
 /// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]
-///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>]`
+///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>] [--screens <folder>]`
 ///
 /// Replays a timed transcript through Live Radar's request, grounding checks,
 /// and Meta Model API client, and prints one JSON line per pass and a summary.
@@ -21,6 +21,11 @@ import Foundation
 /// stream to Muse Voice Transcribe through the app's client, each finished
 /// turn becomes a line, and a pass follows each turn (`--interval` defaults
 /// to the app's 3 s turn interval). Times are measured on the wall clock.
+///
+/// `--screens` adds screen answers: the folder's `screens.json` lists
+/// synthetic captures (`file`, `capturedAt`, `app`, `windowTitle`), and each
+/// question the radar catches is answered from them as the app does from
+/// screen memory, with the crops made by Vision on this Mac.
 enum MeetingRadarReplay {
     struct Fixture: Decodable {
         struct Line: Decodable {
@@ -53,6 +58,35 @@ enum MeetingRadarReplay {
         var baseURL: URL?
         var reasoningLine: String?
         var audio: URL?
+        var screens: URL?
+    }
+
+    /// Captures from a fixture folder instead of screen memory.
+    @MainActor
+    final class FixtureScreens: RadarScreenSource {
+        struct Entry: Decodable {
+            let file: String
+            let capturedAt: Date
+            let app: String
+            let windowTitle: String
+        }
+
+        let captures: [RadarScreenCapture]
+
+        init(folder: URL) throws {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let entries = try decoder.decode([Entry].self, from: Data(contentsOf: folder.appendingPathComponent("screens.json")))
+            captures = entries.enumerated().map { index, entry in
+                let url = folder.appendingPathComponent(entry.file)
+                return RadarScreenCapture(snapshotID: Int64(index + 1), capturedAt: entry.capturedAt, app: entry.app,
+                                          windowTitle: entry.windowTitle, imageData: { try? Data(contentsOf: url) })
+            }
+        }
+
+        func captures(for question: String, before: Date, limit: Int) async -> [RadarScreenCapture] {
+            Array(captures.filter { $0.capturedAt < before }.prefix(limit))
+        }
     }
 
     static func parse(_ args: [String]) -> Options? {
@@ -69,7 +103,8 @@ enum MeetingRadarReplay {
                        delay: value("--delay").flatMap(Double.init).map { max(0, $0) } ?? 12,
                        baseURL: value("--base-url").flatMap(URL.init(string:)),
                        reasoningLine: value("--reasoning-line"),
-                       audio: audio)
+                       audio: audio,
+                       screens: value("--screens").map { URL(fileURLWithPath: $0, isDirectory: true) })
     }
 
     @MainActor
@@ -100,9 +135,19 @@ enum MeetingRadarReplay {
         let system = options.reasoningLine.map { "Reasoning effort: \($0)\n\n" + MeetingRadarAnalyzer.system }
             ?? MeetingRadarAnalyzer.system
         let meetingID = UUID()
+        var screens: FixtureScreens?
+        if let folder = options.screens {
+            do {
+                screens = try FixtureScreens(folder: folder)
+            } catch {
+                FileHandle.standardError.write(Data("radar-replay: \(folder.path): \(error.localizedDescription)\n".utf8))
+                return 2
+            }
+        }
+        let answers = ScreenAnswerRuns(screens: screens, client: client, fixture: fixture)
         if let audio = options.audio {
             return await runLive(options, audio: audio, fixture: fixture, client: client, system: system,
-                                 meetingID: meetingID, excerpts: excerpts(fixture), key: key)
+                                 meetingID: meetingID, excerpts: excerpts(fixture), key: key, answers: answers)
         }
         let lines = fixture.lines.enumerated().map { index, line in
             MeetingRadarAnalyzer.Line(label: "L\(index + 1)", time: line.time, speaker: line.speaker, text: line.text)
@@ -142,6 +187,9 @@ enum MeetingRadarReplay {
                 // Simulated meeting time at which the person would see each item.
                 let shownAt = min(clock, end) + seconds
                 items += outcome.added
+                for question in outcome.added where question.kind == .question {
+                    await answers.answer(question)?.value
+                }
                 analyzed += fresh
                 let pass: [String: Any] = [
                     "pass": passes.count + 1, "at": min(clock, end), "newLines": fresh.count,
@@ -176,10 +224,74 @@ enum MeetingRadarReplay {
                 "passSecondsMedian": seconds.isEmpty ? 0 : seconds[seconds.count / 2],
                 "passSecondsMax": seconds.last ?? 0,
                 "shownAfterMedian": delays.isEmpty ? 0 : delays.sorted()[delays.count / 2],
+                "screenAnswers": answers.results,
             ] as [String: Any],
         ]
         print(json(summary))
         return 0
+    }
+
+    /// Screen answers for a replay: the app's search-and-crop step and
+    /// grounding check, run against fixture captures. Each result is printed
+    /// as a `screenAnswer` line and kept for the summary.
+    @MainActor
+    final class ScreenAnswerRuns {
+        let screens: FixtureScreens?
+        let client: MuseChatClient
+        let fixture: Fixture
+        private(set) var results: [[String: Any]] = []
+        private var tasks: [Task<Void, Never>] = []
+
+        init(screens: FixtureScreens?, client: MuseChatClient, fixture: Fixture) {
+            self.screens = screens
+            self.client = client
+            self.fixture = fixture
+        }
+
+        /// Nil without `--screens`. `elapsed` gives the wall-clock delay from
+        /// the question to the answer; without it the request time is used.
+        @discardableResult
+        func answer(_ question: RadarItem, elapsed: (@MainActor () -> Double)? = nil) -> Task<Void, Never>? {
+            guard let screens else { return nil }
+            let task = Task { @MainActor in
+                let asked = RadarScreenAnswers.question(question)
+                let started = ContinuousClock.now
+                let crops = await RadarScreenAnswers.crops(for: asked, from: screens, before: fixture.date)
+                let cropping = (ContinuousClock.now - started).components
+                var result: [String: Any] = ["question": question.text, "crops": crops.count,
+                                             "cropSeconds": Double(cropping.seconds) + Double(cropping.attoseconds) / 1e18]
+                if !crops.isEmpty {
+                    do {
+                        var request = client
+                        request.purpose = "radar replay screen answer"
+                        let reply = try await request.send(
+                            messages: RadarScreenAnswers.messages(question: asked, meetingTitle: fixture.title,
+                                                                  meetingDate: fixture.date, crops: crops),
+                            schema: (name: "screen_answer", schema: RadarScreenAnswers.schema))
+                        result["reply"] = reply.content
+                        result["cost"] = MetaModelAPI.cost(of: reply.usage, model: client.model)
+                        if let found = RadarScreenAnswers.answer(from: reply.content, crops: crops.map(\.crop)) {
+                            result["answer"] = found.text
+                            result["quote"] = found.quote
+                            result["app"] = crops[found.index].capture.app
+                        }
+                    } catch {
+                        result["error"] = error.localizedDescription
+                    }
+                }
+                let duration = (ContinuousClock.now - started).components
+                result["seconds"] = Double(duration.seconds) + Double(duration.attoseconds) / 1e18
+                if let elapsed { result["answeredAfter"] = elapsed() }
+                results.append(result)
+                print(MeetingRadarReplay.json(["screenAnswer": result]))
+            }
+            tasks.append(task)
+            return task
+        }
+
+        func waitForAll() async {
+            for task in tasks { await task.value }
+        }
     }
 
     private static func excerpts(_ fixture: Fixture) -> [MeetingRadarAnalyzer.Excerpt] {
@@ -215,7 +327,7 @@ enum MeetingRadarReplay {
     @MainActor
     private static func runLive(_ options: Options, audio: URL, fixture: Fixture, client: MuseChatClient,
                                 system: String, meetingID: UUID, excerpts: [MeetingRadarAnalyzer.Excerpt],
-                                key: String) async -> Int32 {
+                                key: String, answers: ScreenAnswerRuns) async -> Int32 {
         let tracks = [("local", audio.appendingPathComponent("me.wav")), ("them", audio.appendingPathComponent("them.wav"))]
         let duration = tracks.compactMap { try? MuseLiveTextTrack.length(of: $0.1) }.max().map { Double($0) / MuseLiveText.sampleRate }
         guard let duration else {
@@ -281,6 +393,10 @@ enum MeetingRadarReplay {
                     if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
                 }
                 items += outcome.added
+                for question in outcome.added where question.kind == .question {
+                    // Beside the passes, as in the app, timed on the wall clock.
+                    answers.answer(question) { live.seconds - question.time }
+                }
                 analyzed += fresh
                 let consumed = Set(fresh.map(\.label))
                 live.pending.removeAll { consumed.contains($0.label) }
@@ -304,11 +420,13 @@ enum MeetingRadarReplay {
                 }
             }
         }
+        await answers.waitForAll()
         let seconds = passes.compactMap { $0["seconds"] as? Double }.sorted()
         let delays = passes.flatMap { ($0["added"] as? [[String: Any]]) ?? [] }.compactMap { $0["shownAfter"] as? Double }.sorted()
         var byKind: [String: Int] = [:]
         for item in items { byKind[item.kind.rawValue, default: 0] += 1 }
         print(json(["summary": [
+            "screenAnswers": answers.results,
             "id": fixture.id ?? options.input.deletingPathExtension().lastPathComponent,
             "model": options.model, "mode": "audio", "transcription": MuseLiveText.model,
             "interval": options.interval, "audioSeconds": duration, "lines": live.count,
@@ -334,7 +452,7 @@ enum MeetingRadarReplay {
         return result
     }
 
-    private static func json(_ object: [String: Any]) -> String {
+    fileprivate static func json(_ object: [String: Any]) -> String {
         guard let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else { return "{}" }
         return String(decoding: data, as: UTF8.self)
     }

@@ -53,6 +53,9 @@ struct RadarItem: Codable, Identifiable, Equatable, Sendable {
     var model: String
     /// A later line answered this question.
     var answered = false
+    /// What an earlier screen capture says about this question, when screen
+    /// answers are on and Muse found the answer there.
+    var screenAnswer: RadarScreenAnswer?
 
     var isUserCommitment: Bool {
         kind == .commitment && owner?.caseInsensitiveCompare("Me") == .orderedSame
@@ -96,8 +99,10 @@ struct MeetingRadarRecord: Codable, Equatable, Sendable {
     var model: String
     var items: [RadarItem] = []
     var passes: [RadarPass] = []
+    /// Screen-answer requests, one per question that local search matched.
+    var screenAnswerRequests: [RadarPass]?
 
-    var cost: Double { passes.reduce(0) { $0 + $1.cost } }
+    var cost: Double { (passes + (screenAnswerRequests ?? [])).reduce(0) { $0 + $1.cost } }
 
     static func load(from folder: URL) -> MeetingRadarRecord? {
         guard let data = try? Data(contentsOf: folder.appendingPathComponent(fileName)) else { return nil }

@@ -166,6 +166,9 @@ struct AppSettings: Codable, Equatable {
     /// Muse Voice Transcribe for text within a second of each turn, instead
     /// of transcribing chunks on this Mac. Also needs the api.meta.ai approval.
     var museLiveTextEnabled: Bool = false
+    /// Off by default: when Live Radar catches a question, crops of earlier
+    /// screen captures that mention it are sent to Muse Spark for the answer.
+    var museScreenAnswersEnabled: Bool = false
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -916,6 +919,7 @@ struct AppSettings: Codable, Equatable {
         case museRadarModel
         case museFollowThroughModel
         case museLiveTextEnabled
+        case museScreenAnswersEnabled
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
@@ -1120,6 +1124,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(museRadarModel, forKey: .museRadarModel)
         try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
         try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
+        try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
@@ -1304,6 +1309,7 @@ struct AppSettings: Codable, Equatable {
         museRadarModel = decode(.museRadarModel, defaults.museRadarModel)
         museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
         museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
+        museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)
