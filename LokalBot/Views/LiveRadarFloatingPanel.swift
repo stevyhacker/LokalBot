@@ -73,6 +73,9 @@ final class LiveRadarPanelController {
         panel.isMovableByWindowBackground = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.title = String(localized: "Live Radar")
+        // A floating window to VoiceOver (and to UI tests), not a dialog
+        // waiting for an answer.
+        panel.setAccessibilitySubrole(.floatingWindow)
         let root = LiveRadarPanelView(
             radar: app.meetingRadar, transcriber: app.liveTranscriber, recording: app.recording, model: model,
             close: { [weak self] in self?.hide() })

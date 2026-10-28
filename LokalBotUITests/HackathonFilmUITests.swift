@@ -132,10 +132,17 @@ final class HackathonFilmUITests: XCTestCase {
             collapse.click()
             film.hold(2)
         }
+        // Closing it leaves the board; UI tests would otherwise check the
+        // panel before every scroll.
+        let closePanel = app.buttons["liveRadarPanel.close"].firstMatch
+        if closePanel.exists {
+            closePanel.click()
+            film.hold(1)
+        }
         // What needs attention leads the board; scroll to the commitments and decision.
         let radarList = app.scrollViews["radar.items"]
         if radarList.exists {
-            for _ in 0..<4 {
+            for _ in 0..<3 {
                 radarList.scroll(byDeltaX: 0, deltaY: -220)
                 film.hold(1.6)
             }
