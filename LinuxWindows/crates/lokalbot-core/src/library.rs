@@ -111,7 +111,9 @@ pub enum MeetingLookup {
 impl Library {
     /// Opens (creating if needed) the library and its SQLite schema.
     pub fn open(paths: LibraryPaths) -> Result<Self> {
-        fs::create_dir_all(paths.root())
+        // Owner-only (0700 on Unix), which also repairs an older library
+        // whose files were created world-readable under the usual umask.
+        crate::access::ensure_private_dir(paths.root())
             .with_context(|| format!("creating {}", paths.root().display()))?;
         fs::create_dir_all(paths.meetings_dir())?;
         let db = Connection::open(paths.database()).context("opening lokalbotv3.sqlite")?;
@@ -869,7 +871,15 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
     let tmp = dir.join(format!(".{file_name}.{}.tmp", Uuid::new_v4().simple()));
     {
-        let mut file = fs::File::create(&tmp)?;
+        // Transcripts, notes and settings are readable by their owner only.
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt as _;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&tmp)?;
         file.write_all(bytes)?;
         file.sync_all()?;
     }
@@ -960,6 +970,32 @@ mod tests {
         let saved: serde_json::Value =
             serde_json::from_slice(&fs::read(folder.join(META_FILE)).unwrap()).unwrap();
         assert_eq!(saved, written);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn library_files_are_private_to_their_owner() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().join("LokalBot");
+        // A library from an older build, created under umask 022.
+        fs::create_dir_all(&root).unwrap();
+        fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
+
+        let library = Library::open(LibraryPaths::new(&root)).unwrap();
+        assert_eq!(mode(&root), 0o700);
+        let meeting = library
+            .create_meeting("Standup", "Zoom", crate::time::now_seconds())
+            .unwrap();
+        library
+            .save_transcript(&meeting, &Transcript::default())
+            .unwrap();
+        library.save_notes(&meeting, "private").unwrap();
+        let folder = library.meeting_dir(&meeting);
+        for file in [META_FILE, TRANSCRIPT_FILE, TRANSCRIPT_MD_FILE, NOTES_FILE] {
+            assert_eq!(mode(&folder.join(file)), 0o600, "{file}");
+        }
     }
 
     fn library_with_merge(dir: &Path) -> (Library, Meeting, Meeting, Meeting) {

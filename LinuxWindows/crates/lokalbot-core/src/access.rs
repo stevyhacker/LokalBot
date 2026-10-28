@@ -237,7 +237,7 @@ fn remove_if_exists(path: &Path) -> std::io::Result<()> {
     }
 }
 
-fn ensure_private_dir(dir: &Path) -> std::io::Result<()> {
+pub(crate) fn ensure_private_dir(dir: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
     #[cfg(unix)]
     {
@@ -258,11 +258,20 @@ fn restrict_file(path: &Path) {
 }
 
 /// `scheme://host[:port]` of a URL, lowercased; `None` if it does not parse.
+///
+/// An authority with credentials, a backslash, whitespace or a control
+/// character is rejected: WHATWG parsers (the Agent runtime's `new URL`) end
+/// the host at `\`, so `https://evil.example\@localhost` would pass here as
+/// loopback while the request went to `evil.example`.
 pub fn origin_of(url: &str) -> Option<String> {
     let (scheme, rest) = url.trim().split_once("://")?;
     let authority = rest.split(['/', '?', '#']).next()?;
-    let authority = authority.rsplit('@').next()?;
-    if authority.is_empty() {
+    if authority.is_empty()
+        || authority.contains(['@', '\\'])
+        || authority
+            .chars()
+            .any(|c| c.is_whitespace() || c.is_control())
+    {
         return None;
     }
     Some(format!(
@@ -367,6 +376,34 @@ mod tests {
         assert!(is_private_network_url("http://100.101.1.2"));
         assert!(is_private_network_url("http://gpu-box.ts.net"));
         assert!(!is_private_network_url("https://api.openai.com"));
+    }
+
+    #[test]
+    fn ambiguous_authorities_are_not_origins() {
+        // WHATWG URL parsing sends these to evil.example, not localhost.
+        for url in [
+            "https://evil.example\\@localhost/v1",
+            "https://evil.example:443\\@127.0.0.1/v1",
+            "https://\\evil.example@localhost",
+            "https://user:secret@localhost:11434/v1",
+            "https://evil.example\t@localhost/v1",
+            "https://local host/v1",
+        ] {
+            assert_eq!(origin_of(url), None, "{url}");
+            assert!(!is_loopback_url(url), "{url}");
+            assert!(!is_private_network_url(url), "{url}");
+            assert_eq!(
+                remote_block_reason(url, &["https://evil.example".to_string()]).as_deref(),
+                Some("The server URL is not valid."),
+                "{url}"
+            );
+        }
+        // Separators after the host stay fine.
+        assert_eq!(
+            origin_of("https://openrouter.ai/api/v1?x=a@b\\c#@localhost").as_deref(),
+            Some("https://openrouter.ai")
+        );
+        assert!(is_loopback_url("http://[::1]:8080/v1"));
     }
 
     #[test]
