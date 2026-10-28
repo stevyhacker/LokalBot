@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "請在「設定 → 會議 → Meta Muse」中允許 LokalBot 將會議文字傳送到 api.meta.ai。";
 "Send to" = "收件者";
 "Names or addresses" = "姓名或地址";
+"Floating Panel" = "浮動面板";
+"Collapse" = "收合";
+"Expand" = "展開";
+"Show the floating Live Radar panel during meetings" = "會議期間顯示即時雷達浮動面板";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "顯示在會議 App 上方的小視窗，列出即時雷達捕捉到的內容。開始錄製時會自動開啟，內含「啟動雷達」按鈕，且絕不會搶走通話的焦點。";
+"Hide the floating panel from screen sharing and recordings" = "在螢幕分享和錄製中隱藏浮動面板";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "分享螢幕時，通話中的其他人看不到此面板。如需在螢幕錄製中包含此面板，請關閉此選項。";

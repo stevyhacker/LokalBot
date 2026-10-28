@@ -2,11 +2,10 @@ import SwiftUI
 
 /// The detail pane for the meeting being recorded right now, shown when the
 /// in-progress row is selected (and as the Meetings empty state while
-/// recording). The rolling
-/// transcript preview (chunked, undiarized — the full pipeline transcript
-/// replaces it after the meeting) sits beside a full-height quick-notes pad;
-/// notes are saved to `notes.md` in the meeting folder and folded into the
-/// summary. Live Radar sits between them.
+/// recording). Live Radar fills the main area; beside it, the rolling
+/// transcript preview (undiarized — the full pipeline transcript replaces it
+/// after the meeting) sits above a quick-notes pad, whose notes are saved to
+/// `notes.md` in the meeting folder and folded into the summary.
 ///
 /// Starting preview is an explicit ASR opt-in. Opening a live meeting alone
 /// does not load a model or start speech inference. With fast live text on,
@@ -35,16 +34,21 @@ struct LiveMeetingDetailView: View {
             header
 
             HSplitView {
-                transcriptColumn
-                    .frame(minWidth: 240, maxWidth: .infinity, maxHeight: .infinity)
-                    .layoutPriority(1)
-                    .splitPaneAccessibilityLabel("Live transcript")
                 MeetingRadarPanel(radar: app.meetingRadar, meeting: meeting)
-                    .frame(minWidth: 360, idealWidth: 440, maxHeight: .infinity)
+                    .frame(minWidth: 420, idealWidth: 760, maxWidth: .infinity, maxHeight: .infinity)
+                    .layoutPriority(1)
                     .splitPaneAccessibilityLabel("Live radar")
-                notesColumn
-                    .frame(minWidth: 180, idealWidth: 240, maxHeight: .infinity)
-                    .splitPaneAccessibilityLabel("Meeting notes")
+                VSplitView {
+                    transcriptColumn
+                        .frame(minHeight: 180, maxHeight: .infinity)
+                        .splitPaneAccessibilityLabel("Live transcript")
+                    notesColumn
+                        .frame(minHeight: 120, idealHeight: 200, maxHeight: .infinity)
+                        .padding(.top, 10)
+                        .splitPaneAccessibilityLabel("Meeting notes")
+                }
+                .padding(.leading, 12)
+                .frame(minWidth: 300, idealWidth: 400, maxWidth: 560, maxHeight: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -160,7 +164,6 @@ struct LiveMeetingDetailView: View {
                 .font(.scaled(.caption2))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.trailing, 12)
     }
 
     private var transcript: some View {
@@ -271,7 +274,6 @@ struct LiveMeetingDetailView: View {
                 .font(AppFont.scaled(.callout))
                 .foregroundStyle(notesSaveState.hasPrefix("Not saved:") ? Brand.error : .secondary)
         }
-        .padding(.leading, 12)
     }
 
     private static func timestamp(_ time: TimeInterval) -> String {

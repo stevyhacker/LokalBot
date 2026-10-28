@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Erlaube LokalBot unter Einstellungen → Besprechungen → Meta Muse, Besprechungstext an api.meta.ai zu senden.";
 "Send to" = "An";
 "Names or addresses" = "Namen oder Adressen";
+"Floating Panel" = "Schwebendes Fenster";
+"Collapse" = "Einklappen";
+"Expand" = "Ausklappen";
+"Show the floating Live Radar panel during meetings" = "Schwebendes Live-Radar-Fenster während Besprechungen anzeigen";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Ein kleines Fenster über deiner Besprechungs-App mit dem, was das Live-Radar erfasst. Es öffnet sich, sobald eine Aufnahme beginnt, enthält „Radar starten“ und zieht den Fokus nie vom Gespräch ab.";
+"Hide the floating panel from screen sharing and recordings" = "Schwebendes Fenster bei Bildschirmfreigabe und in Aufnahmen ausblenden";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Die anderen im Gespräch sehen das Fenster nicht, wenn du deinen Bildschirm teilst. Deaktiviere dies, damit es in einer Bildschirmaufnahme zu sehen ist.";

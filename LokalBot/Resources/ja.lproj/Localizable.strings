@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "「設定 → 会議 → Meta Muse」で、LokalBotが会議のテキストを api.meta.ai に送信することを許可してください。";
 "Send to" = "宛先";
 "Names or addresses" = "名前またはアドレス";
+"Floating Panel" = "フローティングパネル";
+"Collapse" = "折りたたむ";
+"Expand" = "展開する";
+"Show the floating Live Radar panel during meetings" = "会議中にリアルタイムレーダーのフローティングパネルを表示";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "会議アプリの上に重ねて表示される小さなウィンドウで、リアルタイムレーダーが検出した内容を表示します。録音が始まると「レーダーを開始」ボタン付きで開き、通話からフォーカスを奪うことはありません。";
+"Hide the floating panel from screen sharing and recordings" = "画面共有と録画でフローティングパネルを非表示";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "画面を共有しても、通話中の他の参加者にはパネルが見えません。画面収録にパネルを含めるには、オフにしてください。";

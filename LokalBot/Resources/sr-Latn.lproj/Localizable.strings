@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Dozvolite LokalBotu da šalje tekst sastanka na api.meta.ai u odeljku Podešavanja → Sastanci → Meta Muse.";
 "Send to" = "Za";
 "Names or addresses" = "Imena ili adrese";
+"Floating Panel" = "Plutajući panel";
+"Collapse" = "Skupi";
+"Expand" = "Proširi";
+"Show the floating Live Radar panel during meetings" = "Prikazuj plutajući panel Radara uživo tokom sastanaka";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Mali prozor iznad aplikacije za sastanke sa onim što Radar uživo uočava. Otvara se kada snimanje počne, sa dugmetom „Pokreni Radar“, i nikada ne oduzima fokus pozivu.";
+"Hide the floating panel from screen sharing and recordings" = "Sakrivaj plutajući panel pri deljenju ekrana i snimanju";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Ostali u pozivu ne vide panel kada delite ekran. Isključite ovo ako želite da se panel vidi kada snimate ekran.";

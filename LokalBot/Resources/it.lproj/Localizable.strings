@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Consenti a LokalBot di inviare il testo delle riunioni ad api.meta.ai in Impostazioni → Riunioni → Meta Muse.";
 "Send to" = "A";
 "Names or addresses" = "Nomi o indirizzi";
+"Floating Panel" = "Pannello fluttuante";
+"Collapse" = "Comprimi";
+"Expand" = "Espandi";
+"Show the floating Live Radar panel during meetings" = "Mostra il pannello fluttuante del Radar in tempo reale durante le riunioni";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Una piccola finestra sopra la tua app per riunioni con ciò che rileva il Radar in tempo reale. Si apre quando inizia una registrazione, con il pulsante “Avvia radar”, e non toglie mai il focus alla chiamata.";
+"Hide the floating panel from screen sharing and recordings" = "Nascondi il pannello fluttuante durante la condivisione dello schermo e nelle registrazioni";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Gli altri partecipanti alla chiamata non vedono il pannello quando condividi lo schermo. Disattiva questa opzione per includerlo in una registrazione dello schermo.";

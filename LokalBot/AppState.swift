@@ -943,6 +943,17 @@ final class AppState: ObservableObject {
         screenSource: Self.radarScreenSource(store: activityStore),
         settings: { [store = settingsStore] in store.current })
 
+    /// The floating Live Radar window, for checking the radar from the
+    /// meeting app.
+    private(set) lazy var liveRadarPanel = LiveRadarPanelController(app: self)
+
+    /// Starts Live Radar for the meeting being recorded and brings up the
+    /// floating panel, so the person can go back to the call.
+    func startLiveRadar(for meeting: Meeting) {
+        meetingRadar.start(meeting: meeting, folder: meeting.folderURL(in: storage))
+        if meetingRadar.isActive, settings.liveRadarPanelEnabled { liveRadarPanel.show() }
+    }
+
     /// Screen memory for screen answers. The UI-test host can use a folder of
     /// synthetic captures instead (`LOKALBOT_UI_TEST_SCREENS`), as the radar
     /// replay's `--screens` does.
@@ -1115,8 +1126,13 @@ final class AppState: ObservableObject {
         }
         if active, let meeting = recording.currentMeeting {
             liveTranscriber.prepare(folder: meeting.folderURL(in: storage))
+            // With Meta Muse set up, the panel offers Start Radar over the call.
+            if settings.liveRadarPanelEnabled, MeetingRadar.unavailableReason(settings) == nil {
+                liveRadarPanel.show()
+            }
         } else {
             liveTranscriber.stop(preservingHandoff: recording.isSplittingForCalendarHandoff)
+            if !recording.isSplittingForCalendarHandoff { liveRadarPanel.hide() }
         }
     }
 

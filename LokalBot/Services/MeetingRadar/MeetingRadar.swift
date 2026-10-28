@@ -68,6 +68,9 @@ final class MeetingRadar: ObservableObject {
     @Published private(set) var totals = Totals()
     @Published private(set) var meetingID: Meeting.ID?
     @Published private(set) var model = MetaModelAPI.museSpark.id
+    /// The item that changed last: the newest one a pass added, or the
+    /// question that just got a screen answer. The floating panel shows it.
+    @Published private(set) var spotlightID: String?
 
     var isActive: Bool { state == .running || state == .finishing }
 
@@ -214,6 +217,7 @@ final class MeetingRadar: ObservableObject {
         let saved = folder.flatMap(MeetingRadarRecord.load(from:))
         record = saved ?? MeetingRadarRecord(model: model)
         items = record?.items ?? []
+        spotlightID = nil
         nextItemNumber = items.compactMap { Int($0.id.dropFirst()) }.max() ?? 0
         totals = Totals(passes: record?.passes.count ?? 0, cost: record?.cost ?? 0,
                         lastPassSeconds: record?.passes.last?.seconds)
@@ -301,6 +305,9 @@ final class MeetingRadar: ObservableObject {
                 if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
             }
             items.append(contentsOf: outcome.added)
+            if let newest = outcome.added.first(where: { $0.kind == .contradiction }) ?? outcome.added.last {
+                spotlightID = newest.id
+            }
             if screenSource != nil, settings().museScreenAnswersEnabled {
                 for question in outcome.added where question.kind == .question { answerFromScreen(question) }
             }
@@ -386,6 +393,7 @@ final class MeetingRadar: ObservableObject {
                                            capturedAt: capture.capturedAt, app: capture.app,
                                            windowTitle: capture.windowTitle, image: name, model: model)
                 items[index].screenAnswer = stored
+                spotlightID = id
             } catch {
                 lokalbotLog("live radar screen answer save failed error=\(error.localizedDescription)")
             }

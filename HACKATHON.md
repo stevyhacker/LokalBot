@@ -2,7 +2,7 @@
 
 This branch is LokalBot's entry to the Meta Global AI Developer Hackathon (26 October – 4 November 2026). It adds two features to LokalBot, a private work-memory app for macOS:
 
-- **Live Radar.** While a meeting is recorded, it catches commitments, decisions, and open questions as they are said. It also flags contradictions with earlier meetings, such as "On 19 Oct you agreed the launch is Monday the 3rd". With fast live text, Muse Voice Transcribe streams the transcript turn by turn, and items appear about 3 seconds after the speaker finishes. With screen answers, a question asked in the meeting is answered from something you had on screen earlier: local search finds the capture, Vision on the Mac crops it, and Muse Spark reads the crop.
+- **Live Radar.** While a meeting is recorded, it catches commitments, decisions, and open questions as they are said. It also flags contradictions with earlier meetings, such as "On 19 Oct you agreed the launch is Monday the 3rd". With fast live text, Muse Voice Transcribe streams the transcript turn by turn, and items appear about 3 seconds after the speaker finishes. With screen answers, a question asked in the meeting is answered from something you had on screen earlier: local search finds the capture, Vision on the Mac crops it, and Muse Spark reads the crop. A floating panel shows what the radar catches over the meeting app, and offers Start Radar there when a recording starts.
 - **Follow-through.** After the meeting, Muse plans the work for one of your commitments. It reads what it needs from your meetings, then proposes an email, a calendar invitation, or a task for a coding agent. You approve each step, and each opens as a draft.
 
 ## What is new
@@ -18,7 +18,7 @@ git diff --stat v0.11.4...meta-hackathon
   - Services: [`LokalBot/Services/MeetingRadar/`](LokalBot/Services/MeetingRadar/). `MeetingRadar` runs the passes, `MeetingRadarAnalyzer` builds the prompt and checks grounding, `LibraryRadarEvidenceSource` searches earlier meetings locally, and `MeetingRadarReplay` is the replay harness.
   - Fast live text: [`MuseLiveText.swift`](LokalBot/Services/MeetingRadar/MuseLiveText.swift) streams each recorded track to Muse Voice Transcribe's realtime endpoint, and `LiveMeetingTranscriber` uses it in place of local chunks when the setting is on.
   - Screen answers: [`RadarScreenAnswers.swift`](LokalBot/Services/MeetingRadar/RadarScreenAnswers.swift) searches screen memory, crops captures with Vision, asks Muse Spark with images, and checks the answer's quote against the crop's text.
-  - Views: the live pane and saved-results list in [`MeetingRadarPanel.swift`](LokalBot/Views/MeetingRadarPanel.swift).
+  - Views: the live board, cards, and saved-results list in [`MeetingRadarPanel.swift`](LokalBot/Views/MeetingRadarPanel.swift), and the floating panel in [`LiveRadarFloatingPanel.swift`](LokalBot/Views/LiveRadarFloatingPanel.swift).
 - **Follow-through.**
   - Services: [`LokalBot/Services/FollowThrough/`](LokalBot/Services/FollowThrough/). It holds the tool definitions and proposals, the approval-gated agent loop, the app's read tools and hand-offs, and the replay harness.
   - Views: [`FollowThroughSheet.swift`](LokalBot/Views/FollowThroughSheet.swift).

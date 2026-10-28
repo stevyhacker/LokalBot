@@ -5,8 +5,9 @@ import XCTest
 /// Clicks through Live Radar and Follow-through end to end and films it: the
 /// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
 /// turn by turn with fast live text, a question answered from a synthetic
-/// screen capture, and Follow-through on the commitment it caught. The runner
-/// has no meeting audio, so the transcript's words come from the script.
+/// screen capture, the floating Live Radar panel that shows the same items
+/// over the meeting app, and Follow-through on the commitment it caught. The
+/// runner has no meeting audio, so the transcript's words come from the script.
 ///
 /// By default Muse replies are scripted in the host (`LOKALBOT_MUSE_UI_TEST=1`),
 /// so no key or network is used and the checks name exact items. With
@@ -98,6 +99,8 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(2)
         start.click()
         let started = Date()
+        let panel = app.descendants(matching: .any)["liveRadarPanel"].firstMatch
+        XCTAssertTrue(film.wait(for: panel, timeout: 10), "the floating Live Radar panel did not open")
         XCTAssertTrue(film.wait(for: UITestHarness.staticText(containing: "Muse Voice Transcribe", in: app), timeout: 10),
                       "the preview isn't using fast live text")
         let screenAnswer = app.descendants(matching: .any)["radar.screenAnswer"].firstMatch
@@ -121,7 +124,15 @@ final class HackathonFilmUITests: XCTestCase {
             XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
         }
         film.hold(3)
-        // Contradictions lead the list; scroll to the commitments, decision and answered question.
+        // The panel folds to its header and the newest item, and back.
+        let collapse = app.buttons["liveRadarPanel.collapse"].firstMatch
+        if collapse.exists {
+            collapse.click()
+            film.hold(2.5)
+            collapse.click()
+            film.hold(2)
+        }
+        // What needs attention leads the board; scroll to the commitments and decision.
         let radarList = app.scrollViews["radar.items"]
         if radarList.exists {
             for _ in 0..<4 {

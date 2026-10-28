@@ -15,6 +15,12 @@ struct MetaMuseSettingsSection: View {
         + "tools read. Audio stays on this Mac unless you turn on fast live text, and voices and calendar email "
         + "addresses always do. The same approval covers Think if you point it at this server."
 
+    static let panelHelp = "A small window over your meeting app with what Live Radar catches. It opens when a "
+        + "recording starts, with Start Radar in it, and never takes focus from the call."
+
+    static let captureHelp = "Others in the call don't see the panel when you share your screen. Turn this off to "
+        + "include it in a screen recording."
+
     static let screenAnswersHelp = "When Live Radar catches a question, LokalBot searches your screen memory on this "
         + "Mac for captures that mention it, crops each to the rows that do, and sends up to three crops with their app, "
         + "window title, and time to Muse Spark. An answer is shown only when its quote is in the crop's own text. "
@@ -48,6 +54,18 @@ struct MetaMuseSettingsSection: View {
             .disabled(!app.settings.metaModelAPIApproved)
             .accessibilityIdentifier("settings.metaMuse.screenAnswers")
             .settingTarget("settings.museScreenAnswersEnabled", selected: app.focusedSettingID)
+
+            Toggle(isOn: $app.settings.liveRadarPanelEnabled) {
+                SettingsLabel("Show the floating Live Radar panel during meetings", help: Self.panelHelp)
+            }
+            .accessibilityIdentifier("settings.metaMuse.panel")
+            .settingTarget("settings.liveRadarPanelEnabled", selected: app.focusedSettingID)
+
+            Toggle(isOn: $app.settings.liveRadarPanelHiddenFromCapture) {
+                SettingsLabel("Hide the floating panel from screen sharing and recordings", help: Self.captureHelp)
+            }
+            .disabled(!app.settings.liveRadarPanelEnabled)
+            .settingTarget("settings.liveRadarPanelHiddenFromCapture", selected: app.focusedSettingID)
 
             LabeledContent("API key") { keyControl }
                 .settingTarget("settings.metaModelAPIKey", selected: app.focusedSettingID)

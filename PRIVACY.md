@@ -374,6 +374,11 @@ The app may make these outbound connections:
     from which track the audio is on, not from Muse. The full transcript is
     still made on this Mac after the meeting, and the recording is never
     uploaded as a file.
+  - **The floating Live Radar panel** shows the radar's items over other
+    apps while a recording runs. It sends nothing itself. It is left out of
+    screen sharing and screen recordings unless you turn that off in the
+    same section, so others in the call don't see it when you share your
+    screen.
   - **Screen answers** is another separate switch, off by default. While it
     is on and Live Radar catches a question, LokalBot searches your screen
     memory on this Mac for earlier captures whose text matches the question,

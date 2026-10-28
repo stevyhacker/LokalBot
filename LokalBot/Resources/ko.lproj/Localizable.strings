@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "설정 → 회의 → Meta Muse에서 LokalBot이 api.meta.ai로 회의 텍스트를 보내도록 허용하세요.";
 "Send to" = "받는 사람";
 "Names or addresses" = "이름 또는 주소";
+"Floating Panel" = "떠 있는 패널";
+"Collapse" = "접기";
+"Expand" = "펼치기";
+"Show the floating Live Radar panel during meetings" = "회의 중에 떠 있는 실시간 레이더 패널 표시";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "회의 앱 위에 떠서 실시간 레이더가 포착한 내용을 보여 주는 작은 창입니다. 녹음이 시작되면 “레이더 시작” 버튼과 함께 열리며, 통화에서 포커스를 가져가지 않습니다.";
+"Hide the floating panel from screen sharing and recordings" = "화면 공유 및 녹화 시 떠 있는 패널 숨기기";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "화면을 공유할 때 통화 중인 다른 사람에게는 패널이 보이지 않습니다. 화면 기록에 패널을 포함하려면 이 옵션을 끄세요.";

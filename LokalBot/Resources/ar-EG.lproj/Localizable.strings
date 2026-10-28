@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "اسمح لـ LokalBot يبعت نص الاجتماع لـ api.meta.ai من الإعدادات ← الاجتماعات ← Meta Muse.";
 "Send to" = "إلى";
 "Names or addresses" = "أسامي أو عناوين";
+"Floating Panel" = "اللوحة العائمة";
+"Collapse" = "اطوي";
+"Expand" = "وسّع";
+"Show the floating Live Radar panel during meetings" = "اعرض لوحة الرادار المباشر العائمة أثناء الاجتماعات";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "نافذة صغيرة فوق تطبيق الاجتماع بتعرض اللي الرادار المباشر بيلقطه. بتفتح أول ما التسجيل يبدأ وفيها زرار «ابدأ الرادار»، وعمرها ما بتبقى النافذة النشطة بدل المكالمة.";
+"Hide the floating panel from screen sharing and recordings" = "اخفي اللوحة العائمة وقت مشاركة الشاشة وفي التسجيلات";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "باقي الناس في المكالمة مش بيشوفوا اللوحة لما تشارك شاشتك. اقفل الخيار ده عشان تظهر في تسجيل الشاشة.";

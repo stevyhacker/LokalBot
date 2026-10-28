@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Ruhusu LokalBot itume maandishi ya mkutano kwenda api.meta.ai katika Mipangilio → Mikutano → Meta Muse.";
 "Send to" = "Kwa";
 "Names or addresses" = "Majina au anwani";
+"Floating Panel" = "Paneli Inayoelea";
+"Collapse" = "Kunja";
+"Expand" = "Panua";
+"Show the floating Live Radar panel during meetings" = "Onyesha paneli inayoelea ya Rada Mubashara wakati wa mikutano";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Dirisha dogo juu ya programu yako ya mikutano linaloonyesha kile ambacho Rada Mubashara hunasa. Hufunguka kurekodi kunapoanza, likiwa na kitufe cha “Anza Rada”, na kamwe haliwi dirisha linalotumika badala ya simu.";
+"Hide the floating panel from screen sharing and recordings" = "Ficha paneli inayoelea wakati wa kushiriki skrini na kwenye rekodi";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Wengine kwenye simu hawaoni paneli unaposhiriki skrini yako. Zima hii ili kuijumuisha kwenye rekodi ya skrini.";

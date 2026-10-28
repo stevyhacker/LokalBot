@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Разрешите LokalBot отправлять текст встреч на api.meta.ai в разделе Настройки → Встречи → Meta Muse.";
 "Send to" = "Кому";
 "Names or addresses" = "Имена или адреса";
+"Floating Panel" = "Плавающая панель";
+"Collapse" = "Свернуть";
+"Expand" = "Развернуть";
+"Show the floating Live Radar panel during meetings" = "Показывать плавающую панель Радара в реальном времени во время встреч";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Небольшое окно поверх приложения для встреч с тем, что находит Радар в реальном времени. Оно открывается, когда начинается запись, с кнопкой «Запустить радар» и никогда не перехватывает фокус у звонка.";
+"Hide the floating panel from screen sharing and recordings" = "Скрывать плавающую панель при демонстрации экрана и в записях";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Другие участники звонка не видят панель, когда вы демонстрируете экран. Отключите, чтобы панель попадала в запись экрана.";

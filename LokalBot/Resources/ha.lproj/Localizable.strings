@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Bari LokalBot ya aika rubutun taro zuwa api.meta.ai a Saituna → Taruka → Meta Muse.";
 "Send to" = "Zuwa";
 "Names or addresses" = "Sunaye ko adireshi";
+"Floating Panel" = "Taga mai shawagi";
+"Collapse" = "Naɗe";
+"Expand" = "Faɗaɗa";
+"Show the floating Live Radar panel during meetings" = "Nuna tagar Radar kai tsaye mai shawagi yayin taruka";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Ƙaramar taga a kan manhajar taronka da ke nuna abin da Radar kai tsaye ke kamawa. Tana buɗewa idan rikodi ya fara, da maɓallin “Fara Radar” a cikinta, kuma ba ta taɓa zama tagar da ake aiki da ita a maimakon kiran ba.";
+"Hide the floating panel from screen sharing and recordings" = "Ɓoye tagar mai shawagi yayin raba allo da cikin rikodi";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Sauran mutane a kiran ba sa ganin tagar idan ka raba allonka. Kashe wannan don saka ta cikin rikodin allo.";

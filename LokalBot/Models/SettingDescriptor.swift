@@ -154,6 +154,8 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.museRadarModel", title: "Live Radar model", category: .recording, aliases: "meta muse spark wonder live radar commitments contradictions api key"),
         .init(id: "settings.museFollowThroughModel", title: "Follow-through model", category: .recording, aliases: "meta muse wonder spark follow through agent actions"),
         .init(id: "settings.museScreenAnswersEnabled", title: "Answer meeting questions from your screen", category: .recording, aliases: "meta muse spark screen memory answers questions screenshots vision"),
+        .init(id: "settings.liveRadarPanelEnabled", title: "Show the floating Live Radar panel during meetings", category: .recording, aliases: "meta muse live radar floating panel overlay window always on top"),
+        .init(id: "settings.liveRadarPanelHiddenFromCapture", title: "Hide the floating panel from screen sharing and recordings", category: .recording, aliases: "live radar panel screen share recording privacy hidden"),
         .init(id: "settings.museLiveTextEnabled", title: "Fast live text with Muse Voice Transcribe", category: .recording, aliases: "meta muse voice transcribe realtime live transcript speech cloud audio"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .dayMemory, aliases: "dayDigestAutoEnabled"),

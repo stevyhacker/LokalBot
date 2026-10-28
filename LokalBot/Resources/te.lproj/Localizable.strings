@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "సెట్టింగ్‌లు → సమావేశాలు → Meta Museలో సమావేశ వచనాన్ని api.meta.aiకి పంపడానికి LokalBotను అనుమతించండి.";
 "Send to" = "వీరికి";
 "Names or addresses" = "పేర్లు లేదా చిరునామాలు";
+"Floating Panel" = "తేలియాడే ప్యానెల్";
+"Collapse" = "కుదించండి";
+"Expand" = "విస్తరించండి";
+"Show the floating Live Radar panel during meetings" = "సమావేశాల సమయంలో తేలియాడే ప్రత్యక్ష రాడార్ ప్యానెల్ చూపండి";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "మీ సమావేశ యాప్ పైన ఉండే చిన్న విండో, ప్రత్యక్ష రాడార్ గుర్తించిన వాటిని చూపుతుంది. రికార్డింగ్ ప్రారంభం కాగానే “రాడార్ ప్రారంభించండి” బటన్‌తో తెరుచుకుంటుంది, కాల్ నుంచి ఫోకస్‌ను ఎప్పుడూ లాక్కోదు.";
+"Hide the floating panel from screen sharing and recordings" = "స్క్రీన్ పంచుకునేటప్పుడు, రికార్డింగ్‌లలో తేలియాడే ప్యానెల్‌ను దాచండి";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "మీరు మీ స్క్రీన్‌ను పంచుకున్నప్పుడు కాల్‌లోని ఇతరులకు ప్యానెల్ కనిపించదు. దాన్ని స్క్రీన్ రికార్డింగ్‌లో చేర్చాలంటే దీన్ని ఆఫ్ చేయండి.";

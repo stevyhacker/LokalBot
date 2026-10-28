@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Izinkan LokalBot mengirim teks rapat ke api.meta.ai di Pengaturan → Rapat → Meta Muse.";
 "Send to" = "Kepada";
 "Names or addresses" = "Nama atau alamat";
+"Floating Panel" = "Panel Mengambang";
+"Collapse" = "Ciutkan";
+"Expand" = "Luaskan";
+"Show the floating Live Radar panel during meetings" = "Tampilkan panel mengambang Radar Langsung selama rapat";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Jendela kecil di atas aplikasi rapat Anda yang menampilkan apa yang ditangkap Radar Langsung. Jendela ini terbuka saat rekaman dimulai, dengan tombol “Mulai Radar” di dalamnya, dan tidak pernah mengambil fokus dari panggilan.";
+"Hide the floating panel from screen sharing and recordings" = "Sembunyikan panel mengambang dari berbagi layar dan rekaman";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Peserta lain dalam panggilan tidak melihat panel saat Anda berbagi layar. Matikan opsi ini untuk menyertakannya dalam rekaman layar.";

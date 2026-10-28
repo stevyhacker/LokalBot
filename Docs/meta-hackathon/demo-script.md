@@ -17,7 +17,8 @@ Moment 3's final version, where LokalBot marks the commitment done by itself, de
    - save the Meta Model API key;
    - turn on the api.meta.ai approval;
    - turn on fast live text, which sends meeting audio to Muse Voice Transcribe;
-   - turn on screen answers, which sends cropped screenshots to Muse Spark.
+   - turn on screen answers, which sends cropped screenshots to Muse Spark;
+   - turn off "Hide the floating panel from screen sharing and recordings", or the screen recording won't show the panel.
 
    Set your name in Settings → Writing, so drafts are signed.
 3. **Calendar entry.** Create a calendar event "Launch sync" with your partner as an invitee, so Follow-through can fill in their address.
@@ -54,7 +55,7 @@ You on your microphone, your partner on a Google Meet or Zoom call. Speak natura
 |---|---|---|
 | 0:00–0:12 | Cold open: the partner asks about conversion, and three seconds later the radar shows "4.1% in September" with the dashboard crop | Someone asks a number in a meeting. LokalBot saw it on your screen on Tuesday, and answers before you've found the tab. |
 | 0:12–0:25 | LokalBot recording a call; Settings → Meta Muse with its switches. Caption: "Built during the hackathon" | LokalBot already records meetings and remembers your screen, on your Mac. For this hackathon we connected that memory to four Meta models. |
-| 0:25–1:25 | The live meeting: Start Radar. Commitments and the decision appear seconds after they are said. The contradiction card for the launch date shows the earlier meeting's quote; click it to jump to the passage. | Muse Voice Transcribe turns each turn into text as it ends, and Muse Spark reads it. Commitments, decisions, and questions land within seconds. When the launch date changes, it shows what you agreed last week, with the quote. Every item must quote a line just said, every answer must match the screenshot's own text, and a contradiction must cite a passage local search found, so nothing is invented. |
+| 0:25–1:25 | The Meet window full screen, with the floating Live Radar panel in its corner: press Start Radar in the panel without leaving the call. Each new item lands in the panel's large card seconds after it is said; the launch-date contradiction shows the earlier meeting's quote, and the conversion answer shows the dashboard crop. Cut once to LokalBot's main window, where the same items fill the board. | Muse Voice Transcribe turns each turn into text as it ends, and Muse Spark reads it. Commitments, decisions, and questions land within seconds. When the launch date changes, it shows what you agreed last week, with the quote. Every item must quote a line just said, every answer must match the screenshot's own text, and a contradiction must cite a passage local search found, so nothing is invented. |
 | 1:25–2:05 | After the call: Follow Through on "Send the revised pricing deck to Marko". Muse Wonder's reads appear, then the email card. Edit one word, Open in Mail, send it. | Follow-through hands the commitment to Muse Wonder. It reads the meeting and earlier ones, and writes the email, flagging the two open conflicts instead of guessing. Nothing is sent until you approve it. |
 | 2:05–2:30 | A few minutes later, the commitment flips to Done with a crop of the sent email (if the Glimmer test passes) | Then LokalBot checks your screen for proof. Muse Glimmer, running on this Mac, looks at the capture and marks it done. Your screen never leaves the machine for this. |
 | 2:30–2:50 | One diagram: Voice Transcribe → Spark → Wonder, and Glimmer on the Mac, with what each one receives | Four Meta models, each where it's best: realtime speech, fast reasoning over text and images, planning, and an open model for the private part. |

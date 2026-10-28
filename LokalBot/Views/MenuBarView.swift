@@ -216,6 +216,10 @@ struct MenuBarView: View {
                 if app.isRecording {
                     Button("Live Transcript…") { app.showLiveMeeting() }
                         .buttonStyle(.bordered)
+                    if MeetingRadar.unavailableReason(app.settings) == nil {
+                        Button("Live Radar") { app.liveRadarPanel.show() }
+                            .buttonStyle(.bordered)
+                    }
                 }
             }
         }

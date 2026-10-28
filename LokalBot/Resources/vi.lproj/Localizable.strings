@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "Cho phép LokalBot gửi văn bản cuộc họp đến api.meta.ai trong Cài đặt → Cuộc họp → Meta Muse.";
 "Send to" = "Đến";
 "Names or addresses" = "Tên hoặc địa chỉ";
+"Floating Panel" = "Bảng nổi";
+"Collapse" = "Thu gọn";
+"Expand" = "Mở rộng";
+"Show the floating Live Radar panel during meetings" = "Hiển thị bảng nổi Radar trực tiếp trong cuộc họp";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "Một cửa sổ nhỏ nằm trên ứng dụng họp của bạn, hiển thị những gì Radar trực tiếp nắm bắt được. Cửa sổ mở ra khi bắt đầu ghi, có nút “Bắt đầu Radar”, và không bao giờ giành tiêu điểm khỏi cuộc gọi.";
+"Hide the floating panel from screen sharing and recordings" = "Ẩn bảng nổi khi chia sẻ màn hình và trong bản ghi";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "Người khác trong cuộc gọi không thấy bảng này khi bạn chia sẻ màn hình. Tắt tùy chọn này để đưa bảng vào bản ghi màn hình.";

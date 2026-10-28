@@ -1537,3 +1537,10 @@
 "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse." = "ترتیبات ← اجلاس ← Meta Muse میں LokalBot کو اجلاس کا متن api.meta.ai کو بھیجنے کی اجازت دیں۔";
 "Send to" = "بنام";
 "Names or addresses" = "نام یا پتے";
+"Floating Panel" = "تیرتا ہوا پینل";
+"Collapse" = "سمیٹیں";
+"Expand" = "پھیلائیں";
+"Show the floating Live Radar panel during meetings" = "اجلاسوں کے دوران تیرتا ہوا براہ راست ریڈار پینل دکھائیں";
+"A small window over your meeting app with what Live Radar catches. It opens when a recording starts, with Start Radar in it, and never takes focus from the call." = "آپ کی اجلاس کی ایپ کے اوپر ایک چھوٹی ونڈو، جس میں وہ دکھائی دیتا ہے جو براہ راست ریڈار پکڑتا ہے۔ ریکارڈنگ شروع ہوتے ہی یہ «ریڈار شروع کریں» بٹن کے ساتھ کھلتی ہے، اور کبھی کال کی جگہ فعال ونڈو نہیں بنتی۔";
+"Hide the floating panel from screen sharing and recordings" = "اسکرین شیئر کرتے وقت اور ریکارڈنگز میں تیرتا ہوا پینل چھپائیں";
+"Others in the call don't see the panel when you share your screen. Turn this off to include it in a screen recording." = "جب آپ اپنی اسکرین شیئر کرتے ہیں تو کال میں موجود دوسرے لوگ پینل نہیں دیکھتے۔ اسے اسکرین ریکارڈنگ میں شامل کرنے کے لیے یہ اختیار بند کریں۔";

@@ -169,6 +169,11 @@ struct AppSettings: Codable, Equatable {
     /// Off by default: when Live Radar catches a question, crops of earlier
     /// screen captures that mention it are sent to Muse Spark for the answer.
     var museScreenAnswersEnabled: Bool = false
+    /// The floating Live Radar panel opens when a recording starts (once
+    /// Meta Muse is set up) and when the radar starts.
+    var liveRadarPanelEnabled: Bool = true
+    /// Leaves the panel out of screen sharing and screen recordings.
+    var liveRadarPanelHiddenFromCapture: Bool = true
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -920,6 +925,8 @@ struct AppSettings: Codable, Equatable {
         case museFollowThroughModel
         case museLiveTextEnabled
         case museScreenAnswersEnabled
+        case liveRadarPanelEnabled
+        case liveRadarPanelHiddenFromCapture
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
@@ -1125,6 +1132,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(museFollowThroughModel, forKey: .museFollowThroughModel)
         try c.encode(museLiveTextEnabled, forKey: .museLiveTextEnabled)
         try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
+        try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
+        try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
@@ -1310,6 +1319,8 @@ struct AppSettings: Codable, Equatable {
         museFollowThroughModel = decode(.museFollowThroughModel, defaults.museFollowThroughModel)
         museLiveTextEnabled = decode(.museLiveTextEnabled, defaults.museLiveTextEnabled)
         museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
+        liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
+        liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)
