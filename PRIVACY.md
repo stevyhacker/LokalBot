@@ -345,22 +345,35 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
-- **Optional Meta Muse (Live Radar and Follow-through):** off until you add a
+- **Optional Meta Muse (Live Radar, fast live text, and Follow-through):** off until you add a
   Meta Model API key and turn on "Allow sending meeting text to
   https://api.meta.ai" in Settings → Recording → Meta Muse. That switch adds
   the origin to the same approved-server list Think uses, so revoking it in
   either place stops both. Even then, nothing is sent until you start it:
   - **Live Radar** runs only after you press Start Radar during a recording,
     for that recording, and turns on the live transcript preview if it is
-    off. About every 20 seconds it sends Muse Spark (or the model you choose)
-    the preview lines that arrived since the previous request, up to 24
+    off. About every 20 seconds (or after each turn with fast live text) it
+    sends Muse Spark (or the model you choose) the preview lines that arrived
+    since the previous request, up to 24
     earlier lines of the same meeting, the meeting title, invited names from
     the calendar, what it already found, and up to six passages from your
-    earlier meetings that local search found for the new lines. Audio,
-    speaker separation, and the search itself stay on this Mac, and calendar
+    earlier meetings that local search found for the new lines. Speaker
+    separation and the search itself stay on this Mac, audio does too unless
+    fast live text is on, and calendar
     email addresses are never sent. What it finds is saved to `radar.json` in
     the meeting folder and deleted with the meeting. It stops when the
     recording ends, after one last request for lines it had not sent.
+  - **Fast live text** is a separate switch in the same section, off by
+    default. While it is on and the live transcript preview runs, the
+    microphone and call audio stream to Muse Voice Transcribe
+    (`wss://api.meta.ai/v1/asr/realtime`), which returns each turn's text,
+    and the preview shows that text instead of transcribing on this Mac.
+    Streaming starts at most three seconds before you start the preview and
+    stops when you pause or stop it or the recording ends. Your name from
+    Settings → Writing is sent as a spelling hint. Who said what still comes
+    from which track the audio is on, not from Muse. The full transcript is
+    still made on this Mac after the meeting, and the recording is never
+    uploaded as a file.
   - **Follow-through** runs only when you choose Follow Through with Muse on
     one action. It sends Muse Wonder (or the model you choose) the action, its
     quoted source lines, the meeting title, date, invited names, the meeting

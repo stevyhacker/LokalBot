@@ -1,7 +1,7 @@
 import Foundation
 
 /// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]
-///   [--base-url <url> [--reasoning-line <level>]]`
+///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>]`
 ///
 /// Replays a timed transcript through Live Radar's request, grounding checks,
 /// and Meta Model API client, and prints one JSON line per pass and a summary.
@@ -15,6 +15,12 @@ import Foundation
 /// library, so a run is reproducible. For public or synthetic transcripts
 /// only: the key is read from `META_API_KEY`, never from the Keychain, and
 /// nothing is read from or written to a library.
+///
+/// `--audio` replays the meeting as fast live text does, in real time: the
+/// folder's `me.wav` and `them.wav` (from `Benchmarks/MuseRadar/voice_fixture.py`)
+/// stream to Muse Voice Transcribe through the app's client, each finished
+/// turn becomes a line, and a pass follows each turn (`--interval` defaults
+/// to the app's 3 s turn interval). Times are measured on the wall clock.
 enum MeetingRadarReplay {
     struct Fixture: Decodable {
         struct Line: Decodable {
@@ -46,6 +52,7 @@ enum MeetingRadarReplay {
         var delay: Double
         var baseURL: URL?
         var reasoningLine: String?
+        var audio: URL?
     }
 
     static func parse(_ args: [String]) -> Options? {
@@ -53,12 +60,16 @@ enum MeetingRadarReplay {
         func value(_ name: String) -> String? {
             args.firstIndex(of: name).flatMap { args.count > $0 + 1 ? args[$0 + 1] : nil }
         }
+        let audio = value("--audio").map { URL(fileURLWithPath: $0, isDirectory: true) }
+        let turnInterval = Double(MeetingRadar.Timing().turnInterval.components.seconds)
         return Options(input: URL(fileURLWithPath: args[flag + 1]),
                        model: value("--model") ?? MetaModelAPI.museSpark.id,
-                       interval: value("--interval").flatMap(Double.init).map { max(1, $0) } ?? 20,
+                       interval: value("--interval").flatMap(Double.init).map { max(1, $0) }
+                           ?? (audio == nil ? 20 : turnInterval),
                        delay: value("--delay").flatMap(Double.init).map { max(0, $0) } ?? 12,
                        baseURL: value("--base-url").flatMap(URL.init(string:)),
-                       reasoningLine: value("--reasoning-line"))
+                       reasoningLine: value("--reasoning-line"),
+                       audio: audio)
     }
 
     @MainActor
@@ -66,8 +77,8 @@ enum MeetingRadarReplay {
         let (input, model, interval, delay) = (options.input, options.model, options.interval, options.delay)
         let key = ProcessInfo.processInfo.environment["META_API_KEY"]?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard !key.isEmpty || options.baseURL != nil else {
-            FileHandle.standardError.write(Data("radar-replay: set META_API_KEY, or pass --base-url\n".utf8))
+        guard !key.isEmpty || (options.baseURL != nil && options.audio == nil) else {
+            FileHandle.standardError.write(Data("radar-replay: set META_API_KEY (needed for --audio), or pass --base-url\n".utf8))
             return 2
         }
         let fixture: Fixture
@@ -89,14 +100,14 @@ enum MeetingRadarReplay {
         let system = options.reasoningLine.map { "Reasoning effort: \($0)\n\n" + MeetingRadarAnalyzer.system }
             ?? MeetingRadarAnalyzer.system
         let meetingID = UUID()
+        if let audio = options.audio {
+            return await runLive(options, audio: audio, fixture: fixture, client: client, system: system,
+                                 meetingID: meetingID, excerpts: excerpts(fixture), key: key)
+        }
         let lines = fixture.lines.enumerated().map { index, line in
             MeetingRadarAnalyzer.Line(label: "L\(index + 1)", time: line.time, speaker: line.speaker, text: line.text)
         }
-        let excerpts = (fixture.earlier ?? []).enumerated().map { index, passage in
-            MeetingRadarAnalyzer.Excerpt(label: "E\(index + 1)", evidence: RadarEvidence(
-                meetingID: UUID(), meetingTitle: passage.title, meetingDate: passage.date,
-                time: passage.time, speaker: passage.speaker, text: passage.text))
-        }
+        let excerpts = excerpts(fixture)
 
         var items: [RadarItem] = []
         var analyzed: [MeetingRadarAnalyzer.Line] = []
@@ -168,6 +179,148 @@ enum MeetingRadarReplay {
             ] as [String: Any],
         ]
         print(json(summary))
+        return 0
+    }
+
+    private static func excerpts(_ fixture: Fixture) -> [MeetingRadarAnalyzer.Excerpt] {
+        (fixture.earlier ?? []).enumerated().map { index, passage in
+            MeetingRadarAnalyzer.Excerpt(label: "E\(index + 1)", evidence: RadarEvidence(
+                meetingID: UUID(), meetingTitle: passage.title, meetingDate: passage.date,
+                time: passage.time, speaker: passage.speaker, text: passage.text))
+        }
+    }
+
+    /// Lines from the realtime sessions, kept on the main actor.
+    @MainActor
+    private final class LiveLines {
+        var started: ContinuousClock.Instant?
+        var pending: [MeetingRadarAnalyzer.Line] = []
+        var arrivals: [[String: Any]] = []
+        var count = 0
+        var finishedTracks = 0
+
+        var seconds: Double {
+            guard let started else { return 0 }
+            let elapsed = (ContinuousClock.now - started).components
+            return Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+        }
+
+        func add(time: Double, speaker: String, text: String) {
+            count += 1
+            pending.append(.init(label: "L\(count)", time: time, speaker: speaker, text: text))
+            arrivals.append(["line": "L\(count)", "speaker": speaker, "time": time, "arrivedAt": seconds, "text": text])
+        }
+    }
+
+    @MainActor
+    private static func runLive(_ options: Options, audio: URL, fixture: Fixture, client: MuseChatClient,
+                                system: String, meetingID: UUID, excerpts: [MeetingRadarAnalyzer.Excerpt],
+                                key: String) async -> Int32 {
+        let tracks = [("local", audio.appendingPathComponent("me.wav")), ("them", audio.appendingPathComponent("them.wav"))]
+        let duration = tracks.compactMap { try? MuseLiveTextTrack.length(of: $0.1) }.max().map { Double($0) / MuseLiveText.sampleRate }
+        guard let duration else {
+            FileHandle.standardError.write(Data("radar-replay: \(audio.path) needs me.wav and them.wav at 16 kHz mono\n".utf8))
+            return 2
+        }
+        let live = LiveLines()
+        let streams = tracks.map { speaker, url in
+            Task { @MainActor in
+                // About one frame of lead, as from a live microphone.
+                let track = MuseLiveTextTrack(source: url, startFrame: 0, leadSeconds: 0.1)
+                do {
+                    try await track.run(key: key, keywords: [], resumeFrom: nil) { output in
+                        switch output {
+                        case .connected: if live.started == nil { live.started = .now }
+                        case .line(let time, let text): live.add(time: time, speaker: speaker, text: text)
+                        default: break
+                        }
+                    }
+                } catch {
+                    if !Task.isCancelled {
+                        FileHandle.standardError.write(Data("radar-replay: \(speaker) audio: \(error.localizedDescription)\n".utf8))
+                    }
+                }
+                live.finishedTracks += 1
+            }
+        }
+        var items: [RadarItem] = []
+        var analyzed: [MeetingRadarAnalyzer.Line] = []
+        var nextID = 0
+        var passes: [[String: Any]] = []
+        var failures = 0
+        var lastPass: Double?
+        var stopped = false
+        while true {
+            let now = live.seconds
+            if !stopped, live.started != nil, now > duration + 6 {
+                streams.forEach { $0.cancel() }
+                stopped = true
+            }
+            let due = lastPass.map { now - $0 >= options.interval } ?? true
+            guard !live.pending.isEmpty, due else {
+                if (stopped || live.finishedTracks == tracks.count) && live.pending.isEmpty { break }
+                try? await Task.sleep(for: .milliseconds(100))
+                continue
+            }
+            let fresh = Array(live.pending.prefix(MeetingRadar.maximumNewLinesPerPass)).sorted { $0.time < $1.time }
+            lastPass = now
+            let request = MeetingRadarAnalyzer.Request(
+                meetingID: meetingID, meetingTitle: fixture.title, meetingDate: fixture.date,
+                attendees: fixture.attendees ?? [], existing: items,
+                earlierLines: Array(analyzed.suffix(MeetingRadar.contextLines)), newLines: fresh, excerpts: excerpts)
+            let started = ContinuousClock.now
+            do {
+                let reply = try await client.send(
+                    messages: [["role": "system", "content": system],
+                               ["role": "user", "content": MeetingRadarAnalyzer.prompt(request)]],
+                    schema: (name: "radar", schema: MeetingRadarAnalyzer.schema))
+                let elapsed = (ContinuousClock.now - started).components
+                let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+                let outcome = MeetingRadarAnalyzer.apply(reply: reply.content, to: request, nextID: &nextID, model: options.model)
+                for id in outcome.answeredIDs {
+                    if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
+                }
+                items += outcome.added
+                analyzed += fresh
+                let consumed = Set(fresh.map(\.label))
+                live.pending.removeAll { consumed.contains($0.label) }
+                failures = 0
+                let pass: [String: Any] = [
+                    "pass": passes.count + 1, "at": now, "newLines": fresh.count, "seconds": seconds,
+                    "inputTokens": reply.usage.inputTokens, "cachedInputTokens": reply.usage.cachedInputTokens,
+                    "outputTokens": reply.usage.outputTokens, "reasoningTokens": reply.usage.reasoningTokens,
+                    "cost": MetaModelAPI.cost(of: reply.usage, model: options.model), "rejected": outcome.rejected,
+                    "answered": outcome.answeredIDs,
+                    "added": outcome.added.map { describe($0, shownAt: live.seconds) },
+                ]
+                passes.append(pass)
+                print(json(pass))
+            } catch {
+                failures += 1
+                FileHandle.standardError.write(Data("radar-replay pass failed: \(error.localizedDescription)\n".utf8))
+                if failures >= 3 {
+                    streams.forEach { $0.cancel() }
+                    return 1
+                }
+            }
+        }
+        let seconds = passes.compactMap { $0["seconds"] as? Double }.sorted()
+        let delays = passes.flatMap { ($0["added"] as? [[String: Any]]) ?? [] }.compactMap { $0["shownAfter"] as? Double }.sorted()
+        var byKind: [String: Int] = [:]
+        for item in items { byKind[item.kind.rawValue, default: 0] += 1 }
+        print(json(["summary": [
+            "id": fixture.id ?? options.input.deletingPathExtension().lastPathComponent,
+            "model": options.model, "mode": "audio", "transcription": MuseLiveText.model,
+            "interval": options.interval, "audioSeconds": duration, "lines": live.count,
+            "passes": passes.count, "failedRequests": failures,
+            "items": items.map { describe($0, shownAt: nil) }, "byKind": byKind,
+            "rejected": passes.reduce(0) { $0 + ($1["rejected"] as? Int ?? 0) },
+            "cost": passes.reduce(0.0) { $0 + ($1["cost"] as? Double ?? 0) },
+            "passSecondsMedian": seconds.isEmpty ? 0 : seconds[seconds.count / 2],
+            "passSecondsMax": seconds.last ?? 0,
+            "shownAfterMedian": delays.isEmpty ? 0 : delays[delays.count / 2],
+            "arrivals": live.arrivals,
+        ] as [String: Any]]))
         return 0
     }
 

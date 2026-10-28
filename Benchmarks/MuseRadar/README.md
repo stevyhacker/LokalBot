@@ -1,6 +1,6 @@
 # Live Radar and Follow-through replays
 
-Read the [AMI evaluation](results/2026-10-27/REPORT.md).
+Read the [AMI evaluation](results/2026-10-27/REPORT.md) and the [fast live text check](results/2026-10-28-live-text/REPORT.md).
 
 These harnesses run LokalBot's own Live Radar and Follow-through code against the Meta Model API on public or synthetic transcripts. Nothing here reads a LokalBot library or the Keychain. Both features were built for the Meta Global AI Developer Hackathon; see [HACKATHON.md](../../HACKATHON.md).
 
@@ -12,6 +12,8 @@ These harnesses run LokalBot's own Live Radar and Follow-through code against th
 - **Requests.** Each pass goes through `MeetingRadarAnalyzer` (prompt, strict schema, quote and evidence checks, de-duplication) and `MuseChatClient` (`reasoning_effort` minimal).
 - **Earlier meetings.** The fixture supplies the earlier-meeting passages instead of library search, so runs are repeatable.
 - **Output.** One JSON line per pass gives timing, tokens, cost, and the items kept and rejected. A final summary line adds `shownAfter`: seconds from when a line was said to when its item would appear on screen, counting the preview delay, the wait for the next pass, and the request.
+
+`--audio <folder>` replays the meeting as fast live text runs it instead, in real time. `voice_fixture.py` voices a fixture with macOS `say`, one voice per track, into `me.wav` and `them.wav`. The replay streams both files to Muse Voice Transcribe through the app's own client (`MuseLiveTextTrack`), each finished turn becomes a line, and a pass follows each turn at most every `--interval` seconds (default 3, the app's turn interval). `shownAfter` is then measured on the wall clock, and the summary adds each line's text and arrival time.
 
 `LokalBot Dev --follow-through-replay <fixture.json>` runs `FollowThroughSession` on Muse Wonder with read tools that answer from the fixture. Every proposal is recorded and approved without being carried out.
 
@@ -32,6 +34,8 @@ Both read the key from `META_API_KEY`. `--radar-replay` also takes `--base-url <
 APP="path/to/DerivedData/Build/Products/Debug/LokalBot Dev.app"
 "$APP/Contents/MacOS/LokalBot Dev" --radar-replay fixtures/synthetic-launch-sync.json --model muse-spark-1.3
 "$APP/Contents/MacOS/LokalBot Dev" --follow-through-replay fixtures/synthetic-follow-through.json --model muse-wonder-1.0
+python3 -I voice_fixture.py fixtures/synthetic-launch-sync.json /private/tmp/voiced-launch-sync
+"$APP/Contents/MacOS/LokalBot Dev" --radar-replay fixtures/synthetic-launch-sync.json --audio /private/tmp/voiced-launch-sync
 ```
 
 ## AMI meetings

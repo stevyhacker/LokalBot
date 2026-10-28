@@ -8,12 +8,16 @@ protocol RadarLineFeed: AnyObject {
     var linesPublisher: AnyPublisher<[LiveMeetingTranscriber.Line], Never> { get }
     var currentLines: [LiveMeetingTranscriber.Line] { get }
     var isRunning: Bool { get }
+    /// Lines arrive turn by turn, within a second of being said, rather than
+    /// in 12-second chunks, so passes can follow each turn.
+    var deliversTurns: Bool { get }
     func activatePreview()
 }
 
 extension LiveMeetingTranscriber: RadarLineFeed {
     var linesPublisher: AnyPublisher<[Line], Never> { $lines.eraseToAnyPublisher() }
     var currentLines: [Line] { lines }
+    var deliversTurns: Bool { engine == .muse }
     func activatePreview() { activate() }
 }
 
@@ -21,7 +25,9 @@ extension LiveMeetingTranscriber: RadarLineFeed {
 /// preview, and every pass sends only the lines that arrived since the last
 /// one (plus a little context, what is already on the radar, and passages
 /// local search found in earlier meetings) to Muse on the Meta Model API.
-/// Audio and speaker separation stay on this Mac.
+/// Passes run about every 20 s, or after each turn when fast live text
+/// streams the transcript from Muse Voice Transcribe. Speaker separation
+/// stays on this Mac, and audio does too unless fast live text is on.
 ///
 /// Radar starts only when the person presses Start Radar during a recording,
 /// and only with a key and the api.meta.ai origin approved. It stops with the
@@ -37,6 +43,9 @@ final class MeetingRadar: ObservableObject {
     struct Timing {
         /// Shortest gap between the starts of two passes.
         var minimumInterval: Duration = .seconds(20)
+        /// The same gap when the feed delivers turns (fast live text): a
+        /// pass follows each finished turn, batching turns that end close together.
+        var turnInterval: Duration = .seconds(3)
         /// A burst of speech this long doesn't wait for the interval.
         var burstLines = 10
         var idlePoll: Duration = .seconds(1)
@@ -240,8 +249,8 @@ final class MeetingRadar: ObservableObject {
         guard !pending.isEmpty else { return false }
         if let retryAfter, ContinuousClock.now < retryAfter { return false }
         guard let lastPassStart else { return true }
-        return pending.count >= timing.burstLines
-            || ContinuousClock.now - lastPassStart >= timing.minimumInterval
+        let interval = transcriber.deliversTurns ? timing.turnInterval : timing.minimumInterval
+        return pending.count >= timing.burstLines || ContinuousClock.now - lastPassStart >= interval
     }
 
     private func pass(session: Int) async {

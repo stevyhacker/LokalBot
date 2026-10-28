@@ -151,6 +151,7 @@ final class MeetingRadarAnalyzerTests: XCTestCase {
 private final class ScriptedFeed: RadarLineFeed {
     let subject = CurrentValueSubject<[LiveMeetingTranscriber.Line], Never>([])
     var isRunning = false
+    var deliversTurns = false
     var activations = 0
     var linesPublisher: AnyPublisher<[LiveMeetingTranscriber.Line], Never> { subject.eraseToAnyPublisher() }
     var currentLines: [LiveMeetingTranscriber.Line] { subject.value }

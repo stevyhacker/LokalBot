@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Settings → Recording → Meta Muse: the key, the api.meta.ai approval, and
-/// the models Live Radar and Follow-through use.
+/// Settings → Recording → Meta Muse: the key, the api.meta.ai approval, fast
+/// live text, and the models Live Radar and Follow-through use.
 struct MetaMuseSettingsSection: View {
     @EnvironmentObject var app: AppState
     @State private var keyDraft = ""
@@ -12,8 +12,13 @@ struct MetaMuseSettingsSection: View {
     static let approvalHelp = "Live Radar sends new live transcript lines, the meeting title, invited names, "
         + "and passages from your earlier meetings that local search found, while it runs. Follow-through sends "
         + "the action, its source passages, the meeting summary, your name from Settings → Writing, and what its "
-        + "tools read. Audio, voices, and calendar email addresses stay on this Mac. The same approval covers "
-        + "Think if you point it at this server."
+        + "tools read. Audio stays on this Mac unless you turn on fast live text, and voices and calendar email "
+        + "addresses always do. The same approval covers Think if you point it at this server."
+
+    static let liveTextHelp = "While the live transcript preview runs, streams the microphone and call audio to "
+        + "\(MuseLiveText.displayName), which returns each turn's text about a second after it ends. Without it, the "
+        + "preview transcribes 12-second chunks on this Mac. Who said what still comes from your microphone and the "
+        + "call track, never from Muse. Costs about $0.36 per meeting hour for the two tracks."
 
     private var origin: String { InferenceEndpointPolicy.origin(for: MetaModelAPI.baseURL) ?? MetaModelAPI.origin }
 
@@ -24,6 +29,13 @@ struct MetaMuseSettingsSection: View {
             }
             .accessibilityIdentifier("settings.metaMuse.approval")
             .settingTarget("settings.metaMuseApproval", selected: app.focusedSettingID)
+
+            Toggle(isOn: $app.settings.museLiveTextEnabled) {
+                SettingsLabel("Fast live text: send meeting audio to \(MuseLiveText.displayName)", help: Self.liveTextHelp)
+            }
+            .disabled(!app.settings.metaModelAPIApproved)
+            .accessibilityIdentifier("settings.metaMuse.liveText")
+            .settingTarget("settings.museLiveTextEnabled", selected: app.focusedSettingID)
 
             LabeledContent("API key") { keyControl }
                 .settingTarget("settings.metaModelAPIKey", selected: app.focusedSettingID)

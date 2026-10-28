@@ -170,6 +170,10 @@ final class LiveMeetingTranscriber: ObservableObject {
 
     enum StartPosition { case recent, beginning }
 
+    /// Where the preview's text comes from: the local model in 12-second
+    /// chunks, or Muse Voice Transcribe streaming turn by turn (opt-in).
+    enum Engine: Equatable { case local, muse }
+
     struct Timing {
         var idlePoll: Duration = .seconds(1)
         var retryBaseSeconds: Double = 1
@@ -177,12 +181,18 @@ final class LiveMeetingTranscriber: ObservableObject {
 
     typealias SpeechDetector = @MainActor (URL) async throws -> Bool
     typealias Transcribe = @MainActor (URL, AppSettings) async throws -> Transcript
+    typealias MuseTrack = (URL) -> MuseLiveTextTrack
+    /// The key and keywords for fast live text, or nil when it can't run.
+    typealias MuseConnection = (AppSettings) -> (key: String, keywords: [String])?
 
     @Published private(set) var lines: [Line] = []
     @Published private(set) var state: State = .off
     @Published private(set) var isWorking = false
     @Published private(set) var statusMessage: String?
     @Published private(set) var previewStartTime: TimeInterval?
+    /// Turns still being spoken, at most one per track, with fast live text.
+    @Published private(set) var partials: [Line] = []
+    @Published private(set) var engine: Engine = .local
 
     var isRunning: Bool { state == .running }
     var errorMessage: String? {
@@ -195,6 +205,8 @@ final class LiveMeetingTranscriber: ObservableObject {
     private let detectSpeech: SpeechDetector
     private let transcribe: Transcribe
     private let timing: Timing
+    private let museTrack: MuseTrack
+    private let museConnection: MuseConnection
     private var task: Task<Void, Never>?
     private var generation = 0
     private var pendingFolder: URL?
@@ -211,8 +223,15 @@ final class LiveMeetingTranscriber: ObservableObject {
          detectSpeech: SpeechDetector? = nil,
          transcribe: Transcribe? = nil,
          timing: Timing = Timing(),
+         museTrack: MuseTrack? = nil,
+         museConnection: MuseConnection? = nil,
          settings: @escaping () -> AppSettings) {
         self.settings = settings
+        self.museTrack = museTrack ?? { MuseLiveTextTrack(source: $0) }
+        self.museConnection = museConnection ?? { settings in
+            MuseLiveText.unavailableReason(settings) == nil
+                ? (settings.effectiveMetaModelAPIKey, LiveMeetingTranscriber.keywords(settings)) : nil
+        }
         self.tracks = Self.newTracks()
         self.audioPreparationWorker = LiveMeetingAudioPreparationWorker(storageRoot: storageRoot)
         self.detectSpeech = detectSpeech ?? { url in
@@ -277,8 +296,17 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
         state = .running
         statusMessage = nil
-        task = Task { [weak self] in
-            await self?.run(folder: folder, session: session, position: position)
+        if let connection = museConnection(settings()) {
+            engine = .muse
+            statusMessage = "Connecting to \(MuseLiveText.displayName)…"
+            task = Task { [weak self] in
+                await self?.runMuse(folder: folder, session: session, key: connection.key, keywords: connection.keywords)
+            }
+        } else {
+            engine = .local
+            task = Task { [weak self] in
+                await self?.run(folder: folder, session: session, position: position)
+            }
         }
     }
 
@@ -308,6 +336,7 @@ final class LiveMeetingTranscriber: ObservableObject {
         generation += 1
         isWorking = false
         statusMessage = nil
+        partials = []
     }
 
 #if LOKALBOT_UI_TEST_HOST
@@ -341,6 +370,10 @@ final class LiveMeetingTranscriber: ObservableObject {
         var processedFrames: Int64 = 0
         var failures = 0
         var retryAfter: ContinuousClock.Instant?
+        /// Fast live text: the file frame sent so far, and when the current
+        /// session was accepted.
+        var museCursor: Int64?
+        var museConnectedAt: ContinuousClock.Instant?
     }
 
     private static func newTracks() -> [TrackState] {
@@ -408,6 +441,86 @@ final class LiveMeetingTranscriber: ObservableObject {
             let message = "Live preview was interrupted. Retry to continue; recording is still running."
             state = .failed(message)
             statusMessage = message
+        }
+    }
+
+    // MARK: - Fast live text
+
+    /// Your name, so Muse spells it as you do.
+    nonisolated static func keywords(_ settings: AppSettings) -> [String] {
+        let name = settings.cotypingUserName.trimmingCharacters(in: .whitespaces)
+        return name.isEmpty ? [] : [name]
+    }
+
+    private func runMuse(folder: URL, session: Int, key: String, keywords: [String]) async {
+        await withTaskGroup(of: Void.self) { group in
+            for index in tracks.indices {
+                group.addTask { [weak self] in
+                    await self?.streamMuse(track: index, folder: folder, session: session, key: key, keywords: keywords)
+                }
+            }
+        }
+    }
+
+    /// One track's sessions. A session the server ends after running a while
+    /// (its 60-minute cap) reconnects at once; one that fails to start or
+    /// drops early counts as a failure and backs off, as local chunks do.
+    private func streamMuse(track index: Int, folder: URL, session: Int, key: String, keywords: [String]) async {
+        let stream = museTrack(folder.appendingPathComponent(tracks[index].fileName))
+        let speaker = tracks[index].speaker
+        while isCurrent(session) {
+            tracks[index].museConnectedAt = nil
+            do {
+                try await stream.run(key: key, keywords: keywords, resumeFrom: tracks[index].museCursor) { [weak self] output in
+                    guard let self, self.isCurrent(session) else { return }
+                    self.receive(output, track: index, speaker: speaker)
+                }
+                // The track's file doesn't exist yet (no call audio so far).
+                try await Task.sleep(for: timing.idlePoll)
+                continue
+            } catch {
+                guard isCurrent(session) else { return }
+                let ranFor = tracks[index].museConnectedAt.map { ContinuousClock.now - $0 } ?? .zero
+                partials.removeAll { $0.speaker == speaker }
+                if ranFor >= .seconds(30) {
+                    tracks[index].failures = 0
+                    lokalbotLog("live text session ended track=\(tracks[index].fileName) error=\(error.localizedDescription)")
+                    continue
+                }
+                tracks[index].failures += 1
+                let failures = tracks[index].failures
+                lokalbotLog("live text failed track=\(tracks[index].fileName) attempt=\(failures) error=\(error.localizedDescription)")
+                if failures >= Self.maxConsecutiveFailures {
+                    let message = "Fast live text stopped: \(error.localizedDescription) Retry from this point; recording is still running."
+                    task?.cancel()
+                    task = nil
+                    state = .failed(message)
+                    statusMessage = message
+                    partials = []
+                    return
+                }
+                statusMessage = "Reconnecting to \(MuseLiveText.displayName)… (\(failures)/\(Self.maxConsecutiveFailures))"
+                try? await Task.sleep(for: .seconds(timing.retryBaseSeconds * pow(2, Double(failures - 1))))
+            }
+        }
+    }
+
+    private func receive(_ output: MuseLiveTextTrack.Output, track index: Int, speaker: String) {
+        switch output {
+        case .connected(let origin):
+            tracks[index].museConnectedAt = .now
+            if previewStartTime == nil { previewStartTime = origin }
+            statusMessage = nil
+        case .partial(let time, let text):
+            partials.removeAll { $0.speaker == speaker }
+            if let text { partials = (partials + [Line(time: time, speaker: speaker, text: text)]).sorted { $0.time < $1.time } }
+        case .line(let time, let text):
+            partials.removeAll { $0.speaker == speaker }
+            statusMessage = nil
+            lines = Array((lines + [Line(time: time, speaker: speaker, text: text)]).sorted { $0.time < $1.time }
+                .suffix(Self.maxLines))
+        case .progress(let cursor):
+            tracks[index].museCursor = cursor
         }
     }
 
