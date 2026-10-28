@@ -22,7 +22,7 @@ struct MeetingRadarPanel: View {
             RadarItemList(items: items, emptyMessage: emptyMessage, folder: meeting.folderURL(in: app.storage))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .lbGroupedSurface()
-            Text(footnote)
+            footnote
                 .font(.scaled(.caption2))
                 .foregroundStyle(.tertiary)
         }
@@ -65,10 +65,10 @@ struct MeetingRadarPanel: View {
                 }
             }
             if radar.totals.passes > 0 {
-                Text(passSummary).font(.scaled(.caption).monospacedDigit()).foregroundStyle(.secondary)
+                passSummary.font(.scaled(.caption).monospacedDigit()).foregroundStyle(.secondary)
             }
         } else if let reason = unavailableReason {
-            Text(reason).workspaceTextRole(.supporting)
+            Text(verbatim: reason).workspaceTextRole(.supporting)
         } else {
             Text("Catches commitments, decisions, open questions, and conflicts with earlier meetings as they are said. Sends \(modelName) new live transcript lines, the meeting title, invited names, and related passages from your earlier meetings at api.meta.ai. Starts the live preview if it is off.")
                 .workspaceTextRole(.supporting)
@@ -76,25 +76,27 @@ struct MeetingRadarPanel: View {
         }
     }
 
-    private var footnote: String {
-        var sent = ["new transcript lines as text"]
-        if app.settings.museScreenAnswersEnabled { sent.append("crops of screen captures that answer a question") }
-        let audio = app.settings.museLiveTextEnabled ? "Speakers stay on this Mac; fast live text streams audio."
-            : "Audio and speakers stay on this Mac."
-        return "Muse reads " + sent.joined(separator: " and ") + ". " + audio
+    private var footnote: Text {
+        let sent: Text = app.settings.museScreenAnswersEnabled
+            ? Text("Muse reads new transcript lines as text and crops of screen captures that answer a question.")
+            : Text("Muse reads new transcript lines as text.")
+        let audio: Text = app.settings.museLiveTextEnabled
+            ? Text("Speakers stay on this Mac; fast live text streams audio.")
+            : Text("Audio and speakers stay on this Mac.")
+        return sent + Text(verbatim: " ") + audio
     }
 
     private var modelName: String {
         MetaModelAPI.displayName(for: isThisMeeting ? radar.model : app.settings.museRadarModel)
     }
 
-    private var passSummary: String {
-        let passes = "\(radar.totals.passes) pass\(radar.totals.passes == 1 ? "" : "es")"
-        let last = radar.totals.lastPassSeconds.map { String(format: " · last %.1f s", $0) } ?? ""
-        return passes + last + " · " + RadarItemList.costLabel(radar.totals.cost)
+    private var passSummary: Text {
+        let cost = RadarItemList.costLabel(radar.totals.cost)
+        guard let last = radar.totals.lastPassSeconds else { return Text("Passes: \(radar.totals.passes) · \(cost)") }
+        return Text("Passes: \(radar.totals.passes) · last \(String(format: "%.1f", last)) s · \(cost)")
     }
 
-    private var emptyMessage: String {
+    private var emptyMessage: LocalizedStringKey {
         guard isThisMeeting, radar.isActive else { return "Start Radar to catch commitments and conflicts as they are said." }
         return radar.totals.passes == 0 ? "Waiting for the first transcript lines…" : "Nothing caught yet."
     }
@@ -109,7 +111,7 @@ struct MeetingRadarPanel: View {
 struct RadarItemList: View {
     @EnvironmentObject var app: AppState
     let items: [RadarItem]
-    var emptyMessage = "Nothing caught."
+    var emptyMessage: LocalizedStringKey = "Nothing caught."
     /// Offered on the person's own commitments once the meeting has ended.
     var followThrough: ((RadarItem) -> Void)?
     var openSource: ((RadarItem) -> Void)?
@@ -121,7 +123,7 @@ struct RadarItemList: View {
     static let order: [RadarItem.Kind] = [.contradiction, .commitment, .decision, .question]
 
     static func costLabel(_ cost: Double) -> String {
-        cost < 0.01 ? "under $0.01" : String(format: "$%.2f", cost)
+        cost < 0.01 ? String(localized: "under $0.01") : String(format: "$%.2f", cost)
     }
 
     var body: some View {
@@ -154,7 +156,7 @@ struct RadarItemList: View {
             ForEach(Self.order, id: \.self) { kind in
                 let group = items.filter { $0.kind == kind && $0.screenAnswer == nil }
                 if !group.isEmpty {
-                    Text(kind.pluralLabel)
+                    Text(LocalizedStringKey(kind.pluralLabel))
                         .font(.scaled(.caption).weight(.semibold))
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
@@ -169,17 +171,17 @@ struct RadarItemList: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: item.kind.systemImage)
                     .foregroundStyle(item.kind == .contradiction ? LBTokens.Palette.attentionText : LBTokens.Palette.accentText)
-                    .accessibilityLabel(item.kind.label)
+                    .accessibilityLabel(LocalizedStringKey(item.kind.label))
                 Text(item.text)
                     .font(LBTokens.Typography.reading)
                     .strikethrough(item.answered)
                     .foregroundStyle(item.answered ? .secondary : .primary)
                     .textSelection(.enabled)
             }
-            let details = [item.owner.map { $0 == "Me" ? "You" : $0 }, item.due, item.answered ? "answered" : nil]
-                .compactMap { $0 }
+            let details = [item.owner.map { $0 == "Me" ? String(localized: "You") : $0 }, item.due,
+                           item.answered ? String(localized: "answered") : nil].compactMap { $0 }
             if !details.isEmpty {
-                Text(details.joined(separator: " · ")).font(.scaled(.caption)).foregroundStyle(.secondary)
+                Text(verbatim: details.joined(separator: " · ")).font(.scaled(.caption)).foregroundStyle(.secondary)
             }
             Button { openSource?(item) } label: {
                 Text("\(MeetingRadarAnalyzer.timestamp(item.time))  “\(item.quote)”")
@@ -195,10 +197,17 @@ struct RadarItemList: View {
                     if !earlier.isCurrentMeeting { app.openMeeting(earlier.meetingID, seek: earlier.time) }
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(earlier.isCurrentMeeting ? "Earlier in this meeting"
-                             : "Earlier: \(earlier.meetingTitle) · \(earlier.meetingDate.formatted(date: .abbreviated, time: .omitted))"
-                                + (earlier.time.map { " · \(MeetingRadarAnalyzer.timestamp($0))" } ?? ""))
-                            .font(.scaled(.caption).weight(.semibold))
+                        Group {
+                            let date = earlier.meetingDate.formatted(date: .abbreviated, time: .omitted)
+                            if earlier.isCurrentMeeting {
+                                Text("Earlier in this meeting")
+                            } else if let time = earlier.time {
+                                Text("Earlier: \(earlier.meetingTitle) · \(date) · \(MeetingRadarAnalyzer.timestamp(time))")
+                            } else {
+                                Text("Earlier: \(earlier.meetingTitle) · \(date)")
+                            }
+                        }
+                        .font(.scaled(.caption).weight(.semibold))
                         Text("“\(earlier.text)”").font(.scaled(.callout)).multilineTextAlignment(.leading)
                     }
                     .padding(8)

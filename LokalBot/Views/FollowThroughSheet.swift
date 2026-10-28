@@ -41,17 +41,28 @@ struct FollowThroughSheet: View {
                 BrandChip(icon: "sparkles", text: MetaModelAPI.displayName(for: session.model), size: .compact)
             }
             Text(session.target.text).font(.scaled(.headline)).textSelection(.enabled)
-            Text("From \(session.target.meetingTitle) · \(session.target.meetingDate.formatted(date: .abbreviated, time: .shortened))"
-                 + (session.target.due.map { " · due \($0)" } ?? ""))
-                .workspaceTextRole(.supporting)
+            let meeting = session.target.meetingTitle
+            let date = session.target.meetingDate.formatted(date: .abbreviated, time: .shortened)
+            Group {
+                if let due = session.target.due {
+                    Text("From \(meeting) · \(date) · due \(due)")
+                } else {
+                    Text("From \(meeting) · \(date)")
+                }
+            }
+            .workspaceTextRole(.supporting)
         }
     }
 
     @ViewBuilder private func stepView(_ step: FollowThroughSession.Step) -> some View {
         switch step {
         case .read(_, let tool, let summary):
-            Label("\(Self.readLabel(tool)): \(summary)", systemImage: "magnifyingglass")
-                .font(.scaled(.callout)).foregroundStyle(.secondary)
+            Label {
+                Text(Self.readLabel(tool)) + Text(verbatim: ": \(summary)")
+            } icon: {
+                Image(systemName: "magnifyingglass")
+            }
+            .font(.scaled(.callout)).foregroundStyle(.secondary)
         case .note(_, let text):
             Text(text).font(.scaled(.callout))
         case .proposal(let proposal):
@@ -72,8 +83,14 @@ struct FollowThroughSheet: View {
         case .finished:
             VStack(alignment: .leading, spacing: 6) {
                 Label("Done", systemImage: "checkmark.seal").font(.scaled(.headline))
-                Text(session.summary ?? "Follow-through finished.")
-                    .font(LBTokens.Typography.reading).textSelection(.enabled)
+                Group {
+                    if let summary = session.summary {
+                        Text(verbatim: summary)
+                    } else {
+                        Text("Follow-through finished.")
+                    }
+                }
+                .font(LBTokens.Typography.reading).textSelection(.enabled)
             }
             .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,9 +106,7 @@ struct FollowThroughSheet: View {
 
     private var footer: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("Sends the action, its source passages, the meeting notes, and what Muse reads from your meetings to api.meta.ai. "
-                 + "Nothing is sent to anyone until you approve a step, and approved steps open as drafts. "
-                 + RadarItemList.costLabel(session.cost) + " so far.")
+            Text("Sends the action, its source passages, the meeting notes, and what Muse reads from your meetings to api.meta.ai. Nothing is sent to anyone until you approve a step, and approved steps open as drafts. \(RadarItemList.costLabel(session.cost)) so far.")
                 .font(.scaled(.caption)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 16)
@@ -103,12 +118,12 @@ struct FollowThroughSheet: View {
         }
     }
 
-    private static func readLabel(_ tool: String) -> String {
+    private static func readLabel(_ tool: String) -> LocalizedStringKey {
         switch tool {
         case "search_meetings": "Searched meetings"
         case "get_meeting": "Read meeting"
         case "get_action_items": "Read actions"
-        default: tool
+        default: LocalizedStringKey(tool)
         }
     }
 }
@@ -192,7 +207,7 @@ private struct ProposalCard: View {
         switch proposal.kind {
         case .email:
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 6) {
-                GridRow { Text("To").foregroundStyle(.secondary); TextField("Names or addresses", text: $to) }
+                GridRow { Text("Send to").foregroundStyle(.secondary); TextField("Names or addresses", text: $to) }
                 GridRow { Text("Cc").foregroundStyle(.secondary); TextField("", text: $cc) }
                 GridRow { Text("Subject").foregroundStyle(.secondary); TextField("", text: $subject) }
             }
@@ -239,7 +254,7 @@ private struct ProposalCard: View {
                         in: RoundedRectangle(cornerRadius: 6))
     }
 
-    private var approvedTitle: String {
+    private var approvedTitle: LocalizedStringKey {
         switch proposal.kind {
         case .email: "Opened in Mail"
         case .event: "Opened in Calendar"
@@ -248,7 +263,7 @@ private struct ProposalCard: View {
         }
     }
 
-    private var approveTitle: String {
+    private var approveTitle: LocalizedStringKey {
         switch proposal.kind {
         case .email: "Open in Mail"
         case .event: "Open in Calendar"

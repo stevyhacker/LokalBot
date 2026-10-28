@@ -347,7 +347,7 @@ The app may make these outbound connections:
   cancels pending scheduled work.
 - **Optional Meta Muse (Live Radar, fast live text, screen answers, and Follow-through):** off until you add a
   Meta Model API key and turn on "Allow sending meeting text to
-  https://api.meta.ai" in Settings → Recording → Meta Muse. That switch adds
+  https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
   the origin to the same approved-server list Think uses, so revoking it in
   either place stops both. Even then, nothing is sent until you start it:
   - **Live Radar** runs only after you press Start Radar during a recording,

@@ -53,9 +53,9 @@ enum MetaModelAPI {
         var errorDescription: String? {
             switch self {
             case .missingKey:
-                "Add a Meta Model API key in Settings → Recording → Meta Muse."
+                String(localized: "Add a Meta Model API key in Settings → Meetings → Meta Muse.")
             case .notApproved:
-                "Allow LokalBot to send meeting text to api.meta.ai in Settings → Recording → Meta Muse."
+                String(localized: "Allow LokalBot to send meeting text to api.meta.ai in Settings → Meetings → Meta Muse.")
             }
         }
     }

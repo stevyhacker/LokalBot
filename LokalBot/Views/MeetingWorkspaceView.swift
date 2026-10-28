@@ -766,8 +766,7 @@ private struct MeetingWorkspaceDetail: View {
                               openSource: { revealEvidence(at: $0.time) },
                               folder: meeting.folderURL(in: app.storage),
                               scrolls: false)
-                Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · "
-                     + RadarItemList.costLabel(radar.cost))
+                Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · \(RadarItemList.costLabel(radar.cost))")
                     .font(.scaled(.caption)).foregroundStyle(.secondary)
             }
         }

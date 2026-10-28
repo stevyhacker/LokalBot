@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings → Recording → Meta Muse: the key, the api.meta.ai approval, fast
+/// Settings → Meetings → Meta Muse: the key, the api.meta.ai approval, fast
 /// live text, and the models Live Radar and Follow-through use.
 struct MetaMuseSettingsSection: View {
     @EnvironmentObject var app: AppState
@@ -110,7 +110,7 @@ struct MetaMuseSettingsSection: View {
                         savedKey = app.settings.metaModelAPIKey
                         let saved = savedKey == keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         if saved { editingKey = false }
-                        keySaveError = saved ? nil : "Couldn’t save the key to Keychain. Try again."
+                        keySaveError = saved ? nil : String(localized: "Couldn’t save the key to Keychain. Try again.")
                     }
                     .disabled(keyDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || keyDraft == savedKey)
                     if editingKey {
@@ -128,7 +128,7 @@ struct MetaMuseSettingsSection: View {
                 }
             }
             if let keySaveError {
-                Text(keySaveError).font(.scaled(.callout)).foregroundStyle(Brand.error)
+                Text(verbatim: keySaveError).font(.scaled(.callout)).foregroundStyle(Brand.error)
             }
         }
     }

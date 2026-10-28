@@ -36,7 +36,7 @@ enum AppSecret: String, CaseIterable, Codable {
         case .autocompleteServer:
             "Sent with autocomplete requests to the server in Settings → Models."
         case .metaModelAPI:
-            "Sent to api.meta.ai with Live Radar and Follow-through requests (Settings → Recording → Meta Muse)."
+            "Sent to api.meta.ai with Live Radar and Follow-through requests (Settings → Meetings → Meta Muse)."
         }
     }
 

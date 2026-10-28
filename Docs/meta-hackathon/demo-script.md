@@ -13,7 +13,7 @@ Moment 3's final version, where LokalBot marks the commitment done by itself, de
 ## Before recording
 
 1. **Build.** Build the hackathon branch. A release-identity build run from Xcode's build products uses its own library (`~/Library/Application Support/me.dotenv.LokalBot.local-build`), so the demo never touches real meetings. Install the default Think and search models there.
-2. **Connect Muse.** In Settings → Recording → Meta Muse:
+2. **Connect Muse.** In Settings → Meetings → Meta Muse:
    - save the Meta Model API key;
    - turn on the api.meta.ai approval;
    - turn on fast live text, which sends meeting audio to Muse Voice Transcribe;

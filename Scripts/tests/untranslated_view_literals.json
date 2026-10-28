@@ -116,7 +116,6 @@
       "This selects \\(…) and keeps inline suggestions separate from the model used for meetings and Ask."
     ],
     "FollowUpDraftSheet.swift": [
-      "From \\(…) · \\(…)",
       "Write with Think",
       "Writing…"
     ],
@@ -293,7 +292,6 @@
       "Hide older",
       "Meetings, actions, and window titles that use any of these names are linked to the project.",
       "Not a Project",
-      "Open questions",
       "Stop Tracking",
       "Suggested",
       "Track \\(…)",

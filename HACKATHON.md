@@ -69,6 +69,6 @@ LokalBot keeps meetings on the Mac by default, and the hackathon features keep t
 ## Try it
 
 1. Build the **LokalBot Dev** scheme ([DEVELOPMENT.md](DEVELOPMENT.md#build-workflows)).
-2. Open Settings → Recording → Meta Muse. Save a Meta Model API key, then turn on "Allow sending meeting text to https://api.meta.ai".
+2. Open Settings → Meetings → Meta Muse. Save a Meta Model API key, then turn on "Allow sending meeting text to https://api.meta.ai".
 3. Start a recording, open the live meeting, and press **Start Radar**.
 4. After the meeting, open its page. Choose **Follow Through…** on one of your commitments in the Live Radar section, or **Follow Through with Muse…** in any action's menu.
