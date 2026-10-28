@@ -13,6 +13,9 @@ import Foundation
 ///   `LOKALBOT_UI_TEST_META_API_KEY_FILE`, so the key never appears in the
 ///   test configuration or its result bundle.
 /// In both modes approved Follow-through steps do not open Mail or Calendar.
+/// Screen-answer requests (the ones carrying images) get the answer the
+/// film's synthetic captures show, which still has to pass the quote check
+/// against the crop Vision read in the host.
 enum MuseUITestTransport {
     private static var mode: String? { ProcessInfo.processInfo.environment["LOKALBOT_MUSE_UI_TEST"] }
     static var isEnabled: Bool { mode == "1" || mode == "live" }
@@ -32,7 +35,8 @@ enum MuseUITestTransport {
         try await Task.sleep(for: .milliseconds(1_200))
         let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
         let messages = body["messages"] as? [[String: Any]] ?? []
-        let message = body["tools"] == nil ? radar(messages) : followThrough(messages)
+        let message = body["tools"] != nil ? followThrough(messages)
+            : messages.last?["content"] is [[String: Any]] ? screenAnswer(messages) : radar(messages)
         let finish = message["tool_calls"] == nil ? "stop" : "tool_calls"
         let payload: [String: Any] = [
             "choices": [["finish_reason": finish, "message": message]],
@@ -60,11 +64,13 @@ enum MuseUITestTransport {
     private static let rules = [
         Rule(trigger: "send the revised pricing deck to Marko", kind: "commitment",
              text: "Send the revised pricing deck to Marko", owner: "Me", due: "by Friday", conflictsWith: nil),
-        Rule(trigger: "annual plans get a discount", kind: "question",
-             text: "Do annual plans get a discount?", owner: "", due: "", conflictsWith: nil),
+        Rule(trigger: "trial-to-paid conversion last month", kind: "question",
+             text: "What was trial-to-paid conversion last month?", owner: "", due: "", conflictsWith: nil),
         Rule(trigger: "the launch is Friday the seventh", kind: "contradiction",
              text: "Launch moved to Friday the 7th; Launch planning agreed Monday, November 3rd",
              owner: "", due: "", conflictsWith: "Monday"),
+        Rule(trigger: "the launch is Friday the seventh", kind: "question",
+             text: "Is the launch now Friday the 7th?", owner: "", due: "", conflictsWith: nil),
         Rule(trigger: "free tier limited to one project", kind: "contradiction",
              text: "Free tier cut to one project; Launch planning settled on three", owner: "", due: "",
              conflictsWith: "three projects"),
@@ -79,9 +85,7 @@ enum MuseUITestTransport {
         let sections = prompt.components(separatedBy: "\n\n")
         let newLines = sections.first { $0.hasPrefix("NEW LINES:") }?.split(separator: "\n").dropFirst() ?? []
         let earlier = sections.first { $0.hasPrefix("EARLIER MEETINGS") }?.split(separator: "\n").dropFirst() ?? []
-        let onRadar = sections.first { $0.hasPrefix("ALREADY ON THE RADAR:") }?.split(separator: "\n").dropFirst() ?? []
         var items: [[String: String]] = []
-        var answered: [String] = []
         for line in newLines {
             guard let label = line.split(separator: " ").first?.dropFirst() else { continue }
             for rule in rules where line.localizedCaseInsensitiveContains(rule.trigger) {
@@ -93,15 +97,29 @@ enum MuseUITestTransport {
                 }
                 items.append(["kind": rule.kind, "text": rule.text, "owner": rule.owner, "due": rule.due,
                               "line": String(label), "quote": rule.trigger, "evidence": evidence])
-                if rule.kind == "decision",
-                   let question = onRadar.first(where: { $0.contains(" question") && $0.contains("annual") }),
-                   let id = question.split(separator: " ").first {
-                    answered.append(String(id))
-                }
             }
         }
-        let content = (try? JSONSerialization.data(withJSONObject: ["items": items, "answered": answered]))
+        let content = (try? JSONSerialization.data(withJSONObject: ["items": items, "answered": [String]()]))
             .map { String(decoding: $0, as: UTF8.self) } ?? "{\"items\":[],\"answered\":[]}"
+        return ["role": "assistant", "content": content]
+    }
+
+    // MARK: - Screen answers
+
+    /// The captures are labelled "Image N: <app> — <window>"; the answer names
+    /// the one that shows it.
+    private static func screenAnswer(_ messages: [[String: Any]]) -> [String: Any] {
+        let texts = (messages.last?["content"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
+        let question = texts.first ?? ""
+        let labels = texts.filter { $0.hasPrefix("Image ") }
+        func image(from app: String) -> Int? { labels.firstIndex { $0.contains(app) }.map { $0 + 1 } }
+        var answer: [String: Any] = ["answer": "", "image": 0, "quote": ""]
+        if question.localizedCaseInsensitiveContains("conversion"), let index = image(from: "Safari") {
+            answer = ["answer": "4.1% in September", "image": index, "quote": "Trial to paid, September 4.1%"]
+        } else if question.localizedCaseInsensitiveContains("launch"), let index = image(from: "Notion") {
+            answer = ["answer": "Monday, November 3", "image": index, "quote": "Launch Monday, November 3"]
+        }
+        let content = (try? JSONSerialization.data(withJSONObject: answer)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         return ["role": "assistant", "content": content]
     }
 

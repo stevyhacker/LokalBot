@@ -940,8 +940,21 @@ final class AppState: ObservableObject {
             searchIndex: searchIndex,
             embeddingIndex: embeddingIndex,
             settings: { [store = settingsStore] in store.current }),
-        screenSource: LibraryRadarScreenSource(store: activityStore),
+        screenSource: Self.radarScreenSource(store: activityStore),
         settings: { [store = settingsStore] in store.current })
+
+    /// Screen memory for screen answers. The UI-test host can use a folder of
+    /// synthetic captures instead (`LOKALBOT_UI_TEST_SCREENS`), as the radar
+    /// replay's `--screens` does.
+    private static func radarScreenSource(store: ActivityStore) -> RadarScreenSource {
+#if LOKALBOT_UI_TEST_HOST
+        if let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_SCREENS"],
+           let screens = try? MeetingRadarReplay.FixtureScreens(folder: URL(fileURLWithPath: path, isDirectory: true)) {
+            return screens
+        }
+#endif
+        return LibraryRadarScreenSource(store: store)
+    }
 
     @MainActor
     func prepareRecommendedCotypingModel() {

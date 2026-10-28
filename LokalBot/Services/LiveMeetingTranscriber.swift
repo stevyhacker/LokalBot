@@ -283,7 +283,9 @@ final class LiveMeetingTranscriber: ObservableObject {
             let session = generation
             state = .running
             statusMessage = nil
-            task = Task { [weak self] in await self?.play(script, session: session) }
+            engine = museConnection(settings()) == nil ? .local : .muse
+            let typing = engine == .muse
+            task = Task { [weak self] in await self?.play(script, session: session, typing: typing) }
             return
         }
 #endif
@@ -343,6 +345,9 @@ final class LiveMeetingTranscriber: ObservableObject {
     /// UI-test host only: `LOKALBOT_UI_TEST_LIVE_SCRIPT` names a JSON array of
     /// `{time, speaker, text}`. Each line appears `time` seconds after the
     /// preview starts, as transcribed chunks would, with no audio or model.
+    /// With fast live text on, each line is first typed out word by word as a
+    /// partial, the way Muse Voice Transcribe's turns arrive; the words are
+    /// the script's, since the runner has no meeting audio.
     private static var uiTestScript: [Line]? {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_LIVE_SCRIPT"],
               let data = FileManager.default.contents(atPath: path),
@@ -354,12 +359,25 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
     }
 
-    private func play(_ script: [Line], session: Int) async {
+    private func play(_ script: [Line], session: Int, typing: Bool) async {
         let start = ContinuousClock.now
+        var previous = 0.0
         for line in script.sorted(by: { $0.time < $1.time }) {
+            if typing {
+                let words = line.text.split(separator: " ")
+                let from = max(previous + 0.3, line.time - 2)
+                for count in 1..<max(words.count, 1) {
+                    let at = from + (line.time - from) * Double(count) / Double(words.count)
+                    try? await Task.sleep(until: start + .seconds(at), clock: .continuous)
+                    guard isCurrent(session) else { return }
+                    partials = [Line(time: line.time, speaker: line.speaker, text: words.prefix(count).joined(separator: " "))]
+                }
+            }
             try? await Task.sleep(until: start + .seconds(line.time), clock: .continuous)
             guard isCurrent(session) else { return }
+            partials = []
             lines.append(line)
+            previous = line.time
         }
     }
 #endif

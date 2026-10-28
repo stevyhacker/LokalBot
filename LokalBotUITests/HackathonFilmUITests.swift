@@ -4,7 +4,9 @@ import XCTest
 
 /// Clicks through Live Radar and Follow-through end to end and films it: the
 /// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
-/// line by line, and Follow-through on the commitment it caught.
+/// turn by turn with fast live text, a question answered from a synthetic
+/// screen capture, and Follow-through on the commitment it caught. The runner
+/// has no meeting audio, so the transcript's words come from the script.
 ///
 /// By default Muse replies are scripted in the host (`LOKALBOT_MUSE_UI_TEST=1`),
 /// so no key or network is used and the checks name exact items. With
@@ -76,13 +78,19 @@ final class HackathonFilmUITests: XCTestCase {
         keyField.typeText("demo-key-not-real")
         film.hold(0.8)
         app.buttons["Save key"].click()
-        film.hold(2)
+        film.hold(1.5)
+        // Fast live text and screen answers are on in this library's settings.
+        let screenAnswers = app.descendants(matching: .any)["settings.metaMuse.screenAnswers"].firstMatch
+        UITestHarness.scrollTo(screenAnswers, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(film.wait(for: screenAnswers, timeout: 5), "the screen answers switch did not render")
+        film.hold(3)
 
         // 2. A live meeting: Start Radar, then the transcript arrives line by line.
         app = try UITestHarness.relaunch(
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
+                          "LOKALBOT_UI_TEST_SCREENS": try FilmFixture.screens().path,
                           "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
                 .merging(windowSize) { _, new in new })
         let start = app.buttons["live.radar.start"]
@@ -90,15 +98,21 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(2)
         start.click()
         let started = Date()
+        XCTAssertTrue(film.wait(for: UITestHarness.staticText(containing: "Muse Voice Transcribe", in: app), timeout: 10),
+                      "the preview isn't using fast live text")
+        let screenAnswer = app.descendants(matching: .any)["radar.screenAnswer"].firstMatch
         if isLive {
             // Real replies vary: require a contradiction with the earlier
-            // meeting and a few items, and let the last pass after the final
-            // line (about 60 s in) finish.
+            // meeting, an answer from a screen capture, and a few items, and
+            // let the last pass after the final line (about 60 s in) finish.
             XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 75),
                           "Muse found no contradiction with the earlier meeting")
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 75), "no question was answered from the screen")
             film.hold(max(0, 78 - Date().timeIntervalSince(started)))
             XCTAssertGreaterThanOrEqual(radarItems(in: app).count, 3, "Muse caught fewer than three items")
         } else {
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 40), "the conversion question was not answered from the screen")
+            XCTAssertTrue(UITestHarness.staticText(containing: "4.1% in September", in: app).exists)
             let contradiction = UITestHarness.staticText(containing: "Launch moved to Friday", in: app)
             XCTAssertTrue(film.wait(for: contradiction, timeout: 60), "the launch-date contradiction never appeared")
             let decision = UITestHarness.staticText(containing: "Annual plans get 20% off", in: app)
@@ -254,6 +268,8 @@ private enum FilmFixture {
       "semanticSearchEnabled": false,
       "cotypingEnabled": false,
       "cotypingUserName": "Jordan Lee",
+      "museLiveTextEnabled": true,
+      "museScreenAnswersEnabled": true,
       "approvedRemoteInferenceOrigins": ["https://api.meta.ai"]
     }
     """
@@ -261,8 +277,8 @@ private enum FilmFixture {
     static let live: [(TimeInterval, String, String)] = [
         (2, "them", "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."),
         (7, "local", "I'll send the revised pricing deck to Marko by Friday."),
-        (12, "them", "Great. Did we decide whether annual plans get a discount?"),
-        (17, "local", "Not yet, let's keep that open."),
+        (12, "them", "Great. What was our trial-to-paid conversion last month, by the way?"),
+        (17, "local", "Let me think, I saw it on the dashboard."),
         (23, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
         (28, "local", "Hm, I thought it was the Monday. Let me check."),
         (33, "them", "And sales wants the free tier limited to one project."),
@@ -271,6 +287,17 @@ private enum FilmFixture {
         (48, "local", "Perfect. Let's go with twenty percent off for annual plans."),
         (53, "them", "Agreed, twenty percent. Talk tomorrow!"),
     ]
+
+    /// The radar replay's synthetic captures: a metrics dashboard and a
+    /// launch plan, read from the checkout the tests were built from.
+    static func screens(file: StaticString = #filePath) throws -> URL {
+        let folder = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Benchmarks/MuseRadar/fixtures/screens", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("screens.json").path) else {
+            throw CocoaError(.fileNoSuchFile, userInfo: [NSFilePathErrorKey: folder.path])
+        }
+        return folder
+    }
 
     static func liveScript(in library: URL) throws -> URL {
         let url = library.appendingPathComponent("live-script.json")
