@@ -82,4 +82,4 @@ The music and the voice takes are kept with the renders in the project files
   frame deterministically.
 - `mix.py`: the soundtrack.
 - `render.cjs`: frame renderer (`frames <dir> --workers n`, `stills <dir> t…`).
-- `assets/fonts/`: Inter (OFL, see `FONTS.md`); `assets/brand/`: the app icon.
+- `vendor/`: Inter (OFL, see `vendor/FONTS.md`); `assets/brand/`: the app icon.
