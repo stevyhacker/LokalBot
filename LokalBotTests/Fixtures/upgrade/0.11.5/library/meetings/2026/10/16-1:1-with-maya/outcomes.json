@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000014-1",
+      "schemaVersion": 2,
+      "text": "Book the data-team review",
+      "citations": [
+        {
+          "meetingID": "00000014-0000-4000-8000-000000000014",
+          "segmentID": "segment-0000-0000000000-0000018000",
+          "start": 0,
+          "end": 18,
+          "speaker": "them",
+          "excerpt": "Index rebuild plan is ready \u2014 I'd like the data team review booked."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}

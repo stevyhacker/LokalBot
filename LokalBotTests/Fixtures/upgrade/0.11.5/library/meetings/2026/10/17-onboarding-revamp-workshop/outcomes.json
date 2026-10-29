@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [],
+  "decisionRecords": [
+    {
+      "id": "demo-decision-00000013-1",
+      "schemaVersion": 2,
+      "text": "Explain the mic prompt before the system dialog fires.",
+      "citations": [
+        {
+          "meetingID": "00000013-0000-4000-8000-000000000013",
+          "segmentID": "segment-0001-0000022000-0000044000",
+          "start": 22,
+          "end": 44,
+          "speaker": "them",
+          "excerpt": "Biggest drop-off is the permissions step \u2014 we should explain the mic prompt before it fires."
+        }
+      ]
+    }
+  ],
+  "openQuestions": []
+}
