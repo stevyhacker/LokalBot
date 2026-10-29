@@ -222,6 +222,53 @@ with `--candidate` or `--staged`; candidate preparation and stable publication
 still require the notes and changelog. Prerelease publication retains its
 tag-specific notes path and generated-notes fallback.
 
+#### Explainers for major features
+
+Every major feature in a stable release ships with an explainer: one
+infographic image (PNG) or one short PDF that shows a new user what the
+feature does and how to start using it. A major feature is a new capability
+people have to learn, such as a new page, workflow, integration, or group of
+settings. Fixes, new model choices, and small additions to something people
+already use don't need one.
+
+- **Content.** What the feature does and who it's for; how to turn it on, with
+  the real menu or settings path; what it reads, keeps, and sends, and what
+  stays on the computer; its limits and anything unverified, such as an alpha
+  platform or a pending review; and at least one real screenshot, film still,
+  or diagram. Use synthetic data, such as the demo library, never a real
+  library, mailbox, or calendar.
+- **Format.** A PNG at least 1200 pixels wide, or a PDF of a few pages, under
+  10 MB either way. Name it after the feature, not the release:
+  `web/explainers/<feature-slug>.png` or `.pdf`, in lowercase words joined by
+  dashes, for example `web/explainers/gmail-meeting-briefs.pdf`. When a later
+  release changes the feature, update the same file.
+- **Making one.** Write the explainer as an HTML page and render it with
+  headless Google Chrome:
+
+  ```sh
+  python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.pdf
+  python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
+  ```
+
+  A PNG captures a fixed canvas at 2x, so design the page at that size. For a
+  PDF, give the page `print-color-adjust: exact` so its backgrounds print.
+- **Land it before the candidate.** Commit explainers to `master` with their
+  feature or in a separate pull request, because the candidate commit holds
+  only the release metadata. The website deploys `web/` from `master`, so the
+  link works before the tag is pushed.
+- **Link it** at the end of the feature's bullet under **What’s new**:
+  `[How it works](https://www.lokalbot.com/explainers/gmail-meeting-briefs.pdf)`.
+  The GitHub Release body and Sparkle's release-notes link show the same notes.
+  After publishing, open each explainer link from the release page.
+
+`release-preflight.py` enforces this for releases after 0.11.5. Notes with a
+**What’s new** section must link at least one explainer, and every linked
+explainer must be a committed PNG or PDF in `web/explainers/`, under 10 MB.
+When everything new in a release is small, say so in an HTML comment in the
+notes, which GitHub doesn't show on the release page:
+`<!-- no explainer: only small additions to existing pages -->`. The preflight
+can't tell which bullets are major, so check each one while writing the notes.
+
 Build (including its Tests job), Nightly and Release use Xcode **26.4.1** (build
 **17E202**) on `macos-26` runners; MLX 0.32.3 and later need its Swift 6.3 toolchain,
 and the `macos-15` image has no Xcode newer than 26.3. 0.8.0 used Xcode 26.3 build

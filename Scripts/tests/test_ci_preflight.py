@@ -118,6 +118,79 @@ class ReleaseMetadataTests(unittest.TestCase):
             with self.subTest(metadata_only=metadata_only), self.assertRaisesRegex(ValueError, "Requested"):
                 preflight.validate(self.root, version="0.9.0", metadata_only=metadata_only)
 
+    def release(self, version, notes):
+        (self.root / "LokalBot/Info.plist").write_bytes(plistlib.dumps({
+            "CFBundleShortVersionString": version, "CFBundleVersion": "31", "SUPublicEDKey": "a2V5"}))
+        (self.root / "project.yml").write_text(
+            f'        CFBundleShortVersionString: "{version}"\n        CFBundleVersion: "31"\n')
+        self.write_port(version)
+        (self.root / f"Scripts/release-notes/v{version}.md").write_text(
+            f"{notes}\n\nhttps://github.com/stevyhacker/lokalbot/compare/v0.11.5...v{version}\n")
+
+    def explainer(self, name, content=b"\x89PNG\r\n\x1a\nimage"):
+        path = self.root / "web/explainers" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        return path
+
+    def test_major_features_need_an_explainer_after_0_11_5(self):
+        self.release("0.11.6", "## What’s new\n\n- **Gmail meeting briefs.** Email rows on Today.")
+        with self.assertRaisesRegex(ValueError, "explainer for each major feature"):
+            preflight.validate(self.root)
+
+    def test_releases_up_to_0_11_5_need_no_explainer(self):
+        self.notes.write_text("## What’s new\n\n- **Faster releases.**\n\n"
+                              "https://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n")
+        self.assertEqual(preflight.validate(self.root), ("0.8.1", "31", "v0.8.0"))
+
+    def test_fixes_only_release_needs_no_explainer(self):
+        self.release("0.11.6", "## Fixes\n\n- **Steadier recording.** Webex capture follows its helper.")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_no_explainer_comment_needs_a_reason(self):
+        self.release("0.11.6", "## What’s new\n\n- **Speaker search.**\n\n<!-- no explainer: -->")
+        with self.assertRaisesRegex(ValueError, "explainer for each major feature"):
+            preflight.validate(self.root)
+        self.release("0.11.6", "## What’s new\n\n- **Speaker search.**\n\n"
+                               "<!-- no explainer: only small additions to existing pages -->")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_linked_explainer_must_be_a_png_or_pdf_in_web_explainers(self):
+        link = "https://www.lokalbot.com/explainers/{}"
+        for name, setup, error in [
+            ("gmail-briefs.png", None, "isn't in the repository"),
+            ("Gmail_Briefs.png", None, "feature-slug"),
+            ("gmail-briefs.jpg", None, "feature-slug"),
+            ("gmail-briefs.png", b"<html>not an image</html>", "isn't a PNG"),
+            ("gmail-briefs.pdf", b"\x89PNG\r\n\x1a\n", "isn't a PDF"),
+        ]:
+            with self.subTest(name=name, error=error):
+                shutil.rmtree(self.root / "web", ignore_errors=True)
+                if setup is not None:
+                    self.explainer(name, setup)
+                self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format(name)})")
+                with self.assertRaisesRegex(ValueError, error):
+                    preflight.validate(self.root)
+        self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format('gmail-briefs.png')})")
+        large = self.explainer("gmail-briefs.png")
+        with large.open("r+b") as handle:
+            handle.truncate(preflight.EXPLAINER_MAX_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "under 10 MB"):
+            preflight.validate(self.root)
+        self.explainer("gmail-briefs.png")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+        self.explainer("gmail-briefs.pdf", b"%PDF-1.7\n")
+        self.release("0.11.6", f"## What’s new\n\n- **Gmail briefs.** [How it works]({link.format('gmail-briefs.pdf')})")
+        self.assertEqual(preflight.validate(self.root), ("0.11.6", "31", "v0.11.5"))
+
+    def test_candidate_explainer_must_be_committed(self):
+        self.explainer("gmail-briefs.png")
+        self.release("0.11.6", "## What’s new\n\n- **Gmail briefs.** "
+                               "[How it works](https://www.lokalbot.com/explainers/gmail-briefs.png)")
+        with patch.object(preflight, "committed", return_value=False):
+            with self.assertRaisesRegex(ValueError, "Commit the explainer"):
+                preflight.validate(self.root, candidate=True)
+
     def test_missing_human_summary(self):
         self.notes.write_text('https://github.com/stevyhacker/lokalbot/compare/v0.8.0...v0.8.1\n')
         with self.assertRaisesRegex(ValueError, "human-readable"):
