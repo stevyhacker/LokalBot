@@ -95,13 +95,14 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.parakeetV3, environment: environment))
     }
 
-    func testLegacyWhisperCacheIsRecognizedAndMigratedToApplicationSupport() throws {
+    func testLegacyWhisperCacheCountsOnlyAfterMigrationToApplicationSupport() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
         let legacyRoot = try XCTUnwrap(environment.legacyWhisperKitRepoRoot)
         let legacyModel = try writeWhisperModel(in: legacyRoot)
 
-        XCTAssertTrue(TranscriptionModelStore.isDownloaded(
+        // Readiness runs at launch and must not reach into ~/Documents.
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(
             .whisperLarge,
             environment: environment))
 
@@ -113,6 +114,9 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(
             atPath: migrated.appendingPathComponent("config.json").path))
         XCTAssertFalse(FileManager.default.fileExists(atPath: legacyModel.path))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(
+            .whisperLarge,
+            environment: environment))
     }
 
     func testWhisperMigrationDoesNotReplaceACompleteDestination() throws {
