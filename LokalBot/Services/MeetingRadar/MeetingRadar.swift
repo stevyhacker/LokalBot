@@ -69,7 +69,7 @@ final class MeetingRadar: ObservableObject {
     @Published private(set) var meetingID: Meeting.ID?
     @Published private(set) var model = MetaModelAPI.museSpark.id
     /// The item that changed last: the newest one a pass added, or the
-    /// question that just got a screen answer. The floating panel shows it.
+    /// question that just got an answer. The floating panel shows it.
     @Published private(set) var spotlightID: String?
     /// What live answers is doing for each question it is looking up.
     @Published private(set) var answerSteps: [String: String] = [:]
@@ -80,6 +80,10 @@ final class MeetingRadar: ObservableObject {
     static let contextLines = 24
     static let evidenceLimit = 6
     static let maximumConsecutiveFailures = 3
+    /// How long a question that just got an answer keeps the spotlight
+    /// before a newer item takes it, so the answer can be read during the
+    /// call. A contradiction still takes it at once.
+    static let answerSpotlightHold: TimeInterval = 12
 
     private let transcriber: RadarLineFeed
     private let evidenceSource: RadarEvidenceSource
@@ -114,6 +118,7 @@ final class MeetingRadar: ObservableObject {
     /// Changes when answers are cancelled, so a late reply can't land in the
     /// next meeting. `finish()` keeps it, so answers still arriving are saved.
     private var answerEpoch = 0
+    private var spotlightHeldUntil: Date?
 
     init(transcriber: RadarLineFeed,
          evidenceSource: RadarEvidenceSource,
@@ -231,6 +236,7 @@ final class MeetingRadar: ObservableObject {
         record = saved ?? MeetingRadarRecord(model: model)
         items = record?.items ?? []
         spotlightID = nil
+        spotlightHeldUntil = nil
         nextItemNumber = items.compactMap { Int($0.id.dropFirst()) }.max() ?? 0
         totals = Totals(passes: record?.passes.count ?? 0, cost: record?.cost ?? 0,
                         lastPassSeconds: record?.passes.last?.seconds)
@@ -318,7 +324,8 @@ final class MeetingRadar: ObservableObject {
                 if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
             }
             items.append(contentsOf: outcome.added)
-            if let newest = outcome.added.first(where: { $0.kind == .contradiction }) ?? outcome.added.last {
+            if let newest = outcome.added.first(where: { $0.kind == .contradiction }) ?? outcome.added.last,
+               newest.kind == .contradiction || spotlightHeldUntil.map({ now() >= $0 }) ?? true {
                 spotlightID = newest.id
             }
             if screenSource != nil, settings().museScreenAnswersEnabled {
@@ -410,7 +417,7 @@ final class MeetingRadar: ObservableObject {
                                            capturedAt: capture.capturedAt, app: capture.app,
                                            windowTitle: capture.windowTitle, image: name, model: model)
                 items[index].screenAnswer = stored
-                spotlightID = id
+                spotlight(answered: id)
             } catch {
                 lokalbotLog("live radar screen answer save failed error=\(error.localizedDescription)")
             }
@@ -468,7 +475,7 @@ final class MeetingRadar: ObservableObject {
         answerTasks["live-" + id] = nil
         if let answer = outcome.answer, let index = items.firstIndex(where: { $0.id == id }) {
             items[index].answer = answer
-            spotlightID = id
+            spotlight(answered: id)
         }
         let request = RadarPass(
             at: now(), seconds: outcome.seconds, newLines: 0, evidence: outcome.turns,
@@ -481,6 +488,11 @@ final class MeetingRadar: ObservableObject {
         lokalbotLog("live answer turns=\(outcome.turns) found=\(outcome.answer != nil) "
             + "seconds=\(String(format: "%.2f", outcome.seconds)) reason=\(outcome.reason ?? "-")")
         save()
+    }
+
+    private func spotlight(answered id: String) {
+        spotlightID = id
+        spotlightHeldUntil = now().addingTimeInterval(Self.answerSpotlightHold)
     }
 
     private func save() {

@@ -6,9 +6,10 @@ import XCTest
 /// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
 /// turn by turn with fast live text, a question answered from a synthetic
 /// screen capture, questions answered from a pricing sheet and from this
-/// repository's code, the floating Live Radar panel that shows the same items
-/// over the meeting app, and Follow-through on the commitment it caught. The
-/// runner has no meeting audio, so the transcript's words come from the script.
+/// repository's code, the floating Live Radar panel over a stand-in video call
+/// (`LOKALBOT_UI_TEST_CALL`), the board behind it, and Follow-through on the
+/// commitment it caught. The runner has no meeting audio, so the transcript's
+/// words come from the script.
 ///
 /// By default Muse replies are scripted in the host (`LOKALBOT_MUSE_UI_TEST=1`),
 /// so no key or network is used and the checks name exact items. With
@@ -98,6 +99,7 @@ final class HackathonFilmUITests: XCTestCase {
             environment: ["LOKALBOT_UI_TEST_WINDOW": "live-preview",
                           "LOKALBOT_UI_TEST_LIVE_SCRIPT": FilmFixture.liveScript(in: library).path,
                           "LOKALBOT_UI_TEST_SCREENS": try FilmFixture.screens().path,
+                          "LOKALBOT_UI_TEST_CALL": "1",
                           "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(muse) { _, new in new }
                 .merging(windowSize) { _, new in new })
         let start = app.buttons["live.radar.start"]
@@ -107,6 +109,8 @@ final class HackathonFilmUITests: XCTestCase {
         let started = Date()
         let panel = app.descendants(matching: .any)["liveRadarPanel"].firstMatch
         XCTAssertTrue(film.wait(for: panel, timeout: 10), "the floating Live Radar panel did not open")
+        let call = app.descendants(matching: .any)["filmCall"].firstMatch
+        XCTAssertTrue(film.wait(for: call, timeout: 10), "the stand-in call did not open behind the panel")
         XCTAssertTrue(film.wait(for: UITestHarness.staticText(containing: "Muse Voice Transcribe", in: app), timeout: 10),
                       "the preview isn't using fast live text")
         let screenAnswer = app.descendants(matching: .any)["radar.screenAnswer"].firstMatch
@@ -115,12 +119,12 @@ final class HackathonFilmUITests: XCTestCase {
             // Real replies vary: require a contradiction with the earlier
             // meeting, an answer from a screen capture, an answer from the
             // sheet or the code, and a few items, and let the last pass and
-            // answers after the final line (about 75 s in) finish.
-            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 90),
+            // answers after the final line (about 96 s in) finish.
+            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 100),
                           "Muse found no contradiction with the earlier meeting")
-            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 90), "no question was answered from the screen")
-            XCTAssertTrue(film.wait(for: liveAnswer, timeout: 90), "no question was answered from the sheet or the code")
-            film.hold(max(0, 100 - Date().timeIntervalSince(started)))
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 100), "no question was answered from the screen")
+            XCTAssertTrue(film.wait(for: liveAnswer, timeout: 100), "no question was answered from the sheet or the code")
+            film.hold(max(0, 120 - Date().timeIntervalSince(started)))
             XCTAssertGreaterThanOrEqual(radarItems(in: app).count, 3, "Muse caught fewer than three items")
         } else {
             let sheet = UITestHarness.staticText(containing: "$12 per seat", in: app)
@@ -147,6 +151,15 @@ final class HackathonFilmUITests: XCTestCase {
             collapse.click()
             film.hold(2)
         }
+        // After the call, Open LokalBot leaves the call for the board behind it.
+        let open = app.buttons["liveRadarPanel.open"].firstMatch
+        XCTAssertTrue(open.exists, "the panel has no Open LokalBot button")
+        open.click()
+        let board = app.scrollViews["radar.items"]
+        let deadline = Date().addingTimeInterval(5)
+        while call.exists, Date() < deadline { film.hold(0.2) }
+        XCTAssertFalse(call.exists, "Open LokalBot did not leave the call")
+        film.hold(3)
         // Closing it leaves the board; UI tests would otherwise check the
         // panel before every scroll.
         let closePanel = app.buttons["liveRadarPanel.close"].firstMatch
@@ -155,10 +168,9 @@ final class HackathonFilmUITests: XCTestCase {
             film.hold(1)
         }
         // What needs attention leads the board; scroll to the commitments and decision.
-        let radarList = app.scrollViews["radar.items"]
-        if radarList.exists {
+        if board.exists {
             for _ in 0..<3 {
-                radarList.scroll(byDeltaX: 0, deltaY: -220)
+                board.scroll(byDeltaX: 0, deltaY: -220)
                 film.hold(1.6)
             }
         }
@@ -315,21 +327,23 @@ private enum FilmFixture {
     }
 
     static let live: [(TimeInterval, String, String)] = [
+        // The call waits after the two questions live answers look up, so
+        // each answer is the panel's top card for a while, as in the demo.
         (2, "them", "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."),
         (7, "local", "I'll send the revised pricing deck to Marko by Friday."),
         (12, "them", "Great. What did we put as the Team plan price in the pricing sheet?"),
         (17, "local", "One second, it's in the sheet."),
-        (22, "them", "And what was our trial-to-paid conversion last month, by the way?"),
-        (27, "local", "Let me think, I saw it on the dashboard."),
-        (33, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
-        (38, "local", "Hm, I thought it was the Monday. Let me check."),
-        (43, "them", "And sales wants the free tier limited to one project."),
-        (48, "local", "Okay, let's decide that with Ana tomorrow."),
-        (53, "them", "Unrelated, but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?"),
-        (58, "local", "Hm, good question."),
-        (63, "them", "Marko will review the onboarding emails before Wednesday."),
-        (68, "local", "Perfect. Let's go with twenty percent off for annual plans."),
-        (73, "them", "Agreed, twenty percent. Talk tomorrow!"),
+        (34, "them", "And what was our trial-to-paid conversion last month, by the way?"),
+        (39, "local", "Let me think, I saw it on the dashboard."),
+        (45, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
+        (50, "local", "Hm, I thought it was the Monday. Let me check."),
+        (55, "them", "And sales wants the free tier limited to one project."),
+        (60, "local", "Okay, let's decide that with Ana tomorrow."),
+        (65, "them", "Unrelated, but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?"),
+        (70, "local", "Hm, good question."),
+        (86, "them", "Marko will review the onboarding emails before Wednesday."),
+        (91, "local", "Perfect. Let's go with twenty percent off for annual plans."),
+        (96, "them", "Agreed, twenty percent. Talk tomorrow!"),
     ]
 
     /// The radar replay's synthetic captures: a metrics dashboard and a

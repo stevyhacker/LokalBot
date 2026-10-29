@@ -953,6 +953,9 @@ final class AppState: ObservableObject {
     func startLiveRadar(for meeting: Meeting) {
         meetingRadar.start(meeting: meeting, folder: meeting.folderURL(in: storage))
         if meetingRadar.isActive, settings.liveRadarPanelEnabled { liveRadarPanel.show() }
+#if LOKALBOT_UI_TEST_HOST
+        if meetingRadar.isActive { FilmCall.show(app: self, title: meeting.displayTitle) }
+#endif
     }
 
     /// Screen memory for screen answers. The UI-test host can use a folder of
@@ -1141,6 +1144,10 @@ final class AppState: ObservableObject {
     /// in-progress recording selected, so the detail pane shows the live
     /// transcript and notes.
     func showLiveMeeting() {
+#if LOKALBOT_UI_TEST_HOST
+        // The film's stand-in call covers the LokalBot window; closing it is the way back.
+        if FilmCall.close() { return }
+#endif
         guard let live = currentMeeting else { return }
         navSection = .meetings
         selectedMeetingIDs = [live.id]

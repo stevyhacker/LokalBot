@@ -199,6 +199,7 @@ struct LiveRadarPanelView: View {
             }
             .disabled(model.collapsed)
             iconButton("macwindow", label: "Open LokalBot") { app.showLiveMeeting() }
+                .accessibilityIdentifier("liveRadarPanel.open")
             iconButton(model.collapsed ? "chevron.down" : "chevron.up", label: model.collapsed ? "Expand" : "Collapse") {
                 model.collapsed.toggle()
             }

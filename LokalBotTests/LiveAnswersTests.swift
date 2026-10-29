@@ -257,4 +257,48 @@ final class LiveAnswersTests: XCTestCase {
         await radar.finish()
         XCTAssertEqual(MeetingRadarRecord.load(from: folder)?.answerRequests?.count, 1)
     }
+
+    @MainActor
+    func testAnAnswerKeepsTheSpotlightOverTheNextItem() async throws {
+        var settings = AppSettings()
+        settings.approvedRemoteInferenceOrigins = ["https://api.meta.ai"]
+        settings.liveAnswersEnabled = true
+        let environment = StubAnswerEnvironment()
+        environment.contextItems = [LiveAnswerContext(kind: .project, title: "Project Launch",
+                                                      text: "The launch is Monday, November 3.")]
+        let feed = StillFeed()
+        let radar = MeetingRadar(
+            transcriber: feed, evidenceSource: NoEvidence(), answerEnvironment: environment,
+            answerCall: { _, _, _ in
+                toolReply("answer", ["text": "Monday, November 3.",
+                                     "sources": [["id": "C1", "quote": "The launch is Monday, November 3."]]])
+            },
+            settings: { settings },
+            call: { messages, _, _ in
+                let fresh = (messages.last?["content"] as? String ?? "").components(separatedBy: "NEW LINES:").last ?? ""
+                let item: [String: String] = fresh.contains("launch again")
+                    ? ["kind": "question", "text": "When is the launch?", "owner": "", "due": "",
+                       "line": "L1", "quote": "When is the launch again?", "evidence": ""]
+                    : ["kind": "commitment", "text": "Send the deck", "owner": "Me", "due": "",
+                       "line": "L2", "quote": "I'll send the deck tomorrow", "evidence": ""]
+                let content = (try? JSONSerialization.data(withJSONObject: ["items": [item], "answered": [String]()]))
+                    .map { String(decoding: $0, as: UTF8.self) } ?? ""
+                return MuseChatClient.Reply(content: content, toolCalls: [], usage: .init(), finishReason: "stop")
+            },
+            availability: { _ in nil },
+            timing: .init(minimumInterval: .seconds(60), turnInterval: .milliseconds(1), idlePoll: .milliseconds(5)))
+        radar.start(meeting: Meeting(id: UUID(), title: "Sync", appName: "Meet", startedAt: Date(), relativePath: "m"),
+                    folder: folder)
+        let question = LiveMeetingTranscriber.Line(time: 4, speaker: "them", text: "When is the launch again?")
+        feed.subject.send([question])
+        var deadline = Date().addingTimeInterval(5)
+        while radar.items.first?.answer == nil, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        let questionID = try XCTUnwrap(radar.items.first?.id)
+        feed.subject.send([question, .init(time: 9, speaker: "local", text: "I'll send the deck tomorrow.")])
+        deadline = Date().addingTimeInterval(5)
+        while radar.items.count < 2, Date() < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        XCTAssertEqual(radar.items.count, 2)
+        XCTAssertEqual(radar.spotlightID, questionID, "a fresh answer stays in the spotlight over the next commitment")
+        await radar.finish()
+    }
 }
