@@ -1,0 +1,2 @@
+vdisplay: display 2
+vdisplay: requested 1200×1600 pt, 2400×3200 px: 0; now 1200×1600 pt, 2400×3200 px at (-1200, 0)

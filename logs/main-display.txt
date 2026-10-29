@@ -1,0 +1,15 @@
+Display before: (0.0, 0.0, 1024.0, 768.0), 1024×768 pt, 1024×768 px @60Hz
+  mode 800×600 pt, 800×600 px @60Hz
+  mode 960×540 pt, 960×540 px @60Hz
+  mode 1024×576 pt, 1024×576 px @60Hz
+  mode 1024×768 pt, 1024×768 px @60Hz
+  mode 1280×720 pt, 1280×720 px @60Hz
+  mode 1280×960 pt, 1280×960 px @60Hz
+  mode 1344×756 pt, 1344×756 px @60Hz
+  mode 1344×1008 pt, 1344×1008 px @60Hz
+  mode 1600×900 pt, 1600×900 px @60Hz
+  mode 1600×1200 pt, 1600×1200 px @60Hz
+  mode 1920×1080 pt, 1920×1080 px @60Hz
+  mode 640×480 pt, 640×480 px @60Hz
+Requested 1920×1080 pt, 1920×1080 px @60Hz: 0; now 1920×1080 pt, 1920×1080 px @60Hz
+Display after: (0.0, 0.0, 1920.0, 1080.0), 1920×1080 pt, 1920×1080 px @60Hz

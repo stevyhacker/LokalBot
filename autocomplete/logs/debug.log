@@ -1,0 +1,90 @@
+2026-10-29T12:35:04.445Z INFO [app] detector idle app=none
+2026-10-29T12:35:04.453Z INFO [app] Sparkle updater started.
+2026-10-29T12:35:06.542Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-29T12:35:15.259Z INFO [app] film: cotyping idle
+2026-10-29T12:35:35.911Z INFO [app] film: cotyping debouncing
+2026-10-29T12:35:39.797Z INFO [app] film: request {"prefix":"Notes\n\nMonday, ","prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, "}
+2026-10-29T12:35:39.800Z INFO [app] film: cotyping generating
+2026-10-29T12:35:42.178Z INFO [app] film: cotyping debouncing
+2026-10-29T12:35:42.547Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, We","prefix":"Notes\n\nMonday, Tuesday, We"}
+2026-10-29T12:35:42.547Z INFO [app] film: cotyping generating
+2026-10-29T12:35:45.100Z INFO [app] film: cotyping debouncing
+2026-10-29T12:35:45.217Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, Wednesday, Th","prefix":"Notes\n\nMonday, Tuesday, Wednesday, Th"}
+2026-10-29T12:35:45.217Z INFO [app] film: cotyping generating
+2026-10-29T12:35:46.661Z INFO [app] film: cotyping debouncing
+2026-10-29T12:35:48.393Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, Wednesday, Thursda","prefix":"Notes\n\nMonday, Tuesday, Wednesday, Thursda"}
+2026-10-29T12:35:48.394Z INFO [app] film: cotyping generating
+2026-10-29T12:35:49.162Z INFO [app] film: cotyping debouncing
+2026-10-29T12:35:49.215Z INFO [app] film: request {"prompt":"Topic: Warm up.txt\n\nNotes\n\nMonday, Tuesday, Wednesday, Thursday, ","prefix":"Notes\n\nMonday, Tuesday, Wednesday, Thursday, "}
+2026-10-29T12:35:49.216Z INFO [app] film: cotyping generating
+2026-10-29T12:36:01.228Z INFO [app] cotyping window text: read 3 lines in 21493 ms, kept 1 lines (20 characters); using them
+2026-10-29T12:36:08.076Z INFO [app] speaker voices not analyzed: the voice model is not installed or speaker separation is off
+2026-10-29T12:36:47.254Z INFO [app] film: cotyping ready(text: "Friday, Saturday, Sunday")
+2026-10-29T12:36:56.965Z INFO [app] film: cotyping idle
+2026-10-29T12:36:57.255Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\n\nHi all,\n\n","prefix":"Hi all,\n\n"}
+2026-10-29T12:37:01.082Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:01.121Z INFO [app] film: request {"prefix":"Hi all,\n\nA","prompt":"Topic: Launch update.txt\n\nHi all,\n\nA"}
+2026-10-29T12:37:01.122Z INFO [app] film: cotyping generating
+2026-10-29T12:37:01.583Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:01.705Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAft","prefix":"Hi all,\n\nAft"}
+2026-10-29T12:37:01.706Z INFO [app] film: cotyping generating
+2026-10-29T12:37:03.016Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:03.040Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the","prefix":"Hi all,\n\nAfter the"}
+2026-10-29T12:37:03.041Z INFO [app] film: cotyping generating
+2026-10-29T12:37:03.479Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:03.532Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the l","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the l"}
+2026-10-29T12:37:03.532Z INFO [app] film: cotyping generating
+2026-10-29T12:37:04.129Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:04.375Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the laun","prefix":"Hi all,\n\nAfter the laun"}
+2026-10-29T12:37:04.375Z INFO [app] film: cotyping generating
+2026-10-29T12:37:04.510Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:04.602Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launc","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launc"}
+2026-10-29T12:37:04.603Z INFO [app] film: cotyping generating
+2026-10-29T12:37:05.217Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:05.483Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch pl","prefix":"Hi all,\n\nAfter the launch pl"}
+2026-10-29T12:37:05.484Z INFO [app] film: cotyping generating
+2026-10-29T12:37:06.569Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:06.698Z INFO [app] film: request {"prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning","prefix":"Hi all,\n\nAfter the launch planning"}
+2026-10-29T12:37:06.698Z INFO [app] film: cotyping generating
+2026-10-29T12:37:08.234Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:08.251Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call,","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call,"}
+2026-10-29T12:37:08.251Z INFO [app] film: cotyping generating
+2026-10-29T12:37:09.321Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:09.337Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, t","prompt":"Topic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, t"}
+2026-10-29T12:37:09.338Z INFO [app] film: cotyping generating
+2026-10-29T12:37:09.452Z INFO [app] cotyping window text: read 2 lines in 12192 ms, kept 1 lines (19 characters); using them
+2026-10-29T12:37:09.990Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:10.077Z INFO [app] film: request {"prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the ","prefix":"Hi all,\n\nAfter the launch planning call, the "}
+2026-10-29T12:37:10.078Z INFO [app] film: cotyping generating
+2026-10-29T12:37:10.905Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:11.075Z INFO [app] film: request {"prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team","prefix":"Hi all,\n\nAfter the launch planning call, the Team"}
+2026-10-29T12:37:11.076Z INFO [app] film: cotyping generating
+2026-10-29T12:37:11.433Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:11.453Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team p","prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team p"}
+2026-10-29T12:37:11.454Z INFO [app] film: cotyping generating
+2026-10-29T12:37:12.083Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:12.099Z INFO [app] film: request {"prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan","prefix":"Hi all,\n\nAfter the launch planning call, the Team plan"}
+2026-10-29T12:37:12.100Z INFO [app] film: cotyping generating
+2026-10-29T12:37:13.320Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:13.350Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will ","prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will "}
+2026-10-29T12:37:13.350Z INFO [app] film: cotyping generating
+2026-10-29T12:37:14.584Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:14.687Z INFO [app] film: request {"prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be ","prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be "}
+2026-10-29T12:37:14.687Z INFO [app] film: cotyping generating
+2026-10-29T12:37:15.676Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:15.691Z INFO [app] film: request {"prompt":"Visible in this window:\nLaunch update.txt v\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $15","prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be $15"}
+2026-10-29T12:37:15.693Z INFO [app] film: cotyping generating
+2026-10-29T12:37:19.948Z INFO [app] cotyping window text: read 3 lines in 9846 ms, kept 1 lines (26 characters); using them
+2026-10-29T12:37:27.786Z INFO [app] film: cotyping ready(text: " per seat, billed annually.")
+2026-10-29T12:37:29.341Z INFO [app] film: cotyping ready(text: " seat, billed annually.")
+2026-10-29T12:37:29.549Z INFO [app] film: cotyping ready(text: ", billed annually.")
+2026-10-29T12:37:29.987Z INFO [app] film: cotyping ready(text: " billed annually.")
+2026-10-29T12:37:30.549Z INFO [app] film: cotyping ready(text: " annually.")
+2026-10-29T12:37:31.015Z INFO [app] film: cotyping ready(text: ".")
+2026-10-29T12:37:31.445Z INFO [app] film: cotyping idle
+2026-10-29T12:37:31.484Z INFO [app] film: cotyping debouncing
+2026-10-29T12:37:31.536Z INFO [app] film: request {"prompt":"Visible in this window:\nLaunch update.txt — Edited\n\nTopic: Launch update.txt\nRelevant saved facts: Decision: $15 per seat, billed annually.\nDecision: Free plan for teams of up to three.\n\nHi all,\n\nAfter the launch planning call, the Team plan will be $15 per seat, billed annually.","prefix":"Hi all,\n\nAfter the launch planning call, the Team plan will be $15 per seat, billed annually."}
+2026-10-29T12:37:31.536Z INFO [app] film: cotyping generating
+2026-10-29T12:37:35.705Z INFO [app] film: cotyping idle
+2026-10-29T12:37:35.707Z INFO [app] film: cotyping disabled("Not an editable text field.")
+2026-10-29T12:37:38.828Z INFO [app] cotyping window text: read 4 lines in 7298 ms, kept 1 lines (26 characters); kept the text in use
