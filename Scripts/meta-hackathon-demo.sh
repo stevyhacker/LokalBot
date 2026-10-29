@@ -5,6 +5,7 @@
 #
 #   Scripts/meta-hackathon-demo.sh setup   seed the earlier meetings, link your models, preset the demo settings
 #   Scripts/meta-hackathon-demo.sh open    start LokalBot Dev on the demo library
+#   Scripts/meta-hackathon-demo.sh restart quit the demo's LokalBot Dev and start it again (after granting a permission)
 #   Scripts/meta-hackathon-demo.sh pages   open the two synthetic pages for screen memory in Safari
 #   Scripts/meta-hackathon-demo.sh reset   delete the demo library and its settings
 set -euo pipefail
@@ -29,6 +30,13 @@ SETTINGS='{
   "screenshotsEnabled": true,
   "screenshotIntervalMinutes": 1
 }'
+
+# True when the running LokalBot Dev is the one started on the demo library.
+running_demo() {
+  local pid
+  pid="$(pgrep -x "LokalBot Dev" | head -1)" || return 1
+  ps eww -p "$pid" | grep -q "LOKALBOT_DEFAULTS_SUITE=$SUITE"
+}
 
 dev_app() {
   local products
@@ -60,11 +68,27 @@ setup)
   ;;
 open)
   [ -f "$MARKER" ] || { echo "Run '$0 setup' first." >&2; exit 1; }
+  if running_demo; then
+    echo "LokalBot Dev is already running on the demo library. To reopen it, run: $0 restart"
+    exit 0
+  fi
   if pgrep -x "LokalBot Dev" >/dev/null; then
     echo "Quit LokalBot Dev first; a running copy keeps its own library." >&2
     exit 1
   fi
   open "$(dev_app)" --env LOKALBOT_STORAGE_ROOT="$ROOT" --env LOKALBOT_DEFAULTS_SUITE="$SUITE"
+  ;;
+restart)
+  if pgrep -x "LokalBot Dev" >/dev/null; then
+    running_demo || { echo "The running LokalBot Dev isn't on the demo library; quit it yourself." >&2; exit 1; }
+    osascript -e 'tell application id "me.dotenv.LokalBot.dev" to quit'
+    for _ in $(seq 1 30); do pgrep -x "LokalBot Dev" >/dev/null || break; sleep 1; done
+    if pgrep -x "LokalBot Dev" >/dev/null; then
+      echo "LokalBot Dev didn't quit; quit it with Command-Q and run '$0 open'." >&2
+      exit 1
+    fi
+  fi
+  exec "$0" open
   ;;
 pages)
   open -a Safari "$REPO/Docs/meta-hackathon/demo-pages/growth-dashboard.html" \
@@ -80,7 +104,7 @@ reset)
   echo "Deleted the demo library and its settings."
   ;;
 *)
-  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
   ;;
 esac
