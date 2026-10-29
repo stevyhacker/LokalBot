@@ -177,6 +177,7 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(2)
 
         // 3. After the meeting: its page keeps what the radar caught. Follow through.
+        try FilmFixture.launchSync(in: library, finished: true)
         app = try UITestHarness.relaunch(
             storageRoot: library, defaultsSuiteName: launch.defaultsSuiteName,
             environment: ["LOKALBOT_INITIAL_SECTION": "meetings",
@@ -316,7 +317,7 @@ private enum FilmFixture {
           "calendarDetectionEnabled": false,
           "semanticSearchEnabled": false,
           "cotypingEnabled": false,
-          "cotypingUserName": "Jordan Lee",
+          "cotypingUserName": "Stevan",
           "museLiveTextEnabled": true,
           "museScreenAnswersEnabled": true,
           "liveAnswersEnabled": true,
@@ -381,13 +382,22 @@ private enum FilmFixture {
                   decisions: ["The launch is Monday, November 3rd; the pricing page ships the Friday before",
                               "The free tier keeps three projects"],
                   actions: [])
+        try launchSync(in: root, finished: false)
+    }
+
+    /// The filmed meeting. Until the call ends it has no transcript or notes,
+    /// so live answers can't search lines that haven't been said yet; then it
+    /// gets the transcript, notes, and action Follow-through reads.
+    static func launchSync(in root: URL, finished: Bool) throws {
+        let calendar = Calendar.current
+        let today = calendar.date(byAdding: .hour, value: 11, to: calendar.startOfDay(for: Date())) ?? Date()
         try write(id: "55555555-5555-4555-8555-555555555555", title: "Launch sync", start: today, minutes: 15,
                   slug: "launch-sync", root: root,
-                  transcript: live.map { ($0.0, $0.1 == "local" ? "me" : "them", $0.2) },
-                  summary: "## TL;DR\nLaunch checklist. Annual plans get twenty percent off. The launch date and the "
-                      + "free tier limit are open until a talk with Ana tomorrow.",
-                  decisions: ["Annual plans get twenty percent off"],
-                  actions: [("Send the revised pricing deck to Marko", "Me", "by Friday", 1)],
+                  transcript: finished ? live.map { ($0.0, $0.1 == "local" ? "me" : "them", $0.2) } : [],
+                  summary: finished ? "## TL;DR\nLaunch checklist. Annual plans get twenty percent off. The launch date "
+                      + "and the free tier limit are open until a talk with Ana tomorrow." : "",
+                  decisions: finished ? ["Annual plans get twenty percent off"] : [],
+                  actions: finished ? [("Send the revised pricing deck to Marko", "Me", "by Friday", 1)] : [],
                   participants: [("Marko Ilić", "marko@example.com"), ("Ana Petrović", "ana@example.com")])
     }
 

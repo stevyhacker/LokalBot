@@ -79,9 +79,13 @@ private struct FilmCallView: View {
             }
             .padding(.bottom, 16)
         }
-        .padding(.horizontal, 22)
+        // The floating panel sits over the call's right side, as it would over a meeting app.
+        .padding(.leading, 22)
+        .padding(.trailing, LiveRadarPanelController.width + 30)
         .background(Color(red: 0.09, green: 0.10, blue: 0.11))
-        .accessibilityElement(children: .contain)
+        // One element: XCUITest reads the app's whole tree a few times a
+        // second during the film, and the call's views slowed the script down.
+        .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("filmCall")
     }
 
@@ -100,7 +104,6 @@ private struct FilmCallView: View {
             HStack(spacing: 8) {
                 Image(systemName: isSpeaking ? "waveform" : "mic.fill")
                     .foregroundStyle(isSpeaking ? .green : .white.opacity(0.7))
-                    .symbolEffect(.variableColor.iterative, isActive: isSpeaking)
                 Text(verbatim: name).font(.system(size: 14, weight: .semibold))
             }
             .padding(.horizontal, 10).padding(.vertical, 6)
