@@ -1,0 +1,31 @@
+{
+  "bundle": "me.dotenv.LokalBot.uitesthost",
+  "size": [680, 900],
+  "settle": 1.5,
+  "cursor": false,
+  "park": [430, 800],
+  "pre": 0.8,
+  "post": 1.2,
+  "setup": [
+    {"press": {"label": "Hide Sidebar"}, "optional": true},
+    {"press": {"contains": "Evidence, 2 citations"}, "optional": true}
+  ],
+  "actions": [
+    {"move": {"contains": "Evidence, 2 citations", "offset": [40, -70]}, "duration": 0.9, "optional": true},
+    {"wait": 0.6},
+    {"click": {"contains": "Evidence, 2 citations"}, "duration": 0.6, "optional": true},
+    {"wait": 1.2},
+    {"mark": "evidence"},
+    {"click": {"contains": "Evidence, 2 citations", "anchor": [0.5, 0.0], "offset": [0, 62]}, "duration": 0.7, "optional": true},
+    {"wait": 1.8},
+    {"mark": "meeting"},
+    {"click": {"label": "Summary", "role": "AXButton"}, "duration": 0.8, "optional": true},
+    {"wait": 1.5},
+    {"mark": "summary"},
+    {"move": {"contains": "Jump to evidence at 00:00:14", "offset": [-180, 0]}, "duration": 0.8, "optional": true},
+    {"wait": 0.5},
+    {"click": {"contains": "Jump to evidence at 00:00:14"}, "duration": 0.5, "optional": true},
+    {"wait": 2.2},
+    {"mark": "transcript"}
+  ]
+}

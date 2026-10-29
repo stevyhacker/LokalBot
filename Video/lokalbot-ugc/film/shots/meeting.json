@@ -1,0 +1,25 @@
+{
+  "bundle": "me.dotenv.LokalBot.uitesthost",
+  "size": [680, 900],
+  "settle": 1.5,
+  "cursor": false,
+  "park": [430, 800],
+  "pre": 0.8,
+  "post": 1.2,
+  "setup": [
+    {"press": {"label": "Hide Sidebar"}, "optional": true},
+    {"focus": {"id": "meeting.list"}, "optional": true}
+  ],
+  "actions": [
+    {"move": {"role": "AXStaticText", "contains": "Launch planning"}, "duration": 0.9, "optional": true},
+    {"wait": 0.4},
+    {"click": {"role": "AXStaticText", "contains": "Launch planning"}, "duration": 0.15, "optional": true},
+    {"wait": 1.6},
+    {"mark": "summary"},
+    {"move": {"contains": "Jump to evidence at 00:00:14", "offset": [-180, 0]}, "duration": 0.9, "optional": true},
+    {"wait": 0.6},
+    {"click": {"contains": "Jump to evidence at 00:00:14"}, "duration": 0.5, "optional": true},
+    {"wait": 2.2},
+    {"mark": "transcript"}
+  ]
+}

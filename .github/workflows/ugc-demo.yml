@@ -1,0 +1,189 @@
+# Films the app footage for the vertical UGC demo (Video/lokalbot-ugc/film)
+# on a hosted Mac: Ask and a meeting in the LokalBot UI Test Host on the
+# README's fictional library, and autocomplete in TextEdit with the default
+# on-device model, on a 2x virtual display with the pointer's path logged.
+# Never a required check; no secrets are used.
+#
+# The clips, their event and pointer logs, accessibility probes of every
+# screen the takes pass through, and the system pointer images are kept as
+# the `ugc-demo-footage` artifact and force-pushed to
+# `pr-assets/ugc-demo-footage`, an orphan branch holding only them.
+name: UGC demo footage
+
+on:
+  workflow_dispatch:
+    inputs:
+      takes:
+        description: "Takes to film (flow ask meeting follow-up), space-separated; empty films all"
+        required: false
+        default: ""
+  push:
+    paths:
+      - ".github/workflows/ugc-demo.yml"
+      - "Video/lokalbot-ugc/film/**"
+
+concurrency:
+  group: ugc-demo-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # LokalBot.app (Debug) for the autocomplete take.
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      cache_mode: warm
+      products_only: true
+
+  host:
+    name: Build the UI Test Host
+    runs-on: macos-26
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - name: Install build tools
+        run: |
+          command -v xcodegen >/dev/null || brew install xcodegen
+          command -v cmake >/dev/null || brew install cmake
+      - name: Create vendor dirs for XcodeGen
+        run: mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
+      - name: Generate project
+        run: xcodegen generate
+      - name: Cache native vendors
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: Vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('Scripts/fetch-llama.sh', 'Scripts/fetch-sherpa.sh') }}
+      - name: Fetch llama.cpp vendor
+        run: bash Scripts/fetch-llama.sh
+      - name: Cache Swift packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/SourcePackages
+          key: packages-${{ runner.os }}-${{ runner.arch }}-xcode26.4.1-${{ hashFiles('**/Package.resolved') }}
+      - name: Identify compatible compiler cache
+        id: compiler-key
+        run: python3 Scripts/ci/compiler-cache.py key ui
+      - name: Restore compiler cache
+        timeout-minutes: 3
+        continue-on-error: true
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: .build/compilation-cache
+          key: ${{ steps.compiler-key.outputs.key }}
+          restore-keys: ${{ steps.compiler-key.outputs.prefix }}
+      - name: Build the UI Test Host
+        env:
+          COMPILER_CACHE_MODE: warm
+          CODE_SIGNING_ALLOWED: "NO"
+        run: Scripts/ui-tests.sh --build-only
+      - name: Package the UI Test Host
+        run: ditto -c -k --keepParent ".build/dd/Build/Products/Debug/LokalBot UI Test Host.app" .build/ui-host.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: ugc-ui-host
+          path: .build/ui-host.zip
+          retention-days: 2
+          compression-level: 0
+
+  film:
+    name: Film the UGC demo
+    needs: [build, host]
+    runs-on: macos-26
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    env:
+      ASSETS_BRANCH: pr-assets/ugc-demo-footage
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90
+        with:
+          xcode-version: "26.4.1"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: unit-products
+          path: .build/transfer
+      - name: Verify and restore compiled products
+        env:
+          CODE_SIGNING_ALLOWED: "NO"
+        run: python3 Scripts/ci/test-products.py unpack unit
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ugc-ui-host
+          path: .build/ui-host
+      - name: Unpack the UI Test Host
+        run: ditto -x -k .build/ui-host/ui-host.zip .build/ui-host
+      - name: Install ffmpeg
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: command -v ffmpeg || brew install ffmpeg
+      - name: Film
+        env:
+          UI_HOST_APP: ${{ github.workspace }}/.build/ui-host/LokalBot UI Test Host.app
+          LOKALBOT_APP: ${{ github.workspace }}/.build/dd/Build/Products/Debug/LokalBot.app
+          TAKES: ${{ inputs.takes }}
+        run: |
+          # TAKES is a space-separated list of names; empty films every take.
+          # shellcheck disable=SC2086
+          bash Video/lokalbot-ugc/film/film.sh .build/ugc-film $TAKES
+      - name: Gather the results
+        if: ${{ !cancelled() }}
+        run: |
+          OUT=.build/ugc-film
+          PUB=.build/ugc-film-publish
+          rm -rf "$PUB"
+          mkdir -p "$PUB"
+          [[ -d "$OUT" ]] || exit 0
+          cp -R "$OUT/clips" "$OUT/probes" "$OUT/cursors" "$OUT/logs" "$PUB/" 2>/dev/null || true
+          mkdir -p "$PUB/autocomplete"
+          cp -R "$OUT/autocomplete/logs" "$PUB/autocomplete/" 2>/dev/null || true
+          mkdir -p "$PUB/takes"
+          (cd "$OUT" && find . -name take.json | while read -r file; do
+            mkdir -p "$GITHUB_WORKSPACE/$PUB/takes/$(dirname "$file")"
+            cp "$file" "$GITHUB_WORKSPACE/$PUB/takes/$file"
+          done) || true
+          {
+            echo "# UGC demo footage"
+            echo
+            echo "Filmed by ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} from ${GITHUB_SHA}."
+            echo "Hardware: $(sysctl -n machdep.cpu.brand_string), $(($(sysctl -n hw.memsize) / 1073741824)) GB."
+          } > "$PUB/README.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: ${{ !cancelled() }}
+        with:
+          name: ugc-demo-footage
+          path: .build/ugc-film-publish
+          retention-days: 14
+          if-no-files-found: ignore
+      - name: Push to the assets branch
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PUB=.build/ugc-film-publish
+          [[ -f "$PUB/README.md" ]] || exit 0
+          cd "$PUB"
+          git init -q
+          git checkout -q -b "$ASSETS_BRANCH"
+          git add -A
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -qm "UGC demo footage from run ${GITHUB_RUN_ID}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/$ASSETS_BRANCH"
+          echo "Pushed to $ASSETS_BRANCH" >> "$GITHUB_STEP_SUMMARY"

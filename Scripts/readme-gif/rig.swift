@@ -9,7 +9,14 @@
 //   rig take  <shot.json> <out-dir>   record frames + take.json into out-dir
 //   rig still <shot.json> <out.png>   place the window and save one frame
 //   rig ax    <shot.json>             place the window and print its accessibility tree
+//   rig probe <shot.json> <out-prefix> place the window, run the setup, save <prefix>.txt
+//                                     (the accessibility tree) and <prefix>.png (one frame)
 //   rig idle  <seconds>               wait until nobody has touched an input device that long
+//
+// take.json also tracks the pointer at 60 Hz (`pointer`: [t, x, y] in capture
+// seconds and window-relative points), so an edit can draw or follow it when
+// the shot leaves it out of the recording (`"cursor": false`). RIG_DISPLAY
+// names the display to film on by its CGDirectDisplayID.
 //
 // Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
 // timed out, 6 the focused field does not end with an `expect` text (keys
@@ -66,6 +73,7 @@ struct Action: Decodable {
     var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
     var accept: Int?          // press `key` (default tab) up to this many times while that window shows
     var expect: String?       // the focused field's text must end with this, else exit 6
+    var optional: Bool?       // skip this action, with a note, when its element is not found
 }
 
 struct Shot: Decodable {
@@ -84,6 +92,7 @@ struct Shot: Decodable {
     var actions: [Action]
     var also: [String]?               // bundle ids whose windows are captured too, e.g. an overlay
     var title: String?                // capture the window whose title contains this; default: the widest
+    var cursor: Bool?                 // false leaves the pointer out of the recording; default true
 }
 
 func loadShot(_ path: String) -> Shot {
@@ -121,6 +130,10 @@ struct Display {
             return Display(id: id, bounds: CGDisplayBounds(id),
                            visible: CGRect(x: v.minX, y: primaryHeight - v.maxY, width: v.width, height: v.height),
                            scale: screen.backingScaleFactor)
+        }
+        if let named = ProcessInfo.processInfo.environment["RIG_DISPLAY"].flatMap({ UInt32($0) }) {
+            guard let display = screens.first(where: { $0.id == named }) else { die("no display \(named)") }
+            return display
         }
         return screens.first { CGDisplayIsBuiltin($0.id) != 0 } ?? screens.max { $0.scale < $1.scale }!
     }
@@ -182,7 +195,7 @@ func axFind(_ root: AXUIElement, _ target: Target) -> AXUIElement? {
     return nil
 }
 
-func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0) {
+func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0, emit: (String) -> Void = { print($0) }) {
     guard depth < 40 else { return }
     let t = axText(element)
     var line = String(repeating: "  ", count: depth) + t.role
@@ -191,8 +204,8 @@ func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0) {
     if let f = axFrame(element) {
         line += String(format: "  [%.0f,%.0f %.0fx%.0f]", f.minX - origin.x, f.minY - origin.y, f.width, f.height)
     }
-    print(line)
-    for child in axChildren(element) { axDump(child, origin: origin, depth: depth + 1) }
+    emit(line)
+    for child in axChildren(element) { axDump(child, origin: origin, depth: depth + 1, emit: emit) }
 }
 
 // MARK: - The app under film
@@ -248,19 +261,22 @@ final class Subject {
         NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier
     }
 
-    /// Global point for a target.
-    func point(_ target: Target) -> CGPoint {
+    /// Global point for a target; nil when its element is not there.
+    func find(_ target: Target) -> CGPoint? {
         var p: CGPoint
         if let at = target.at {
             p = CGPoint(x: frame.minX + at[0], y: frame.minY + at[1])
         } else {
-            guard let element = axFind(window, target), let f = axFrame(element) else {
-                die("no element for \(target)")
-            }
+            guard let element = axFind(window, target), let f = axFrame(element) else { return nil }
             let anchor = target.anchor ?? [0.5, 0.5]
             p = CGPoint(x: f.minX + f.width * anchor[0], y: f.minY + f.height * anchor[1])
         }
         if let offset = target.offset { p.x += offset[0]; p.y += offset[1] }
+        return p
+    }
+
+    func point(_ target: Target) -> CGPoint {
+        guard let p = find(target) else { die("no element for \(target)") }
         return p
     }
 }
@@ -498,6 +514,36 @@ final class Capture: NSObject, SCStreamOutput {
     func drain() { group.wait() }
 }
 
+/// The pointer's position through a take, sampled at 60 Hz on the capture's
+/// clock, relative to the captured rect. Capture delivers a frame only when
+/// the picture changes, so frames alone cannot place a hidden pointer.
+final class PointerTrack {
+    private let lock = NSLock()
+    private var samples: [[Double]] = []
+    private var timer: DispatchSourceTimer?
+
+    func start(_ capture: Capture, rect: CGRect) {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "rig.pointer"))
+        timer.schedule(deadline: .now(), repeating: 1.0 / 60)
+        timer.setEventHandler { [self] in
+            let p = pointer(), t = capture.now()
+            lock.lock()
+            samples.append([(t * 1000).rounded() / 1000, ((p.x - rect.minX) * 10).rounded() / 10,
+                            ((p.y - rect.minY) * 10).rounded() / 10])
+            lock.unlock()
+        }
+        timer.resume()
+        self.timer = timer
+    }
+
+    func stop() -> [[Double]] {
+        timer?.cancel()
+        lock.lock()
+        defer { lock.unlock() }
+        return samples
+    }
+}
+
 /// The display with every window left out except the subject's and those of
 /// the `also` apps. Windows are listed when capture starts, so an overlay app
 /// must already be running then; panels it opens later belong to no excluded
@@ -522,7 +568,7 @@ func filter(for subject: Subject, display: Display, also: [String]) async -> SCC
     }
 }
 
-func configuration(for rect: CGRect, display: Display, background: String) -> SCStreamConfiguration {
+func configuration(for rect: CGRect, display: Display, background: String, cursor: Bool = true) -> SCStreamConfiguration {
     let config = SCStreamConfiguration()
     config.sourceRect = rect.offsetBy(dx: -display.bounds.minX, dy: -display.bounds.minY)
     config.width = Int(rect.width * display.scale)
@@ -532,7 +578,7 @@ func configuration(for rect: CGRect, display: Display, background: String) -> SC
     // SCStreamConfiguration holds backgroundColor without retaining it.
     fills[background] = fills[background] ?? color(background)
     config.backgroundColor = fills[background]!
-    config.showsCursor = true
+    config.showsCursor = cursor
     config.ignoreShadowsDisplay = true
     config.minimumFrameInterval = CMTime(value: 1, timescale: 30)
     config.queueDepth = 8
@@ -588,6 +634,10 @@ func run(_ actions: [Action], subject: Subject, capture: Capture?, rect: CGRect,
         } else if let park = action.park {
             CGWarpMouseCursorPosition(CGPoint(x: subject.frame.minX + park[0], y: subject.frame.minY + park[1]))
             CGAssociateMouseAndMouseCursorPosition(1)
+        } else if let target = action.move ?? action.click ?? action.scroll ?? action.press ?? action.focus,
+                  action.optional == true, subject.find(target) == nil {
+            note("skipped: no element for \(target)")
+            record("missing", nil, ["target": String(describing: target)])
         } else if let target = action.move {
             let p = subject.point(target)
             record("move", p)
@@ -694,7 +744,8 @@ func take(_ shot: Shot, out: URL) async {
     let frames = out.appendingPathComponent("frames")
     let capture = Capture(dir: frames)
     let stream = SCStream(filter: await filter(for: subject, display: display, also: shot.also ?? []),
-                          configuration: configuration(for: rect, display: display, background: fill(shot)),
+                          configuration: configuration(for: rect, display: display, background: fill(shot),
+                                                       cursor: shot.cursor ?? true),
                           delegate: nil)
     do {
         try? FileManager.default.removeItem(at: frames)
@@ -706,17 +757,20 @@ func take(_ shot: Shot, out: URL) async {
     }
     let startedAt = Date()
     guard firstFrame(capture) else { die("no frames arrived") }
+    let track = PointerTrack()
+    track.start(capture, rect: rect)
     pause(shot.pre ?? 0.6)
     run(shot.actions, subject: subject, capture: capture, rect: rect, log: &log, startedAt: startedAt)
     pause(shot.post ?? 1.0)
     let end = capture.now()
+    let path = track.stop()
     try? await stream.stopCapture()
     capture.drain()
     if touchedSince(startedAt) { die("human input during the take; aborted", code: 3) }
     let meta: [String: Any] = [
         "rect": [rect.minX, rect.minY, rect.width, rect.height],
         "scale": display.scale, "background": fill(shot), "end": end,
-        "frames": capture.stamps, "events": log,
+        "frames": capture.stamps, "events": log, "pointer": path,
     ]
     do {
         let json = try JSONSerialization.data(withJSONObject: meta, options: [.prettyPrinted, .sortedKeys])
@@ -729,11 +783,16 @@ func take(_ shot: Shot, out: URL) async {
 
 func still(_ shot: Shot, out: URL) async {
     let (subject, display) = prepare(shot)
+    await screenshot(shot, subject: subject, display: display, out: out)
+}
+
+func screenshot(_ shot: Shot, subject: Subject, display: Display, out: URL) async {
     let rect = captureRect(subject, shot)
     do {
         let image = try await SCScreenshotManager.captureImage(
             contentFilter: await filter(for: subject, display: display, also: shot.also ?? []),
-            configuration: configuration(for: rect, display: display, background: fill(shot)))
+            configuration: configuration(for: rect, display: display, background: fill(shot),
+                                         cursor: shot.cursor ?? true))
         guard let dest = CGImageDestinationCreateWithURL(out as CFURL, UTType.png.identifier as CFString, 1, nil) else {
             die("cannot write \(out.path)")
         }
@@ -745,7 +804,7 @@ func still(_ shot: Shot, out: URL) async {
     }
 }
 
-let usage = "usage: rig take|still|ax <shot.json> [out] | rig idle <seconds>"
+let usage = "usage: rig take|still|ax|probe <shot.json> [out] | rig idle <seconds>"
 let args = CommandLine.arguments
 guard args.count >= 3 else { die(usage) }
 if args[1] == "idle", let seconds = Double(args[2]) {
@@ -761,6 +820,12 @@ case "still" where args.count == 4:
 case "ax":
     let (subject, _) = prepare(shot)
     axDump(subject.window, origin: subject.frame.origin)
+case "probe" where args.count == 4:
+    let (subject, display) = prepare(shot)
+    var lines: [String] = []
+    axDump(subject.window, origin: subject.frame.origin) { lines.append($0) }
+    FileManager.default.createFile(atPath: args[3] + ".txt", contents: Data((lines.joined(separator: "\n") + "\n").utf8))
+    await screenshot(shot, subject: subject, display: display, out: URL(fileURLWithPath: args[3] + ".png"))
 default:
     die(usage)
 }
