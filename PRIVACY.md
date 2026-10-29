@@ -505,12 +505,21 @@ including the Limited Use requirements.
   turned into text without loading images, tracking pixels, or links. Google
   refuses any change to your mail under this permission, so LokalBot can't
   send, delete, label, or mark mail as read.
-- **How it is used.** Only for features you see in LokalBot on your Mac. Today
-  that is the account list and its status in Settings; nothing else reads the
-  downloaded mail yet, not search, Ask, briefs, Dream reviews, Personal
-  Context, exports, model prompts, or the CLI and MCP. Before a feature such as
-  a meeting brief uses your mail, this policy will describe it and LokalBot
-  will ask you.
+- **How it is used.** Only for features you see in LokalBot on your Mac:
+  - the account list and its status in Settings;
+  - **meeting briefs on Today.** Before a meeting, LokalBot picks up to five
+    conversations that include the meeting's attendees, matched by email
+    address, never by name. It shows each one's latest new text, with quoted
+    history and signatures removed and likely passwords, card numbers, and
+    account numbers redacted, and opens it in Gmail when you click it. The
+    brief's Think model receives the same excerpts, at most about 3,000
+    characters, marked as quoted mail it must not take instructions from.
+    Briefs are generated only by a model on your Mac, never a remote one.
+
+  Nothing else reads the downloaded mail: not search, Ask, Dream reviews,
+  Personal Context learning, exports, or the CLI and MCP. Before another
+  feature uses your mail, this policy will describe it and LokalBot will ask
+  you.
 - **Where it is kept.** Only on your Mac: each conversation is sealed with
   AES-GCM, using a key kept in your macOS Keychain, in `email/` in the
   library, and the sign-in tokens are kept in the Keychain. LokalBot has no

@@ -58,7 +58,7 @@ For live integration testing, use a willing test account and an isolated library
 
 ## When to submit
 
-Submit after the first feature that reads mail, the "From email" section of the meeting brief, has shipped. Google's reviewers need to see the scope used by a feature people can see. Until then LokalBot only counts conversations, and that would not justify the scope.
+Submit once a release includes the first feature that reads mail: the "From email" rows and email evidence in the meeting brief (branch `claude/gmail-meeting-brief`). Google's reviewers need to see the scope used by a feature people can see. Before that release, LokalBot only counts conversations, which would not justify the scope.
 
 Before submitting:
 
@@ -116,12 +116,12 @@ These come from Google's [User Data Policy](https://developers.google.com/terms/
 | Request the narrowest scope | `gmail.readonly` only (`GmailOAuth.scope`). The client sends only `GET` requests (`GmailSyncTests.testEveryRequestIsAReadOnlyGetToGmail`). |
 | Disclose use in the privacy policy, linked from the consent screen | PRIVACY.md and `web/privacy.html`, section **Email from Gmail**, with the Limited Use statement. |
 | Show a timely disclosure in the product | The **Connect a Gmail account?** notice before Google's page opens (`EmailSettingsSection`). |
-| Use data only for features people can see | Today: the Settings account list. Every new use updates the privacy policy first and asks the person. |
+| Use data only for features people can see | The Settings account list, and the meeting brief's "From email" rows and excerpts (`EmailMeetingContext`). Every new use updates the privacy policy first and asks the person. |
 | No transfers, no ads, no human reading | Mail never leaves the Mac. Nothing sends it anywhere. |
 | No AI or ML model training | LokalBot trains no models. Personal Context suggestions are the user's own, kept on their Mac, and wait for their review. |
 | Encrypt data and tokens at rest | `EmailStore` (AES-GCM, `email-key` in the Keychain); tokens in the Keychain (`KeychainEmailSecretStore`). |
 | Honor deletion | Disconnect deletes locally first, then revokes (`EmailController.disconnect`). Mail older than 90 days ages out. |
-| Protect against prompt injection | Required once mail reaches a model (the brief). Prompts built from mail have no tools, quote mail as untrusted evidence through `PromptContextSanitizer`, and never reach Agent Mode. |
+| Protect against prompt injection | The brief's prompt marks mail as quoted evidence (`EmailMeetingContext.promptSection`). Its system prompt forbids following instructions in mail and says only lines marked "you" are the user's words. The brief generator has no tools, generation refuses remote models, and mail never reaches Agent Mode. |
 | Keep contact details current and act on Google's notices | The project owner's email in Branding; respond within Google's deadlines or API access is lost. |
 
 Remote AI models are the one open question. Google allows a transfer that provides a feature the person can see, if they consent. LokalBot's current position is simpler: mail-derived text goes only to local models. Changing that needs a privacy-policy update, a per-feature opt-in, and a note in the next re-verification.

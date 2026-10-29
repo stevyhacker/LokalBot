@@ -10,7 +10,7 @@ Date: 2026-10-26. Status: in progress.
 - the sealed thread store;
 - Settings → Personal Context → Email, and PRIVACY.md.
 
-Nothing reads the stored mail yet. The "From email" section of the brief is the next PR.
+The second PR (`claude/gmail-meeting-brief`) adds the "From email" rows and email evidence to the meeting brief, and matches earlier meetings by attendee address. It does not include per-thread model digests, the morning brief for every meeting, notifications, or the invitation-thread link; those remain for step 3.
 
 **Goal.** LokalBot reads several email accounts the user owns, read-only, and refreshes them every morning. It uses the mail for two things:
 

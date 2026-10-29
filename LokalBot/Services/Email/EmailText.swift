@@ -208,6 +208,66 @@ enum EmailText {
         return nil
     }
 
+    // MARK: New text in a message
+
+    /// Lines that start the quoted history of a reply: Gmail, Apple Mail and
+    /// Outlook headers in the languages LokalBot's users write in most.
+    private static let replyHeaderPatterns: [NSRegularExpression] = [
+        #"^On .{4,240} wrote:$"#,
+        #"^Am .{4,240} schrieb .{0,120}:$"#,
+        #"^Le .{4,240} a écrit\s?:$"#,
+        #"^El .{4,240} escribió:$"#,
+        #"^Il giorno .{4,240} ha scritto:$"#,
+        #"^.{4,240} (je )?(napisao|napisala|написао|написала)( je)?:$"#,
+        #"^-{2,}\s*(Original Message|Forwarded message|Prosleđena poruka|Weitergeleitete Nachricht)\s*-{2,}$"#,
+        #"^_{10,}$"#,
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
+
+    private static let signOffPatterns: [NSRegularExpression] = [
+        #"^Sent from my .{2,40}$"#,
+        #"^(Poslato|Poslano) (sa|s) (mog|moga|mojeg) .{2,40}$"#,
+        #"^Von meinem .{2,40} gesendet$"#,
+        #"^Get Outlook for .{2,20}$"#,
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
+
+    /// What the sender wrote in this message: the text above the quoted
+    /// history, without `>` lines, the signature after `-- `, or mobile
+    /// sign-offs. The whole body is kept on disk; this is only for display
+    /// and prompts.
+    static func conversationText(_ body: String) -> String {
+        let lines = body.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+        var kept: [String] = []
+        var index = 0
+        while index < lines.count {
+            let line = lines[index].trimmingCharacters(in: .whitespaces)
+            if line == "--" || line == "-- " || lines[index] == "-- " { break }
+            if matches(line, replyHeaderPatterns) { break }
+            // Gmail wraps a long "On … wrote:" header onto a second line.
+            if line.hasPrefix("On "), index + 1 < lines.count,
+               matches(line + " " + lines[index + 1].trimmingCharacters(in: .whitespaces), replyHeaderPatterns) {
+                break
+            }
+            // Outlook: "From: …" followed within a few lines by "Sent:" or "Date:".
+            if line.hasPrefix("From: "),
+               lines[(index + 1)..<min(lines.count, index + 5)].contains(where: {
+                   let next = $0.trimmingCharacters(in: .whitespaces)
+                   return next.hasPrefix("Sent: ") || next.hasPrefix("Date: ")
+               }) {
+                break
+            }
+            if !line.hasPrefix(">") && !matches(line, signOffPatterns) {
+                kept.append(lines[index])
+            }
+            index += 1
+        }
+        return kept.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func matches(_ line: String, _ patterns: [NSRegularExpression]) -> Bool {
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        return patterns.contains { $0.firstMatch(in: line, range: range) != nil }
+    }
+
     // MARK: HTML
 
     private static let skippedElements: Set<String> = ["script", "style", "head", "title", "noscript", "template"]
