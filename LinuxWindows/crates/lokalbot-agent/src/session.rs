@@ -1688,7 +1688,9 @@ fn remote_block(base: &str, settings: &Settings) -> Option<String> {
     if lokalbot_core::access::is_loopback_url(base) {
         return None;
     }
-    let origin = lokalbot_core::access::origin_of(base)?;
+    let Some(origin) = lokalbot_core::access::origin_of(base) else {
+        return Some("The server URL is not valid.".into());
+    };
     if settings
         .approved_remote_inference_origins
         .iter()
