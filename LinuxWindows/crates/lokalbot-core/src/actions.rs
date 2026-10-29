@@ -72,7 +72,8 @@ fn reference(
     } else {
         state
             .owner_override
-            .clone()
+            .as_deref()
+            .map(|owner| saved_owner_override(owner, lokalbot_i18n::current().code))
             .or_else(|| action.owner.clone())
     };
     let due = if state.due_was_cleared {
@@ -126,6 +127,45 @@ fn reference(
     reference.resolved_due_date =
         crate::due::resolve_at(reference.due.as_deref(), reference.due_reference_date());
     reference
+}
+
+/// What the Windows/Linux correction sheet saved for "You" in v0.11.0–v0.11.5:
+/// the interface word for "Me", which nothing reads as the user. Each word
+/// counts only in the language that wrote it; elsewhere "Mimi", "Saya" or
+/// "Moi" is more likely somebody's name.
+const TRANSLATED_ME_OWNERS: &[(&str, &str)] = &[
+    ("zh-Hans", "我"),
+    ("zh-Hant", "我"),
+    ("hi", "मुझे"),
+    ("es", "Yo"),
+    ("ar", "أنا"),
+    ("fr", "Moi"),
+    ("bn", "আমি"),
+    ("pt", "Eu"),
+    ("id", "Saya"),
+    ("ur", "مجھے"),
+    ("ru", "Я"),
+    ("de", "Ich"),
+    ("ja", "私"),
+    ("ar-EG", "أنا"),
+    ("mr", "मी"),
+    ("vi", "Tôi"),
+    ("te", "నేను"),
+    ("sw", "Mimi"),
+    ("ha", "Ni"),
+    ("ko", "나"),
+    ("it", "Io"),
+    ("sr-Latn", "ja"),
+];
+
+/// A saved owner override, with v0.11's translated "Me" read back as `Me`
+/// under the interface language that wrote it. The file keeps the word.
+fn saved_owner_override(owner: &str, language: &str) -> String {
+    if TRANSLATED_ME_OWNERS.contains(&(language, owner.trim())) {
+        "Me".into()
+    } else {
+        owner.to_string()
+    }
 }
 
 // ------------------------------------------------------------------ threads
@@ -863,6 +903,20 @@ mod tests {
         assert_eq!(
             effective.attribution.unwrap().resolution,
             OwnerResolution::User
+        );
+    }
+
+    #[test]
+    fn translated_me_owner_counts_only_in_the_language_that_wrote_it() {
+        assert_eq!(saved_owner_override("Ich", "de"), "Me");
+        assert_eq!(saved_owner_override(" ja ", "sr-Latn"), "Me");
+        assert_eq!(saved_owner_override("Mimi", "sw"), "Me");
+        assert_eq!(saved_owner_override("Mimi", "en"), "Mimi");
+        assert_eq!(saved_owner_override("Ich", "fr"), "Ich");
+        assert_eq!(saved_owner_override("Ana", "de"), "Ana");
+        assert_eq!(
+            saved_owner_override("Unresolved speaker", "de"),
+            "Unresolved speaker"
         );
     }
 

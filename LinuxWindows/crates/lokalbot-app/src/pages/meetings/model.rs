@@ -183,7 +183,8 @@ impl Speakers {
 }
 
 /// `SpeakerDisplayName.label`: "Me" (as the user) reads "You", "Them" reads
-/// "Other speaker" and "Them 2" reads "Speaker 2".
+/// "Other speaker" and "Them 2" reads "Speaker 2". The stored owner
+/// "Unresolved speaker" also reads in the interface language.
 pub fn display_label(name: &str, is_user: bool) -> String {
     let trimmed = name.trim();
     let lower = trimmed.to_lowercase();
@@ -196,6 +197,9 @@ pub fn display_label(name: &str, is_user: bool) -> String {
     }
     if lower == "them" {
         return lokalbot_i18n::tr("Other speaker").into();
+    }
+    if lower == "unresolved speaker" {
+        return lokalbot_i18n::tr("Unresolved speaker").into();
     }
     if let Some(n) = lower
         .strip_prefix("them ")
@@ -755,6 +759,10 @@ mod tests {
         assert_eq!(display_label("Me", true), "You");
         assert_eq!(display_label("Them", false), "Other speaker");
         assert_eq!(display_label("Them 2", false), "Speaker 2");
+        assert_eq!(
+            display_label("unresolved speaker", false),
+            "Unresolved speaker"
+        );
         assert_eq!(display_label("Maya", false), "Maya");
     }
 }

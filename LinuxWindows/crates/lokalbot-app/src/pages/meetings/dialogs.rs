@@ -86,6 +86,45 @@ pub(crate) fn confirm_delete(
 
 // ------------------------------------------------------------ correction
 
+/// The stored owner for the user's own action, as macOS writes it. The core,
+/// follow-ups and notes read only this value as the user.
+const OWNER_ME: &str = "Me";
+/// Stored as macOS writes it, shown in the interface language.
+const OWNER_UNRESOLVED: &str = "Unresolved speaker";
+
+/// The owner menu as (label, stored value): labels follow the interface
+/// language, stored values never do.
+fn owner_choices(language: &str, suggestions: &[String]) -> Vec<(SharedString, String)> {
+    let tr = |key: &'static str| lokalbot_i18n::translate(language, key);
+    let mut choices = vec![(tr("You").into(), OWNER_ME.to_string())];
+    choices.extend(
+        suggestions
+            .iter()
+            .map(|name| (name.clone().into(), name.clone())),
+    );
+    choices.push((
+        tr("Unresolved speaker").into(),
+        OWNER_UNRESOLVED.to_string(),
+    ));
+    choices.push((tr("Unassigned").into(), String::new()));
+    choices
+}
+
+/// The owner menu's title for the owner field's value.
+fn owner_title(language: &str, owner: &str) -> SharedString {
+    let tr = |key: &'static str| lokalbot_i18n::translate(language, key);
+    let trimmed = owner.trim();
+    if trimmed.is_empty() {
+        tr("Unassigned").into()
+    } else if trimmed.eq_ignore_ascii_case(OWNER_ME) {
+        tr("You").into()
+    } else if trimmed.eq_ignore_ascii_case(OWNER_UNRESOLVED) {
+        tr("Unresolved speaker").into()
+    } else {
+        owner.to_string().into()
+    }
+}
+
 pub(crate) struct CorrectionSheet {
     data: Entity<AppData>,
     meeting: Meeting,
@@ -207,14 +246,7 @@ impl CorrectionSheet {
 impl Render for CorrectionSheet {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
-        let owner_value = self.owner.read(cx).value().to_string();
-        let owner_label: SharedString = if owner_value.trim().is_empty() {
-            lokalbot_i18n::tr("Unassigned").into()
-        } else if owner_value.trim().eq_ignore_ascii_case("me") {
-            lokalbot_i18n::tr("You").into()
-        } else {
-            owner_value.into()
-        };
+        let owner_label = owner_title(lokalbot_i18n::current().code, &self.owner.read(cx).value());
         let suggestions = self.suggestions.clone();
         let sheet = cx.entity().downgrade();
         let label = |text: &'static str| {
@@ -252,35 +284,22 @@ impl Render for CorrectionSheet {
                             .small()
                             .label(owner_label)
                             .dropdown_caret(true)
-                            .dropdown_menu(move |menu, _, _| {
-                                let pick = |name: &str| {
+                            .dropdown_menu(move |mut menu, _, _| {
+                                let choices =
+                                    owner_choices(lokalbot_i18n::current().code, &suggestions);
+                                for (label, value) in choices {
                                     let sheet = sheet.clone();
-                                    let value = name.to_string();
-                                    move |_: &gpui_kit::ClickEvent,
-                                          window: &mut Window,
-                                          cx: &mut App| {
-                                        let _ = sheet.update(cx, |this, cx| {
-                                            this.set_owner(&value, window, cx)
-                                        });
-                                    }
-                                };
-                                let mut menu = menu.item(
-                                    PopupMenuItem::new(lokalbot_i18n::tr("You"))
-                                        .on_click(pick(lokalbot_i18n::tr("Me"))),
-                                );
-                                for name in &suggestions {
-                                    menu = menu.item(
-                                        PopupMenuItem::new(name.clone()).on_click(pick(name)),
-                                    );
+                                    menu = menu.item(PopupMenuItem::new(label).on_click(
+                                        move |_: &gpui_kit::ClickEvent,
+                                              window: &mut Window,
+                                              cx: &mut App| {
+                                            let _ = sheet.update(cx, |this, cx| {
+                                                this.set_owner(&value, window, cx)
+                                            });
+                                        },
+                                    ));
                                 }
-                                menu.item(
-                                    PopupMenuItem::new(lokalbot_i18n::tr("Unresolved speaker"))
-                                        .on_click(pick(lokalbot_i18n::tr("Unresolved speaker"))),
-                                )
-                                .item(
-                                    PopupMenuItem::new(lokalbot_i18n::tr("Unassigned"))
-                                        .on_click(pick("")),
-                                )
+                                menu
                             }),
                     ),
             )
@@ -1177,5 +1196,31 @@ mod tests {
         assert_eq!(parse_seconds("soon"), None);
         assert_eq!(seconds_text(851.5), "851.5");
         assert_eq!(seconds_text(900.0), "900");
+    }
+
+    #[test]
+    fn owner_menu_stores_canonical_owners_in_any_language() {
+        let choices = owner_choices("de", &["Ana".to_string()]);
+        let labels: Vec<&str> = choices.iter().map(|(label, _)| label.as_ref()).collect();
+        let values: Vec<&str> = choices.iter().map(|(_, value)| value.as_str()).collect();
+        assert_eq!(
+            labels,
+            [
+                "Du",
+                "Ana",
+                "Ungeklärte sprechende Person",
+                "Nicht zugewiesen"
+            ]
+        );
+        assert_eq!(values, ["Me", "Ana", "Unresolved speaker", ""]);
+
+        assert_eq!(owner_title("de", "Me").as_ref(), "Du");
+        assert_eq!(
+            owner_title("de", "Unresolved speaker").as_ref(),
+            "Ungeklärte sprechende Person"
+        );
+        assert_eq!(owner_title("de", " ").as_ref(), "Nicht zugewiesen");
+        assert_eq!(owner_title("de", "Ana").as_ref(), "Ana");
+        assert_eq!(owner_title("sr-Latn", "me").as_ref(), "Vi");
     }
 }
