@@ -334,6 +334,8 @@ def main():
         nxt = captions[i + 1]['words'][0][1] if i + 1 < len(captions) else duration
         c['from'] = 0 if i == 0 else round(c['words'][0][1] - 0.03, 3)
         c['to'] = round(min(nxt - 0.03, c['words'][-1][2] + 0.5), 3)
+    if emojis and emojis[0]['from'] < 0.3:
+        emojis[0]['from'] = 0  # up from the first frame, like the first caption
     cuts = [s['from'] for s in shots[1:]] + [duration]
     for i, m in enumerate(emojis):
         nxt = emojis[i + 1]['from'] if i + 1 < len(emojis) else duration

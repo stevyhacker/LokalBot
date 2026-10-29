@@ -19,9 +19,11 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 SR = 48000
 SOUND = HERE / 'assets/sound/eleven'
-MUSIC_DB, DUCK_DB = -8.0, -14.0     # beat level alone and under the voice
+MUSIC_DB, DUCK_DB = -9.0, -17.0     # beat level alone and under the voice
 VOICE_DB = 0.0
 SFX_DB = 0.0
+# The effects API makes nothing under 0.5 s; these are cut to their first moments.
+SHORT = {'tab': 0.22, 'click': 0.15, 'pop': 0.3}
 
 
 def load(path):
@@ -87,12 +89,21 @@ def effect(name, k, rng, cache={}):
     return cache[path], True
 
 
-def peak_time(clip):
-    """Seconds to the loudest 10 ms in the clip, where its hit is."""
+def envelope(clip):
     mono = np.abs(clip).mean(axis=1)
     win = SR // 100
-    env = np.convolve(mono, np.ones(win) / win, mode='same')
-    return int(np.argmax(env)) / SR
+    return np.convolve(mono, np.ones(win) / win, mode='same')
+
+
+def peak_time(clip):
+    """Seconds to the loudest 10 ms in the clip, where its hit is."""
+    return int(np.argmax(envelope(clip))) / SR
+
+
+def onset_time(clip):
+    """Seconds of near-silence before the clip's sound starts."""
+    env = envelope(clip)
+    return max(0, int(np.argmax(env > env.max() * 0.15)) - SR // 200) / SR
 
 
 def main():
@@ -126,7 +137,12 @@ def main():
     for t, name, g, align in edit['sfx']:
         clip, real = effect(name, turns.get(name, 0), rng)
         turns[name] = turns.get(name, 0) + 1
-        lead = peak_time(clip) if align == 'peak' else 0.0
+        lead = peak_time(clip) if align == 'peak' else onset_time(clip) if real else 0.0
+        if real and name in SHORT:
+            clip = clip[int(lead * SR):int((lead + SHORT[name]) * SR)].copy()
+            fade = int(0.04 * SR)
+            clip[-fade:] *= np.linspace(1, 0, fade)[:, None]
+            lead = 0.0
         place(fx, clip, t - lead, db(g + SFX_DB))
     a, b = edit['typing']
     clip, real = effect('typing', 0, rng)
@@ -135,7 +151,7 @@ def main():
         fade = min(len(span) // 4, int(0.06 * SR))
         span[:fade] *= np.linspace(0, 1, fade)[:, None]
         span[-fade:] *= np.linspace(1, 0, fade)[:, None]
-        place(fx, span, a, db(-9))
+        place(fx, span, a, db(0))
     else:
         t = a + 0.04
         while t < b - 0.04:

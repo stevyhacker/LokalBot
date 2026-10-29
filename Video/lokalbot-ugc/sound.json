@@ -23,17 +23,17 @@
    "text": "Fast tension riser, white noise and a synth sweeping up quickly for a hype edit, building and stopping abruptly"},
   {"id": "scratch", "duration": 0.6, "influence": 0.7,
    "text": "Short sharp DJ vinyl record scratch, a comedic stop"},
-  {"id": "pop", "duration": 0.3, "influence": 0.7, "variants": 2,
+  {"id": "pop", "duration": 0.5, "influence": 0.7, "variants": 2,
    "text": "Short bubbly cartoon pop for on-screen text appearing, clean and dry, no bell"},
   {"id": "glitch", "duration": 0.5, "influence": 0.6,
    "text": "Short digital glitch stutter, a data corruption buzz for a video transition"},
   {"id": "typing", "duration": 3.0, "influence": 0.6,
    "text": "Fast, loud mechanical keyboard typing, clicky keys, close microphone, dry room, no music"},
-  {"id": "tab", "duration": 0.4, "influence": 0.7, "variants": 2,
+  {"id": "tab", "duration": 0.5, "influence": 0.7, "variants": 2,
    "text": "One heavy press of a mechanical keyboard key, a deep satisfying thock, close microphone, dry"},
   {"id": "slam", "duration": 2.0, "influence": 0.6,
    "text": "Reverse cymbal swell sucking in fast and slamming into a massive bass impact for a logo reveal, no bells, no chimes"},
-  {"id": "click", "duration": 0.3, "influence": 0.7,
+  {"id": "click", "duration": 0.5, "influence": 0.7,
    "text": "A single crisp computer mouse click, close, dry"}
  ]
 }

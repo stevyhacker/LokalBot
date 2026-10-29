@@ -1,0 +1,202 @@
+{
+ "rows": [
+  {
+   "id": "hype-a",
+   "kind": "music",
+   "model": "music_v2_5",
+   "prompt": "Hype, high-energy trap instrumental for a viral TikTok tech edit. 140 BPM. Opens with two seconds of a filtered, building beat, then slams straight into a huge drop: booming 808 bass, a hard kick, snappy claps, fast hi-hat rolls and a bold, gritty synth lead hook with big stabs. Relentless, cocky and exciting, like a hype reel. A short one-bar drop-out with a riser around the 17-second mark, then a final hard-hitting section that ends on a hard stop. No vocals, no bells, no chimes, no cowbell.",
+   "length_ms": 32000,
+   "song_id": "82q2TWeBwUb2PEJGsLj6",
+   "file": "assets/sound/eleven/hype-a.mp3",
+   "bytes": 769004,
+   "sha256": "5dcd953101a3a28475cb2b5551088baf7eb0cfb167d55d11e9ade20f9ae9693e"
+  },
+  {
+   "id": "hype-b",
+   "kind": "music",
+   "model": "music_v2_5",
+   "prompt": "Explosive electro house instrumental for an over-the-top viral product video. 128 BPM. A one-bar build of snare rolls and a white-noise riser, then an immediate massive drop: pumping sidechained bass, a pounding four-on-the-floor kick, claps, a huge distorted saw lead and offbeat stabs. Maximum energy the whole way, a quick break with a riser around 17 seconds and a second, even bigger drop, ending on one final hit. No vocals, no bells, no chimes.",
+   "length_ms": 32000,
+   "song_id": "oZLzfFC5MdPpkhGVImdp",
+   "file": "assets/sound/eleven/hype-b.mp3",
+   "bytes": 769004,
+   "sha256": "ac776c1756a2a6d7f44b8b9f11a2942848dda8ea0a17b9ee7f936bada80753c2"
+  },
+  {
+   "id": "whoosh",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Fast, punchy whoosh transition for a hype video edit, a quick aggressive air swipe, close and loud, no impact",
+   "duration": 0.7,
+   "file": "assets/sound/eleven/whoosh-v1.mp3",
+   "bytes": 12163,
+   "sha256": "86abf5660811593d988a73ecb5b09fcb54fbab4902d4e734b4ab85f347d260a8"
+  },
+  {
+   "id": "whoosh",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Fast, punchy whoosh transition for a hype video edit, a quick aggressive air swipe, close and loud, no impact",
+   "duration": 0.7,
+   "file": "assets/sound/eleven/whoosh-v2.mp3",
+   "bytes": 12163,
+   "sha256": "a08102a807cf330517f8eca48e96969a253476d8b705829ddbb53581f47e1a49"
+  },
+  {
+   "id": "whoosh",
+   "kind": "effect",
+   "variant": 3,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Fast, punchy whoosh transition for a hype video edit, a quick aggressive air swipe, close and loud, no impact",
+   "duration": 0.7,
+   "file": "assets/sound/eleven/whoosh-v3.mp3",
+   "bytes": 12163,
+   "sha256": "fbd60ed921485b4d4f34336393ae8d7d58adfb7c7110fba079148bbf445b6f98"
+  },
+  {
+   "id": "impact",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Huge cinematic boom impact with a deep sub-bass hit and a short tail, for a hype video edit, no bells",
+   "duration": 1.5,
+   "file": "assets/sound/eleven/impact-v1.mp3",
+   "bytes": 24702,
+   "sha256": "1e60422a9f4a8b975d28ee422fe973232c89a881602c755cf1898f220aeab9f9"
+  },
+  {
+   "id": "impact",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Huge cinematic boom impact with a deep sub-bass hit and a short tail, for a hype video edit, no bells",
+   "duration": 1.5,
+   "file": "assets/sound/eleven/impact-v2.mp3",
+   "bytes": 24702,
+   "sha256": "c270c244cb47dc31c9235d0782deaafe429d941d52cf1732baa532dbecddb21d"
+  },
+  {
+   "id": "bassdrop",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Deep, dramatic sub-bass boom meme hit, a single heavy low thud with a booming tail",
+   "duration": 1.2,
+   "file": "assets/sound/eleven/bassdrop.mp3",
+   "bytes": 20105,
+   "sha256": "93a4cbfd6442aeb945e7f1863ee044f07840a5cb1b013daab4a23daecd8b60bc"
+  },
+  {
+   "id": "riser",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Fast tension riser, white noise and a synth sweeping up quickly for a hype edit, building and stopping abruptly",
+   "duration": 1.6,
+   "file": "assets/sound/eleven/riser.mp3",
+   "bytes": 26792,
+   "sha256": "b68dda46c77d80344ad55e94a7b020932f2b7c3e2888c8f4c8d419b70be0f507"
+  },
+  {
+   "id": "scratch",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Short sharp DJ vinyl record scratch, a comedic stop",
+   "duration": 0.6,
+   "file": "assets/sound/eleven/scratch.mp3",
+   "bytes": 10492,
+   "sha256": "bc671bf0f2f36ca5b6e76c06ea26c60b1663b895f4a4474e6bb754a975ad383b"
+  },
+  {
+   "id": "glitch",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Short digital glitch stutter, a data corruption buzz for a video transition",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/glitch.mp3",
+   "bytes": 8820,
+   "sha256": "f0f5b202b4749f326d0f7352cbd84a0be9ceba45a2f3bc7e1d6fef5edd207268"
+  },
+  {
+   "id": "typing",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Fast, loud mechanical keyboard typing, clicky keys, close microphone, dry room, no music",
+   "duration": 3.0,
+   "file": "assets/sound/eleven/typing.mp3",
+   "bytes": 48944,
+   "sha256": "b79c43891c21f5797bad43e411be433b2d5f839f2abddb57ca966474109a9ee3"
+  },
+  {
+   "id": "slam",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Reverse cymbal swell sucking in fast and slamming into a massive bass impact for a logo reveal, no bells, no chimes",
+   "duration": 2.0,
+   "file": "assets/sound/eleven/slam.mp3",
+   "bytes": 33061,
+   "sha256": "e50b92500860185c20e0365c1cf5d5f1d5cc1d85eb3316548dce08a3d4882601"
+  },
+  {
+   "id": "pop",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Short bubbly cartoon pop for on-screen text appearing, clean and dry, no bell",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/pop-v1.mp3",
+   "bytes": 8820,
+   "sha256": "f2a2f4b949caa8c281b9f20ad9e873fcc0c4c92ef77c0b413f74cba64cf72236"
+  },
+  {
+   "id": "pop",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "Short bubbly cartoon pop for on-screen text appearing, clean and dry, no bell",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/pop-v2.mp3",
+   "bytes": 8820,
+   "sha256": "f41ce08b4160b687d389aa6344ccf3fc548295ef5d18bc1fb563daf36ce197e5"
+  },
+  {
+   "id": "tab",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "One heavy press of a mechanical keyboard key, a deep satisfying thock, close microphone, dry",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/tab-v1.mp3",
+   "bytes": 8820,
+   "sha256": "6b39ca363e95435f80b66974371b535f69fedb6e3aa9c82ed786e22c6e218b9e"
+  },
+  {
+   "id": "tab",
+   "kind": "effect",
+   "variant": 2,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "One heavy press of a mechanical keyboard key, a deep satisfying thock, close microphone, dry",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/tab-v2.mp3",
+   "bytes": 8820,
+   "sha256": "bb3c2cfd08674703500c8c612e374420fbdd0e540c478fccb48b0d60831b7687"
+  },
+  {
+   "id": "click",
+   "kind": "effect",
+   "variant": 1,
+   "model": "eleven_text_to_sound_v3",
+   "prompt": "A single crisp computer mouse click, close, dry",
+   "duration": 0.5,
+   "file": "assets/sound/eleven/click.mp3",
+   "bytes": 8820,
+   "sha256": "1c124bd53b7baeb6f733ea7519b9b59e9799eb439557fcedad7f6f60648369be"
+  }
+ ]
+}

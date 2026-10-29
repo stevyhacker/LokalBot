@@ -154,7 +154,7 @@ function emoji(t) {
   const m = E.emojis[i], right = i % 2 === 0;
   if (node.textContent !== m.emoji) node.textContent = m.emoji;
   node.style.left = right ? '820px' : '40px';
-  const k = inv(m.from, m.from + 0.24, t), out = inv(m.to - 0.12, m.to, t);
+  const k = m.from === 0 ? 1 : inv(m.from, m.from + 0.24, t), out = inv(m.to - 0.12, m.to, t);
   const sc = Math.max(0, ease.outBack(k, 2.4)) * (1 - ease.inCubic(out));
   const rot = (right ? 14 : -14) + 7 * Math.sin((t - m.from) * 9);
   node.style.transform = `scale(${sc.toFixed(4)}) rotate(${rot.toFixed(2)}deg)`;
@@ -272,7 +272,7 @@ window.__seek = async t => {
   $('sped').style.transform = `rotate(5deg) scale(${(ease.outBack(sk, 2.2) * (1 - so)).toFixed(4)})`;
   show($('sped'), t >= s0 && t < s1 ? 1 : 0);
 
-  // End card: slams in on the cut, a chip slams on each fact, the name on "LokalBot".
+  // End card: the mark and name slam in on the cut, a chip slams on each fact, the name again on "LokalBot".
   const endEl = $('end');
   show(endEl, end ? 1 : 0);
   if (end) {
@@ -291,7 +291,11 @@ window.__seek = async t => {
       node.style.transform = `scale(${lerp(from, 1, ease.inCubic(k)).toFixed(4)}) rotate(${lerp(rot * 3, rot, k).toFixed(2)}deg)`;
     };
     endEl.querySelectorAll('.chip').forEach((chip, i) => slam(chip, cue[chip.dataset.cue], 2.0, [-4, 3, -3][i]));
-    slam($('name'), cue.name, 2.4);
+    // The name lands with the mark and slams again as it is said.
+    slam($('name'), a + 0.1, 2.4);
+    const nk = t - cue.name;
+    const again = nk >= 0 && nk < 0.42 ? 0.28 * (nk < 0.05 ? nk / 0.05 : 1 - ease.outCubic((nk - 0.05) / 0.37)) : 0;
+    if (again) $('name').style.transform += ` scale(${(1 + again).toFixed(4)})`;
     const uk = seg(t, cue.name + 0.25, cue.name + 0.55, ease.outCubic);
     $('url').style.opacity = uk.toFixed(3);
     $('url').style.transform = `translateX(-50%) translateY(${((1 - uk) * 30).toFixed(1)}px)`;
