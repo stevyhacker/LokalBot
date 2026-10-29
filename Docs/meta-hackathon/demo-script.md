@@ -12,26 +12,11 @@ Moment 3's final version, where LokalBot marks the commitment done by itself, de
 
 ## Before recording
 
-1. **Build.** Build the hackathon branch. A release-identity build run from Xcode's build products uses its own library (`~/Library/Application Support/me.dotenv.LokalBot.local-build`), so the demo never touches real meetings. Install the default Think and search models there.
-2. **Connect Muse.** In Settings → Meetings → Meta Muse:
-   - save the Meta Model API key;
-   - turn on the api.meta.ai approval;
-   - turn on fast live text, which sends meeting audio to Muse Voice Transcribe;
-   - turn on screen answers, which sends cropped screenshots to Muse Spark;
-   - turn off "Hide the floating panel from screen sharing and recordings", or the screen recording won't show the panel.
-
-   Set your name in Settings → Writing, so drafts are signed.
-3. **Calendar entry.** Create a calendar event "Launch sync" with your partner as an invitee, so Follow-through can fill in their address.
-4. **Earlier meeting.** Give the library an earlier meeting for the radar to contradict. Record or import a one-minute "Launch planning" call a few days before, with these lines:
-   - Partner: "So we agreed: the launch is Monday, November 3rd, and the pricing page ships the Friday before."
-   - You: "And the free tier keeps three projects, that's settled."
-   - Partner: "Marko can review the onboarding emails once the copy is final."
-
-   Let it finish processing so its notes and search entries exist.
-5. **Screen history.** With screen memory on in the demo library, spend a minute on two synthetic pages so they are captured and indexed:
-   - a metrics dashboard showing "Trial to paid, September: 4.1%";
-   - a launch plan document showing "Launch: Monday, November 3".
-6. **Consent.** Everyone recorded must agree. While you are on free Meta credits, Meta may use what is sent to improve its products.
+Follow [recording-checklist.md](recording-checklist.md). [`Scripts/meta-hackathon-demo.sh`](../../Scripts/meta-hackathon-demo.sh) runs LokalBot Dev on a separate demo library and settings. That library already holds the earlier "Launch planning" meeting the radar contradicts. The checklist covers:
+- the permissions and the Meta key;
+- capturing the two synthetic pages in [demo-pages/](demo-pages/) into screen memory;
+- keeping the floating panel visible to the screen recording;
+- consent from everyone recorded.
 
 ## The live call (about 2 minutes)
 

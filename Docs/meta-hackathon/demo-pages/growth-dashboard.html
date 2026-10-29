@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Synthetic page for the Meta hackathon demo: open it before recording so
+     LokalBot's screen memory captures it. "Trial to paid, September 4.1%" is
+     the row the demo call's question is answered from. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Growth · Northwind Analytics</title>
+<style>
+  :root { --ink: #16181d; --muted: #6b7080; --line: #e3e5ea; --accent: #2457d6; --bg: #f6f7f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; color: var(--ink); background: var(--bg); }
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  nav { background: #eceef2; padding: 28px 18px; }
+  nav .brand { font-weight: 700; font-size: 18px; margin-bottom: 28px; }
+  nav a { display: block; color: var(--muted); text-decoration: none; padding: 8px 10px; border-radius: 6px; margin-bottom: 2px; }
+  nav a.on { background: #fff; color: var(--ink); font-weight: 600; }
+  main { padding: 36px 48px; }
+  h1 { font-size: 32px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin-bottom: 28px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+  .kpi { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .kpi .label { color: var(--muted); font-size: 14px; }
+  .kpi .value { font-size: 30px; font-weight: 700; margin-top: 6px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+  td { background: #fff; padding: 20px 24px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 20px; }
+  td:first-child { border-left: 1px solid var(--line); border-radius: 8px 0 0 8px; color: #3b3f4a; }
+  td:last-child { border-right: 1px solid var(--line); border-radius: 0 8px 8px 0; text-align: right; color: var(--accent); font-weight: 700; width: 180px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <nav>
+    <div class="brand">Northwind</div>
+    <a href="#">Overview</a>
+    <a class="on" href="#">Growth</a>
+    <a href="#">Revenue</a>
+    <a href="#">Cohorts</a>
+    <a href="#">Settings</a>
+  </nav>
+  <main>
+    <h1>Northwind Analytics: Growth</h1>
+    <div class="sub">Self-serve funnel · updated October 21</div>
+    <div class="kpis">
+      <div class="kpi"><div class="label">New trials, September</div><div class="value">2,316</div></div>
+      <div class="kpi"><div class="label">Monthly active teams</div><div class="value">1,284</div></div>
+      <div class="kpi"><div class="label">Net revenue retention</div><div class="value">108%</div></div>
+    </div>
+    <table>
+      <tr><td>Trial to paid, July</td><td>3.6%</td></tr>
+      <tr><td>Trial to paid, August</td><td>3.8%</td></tr>
+      <tr><td>Trial to paid, September</td><td>4.1%</td></tr>
+      <tr><td>Median time to first project</td><td>2.4 days</td></tr>
+    </table>
+  </main>
+</div>
+</body>
+</html>
