@@ -72,6 +72,32 @@
     demos.forEach(function (video) { demoIO.observe(video); });
   }
 
+  /* ---------- muted loops: play while on screen, never under reduced motion or Save-Data, and stay paused once the visitor pauses one ---------- */
+  var loops = $$(".home-loop");
+  var saveData = navigator.connection && navigator.connection.saveData;
+  if (loops.length && !reduce && !saveData && "IntersectionObserver" in window) {
+    var loopIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        var video = e.target;
+        if (e.isIntersecting && !video.dataset.held) {
+          var p = video.play();
+          if (p && p.catch) p.catch(function () {});
+        } else if (!e.isIntersecting && !video.paused) {
+          video.dataset.scrolledAway = "1";
+          video.pause();
+        }
+      });
+    }, { threshold: 0.4 });
+    loops.forEach(function (video) {
+      video.addEventListener("pause", function () {
+        if (!video.dataset.scrolledAway) video.dataset.held = "1";
+        delete video.dataset.scrolledAway;
+      });
+      video.addEventListener("play", function () { delete video.dataset.held; });
+      loopIO.observe(video);
+    });
+  }
+
   /* the visible label is the last non-empty text node; icons stay put */
   var labelNode = function (el) {
     var last = null;
