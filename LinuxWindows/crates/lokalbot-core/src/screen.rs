@@ -479,7 +479,7 @@ fn backfill_unlinked_text(db: &rusqlite::Connection) -> Result<()> {
     Ok(())
 }
 
-fn column_names(db: &rusqlite::Connection, table: &str) -> Result<Vec<String>> {
+pub(crate) fn column_names(db: &rusqlite::Connection, table: &str) -> Result<Vec<String>> {
     let mut statement = db.prepare(&format!("PRAGMA table_info({table})"))?;
     let names = statement
         .query_map([], |row| row.get::<_, String>(1))?

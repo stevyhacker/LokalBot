@@ -141,6 +141,7 @@ impl Engine {
     ) -> Result<Engine> {
         let runtime = lokalbot_ai::runtime::RuntimeManager::new(library.paths().clone(), &settings);
         secrets::install_plan_store();
+        lokalbot_core::SpeakerAttribution::set_microphone_is_user(settings.microphone_is_user);
         let shared = Arc::new(Shared {
             library,
             settings: RwLock::new(settings),
@@ -339,6 +340,9 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 shared
                     .runtime
                     .set_backend_preference(&settings.llama_backend);
+                lokalbot_core::SpeakerAttribution::set_microphone_is_user(
+                    settings.microphone_is_user,
+                );
                 *shared.settings.write() = *settings;
                 if calendar_turned_on {
                     shared.calendar.reload();
