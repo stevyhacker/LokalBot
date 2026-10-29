@@ -53,7 +53,7 @@ with open(sys.argv[1], 'w') as f:
         nxt = e['voice'][i]['start'] - 0.05 if i < len(e['voice']) else e['duration']
         f.write(f"{i}\n{ts(v['start'] - 0.05)} --> {ts(min(v['end'] + 0.3, nxt - 0.02))}\n{caps[v['id']]}\n\n")
 PY
-# The poster is the hook with the answer circled: just after "remembers".
+# The poster is the hook with the evidence open: just after "remembers".
 POSTER_FRAME=${POSTER_FRAME:-$(python3 -c "import json; e = json.load(open('edit.json'))
 w = next(w for c in e['captions'] for w in c['words'] if w[0].startswith('remembers'))
 print(round((w[1] + 0.4) * e['fps']) + 1)")}

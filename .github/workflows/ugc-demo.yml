@@ -1,20 +1,20 @@
 # Films the app footage for the vertical UGC demo (Video/lokalbot-ugc/film)
-# on a hosted Mac: Ask and a meeting in the LokalBot UI Test Host on the
+# on a hosted Mac: Ask opening a meeting in the LokalBot UI Test Host on the
 # README's fictional library, and autocomplete in TextEdit with the default
 # on-device model, on a 2x virtual display with the pointer's path logged.
 # Never a required check; no secrets are used.
 #
-# The clips, their event and pointer logs, accessibility probes of every
-# screen the takes pass through, and the system pointer images are kept as
-# the `ugc-demo-footage` artifact and force-pushed to
-# `pr-assets/ugc-demo-footage`, an orphan branch holding only them.
+# The clips, their event and pointer logs, and accessibility probes of every
+# screen the takes pass through are kept as the `ugc-demo-footage` artifact
+# and force-pushed to `pr-assets/ugc-demo-footage`, an orphan branch holding
+# only them.
 name: UGC demo footage
 
 on:
   workflow_dispatch:
     inputs:
       takes:
-        description: "Takes to film (flow ask meeting follow-up), space-separated; empty films all"
+        description: "Takes to film (flow follow-up), space-separated; empty films both"
         required: false
         default: ""
   push:
@@ -149,7 +149,7 @@ jobs:
           rm -rf "$PUB"
           mkdir -p "$PUB"
           [[ -d "$OUT" ]] || exit 0
-          cp -R "$OUT/clips" "$OUT/probes" "$OUT/cursors" "$OUT/logs" "$PUB/" 2>/dev/null || true
+          cp -R "$OUT/clips" "$OUT/probes" "$OUT/logs" "$PUB/" 2>/dev/null || true
           mkdir -p "$PUB/autocomplete"
           cp -R "$OUT/autocomplete/logs" "$PUB/autocomplete/" 2>/dev/null || true
           mkdir -p "$PUB/takes"

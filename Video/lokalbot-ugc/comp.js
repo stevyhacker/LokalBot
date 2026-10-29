@@ -1,11 +1,13 @@
 // LokalBot UGC demo, the over-the-top cut, 1080 × 1920. Every value on screen
 // is a function of time: `window.__seek(t)` lays the frame out and waits for
-// the footage frame it shows. render.cjs steps it frame by frame; edit.json
-// (from build_edit.py) holds the timeline and every cue.
+// the footage frames it shows. render.cjs steps it frame by frame; edit.json
+// (from build_edit.py) holds the timeline, every cue, and per frame each
+// visible app window's footage frame, camera and pointer.
 const E = await (await fetch('edit.json')).json();
 await Promise.all(['600', '800', '850', '900'].map(w => document.fonts.load(`${w} 60px Inter`)));
 
-const VW = 1080, VH = 1200;
+const VW = 1080;
+const [AX, AY] = E.anchor;
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const inv = (a, b, x) => clamp((x - a) / (b - a));
@@ -30,28 +32,6 @@ function along(points, t) {
     if (t <= t1) return t1 === t0 ? v1 : lerp(v0, v1, (t - t0) / (t1 - t0));
   }
   return points[points.length - 1][1];
-}
-
-/** Camera keyframes [t, cx, cy, scale], eased between neighbours. */
-function camera(keys, t) {
-  if (t <= keys[0][0]) return keys[0].slice(1);
-  for (let i = 1; i < keys.length; i++) {
-    const a = keys[i - 1], b = keys[i];
-    if (t <= b[0]) {
-      const k = seg(t, a[0], b[0]);
-      return [lerp(a[1], b[1], k), lerp(a[2], b[2], k), lerp(a[3], b[3], k)];
-    }
-  }
-  return keys[keys.length - 1].slice(1);
-}
-
-function footageFrame(shot, t) {
-  if (shot.src === 'hero') {
-    const n = Math.round(clamp(along(shot.map, t), shot.clamp[0], shot.clamp[1]));
-    return `footage/hero/${pad(n)}.jpg`;
-  }
-  const s = clamp(along(shot.time_map, t), shot.clamp[0], shot.clamp[1]);
-  return `footage/tab/${pad(Math.round(s * 30) + 1)}.jpg`;
 }
 
 // Hits: a zoom punch, a shake that dies away, a white flash, a pulse on each beat.
@@ -88,34 +68,117 @@ function beat(t) {
   for (const b of E.music.beats) { if (b <= t) last = b; else break; }
   return Math.exp(-(t - last) / 0.11);
 }
-/** [x offset, blur] for the whip pans between shots. */
-function whip(t) {
-  for (const w of E.whips) {
-    if (t >= w - 0.15 && t < w) { const k = inv(w - 0.15, w, t); return [-ease.inCubic(k) * 1150, 70 * k]; }
-    if (t >= w && t < w + 0.17) { const k = inv(w, w + 0.17, t); return [(1 - ease.outCubic(k)) * 1150, 70 * (1 - k)]; }
-  }
-  return [0, 0];
-}
-
 // Red marker circles, drawn on in footage pixels so they ride with the camera.
 const SVG = 'http://www.w3.org/2000/svg';
-const ringsSvg = $('rings');
-const rings = E.rings.map((r, i) => {
+function ringPath(r, i) {
   const [cx, cy, rx, ry] = r.ring, rand = rng(i + 7);
-  const th0 = -Math.PI * (0.62 + 0.2 * rand()), span = Math.PI * 2.16, tilt = (-4 + 3 * rand()) * Math.PI / 180;
+  if (r.under) {
+    // An underline instead, for text with lines close above and below it:
+    // one stroke that lifts a little at its end, like a quick marker swipe.
+    const pts = [];
+    for (let j = 0; j <= 40; j++) {
+      const u = j / 40;
+      pts.push([cx - rx + 2 * rx * u, cy + ry + 4 * Math.sin(u * 5 + i) - 14 * u ** 3]);
+    }
+    return 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join(' L');
+  }
+  // A wide, flat ring tilts less, so its arc stays off the lines above and below.
+  const th0 = -Math.PI * (0.62 + 0.2 * rand()), span = Math.PI * 2.16,
+    tilt = (-4 + 3 * rand()) * Math.PI / 180 * Math.min(1, 3 * ry / rx);
   const pts = [];
   for (let j = 0; j <= 90; j++) {
     const th = th0 + span * j / 90, g = 1 + 0.045 * Math.sin(th * 1.7 + i) + 0.07 * j / 90;
     const x = rx * g * Math.cos(th), y = ry * g * Math.sin(th);
     pts.push([cx + x * Math.cos(tilt) - y * Math.sin(tilt), cy + x * Math.sin(tilt) + y * Math.cos(tilt)]);
   }
-  const el = document.createElementNS(SVG, 'path');
-  el.setAttribute('d', 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join(' L'));
-  ringsSvg.appendChild(el);
-  const len = el.getTotalLength();
-  el.style.strokeDasharray = `${len}`;
-  return { ...r, el, len };
+  return 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join(' L');
+}
+
+// The two window layers. Each shows one take's frame through its camera, the
+// drawn pointer (a vector arrow, sharp at any zoom), and ripples where it clicked.
+const pointerSrc = E.cursor.file || 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="68" height="92" viewBox="0 0 17 23"><path d="M1 1v18.5l4.6-4.4 2.9 6.6 2.9-1.3-2.8-6.5H15z" fill="#000" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/></svg>');
+const [PW, PH] = E.cursor.size || [17, 23], [HX, HY] = E.cursor.hot || [1, 1], PS = E.cursor.scale || 3;
+const layers = ['L0', 'L1'].map((id, n) => {
+  const node = $(id), cam = node.querySelector('.cam'), win = node.querySelector('.win');
+  const img = win.querySelector('img'), svg = node.querySelector('.rings'), pointer = node.querySelector('.pointer');
+  pointer.src = pointerSrc;
+  pointer.style.width = `${PW * PS}px`;
+  pointer.style.height = `${PH * PS}px`;
+  return { n, node, cam, win, img, svg, pointer, take: null, shown: '', rings: [], ripples: [] };
 });
+
+function dress(layer, take) {
+  if (layer.take === take) return;
+  layer.take = take;
+  const [fw, fh] = E.takes[take].size;
+  layer.win.style.width = `${fw}px`;
+  layer.win.style.height = `${fh}px`;
+  layer.win.style.borderRadius = `${E.takes[take].radius || 40}px`;
+  layer.svg.setAttribute('width', fw);
+  layer.svg.setAttribute('height', fh);
+  layer.svg.innerHTML = '';
+  layer.rings = E.rings.map((r, i) => ({ ...r, i })).filter(r => r.take === take).map(r => {
+    const el = document.createElementNS(SVG, 'path');
+    el.setAttribute('d', ringPath(r, r.i));
+    layer.svg.appendChild(el);
+    const len = el.getTotalLength();
+    el.style.strokeDasharray = `${len}`;
+    return { ...r, el, len };
+  });
+  layer.ripples = [0, 1].map(() => {
+    const el = document.createElementNS(SVG, 'circle');
+    layer.svg.appendChild(el);
+    return el;
+  });
+}
+
+async function paint(layer, spec, t, zoom) {
+  if (!spec) { show(layer.node, 0); return; }
+  show(layer.node, 1);
+  dress(layer, spec.take);
+  const src = `footage/${spec.take}/${pad(spec.n)}.jpg`;
+  if (src !== layer.shown) {
+    layer.shown = src;
+    layer.img.src = src;
+    await layer.img.decode();
+  }
+  const [cx, cy, k0] = spec.cam, k = k0 * zoom;
+  layer.cam.style.transform = `translate(${(AX - cx * k).toFixed(2)}px, ${(AY - cy * k).toFixed(2)}px) scale(${k.toFixed(4)})`;
+  // Flying out upwards, or in from below with a little overshoot.
+  let oy = 0, rot = 0, sc = 1, blur = 0;
+  if (spec.fly) {
+    const [way, u] = spec.fly, v = clamp(u);
+    if (way === 'out') { oy = -ease.inCubic(v) * 1700; rot = -7 * v; sc = 1 - 0.12 * v; blur = 34 * v; }
+    else { oy = (1 - ease.outBack(v, 1.3)) * 1900; rot = 8 * (1 - v); sc = 1 - 0.1 * (1 - v); blur = 34 * (1 - ease.outCubic(v)); }
+  }
+  layer.node.style.transform = `translateY(${oy.toFixed(1)}px) rotate(${rot.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
+  const filter = $(`mb${layer.n}`).firstElementChild;
+  filter.setAttribute('stdDeviation', `0 ${blur.toFixed(1)}`);
+  layer.node.style.filter = blur > 0.5 ? `url(#mb${layer.n})` : 'none';
+  // The pointer dips as it clicks.
+  if (spec.cursor) {
+    const [x, y, down] = spec.cursor, s = 1 - 0.16 * down;
+    layer.pointer.style.transform = `translate(${(x - HX * PS * s).toFixed(1)}px, ${(y - HY * PS * s).toFixed(1)}px) scale(${s.toFixed(3)})`;
+    show(layer.pointer, 1);
+  } else show(layer.pointer, 0);
+  layer.ripples.forEach((el, i) => {
+    const r = spec.ripples[i];
+    if (!r) { el.style.opacity = '0'; return; }
+    const [x, y, age] = r, k = clamp(age / 0.6);
+    el.setAttribute('cx', x);
+    el.setAttribute('cy', y);
+    el.setAttribute('r', (14 + 86 * ease.outCubic(k)).toFixed(1));
+    el.setAttribute('stroke-width', (14 * (1 - k) + 2).toFixed(1));
+    el.style.opacity = (1 - k).toFixed(3);
+  });
+  for (const r of layer.rings) {
+    const on = t >= r.from && t < r.to;
+    const k = seg(t, r.from, r.from + 0.3, ease.outCubic);
+    r.el.style.strokeDashoffset = `${(r.len * (1 - k)).toFixed(1)}`;
+    r.el.style.opacity = on ? (1 - inv(r.to - 0.1, r.to, t)).toFixed(3) : '0';
+  }
+}
 
 // Captions: an outline made of shadows, so it reads over the light screen.
 const outline = Array.from({ length: 16 }, (_, i) => {
@@ -190,15 +253,6 @@ function drawConfetti(t) {
   }
 }
 
-const img = $('foot');
-let shown = '';
-async function setFrame(src) {
-  if (src === shown) return;
-  shown = src;
-  img.src = src;
-  await img.decode();
-}
-
 const endShot = E.shots.find(s => s.id === 'end');
 const shock = (node, at, t) => {
   const k = inv(at, at + 0.55, t);
@@ -226,30 +280,12 @@ window.__seek = async t => {
   show($('flash'), flash(t));
 
   show($('title'), end ? 0 : 1);
-  show($('viewport'), end ? 0 : 1);
   $('title').querySelector('.sticker').style.transform = `rotate(-2deg) scale(${(1 + 0.025 * b).toFixed(4)})`;
 
-  if (!end) {
-    await setFrame(footageFrame(shot, t));
-    const cam = $('cam');
-    cam.className = shot.src === 'tab' ? 'window' : '';
-    const [fw, fh] = shot.src === 'tab' ? [1760, 420] : [1760, 1162];
-    ringsSvg.setAttribute('width', fw);
-    ringsSvg.setAttribute('height', fh);
-    let [cx, cy, s] = camera(shot.cam, t);
-    s *= 1 + punch(t) + 0.014 * b + 0.05 * (1 - seg(t, shot.from, shot.from + 0.3, ease.outCubic));
-    cam.style.transform = `translate(${(VW / 2 - cx * s).toFixed(2)}px, ${(VH / 2 - cy * s).toFixed(2)}px) scale(${s.toFixed(4)})`;
-    const [wx, blur] = whip(t);
-    $('whip').style.transform = `translateX(${wx.toFixed(1)}px)`;
-    $('mbBlur').setAttribute('stdDeviation', `${blur.toFixed(1)} 0`);
-    $('whip').style.filter = blur > 0.5 ? 'url(#mb)' : 'none';
-    for (const r of rings) {
-      const on = r.shot === shot.id && t >= r.from && t < r.to;
-      const k = seg(t, r.from, r.from + 0.3, ease.outCubic);
-      r.el.style.strokeDashoffset = `${(r.len * (1 - k)).toFixed(1)}`;
-      r.el.style.opacity = on ? (1 - inv(r.to - 0.1, r.to, t)).toFixed(3) : '0';
-    }
-  }
+  // The app windows; a new shot opens with a small push in.
+  const specs = end ? [] : E.frames[Math.min(E.frames.length - 1, Math.round(t * E.fps))];
+  const zoom = 1 + punch(t) + 0.012 * b + 0.05 * (1 - seg(t, shot.from, shot.from + 0.3, ease.outCubic));
+  await Promise.all(layers.map((layer, i) => paint(layer, specs[i], t, zoom)));
 
   // Tab keycap: pops in for the run of presses, dips and bursts on each one.
   const keys = E.keys, kc = $('keycap');
@@ -267,10 +303,12 @@ window.__seek = async t => {
   burst.style.transform = `translate(${(-bs / 2).toFixed(1)}px, ${(-bs / 2).toFixed(1)}px)`;
   show(burst, bk < 1 && !end ? 0.9 * (1 - bk) : 0);
 
-  const [s0, s1] = E.sped_up;
-  const sk = inv(s0, s0 + 0.2, t), so = inv(s1 - 0.12, s1, t);
-  $('sped').style.transform = `rotate(5deg) scale(${(ease.outBack(sk, 2.2) * (1 - so)).toFixed(4)})`;
-  show($('sped'), t >= s0 && t < s1 ? 1 : 0);
+  const sped = E.sped_up.find(([s0, s1]) => t >= s0 && t < s1);
+  if (sped) {
+    const [s0, s1] = sped, sk = inv(s0, s0 + 0.2, t), so = inv(s1 - 0.12, s1, t);
+    $('sped').style.transform = `rotate(5deg) scale(${(ease.outBack(sk, 2.2) * (1 - so)).toFixed(4)})`;
+  }
+  show($('sped'), sped ? 1 : 0);
 
   // End card: the mark and name slam in on the cut, a chip slams on each fact, the name again on "LokalBot".
   const endEl = $('end');

@@ -1,20 +1,20 @@
 #!/bin/bash
-# Films the UGC demo's app footage on a hosted Mac in GitHub Actions: Ask and
-# a meeting in the LokalBot UI Test Host on the README's fictional library,
-# and autocomplete in TextEdit with the default on-device model. Every take is
-# recorded at 2x on a virtual Retina display, without the system pointer, and
-# with the pointer's path logged, so the edit draws a smooth pointer and moves
-# its camera with it.
+# Films the UGC demo's app footage on a hosted Mac in GitHub Actions: Ask
+# opening a meeting in the LokalBot UI Test Host on the README's fictional
+# library, and autocomplete in TextEdit with the default on-device model. Every
+# take is recorded at 2x on a virtual Retina display, without the system
+# pointer, and with the pointer's path logged, so the edit draws a smooth
+# pointer and moves its camera with it.
 #
 #   UI_HOST_APP=<LokalBot UI Test Host.app> LOKALBOT_APP=<Debug LokalBot.app> \
 #     film.sh <out-dir> [take...]
 #
-# Takes: flow ask meeting (shots/*.json, the UI Test Host) and follow-up
-# (autocomplete, filmed by Scripts/autocomplete-demo/film.sh); default all.
-# Writes <out>/clips/<take>.mp4 (30 fps, 4:4:4) with <take>.json (rect, scale,
-# events, pointer path), <out>/probes/ (each take's accessibility tree and a
-# frame at its start and at every `mark`), <out>/cursors/ (the system pointer
-# images) and <out>/logs/. A take that fails is reported and skipped.
+# Takes: flow (shots/flow.json, the UI Test Host) and follow-up (autocomplete,
+# filmed by Scripts/autocomplete-demo/film.sh); default both. Writes
+# <out>/clips/<take>.mp4 (30 fps, 4:4:4) with <take>.json (rect, scale, events,
+# pointer path), <out>/probes/ (each take's accessibility tree and a frame at
+# its start and at every `mark`) and <out>/logs/. A take that fails is
+# reported and skipped.
 #
 # CI only: it grants the rig's TCC permissions with sudo, like the
 # autocomplete film script.
@@ -26,7 +26,7 @@ HOST_APP=$(cd "${UI_HOST_APP:?set UI_HOST_APP to a built LokalBot UI Test Host.a
 HOST_BIN="$HOST_APP/Contents/MacOS/"
 OUT=$(mkdir -p "$1" && cd "$1" && pwd)
 shift
-if [[ $# -eq 0 ]]; then set -- flow ask meeting follow-up; fi
+if [[ $# -eq 0 ]]; then set -- flow follow-up; fi
 WORK=$(cd "$(mktemp -d "${RUNNER_TEMP:-/tmp}/ugc-film.XXXXXX")" && pwd -P)
 RIG="$WORK/rig"
 DISPLAY_SIZE=${DISPLAY_SIZE:-1200x1600}
@@ -78,15 +78,13 @@ else
   DISPLAY_PID=
   echo "no 2x display; filming at 1x on the main display"
 fi
-swift "$HERE/cursors.swift" "$OUT/cursors" || echo "no pointer images"
 
 echo "== library =="
 python3 "$ROOT/Scripts/readme-gif/seed_library.py" "$WORK/library"
 
 take_env() {
   case $1 in
-    flow|ask) echo "LOKALBOT_INITIAL_SECTION=ask LOKALBOT_RESET_SPLIT_VIEWS=1" ;;
-    meeting) echo "LOKALBOT_INITIAL_SECTION=meetings LOKALBOT_SELECT_INDEX=1 LOKALBOT_DETAIL_TAB=summary LOKALBOT_RESET_SPLIT_VIEWS=1" ;;
+    flow) echo "LOKALBOT_INITIAL_SECTION=ask LOKALBOT_RESET_SPLIT_VIEWS=1" ;;
     *) echo "unknown take $1" >&2; return 2 ;;
   esac
 }

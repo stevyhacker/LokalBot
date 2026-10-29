@@ -28,21 +28,27 @@
   #title { position: absolute; left: 0; right: 0; top: 62px; display: flex; flex-direction: column; align-items: center; }
   #title .sticker { padding: 16px 30px 18px; border-radius: 22px; background: #fff; color: #0b1016; font-size: 50px; font-weight: 850;
     line-height: 1.1; letter-spacing: -0.02em; text-align: center; transform: rotate(-2deg); box-shadow: 0 12px 0 rgba(0, 0, 0, 0.45); }
-  #title .note { margin-top: 18px; font-size: 24px; font-weight: 600; color: var(--muted); letter-spacing: 0.01em; }
-  #viewport { position: absolute; left: 0; top: 300px; width: 1080px; height: 1200px; overflow: hidden; background: var(--field); }
-  #whip { position: absolute; inset: 0; will-change: transform, filter; }
-  #cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
-  #cam img { display: block; }
-  #cam.window img { border-radius: 16px; box-shadow: 0 34px 80px -30px rgba(11, 16, 22, 0.5), 0 0 0 1px rgba(11, 16, 22, 0.08); }
-  #rings { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.25)); }
-  #rings path { fill: none; stroke: var(--red); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  #title .note { margin-top: 16px; padding: 6px 16px; border-radius: 999px; background: rgba(11, 16, 22, 0.72);
+    font-size: 24px; font-weight: 600; color: #c3ccd6; letter-spacing: 0.01em; }
+  /* The app: each take's window on the background, moved by a camera that
+     follows the pointer. Two layers, so one window can fly out as the next flies in. */
+  #stage { position: absolute; inset: 0; }
+  .layer { position: absolute; inset: 0; will-change: transform, filter; transform-origin: 540px 885px; }
+  .cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+  .win { position: absolute; left: 0; top: 0; overflow: hidden; background: #eaeef2;
+    box-shadow: 0 70px 140px -30px rgba(0, 0, 0, 0.75), 0 0 0 3px rgba(255, 255, 255, 0.07); }
+  .win img { display: block; }
+  .rings { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 6px 0 rgba(0, 0, 0, 0.25)); }
+  .rings path { fill: none; stroke: var(--red); stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }
+  .rings circle { fill: none; stroke: var(--mint); }
+  .pointer { position: absolute; left: 0; top: 0; transform-origin: 0 0; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35)); }
   .sticker2 { position: absolute; padding: 12px 24px; border-radius: 16px; font-size: 34px; font-weight: 900; letter-spacing: 0.02em;
     white-space: nowrap; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); }
-  #sped { right: 26px; top: 28px; background: var(--yellow); color: #0b1016; }
-  #keycap { left: 50%; top: 760px; display: flex; align-items: center; gap: 18px; padding: 24px 46px 26px; border-radius: 30px;
+  #sped { right: 34px; top: 312px; background: var(--yellow); color: #0b1016; }
+  #keycap { left: 50%; top: 1060px; display: flex; align-items: center; gap: 18px; padding: 24px 46px 26px; border-radius: 30px;
     background: #fff; color: #0b1016; font-size: 76px; font-weight: 900; letter-spacing: 0.02em; box-shadow: 0 14px 0 #9aa7b5, 0 34px 50px -18px rgba(11, 16, 22, 0.6); }
   #keycap svg { width: 70px; height: 70px; }
-  #keyburst { position: absolute; left: 50%; top: 840px; width: 10px; height: 10px; border-radius: 50%; border: 10px solid var(--mint); }
+  #keyburst { position: absolute; left: 50%; top: 1140px; width: 10px; height: 10px; border-radius: 50%; border: 10px solid var(--mint); }
 
   /* End card. */
   #end { position: absolute; inset: 0; }
@@ -63,7 +69,7 @@
   #confetti { position: absolute; inset: 0; }
 
   /* Captions: a word pops in as it is said; key words get a color, a box and an emoji. */
-  #caps { position: absolute; left: 30px; right: 30px; top: 1400px; height: 240px; display: flex; align-items: center; justify-content: center; }
+  #caps { position: absolute; left: 30px; right: 30px; top: 1500px; height: 240px; display: flex; align-items: center; justify-content: center; }
   #caps .chunk { text-align: center; font-size: 108px; font-weight: 900; line-height: 1.02; letter-spacing: -0.015em; text-transform: uppercase; }
   #caps .w { display: inline-block; margin: 0 0.1em; color: #fff; transform-origin: 50% 70%; }
   #caps .w.mint { color: var(--mint); }
@@ -71,29 +77,31 @@
   #caps .w.red { color: var(--red); }
   #caps .w.box { background: var(--mint); color: #0b1016; padding: 0 0.16em; border-radius: 0.14em; text-shadow: none !important;
     box-shadow: 0 0 0 8px #000, 0 14px 0 8px #000; }
-  #emoji { position: absolute; top: 1200px; width: 220px; height: 220px; font-size: 180px; line-height: 220px; text-align: center; }
+  #emoji { position: absolute; top: 1270px; width: 220px; height: 220px; font-size: 180px; line-height: 220px; text-align: center; }
   #progress { position: absolute; left: 0; top: 0; height: 12px; background: var(--mint); box-shadow: 0 0 22px rgba(110, 242, 220, 0.8); }
   #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; }
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute">
-  <filter id="mb" x="-20%" y="0" width="140%" height="100%"><feGaussianBlur id="mbBlur" stdDeviation="0 0"/></filter>
+  <filter id="mb0" x="0" y="-20%" width="100%" height="140%"><feGaussianBlur stdDeviation="0 0"/></filter>
+  <filter id="mb1" x="0" y="-20%" width="100%" height="140%"><feGaussianBlur stdDeviation="0 0"/></filter>
 </svg>
 <div id="root">
   <div id="world">
     <div id="bg"><div id="board"></div><div id="glowA" class="glow"></div><div id="glowB" class="glow"></div></div>
+    <div id="stage">
+      <div class="layer" id="L0"><div class="cam"><div class="win"><img alt=""></div><svg class="rings"></svg><img class="pointer" alt=""></div></div>
+      <div class="layer" id="L1"><div class="cam"><div class="win"><img alt=""></div><svg class="rings"></svg><img class="pointer" alt=""></div></div>
+    </div>
     <div id="title">
       <div class="sticker">POV: you never take<br>meeting notes again <span class="emoji">🤯</span></div>
       <div class="note">Real app · fictional demo data</div>
     </div>
-    <div id="viewport">
-      <div id="whip"><div id="cam"><img id="foot" alt=""><svg id="rings"></svg></div></div>
-      <div id="sped" class="sticker2"><span class="emoji">⏩</span> SPED UP</div>
-      <div id="keyburst"></div>
-      <div id="keycap" class="sticker2"><span>TAB</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="#0b1016" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h15"/><path d="M13 6l6 6-6 6"/><path d="M21 5v14"/></svg>
-      </div>
+    <div id="sped" class="sticker2"><span class="emoji">⏩</span> SPED UP</div>
+    <div id="keyburst"></div>
+    <div id="keycap" class="sticker2"><span>TAB</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0b1016" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h15"/><path d="M13 6l6 6-6 6"/><path d="M21 5v14"/></svg>
     </div>
     <div id="end">
       <div id="rays"></div>
