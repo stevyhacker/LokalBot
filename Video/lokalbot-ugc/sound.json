@@ -1,0 +1,37 @@
+{
+ "music_length_ms": 32000,
+ "music": [
+  {
+   "id": "hype-a",
+   "prompt": "Hype, high-energy trap instrumental for a viral TikTok tech edit. 140 BPM. Opens with two seconds of a filtered, building beat, then slams straight into a huge drop: booming 808 bass, a hard kick, snappy claps, fast hi-hat rolls and a bold, gritty synth lead hook with big stabs. Relentless, cocky and exciting, like a hype reel. A short one-bar drop-out with a riser around the 17-second mark, then a final hard-hitting section that ends on a hard stop. No vocals, no bells, no chimes, no cowbell."
+  },
+  {
+   "id": "hype-b",
+   "prompt": "Explosive electro house instrumental for an over-the-top viral product video. 128 BPM. A one-bar build of snare rolls and a white-noise riser, then an immediate massive drop: pumping sidechained bass, a pounding four-on-the-floor kick, claps, a huge distorted saw lead and offbeat stabs. Maximum energy the whole way, a quick break with a riser around 17 seconds and a second, even bigger drop, ending on one final hit. No vocals, no bells, no chimes."
+  }
+ ],
+ "effects": [
+  {"id": "whoosh", "duration": 0.7, "influence": 0.7, "variants": 3,
+   "text": "Fast, punchy whoosh transition for a hype video edit, a quick aggressive air swipe, close and loud, no impact"},
+  {"id": "impact", "duration": 1.5, "influence": 0.7, "variants": 2,
+   "text": "Huge cinematic boom impact with a deep sub-bass hit and a short tail, for a hype video edit, no bells"},
+  {"id": "bassdrop", "duration": 1.2, "influence": 0.7,
+   "text": "Deep, dramatic sub-bass boom meme hit, a single heavy low thud with a booming tail"},
+  {"id": "riser", "duration": 1.6, "influence": 0.6,
+   "text": "Fast tension riser, white noise and a synth sweeping up quickly for a hype edit, building and stopping abruptly"},
+  {"id": "scratch", "duration": 0.6, "influence": 0.7,
+   "text": "Short sharp DJ vinyl record scratch, a comedic stop"},
+  {"id": "pop", "duration": 0.3, "influence": 0.7, "variants": 2,
+   "text": "Short bubbly cartoon pop for on-screen text appearing, clean and dry, no bell"},
+  {"id": "glitch", "duration": 0.5, "influence": 0.6,
+   "text": "Short digital glitch stutter, a data corruption buzz for a video transition"},
+  {"id": "typing", "duration": 3.0, "influence": 0.6,
+   "text": "Fast, loud mechanical keyboard typing, clicky keys, close microphone, dry room, no music"},
+  {"id": "tab", "duration": 0.4, "influence": 0.7, "variants": 2,
+   "text": "One heavy press of a mechanical keyboard key, a deep satisfying thock, close microphone, dry"},
+  {"id": "slam", "duration": 2.0, "influence": 0.6,
+   "text": "Reverse cymbal swell sucking in fast and slamming into a massive bass impact for a logo reveal, no bells, no chimes"},
+  {"id": "click", "duration": 0.3, "influence": 0.7,
+   "text": "A single crisp computer mouse click, close, dry"}
+ ]
+}

@@ -1,25 +1,30 @@
 {
-  "voice_direction": "Casual creator voice showing a friend an app on their laptop: relaxed, quick, a little amused, natural American English. Not a narrator, not salesy, no announcer energy.",
+  "voice_direction": "Hyped creator voice on a viral tech TikTok: fast, loud, grinning, punchy, American English. Big energy on every line, a little cocky, never bored. \"spoken\" is what ElevenLabs gets, with audio tags; \"caption\" is what the screen shows.",
   "scenes": [
     {
       "id": "01-hook",
-      "caption": "Forgot what you agreed on in that meeting? Your Mac didn't."
+      "caption": "Stop taking meeting notes. Your Mac remembers for you.",
+      "spoken": "[excited] Stop taking meeting notes! Your Mac remembers for you."
     },
     {
       "id": "02-notes",
-      "caption": "LokalBot records your calls locally. No bot joins the meeting. Then it writes up the recap and every decision."
+      "caption": "LokalBot records the call right on your Mac. No bot joins. Then boom: the recap and every decision.",
+      "spoken": "[excited] LokalBot records the call right on your Mac. No bot joins! Then boom: the recap and every decision."
     },
     {
       "id": "03-cite",
-      "caption": "Each one links back to the exact moment it was said."
+      "caption": "Click one, and it jumps to the exact second it was said.",
+      "spoken": "Click one, and it jumps to the exact second it was said!"
     },
     {
       "id": "04-tab",
-      "caption": "So when you write the follow-up, it already knows. Just hit Tab."
+      "caption": "Then I write the follow-up, and it already knows. Tab, tab, tab!",
+      "spoken": "[excited] Then I write the follow-up, and it already knows. Tab, tab, tab!"
     },
     {
       "id": "05-end",
-      "caption": "It's free, open source, and the AI runs on your Mac. It's called LokalBot."
+      "caption": "Free. Open source. The AI runs on your Mac. It's called LokalBot!",
+      "spoken": "[excited] Free. Open source. The AI runs on your Mac. It's called LokalBot!"
     }
   ]
 }
