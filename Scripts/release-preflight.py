@@ -16,6 +16,42 @@ PORT_MANIFEST = "LinuxWindows/Cargo.toml"
 PORT_LOCKFILE = "LinuxWindows/Cargo.lock"
 PORT_UPDATE_KEY = "LinuxWindows/crates/lokalbot-update/src/lib.rs"
 
+# Releases after this one link an explainer for their major features
+# (RELEASING.md, "Explainers for major features").
+EXPLAINERS_AFTER = (0, 11, 5)
+EXPLAINER_LINK = re.compile(r"https://(?:www\.)?lokalbot\.com/explainers/([^\s)\]\"'<>]+)")
+EXPLAINER_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\.(?:png|pdf)")
+EXPLAINER_MAGIC = {".png": b"\x89PNG\r\n\x1a\n", ".pdf": b"%PDF-"}
+EXPLAINER_MAX_BYTES = 10 * 1024 * 1024
+NO_EXPLAINER = re.compile(r"<!--\s*no explainer:\s*\S.*?-->", re.DOTALL)
+
+
+def committed(root, path):
+    return subprocess.run(["git", "-C", str(root), "cat-file", "-e", f"HEAD:{path}"],
+                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+
+
+def validate_explainers(root, notes, candidate):
+    names = EXPLAINER_LINK.findall(notes)
+    for name in names:
+        if not EXPLAINER_NAME.fullmatch(name):
+            raise ValueError(f"Explainer links must name web/explainers/<feature-slug>.png or .pdf, not {name}")
+        path = f"web/explainers/{name}"
+        file = root / path
+        if not file.is_file():
+            raise ValueError(f"Release notes link an explainer that isn't in the repository: {path}")
+        if file.stat().st_size > EXPLAINER_MAX_BYTES:
+            raise ValueError(f"Explainers must be under 10 MB: {path}")
+        with file.open("rb") as handle:
+            if not handle.read(8).startswith(EXPLAINER_MAGIC[file.suffix]):
+                raise ValueError(f"Explainer isn't a {file.suffix[1:].upper()} file: {path}")
+        # The website deploys web/ from master, so an explainer must be committed before the tag.
+        if candidate and not committed(root, path):
+            raise ValueError(f"Commit the explainer before the release candidate: {path}")
+    if re.search(r"^## What[’']s new\s*$", notes, re.MULTILINE) and not names and not NO_EXPLAINER.search(notes):
+        raise ValueError("Link an explainer for each major feature under What’s new (RELEASING.md), "
+                         "or say why none is needed in <!-- no explainer: ... -->")
+
 
 def validate_port_version(root, version):
     """The Linux and Windows app ships from the same tag, so its workspace
@@ -75,6 +111,8 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
     base = comparison[1]
     if tuple(map(int, base[1:].split('.'))) >= tuple(map(int, actual.split('.'))):
         raise ValueError("Changelog base must precede the release version")
+    if tuple(map(int, actual.split('.'))) > EXPLAINERS_AFTER:
+        validate_explainers(root, notes, candidate)
     if candidate:
         tag = f"v{actual}"
         if git(root, "tag", "--list", tag):
