@@ -1,0 +1,164 @@
+[
+ {
+  "file": "c01-s11.mp3",
+  "heard": "Hi, okay, launch checklist. The pricing page is almost done, I just need the final numbers.",
+  "missing": []
+ },
+ {
+  "file": "c02-s11.mp3",
+  "heard": "I'll send the revised pricing deck to Marko by Friday.",
+  "missing": []
+ },
+ {
+  "file": "c03-s11.mp3",
+  "heard": "And what was our trial-to-paid conversion last month, by the way?",
+  "missing": []
+ },
+ {
+  "file": "c04-s11.mp3",
+  "heard": "Great, what did we put as the team plan price in the pricing sheet?",
+  "missing": []
+ },
+ {
+  "file": "c05-s11.mp3",
+  "heard": "One second, it's in the sheet.",
+  "missing": []
+ },
+ {
+  "file": "c06-s11.mp3",
+  "heard": "Let me think, I saw it on the dashboard.",
+  "missing": []
+ },
+ {
+  "file": "c07-s11.mp3",
+  "heard": "Also, the launch is Friday the seventh now, right? Marketing told me Friday.",
+  "missing": []
+ },
+ {
+  "file": "c08-s11.mp3",
+  "heard": "Hmmm, I thought it was the Monday. Let me check.",
+  "missing": [
+   "hm"
+  ]
+ },
+ {
+  "file": "c09-s11.mp3",
+  "heard": "Unrelated but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?",
+  "missing": []
+ },
+ {
+  "file": "c10-s11.mp3",
+  "heard": "Hmm, good question.",
+  "missing": [
+   "hm"
+  ]
+ },
+ {
+  "file": "c11-s11.mp3",
+  "heard": "Perfect, let's go with 20% off for annual plans.",
+  "missing": [
+   "percent",
+   "twenty"
+  ]
+ },
+ {
+  "file": "c12-s11.mp3",
+  "heard": "Agreed 20%. Talk tomorrow.",
+  "missing": [
+   "percent",
+   "twenty"
+  ]
+ },
+ {
+  "file": "n01-s11.mp3",
+  "heard": "Someone asks for a number on a call. LokalBot saw it on my screen last week, and answers before I found the tab.",
+  "missing": [
+   "ive"
+  ]
+ },
+ {
+  "file": "n02-s11.mp3",
+  "heard": "LokalBot already records my meetings and remembers my screen on my Mac. For this hackathon, I connected that memory to three meta models.",
+  "missing": []
+ },
+ {
+  "file": "n03-s11.mp3",
+  "heard": "I'm on a call with Ana about our launch. I press start radar and a small panel floats over the call.",
+  "missing": []
+ },
+ {
+  "file": "n04-s11.mp3",
+  "heard": "Muse Voice Transcribe turns each turn into text as it ends. Muse Spark reads it and my commitment lands seconds later.",
+  "missing": []
+ },
+ {
+  "file": "n05-s11.mp3",
+  "heard": "Muse Wonder looks it up in my work. It starts from what LokalBot remembers, then searches my documents and opens the sheet.",
+  "missing": []
+ },
+ {
+  "file": "n06-s11.mp3",
+  "heard": "$12 per seat, quoted from the Sheets' own row. If a quote isn't in what it read, the answer is dropped.",
+  "missing": [
+   "dollars",
+   "twelve"
+  ]
+ },
+ {
+  "file": "n07-s11.mp3",
+  "heard": "That number was on my screen last week. Spark reads a crop of the dashboard.",
+  "missing": []
+ },
+ {
+  "file": "n08-s11.mp3",
+  "heard": "When the plant changes, the radar shows what we agreed in the planning meeting with the quote.",
+  "missing": [
+   "plan"
+  ]
+ },
+ {
+  "file": "n08-s29.mp3",
+  "heard": "When the plan changes, the radar shows what we agreed in the planning meeting with the quote",
+  "missing": []
+ },
+ {
+  "file": "n08-s47.mp3",
+  "heard": "When the plan changes, the radar shows what we agreed in the planning meeting with the quote.",
+  "missing": []
+ },
+ {
+  "file": "n09-s11.mp3",
+  "heard": "Wonder reads code 2, it searches the repository, opens the settings and links the exact line on GitHub.",
+  "missing": [
+   "too"
+  ]
+ },
+ {
+  "file": "n10-s11.mp3",
+  "heard": "After the call, it's all on the board. What we promised, decided, asked and changed.",
+  "missing": []
+ },
+ {
+  "file": "n11-s11.mp3",
+  "heard": "Follow through takes my commitment from there. Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice, and books our talk for tomorrow. Nothing is sent until I approve it.",
+  "missing": []
+ },
+ {
+  "file": "n11-s29.mp3",
+  "heard": "Follow-through takes my commitment from there. Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice and books our talk for tomorrow. Nothing is sent until I approve it.",
+  "missing": []
+ },
+ {
+  "file": "n12-s11.mp3",
+  "heard": "Three meta models, each where it fits. Real-time speech, fast reading of text and images, and careful look-ups and plans. Search and speaker separation, stay on my Mac.",
+  "missing": [
+   "lookups",
+   "realtime"
+  ]
+ },
+ {
+  "file": "n13-s11.mp3",
+  "heard": "LokalBot from Meeting to Done",
+  "missing": []
+ }
+]

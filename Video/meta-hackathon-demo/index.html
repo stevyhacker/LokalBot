@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>From meeting to done — LokalBot × Meta Muse</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Big Shoulders Display"; src: url("assets/fonts/BigShouldersDisplay-VF.ttf"); font-weight: 100 900; }
+      @font-face { font-family: "Hanken Grotesk"; src: url("assets/fonts/HankenGrotesk-VF.ttf"); font-weight: 100 900; }
+      @font-face { font-family: "JetBrains Mono"; src: url("assets/fonts/JetBrainsMono-VF.ttf"); font-weight: 100 800; }
+      :root {
+        --bg: #091216; --panel: #12232a; --line: #22404a; --fg: #e6f2ef; --muted: #8ba7a3;
+        --teal: #2fd3bd; --spark: #63aaff; --wonder: #6be38f; --voice: #ffcf5c; --clash: #ffa046; --ana: #7fd0ff;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; color: var(--fg);
+        background: radial-gradient(1200px 760px at 78% 10%, #12302f 0%, rgba(9,18,22,0) 62%), var(--bg);
+        font-family: "Hanken Grotesk", Helvetica, sans-serif; }
+      #grid { position: absolute; inset: 0; opacity: 0.35;
+        background-image: linear-gradient(rgba(47,211,189,0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(47,211,189,0.06) 1px, transparent 1px);
+        background-size: 48px 48px; }
+      .card { position: absolute; overflow: hidden; border-radius: 18px; opacity: 0; background: #000;
+        box-shadow: 0 40px 90px -30px rgba(0,0,0,0.75), 0 0 0 1px rgba(47,211,189,0.25); }
+      .footage { position: absolute; left: 0; top: 0; width: 1440px; height: 1080px; transform-origin: 0 0; }
+      .speed { position: absolute; z-index: 5; width: 150px; text-align: center; opacity: 0; font-family: "JetBrains Mono", monospace;
+        font-size: 18px; font-weight: 700; color: #091216; background: var(--voice); border-radius: 999px; padding: 6px 0; }
+      .beat { position: absolute; left: 72px; top: 0; height: 930px; opacity: 0; display: flex; flex-direction: column; gap: 22px;
+        justify-content: center; }
+      .kicker { font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 600; letter-spacing: 0.14em;
+        text-transform: uppercase; color: var(--teal); }
+      .headline { font-family: "Big Shoulders Display", sans-serif; font-size: 84px; line-height: 0.92; font-weight: 800;
+        text-transform: uppercase; letter-spacing: 0.01em; text-wrap: balance; }
+      .detail { font-size: 29px; line-height: 1.4; color: #cfe2de; }
+      .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+      .chip { font-family: "JetBrains Mono", monospace; font-size: 17px; font-weight: 600; padding: 9px 14px;
+        border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: rgba(18,35,42,0.75); }
+      .cap { position: absolute; left: 72px; right: 72px; bottom: 40px; display: flex; gap: 16px; align-items: baseline;
+        justify-content: center; }
+      .cap-text { font-size: 32px; line-height: 1.25; font-weight: 560; color: #f4fbf9; text-align: center;
+        max-width: 1600px; text-shadow: 0 2px 14px rgba(0,0,0,0.85); opacity: 0; }
+      .who { font-family: "JetBrains Mono", monospace; font-size: 20px; font-weight: 700; letter-spacing: 0.08em;
+        text-transform: uppercase; padding: 6px 10px; border-radius: 8px; opacity: 0; white-space: nowrap; }
+      .who-ana { color: #08202a; background: var(--ana); }
+      .who-stevan { color: #052520; background: var(--teal); }
+      #badge { position: absolute; left: 72px; top: 7px; opacity: 0; font-family: "JetBrains Mono", monospace;
+        font-size: 14px; color: #b4c8c4; padding: 5px 10px; border: 1px dashed var(--line); border-radius: 8px;
+        background: rgba(9,18,22,0.75); }
+      .scene { position: absolute; inset: 0; opacity: 0; display: flex; flex-direction: column; justify-content: center;
+        padding: 0 0 40px 150px; }
+      #title .eyebrow { font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.16em; color: var(--teal);
+        text-transform: uppercase; }
+      #title .big { font-family: "Big Shoulders Display", sans-serif; font-weight: 900; font-size: 210px; line-height: 0.85;
+        text-transform: uppercase; margin-top: 26px; }
+      #title .big .to { color: var(--teal); text-shadow: 0 0 40px rgba(47,211,189,0.5); }
+      #title .sub { font-size: 34px; color: #cfe2de; margin-top: 34px; }
+      #models .row { display: flex; gap: 28px; margin-top: 40px; }
+      #models h2 { font-family: "Big Shoulders Display", sans-serif; font-size: 92px; font-weight: 800; text-transform: uppercase;
+        line-height: 0.95; }
+      .model { width: 500px; padding: 30px 30px 34px; border-radius: 20px; background: var(--panel); border: 1px solid var(--line);
+        display: flex; flex-direction: column; gap: 14px; opacity: 0; }
+      .model .name { font-family: "Big Shoulders Display", sans-serif; font-size: 52px; font-weight: 800; text-transform: uppercase; }
+      .model .does { font-size: 26px; line-height: 1.4; color: #cfe2de; }
+      .model .dot { width: 16px; height: 16px; border-radius: 50%; }
+      #models .local { margin-top: 34px; font-size: 28px; color: var(--muted); opacity: 0; }
+      #models .local b { color: var(--fg); }
+      #endcard .brand { display: flex; align-items: center; gap: 34px; }
+      #endcard .brand img { width: 150px; height: 150px; }
+      #endcard .word { font-family: "Big Shoulders Display", sans-serif; font-size: 170px; font-weight: 900; text-transform: uppercase; }
+      #endcard .line { font-family: "Big Shoulders Display", sans-serif; font-size: 72px; font-weight: 800; color: var(--teal);
+        text-transform: uppercase; margin-top: 18px; }
+      #endcard .url { font-family: "JetBrains Mono", monospace; font-size: 38px; margin-top: 46px; color: var(--fg); }
+      #endcard .note { font-size: 24px; color: var(--muted); margin-top: 30px; max-width: 1350px; line-height: 1.45; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="1920" data-height="1080" data-duration="179.49">
+      <div id="grid"></div>
+
+      <div class="card" id="card-cold-a" data-layout-allow-overflow>
+        <video id="v-cold-a" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="0.0" data-duration="5.2" data-media-start="57.4"
+          data-track-index="1"></video>
+      </div>
+      <div class="card" id="card-cold-b" data-layout-allow-overflow>
+        <video id="v-cold-b" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="5.2" data-duration="9.6" data-media-start="62.6"
+          data-track-index="2" data-playback-rate="1.0833"></video>
+      </div>
+      <div class="card" id="card-settings" data-layout-allow-overflow>
+        <video id="v-settings" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="19.8" data-duration="10.2" data-media-start="10"
+          data-track-index="1" data-playback-rate="0.9804"></video>
+      </div>
+      <div class="card" id="card-start" data-layout-allow-overflow>
+        <video id="v-start" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="30.0" data-duration="7.34" data-media-start="21"
+          data-track-index="2" data-playback-rate="0.8174"></video>
+      </div>
+      <div class="card" id="card-c01" data-layout-allow-overflow>
+        <video id="v-c01" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="37.34" data-duration="7.21" data-media-start="27.0"
+          data-track-index="1" data-playback-rate="0.4993"></video>
+      </div>
+      <div class="card" id="card-c02" data-layout-allow-overflow>
+        <video id="v-c02" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="44.55" data-duration="3.83" data-media-start="30.6"
+          data-track-index="2" data-playback-rate="0.8355"></video>
+      </div>
+      <div class="card" id="card-commit" data-layout-allow-overflow>
+        <video id="v-commit" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="48.38" data-duration="9.28" data-media-start="33.8"
+          data-track-index="1" data-playback-rate="0.2371"></video>
+      </div>
+      <div class="card" id="card-c04" data-layout-allow-overflow>
+        <video id="v-c04" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="57.66" data-duration="4.68" data-media-start="36"
+          data-track-index="2" data-playback-rate="1.1966"></video>
+      </div>
+      <div class="card" id="card-c05" data-layout-allow-overflow>
+        <video id="v-c05" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="62.34" data-duration="2.98" data-media-start="41.6"
+          data-track-index="1" data-playback-rate="1.0067"></video>
+      </div>
+      <div class="card" id="card-q1-look" data-layout-allow-overflow>
+        <video id="v-q1-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="65.32" data-duration="14.0" data-media-start="44.6"
+          data-track-index="2"></video>
+      </div>
+      <div class="card" id="card-q1-answer" data-layout-allow-overflow>
+        <video id="v-q1-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="79.32" data-duration="8.16" data-media-start="58.6"
+          data-track-index="1" data-playback-rate="0.3431"></video>
+      </div>
+      <div class="card" id="card-c07" data-layout-allow-overflow>
+        <video id="v-c07" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="87.48" data-duration="5.7" data-media-start="69.6"
+          data-track-index="2" data-playback-rate="1.1579"></video>
+      </div>
+      <div class="card" id="card-c08" data-layout-allow-overflow>
+        <video id="v-c08" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="93.18" data-duration="4.1" data-media-start="76.2"
+          data-track-index="1" data-playback-rate="0.5366"></video>
+      </div>
+      <div class="card" id="card-contra" data-layout-allow-overflow>
+        <video id="v-contra" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="97.28" data-duration="6.46" data-media-start="78.4"
+          data-track-index="2" data-playback-rate="0.387"></video>
+      </div>
+      <div class="card" id="card-c09" data-layout-allow-overflow>
+        <video id="v-c09" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="103.74" data-duration="7.73" data-media-start="88.6"
+          data-track-index="1" data-playback-rate="0.8021"></video>
+      </div>
+      <div class="card" id="card-c10" data-layout-allow-overflow>
+        <video id="v-c10" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="111.47" data-duration="2.18" data-media-start="94.8"
+          data-track-index="2" data-playback-rate="1.1927"></video>
+      </div><div class="speed" id="speed-q2-look" style="left:1690px;top:62px">3.0× speed</div>
+      <div class="card" id="card-q2-look" data-layout-allow-overflow>
+        <video id="v-q2-look" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="113.65" data-duration="6.0" data-media-start="97.4"
+          data-track-index="1" data-playback-rate="2.9833"></video>
+      </div>
+      <div class="card" id="card-q2-answer" data-layout-allow-overflow>
+        <video id="v-q2-answer" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="119.65" data-duration="6.6" data-media-start="115.3"
+          data-track-index="2" data-playback-rate="0.6061"></video>
+      </div>
+      <div class="card" id="card-board" data-layout-allow-overflow>
+        <video id="v-board" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="126.25" data-duration="8.92" data-media-start="160.7"
+          data-track-index="1" data-playback-rate="1.009"></video>
+      </div>
+      <div class="card" id="card-meeting" data-layout-allow-overflow>
+        <video id="v-meeting" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="135.17" data-duration="3.4" data-media-start="186"
+          data-track-index="2"></video>
+      </div><div class="speed" id="speed-ft" style="left:1690px;top:62px">1.3× speed</div>
+      <div class="card" id="card-ft" data-layout-allow-overflow>
+        <video id="v-ft" class="clip footage" src="assets/footage/film.mp4" muted playsinline
+          data-start="138.57" data-duration="20.56" data-media-start="191.6"
+          data-track-index="1" data-playback-rate="1.3327"></video>
+      </div>
+
+      <div class="beat" id="beat-cold-b" style="width:880px">
+        <div class="kicker">Screen answer · Muse Spark</div>
+        <div class="headline">4.1%, from my screen last week</div>
+        <div class="detail">Found in screen memory on my Mac, cropped by Vision, read by Spark.</div>
+        
+      </div>
+      <div class="beat" id="beat-settings" style="width:400px">
+        <div class="kicker">Settings · Meta Muse</div>
+        <div class="headline">Each one is opt-in</div>
+        
+        <div class="chips"><span class="chip">Fast live text</span><span class="chip">Screen answers</span><span class="chip">Live answers</span><span class="chip">Floating panel</span></div>
+      </div>
+      <div class="beat" id="beat-start" style="width:400px">
+        <div class="kicker">Live Radar</div>
+        <div class="headline">One press, then back to the call</div>
+        
+        
+      </div>
+      <div class="beat" id="beat-commit" style="width:880px">
+        <div class="kicker">Voice Transcribe → Muse Spark</div>
+        <div class="headline">Caught as it’s said</div>
+        <div class="detail">Every item has to quote a line from the call, or it’s dropped.</div>
+        
+      </div>
+      <div class="beat" id="beat-q1-look" style="width:880px">
+        <div class="kicker">Live answers · Muse Wonder</div>
+        <div class="headline">It looks it up in my work</div>
+        <div class="detail">What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.</div>
+        
+      </div>
+      <div class="beat" id="beat-q1-answer" style="width:880px">
+        <div class="kicker">Quote checked</div>
+        <div class="headline">$12 per seat, from the sheet’s own row</div>
+        
+        <div class="chips"><span class="chip">Northwind pricing v2.xlsx</span><span class="chip">question → answer: 17 s</span></div>
+      </div>
+      <div class="beat" id="beat-contra" style="width:880px">
+        <div class="kicker">Contradiction · Muse Spark</div>
+        <div class="headline">We agreed on Monday the 3rd</div>
+        <div class="detail">Quoted from the Launch planning meeting, October 21, found by search on my Mac.</div>
+        
+      </div>
+      <div class="beat" id="beat-q2-look" style="width:400px">
+        <div class="kicker">Live answers · code</div>
+        <div class="headline">It reads the repository too</div>
+        <div class="detail">Tracked files only. Never .env files or keys.</div>
+        
+      </div>
+      <div class="beat" id="beat-q2-answer" style="width:880px">
+        <div class="kicker">Quote checked</div>
+        <div class="headline">Yes, hidden by default</div>
+        <div class="detail">AppSettings.swift, line 176, linked on GitHub at the commit it read.</div>
+        <div class="chips"><span class="chip">question → answer: 22 s</span></div>
+      </div>
+      <div class="beat" id="beat-board" style="width:400px">
+        <div class="kicker">After the call</div>
+        <div class="headline">All of it, on the board</div>
+        
+        
+      </div>
+      <div class="beat" id="beat-ft" style="width:880px">
+        <div class="kicker">Follow-through · Muse Wonder</div>
+        <div class="headline">It drafts. I approve.</div>
+        <div class="detail">The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.</div>
+        
+      </div>
+      <div id="badge">Filmed by the CI test · scripted call · live Muse replies</div>
+      <div class="scene" id="title">
+        <div class="eyebrow">LokalBot × Meta Muse</div>
+        <div class="big">From meeting<br/><span class="to">to done</span></div>
+        <div class="sub">Built during the Meta Global AI Developer Hackathon</div>
+      </div>
+      <div class="scene" id="models">
+        <h2>Three Meta models</h2>
+        <div class="row">
+          <div class="model" id="m-voice"><div class="dot" style="background:var(--voice)"></div><div class="name">Voice Transcribe</div>
+            <div class="does">Realtime speech to text, turn by turn, for the live transcript.</div></div>
+          <div class="model" id="m-spark"><div class="dot" style="background:var(--spark)"></div><div class="name">Muse Spark</div>
+            <div class="does">Live Radar every few seconds, and screen answers from crops of earlier captures.</div></div>
+          <div class="model" id="m-wonder"><div class="dot" style="background:var(--wonder)"></div><div class="name">Muse Wonder</div>
+            <div class="does">Live answers from your work, and Follow-through with your approval.</div></div>
+        </div>
+        <div class="local">On your Mac: <b>recording, speaker separation, meeting and screen search.</b></div>
+      </div>
+      <div class="scene" id="endcard">
+        <div class="brand"><img src="assets/brand/lokalbot-mark-brand.svg" alt="" /><div class="word">LokalBot</div></div>
+        <div class="line">From meeting to done</div>
+        <div class="url">github.com/stevyhacker/lokalbot</div>
+        <div class="note">Filmed on a hosted Mac by the hackathon UI test: the call’s words are scripted, and Muse Spark and Muse Wonder answer live through the Meta Model API.</div>
+      </div>
+      <div class="clip cap" id="cap-01" data-start="6.1" data-duration="2.35" data-track-index="20"><span class="cap-text">Someone asks for a number on a call.</span></div>
+      <div class="clip cap" id="cap-02" data-start="8.5" data-duration="5.7" data-track-index="20"><span class="cap-text">LokalBot saw it on my screen last week, and answers before I&#x27;ve found the tab.</span></div>
+      <div class="clip cap" id="cap-03" data-start="20.1" data-duration="5.363" data-track-index="20"><span class="cap-text">LokalBot already records my meetings and remembers my screen, on my Mac.</span></div>
+      <div class="clip cap" id="cap-04" data-start="25.513" data-duration="4.547" data-track-index="20"><span class="cap-text">For this hackathon, I connected that memory to three Meta models.</span></div>
+      <div class="clip cap" id="cap-05" data-start="30.1" data-duration="2.83" data-track-index="20"><span class="cap-text">I&#x27;m on a call with Ana about our launch.</span></div>
+      <div class="clip cap" id="cap-06" data-start="32.98" data-duration="4.74" data-track-index="20"><span class="cap-text">I press Start Radar, and a small panel floats over the call.</span></div>
+      <div class="clip cap" id="cap-07" data-start="48.58" data-duration="4.63" data-track-index="20"><span class="cap-text">Muse Voice Transcribe turns each turn into text as it ends.</span></div>
+      <div class="clip cap" id="cap-08" data-start="53.26" data-duration="4.78" data-track-index="20"><span class="cap-text">Muse Spark reads it, and my commitment lands seconds later.</span></div>
+      <div class="clip cap" id="cap-09" data-start="65.62" data-duration="2.75" data-track-index="20"><span class="cap-text">Muse Wonder looks it up in my work.</span></div>
+      <div class="clip cap" id="cap-10" data-start="68.42" data-duration="6.42" data-track-index="20"><span class="cap-text">It starts from what LokalBot remembers, then searches my documents and opens the sheet.</span></div>
+      <div class="clip cap" id="cap-11" data-start="79.52" data-duration="4.07" data-track-index="20"><span class="cap-text">Twelve dollars per seat, quoted from the sheet&#x27;s own row.</span></div>
+      <div class="clip cap" id="cap-12" data-start="83.64" data-duration="4.22" data-track-index="20"><span class="cap-text">If a quote isn&#x27;t in what it read, the answer is dropped.</span></div>
+      <div class="clip cap" id="cap-13" data-start="97.38" data-duration="6.74" data-track-index="20"><span class="cap-text">When the plan changes, the radar shows what we agreed in the planning meeting, with the quote.</span></div>
+      <div class="clip cap" id="cap-14" data-start="114.05" data-duration="8.74" data-track-index="20"><span class="cap-text">Wonder reads code too. It searches the repository, opens the settings, and links the exact line on GitHub.</span></div>
+      <div class="clip cap" id="cap-15" data-start="127.05" data-duration="7.7" data-track-index="20"><span class="cap-text">After the call, it&#x27;s all on the board: what we promised, decided, asked, and changed.</span></div>
+      <div class="clip cap" id="cap-16" data-start="139.57" data-duration="3.03" data-track-index="20"><span class="cap-text">Follow-through takes my commitment from there.</span></div>
+      <div class="clip cap" id="cap-17" data-start="142.65" data-duration="8.55" data-track-index="20"><span class="cap-text">Wonder reads the meeting, searches the earlier ones, writes Ana an email that lays out the choice, and books our talk for tomorrow.</span></div>
+      <div class="clip cap" id="cap-18" data-start="151.25" data-duration="3.46" data-track-index="20"><span class="cap-text">Nothing is sent until I approve it.</span></div>
+      <div class="clip cap" id="cap-19" data-start="159.53" data-duration="9.59" data-track-index="20"><span class="cap-text">Three Meta models, each where it fits: realtime speech, fast reading of text and images, and careful lookups and plans.</span></div>
+      <div class="clip cap" id="cap-20" data-start="169.17" data-duration="3.82" data-track-index="20"><span class="cap-text">Search and speaker separation stay on my Mac.</span></div>
+      <div class="clip cap" id="cap-21" data-start="174.09" data-duration="3.54" data-track-index="20"><span class="cap-text">LokalBot. From meeting to done.</span></div>
+      <audio id="mix" src="assets/sound/final-mix.wav" data-start="0" data-duration="179.38" data-track-index="30"></audio>
+    </div>
+    <script>
+      const C = {"shots":[{"id":"cold-a","start":0.0,"end":5.2,"media_start":57.4,"rate":1.0,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"cold-b","start":5.2,"end":14.8,"media_start":62.6,"rate":1.0833,"cam":[[0,[542,44,1318,890],[0,28,1440]],[2.2,[1279,44,581,890],[1098,38,334]],[5.2,[1279,44,581,890],[1098,38,334]],[6.6,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"settings","start":19.8,"end":30.0,"media_start":10,"rate":0.9804,"cam":[[0,[542,44,1318,890],[560,190,720]],[9.0,[542,44,1318,890],[585,200,640]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"start","start":30.0,"end":37.34,"media_start":21,"rate":0.8174,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"c01","start":37.34,"end":44.55,"media_start":27.0,"rate":0.4993,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c02","start":44.55,"end":48.38,"media_start":30.6,"rate":0.8355,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"commit","start":48.38,"end":57.66,"media_start":33.8,"rate":0.2371,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.3,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"c04","start":57.66,"end":62.34,"media_start":36,"rate":1.1966,"cam":[[0,[1279,44,581,890],[1098,38,334]],[0.9,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"c05","start":62.34,"end":65.32,"media_start":41.6,"rate":1.0067,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.6,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q1-look","start":65.32,"end":79.32,"media_start":44.6,"rate":1.0,"cam":[[0,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q1-answer","start":79.32,"end":87.48,"media_start":58.6,"rate":0.3431,"cam":[[0,[1279,44,581,890],[1098,38,334]],[1.0,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c07","start":87.48,"end":93.18,"media_start":69.6,"rate":1.1579,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c08","start":93.18,"end":97.28,"media_start":76.2,"rate":0.5366,"cam":[[0,[542,44,1318,890],[0,28,1440]],[1.4,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0,"call":true},{"id":"contra","start":97.28,"end":103.74,"media_start":78.4,"rate":0.387,"cam":[[0,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.4,"call":false},{"id":"c09","start":103.74,"end":111.47,"media_start":88.6,"rate":0.8021,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.4,"fade_out":0,"call":true},{"id":"c10","start":111.47,"end":113.65,"media_start":94.8,"rate":1.1927,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0,"fade_out":0,"call":true},{"id":"q2-look","start":113.65,"end":119.65,"media_start":97.4,"rate":2.9833,"cam":[[0,[542,44,1318,890],[0,28,1440]],[5.0,[542,44,1318,890],[0,28,1440]],[6.0,[1279,44,581,890],[1098,38,334]]],"fade_in":0,"fade_out":0,"call":false},{"id":"q2-answer","start":119.65,"end":126.25,"media_start":115.3,"rate":0.6061,"cam":[[0,[1279,44,581,890],[1098,38,334]],[0.9,[1100,110,760,780],[1098,58,334]]],"fade_in":0,"fade_out":0.5,"call":false},{"id":"board","start":126.25,"end":135.17,"media_start":160.7,"rate":1.009,"cam":[[0,[542,44,1318,890],[0,28,1440]]],"fade_in":0.5,"fade_out":0,"call":false},{"id":"meeting","start":135.17,"end":138.57,"media_start":186,"rate":1.0,"cam":[[0,[542,44,1318,890],[440,190,980]]],"fade_in":0.4,"fade_out":0,"call":false},{"id":"ft","start":138.57,"end":159.13,"media_start":191.6,"rate":1.3327,"cam":[[0,[1170,44,690,890],[425,120,590]]],"fade_in":0.3,"fade_out":0.6,"call":false}],"beats":[{"kicker":"Screen answer \u00b7 Muse Spark","headline":"4.1%, from my screen last week","detail":"Found in screen memory on my Mac, cropped by Vision, read by Spark.","width":880,"chips":[],"id":"cold-b","start":10.8,"end":14.7},{"kicker":"Settings \u00b7 Meta Muse","headline":"Each one is opt-in","chips":["Fast live text","Screen answers","Live answers","Floating panel"],"width":400,"id":"settings","start":20.2,"end":29.9},{"kicker":"Live Radar","headline":"One press, then back to the call","width":400,"chips":[],"id":"start","start":30.3,"end":37.24},{"kicker":"Voice Transcribe \u2192 Muse Spark","headline":"Caught as it\u2019s said","detail":"Every item has to quote a line from the call, or it\u2019s dropped.","width":880,"chips":[],"id":"commit","start":49.88,"end":57.56},{"kicker":"Live answers \u00b7 Muse Wonder","headline":"It looks it up in my work","detail":"What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.","width":880,"chips":[],"id":"q1-look","start":65.62,"end":79.22},{"kicker":"Quote checked","headline":"$12 per seat, from the sheet\u2019s own row","chips":["Northwind pricing v2.xlsx","question \u2192 answer: 17 s"],"width":880,"id":"q1-answer","start":79.72,"end":87.38},{"kicker":"Contradiction \u00b7 Muse Spark","headline":"We agreed on Monday the 3rd","detail":"Quoted from the Launch planning meeting, October 21, found by search on my Mac.","width":880,"chips":[],"id":"contra","start":97.48,"end":103.64},{"kicker":"Live answers \u00b7 code","headline":"It reads the repository too","detail":"Tracked files only. Never .env files or keys.","width":400,"chips":[],"id":"q2-look","start":113.95,"end":119.55},{"kicker":"Quote checked","headline":"Yes, hidden by default","detail":"AppSettings.swift, line 176, linked on GitHub at the commit it read.","chips":["question \u2192 answer: 22 s"],"width":880,"id":"q2-answer","start":120.55,"end":126.15},{"kicker":"After the call","headline":"All of it, on the board","width":400,"chips":[],"id":"board","start":126.85,"end":135.07},{"kicker":"Follow-through \u00b7 Muse Wonder","headline":"It drafts. I approve.","detail":"The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.","width":880,"chips":[],"id":"ft","start":139.17,"end":159.03}],"scenes":{"title":{"start":14.8,"end":19.8},"models":{"start":159.13,"end":173.49,"cues":[162.82,164.46,166.9,169.38]},"endcard":{"start":173.49,"end":179.49}},"src":[1440,1080],"total":179.49,"badge":{"text":"Filmed by the CI test \u00b7 scripted call \u00b7 live Muse replies","start":0.0,"end":173.49}};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#grid", { backgroundPosition: "0px 0px" }, { backgroundPosition: "-96px -48px", duration: C.total, ease: "none" }, 0);
+      // A camera keyframe is [time, [box x, y, w, h], [film x, y, w]]: the card's place on the canvas and
+      // the part of the film it shows, as wide as w and as tall as the box's shape allows.
+      const view = (box, src) => {
+        const k = box[2] / src[2];
+        return { card: { left: box[0], top: box[1], width: box[2], height: box[3] },
+                 video: { x: -src[0] * k, y: -src[1] * k, scale: k } };
+      };
+      for (const s of C.shots) {
+        const card = "#card-" + s.id, video = "#v-" + s.id;
+        const first = view(s.cam[0][1], s.cam[0][2]);
+        tl.set(card, first.card, 0);
+        tl.set(video, first.video, 0);
+        const fadeIn = s.fade_in ?? 0.35, fadeOut = s.fade_out ?? 0.35;
+        if (s.start === 0 || fadeIn === 0) tl.set(card, { opacity: 1 }, s.start);
+        else tl.fromTo(card, { opacity: 0 }, { opacity: 1, duration: fadeIn, ease: "power1.out" }, s.start);
+        if (fadeOut === 0) tl.set(card, { opacity: 0 }, s.end);
+        else tl.to(card, { opacity: 0, duration: fadeOut, ease: "power1.in" }, s.end - fadeOut);
+        if (document.querySelector("#speed-" + s.id)) {
+          tl.fromTo("#speed-" + s.id, { opacity: 0 }, { opacity: 1, duration: 0.3 }, s.start + 0.3);
+          tl.to("#speed-" + s.id, { opacity: 0, duration: 0.3 }, s.end - 0.4);
+        }
+        for (let i = 1; i < s.cam.length; i++) {
+          const [t0] = s.cam[i - 1], [t1, box, src] = s.cam[i];
+          const v = view(box, src), ease = s.cam[i][3] || "power2.inOut";
+          tl.to(card, { ...v.card, duration: t1 - t0, ease }, s.start + t0);
+          tl.to(video, { ...v.video, duration: t1 - t0, ease }, s.start + t0);
+        }
+      }
+      for (const b of C.beats) {
+        const el = "#beat-" + b.id;
+        tl.fromTo(el, { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, b.start);
+        if (b.chips && b.chips.length)
+          tl.fromTo(el + " .chip", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.35, stagger: 0.12, ease: "power2.out" }, b.start + 0.4);
+        tl.to(el, { opacity: 0, y: -10, duration: 0.4, ease: "power1.in" }, b.end - 0.4);
+      }
+      if (C.badge) {
+        tl.fromTo("#badge", { opacity: 0 }, { opacity: 1, duration: 0.5 }, C.badge.start);
+        tl.to("#badge", { opacity: 0, duration: 0.5 }, C.badge.end - 0.5);
+      }
+      const sc = C.scenes;
+      tl.fromTo("#title", { opacity: 0 }, { opacity: 1, duration: 0.5 }, sc.title.start);
+      tl.fromTo("#title .big", { y: 40, scale: 1.04 }, { y: 0, scale: 1, duration: 1.2, ease: "expo.out" }, sc.title.start);
+      tl.fromTo("#title .sub", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6 }, sc.title.start + 0.8);
+      tl.to("#title", { opacity: 0, duration: 0.5 }, sc.title.end - 0.5);
+      tl.fromTo("#models", { opacity: 0 }, { opacity: 1, duration: 0.5 }, sc.models.start);
+      ["#m-voice", "#m-spark", "#m-wonder"].forEach((m, i) =>
+        tl.fromTo(m, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.4)" }, sc.models.cues[i]));
+      tl.fromTo("#models .local", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.6 }, sc.models.cues[3]);
+      tl.to("#models", { opacity: 0, duration: 0.5 }, sc.models.end - 0.5);
+      tl.fromTo("#endcard", { opacity: 0 }, { opacity: 1, duration: 0.7 }, sc.endcard.start);
+      tl.fromTo("#endcard .brand", { y: 24 }, { y: 0, duration: 1.0, ease: "power3.out" }, sc.endcard.start);
+      tl.fromTo("#endcard .url", { opacity: 0 }, { opacity: 1, duration: 0.6 }, sc.endcard.start + 1.2);
+      tl.fromTo("#endcard .note", { opacity: 0 }, { opacity: 1, duration: 0.6 }, sc.endcard.start + 1.8);
+      document.querySelectorAll(".cap").forEach(el => {
+        const start = parseFloat(el.dataset.start), dur = parseFloat(el.dataset.duration);
+        const parts = el.querySelectorAll(".cap-text, .who");
+        tl.fromTo(parts, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out" }, start);
+        tl.to(parts, { opacity: 0, duration: 0.15 }, start + dur - 0.15);
+      });
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

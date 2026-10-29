@@ -1,0 +1,959 @@
+{
+ "fps": 30,
+ "duration": 179.49,
+ "footage": "assets/footage/film.mp4",
+ "source_size": [
+  1440,
+  1080
+ ],
+ "takes": {
+  "n08": "assets/voice/n08-s47.mp3"
+ },
+ "shots": [
+  {
+   "id": "cold-a",
+   "start": 0.0,
+   "end": 5.2,
+   "media_start": 57.4,
+   "rate": 1.0,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "cold-b",
+   "start": 5.2,
+   "end": 14.8,
+   "media_start": 62.6,
+   "rate": 1.0833,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     2.2,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ],
+    [
+     5.2,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ],
+    [
+     6.6,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      1098,
+      58,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0.5,
+   "call": false
+  },
+  {
+   "id": "settings",
+   "start": 19.8,
+   "end": 30.0,
+   "media_start": 10,
+   "rate": 0.9804,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      560,
+      190,
+      720
+     ]
+    ],
+    [
+     9.0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      585,
+      200,
+      640
+     ]
+    ]
+   ],
+   "fade_in": 0.5,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "start",
+   "start": 30.0,
+   "end": 37.34,
+   "media_start": 21,
+   "rate": 0.8174,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0.5,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "c01",
+   "start": 37.34,
+   "end": 44.55,
+   "media_start": 27.0,
+   "rate": 0.4993,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "c02",
+   "start": 44.55,
+   "end": 48.38,
+   "media_start": 30.6,
+   "rate": 0.8355,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "commit",
+   "start": 48.38,
+   "end": 57.66,
+   "media_start": 33.8,
+   "rate": 0.2371,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     1.3,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "c04",
+   "start": 57.66,
+   "end": 62.34,
+   "media_start": 36,
+   "rate": 1.1966,
+   "cam": [
+    [
+     0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ],
+    [
+     0.9,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "c05",
+   "start": 62.34,
+   "end": 65.32,
+   "media_start": 41.6,
+   "rate": 1.0067,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     1.6,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "q1-look",
+   "start": 65.32,
+   "end": 79.32,
+   "media_start": 44.6,
+   "rate": 1.0,
+   "cam": [
+    [
+     0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "q1-answer",
+   "start": 79.32,
+   "end": 87.48,
+   "media_start": 58.6,
+   "rate": 0.3431,
+   "cam": [
+    [
+     0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ],
+    [
+     1.0,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      1098,
+      58,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0.4,
+   "call": false
+  },
+  {
+   "id": "c07",
+   "start": 87.48,
+   "end": 93.18,
+   "media_start": 69.6,
+   "rate": 1.1579,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0.4,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "c08",
+   "start": 93.18,
+   "end": 97.28,
+   "media_start": 76.2,
+   "rate": 0.5366,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     1.4,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      1098,
+      58,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "contra",
+   "start": 97.28,
+   "end": 103.74,
+   "media_start": 78.4,
+   "rate": 0.387,
+   "cam": [
+    [
+     0,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      1098,
+      58,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0.4,
+   "call": false
+  },
+  {
+   "id": "c09",
+   "start": 103.74,
+   "end": 111.47,
+   "media_start": 88.6,
+   "rate": 0.8021,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0.4,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "c10",
+   "start": 111.47,
+   "end": 113.65,
+   "media_start": 94.8,
+   "rate": 1.1927,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": true
+  },
+  {
+   "id": "q2-look",
+   "start": 113.65,
+   "end": 119.65,
+   "media_start": 97.4,
+   "rate": 2.9833,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     5.0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ],
+    [
+     6.0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "q2-answer",
+   "start": 119.65,
+   "end": 126.25,
+   "media_start": 115.3,
+   "rate": 0.6061,
+   "cam": [
+    [
+     0,
+     [
+      1279,
+      44,
+      581,
+      890
+     ],
+     [
+      1098,
+      38,
+      334
+     ]
+    ],
+    [
+     0.9,
+     [
+      1100,
+      110,
+      760,
+      780
+     ],
+     [
+      1098,
+      58,
+      334
+     ]
+    ]
+   ],
+   "fade_in": 0,
+   "fade_out": 0.5,
+   "call": false
+  },
+  {
+   "id": "board",
+   "start": 126.25,
+   "end": 135.17,
+   "media_start": 160.7,
+   "rate": 1.009,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      0,
+      28,
+      1440
+     ]
+    ]
+   ],
+   "fade_in": 0.5,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "meeting",
+   "start": 135.17,
+   "end": 138.57,
+   "media_start": 186,
+   "rate": 1.0,
+   "cam": [
+    [
+     0,
+     [
+      542,
+      44,
+      1318,
+      890
+     ],
+     [
+      440,
+      190,
+      980
+     ]
+    ]
+   ],
+   "fade_in": 0.4,
+   "fade_out": 0,
+   "call": false
+  },
+  {
+   "id": "ft",
+   "start": 138.57,
+   "end": 159.13,
+   "media_start": 191.6,
+   "rate": 1.3327,
+   "cam": [
+    [
+     0,
+     [
+      1170,
+      44,
+      690,
+      890
+     ],
+     [
+      425,
+      120,
+      590
+     ]
+    ]
+   ],
+   "fade_in": 0.3,
+   "fade_out": 0.6,
+   "call": false
+  }
+ ],
+ "voice": [
+  [
+   "c03",
+   0.5
+  ],
+  [
+   "n01",
+   6.1
+  ],
+  [
+   "n02",
+   20.1
+  ],
+  [
+   "n03",
+   30.1
+  ],
+  [
+   "c01",
+   37.44
+  ],
+  [
+   "c02",
+   44.6
+  ],
+  [
+   "n04",
+   48.58
+  ],
+  [
+   "c04",
+   57.81
+  ],
+  [
+   "c05",
+   62.49
+  ],
+  [
+   "n05",
+   65.62
+  ],
+  [
+   "n06",
+   79.52
+  ],
+  [
+   "c07",
+   87.48
+  ],
+  [
+   "c08",
+   93.18
+  ],
+  [
+   "n08",
+   97.38
+  ],
+  [
+   "c09",
+   103.77
+  ],
+  [
+   "c10",
+   111.47
+  ],
+  [
+   "n09",
+   114.05
+  ],
+  [
+   "n10",
+   127.05
+  ],
+  [
+   "n11",
+   139.57
+  ],
+  [
+   "n12",
+   159.53
+  ],
+  [
+   "n13",
+   174.09
+  ]
+ ],
+ "beats": [
+  {
+   "kicker": "Screen answer · Muse Spark",
+   "headline": "4.1%, from my screen last week",
+   "detail": "Found in screen memory on my Mac, cropped by Vision, read by Spark.",
+   "width": 880,
+   "chips": [],
+   "id": "cold-b",
+   "start": 10.8,
+   "end": 14.7
+  },
+  {
+   "kicker": "Settings · Meta Muse",
+   "headline": "Each one is opt-in",
+   "chips": [
+    "Fast live text",
+    "Screen answers",
+    "Live answers",
+    "Floating panel"
+   ],
+   "width": 400,
+   "id": "settings",
+   "start": 20.2,
+   "end": 29.9
+  },
+  {
+   "kicker": "Live Radar",
+   "headline": "One press, then back to the call",
+   "width": 400,
+   "chips": [],
+   "id": "start",
+   "start": 30.3,
+   "end": 37.24
+  },
+  {
+   "kicker": "Voice Transcribe → Muse Spark",
+   "headline": "Caught as it’s said",
+   "detail": "Every item has to quote a line from the call, or it’s dropped.",
+   "width": 880,
+   "chips": [],
+   "id": "commit",
+   "start": 49.88,
+   "end": 57.56
+  },
+  {
+   "kicker": "Live answers · Muse Wonder",
+   "headline": "It looks it up in my work",
+   "detail": "What LokalBot remembers comes first, then my documents, sheets, PDFs and code. Real time.",
+   "width": 880,
+   "chips": [],
+   "id": "q1-look",
+   "start": 65.62,
+   "end": 79.22
+  },
+  {
+   "kicker": "Quote checked",
+   "headline": "$12 per seat, from the sheet’s own row",
+   "chips": [
+    "Northwind pricing v2.xlsx",
+    "question → answer: 17 s"
+   ],
+   "width": 880,
+   "id": "q1-answer",
+   "start": 79.72,
+   "end": 87.38
+  },
+  {
+   "kicker": "Contradiction · Muse Spark",
+   "headline": "We agreed on Monday the 3rd",
+   "detail": "Quoted from the Launch planning meeting, October 21, found by search on my Mac.",
+   "width": 880,
+   "chips": [],
+   "id": "contra",
+   "start": 97.48,
+   "end": 103.64
+  },
+  {
+   "kicker": "Live answers · code",
+   "headline": "It reads the repository too",
+   "detail": "Tracked files only. Never .env files or keys.",
+   "width": 400,
+   "chips": [],
+   "id": "q2-look",
+   "start": 113.95,
+   "end": 119.55
+  },
+  {
+   "kicker": "Quote checked",
+   "headline": "Yes, hidden by default",
+   "detail": "AppSettings.swift, line 176, linked on GitHub at the commit it read.",
+   "chips": [
+    "question → answer: 22 s"
+   ],
+   "width": 880,
+   "id": "q2-answer",
+   "start": 120.55,
+   "end": 126.15
+  },
+  {
+   "kicker": "After the call",
+   "headline": "All of it, on the board",
+   "width": 400,
+   "chips": [],
+   "id": "board",
+   "start": 126.85,
+   "end": 135.07
+  },
+  {
+   "kicker": "Follow-through · Muse Wonder",
+   "headline": "It drafts. I approve.",
+   "detail": "The email and the invitation open as drafts in Mail and Calendar. LokalBot never sends them.",
+   "width": 880,
+   "chips": [],
+   "id": "ft",
+   "start": 139.17,
+   "end": 159.03
+  }
+ ],
+ "scenes": {
+  "title": {
+   "start": 14.8,
+   "end": 19.8
+  },
+  "models": {
+   "start": 159.13,
+   "end": 173.49,
+   "cues": [
+    162.82,
+    164.46,
+    166.9,
+    169.38
+   ]
+  },
+  "endcard": {
+   "start": 173.49,
+   "end": 179.49
+  }
+ },
+ "badge": {
+  "text": "Filmed by the CI test · scripted call · live Muse replies",
+  "start": 0.0,
+  "end": 173.49
+ },
+ "endcard_note": "Filmed on a hosted Mac by the hackathon UI test: the call’s words are scripted, and Muse Spark and Muse Wonder answer live through the Meta Model API.",
+ "anchors_run": 40884392779
+}

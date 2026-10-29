@@ -2,6 +2,8 @@
 
 A three-minute video for the Meta Global AI Developer Hackathon. The judges weigh impact 30%, use of Meta tooling 25%, technical depth 20%, and the demo 25%, and they ask whether the video is "genuinely cool to watch". The rules allow showing only hackathon-built work, so every shot is a hackathon feature. Recording, transcription, and screen memory appear only as the setting.
 
+The submission video is cut from the CI film instead of a live take: [Video/meta-hackathon-demo](../../Video/meta-hackathon-demo/README.md) edits `HackathonFilmUITests`' recording, with live Muse replies and a scripted call, into 2:59.5 with narration. This script stays as the live-take alternative.
+
 The video is built around four moments:
 
 1. **An answer from your screen.** A question asked out loud is answered seconds later with a crop of a page you looked at earlier.
