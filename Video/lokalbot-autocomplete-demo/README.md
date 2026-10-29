@@ -48,3 +48,14 @@ mkdir -p /tmp/takes && git archive FETCH_HEAD | tar -x -C /tmp/takes
 python3 build_edit.py /tmp/takes light
 ./make.sh
 ```
+
+The home page plays a silent copy, `web/assets/lokalbot-autocomplete.mp4`
+(poster: the opening frame, `lokalbot-autocomplete-poster.webp`). Make it from
+the final MP4 in two passes, just under 10 MB; `aq-mode=3` keeps the dim circuit
+board from smearing at this bitrate:
+
+```sh
+X='-an -c:v libx264 -preset slower -b:v 2550k -maxrate 5100k -bufsize 10200k -pix_fmt yuv420p -x264-params aq-mode=3:aq-strength=1.0:deblock=-1,-1'
+ffmpeg -i renders/lokalbot-autocomplete-demo.mp4 $X -pass 1 -f mp4 /dev/null
+ffmpeg -i renders/lokalbot-autocomplete-demo.mp4 $X -pass 2 -movflags +faststart ../../web/assets/lokalbot-autocomplete.mp4
+```

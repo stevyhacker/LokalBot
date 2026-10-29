@@ -144,6 +144,23 @@
         }
       },
       {
+        "@type": "VideoObject",
+        "@id": "https://www.lokalbot.com/#autocomplete-video",
+        "name": "LokalBot autocomplete in 30 seconds",
+        "description": "Real recordings of LokalBot's on-device autocomplete finishing sentences in TextEdit, using what a meeting decided, then how it works: the text before the cursor and saved facts go to Gemma 4 E2B in the app, it weighs every next word, and Tab takes a word at a time.",
+        "thumbnailUrl": "https://www.lokalbot.com/assets/lokalbot-autocomplete-poster.webp",
+        "contentUrl": "https://www.lokalbot.com/assets/lokalbot-autocomplete.mp4",
+        "uploadDate": "2026-10-29",
+        "duration": "PT30S",
+        "inLanguage": "en",
+        "about": {
+          "@id": "https://www.lokalbot.com/#software"
+        },
+        "publisher": {
+          "@id": "https://www.lokalbot.com/#organization"
+        }
+      },
+      {
         "@type": "FAQPage",
         "@id": "https://www.lokalbot.com/#faq",
         "mainEntity": [
@@ -357,13 +374,22 @@
       <header class="section__head">
         <h2 class="section__title" id="writing-title">A hand with the writing, too.</h2>
       </header>
-      <div class="home-writing__grid home-writing__grid--four">
+      <div class="home-writing__lead">
         <article class="tile">
           <i class="ph ph-keyboard tile__icon" aria-hidden="true"></i>
           <h3>Finish the sentence</h3>
           <p>Optional autocomplete suggests how your sentence ends, and <kbd>Tab</kbd> takes the next word. It reads the message you're answering and, if you let it, what was decided in your meetings. On Mac it also writes in German, French, Italian, Spanish, and more.</p>
           <a class="home-text-link" href="blog/autocomplete-that-knows-your-meetings">How autocomplete works</a>
         </article>
+        <figure class="home-writing__video">
+          <video class="home-loop" controls muted loop playsinline preload="none" poster="assets/lokalbot-autocomplete-poster.webp" width="1920" height="1080" aria-label="LokalBot autocomplete in 30 seconds, without sound: it finishes a sentence in TextEdit with what a meeting decided, completes a word mid-typing, and writes in German and Spanish. Then how it works: it reads the text before the cursor and relevant saved facts, Gemma 4 E2B runs in the app, it weighs every next word, and Tab takes the gray ghost text a word at a time.">
+            <source src="assets/lokalbot-autocomplete.mp4" type="video/mp4" />
+            <p><a href="assets/lokalbot-autocomplete.mp4">Watch autocomplete in 30 seconds.</a></p>
+          </video>
+          <figcaption>Real recording with the on-device model, sped up &middot; <a href="assets/lokalbot-autocomplete.mp4">Open the video</a></figcaption>
+        </figure>
+      </div>
+      <div class="home-writing__grid">
         <article class="tile">
           <i class="ph ph-waveform tile__icon" aria-hidden="true"></i>
           <h3>Talk instead of typing</h3>
