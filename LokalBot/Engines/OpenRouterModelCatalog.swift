@@ -22,6 +22,7 @@ actor OpenRouterModelCatalog {
     private var reasoningByModel: [String: ReasoningSupport] = [:]
     private var reasoningFetchedAt: Date?
     private var reasoningAttemptedAt: Date?
+    private var reasoningLookup: Task<Void, Never>?
     /// A failed list read waits this long, so an offline Mac does not add a
     /// timeout to every Think request.
     static let reasoningRetryInterval: TimeInterval = 600
@@ -60,6 +61,11 @@ actor OpenRouterModelCatalog {
     /// (`GET <base>/models`, read at most daily). Same rules as the context
     /// window: an approved OpenRouter origin, no key, no content. Nil when
     /// the origin does not qualify or the model is not listed.
+    ///
+    /// Callers that arrive during a read wait for it, and the read runs apart
+    /// from its caller, so a Settings view that disappears cannot cancel it
+    /// into a failed attempt. Either miss would leave the menu on the generic
+    /// levels for ten minutes, without the model's own Max.
     func reasoningSupport(model: String, baseURL: URL, approvedOrigins: [String]) async -> ReasoningSupport? {
         guard ChatCompletionDialect.inferred(from: baseURL) == .openRouter,
               (try? InferenceEndpointPolicy.validate(baseURL, approvedOrigins: approvedOrigins)) != nil
@@ -67,16 +73,23 @@ actor OpenRouterModelCatalog {
         let current = now()
         let stale = reasoningFetchedAt.map { current.timeIntervalSince($0) >= Self.refreshInterval } ?? true
         let waiting = reasoningAttemptedAt.map { current.timeIntervalSince($0) < Self.reasoningRetryInterval } ?? false
-        if stale, !waiting {
+        if let reasoningLookup {
+            await reasoningLookup.value
+        } else if stale, !waiting {
             reasoningAttemptedAt = current
-            var request = URLRequest(url: baseURL.appendingPathComponent("models"))
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-            if let (data, response) = try? await fetch(request),
-               (response as? HTTPURLResponse)?.statusCode == 200,
-               let parsed = Self.reasoningSupport(inModels: data) {
-                reasoningByModel = parsed
-                reasoningFetchedAt = current
+            let lookup = Task {
+                var request = URLRequest(url: baseURL.appendingPathComponent("models"))
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                if let (data, response) = try? await fetch(request),
+                   (response as? HTTPURLResponse)?.statusCode == 200,
+                   let parsed = Self.reasoningSupport(inModels: data) {
+                    reasoningByModel = parsed
+                    reasoningFetchedAt = current
+                }
+                reasoningLookup = nil
             }
+            reasoningLookup = lookup
+            await lookup.value
         }
         return reasoningByModel[model.lowercased()]
     }
