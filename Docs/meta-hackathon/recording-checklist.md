@@ -20,7 +20,7 @@ To start over: `Scripts/meta-hackathon-demo.sh reset`, then `setup`.
 ## Once, at least a day before recording
 
 1. **Open the demo app.** Quit LokalBot Dev if it's running, then run `Scripts/meta-hackathon-demo.sh open`. Always start it this way, never from the Dock or Xcode: those open your normal Dev library. The Meetings list should show "Launch planning", "Pricing deck review", and "Weekly team sync".
-2. **Permissions.** Give LokalBot Dev Microphone and Screen & System Audio Recording in System Settings → Privacy & Security. If macOS asks you to quit and reopen it, reopen it with `open` again.
+2. **Permissions.** Give LokalBot Dev Microphone, Screen & System Audio Recording, and Accessibility in System Settings → Privacy & Security. Screen memory reads window titles and text through Accessibility. If macOS asks you to quit and reopen it, reopen it with `open` again.
 3. **Meta key.** Settings → Meetings → Meta Muse: if the API key doesn't say "Saved in Keychain", paste it and press Save key. Check the switches below it match the list above.
 4. **Your name.** Settings → Writing → your name, so the Follow-through email is signed.
 5. **Screen memory.** Run `Scripts/meta-hackathon-demo.sh pages`, which opens the two synthetic pages in Safari: a Northwind growth dashboard and a Northwind launch plan.
