@@ -34,7 +34,7 @@
 
 ## Screen answers on the demo call
 
-- **Run.** `--radar-replay fixtures/synthetic-demo-call.json --audio <voiced folder> --screens fixtures/screens`: the demo video's call, voiced the same way (87 s per track, [line timings](voiced-demo-call-lines.json)), with two synthetic captures standing in for screen memory: a Safari metrics dashboard and a Notion launch plan, both from the week before ([output](synthetic-demo-call-audio-screens.jsonl)).
+- **Run.** `--radar-replay fixtures/synthetic-demo-call.json --audio <voiced folder> --screens fixtures/screens`: the demo video's call, voiced the same way (87 s per track, [line timings](voiced-demo-call-lines.json)), with two synthetic captures standing in for screen memory: a Safari metrics dashboard and a Notion launch plan, both from the week before ([output](synthetic-demo-call-audio-screens.jsonl)). This was the fixture's first, 11-line version (commit aa30c78); on October 29 it gained the pricing-sheet and code questions for live answers.
 - **Radar.** All six planted items again (two commitments, two contradictions, the decision, and the open question), a median 7.0 s after each sentence began, none rejected. It also caught "Is the launch now Friday the 7th?" as a question.
 - **Answers.**
 
