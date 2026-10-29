@@ -3,10 +3,12 @@
  "music": [
   {
    "id": "hype-a",
+   "bpm": 140,
    "prompt": "Hype, high-energy trap instrumental for a viral TikTok tech edit. 140 BPM. Opens with two seconds of a filtered, building beat, then slams straight into a huge drop: booming 808 bass, a hard kick, snappy claps, fast hi-hat rolls and a bold, gritty synth lead hook with big stabs. Relentless, cocky and exciting, like a hype reel. A short one-bar drop-out with a riser around the 17-second mark, then a final hard-hitting section that ends on a hard stop. No vocals, no bells, no chimes, no cowbell."
   },
   {
    "id": "hype-b",
+   "bpm": 128,
    "prompt": "Explosive electro house instrumental for an over-the-top viral product video. 128 BPM. A one-bar build of snare rolls and a white-noise riser, then an immediate massive drop: pumping sidechained bass, a pounding four-on-the-floor kick, claps, a huge distorted saw lead and offbeat stabs. Maximum energy the whole way, a quick break with a riser around 17 seconds and a second, even bigger drop, ending on one final hit. No vocals, no bells, no chimes."
   }
  ],

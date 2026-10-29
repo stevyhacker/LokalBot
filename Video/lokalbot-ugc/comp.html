@@ -9,69 +9,106 @@
     unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
   @font-face { font-family: 'Inter'; font-weight: 100 900; src: url(vendor/inter-latin-ext.woff2) format('woff2');
     unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1E00-1E9F, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
-  :root { --ink: #0e141c; --mint: #6ef2dc; --teal: #23c4ae; --amber: #fbbf24; --field: #e9eef3; --paper: #f5f7fa; --muted: #8b98a7; }
+  :root { --ink: #0b1016; --mint: #6ef2dc; --teal: #23c4ae; --yellow: #ffd23f; --red: #ff3b5c; --field: #e9eef3; --muted: #8b98a7; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ink); }
   #root { position: relative; width: 1080px; height: 1920px; overflow: hidden; background: var(--ink);
-    font-family: 'Inter', system-ui, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+    font-family: 'Inter', 'Noto Color Emoji', 'Apple Color Emoji', system-ui, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+  .emoji { font-family: 'Apple Color Emoji', 'Noto Color Emoji', sans-serif; }
+  #world { position: absolute; inset: 0; will-change: transform; }
 
-  /* Top band: the post's title, as a creator would put it. */
-  #title { position: absolute; left: 70px; right: 70px; top: 150px; text-align: center; }
-  #title .head { font-size: 54px; font-weight: 800; line-height: 1.12; letter-spacing: -0.015em; }
-  #title .head em { font-style: normal; color: var(--mint); }
-  #title .note { margin-top: 14px; font-size: 24px; font-weight: 500; color: var(--muted); letter-spacing: 0.01em; }
+  /* Background: a faint circuit board and two glows that pulse on the beat. */
+  #bg { position: absolute; inset: -60px; }
+  #board { position: absolute; inset: 0; background: url(assets/brand/circuit-board.svg) 0 0 / 1200px 1200px repeat; opacity: 0.07; }
+  .glow { position: absolute; width: 1400px; height: 1400px; border-radius: 50%; filter: blur(20px); }
+  #glowA { left: -520px; top: -420px; background: radial-gradient(closest-side, rgba(110, 242, 220, 0.55), rgba(110, 242, 220, 0) 70%); }
+  #glowB { right: -560px; bottom: -380px; background: radial-gradient(closest-side, rgba(35, 196, 174, 0.5), rgba(35, 196, 174, 0) 70%); }
 
-  /* The screen recording, full width. */
-  #viewport { position: absolute; left: 0; top: 330px; width: 1080px; height: 1120px; overflow: hidden; background: var(--field); }
+  /* Top: the post's sticker, then the screen recording, full width. */
+  #title { position: absolute; left: 0; right: 0; top: 62px; display: flex; flex-direction: column; align-items: center; }
+  #title .sticker { padding: 16px 30px 18px; border-radius: 22px; background: #fff; color: #0b1016; font-size: 50px; font-weight: 850;
+    line-height: 1.1; letter-spacing: -0.02em; text-align: center; transform: rotate(-2deg); box-shadow: 0 12px 0 rgba(0, 0, 0, 0.45); }
+  #title .note { margin-top: 18px; font-size: 24px; font-weight: 600; color: var(--muted); letter-spacing: 0.01em; }
+  #viewport { position: absolute; left: 0; top: 300px; width: 1080px; height: 1200px; overflow: hidden; background: var(--field); }
+  #whip { position: absolute; inset: 0; will-change: transform, filter; }
   #cam { position: absolute; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
   #cam img { display: block; }
-  #cam.window img { border-radius: 14px; box-shadow: 0 30px 70px -30px rgba(14, 20, 28, 0.45), 0 0 0 1px rgba(14, 20, 28, 0.08); }
-  .pill { position: absolute; padding: 10px 20px; border-radius: 999px; font-size: 26px; font-weight: 650; white-space: nowrap; }
-  #sped { right: 28px; top: 26px; background: rgba(14, 20, 28, 0.78); color: #fff; }
-  #keycap { left: 50%; top: 830px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px;
-    padding: 18px 34px; border-radius: 22px; background: #fff; color: var(--ink); font-size: 44px; font-weight: 700;
-    box-shadow: 0 10px 0 #c9d2dc, 0 26px 40px -18px rgba(14, 20, 28, 0.55); }
-  #keycap svg { width: 44px; height: 44px; }
-
-  /* Captions: a few words at a time, the spoken word lit. */
-  #caps { position: absolute; left: 60px; right: 60px; top: 1478px; height: 170px; display: flex; align-items: center; justify-content: center; }
-  #caps .chunk { text-align: center; font-size: 76px; font-weight: 850; line-height: 1.04; letter-spacing: -0.02em; transform-origin: 50% 60%; }
-  #caps .w { display: inline-block; margin: 0 0.12em; color: #fff; }
-  #caps .w.on { color: var(--mint); }
-  #caps .w.past { color: #fff; }
-  #caps .w.next { color: rgba(255, 255, 255, 0.45); }
+  #cam.window img { border-radius: 16px; box-shadow: 0 34px 80px -30px rgba(11, 16, 22, 0.5), 0 0 0 1px rgba(11, 16, 22, 0.08); }
+  #rings { position: absolute; left: 0; top: 0; overflow: visible; filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.25)); }
+  #rings path { fill: none; stroke: var(--red); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+  .sticker2 { position: absolute; padding: 12px 24px; border-radius: 16px; font-size: 34px; font-weight: 900; letter-spacing: 0.02em;
+    white-space: nowrap; box-shadow: 0 8px 0 rgba(0, 0, 0, 0.35); }
+  #sped { right: 26px; top: 28px; background: var(--yellow); color: #0b1016; }
+  #keycap { left: 50%; top: 760px; display: flex; align-items: center; gap: 18px; padding: 24px 46px 26px; border-radius: 30px;
+    background: #fff; color: #0b1016; font-size: 76px; font-weight: 900; letter-spacing: 0.02em; box-shadow: 0 14px 0 #9aa7b5, 0 34px 50px -18px rgba(11, 16, 22, 0.6); }
+  #keycap svg { width: 70px; height: 70px; }
+  #keyburst { position: absolute; left: 50%; top: 840px; width: 10px; height: 10px; border-radius: 50%; border: 10px solid var(--mint); }
 
   /* End card. */
-  #end { position: absolute; left: 0; top: 330px; width: 1080px; height: 1120px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; }
-  #end img { width: 230px; height: 230px; }
-  #end .name { margin-top: 26px; font-size: 118px; font-weight: 850; letter-spacing: -0.035em; }
-  #end .chips { margin-top: 34px; display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; width: 900px; }
-  #end .chip { padding: 14px 26px; border-radius: 999px; background: rgba(110, 242, 220, 0.12); color: var(--mint);
-    font-size: 34px; font-weight: 650; border: 2px solid rgba(110, 242, 220, 0.35); }
-  #end .url { margin-top: 40px; font-size: 40px; font-weight: 600; color: #fff; opacity: 0.9; }
+  #end { position: absolute; inset: 0; }
+  #rays { position: absolute; left: -360px; top: -260px; width: 1800px; height: 1800px; border-radius: 50%;
+    background: repeating-conic-gradient(from 0deg, rgba(110, 242, 220, 0.16) 0deg 9deg, rgba(110, 242, 220, 0) 9deg 24deg);
+    -webkit-mask: radial-gradient(closest-side, #000 20%, transparent 100%); mask: radial-gradient(closest-side, #000 20%, transparent 100%); }
+  .shock { position: absolute; left: 540px; top: 640px; border-radius: 50%; border: 16px solid var(--mint); }
+  #mark { position: absolute; left: 400px; top: 500px; width: 280px; height: 280px; filter: drop-shadow(0 18px 40px rgba(110, 242, 220, 0.35)); }
+  #name { position: absolute; left: 0; right: 0; top: 820px; text-align: center; font-size: 150px; font-weight: 900; letter-spacing: -0.04em;
+    background: linear-gradient(180deg, #ffffff 30%, var(--mint) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  #chips { position: absolute; left: 0; right: 0; top: 1030px; display: flex; gap: 18px; justify-content: center; }
+  .chip { padding: 16px 30px; border-radius: 999px; font-size: 40px; font-weight: 850; white-space: nowrap; }
+  .chip:nth-child(1) { background: var(--mint); color: #0b1016; }
+  .chip:nth-child(2) { background: var(--yellow); color: #0b1016; }
+  .chip:nth-child(3) { background: #fff; color: #0b1016; }
+  #url { position: absolute; left: 50%; top: 1170px; padding: 14px 34px; border-radius: 999px; border: 3px solid var(--mint);
+    font-size: 44px; font-weight: 800; color: #fff; white-space: nowrap; }
+  #confetti { position: absolute; inset: 0; }
+
+  /* Captions: a word pops in as it is said; key words get a color, a box and an emoji. */
+  #caps { position: absolute; left: 30px; right: 30px; top: 1400px; height: 240px; display: flex; align-items: center; justify-content: center; }
+  #caps .chunk { text-align: center; font-size: 108px; font-weight: 900; line-height: 1.02; letter-spacing: -0.015em; text-transform: uppercase; }
+  #caps .w { display: inline-block; margin: 0 0.1em; color: #fff; transform-origin: 50% 70%; }
+  #caps .w.mint { color: var(--mint); }
+  #caps .w.yellow { color: var(--yellow); }
+  #caps .w.red { color: var(--red); }
+  #caps .w.box { background: var(--mint); color: #0b1016; padding: 0 0.16em; border-radius: 0.14em; text-shadow: none !important;
+    box-shadow: 0 0 0 8px #000, 0 14px 0 8px #000; }
+  #emoji { position: absolute; top: 1200px; width: 220px; height: 220px; font-size: 180px; line-height: 220px; text-align: center; }
+  #progress { position: absolute; left: 0; top: 0; height: 12px; background: var(--mint); box-shadow: 0 0 22px rgba(110, 242, 220, 0.8); }
+  #flash { position: absolute; inset: 0; background: #fff; pointer-events: none; }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute">
+  <filter id="mb" x="-20%" y="0" width="140%" height="100%"><feGaussianBlur id="mbBlur" stdDeviation="0 0"/></filter>
+</svg>
 <div id="root">
-  <div id="title">
-    <div class="head">POV: your Mac <em>remembers</em> your meetings</div>
-    <div class="note">Real app · fictional demo data</div>
-  </div>
-  <div id="viewport">
-    <div id="cam"><img id="foot" alt=""></div>
-    <div id="sped" class="pill">sped up</div>
-    <div id="keycap" class="pill"><span>tab</span>
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0e141c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h15"/><path d="M13 6l6 6-6 6"/><path d="M21 5v14"/></svg>
+  <div id="world">
+    <div id="bg"><div id="board"></div><div id="glowA" class="glow"></div><div id="glowB" class="glow"></div></div>
+    <div id="title">
+      <div class="sticker">POV: you never take<br>meeting notes again <span class="emoji">🤯</span></div>
+      <div class="note">Real app · fictional demo data</div>
+    </div>
+    <div id="viewport">
+      <div id="whip"><div id="cam"><img id="foot" alt=""><svg id="rings"></svg></div></div>
+      <div id="sped" class="sticker2"><span class="emoji">⏩</span> SPED UP</div>
+      <div id="keyburst"></div>
+      <div id="keycap" class="sticker2"><span>TAB</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0b1016" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h15"/><path d="M13 6l6 6-6 6"/><path d="M21 5v14"/></svg>
+      </div>
+    </div>
+    <div id="end">
+      <div id="rays"></div>
+      <div id="shockA" class="shock"></div><div id="shockB" class="shock"></div>
+      <img id="mark" src="assets/brand/lokalbot-icon.svg" alt="">
+      <div id="name">LokalBot</div>
+      <div id="chips"><span class="chip" data-cue="free">FREE</span><span class="chip" data-cue="open">OPEN SOURCE</span><span class="chip" data-cue="runs">AI ON YOUR MAC</span></div>
+      <div id="url">lokalbot.com</div>
+      <canvas id="confetti" width="1080" height="1920"></canvas>
     </div>
   </div>
-  <div id="end">
-    <img src="assets/brand/lokalbot-icon.svg" alt="">
-    <div class="name">LokalBot</div>
-    <div class="chips"><span class="chip" data-word="free">Free</span><span class="chip" data-word="open">Open source</span><span class="chip" data-word="runs">AI on your Mac</span></div>
-    <div class="url">lokalbot.com</div>
-  </div>
+  <div id="emoji" class="emoji"></div>
   <div id="caps"></div>
+  <div id="progress"></div>
+  <div id="flash"></div>
 </div>
 <script type="module" src="comp.js"></script>
 </body>

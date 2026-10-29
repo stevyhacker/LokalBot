@@ -1,11 +1,11 @@
-// LokalBot UGC demo, 1080 × 1920. Every value on screen is a function of time:
-// `window.__seek(t)` lays the frame out and waits for the footage frame it
-// shows. render.cjs steps it frame by frame; edit.json (from build_edit.py)
-// holds the timeline.
+// LokalBot UGC demo, the over-the-top cut, 1080 × 1920. Every value on screen
+// is a function of time: `window.__seek(t)` lays the frame out and waits for
+// the footage frame it shows. render.cjs steps it frame by frame; edit.json
+// (from build_edit.py) holds the timeline and every cue.
 const E = await (await fetch('edit.json')).json();
-await Promise.all(['500', '650', '800', '850'].map(w => document.fonts.load(`${w} 60px Inter`)));
+await Promise.all(['600', '800', '850', '900'].map(w => document.fonts.load(`${w} 60px Inter`)));
 
-const VW = 1080, VH = 1120;
+const VW = 1080, VH = 1200;
 const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 const lerp = (a, b, t) => a + (b - a) * t;
 const inv = (a, b, x) => clamp((x - a) / (b - a));
@@ -13,12 +13,14 @@ const ease = {
   outCubic: t => 1 - (1 - t) ** 3,
   inCubic: t => t * t * t,
   inOutCubic: t => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
-  outBack: (t, s = 1.4) => 1 + (s + 1) * (t - 1) ** 3 + s * (t - 1) ** 2,
+  outBack: (t, s = 1.7) => 1 + (s + 1) * (t - 1) ** 3 + s * (t - 1) ** 2,
 };
 const seg = (t, a, b, e = ease.inOutCubic) => e(inv(a, b, t));
 const $ = id => document.getElementById(id);
 const show = (node, o) => { node.style.opacity = o.toFixed(3); node.style.visibility = o > 0.001 ? 'visible' : 'hidden'; };
 const pad = n => String(n).padStart(4, '0');
+const rng = seed => () => { seed = (seed + 0x6d2b79f5) | 0; let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+  x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296; };
 
 /** Piecewise-linear lookup in [[t, value], ...], held at both ends. */
 function along(points, t) {
@@ -52,15 +54,141 @@ function footageFrame(shot, t) {
   return `footage/tab/${pad(Math.round(s * 30) + 1)}.jpg`;
 }
 
-const words = E.captions.flatMap(c => c.words);
-const wordAt = (re, after = 0) => words.find(w => w[1] >= after && re.test(w[0]));
-const endShot = E.shots.find(s => s.id === 'end');
-const endCue = {
-  free: wordAt(/^free/i, endShot.from - 0.3)[1],
-  open: wordAt(/^open/i, endShot.from - 0.3)[1],
-  runs: wordAt(/^runs/i, endShot.from - 0.3)[1],
-  name: wordAt(/^called/i, endShot.from - 0.3)[1],
-};
+// Hits: a zoom punch, a shake that dies away, a white flash, a pulse on each beat.
+function punch(t) {
+  let p = 0;
+  for (const [s, a] of E.punches) {
+    const k = t - s;
+    if (k >= 0 && k < 0.42) p += a * (k < 0.04 ? k / 0.04 : 1 - ease.outCubic((k - 0.04) / 0.38));
+  }
+  return p;
+}
+function shake(t) {
+  let x = 0, y = 0, r = 0;
+  for (const [s, amp, dur] of E.shakes) {
+    const k = t - s;
+    if (k < 0 || k > dur) continue;
+    const a = amp * (1 - k / dur) ** 2;
+    x += a * Math.sin(k * 71 + s * 13);
+    y += a * Math.sin(k * 59 + s * 7 + 1.3);
+    r += a * 0.05 * Math.sin(k * 43 + s);
+  }
+  return [x, y, r];
+}
+function flash(t) {
+  let f = 0;
+  for (const [s, a] of E.flashes) {
+    const k = t - s;
+    if (k >= 0 && k < 0.2) f = Math.max(f, a * (1 - k / 0.2) ** 2);
+  }
+  return f;
+}
+function beat(t) {
+  let last = -1e9;
+  for (const b of E.music.beats) { if (b <= t) last = b; else break; }
+  return Math.exp(-(t - last) / 0.11);
+}
+/** [x offset, blur] for the whip pans between shots. */
+function whip(t) {
+  for (const w of E.whips) {
+    if (t >= w - 0.15 && t < w) { const k = inv(w - 0.15, w, t); return [-ease.inCubic(k) * 1150, 70 * k]; }
+    if (t >= w && t < w + 0.17) { const k = inv(w, w + 0.17, t); return [(1 - ease.outCubic(k)) * 1150, 70 * (1 - k)]; }
+  }
+  return [0, 0];
+}
+
+// Red marker circles, drawn on in footage pixels so they ride with the camera.
+const SVG = 'http://www.w3.org/2000/svg';
+const ringsSvg = $('rings');
+const rings = E.rings.map((r, i) => {
+  const [cx, cy, rx, ry] = r.ring, rand = rng(i + 7);
+  const th0 = -Math.PI * (0.62 + 0.2 * rand()), span = Math.PI * 2.16, tilt = (-4 + 3 * rand()) * Math.PI / 180;
+  const pts = [];
+  for (let j = 0; j <= 90; j++) {
+    const th = th0 + span * j / 90, g = 1 + 0.045 * Math.sin(th * 1.7 + i) + 0.07 * j / 90;
+    const x = rx * g * Math.cos(th), y = ry * g * Math.sin(th);
+    pts.push([cx + x * Math.cos(tilt) - y * Math.sin(tilt), cy + x * Math.sin(tilt) + y * Math.cos(tilt)]);
+  }
+  const el = document.createElementNS(SVG, 'path');
+  el.setAttribute('d', 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join(' L'));
+  ringsSvg.appendChild(el);
+  const len = el.getTotalLength();
+  el.style.strokeDasharray = `${len}`;
+  return { ...r, el, len };
+});
+
+// Captions: an outline made of shadows, so it reads over the light screen.
+const outline = Array.from({ length: 16 }, (_, i) => {
+  const a = i / 16 * 2 * Math.PI;
+  return `${(8 * Math.cos(a)).toFixed(1)}px ${(8 * Math.sin(a)).toFixed(1)}px 0 #000`;
+}).join(', ') + ', 0 14px 0 #000';
+document.head.insertAdjacentHTML('beforeend', `<style>#caps .w { text-shadow: ${outline}; }</style>`);
+
+function captions(t) {
+  const box = $('caps');
+  const i = E.captions.findIndex(c => t >= c.from && t < c.to);
+  const c = E.captions[i];
+  const key = c ? String(c.from) : '';
+  if (box.dataset.key !== key) {
+    box.dataset.key = key;
+    box.innerHTML = c ? `<div class="chunk">${c.words.map(w => `<span class="w ${w[3] || ''}">${w[0]}</span>`).join(' ')}</div>` : '';
+  }
+  if (!c) return;
+  const chunk = box.firstElementChild;
+  chunk.style.transform = `rotate(${((i * 37) % 7 - 3) * 0.8}deg)`;
+  [...chunk.children].forEach((node, j) => {
+    const [, s, e] = c.words[j];
+    const next = c.words[j + 1] ? c.words[j + 1][1] : e + 0.3;
+    const k = c.from === 0 && j === 0 ? 1 : inv(s - 0.04, s + 0.12, t);
+    const on = t >= s - 0.02 && t < Math.max(e, next - 0.02);
+    const sc = lerp(1.7, 1, ease.outBack(k)) * (on ? 1.06 : 1);
+    node.style.opacity = Math.min(1, k * 3).toFixed(3);
+    node.style.transform = `scale(${sc.toFixed(4)}) rotate(${lerp((j % 2 ? 9 : -9), 0, ease.outCubic(k)).toFixed(2)}deg)`;
+  });
+}
+
+function emoji(t) {
+  const node = $('emoji');
+  const i = E.emojis.findIndex(m => t >= m.from && t < m.to);
+  if (i < 0) { show(node, 0); return; }
+  const m = E.emojis[i], right = i % 2 === 0;
+  if (node.textContent !== m.emoji) node.textContent = m.emoji;
+  node.style.left = right ? '820px' : '40px';
+  const k = inv(m.from, m.from + 0.24, t), out = inv(m.to - 0.12, m.to, t);
+  const sc = Math.max(0, ease.outBack(k, 2.4)) * (1 - ease.inCubic(out));
+  const rot = (right ? 14 : -14) + 7 * Math.sin((t - m.from) * 9);
+  node.style.transform = `scale(${sc.toFixed(4)}) rotate(${rot.toFixed(2)}deg)`;
+  show(node, Math.min(1, k * 4));
+}
+
+// Confetti: two bursts on the end card, from a fixed seed.
+const confetti = (() => {
+  const rand = rng(23), colors = ['#6ef2dc', '#23c4ae', '#ffd23f', '#ffffff', '#ff3b5c'];
+  const burst = (at, n, x, y) => Array.from({ length: n }, () => {
+    const a = -Math.PI / 2 + (rand() - 0.5) * Math.PI * 1.15, v = 900 + rand() * 1300;
+    return { at, x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, w: 14 + rand() * 14, h: 8 + rand() * 8,
+             spin: (rand() - 0.5) * 18, rot: rand() * 6, color: colors[Math.floor(rand() * colors.length)] };
+  });
+  const endFrom = E.shots.find(s => s.id === 'end').from;
+  return [...burst(endFrom, 60, 540, 640), ...burst(E.end_cues.name, 120, 540, 900)];
+})();
+function drawConfetti(t) {
+  const cv = $('confetti'), g = cv.getContext('2d');
+  g.clearRect(0, 0, cv.width, cv.height);
+  for (const p of confetti) {
+    const k = t - p.at;
+    if (k < 0 || k > 2.6) continue;
+    const drag = (1 - Math.exp(-2.2 * k)) / 2.2;
+    const x = p.x + p.vx * drag, y = p.y + p.vy * drag + 900 * k * k;
+    g.save();
+    g.translate(x, y);
+    g.rotate(p.rot + p.spin * k);
+    g.globalAlpha = clamp(1 - (k - 1.8) / 0.8);
+    g.fillStyle = p.color;
+    g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(k * 7 + p.rot)) + 2);
+    g.restore();
+  }
+}
 
 const img = $('foot');
 let shown = '';
@@ -71,74 +199,107 @@ async function setFrame(src) {
   await img.decode();
 }
 
-function captions(t) {
-  const box = $('caps');
-  const c = E.captions.find(c => t >= c.from && t < c.to);
-  const key = c ? String(c.from) : '';
-  if (box.dataset.key !== key) {
-    box.dataset.key = key;
-    box.innerHTML = c ? `<div class="chunk">${c.words.map(w => `<span class="w">${w[0]}</span>`).join(' ')}</div>` : '';
-  }
-  if (!c) return;
-  const chunk = box.firstElementChild;
-  const k = c.from === 0 ? 1 : inv(c.from, c.from + 0.14, t);
-  chunk.style.transform = `scale(${lerp(0.9, 1, ease.outBack(k)).toFixed(4)})`;
-  chunk.style.opacity = Math.min(1, k * 2.5).toFixed(3);
-  [...chunk.children].forEach((node, i) => {
-    const [, s, e] = c.words[i];
-    const next = c.words[i + 1] ? c.words[i + 1][1] : e + 0.3;
-    node.classList.toggle('on', t >= s - 0.02 && t < Math.max(e, next - 0.02));
-  });
-}
+const endShot = E.shots.find(s => s.id === 'end');
+const shock = (node, at, t) => {
+  const k = inv(at, at + 0.55, t);
+  const size = 40 + 1500 * ease.outCubic(k);
+  node.style.width = node.style.height = `${size.toFixed(1)}px`;
+  node.style.transform = `translate(${(-size / 2).toFixed(1)}px, ${(-size / 2).toFixed(1)}px)`;
+  node.style.borderWidth = `${(2 + 22 * (1 - k)).toFixed(1)}px`;
+  show(node, t >= at && k < 1 ? 1 - k : 0);
+};
 
 window.__fps = E.fps;
 window.__duration = E.duration;
 window.__seek = async t => {
   const shot = E.shots.find(s => t >= s.from && t < s.to) || E.shots[E.shots.length - 1];
   const end = shot.id === 'end';
+  const b = beat(t);
 
-  // Top band and viewport cut to the end card.
-  const out = t >= endShot.from ? 1 : 0;
-  show($('title'), 1 - out);
-  show($('viewport'), 1 - out);
+  const [sx, sy, sr] = shake(t);
+  $('world').style.transform = `translate(${sx.toFixed(2)}px, ${sy.toFixed(2)}px) rotate(${sr.toFixed(3)}deg)`;
+  $('glowA').style.transform = `scale(${(1 + 0.08 * b).toFixed(4)})`;
+  $('glowB').style.transform = `scale(${(1 + 0.08 * b).toFixed(4)})`;
+  $('glowA').style.opacity = (0.45 + 0.45 * b).toFixed(3);
+  $('glowB').style.opacity = (0.4 + 0.4 * b).toFixed(3);
+  $('progress').style.width = `${(VW * t / E.duration).toFixed(1)}px`;
+  show($('flash'), flash(t));
+
+  show($('title'), end ? 0 : 1);
+  show($('viewport'), end ? 0 : 1);
+  $('title').querySelector('.sticker').style.transform = `rotate(-2deg) scale(${(1 + 0.025 * b).toFixed(4)})`;
 
   if (!end) {
     await setFrame(footageFrame(shot, t));
     const cam = $('cam');
     cam.className = shot.src === 'tab' ? 'window' : '';
+    const [fw, fh] = shot.src === 'tab' ? [1760, 420] : [1760, 1162];
+    ringsSvg.setAttribute('width', fw);
+    ringsSvg.setAttribute('height', fh);
     let [cx, cy, s] = camera(shot.cam, t);
-    // A small push on every cut, the way a phone edit punches in.
-    s *= 1 + 0.035 * (1 - seg(t, shot.from, shot.from + 0.28, ease.outCubic));
+    s *= 1 + punch(t) + 0.014 * b + 0.05 * (1 - seg(t, shot.from, shot.from + 0.3, ease.outCubic));
     cam.style.transform = `translate(${(VW / 2 - cx * s).toFixed(2)}px, ${(VH / 2 - cy * s).toFixed(2)}px) scale(${s.toFixed(4)})`;
+    const [wx, blur] = whip(t);
+    $('whip').style.transform = `translateX(${wx.toFixed(1)}px)`;
+    $('mbBlur').setAttribute('stdDeviation', `${blur.toFixed(1)} 0`);
+    $('whip').style.filter = blur > 0.5 ? 'url(#mb)' : 'none';
+    for (const r of rings) {
+      const on = r.shot === shot.id && t >= r.from && t < r.to;
+      const k = seg(t, r.from, r.from + 0.3, ease.outCubic);
+      r.el.style.strokeDashoffset = `${(r.len * (1 - k)).toFixed(1)}`;
+      r.el.style.opacity = on ? (1 - inv(r.to - 0.1, r.to, t)).toFixed(3) : '0';
+    }
   }
 
-  // Tab keycap: shows for the run of presses and dips on each one.
-  const keys = E.keys;
-  const kOn = Math.min(seg(t, keys[0] - 0.22, keys[0] - 0.06, ease.outCubic), 1 - seg(t, keys[keys.length - 1] + 0.45, keys[keys.length - 1] + 0.65));
-  show($('keycap'), kOn);
-  const press = Math.max(0, ...keys.map(k => (t >= k - 0.02 && t < k + 0.16 ? 1 - inv(k + 0.04, k + 0.16, t) : 0)));
-  $('keycap').style.transform = `translateX(-50%) translateY(${(press * 8).toFixed(2)}px)`;
-  $('keycap').style.boxShadow = `0 ${(10 - press * 8).toFixed(1)}px 0 #c9d2dc, 0 26px 40px -18px rgba(14,20,28,0.55)`;
+  // Tab keycap: pops in for the run of presses, dips and bursts on each one.
+  const keys = E.keys, kc = $('keycap');
+  const kIn = inv(keys[0] - 0.2, keys[0] - 0.02, t), kOut = inv(keys[keys.length - 1] + 0.4, keys[keys.length - 1] + 0.55, t);
+  show(kc, kIn > 0 && kOut < 1 ? 1 : 0);
+  const press = Math.max(0, ...keys.map(k => (t >= k - 0.02 && t < k + 0.14 ? 1 - inv(k + 0.03, k + 0.14, t) : 0)));
+  const kScale = ease.outBack(kIn, 2.2) * (1 - ease.inCubic(kOut)) * (1 - 0.06 * press);
+  kc.style.transform = `translateX(-50%) translateY(${(press * 12).toFixed(2)}px) scale(${kScale.toFixed(4)}) rotate(-3deg)`;
+  kc.style.boxShadow = `0 ${(14 - press * 11).toFixed(1)}px 0 #9aa7b5, 0 34px 50px -18px rgba(11,16,22,0.6)`;
+  const lastPress = keys.filter(k => k <= t).pop();
+  const bk = lastPress === undefined ? 1 : inv(lastPress, lastPress + 0.3, t);
+  const bs = 60 + 520 * ease.outCubic(bk);
+  const burst = $('keyburst');
+  burst.style.width = burst.style.height = `${bs.toFixed(1)}px`;
+  burst.style.transform = `translate(${(-bs / 2).toFixed(1)}px, ${(-bs / 2).toFixed(1)}px)`;
+  show(burst, bk < 1 && !end ? 0.9 * (1 - bk) : 0);
 
-  show($('sped'), Math.min(seg(t, E.sped_up[0], E.sped_up[0] + 0.2), 1 - seg(t, E.sped_up[1] - 0.2, E.sped_up[1])));
+  const [s0, s1] = E.sped_up;
+  const sk = inv(s0, s0 + 0.2, t), so = inv(s1 - 0.12, s1, t);
+  $('sped').style.transform = `rotate(5deg) scale(${(ease.outBack(sk, 2.2) * (1 - so)).toFixed(4)})`;
+  show($('sped'), t >= s0 && t < s1 ? 1 : 0);
 
-  // End card: the mark first, a chip on each spoken fact, the name as it is said.
+  // End card: slams in on the cut, a chip slams on each fact, the name on "LokalBot".
   const endEl = $('end');
-  show(endEl, out);
-  const rise = (node, at, dur = 0.32) => {
-    const k = seg(t, at, at + dur, ease.outCubic);
-    node.style.opacity = k.toFixed(3);
-    node.style.transform = `translateY(${((1 - k) * 18).toFixed(2)}px)`;
-  };
-  const mark = endEl.querySelector('img');
-  const mk = seg(t, endShot.from, endShot.from + 0.45, ease.outCubic);
-  mark.style.opacity = mk.toFixed(3);
-  mark.style.transform = `scale(${lerp(0.82, 1, ease.outBack(inv(endShot.from, endShot.from + 0.45, t))).toFixed(4)})`;
-  endEl.querySelectorAll('.chip').forEach(chip => rise(chip, endCue[chip.dataset.word] - 0.04, 0.26));
-  rise(endEl.querySelector('.name'), endCue.name, 0.38);
-  rise(endEl.querySelector('.url'), endCue.name + 0.25, 0.38);
+  show(endEl, end ? 1 : 0);
+  if (end) {
+    const a = endShot.from, cue = E.end_cues;
+    $('rays').style.transform = `rotate(${(t * 22).toFixed(2)}deg) scale(${(1 + 0.04 * b).toFixed(4)})`;
+    shock($('shockA'), a, t);
+    shock($('shockB'), cue.name, t);
+    const mk = inv(a, a + 0.16, t), land = t - (a + 0.16);
+    const bounce = land > 0 ? 0.09 * Math.sin(land * 26) * Math.exp(-land * 7) : 0;
+    const mark = $('mark');
+    mark.style.opacity = Math.min(1, mk * 5).toFixed(3);
+    mark.style.transform = `scale(${(lerp(3, 1, ease.inCubic(mk)) * (1 + bounce + 0.035 * b)).toFixed(4)})`;
+    const slam = (node, at, from = 2.2, rot = 0) => {
+      const k = inv(at - 0.03, at + 0.14, t);
+      node.style.opacity = Math.min(1, k * 4).toFixed(3);
+      node.style.transform = `scale(${lerp(from, 1, ease.inCubic(k)).toFixed(4)}) rotate(${lerp(rot * 3, rot, k).toFixed(2)}deg)`;
+    };
+    endEl.querySelectorAll('.chip').forEach((chip, i) => slam(chip, cue[chip.dataset.cue], 2.0, [-4, 3, -3][i]));
+    slam($('name'), cue.name, 2.4);
+    const uk = seg(t, cue.name + 0.25, cue.name + 0.55, ease.outCubic);
+    $('url').style.opacity = uk.toFixed(3);
+    $('url').style.transform = `translateX(-50%) translateY(${((1 - uk) * 30).toFixed(1)}px)`;
+    drawConfetti(t);
+  }
 
   captions(t);
+  emoji(t);
 };
 
 window.__ready = true;

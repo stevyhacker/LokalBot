@@ -1,30 +1,63 @@
 {
   "voice_direction": "Hyped creator voice on a viral tech TikTok: fast, loud, grinning, punchy, American English. Big energy on every line, a little cocky, never bored. \"spoken\" is what ElevenLabs gets, with audio tags; \"caption\" is what the screen shows.",
+  "emphasis_note": "emphasis: caption word (lowercase, no punctuation) -> [style, emoji]; styles are mint, yellow, red and box.",
   "scenes": [
     {
       "id": "01-hook",
       "caption": "Stop taking meeting notes. Your Mac remembers for you.",
-      "spoken": "[excited] Stop taking meeting notes! Your Mac remembers for you."
+      "spoken": "[excited] Stop taking meeting notes! Your Mac remembers for you.",
+      "emphasis": {
+        "stop": ["red", "🛑"],
+        "notes": ["yellow", "📝"],
+        "remembers": ["mint", "🧠"]
+      }
     },
     {
       "id": "02-notes",
       "caption": "LokalBot records the call right on your Mac. No bot joins. Then boom: the recap and every decision.",
-      "spoken": "[excited] LokalBot records the call right on your Mac. No bot joins! Then boom: the recap and every decision."
+      "spoken": "[excited] LokalBot records the call right on your Mac. No bot joins! Then boom: the recap and every decision.",
+      "emphasis": {
+        "lokalbot": ["mint", null],
+        "records": ["yellow", "🎙️"],
+        "mac": ["mint", "💻"],
+        "no": ["red", null],
+        "bot": ["red", "🤖"],
+        "boom": ["box", "💥"],
+        "recap": ["yellow", null],
+        "decision": ["mint", "✅"]
+      }
     },
     {
       "id": "03-cite",
       "caption": "Click one, and it jumps to the exact second it was said.",
-      "spoken": "Click one, and it jumps to the exact second it was said!"
+      "spoken": "Click one, and it jumps to the exact second it was said!",
+      "emphasis": {
+        "click": ["yellow", "👆"],
+        "exact": ["mint", "🎯"],
+        "second": ["mint", null]
+      }
     },
     {
       "id": "04-tab",
       "caption": "Then I write the follow-up, and it already knows. Tab, tab, tab!",
-      "spoken": "[excited] Then I write the follow-up, and it already knows. Tab, tab, tab!"
+      "spoken": "[excited] Then I write the follow-up, and it already knows. Tab, tab, tab!",
+      "emphasis": {
+        "already": ["yellow", "🤯"],
+        "knows": ["yellow", null],
+        "tab": ["box", "⌨️"]
+      }
     },
     {
       "id": "05-end",
       "caption": "Free. Open source. The AI runs on your Mac. It's called LokalBot!",
-      "spoken": "[excited] Free. Open source. The AI runs on your Mac. It's called LokalBot!"
+      "spoken": "[excited] Free. Open source. The AI runs on your Mac. It's called LokalBot!",
+      "emphasis": {
+        "free": ["box", null],
+        "open": ["mint", null],
+        "source": ["mint", null],
+        "mac": ["yellow", "💻"],
+        "lokalbot": ["box", "🚀"]
+      }
     }
   ]
 }

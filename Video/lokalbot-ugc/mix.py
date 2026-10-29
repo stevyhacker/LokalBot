@@ -1,15 +1,15 @@
-"""Mixes the soundtrack: the voice lines where edit.json puts them, the music bed
-ducked under the voice, and small synthesized clicks for the pointer, the typing
-and each Tab.
+"""Mixes the soundtrack: the voice lines where edit.json puts them, the hype beat
+with its drop on "Stop" (ducked a little under the voice), and every effect in
+edit.json's "sfx" list: whooshes on the whips, booms on the hits, a riser and a
+slam into the end card, pops for the emoji, keyboard and Tab sounds.
 
   python3 mix.py [out.wav]      default: renders/soundtrack.wav
 
-The voice files come from tts_elevenlabs.py (assets/voice/, gitignored). The
-bed is bed-d from the autocomplete demo's ElevenLabs music (assets/music/,
-gitignored); MUSIC picks another file there.
+The voice comes from tts_elevenlabs.py (assets/voice/), the beat and effects
+from eleven_sound.py (assets/sound/eleven/); all are gitignored. An effect
+whose file is missing is synthesized, so a rough mix works before they exist.
 """
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,9 +18,10 @@ import numpy as np
 
 HERE = Path(__file__).resolve().parent
 SR = 48000
-MUSIC = os.environ.get('MUSIC', 'bed-d.mp3')
-MUSIC_DB, DUCK_DB = -15.0, -19.0     # bed level alone and under the voice
+SOUND = HERE / 'assets/sound/eleven'
+MUSIC_DB, DUCK_DB = -8.0, -14.0     # beat level alone and under the voice
 VOICE_DB = 0.0
+SFX_DB = 0.0
 
 
 def load(path):
@@ -42,14 +43,56 @@ def place(track, clip, at, gain=1.0):
         track[i:i + n] += clip[:n] * gain
 
 
-def click(rng, length=0.035, tone=2600, decay=180, level=0.5):
-    """A short, dry click: a noise burst and a quick tone, high-passed."""
+def stereo(x):
+    return np.stack([x, x], axis=1).astype(np.float32)
+
+
+def synth(name, rng):
+    """A stand-in for an effect file that is not there yet."""
+    def noise(sec):
+        return rng.standard_normal(int(sec * SR))
+    def env(n, attack, decay):
+        t = np.arange(n) / SR
+        return np.minimum(1, t / max(attack, 1e-4)) * np.exp(-t * decay)
+    if name in ('impact', 'bassdrop', 'slam'):
+        n = int(1.2 * SR); t = np.arange(n) / SR
+        f = 40 + 90 * np.exp(-t * 18)
+        x = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 3.5) + 0.3 * noise(1.2) * np.exp(-t * 30)
+        return stereo(0.8 * x)
+    if name in ('whoosh', 'riser'):
+        sec = 0.6 if name == 'whoosh' else 1.6
+        n = int(sec * SR); t = np.arange(n) / SR
+        x = np.cumsum(noise(sec)); x -= np.convolve(x, np.ones(64) / 64, mode='same')
+        shape = np.sin(np.pi * t / sec) ** 2 if name == 'whoosh' else (t / sec) ** 2
+        return stereo(0.05 * x * shape / (np.abs(x).max() / 20 + 1e-9))
+    if name == 'pop':
+        n = int(0.08 * SR); t = np.arange(n) / SR
+        return stereo(0.5 * np.sin(2 * np.pi * (700 - 3000 * t) * t) * env(n, 0.002, 40))
+    if name == 'glitch':
+        n = int(0.3 * SR); t = np.arange(n) / SR
+        return stereo(0.25 * np.sign(np.sin(2 * np.pi * 180 * t)) * (np.sin(2 * np.pi * 23 * t) > 0) * env(n, 0.001, 8))
+    length = {'tab': 0.05, 'click': 0.03, 'typing': 0.025}.get(name, 0.04)
     n = int(length * SR)
-    t = np.arange(n) / SR
-    env = np.exp(-t * decay) * np.minimum(1, t / 0.0008)
-    x = rng.standard_normal(n) * 0.6 + np.sin(2 * np.pi * tone * t) * 0.5
-    x = np.diff(np.concatenate([[0], x])) * env * level
-    return np.stack([x, x], axis=1)
+    x = np.diff(np.concatenate([[0], noise(length) * 0.6 + np.sin(2 * np.pi * 1500 * np.arange(n) / SR) * 0.5]))
+    return stereo(x * env(n, 0.0008, 150) * 0.5)
+
+
+def effect(name, k, rng, cache={}):
+    files = sorted(SOUND.glob(f'{name}.mp3')) + sorted(SOUND.glob(f'{name}-v*.mp3'))
+    if not files:
+        return synth(name, rng), False
+    path = files[k % len(files)]
+    if path not in cache:
+        cache[path] = load(path)
+    return cache[path], True
+
+
+def peak_time(clip):
+    """Seconds to the loudest 10 ms in the clip, where its hit is."""
+    mono = np.abs(clip).mean(axis=1)
+    win = SR // 100
+    env = np.convolve(mono, np.ones(win) / win, mode='same')
+    return int(np.argmax(env)) / SR
 
 
 def main():
@@ -62,33 +105,42 @@ def main():
         if ln['file']:
             place(voice, load(HERE / ln['file']), ln['at'], db(VOICE_DB))
 
-    # Music: ducked smoothly wherever someone is speaking.
+    # The beat: its drop on "Stop", ducked wherever someone is speaking.
     music = np.zeros((n, 2), np.float32)
-    bed = load(HERE / 'assets/music' / MUSIC)
-    place(music, bed[:n], 0.0)
+    if edit['music']['file']:
+        place(music, load(HERE / edit['music']['file']), edit['music']['at'])
     gain = np.full(n, db(MUSIC_DB))
     for ln in edit['voice']:
-        a, b = int((ln['start'] - 0.12) * SR), int((ln['end'] + 0.18) * SR)
+        a, b = int((ln['start'] - 0.08) * SR), int((ln['end'] + 0.12) * SR)
         gain[max(0, a):min(n, b)] = db(DUCK_DB)
-    k = int(0.12 * SR)
+    k = int(0.08 * SR)
     gain = np.convolve(gain, np.ones(k) / k, mode='same')
-    fade_out = int(1.4 * SR)
+    fade_out = int(0.9 * SR)
     gain[-fade_out:] *= np.linspace(1, 0, fade_out) ** 2
-    gain[:int(0.03 * SR)] *= np.linspace(0, 1, int(0.03 * SR))
     music *= gain[:, None]
 
-    # Effects: pointer clicks, soft typing while the typing plays, a firmer Tab.
+    # Effects, in the order edit.json lists them; variants take turns.
     fx = np.zeros((n, 2), np.float32)
     rng = np.random.default_rng(11)
-    for t in edit['clicks']:
-        place(fx, click(rng, 0.03, 3200, 220, 0.20), t)
+    turns = {}
+    for t, name, g, align in edit['sfx']:
+        clip, real = effect(name, turns.get(name, 0), rng)
+        turns[name] = turns.get(name, 0) + 1
+        lead = peak_time(clip) if align == 'peak' else 0.0
+        place(fx, clip, t - lead, db(g + SFX_DB))
     a, b = edit['typing']
-    t = a + 0.05
-    while t < b - 0.05:
-        place(fx, click(rng, 0.025, 1800 + rng.uniform(-300, 300), 260, 0.08 + rng.uniform(0, 0.03)), t)
-        t += rng.uniform(0.07, 0.12)
-    for t in edit['keys']:
-        place(fx, click(rng, 0.05, 1300, 120, 0.17), t)
+    clip, real = effect('typing', 0, rng)
+    if real:
+        span = clip[:int((b - a) * SR)].copy()
+        fade = min(len(span) // 4, int(0.06 * SR))
+        span[:fade] *= np.linspace(0, 1, fade)[:, None]
+        span[-fade:] *= np.linspace(1, 0, fade)[:, None]
+        place(fx, span, a, db(-9))
+    else:
+        t = a + 0.04
+        while t < b - 0.04:
+            place(fx, synth('typing', rng), t, 0.4)
+            t += rng.uniform(0.05, 0.09)
 
     mix = voice + music + fx
     peak = np.abs(mix).max()

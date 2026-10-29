@@ -1,11 +1,12 @@
 #!/bin/bash
 # Renders the UGC cut: timeline, soundtrack, picture, MP4, SRT and poster.
 #
-#   VOICE=liam ./make.sh [out-dir]      default: renders/ (gitignored)
+#   VOICE=liam-ott MUSIC=hype-a ./make.sh [out-dir]      default: renders/ (gitignored)
 #
 # Needs footage/ (prepare_footage.py), the voice takes in assets/voice/ and
-# production/eleven-generation.json (tts_elevenlabs.py), the music in
-# assets/music/, Node with Playwright, Python 3 with numpy, and ffmpeg.
+# production/eleven-generation.json (tts_elevenlabs.py), the beat and effects
+# in assets/sound/eleven/ (eleven_sound.py), Node with Playwright, Python 3
+# with numpy, and ffmpeg.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUT=${1:-$HERE/renders}
@@ -17,7 +18,7 @@ cd "$HERE"
 NAME=lokalbot-ugc-${VOICE:-estimated}
 
 echo "== timeline and soundtrack =="
-python3 build_edit.py --voice "${VOICE:-}"
+python3 build_edit.py --voice "${VOICE:-}" --music "${MUSIC:-hype-a}"
 python3 mix.py "$OUT/soundtrack.wav"
 
 echo "== picture =="
@@ -52,9 +53,9 @@ with open(sys.argv[1], 'w') as f:
         nxt = e['voice'][i]['start'] - 0.05 if i < len(e['voice']) else e['duration']
         f.write(f"{i}\n{ts(v['start'] - 0.05)} --> {ts(min(v['end'] + 0.3, nxt - 0.02))}\n{caps[v['id']]}\n\n")
 PY
-# The poster is the hook as the answer is on screen: just after "Your Mac didn't" starts.
+# The poster is the hook with the answer circled: just after "remembers".
 POSTER_FRAME=${POSTER_FRAME:-$(python3 -c "import json; e = json.load(open('edit.json'))
-w = next(w for c in e['captions'] for w in c['words'] if w[0] == 'Your')
-print(round((w[1] + 0.08) * e['fps']) + 1)")}
+w = next(w for c in e['captions'] for w in c['words'] if w[0].startswith('remembers'))
+print(round((w[1] + 0.4) * e['fps']) + 1)")}
 cp "$OUT/frames/$(printf %05d "$POSTER_FRAME").png" "$OUT/$NAME-poster.png"
 ls -lh "$OUT"/$NAME*
