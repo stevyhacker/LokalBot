@@ -345,7 +345,7 @@ The app may make these outbound connections:
   the note is missing or older than its evidence. Missed runs catch up
   for at most the last seven days. Changing or revoking the server approval
   cancels pending scheduled work.
-- **Optional Meta Muse (Live Radar, fast live text, screen answers, and Follow-through):** off until you add a
+- **Optional Meta Muse (Live Radar, fast live text, screen answers, live answers, and Follow-through):** off until you add a
   Meta Model API key and turn on "Allow sending meeting text to
   https://api.meta.ai" in Settings → Meetings → Meta Muse. That switch adds
   the origin to the same approved-server list Think uses, so revoking it in
@@ -391,6 +391,27 @@ The app may make these outbound connections:
     quote Muse gives is in the crop's own text, as read on this Mac; its crop
     is saved in the meeting folder (`radar-answers/`) and deleted with the
     meeting.
+  - **Live answers** is another separate switch, off by default. While it is
+    on and Live Radar catches a question, or a problem that needs facts,
+    Muse Wonder (or the model you choose) looks for the answer in your work.
+    It is sent the question, the meeting title and date, the last ten
+    preview lines, and what LokalBot remembers that bears on it: the "Where
+    it stands" notes of up to two tracked projects that share words with the
+    question, your open actions from the last 30 days, what you told LokalBot
+    about yourself (only while Ask may use it), and work memory. It may then
+    make read-only lookups, within six requests and a minute per question,
+    and is sent what they return: meeting
+    search results, meeting summaries or transcript windows, action items,
+    and screen-memory text (never screenshots); and from the folders you add
+    in the same section, the names and dates of matching files, the parts of
+    documents and sheets that match its query, matching code lines and the
+    file lines it asks for, recent commit messages with their authors, and
+    pull requests and issues, read with the GitHub CLI and your own sign-in.
+    In those folders it never reads hidden files or folders,
+    `node_modules`, or secret-looking files such as `.env` files and keys,
+    and in a git repository the code tools read only files git tracks. An
+    answer is shown only when every source it cites contains the words it
+    quotes, and it is saved with its sources in `radar.json`.
   - **Follow-through** runs only when you choose Follow Through with Muse on
     one action. It sends Muse Wonder (or the model you choose) the action, its
     quoted source lines, the meeting title, date, invited names, the meeting

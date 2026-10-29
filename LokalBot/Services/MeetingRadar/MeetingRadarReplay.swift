@@ -1,7 +1,8 @@
 import Foundation
 
 /// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]
-///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>] [--screens <folder>]`
+///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>] [--screens <folder>]
+///   [--answers [--folders <a,b>] [--answer-model <id>]]`
 ///
 /// Replays a timed transcript through Live Radar's request, grounding checks,
 /// and Meta Model API client, and prints one JSON line per pass and a summary.
@@ -26,6 +27,11 @@ import Foundation
 /// synthetic captures (`file`, `capturedAt`, `app`, `windowTitle`), and each
 /// question the radar catches is answered from them as the app does from
 /// screen memory, with the crops made by Vision on this Mac.
+///
+/// `--answers` runs live answers for each question, as the app does: the
+/// fixture's `memory` stands in for what LokalBot remembers, its earlier
+/// passages for meeting search, and `--folders` are read for real (documents,
+/// and code, commits, and GitHub through `gh` in repositories).
 enum MeetingRadarReplay {
     struct Fixture: Decodable {
         struct Line: Decodable {
@@ -48,6 +54,14 @@ enum MeetingRadarReplay {
         let attendees: [String]?
         let lines: [Line]
         let earlier: [Passage]?
+        /// What LokalBot would remember: `kind` is project, action, or memory.
+        let memory: [Memory]?
+
+        struct Memory: Decodable {
+            let kind: String
+            let title: String
+            let text: String
+        }
     }
 
     struct Options {
@@ -59,6 +73,9 @@ enum MeetingRadarReplay {
         var reasoningLine: String?
         var audio: URL?
         var screens: URL?
+        var answers = false
+        var folders: [String] = []
+        var answerModel = MetaModelAPI.museWonder.id
     }
 
     /// Captures from a fixture folder instead of screen memory.
@@ -104,7 +121,10 @@ enum MeetingRadarReplay {
                        baseURL: value("--base-url").flatMap(URL.init(string:)),
                        reasoningLine: value("--reasoning-line"),
                        audio: audio,
-                       screens: value("--screens").map { URL(fileURLWithPath: $0, isDirectory: true) })
+                       screens: value("--screens").map { URL(fileURLWithPath: $0, isDirectory: true) },
+                       answers: args.contains("--answers"),
+                       folders: value("--folders").map { $0.split(separator: ",").map { String($0) } } ?? [],
+                       answerModel: value("--answer-model") ?? MetaModelAPI.museWonder.id)
     }
 
     @MainActor
@@ -144,7 +164,18 @@ enum MeetingRadarReplay {
                 return 2
             }
         }
-        let answers = ScreenAnswerRuns(screens: screens, client: client, fixture: fixture)
+        var answerClient: MuseChatClient?
+        if options.answers {
+            var live = client
+            live.model = options.answerModel
+            live.reasoningEffort = "low"
+            live.purpose = "radar replay live answer"
+            answerClient = live
+        }
+        let answers = ScreenAnswerRuns(
+            screens: screens, client: client, fixture: fixture,
+            live: options.answers ? ReplayLiveAnswers(fixture: fixture, folders: options.folders) : nil,
+            answerClient: answerClient)
         if let audio = options.audio {
             return await runLive(options, audio: audio, fixture: fixture, client: client, system: system,
                                  meetingID: meetingID, excerpts: excerpts(fixture), key: key, answers: answers)
@@ -225,6 +256,7 @@ enum MeetingRadarReplay {
                 "passSecondsMax": seconds.last ?? 0,
                 "shownAfterMedian": delays.isEmpty ? 0 : delays.sorted()[delays.count / 2],
                 "screenAnswers": answers.results,
+                "liveAnswers": answers.liveResults,
             ] as [String: Any],
         ]
         print(json(summary))
@@ -239,19 +271,71 @@ enum MeetingRadarReplay {
         let screens: FixtureScreens?
         let client: MuseChatClient
         let fixture: Fixture
+        let live: ReplayLiveAnswers?
+        let answerClient: MuseChatClient?
         private(set) var results: [[String: Any]] = []
+        private(set) var liveResults: [[String: Any]] = []
         private var tasks: [Task<Void, Never>] = []
 
-        init(screens: FixtureScreens?, client: MuseChatClient, fixture: Fixture) {
+        init(screens: FixtureScreens?, client: MuseChatClient, fixture: Fixture,
+             live: ReplayLiveAnswers? = nil, answerClient: MuseChatClient? = nil) {
             self.screens = screens
             self.client = client
             self.fixture = fixture
+            self.live = live
+            self.answerClient = answerClient
         }
 
-        /// Nil without `--screens`. `elapsed` gives the wall-clock delay from
-        /// the question to the answer; without it the request time is used.
+        /// Nil without `--screens` or `--answers`. `elapsed` gives the
+        /// wall-clock delay from the question to the answer.
         @discardableResult
         func answer(_ question: RadarItem, elapsed: (@MainActor () -> Double)? = nil) -> Task<Void, Never>? {
+            let screen = screenAnswer(question, elapsed: elapsed)
+            let answer = liveAnswer(question, elapsed: elapsed)
+            guard screen != nil || answer != nil else { return nil }
+            return Task { @MainActor in
+                await screen?.value
+                await answer?.value
+            }
+        }
+
+        private func liveAnswer(_ question: RadarItem, elapsed: (@MainActor () -> Double)?) -> Task<Void, Never>? {
+            guard let live, let answerClient else { return nil }
+            let task = Task { @MainActor in
+                let recent = fixture.lines.filter { $0.time <= question.time + 1 }.suffix(8)
+                    .map { "\($0.speaker == "local" ? "Me" : "Others"): \($0.text)" }
+                let meeting = LiveAnswerMeeting(title: fixture.title, date: fixture.date, recentLines: Array(recent))
+                var result: [String: Any] = ["question": question.text]
+                do {
+                    let outcome = try await LiveAnswerSession.run(
+                        question: question.text, quote: question.quote, meeting: meeting, environment: live,
+                        model: answerClient.model,
+                        call: { messages, tools, _ in try await answerClient.send(messages: messages, tools: tools) },
+                        progress: { _ in })
+                    result["seconds"] = outcome.seconds
+                    result["turns"] = outcome.turns
+                    result["steps"] = outcome.steps
+                    result["cost"] = MetaModelAPI.cost(of: outcome.usage, model: answerClient.model)
+                    if let answer = outcome.answer {
+                        result["answer"] = answer.text
+                        result["sources"] = answer.sources.map {
+                            ["kind": $0.kind.rawValue, "title": $0.title, "quote": $0.quote, "link": $0.link ?? ""]
+                        }
+                    } else {
+                        result["reason"] = outcome.reason ?? ""
+                    }
+                } catch {
+                    result["error"] = error.localizedDescription
+                }
+                if let elapsed { result["answeredAfter"] = elapsed() }
+                liveResults.append(result)
+                print(MeetingRadarReplay.json(["liveAnswer": result]))
+            }
+            tasks.append(task)
+            return task
+        }
+
+        private func screenAnswer(_ question: RadarItem, elapsed: (@MainActor () -> Double)?) -> Task<Void, Never>? {
             guard let screens else { return nil }
             let task = Task { @MainActor in
                 let asked = RadarScreenAnswers.question(question)
@@ -291,6 +375,46 @@ enum MeetingRadarReplay {
 
         func waitForAll() async {
             for task in tasks { await task.value }
+        }
+    }
+
+    /// What live answers reads in a replay: the fixture's memory and earlier
+    /// passages, and real folders.
+    @MainActor
+    final class ReplayLiveAnswers: LiveAnswerEnvironment {
+        let fixture: Fixture
+        let folders: [String]
+        private var loaded: [LiveAnswerPlace]?
+
+        init(fixture: Fixture, folders: [String]) {
+            self.fixture = fixture
+            self.folders = folders
+        }
+
+        func context(for question: String, meeting: LiveAnswerMeeting) async -> [LiveAnswerContext] {
+            (fixture.memory ?? []).map {
+                LiveAnswerContext(kind: RadarAnswer.Source.Kind(rawValue: $0.kind) ?? .memory, title: $0.title, text: $0.text)
+            }
+        }
+
+        func places() async -> [LiveAnswerPlace] {
+            if let loaded { return loaded }
+            let places = await LiveAnswerPlace.load(folders)
+            loaded = places
+            return places
+        }
+
+        var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.specs.filter { $0.name == "search_meetings" } }
+
+        func runLibraryTool(_ call: ChatToolCall) async -> LiveAnswerToolOutput {
+            let words = PersonalContextSelection.contentWords(call.string("query") ?? "")
+            let hits = (fixture.earlier ?? []).filter {
+                !words.isDisjoint(with: PersonalContextSelection.contentWords($0.text))
+            }
+            let text = hits.isEmpty ? "No meetings match." : hits.map {
+                "\($0.title) · \($0.date.formatted(date: .abbreviated, time: .omitted)) · \($0.speaker ?? "Someone"): \($0.text)"
+            }.joined(separator: "\n")
+            return LiveAnswerToolOutput(text: text, kind: .meeting, title: hits.count == 1 ? hits[0].title : "Earlier meetings")
         }
     }
 
@@ -427,6 +551,7 @@ enum MeetingRadarReplay {
         for item in items { byKind[item.kind.rawValue, default: 0] += 1 }
         print(json(["summary": [
             "screenAnswers": answers.results,
+            "liveAnswers": answers.liveResults,
             "id": fixture.id ?? options.input.deletingPathExtension().lastPathComponent,
             "model": options.model, "mode": "audio", "transcription": MuseLiveText.model,
             "interval": options.interval, "audioSeconds": duration, "lines": live.count,

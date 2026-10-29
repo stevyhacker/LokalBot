@@ -15,7 +15,9 @@ import Foundation
 /// In both modes approved Follow-through steps do not open Mail or Calendar.
 /// Screen-answer requests (the ones carrying images) get the answer the
 /// film's synthetic captures show, which still has to pass the quote check
-/// against the crop Vision read in the host.
+/// against the crop Vision read in the host. Live answers look up the pricing
+/// sheet and the panel question with the real tools in the host, and answer
+/// with a quote that has to be in what those tools returned.
 enum MuseUITestTransport {
     private static var mode: String? { ProcessInfo.processInfo.environment["LOKALBOT_MUSE_UI_TEST"] }
     static var isEnabled: Bool { mode == "1" || mode == "live" }
@@ -35,8 +37,15 @@ enum MuseUITestTransport {
         try await Task.sleep(for: .milliseconds(1_200))
         let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
         let messages = body["messages"] as? [[String: Any]] ?? []
-        let message = body["tools"] != nil ? followThrough(messages)
-            : messages.last?["content"] is [[String: Any]] ? screenAnswer(messages) : radar(messages)
+        let tools = (body["tools"] as? [[String: Any]] ?? []).compactMap { $0["function"] as? [String: Any] }
+        let message: [String: Any]
+        if tools.contains(where: { $0["name"] as? String == "answer" }) {
+            message = liveAnswer(messages, tools: tools)
+        } else if !tools.isEmpty {
+            message = followThrough(messages)
+        } else {
+            message = messages.last?["content"] is [[String: Any]] ? screenAnswer(messages) : radar(messages)
+        }
         let finish = message["tool_calls"] == nil ? "stop" : "tool_calls"
         let payload: [String: Any] = [
             "choices": [["finish_reason": finish, "message": message]],
@@ -64,6 +73,8 @@ enum MuseUITestTransport {
     private static let rules = [
         Rule(trigger: "send the revised pricing deck to Marko", kind: "commitment",
              text: "Send the revised pricing deck to Marko", owner: "Me", due: "by Friday", conflictsWith: nil),
+        Rule(trigger: "Team plan price in the pricing sheet", kind: "question",
+             text: "What did we put as the Team plan price in the pricing sheet?", owner: "", due: "", conflictsWith: nil),
         Rule(trigger: "trial-to-paid conversion last month", kind: "question",
              text: "What was trial-to-paid conversion last month?", owner: "", due: "", conflictsWith: nil),
         Rule(trigger: "the launch is Friday the seventh", kind: "contradiction",
@@ -74,6 +85,8 @@ enum MuseUITestTransport {
         Rule(trigger: "free tier limited to one project", kind: "contradiction",
              text: "Free tier cut to one project; Launch planning settled on three", owner: "", due: "",
              conflictsWith: "three projects"),
+        Rule(trigger: "Is the radar panel hidden when I share my screen", kind: "question",
+             text: "Is the radar panel hidden when I share my screen?", owner: "", due: "", conflictsWith: nil),
         Rule(trigger: "Marko will review the onboarding emails", kind: "commitment",
              text: "Review the onboarding emails", owner: "Marko", due: "before Wednesday", conflictsWith: nil),
         Rule(trigger: "twenty percent off for annual plans", kind: "decision",
@@ -121,6 +134,37 @@ enum MuseUITestTransport {
         }
         let content = (try? JSONSerialization.data(withJSONObject: answer)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
         return ["role": "assistant", "content": content]
+    }
+
+    // MARK: - Live answers
+
+    /// One lookup, then an answer quoting what it returned. Other questions
+    /// get no answer.
+    private static func liveAnswer(_ messages: [[String: Any]], tools: [[String: Any]]) -> [String: Any] {
+        let prompt = messages.first { $0["role"] as? String == "user" }?["content"] as? String ?? ""
+        let question = prompt.components(separatedBy: "\n").first { $0.hasPrefix("QUESTION: ") } ?? ""
+        let turn = messages.filter { $0["role"] as? String == "assistant" }.count
+        let searchCode = tools.first { $0["name"] as? String == "search_code" }
+        let repository = ((searchCode?["parameters"] as? [String: Any])?["properties"] as? [String: Any])
+            .flatMap { ($0["repository"] as? [String: Any])?["enum"] as? [String] }?.first
+        let call: (name: String, arguments: [String: Any])
+        if question.contains("Team plan") {
+            call = turn == 0
+                ? ("read_document", ["path": "Docs/meta-hackathon/demo-files/Northwind pricing v2.xlsx", "query": "Team plan price"])
+                : ("answer", ["text": "$12 per seat a month, in the Northwind pricing sheet.",
+                              "sources": [["id": "R1", "quote": "Team | $12 per seat"]]])
+        } else if question.contains("radar panel"), let repository {
+            call = turn == 0
+                ? ("search_code", ["repository": repository, "query": "liveRadarPanelHiddenFromCapture"])
+                : ("answer", ["text": "Yes. It's hidden from screen sharing and recordings unless you turn that off.",
+                              "sources": [["id": "R1", "quote": "var liveRadarPanelHiddenFromCapture: Bool = true"]]])
+        } else {
+            call = ("no_answer", ["reason": "Not something their work answers."])
+        }
+        let arguments = (try? JSONSerialization.data(withJSONObject: call.arguments)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
+        return ["role": "assistant", "content": "",
+                "tool_calls": [["id": "answer_\(turn)", "type": "function",
+                                "function": ["name": call.name, "arguments": arguments]]]]
     }
 
     // MARK: - Follow-through

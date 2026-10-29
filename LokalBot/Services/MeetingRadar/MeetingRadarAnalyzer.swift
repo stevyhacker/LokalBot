@@ -57,7 +57,8 @@ enum MeetingRadarAnalyzer {
     pricing"). owner: "Me", a name said in the meeting, or "Others". due: the deadline exactly as said, \
     or "".
     - decision: the group settles something.
-    - question: a real question that is still open. Skip rhetorical and already answered questions.
+    - question: a real question that is still open, or a problem someone raises that needs facts to solve \
+    ("the export keeps failing for Acme"). Skip rhetorical and already answered questions.
     - contradiction: a new line conflicts with an EARLIER MEETINGS passage (a different date, number, \
     owner, or decision) or with an earlier line of this meeting. Put that passage's id (E1, E2, …) or \
     line id (L3, …) in evidence and say what changed in text. Agreement or a related topic is not a \

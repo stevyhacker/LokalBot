@@ -38,7 +38,8 @@ struct MeetingRadarPanel: View {
             if items.isEmpty {
                 emptyState
             } else {
-                RadarItemList(items: items, folder: meeting.folderURL(in: app.storage))
+                RadarItemList(items: items, folder: meeting.folderURL(in: app.storage),
+                              steps: isThisMeeting ? radar.answerSteps : [:])
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             footnote
@@ -202,6 +203,8 @@ struct RadarItemList: View {
     var openSource: ((RadarItem) -> Void)?
     /// The meeting folder, where screen-answer crops are saved.
     var folder: URL?
+    /// Live answers' current step per question, while it looks.
+    var steps: [String: String] = [:]
     /// False inside a page that already scrolls.
     var scrolls = true
 
@@ -232,7 +235,7 @@ struct RadarItemList: View {
 
     private var groups: some View {
         let newest = items.sorted { $0.time > $1.time }
-        let attention = newest.filter { $0.kind == .contradiction || $0.screenAnswer != nil }
+        let attention = newest.filter { $0.kind == .contradiction || $0.screenAnswer != nil || $0.answer != nil }
         return VStack(alignment: .leading, spacing: 16) {
             if !attention.isEmpty {
                 section(Text("Needs Attention")) {
@@ -242,7 +245,7 @@ struct RadarItemList: View {
                 }
             }
             ForEach([RadarItem.Kind.commitment, .decision, .question], id: \.self) { kind in
-                let group = newest.filter { $0.kind == kind && $0.screenAnswer == nil }
+                let group = newest.filter { $0.kind == kind && $0.screenAnswer == nil && $0.answer == nil }
                 if !group.isEmpty {
                     section(Text(LocalizedStringKey(kind.pluralLabel))) {
                         LazyVGrid(columns: Self.columns, alignment: .leading, spacing: 12) {
@@ -265,7 +268,7 @@ struct RadarItemList: View {
     }
 
     private func card(_ item: RadarItem, prominent: Bool) -> some View {
-        RadarCard(item: item, folder: folder, prominent: prominent,
+        RadarCard(item: item, folder: folder, prominent: prominent, step: steps[item.id],
                   openSource: openSource, followThrough: followThrough)
     }
 }
@@ -283,6 +286,8 @@ struct RadarCard: View {
     var idPrefix = "radar"
     /// False where a popover can't open, as in the floating panel.
     var allowsEnlarge = true
+    /// What live answers is doing for this question right now.
+    var step: String?
     var openSource: ((RadarItem) -> Void)?
     var followThrough: ((RadarItem) -> Void)?
 
@@ -319,6 +324,18 @@ struct RadarCard: View {
             .disabled(openSource == nil)
             if let earlier = item.earlier {
                 earlierPassage(earlier)
+            }
+            if let answer = item.answer {
+                RadarLiveAnswerView(answer: answer)
+            } else if let step {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(verbatim: step)
+                        .font(.scaled(.callout))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+                .accessibilityIdentifier("radar.answerStep")
             }
             if let answer = item.screenAnswer {
                 // The panel is narrow; the board has room for a readable crop.
@@ -453,5 +470,82 @@ struct RadarScreenAnswerView: View {
     private var source: String {
         let title = answer.windowTitle.isEmpty ? "" : " · \(answer.windowTitle)"
         return "\(answer.app)\(title) · \(answer.capturedAt.formatted(date: .abbreviated, time: .shortened))"
+    }
+}
+
+/// A live answer: the answer to say, the sources it rests on with the words
+/// that support it, and where it looked. Clicking a source opens it: the
+/// meeting at that moment, or the file, commit, or pull request.
+struct RadarLiveAnswerView: View {
+    @EnvironmentObject var app: AppState
+    let answer: RadarAnswer
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label("Answer from your work", systemImage: "sparkle.magnifyingglass")
+                .font(.scaled(.caption).weight(.semibold))
+            Text(verbatim: answer.text)
+                .font(.scaled(.title3).weight(.semibold))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+            ForEach(answer.sources) { source in
+                Button { open(source) } label: { row(source) }
+                    .buttonStyle(.plain)
+                    .disabled(source.meetingID == nil && source.link == nil)
+            }
+            if !answer.steps.isEmpty {
+                Text(verbatim: answer.steps.joined(separator: " → ") + String(format: " · %.0f s", answer.seconds))
+                    .font(.scaled(.caption2))
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .lbStatusSurface(LBTokens.Palette.success)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("radar.answer")
+    }
+
+    private func row(_ source: RadarAnswer.Source) -> some View {
+        let isCode = [.code, .commit].contains(source.kind)
+        return VStack(alignment: .leading, spacing: 2) {
+            Label {
+                Text(verbatim: source.title)
+                    .font(isCode ? .scaled(.caption).monospaced() : .scaled(.caption).weight(.semibold))
+            } icon: {
+                Image(systemName: Self.icon(source.kind))
+            }
+            .foregroundStyle(LBTokens.Palette.successText)
+            Text(verbatim: "“\(source.quote)”")
+                .font(isCode ? .scaled(.caption).monospaced() : .scaled(.caption))
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+                .multilineTextAlignment(.leading)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private func open(_ source: RadarAnswer.Source) {
+        if let meetingID = source.meetingID {
+            app.openMeeting(meetingID, seek: source.time)
+        } else if let link = source.link, let url = URL(string: link) {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
+    static func icon(_ kind: RadarAnswer.Source.Kind) -> String {
+        switch kind {
+        case .memory: "brain"
+        case .project: "folder.badge.person.crop"
+        case .action: "checklist"
+        case .meeting: "person.2"
+        case .screen: "rectangle.on.rectangle"
+        case .document: "doc.text"
+        case .code: "chevron.left.forwardslash.chevron.right"
+        case .commit: "point.topleft.down.to.point.bottomright.curvepath"
+        case .pullRequest: "arrow.triangle.pull"
+        case .issue: "exclamationmark.circle"
+        }
     }
 }

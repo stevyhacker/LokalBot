@@ -5,7 +5,8 @@ import XCTest
 /// Clicks through Live Radar and Follow-through end to end and films it: the
 /// Meta Muse settings, Start Radar on a live meeting whose transcript arrives
 /// turn by turn with fast live text, a question answered from a synthetic
-/// screen capture, the floating Live Radar panel that shows the same items
+/// screen capture, questions answered from a pricing sheet and from this
+/// repository's code, the floating Live Radar panel that shows the same items
 /// over the meeting app, and Follow-through on the commitment it caught. The
 /// runner has no meeting audio, so the transcript's words come from the script.
 ///
@@ -65,7 +66,7 @@ final class HackathonFilmUITests: XCTestCase {
         XCTContext.runActivity(named: isLive ? "Muse replies: live" : "Muse replies: scripted") { _ in }
         // 1. Connect Meta Muse in Settings → Recording.
         let launch = try UITestHarness.launch(
-            storageRoot: library, suitePrefix: "Film", settingsJSON: FilmFixture.settingsJSON,
+            storageRoot: library, suitePrefix: "Film", settingsJSON: try FilmFixture.settingsJSON(),
             environment: ["LOKALBOT_INITIAL_SECTION": "settings",
                           "LOKALBOT_INITIAL_SETTINGS_CATEGORY": "recording",
                           "LOKALBOT_DISMISS_ONBOARDING": "1"].merging(windowSize) { _, new in new })
@@ -80,10 +81,15 @@ final class HackathonFilmUITests: XCTestCase {
         film.hold(0.8)
         app.buttons["Save key"].click()
         film.hold(1.5)
-        // Fast live text and screen answers are on in this library's settings.
+        // Fast live text, screen answers, and live answers over this checkout
+        // are on in this library's settings.
         let screenAnswers = app.descendants(matching: .any)["settings.metaMuse.screenAnswers"].firstMatch
         UITestHarness.scrollTo(screenAnswers, in: app, within: app.scrollViews["settings.form"])
         XCTAssertTrue(film.wait(for: screenAnswers, timeout: 5), "the screen answers switch did not render")
+        film.hold(2)
+        let folders = app.buttons["settings.metaMuse.addFolder"].firstMatch
+        UITestHarness.scrollTo(folders, in: app, within: app.scrollViews["settings.form"])
+        XCTAssertTrue(film.wait(for: folders, timeout: 5), "the live answers folders did not render")
         film.hold(3)
 
         // 2. A live meeting: Start Radar, then the transcript arrives line by line.
@@ -104,16 +110,21 @@ final class HackathonFilmUITests: XCTestCase {
         XCTAssertTrue(film.wait(for: UITestHarness.staticText(containing: "Muse Voice Transcribe", in: app), timeout: 10),
                       "the preview isn't using fast live text")
         let screenAnswer = app.descendants(matching: .any)["radar.screenAnswer"].firstMatch
+        let liveAnswer = app.descendants(matching: .any)["radar.answer"].firstMatch
         if isLive {
             // Real replies vary: require a contradiction with the earlier
-            // meeting, an answer from a screen capture, and a few items, and
-            // let the last pass after the final line (about 60 s in) finish.
-            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 75),
+            // meeting, an answer from a screen capture, an answer from the
+            // sheet or the code, and a few items, and let the last pass and
+            // answers after the final line (about 75 s in) finish.
+            XCTAssertTrue(film.wait(for: radarItems("contradiction", in: app).firstMatch, timeout: 90),
                           "Muse found no contradiction with the earlier meeting")
-            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 75), "no question was answered from the screen")
-            film.hold(max(0, 78 - Date().timeIntervalSince(started)))
+            XCTAssertTrue(film.wait(for: screenAnswer, timeout: 90), "no question was answered from the screen")
+            XCTAssertTrue(film.wait(for: liveAnswer, timeout: 90), "no question was answered from the sheet or the code")
+            film.hold(max(0, 100 - Date().timeIntervalSince(started)))
             XCTAssertGreaterThanOrEqual(radarItems(in: app).count, 3, "Muse caught fewer than three items")
         } else {
+            let sheet = UITestHarness.staticText(containing: "$12 per seat", in: app)
+            XCTAssertTrue(film.wait(for: sheet, timeout: 40), "the Team plan question was not answered from the sheet")
             XCTAssertTrue(film.wait(for: screenAnswer, timeout: 40), "the conversion question was not answered from the screen")
             XCTAssertTrue(UITestHarness.staticText(containing: "4.1% in September", in: app).exists)
             let contradiction = UITestHarness.staticText(containing: "Launch moved to Friday", in: app)
@@ -122,6 +133,10 @@ final class HackathonFilmUITests: XCTestCase {
             XCTAssertTrue(film.wait(for: decision, timeout: 60), "the annual-plan decision never appeared")
             XCTAssertTrue(UITestHarness.staticText(containing: "Free tier cut to one project", in: app).exists)
             XCTAssertTrue(UITestHarness.staticText(containing: "Send the revised pricing deck", in: app).exists)
+            let code = UITestHarness.staticText(containing: "hidden from screen sharing", in: app)
+            XCTAssertTrue(film.wait(for: code, timeout: 30), "the panel question was not answered from the code")
+            XCTAssertTrue(UITestHarness.staticText(containing: "AppSettings.swift", in: app).exists,
+                          "the code answer doesn't cite the line it read")
         }
         film.hold(3)
         // The panel folds to its header and the newest item, and back.
@@ -277,33 +292,44 @@ private final class Film {
 /// An earlier planning meeting the radar can contradict, and the meeting that
 /// is filmed live and then followed through.
 private enum FilmFixture {
-    static let settingsJSON = """
-    {
-      "menuBarOnly": false,
-      "trackingEnabled": true,
-      "screenshotsEnabled": false,
-      "calendarDetectionEnabled": false,
-      "semanticSearchEnabled": false,
-      "cotypingEnabled": false,
-      "cotypingUserName": "Jordan Lee",
-      "museLiveTextEnabled": true,
-      "museScreenAnswersEnabled": true,
-      "approvedRemoteInferenceOrigins": ["https://api.meta.ai"]
+    /// Live answers read this checkout: its pricing sheet and its code.
+    static func settingsJSON(file: StaticString = #filePath) throws -> String {
+        let root = URL(fileURLWithPath: "\(file)").deletingLastPathComponent().deletingLastPathComponent()
+        let folders = String(decoding: try JSONSerialization.data(withJSONObject: [root.path]), as: UTF8.self)
+        return """
+        {
+          "menuBarOnly": false,
+          "trackingEnabled": true,
+          "screenshotsEnabled": false,
+          "calendarDetectionEnabled": false,
+          "semanticSearchEnabled": false,
+          "cotypingEnabled": false,
+          "cotypingUserName": "Jordan Lee",
+          "museLiveTextEnabled": true,
+          "museScreenAnswersEnabled": true,
+          "liveAnswersEnabled": true,
+          "liveAnswerFolders": \(folders),
+          "approvedRemoteInferenceOrigins": ["https://api.meta.ai"]
+        }
+        """
     }
-    """
 
     static let live: [(TimeInterval, String, String)] = [
         (2, "them", "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."),
         (7, "local", "I'll send the revised pricing deck to Marko by Friday."),
-        (12, "them", "Great. What was our trial-to-paid conversion last month, by the way?"),
-        (17, "local", "Let me think, I saw it on the dashboard."),
-        (23, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
-        (28, "local", "Hm, I thought it was the Monday. Let me check."),
-        (33, "them", "And sales wants the free tier limited to one project."),
-        (38, "local", "Okay, let's decide that with Ana tomorrow."),
-        (43, "them", "Marko will review the onboarding emails before Wednesday."),
-        (48, "local", "Perfect. Let's go with twenty percent off for annual plans."),
-        (53, "them", "Agreed, twenty percent. Talk tomorrow!"),
+        (12, "them", "Great. What did we put as the Team plan price in the pricing sheet?"),
+        (17, "local", "One second, it's in the sheet."),
+        (22, "them", "And what was our trial-to-paid conversion last month, by the way?"),
+        (27, "local", "Let me think, I saw it on the dashboard."),
+        (33, "them", "Also, the launch is Friday the seventh now, right? Marketing told me Friday."),
+        (38, "local", "Hm, I thought it was the Monday. Let me check."),
+        (43, "them", "And sales wants the free tier limited to one project."),
+        (48, "local", "Okay, let's decide that with Ana tomorrow."),
+        (53, "them", "Unrelated, but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?"),
+        (58, "local", "Hm, good question."),
+        (63, "them", "Marko will review the onboarding emails before Wednesday."),
+        (68, "local", "Perfect. Let's go with twenty percent off for annual plans."),
+        (73, "them", "Agreed, twenty percent. Talk tomorrow!"),
     ]
 
     /// The radar replay's synthetic captures: a metrics dashboard and a

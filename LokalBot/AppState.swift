@@ -941,6 +941,7 @@ final class AppState: ObservableObject {
             embeddingIndex: embeddingIndex,
             settings: { [store = settingsStore] in store.current }),
         screenSource: Self.radarScreenSource(store: activityStore),
+        answerEnvironment: AppLiveAnswerEnvironment(app: self),
         settings: { [store = settingsStore] in store.current })
 
     /// The floating Live Radar window, for checking the radar from the

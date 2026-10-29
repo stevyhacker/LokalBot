@@ -249,7 +249,7 @@ struct LiveRadarPanelView: View {
                 }
                 if let spotlight {
                     RadarCard(item: spotlight, folder: meeting.map { $0.folderURL(in: app.storage) }, prominent: true,
-                              idPrefix: "panel", allowsEnlarge: false)
+                              idPrefix: "panel", allowsEnlarge: false, step: radar.answerSteps[spotlight.id])
                         .id(spotlight.id)
                         .transition(reduceMotion ? .opacity : .asymmetric(
                             insertion: .move(edge: .top).combined(with: .opacity), removal: .opacity))
@@ -331,7 +331,17 @@ struct LiveRadarPanelView: View {
                     .font(.scaled(.callout))
                     .lineLimit(2)
                     .strikethrough(item.answered)
-                if let answer = item.screenAnswer {
+                if let answer = item.answer {
+                    Text(verbatim: answer.text)
+                        .font(.scaled(.callout).weight(.semibold))
+                        .foregroundStyle(LBTokens.Palette.successText)
+                        .lineLimit(2)
+                } else if let step = radar.answerSteps[item.id] {
+                    Text(verbatim: step)
+                        .font(.scaled(.caption))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else if let answer = item.screenAnswer {
                     Text(verbatim: answer.text)
                         .font(.scaled(.callout).weight(.semibold))
                         .foregroundStyle(LBTokens.Palette.successText)

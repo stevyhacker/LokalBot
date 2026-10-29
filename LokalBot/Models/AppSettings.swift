@@ -174,6 +174,14 @@ struct AppSettings: Codable, Equatable {
     var liveRadarPanelEnabled: Bool = true
     /// Leaves the panel out of screen sharing and screen recordings.
     var liveRadarPanelHiddenFromCapture: Bool = true
+    /// Off by default: when Live Radar catches a question or problem, Muse
+    /// looks for the answer in the person's work, memory first, then their
+    /// meetings, screen text, and `liveAnswerFolders`.
+    var liveAnswersEnabled: Bool = false
+    var liveAnswersModel: String = MetaModelAPI.museWonder.id
+    /// Folders live answers may read: documents anywhere in them, and code,
+    /// commits, pull requests, and issues in git repositories.
+    var liveAnswerFolders: [String] = []
     /// Meeting notes may use the calendar title and invited names, and the
     /// titles of documents on screen during the call, as secondary context.
     var meetingNotesUseCalendarContext: Bool = true
@@ -927,6 +935,9 @@ struct AppSettings: Codable, Equatable {
         case museScreenAnswersEnabled
         case liveRadarPanelEnabled
         case liveRadarPanelHiddenFromCapture
+        case liveAnswersEnabled
+        case liveAnswersModel
+        case liveAnswerFolders
         case meetingNotesUseCalendarContext
         case meetingNotesUseScreenTitles
         case useCalendarAgenda
@@ -1134,6 +1145,9 @@ struct AppSettings: Codable, Equatable {
         try c.encode(museScreenAnswersEnabled, forKey: .museScreenAnswersEnabled)
         try c.encode(liveRadarPanelEnabled, forKey: .liveRadarPanelEnabled)
         try c.encode(liveRadarPanelHiddenFromCapture, forKey: .liveRadarPanelHiddenFromCapture)
+        try c.encode(liveAnswersEnabled, forKey: .liveAnswersEnabled)
+        try c.encode(liveAnswersModel, forKey: .liveAnswersModel)
+        try c.encode(liveAnswerFolders, forKey: .liveAnswerFolders)
         try c.encode(meetingNotesUseCalendarContext, forKey: .meetingNotesUseCalendarContext)
         try c.encode(meetingNotesUseScreenTitles, forKey: .meetingNotesUseScreenTitles)
         try c.encode(useCalendarAgenda, forKey: .useCalendarAgenda)
@@ -1321,6 +1335,9 @@ struct AppSettings: Codable, Equatable {
         museScreenAnswersEnabled = decode(.museScreenAnswersEnabled, defaults.museScreenAnswersEnabled)
         liveRadarPanelEnabled = decode(.liveRadarPanelEnabled, defaults.liveRadarPanelEnabled)
         liveRadarPanelHiddenFromCapture = decode(.liveRadarPanelHiddenFromCapture, defaults.liveRadarPanelHiddenFromCapture)
+        liveAnswersEnabled = decode(.liveAnswersEnabled, defaults.liveAnswersEnabled)
+        liveAnswersModel = decode(.liveAnswersModel, defaults.liveAnswersModel)
+        liveAnswerFolders = decode(.liveAnswerFolders, defaults.liveAnswerFolders)
         meetingNotesUseCalendarContext = decode(.meetingNotesUseCalendarContext, defaults.meetingNotesUseCalendarContext)
         meetingNotesUseScreenTitles = decode(.meetingNotesUseScreenTitles, defaults.meetingNotesUseScreenTitles)
         useCalendarAgenda = decode(.useCalendarAgenda, defaults.useCalendarAgenda)

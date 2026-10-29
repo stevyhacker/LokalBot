@@ -71,6 +71,8 @@ final class MeetingRadar: ObservableObject {
     /// The item that changed last: the newest one a pass added, or the
     /// question that just got a screen answer. The floating panel shows it.
     @Published private(set) var spotlightID: String?
+    /// What live answers is doing for each question it is looking up.
+    @Published private(set) var answerSteps: [String: String] = [:]
 
     var isActive: Bool { state == .running || state == .finishing }
 
@@ -82,6 +84,8 @@ final class MeetingRadar: ObservableObject {
     private let transcriber: RadarLineFeed
     private let evidenceSource: RadarEvidenceSource
     private let screenSource: RadarScreenSource?
+    private let answerEnvironment: LiveAnswerEnvironment?
+    private let answerCall: LiveAnswerSession.Call
     private let settings: () -> AppSettings
     private let call: ModelCall
     private let availability: (AppSettings) -> String?
@@ -114,6 +118,8 @@ final class MeetingRadar: ObservableObject {
     init(transcriber: RadarLineFeed,
          evidenceSource: RadarEvidenceSource,
          screenSource: RadarScreenSource? = nil,
+         answerEnvironment: LiveAnswerEnvironment? = nil,
+         answerCall: LiveAnswerSession.Call? = nil,
          settings: @escaping () -> AppSettings,
          call: ModelCall? = nil,
          availability: @escaping (AppSettings) -> String? = MeetingRadar.unavailableReason,
@@ -122,6 +128,13 @@ final class MeetingRadar: ObservableObject {
         self.transcriber = transcriber
         self.evidenceSource = evidenceSource
         self.screenSource = screenSource
+        self.answerEnvironment = answerEnvironment
+        self.answerCall = answerCall ?? { messages, tools, model in
+            let client = try MetaModelAPI.client(
+                settings: settings(), model: model, reasoningEffort: "low",
+                maxTokens: 4_000, priority: .interactive, purpose: "live answer")
+            return try await client.send(messages: messages, tools: tools)
+        }
         self.settings = settings
         self.availability = availability
         self.timing = timing
@@ -311,6 +324,9 @@ final class MeetingRadar: ObservableObject {
             if screenSource != nil, settings().museScreenAnswersEnabled {
                 for question in outcome.added where question.kind == .question { answerFromScreen(question) }
             }
+            if answerEnvironment != nil, settings().liveAnswersEnabled {
+                for question in outcome.added where question.kind == .question { answerLive(question) }
+            }
             let consumed = Set(batch)
             pending.removeAll { consumed.contains($0) }
             analyzed.append(contentsOf: batch)
@@ -347,6 +363,7 @@ final class MeetingRadar: ObservableObject {
     private func cancelAnswers() {
         answerTasks.values.forEach { $0.cancel() }
         answerTasks = [:]
+        answerSteps = [:]
         answerEpoch += 1
     }
 
@@ -409,6 +426,60 @@ final class MeetingRadar: ObservableObject {
         answerTasks[id] = nil
         lokalbotLog("live radar screen answer crops=\(crops.count) found=\(stored != nil) "
             + "seconds=\(String(format: "%.2f", seconds))")
+        save()
+    }
+
+    // MARK: - Live answers
+
+    /// Looks for the answer to a question or problem in the person's work:
+    /// what LokalBot remembers first, then a few read-only lookups. Runs
+    /// beside the passes; the card shows each step while it works.
+    private func answerLive(_ question: RadarItem) {
+        let key = "live-" + question.id
+        guard let answerEnvironment, let meeting, answerTasks[key] == nil else { return }
+        let model = settings().liveAnswersModel, call = answerCall, epoch = answerEpoch, id = question.id
+        let recent = order.suffix(10).compactMap { lines[$0] }.sorted { $0.time < $1.time }
+            .map { "\($0.speakerName): \($0.text)" }
+        let context = LiveAnswerMeeting(title: meeting.displayTitle, date: meeting.startedAt, recentLines: recent)
+        answerSteps[id] = String(localized: "Checking what LokalBot remembers…")
+        answerTasks[key] = Task { [weak self] in
+            do {
+                let outcome = try await LiveAnswerSession.run(
+                    question: question.text, quote: question.quote, meeting: context,
+                    environment: answerEnvironment, model: model, call: call) { step in
+                        guard let self, self.answerEpoch == epoch else { return }
+                        self.answerSteps[id] = step
+                    }
+                guard let self, self.answerEpoch == epoch else { return }
+                self.recordLiveAnswer(outcome, question: id, model: model)
+            } catch {
+                guard let self, self.answerEpoch == epoch else { return }
+                self.answerSteps[id] = nil
+                self.answerTasks[key] = nil
+                if !(error is CancellationError) {
+                    lokalbotLog("live answer failed error=\(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    private func recordLiveAnswer(_ outcome: LiveAnswerSession.Outcome, question id: String, model: String) {
+        answerSteps[id] = nil
+        answerTasks["live-" + id] = nil
+        if let answer = outcome.answer, let index = items.firstIndex(where: { $0.id == id }) {
+            items[index].answer = answer
+            spotlightID = id
+        }
+        let request = RadarPass(
+            at: now(), seconds: outcome.seconds, newLines: 0, evidence: outcome.turns,
+            inputTokens: outcome.usage.inputTokens, outputTokens: outcome.usage.outputTokens,
+            reasoningTokens: outcome.usage.reasoningTokens, cost: MetaModelAPI.cost(of: outcome.usage, model: model),
+            added: outcome.answer == nil ? 0 : 1, rejected: 0)
+        let earlier = record?.answerRequests ?? []
+        record?.answerRequests = earlier + [request]
+        totals.cost += request.cost
+        lokalbotLog("live answer turns=\(outcome.turns) found=\(outcome.answer != nil) "
+            + "seconds=\(String(format: "%.2f", outcome.seconds)) reason=\(outcome.reason ?? "-")")
         save()
     }
 

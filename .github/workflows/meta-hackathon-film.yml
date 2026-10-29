@@ -1,13 +1,15 @@
 # Films the Meta hackathon features on a hosted Mac: builds the UI test host,
 # runs HackathonFilmUITests (Meta Muse settings, Start Radar on a scripted
 # live meeting with fast live text, a question answered from synthetic screen
-# captures, Follow-through on what it caught), and uploads an MP4 of the run
-# with the result bundle. Runs on pushes to the hackathon branch and on
+# captures, questions answered from the demo's pricing sheet and this
+# checkout's code, Follow-through on what it caught), and uploads an MP4 of
+# the run with the result bundle. Runs on pushes to the hackathon branch and on
 # demand.
 #
-# With a META_API_KEY repository secret, Live Radar, screen answers and
-# Follow-through call Muse Spark and Muse Wonder on the test's synthetic
-# meeting and captures (a few cents a run). The key is written to a private file under RUNNER_TEMP and only that
+# With a META_API_KEY repository secret, Live Radar, screen answers, live
+# answers and Follow-through call Muse Spark and Muse Wonder on the test's
+# synthetic meeting and captures, and on what live answers read from this
+# public checkout (a few cents a run). The key is written to a private file under RUNNER_TEMP and only that
 # path reaches the test, so it never enters the test configuration, the
 # result bundle, or the uploaded artifacts; the file is deleted at the end.
 # Without the secret, Muse replies are scripted in the host and nothing is
@@ -21,6 +23,7 @@ on:
       - "LokalBot/**"
       - "LokalBotUITests/**"
       - "Benchmarks/MuseRadar/fixtures/screens/**"
+      - "Docs/meta-hackathon/demo-files/**"
       - "project.yml"
       - ".github/workflows/meta-hackathon-film.yml"
   workflow_dispatch:
