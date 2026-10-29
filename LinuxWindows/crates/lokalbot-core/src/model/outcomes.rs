@@ -23,8 +23,8 @@ pub struct MeetingOutcomes {
     #[serde(default = "default_outcomes_schema")]
     pub schema_version: u32,
     /// Matches `Transcript` evidence revision; a mismatch makes outcomes stale.
-    /// This port cannot reproduce Swift's JSON bytes, so it treats outcomes
-    /// as current regardless (see `Library::outcomes`).
+    /// This port cannot reproduce Swift's JSON bytes, so it does not check
+    /// it (see `Library::outcomes` and `Library::save_new_transcript`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transcript_revision: Option<String>,
     #[serde(default, alias = "action_items")]

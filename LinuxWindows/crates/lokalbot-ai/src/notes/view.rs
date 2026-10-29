@@ -8,9 +8,7 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use lokalbot_core::Transcript;
-use lokalbot_core::model::{
-    AttributionMethod, AttributionSource, SpeakerAttribution, SpeakerIdentity,
-};
+use lokalbot_core::model::{AttributionMethod, SpeakerAttribution, SpeakerIdentity};
 
 static CONTROL_TOKEN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"<\|[^>]*\|>").expect("valid regex"));
@@ -37,33 +35,7 @@ pub fn resolved_attribution(
     segment: &lokalbot_core::model::Segment,
     microphone_is_user: bool,
 ) -> SpeakerAttribution {
-    let key = Transcript::canonical_speaker_key(&segment.speaker);
-    let mut attribution = segment.attribution.unwrap_or(SpeakerAttribution {
-        source: if key == "me" {
-            AttributionSource::Microphone
-        } else {
-            AttributionSource::Unknown
-        },
-        identity: if key == "me" {
-            SpeakerIdentity::Unresolved
-        } else {
-            SpeakerIdentity::Other
-        },
-        method: AttributionMethod::Legacy,
-    });
-    if attribution.source == AttributionSource::Microphone
-        && matches!(
-            attribution.method,
-            AttributionMethod::Track | AttributionMethod::Diarization | AttributionMethod::Legacy
-        )
-    {
-        attribution.identity = if microphone_is_user {
-            SpeakerIdentity::User
-        } else {
-            SpeakerIdentity::Unresolved
-        };
-    }
-    attribution
+    Transcript::resolved_attribution_with(segment, microphone_is_user)
 }
 
 pub fn identity_label(identity: SpeakerIdentity) -> &'static str {
@@ -268,6 +240,7 @@ pub fn evidence_revision(transcript: &Transcript) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lokalbot_core::model::AttributionSource;
     use lokalbot_core::model::Segment;
 
     fn segment(speaker: &str, text: &str, attribution: Option<SpeakerAttribution>) -> Segment {

@@ -15,9 +15,6 @@ use lokalbot_core::Meeting;
 use crate::models::Models;
 use crate::{BackgroundItem, BackgroundKind, EngineEvent, Shared, Stage};
 
-/// Launch resume stops retrying a job after this many starts.
-const MAX_AUTO_ATTEMPTS: u32 = 3;
-
 #[derive(Clone)]
 pub struct Pipeline {
     inner: Arc<Inner>,
@@ -36,7 +33,43 @@ struct Job {
     meeting_id: Uuid,
     transcribe: bool,
     summarize: bool,
+    /// The summary was asked for automatically, so it runs only while
+    /// automatic summaries are on.
+    summary_follows_setting: bool,
     user_initiated: bool,
+}
+
+impl Job {
+    /// A saved job picked up at launch (`ProcessingPipeline.resumedWork`).
+    fn resumed(saved: &lokalbot_core::PipelineJob) -> Self {
+        Self {
+            meeting_id: saved.meeting_id,
+            transcribe: saved.transcribe && !saved.transcription_completed,
+            summarize: saved.summarize,
+            summary_follows_setting: saved.summary_follows_setting,
+            user_initiated: false,
+        }
+    }
+
+    /// Whether to write notes now. An automatic summary follows the setting
+    /// as it is at this point, so turning automatic summaries off also stops
+    /// a job queued earlier, even one that waited through a restart.
+    fn writes_notes(&self, auto_summarize: bool) -> bool {
+        self.summarize && (!self.summary_follows_setting || auto_summarize)
+    }
+
+    /// Folds another request for the same meeting into this queued job. The
+    /// user's request decides the summary and makes it explicit.
+    fn merge(&mut self, transcribe: bool, summarize: bool, user_initiated: bool) {
+        self.transcribe |= transcribe;
+        self.summarize = if user_initiated {
+            summarize
+        } else {
+            self.summarize || summarize
+        };
+        self.summary_follows_setting &= !user_initiated;
+        self.user_initiated |= user_initiated;
+    }
 }
 
 enum Outcome {
@@ -57,29 +90,30 @@ impl Pipeline {
             Ok(jobs) => {
                 let mut queue = inner.queue.lock();
                 for job in jobs {
-                    if job.attempts >= MAX_AUTO_ATTEMPTS {
-                        let message = job.last_error.clone().unwrap_or_else(|| {
-                            "Processing stopped after repeated failures.".into()
-                        });
-                        shared.emit(EngineEvent::Processing {
-                            meeting_id: job.meeting_id,
-                            stage: Some(Stage::Failed(message)),
-                        });
-                        continue;
-                    }
                     shared.emit(EngineEvent::Processing {
                         meeting_id: job.meeting_id,
                         stage: Some(Stage::Queued),
                     });
-                    queue.push_back(Job {
-                        meeting_id: job.meeting_id,
-                        transcribe: job.transcribe && !job.transcription_completed,
-                        summarize: job.summarize,
-                        user_initiated: false,
-                    });
+                    queue.push_back(Job::resumed(&job));
                 }
             }
             Err(err) => log::warn!("could not read pending jobs: {err:#}"),
+        }
+        // A job that used up its automatic attempts stays parked until the
+        // user retries it; show why it stopped again (`parkedJobs`).
+        match shared.library.parked_jobs() {
+            Ok(jobs) => {
+                for job in jobs {
+                    let message = job
+                        .last_error
+                        .unwrap_or_else(|| "Processing stopped after repeated failures.".into());
+                    shared.emit(EngineEvent::Processing {
+                        meeting_id: job.meeting_id,
+                        stage: Some(Stage::Failed(message)),
+                    });
+                }
+            }
+            Err(err) => log::warn!("could not read parked jobs: {err:#}"),
         }
         let worker = inner.clone();
         std::thread::Builder::new()
@@ -108,18 +142,13 @@ impl Pipeline {
         {
             let mut queue = self.inner.queue.lock();
             if let Some(existing) = queue.iter_mut().find(|job| job.meeting_id == meeting_id) {
-                existing.transcribe |= transcribe;
-                existing.summarize = if user_initiated {
-                    summarize
-                } else {
-                    existing.summarize || summarize
-                };
-                existing.user_initiated |= user_initiated;
+                existing.merge(transcribe, summarize, user_initiated);
             } else {
                 queue.push_back(Job {
                     meeting_id,
                     transcribe,
                     summarize,
+                    summary_follows_setting: !user_initiated,
                     user_initiated,
                 });
             }
@@ -289,14 +318,19 @@ impl Inner {
             if let Some(range) = meeting.valid_content_range() {
                 range.apply(&mut transcript);
             }
+            let previous = library.transcript(&meeting)?;
             if meeting.is_merged_meeting() {
                 transcript = lokalbot_core::merge::preserve_transcript_only_sources(
-                    library.transcript(&meeting)?.as_ref(),
+                    previous.as_ref(),
                     &library.meeting_dir(&meeting),
                     transcript,
                 )?;
             }
-            library.save_transcript(&meeting, &transcript)?;
+            // Names the user gave speakers survive a new transcription.
+            if let Some(previous) = &previous {
+                transcript.carry_speaker_names_from(previous);
+            }
+            library.save_new_transcript(&meeting, &transcript)?;
             library.mark_transcription_completed(meeting.id)?;
             library.reindex_meeting(&meeting)?;
             self.shared.emit(EngineEvent::LibraryChanged);
@@ -305,7 +339,7 @@ impl Inner {
             }
         }
 
-        if job.summarize {
+        if job.writes_notes(self.shared.settings().auto_summarize) {
             let Some(transcript) = library.transcript(&meeting)? else {
                 return Ok(Outcome::Done);
             };
@@ -360,5 +394,52 @@ impl Inner {
             }
         }
         Ok(Outcome::Done)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn saved(summary_follows_setting: bool) -> lokalbot_core::PipelineJob {
+        lokalbot_core::PipelineJob {
+            meeting_id: Uuid::new_v4(),
+            transcribe: true,
+            transcription_completed: true,
+            summarize: true,
+            summary_follows_setting,
+            attempts: 1,
+            last_error: None,
+        }
+    }
+
+    #[test]
+    fn a_resumed_automatic_summary_follows_the_current_setting() {
+        let automatic = Job::resumed(&saved(true));
+        assert!(
+            !automatic.transcribe,
+            "its transcript was already committed"
+        );
+        assert!(automatic.writes_notes(true));
+        assert!(!automatic.writes_notes(false));
+
+        let explicit = Job::resumed(&saved(false));
+        assert!(
+            explicit.writes_notes(false),
+            "an explicit request still runs"
+        );
+    }
+
+    #[test]
+    fn an_explicit_request_overrides_a_queued_automatic_one() {
+        let mut job = Job::resumed(&saved(true));
+        job.merge(false, true, true);
+        assert!(job.writes_notes(false));
+        let mut job = Job::resumed(&saved(false));
+        job.merge(true, true, false);
+        assert!(
+            job.writes_notes(false),
+            "an automatic enqueue keeps it explicit"
+        );
     }
 }

@@ -745,6 +745,8 @@ impl AppData {
         if before.app_language != self.settings.app_language {
             crate::i18n::apply(&self.settings.app_language, cx);
         }
+        // The engine applies it too, but the meeting view redraws first.
+        lokalbot_core::SpeakerAttribution::set_microphone_is_user(self.settings.microphone_is_user);
         let (label, hosts) = inference_presentation(&self.settings);
         self.inference_label = label;
         self.remote_hosts = hosts;

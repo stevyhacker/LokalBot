@@ -122,8 +122,7 @@ impl Library {
             "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON;",
         )?;
         db.execute_batch(SCHEMA).context("creating schema")?;
-        // Older pipeline_jobs tables predate last_error.
-        let _ = db.execute("ALTER TABLE pipeline_jobs ADD COLUMN last_error TEXT", []);
+        crate::jobs::migrate(&db).context("updating the processing queue")?;
         crate::screen::migrate(&db).context("updating the screen context tables")?;
         migrate_ocr_metadata(&db).context("indexing screen text metadata")?;
         crate::search::migrate(&db).context("migrating the search index")?;
@@ -513,6 +512,29 @@ impl Library {
         })
     }
 
+    /// Saves a fresh transcription (`ProcessingPipeline.write`). When it
+    /// differs from the saved transcript, the summary, claims and outcomes
+    /// written from the old one move aside to `*.previous.*` first, so they
+    /// are not shown, searched or asked about as current until notes are
+    /// written again.
+    pub fn save_new_transcript(&self, meeting: &Meeting, transcript: &Transcript) -> Result<()> {
+        let dir = self.meeting_dir(meeting);
+        crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
+            if self
+                .transcript(meeting)?
+                .is_some_and(|saved| saved != *transcript)
+            {
+                invalidate_generated_notes(&dir)?;
+            }
+            write_json(&dir.join(TRANSCRIPT_FILE), transcript)?;
+            write_atomic(
+                &dir.join(TRANSCRIPT_MD_FILE),
+                transcript.markdown().as_bytes(),
+            )?;
+            Ok(())
+        })
+    }
+
     pub fn summary(&self, meeting: &Meeting) -> Result<Option<String>> {
         read_text(&self.meeting_dir(meeting).join(SUMMARY_FILE))
     }
@@ -547,7 +569,9 @@ impl Library {
     ///
     /// macOS treats outcomes whose `transcriptRevision` no longer matches the
     /// transcript's SHA-256 (over Swift's exact JSON bytes) as stale. This
-    /// port cannot reproduce those bytes, so it treats outcomes as current.
+    /// port cannot reproduce those bytes, so it treats outcomes as current;
+    /// its own new transcriptions move them aside instead
+    /// ([`Self::save_new_transcript`]).
     pub fn outcomes(&self, meeting: &Meeting) -> Result<Option<MeetingOutcomes>> {
         Ok(
             read_json::<MeetingOutcomes>(&self.meeting_dir(meeting).join(OUTCOMES_FILE))?
@@ -970,6 +994,60 @@ mod tests {
         let saved: serde_json::Value =
             serde_json::from_slice(&fs::read(folder.join(META_FILE)).unwrap()).unwrap();
         assert_eq!(saved, written);
+    }
+
+    #[test]
+    fn a_changed_transcription_moves_its_old_notes_aside() {
+        let dir = tempfile::tempdir().unwrap();
+        let library = Library::open(LibraryPaths::new(dir.path())).unwrap();
+        let meeting = library
+            .create_meeting("Planning", "Zoom", crate::time::now_seconds())
+            .unwrap();
+        let said = |text: &str| Transcript {
+            segments: vec![
+                serde_json::from_value(serde_json::json!({
+                    "start": 0.0, "end": 4.0, "speaker": "them", "text": text
+                }))
+                .unwrap(),
+            ],
+            ..Default::default()
+        };
+        let notes = |library: &Library| {
+            library.save_summary(&meeting, "We ship Friday.").unwrap();
+            library
+                .save_outcomes(
+                    &meeting,
+                    &MeetingOutcomes {
+                        open_questions: vec!["Ship Friday?".into()],
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+        };
+        library
+            .save_new_transcript(&meeting, &said("We ship Friday."))
+            .unwrap();
+        notes(&library);
+
+        // The same words again (a retry) keep the notes.
+        library
+            .save_new_transcript(&meeting, &said("We ship Friday."))
+            .unwrap();
+        assert!(library.outcomes(&meeting).unwrap().is_some());
+
+        library
+            .save_new_transcript(&meeting, &said("Friday is cancelled."))
+            .unwrap();
+        let folder = library.meeting_dir(&meeting);
+        assert_eq!(library.outcomes(&meeting).unwrap(), None);
+        assert_eq!(library.summary(&meeting).unwrap(), None);
+        assert!(folder.join("outcomes.previous.json").is_file());
+        assert!(folder.join("summary.previous.md").is_file());
+        assert!(folder.join(REFRESH_MARKER).is_file());
+        assert_eq!(
+            library.transcript(&meeting).unwrap().unwrap().segments[0].text,
+            "Friday is cancelled."
+        );
     }
 
     #[cfg(unix)]

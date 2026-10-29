@@ -211,6 +211,11 @@ fn day_or_error(value: &str, option: &str) -> Result<chrono::NaiveDate, CliError
 /// Runs one command and returns what it prints on stdout.
 pub fn run(cli: Cli) -> Result<String, CliError> {
     let paths = LibraryPaths::resolve(cli.storage_root.as_deref());
+    // Transcripts label microphone speech as the app does. A Mac library has
+    // no settings file here, so it keeps the default.
+    lokalbot_core::SpeakerAttribution::set_microphone_is_user(
+        lokalbot_core::Settings::load(&paths.settings_file()).microphone_is_user,
+    );
     match cli.command {
         Command::Brief => {
             let session = Session::open(paths)?;
