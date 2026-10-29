@@ -49,13 +49,13 @@ python3 build_edit.py /tmp/takes light
 ./make.sh
 ```
 
-The home page plays a silent 720p copy, `web/assets/lokalbot-autocomplete.mp4`
+The home page plays a silent copy, `web/assets/lokalbot-autocomplete.mp4`
 (poster: the opening frame, `lokalbot-autocomplete-poster.webp`). Make it from
-the final MP4; `aq-mode=3` keeps the dim circuit board from smearing at this
-size:
+the final MP4 in two passes at about 5 MB; `aq-mode=3` keeps the dim circuit
+board from smearing at this bitrate:
 
 ```sh
-ffmpeg -i renders/lokalbot-autocomplete-demo.mp4 -an -vf scale=1280:-2:flags=lanczos \
-  -c:v libx264 -preset slower -crf 30 -x264-params aq-mode=3:aq-strength=1.0:deblock=-1,-1 \
-  -pix_fmt yuv420p -movflags +faststart ../../web/assets/lokalbot-autocomplete.mp4
+X='-an -c:v libx264 -preset slower -b:v 1360k -maxrate 2720k -bufsize 5440k -pix_fmt yuv420p -x264-params aq-mode=3:aq-strength=1.0:deblock=-1,-1'
+ffmpeg -i renders/lokalbot-autocomplete-demo.mp4 $X -pass 1 -f mp4 /dev/null
+ffmpeg -i renders/lokalbot-autocomplete-demo.mp4 $X -pass 2 -movflags +faststart ../../web/assets/lokalbot-autocomplete.mp4
 ```
