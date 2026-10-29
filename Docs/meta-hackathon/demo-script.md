@@ -19,12 +19,12 @@ Follow [recording-checklist.md](recording-checklist.md). [`Scripts/meta-hackatho
 
 ## The live call (about 2 minutes)
 
-You on your microphone, your partner on a Google Meet or Zoom call. Speak naturally; with fast live text, each turn is sent when it ends. Don't answer the questions yourself: an answered question is left off the radar.
+You on your microphone, your partner on a Google Meet or Zoom call. Speak naturally; with fast live text, each turn is sent when it ends. Don't answer the questions yourself: an answered question is left off the radar. After the two questions it looks up, wait until the answer is the panel's top card before the next line (10 to 15 seconds); in the CI film, the next items took the top spot a few seconds after each answer landed.
 
 - Partner: "Hi! Okay, launch checklist. The pricing page is almost done, I just need the final numbers."
 - You: "I'll send the revised pricing deck to Marko by Friday."
 - Partner: "Great. What did we put as the Team plan price in the pricing sheet?"
-- You: "One second, it's in the sheet."
+- You: "One second, it's in the sheet." *(Wait for the answer.)*
 - Partner: "And what was our trial-to-paid conversion last month, by the way?"
 - You: "Let me think, I saw it on the dashboard."
 - Partner: "Also, the launch is Friday the seventh now, right? Marketing told me Friday."
@@ -32,7 +32,7 @@ You on your microphone, your partner on a Google Meet or Zoom call. Speak natura
 - Partner: "And sales wants the free tier limited to one project."
 - You: "Okay, let's decide that with Ana tomorrow."
 - Partner: "Unrelated, but I'm showing LokalBot to a journalist on Friday. Is the radar panel hidden when I share my screen?"
-- You: "Hm, good question."
+- You: "Hm, good question." *(Wait for the answer.)*
 - Partner: "Marko will review the onboarding emails before Wednesday."
 - You: "Perfect. Let's go with twenty percent off for annual plans."
 - Partner: "Agreed, twenty percent. Talk tomorrow!"
