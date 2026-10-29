@@ -147,6 +147,8 @@ enum MuseUITestTransport {
         let searchCode = tools.first { $0["name"] as? String == "search_code" }
         let repository = ((searchCode?["parameters"] as? [String: Any])?["properties"] as? [String: Any])
             .flatMap { ($0["repository"] as? [String: Any])?["enum"] as? [String] }?.first
+        // Split so a code search of this checkout finds the setting, not these replies.
+        let identifier = "liveRadarPanel" + "HiddenFromCapture"
         let call: (name: String, arguments: [String: Any])
         if question.contains("Team plan") {
             call = turn == 0
@@ -155,9 +157,9 @@ enum MuseUITestTransport {
                               "sources": [["id": "R1", "quote": "Team | $12 per seat"]]])
         } else if question.contains("radar panel"), let repository {
             call = turn == 0
-                ? ("search_code", ["repository": repository, "query": "liveRadarPanelHiddenFromCapture"])
+                ? ("search_code", ["repository": repository, "query": identifier])
                 : ("answer", ["text": "Yes. It's hidden from screen sharing and recordings unless you turn that off.",
-                              "sources": [["id": "R1", "quote": "var liveRadarPanelHiddenFromCapture: Bool = true"]]])
+                              "sources": [["id": "R1", "quote": "var \(identifier): Bool = true"]]])
         } else {
             call = ("no_answer", ["reason": "Not something their work answers."])
         }
