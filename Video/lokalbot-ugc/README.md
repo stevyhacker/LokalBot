@@ -5,7 +5,7 @@ voice, a trap beat, and big burned-in captions, so it reads muted. The first
 cut was calmer; Stevan asked for it over the top (2026-10-29). That cut is in
 this folder's history at `bd344f9`.
 
-- Canvas: 1080 × 1920, 30 fps, about 20–23 s depending on the voice.
+- Canvas: 1080 × 1920, 30 fps, 23.6 s with Liam and 24.1 s with Jessica.
 - Top sticker: "POV: you never take meeting notes again 🤯", with "Real app ·
   fictional demo data" under it.
 - Story, five lines (`narration.json`): "Stop taking meeting notes" over Ask
