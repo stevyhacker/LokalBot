@@ -135,6 +135,28 @@ final class TranscriptionModelStoreTests: XCTestCase {
             atPath: legacyModel.appendingPathComponent("config.json").path))
     }
 
+    /// Whisper prepares on every app start for people who use it, so once
+    /// Application Support has a model the legacy ~/Documents cache is not
+    /// even listed: listing it makes macOS ask for Documents access.
+    func testWhisperMigrationSkipsTheLegacyCacheOnceApplicationSupportHasAModel() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let legacyRoot = try XCTUnwrap(environment.legacyWhisperKitRepoRoot)
+        let otherLegacyModel = legacyRoot
+            .appendingPathComponent("openai_whisper-large-v3-v20240930_626MB", isDirectory: true)
+        for fileName in ["config.json", "AudioEncoder.mlmodelc", "MelSpectrogram.mlmodelc", "TextDecoder.mlmodelc"] {
+            try writeEmptyFile(otherLegacyModel.appendingPathComponent(fileName))
+        }
+        try writeWhisperModel(in: environment.whisperKitRepoRoot)
+
+        try TranscriptionModelStore.migrateLegacyWhisperKitModels(environment: environment)
+
+        XCTAssertTrue(FileManager.default.fileExists(
+            atPath: otherLegacyModel.appendingPathComponent("config.json").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: environment.whisperKitRepoRoot
+            .appendingPathComponent(otherLegacyModel.lastPathComponent).path))
+    }
+
     func testCustomGraniteQuantizationUsesItsConfiguredFiles() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
