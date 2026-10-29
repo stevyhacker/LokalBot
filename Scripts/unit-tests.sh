@@ -7,11 +7,20 @@
 #   Scripts/unit-tests.sh
 #   Scripts/unit-tests.sh AppSettingsTests
 #   Scripts/unit-tests.sh AppSettingsTests/testDefaults
+#   Scripts/unit-tests.sh --derived-data-path   # where the build products go
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd -P)"
 PROJECT="$ROOT/LokalBot.xcodeproj"
-DERIVED="$ROOT/.build/XcodeDerivedData"
+# Build outside the checkout, one folder per checkout. A test host inside
+# ~/Documents makes macOS ask for access to Documents after every build.
+CHECKOUT_ID="$(printf '%s' "$ROOT" | shasum | cut -c1-10)"
+DERIVED="${LOKALBOT_DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData/LokalBot-unit-tests-$CHECKOUT_ID}"
+
+if [ "${1:-}" = "--derived-data-path" ]; then
+  echo "$DERIVED"
+  exit 0
+fi
 
 ARGS=(
   -quiet

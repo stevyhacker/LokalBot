@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import CryptoKit
+import os
 
 enum AppIdentifiers {
     /// The release identity is frozen for existing libraries and Keychain items.
@@ -61,6 +62,30 @@ enum UITestRuntime {
         !isEnabled
             && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
+
+    /// Unit tests run with temporary libraries, so any model they reach would
+    /// be downloaded from the network. They never download one: the download
+    /// throws instead, and the test bundle fails the test that started it.
+    static func refuseDownloadInUnitTests(of name: String) throws {
+        guard isUnitTesting else { return }
+        refusedUnitTestDownloads.withLock { $0.append(name) }
+        throw RefusedUnitTestDownload(name: name)
+    }
+
+    struct RefusedUnitTestDownload: LocalizedError {
+        let name: String
+        var errorDescription: String? { "Unit tests never download \(name)." }
+    }
+
+    /// Downloads refused since the last call, oldest first.
+    static func takeRefusedUnitTestDownloads() -> [String] {
+        refusedUnitTestDownloads.withLock { names in
+            defer { names.removeAll() }
+            return names
+        }
+    }
+
+    private static let refusedUnitTestDownloads = OSAllocatedUnfairLock(initialState: [String]())
 
     static var isEnabled: Bool {
 #if LOKALBOT_UI_TEST_HOST
