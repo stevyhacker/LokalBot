@@ -243,15 +243,19 @@ already use don't need one.
   dashes, for example `web/explainers/gmail-meeting-briefs.pdf`. When a later
   release changes the feature, update the same file.
 - **Making one.** Write the explainer as an HTML page and render it with
-  headless Google Chrome:
+  headless Google Chrome. Commit the page as
+  `Docs/explainers/<feature-slug>.html`, so a later release can update the
+  explainer from it:
 
   ```sh
-  python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.pdf
-  python3 Scripts/render_explainer.py explainer.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
+  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.pdf
+  python3 Scripts/render_explainer.py Docs/explainers/gmail-meeting-briefs.html web/explainers/gmail-meeting-briefs.png --size 1200x2400
   ```
 
   A PNG captures a fixed canvas at 2x, so design the page at that size. For a
-  PDF, give the page `print-color-adjust: exact` so its backgrounds print.
+  PDF, give the page `print-color-adjust: exact` so its backgrounds print, and
+  size each page with `@page` so nothing breaks across sheets
+  (`Docs/explainers/gmail-meeting-briefs.html` is one way to do that).
 - **Land it before the candidate.** Commit explainers to `master` with their
   feature or in a separate pull request, because the candidate commit holds
   only the release metadata. The website deploys `web/` from `master`, so the
