@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import LokalBot
 
@@ -42,6 +43,68 @@ final class RuntimeAssetSafetyTests: XCTestCase {
         try FileManager.default.createSymbolicLink(at: f.bundle.appendingPathComponent("escape"), withDestinationURL: f.root)
         XCTAssertThrowsError(try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"]))
         XCTAssertEqual(try Data(contentsOf: installed.appendingPathComponent("helper")), Data("aaaa".utf8))
+    }
+
+    /// A version folder as an app that has since quit leaves it behind.
+    private func unusedVersion(in root: URL, helper: URL? = nil) throws -> URL {
+        let identity = SHA256.hash(data: Data(UUID().uuidString.utf8)).map { String(format: "%02x", $0) }.joined()
+        let folder = root.appendingPathComponent(identity, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        if let helper {
+            try FileManager.default.copyItem(at: helper, to: folder.appendingPathComponent("helper"))
+        } else {
+            try Data("old".utf8).write(to: folder.appendingPathComponent("helper"))
+        }
+        return folder
+    }
+
+    func testInstallRemovesUnusedVersionsAndLegacyFlatLayout() throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        let fm = FileManager.default
+        _ = try unusedVersion(in: f.installed)
+        for name in ["llama-server", "libggml.dylib", ".lokalbot-build"] {
+            try Data("legacy".utf8).write(to: f.installed.appendingPathComponent(name))
+        }
+        try fm.createDirectory(at: f.installed.appendingPathComponent("include"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: f.installed.appendingPathComponent(".install-\(UUID())"), withIntermediateDirectories: true)
+        let identity = try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"])
+            .lastPathComponent
+        XCTAssertEqual(Set(try fm.contentsOfDirectory(atPath: f.installed.path)),
+                       [identity, ".claim-\(identity).lock", ".install.lock"])
+    }
+
+    func testInstallKeepsVersionAnotherAppClaimsUntilItQuits() throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        let other = try unusedVersion(in: f.installed)
+        // What a running LokalBot holds on each version it uses.
+        let claim = open(NativeRuntimeInstaller.claimURL(for: other.lastPathComponent, in: f.installed).path,
+                         O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
+        XCTAssertGreaterThanOrEqual(claim, 0)
+        XCTAssertEqual(flock(claim, LOCK_SH), 0)
+        _ = try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: other.path))
+        close(claim)
+        _ = try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: other.path))
+    }
+
+    func testInstallKeepsVersionALiveHelperRunsFrom() throws {
+        let f = try fixture()
+        defer { try? FileManager.default.removeItem(at: f.root) }
+        let running = try unusedVersion(in: f.installed, helper: URL(fileURLWithPath: "/bin/sleep"))
+        let helper = Process()
+        helper.executableURL = running.appendingPathComponent("helper")
+        helper.arguments = ["30"]
+        try helper.run()
+        defer { if helper.isRunning { helper.terminate() } }
+        _ = try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"])
+        XCTAssertTrue(FileManager.default.fileExists(atPath: running.path))
+        helper.terminate()
+        helper.waitUntilExit()
+        _ = try NativeRuntimeInstaller.install(bundled: f.bundle, root: f.installed, executables: ["helper"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: running.path))
     }
 
     func testRuntimeOwnershipIsExclusiveAndReleasedWithLifetime() throws {
