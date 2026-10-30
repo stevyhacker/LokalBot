@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import Darwin
+import os
 
 /// Shared sherpa-onnx runtime installer. The app bundles the native binaries
 /// as resources, then copies them to Application Support before execution so
@@ -55,7 +56,7 @@ enum NativeRuntimeInstaller {
         let destination = root.appendingPathComponent(identity, isDirectory: true)
         if (try? manifest(in: destination)) == expected,
            executables.allSatisfy({ fm.isExecutableFile(atPath: destination.appendingPathComponent($0).path) }) {
-            return destination
+            return adopt(identity, in: root)
         }
         let staged = root.appendingPathComponent(".install-\(UUID())", isDirectory: true)
         defer { try? fm.removeItem(at: staged) }
@@ -65,8 +66,8 @@ enum NativeRuntimeInstaller {
                                  ofItemAtPath: staged.appendingPathComponent(name).path)
         }
         guard try manifest(in: staged) == expected else { throw InstallError.invalidContents }
-        // A failed copy never removes a valid installation. Keep prior content
-        // versions because another app instance may still execute from one.
+        // A failed copy never removes a valid installation. Prior content
+        // versions stay while another app instance may still execute from one.
         if fm.fileExists(atPath: destination.path) {
             let backup = root.appendingPathComponent(".invalid-\(UUID())")
             try fm.moveItem(at: destination, to: backup)
@@ -78,7 +79,88 @@ enum NativeRuntimeInstaller {
         } else {
             try fm.moveItem(at: staged, to: destination)
         }
-        return destination
+        return adopt(identity, in: root)
+    }
+
+    /// Shared locks this process holds on the versions it installed or
+    /// reused. The kernel drops them when the process exits, crashes
+    /// included, so a version stays claimed as long as an app may run from it.
+    private static let claims = OSAllocatedUnfairLock(initialState: [String: Int32]())
+
+    static func claimURL(for identity: String, in root: URL) -> URL {
+        root.appendingPathComponent(".claim-\(identity).lock")
+    }
+
+    /// Called with the install lock held, so no other install or removal
+    /// can run between claiming the version and returning it.
+    private static func adopt(_ identity: String, in root: URL) -> URL {
+        let path = claimURL(for: identity, in: root).path
+        claims.withLock { held in
+            guard held[path] == nil else { return }
+            let descriptor = open(path, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
+            guard descriptor >= 0 else { return }
+            guard flock(descriptor, LOCK_SH) == 0 else { close(descriptor); return }
+            held[path] = descriptor
+        }
+        removeUnusedVersions(in: root, keeping: identity)
+        return root.appendingPathComponent(identity, isDirectory: true)
+    }
+
+    /// Each signed build re-signs the bundled binaries with a fresh timestamp,
+    /// so every update used to leave its previous version (about 50 MB) behind
+    /// for good (#406). A version stays while any LokalBot holds its claim or
+    /// any process executes from it. Everything else in `root` goes, including
+    /// the flat layout older releases installed and interrupted installs.
+    /// Best effort: a failure here never fails the install.
+    private static func removeUnusedVersions(in root: URL, keeping identity: String) {
+        let fm = FileManager.default
+        let kept: Set<String> = [identity, claimURL(for: identity, in: root).lastPathComponent, ".install.lock"]
+        guard let entries = try? fm.contentsOfDirectory(atPath: root.path).filter({ !kept.contains($0) }),
+              !entries.isEmpty,
+              let running = runningExecutablePaths() else { return }
+        let canonicalRoot = canonicalPath(root.path) ?? root.path
+        let versions = Set(entries.filter(isContentIdentity))
+        for version in versions {
+            let claim = claimURL(for: version, in: root).path
+            let descriptor = open(claim, O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0o600)
+            guard descriptor >= 0 else { continue }
+            defer { close(descriptor) }
+            let folder = canonicalRoot + "/" + version + "/"
+            guard flock(descriptor, LOCK_EX | LOCK_NB) == 0,
+                  !running.contains(where: { $0.hasPrefix(folder) }) else { continue }
+            try? fm.removeItem(at: root.appendingPathComponent(version, isDirectory: true))
+            try? fm.removeItem(atPath: claim)
+        }
+        // A claim's lock lives on its file, so one is only ever deleted with its
+        // version, under the exclusive lock taken above.
+        let isClaim = { (name: String) in name.hasPrefix(".claim-") && name.hasSuffix(".lock") }
+        guard !running.contains(where: { ($0 as NSString).deletingLastPathComponent == canonicalRoot }) else { return }
+        for entry in entries where !versions.contains(entry) && !isClaim(entry) {
+            try? fm.removeItem(at: root.appendingPathComponent(entry))
+        }
+    }
+
+    private static func isContentIdentity(_ name: String) -> Bool {
+        name.count == 64 && name.allSatisfy { ("0"..."9").contains($0) || ("a"..."f").contains($0) }
+    }
+
+    /// Executable paths of every process this user can inspect; nil when the
+    /// list cannot be read, which must not pass for "nothing is running".
+    private static func runningExecutablePaths() -> [String]? {
+        let capacity = proc_listallpids(nil, 0)
+        guard capacity > 0 else { return nil }
+        var pids = [pid_t](repeating: 0, count: Int(capacity) + 64)
+        let count = pids.withUnsafeMutableBufferPointer { buffer in
+            proc_listallpids(buffer.baseAddress, Int32(buffer.count * MemoryLayout<pid_t>.stride))
+        }
+        guard count > 0 else { return nil }
+        return pids.prefix(Int(count)).compactMap { LlamaServer.processPath(for: $0) }
+    }
+
+    private static func canonicalPath(_ path: String) -> String? {
+        guard let resolved = realpath(path, nil) else { return nil }
+        defer { free(resolved) }
+        return String(cString: resolved)
     }
 
     static func manifest(in root: URL) throws -> [String: String] {
