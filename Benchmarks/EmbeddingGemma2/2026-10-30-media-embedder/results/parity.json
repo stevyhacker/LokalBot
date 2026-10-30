@@ -1,0 +1,89 @@
+{
+  "reference": {
+    "vector_version": 1,
+    "made_with": "llama.cpp b11461"
+  },
+  "server": "version: 0.7.0 (build 11669, commit v0.7.0)",
+  "machine": "arm64 macOS 27.2",
+  "agreement": 0.999,
+  "text": {
+    "cosine": {
+      "query": 0.9999996906792297,
+      "query-bn": 0.9999994984946372,
+      "query-ar": 0.9999998423609422,
+      "document": 0.9999997239545442,
+      "document-long": 1.0
+    },
+    "batched_vs_single_min_cosine": 0.9999999999999999,
+    "usage": {
+      "prompt_tokens": 2117,
+      "total_tokens": 2117
+    }
+  },
+  "sized": {
+    "text_same_as_text_server_min_cosine": 0.9999999999999999,
+    "text_cosine": {
+      "query": 0.9999996906792297,
+      "query-bn": 0.9999994984946372,
+      "query-ar": 0.9999998423609422,
+      "document": 0.9999997239545442,
+      "document-long": 1.0
+    },
+    "images": {
+      "screen-280": {
+        "cosine": 0.9999999999999998,
+        "prompt_tokens": 277,
+        "seconds": 0.16399899998214096
+      },
+      "photo-140": {
+        "cosine": 0.9998425385895313,
+        "prompt_tokens": 134,
+        "seconds": 0.07357316697016358
+      },
+      "frame-70": {
+        "cosine": 0.999761659372071,
+        "prompt_tokens": 67,
+        "seconds": 0.04120695899473503
+      }
+    },
+    "audio": [
+      {
+        "shape": "OpenAI input_audio part, /v1/embeddings",
+        "status": 200,
+        "prompt_tokens": 104,
+        "detail": "",
+        "cosine": 1.0000000000000002
+      },
+      {
+        "shape": "multimodal_data prompt, /v1/embeddings",
+        "status": 500,
+        "prompt_tokens": null,
+        "detail": "{\"error\":{\"code\":500,\"message\":\"Failed to tokenize prompt\",\"type\":\"server_error\"}}",
+        "cosine": null
+      },
+      {
+        "shape": "multimodal_data prompt, /embeddings",
+        "status": 500,
+        "prompt_tokens": null,
+        "detail": "{\"error\":{\"code\":500,\"message\":\"Failed to tokenize prompt\",\"type\":\"server_error\"}}",
+        "cosine": null
+      }
+    ]
+  },
+  "default": {
+    "images": {
+      "screen-280": {
+        "cosine": 0.9898144358643854,
+        "prompt_tokens": 574,
+        "seconds": 0.417239541944582
+      },
+      "photo-140": {
+        "cosine": 0.970748511580302,
+        "prompt_tokens": 340,
+        "seconds": 0.18360704102087766
+      }
+    }
+  },
+  "audio_supported": true,
+  "pass": true
+}
