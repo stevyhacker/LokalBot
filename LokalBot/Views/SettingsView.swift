@@ -176,7 +176,7 @@ struct SettingsView: View {
         case .dayMemory:
             dayTrackingSection; routinesSection; dreamingSection
         case .personalContext:
-            personalContextSection; emailSection
+            personalContextSection; emailSection; filesSection
         case .writing:
             AutocompleteExperienceView(server: app.cotypingServer)
             AutocompleteStatisticsView()
@@ -921,6 +921,12 @@ struct SettingsView: View {
                     .settingsSecondary()
                     .accessibilityIdentifier("settings.digestInstructions.count")
             }
+        }
+    }
+
+    @ViewBuilder private var filesSection: some View {
+        if shows("Files", ["files", "folders", "documents", "pdf", "photos", "pictures", "screenshots", "digup"]) {
+            FileSearchSettingsSection(focusedSettingID: app.focusedSettingID)
         }
     }
 

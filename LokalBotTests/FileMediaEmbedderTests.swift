@@ -137,7 +137,7 @@ final class FileMediaEmbedderTests: XCTestCase {
     private static func response(count: Int) -> Data {
         let vector = (0..<768).map { $0 == 0 ? 2.0 : 0.0 }
         let rows = (0..<count).map { ["index": $0, "embedding": vector] as [String: Any] }
-        return try! JSONSerialization.data(withJSONObject: ["data": rows])
+        return (try? JSONSerialization.data(withJSONObject: ["data": rows])) ?? Data()
     }
 
     private func writePicture(width: Int, height: Int) throws -> URL {

@@ -231,6 +231,22 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
+    /// One line per file: its citation marker, name, kind and date, folder,
+    /// then the matched passage (or the words that matched, for a picture).
+    static func fileResults(query: String, hits: [(hit: FileSearchHit, passage: String?)]) -> String {
+        guard !hits.isEmpty else {
+            return "No files matched “\(query)” in the folders chosen under Files."
+        }
+        var lines = ["Files matching “\(query)” (from folders the user chose to search):"]
+        for (hit, passage) in hits {
+            let date = hit.date.formatted(date: .abbreviated, time: .omitted)
+            let body = clean(String((passage ?? hit.excerpt ?? "").prefix(700)))
+            lines.append("- [file:\(hit.id)] \(hit.name) (\(hit.kindLabel), \(date)) in \(hit.folder)"
+                + (body.isEmpty ? " — a picture without text" : ": \(body)"))
+        }
+        return lines.joined(separator: "\n")
+    }
+
     static func activitySummary(dayLabel: String, blocks: [ActivityBlock],
                                 meetings: [Meeting]) -> String {
         guard !blocks.isEmpty else {
@@ -335,6 +351,9 @@ final class MeetingChatTools: ChatToolRunner {
     private let embeddingIndex: EmbeddingIndex
     private let activityStore: ActivityStore
     private let settingsProvider: () -> AppSettings
+    /// The Files search, while Files is on and has folders; nil otherwise, and
+    /// then `search_files` is not offered at all.
+    private let filesProvider: () -> FileSearchService?
     /// Relative days ("last 7 days", "yesterday") resolve against this clock.
     private let now: () -> Date
 
@@ -344,6 +363,7 @@ final class MeetingChatTools: ChatToolRunner {
          embeddingIndex: EmbeddingIndex,
          activityStore: ActivityStore,
          settings: @escaping () -> AppSettings,
+         files: @escaping () -> FileSearchService? = { nil },
          now: @escaping () -> Date = Date.init) {
         self.meetingsProvider = meetings
         self.storage = storage
@@ -351,10 +371,22 @@ final class MeetingChatTools: ChatToolRunner {
         self.embeddingIndex = embeddingIndex
         self.activityStore = activityStore
         self.settingsProvider = settings
+        self.filesProvider = files
         self.now = now
     }
 
-    let specs: [ChatToolSpec] = [
+    var specs: [ChatToolSpec] {
+        filesProvider() == nil ? Self.baseSpecs : Self.baseSpecs + [Self.searchFilesSpec]
+    }
+
+    static let searchFilesSpec = ChatToolSpec(
+        name: "search_files",
+        summary: "Search the folders the user chose under Files (documents, PDFs, pictures and screenshots on this Mac) by what they say or show. Returns matching files with the passage that matched.",
+        arguments: [
+            .init(name: "query", description: "What to look for, in natural language or keywords.", required: true),
+        ])
+
+    private static let baseSpecs: [ChatToolSpec] = [
         ChatToolSpec(
             name: "search_meetings",
             summary: "Search across every meeting transcript, summary and title. Accepts natural-language or keyword queries; returns matching meetings with timestamps and snippets.",
@@ -410,6 +442,7 @@ final class MeetingChatTools: ChatToolRunner {
         case "get_action_items": return actionItems(call)
         case "search_screen": return searchScreen(call)
         case "activity_summary": return activitySummary(call)
+        case "search_files": return await searchFiles(call)
         default: return ChatToolResult(text: "Unknown tool '\(call.name)'.", summary: "unknown tool")
         }
     }
@@ -546,6 +579,31 @@ final class MeetingChatTools: ChatToolRunner {
         }
         return ChatToolResult(text: MeetingChatFormat.threadedOutcomes(projections, statusFilter: statusFilter),
                               summary: "\(scopeLabel) — \(count) action item\(count == 1 ? "" : "s")", evidence: evidence)
+    }
+
+    private func searchFiles(_ call: ChatToolCall) async -> ChatToolResult {
+        guard let files = filesProvider() else {
+            return ChatToolResult(text: "Files is off, so no folders can be searched.", summary: "files off")
+        }
+        guard let query = call.string("query") else {
+            return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
+        }
+        var interval: DateInterval?
+        if let dayArgument = call.string("_lokalbot_day_scope") {
+            guard let scoped = AskDateScope(storageKey: dayArgument)?.interval() else {
+                return ChatToolResult(text: "Invalid date scope.", summary: "invalid date scope")
+            }
+            interval = scoped
+        }
+        let vector = settingsProvider().semanticSearchEnabled
+            ? await embeddingIndex.queryVector(query, priority: .agent) : nil
+        let hits = await files.search(query, queryVector: vector, interval: interval, limit: 8)
+        var found: [(hit: FileSearchHit, passage: String?)] = []
+        for hit in hits { found.append((hit, await files.passage(of: hit))) }
+        return ChatToolResult(
+            text: MeetingChatFormat.fileResults(query: query, hits: found),
+            summary: "“\(query)” — \(hits.count) file\(hits.count == 1 ? "" : "s")",
+            evidence: ChatEvidence(fileIDs: Set(hits.map(\.id))))
     }
 
     private func searchScreen(_ call: ChatToolCall) -> ChatToolResult {

@@ -19,6 +19,8 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
     /// In the UI this is the Activity source; calendar filtering is independent.
     case today = "Today"
     case screen = "Screen"
+    /// The folders chosen under Files. Offered only while Files is on.
+    case files = "Files"
 
     var id: String { rawValue }
     var displayName: String {
@@ -26,6 +28,7 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .meetings: "Meetings"
         case .today: "Activity"
         case .screen: "Screen"
+        case .files: "Files"
         }
     }
     var icon: String {
@@ -33,10 +36,18 @@ enum AskSourceScope: String, CaseIterable, Codable, Hashable, Identifiable, Send
         case .meetings: "person.2"
         case .today: "chart.bar.doc.horizontal"
         case .screen: "rectangle.on.rectangle"
+        case .files: "folder"
         }
     }
 
-    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen]
+    /// Every source. Files is part of "All sources" whether or not it is on,
+    /// so turning it on or off never makes an earlier question look narrowed.
+    static let defaults: Set<AskSourceScope> = [.meetings, .today, .screen, .files]
+
+    /// The sources a person can choose now: Files only while it is on.
+    static func available(filesEnabled: Bool) -> [AskSourceScope] {
+        allCases.filter { $0 != .files || filesEnabled }
+    }
 
     static func storageValue(for scopes: Set<AskSourceScope>) -> String {
         allCases.filter(scopes.contains).map(\.rawValue).joined(separator: "|")
@@ -168,7 +179,7 @@ final class ScopedChatToolRunner: ChatToolRunner {
                 return ChatToolResult(text: "The selected date scope is invalid. Choose a date again.", summary: "invalid date scope")
             }
             if ["search_meetings", "list_meetings", "get_meeting", "get_action_items",
-                "search_screen"].contains(call.name) {
+                "search_screen", "search_files"].contains(call.name) {
                 arguments["_lokalbot_day_scope"] = day
             } else if call.name == "activity_summary" {
                 arguments["day"] = day
@@ -189,6 +200,8 @@ final class ScopedChatToolRunner: ChatToolRunner {
             scopes.contains(.today)
         case "search_screen":
             scopes.contains(.screen)
+        case "search_files":
+            scopes.contains(.files)
         default:
             false
         }
@@ -257,14 +270,16 @@ enum AskFacet: String, CaseIterable, Identifiable {
     case notes = "Notes"
     case outcomes = "Outcomes"
     case screen = "Screen"
+    case files = "Files"
 
     var id: String { rawValue }
 
-    /// The FTS index kind this facet narrows to; `nil` for All (no filter)
-    /// and Screen (which queries the OCR store instead of the FTS index).
+    /// The FTS index kind this facet narrows to; `nil` for All (no filter),
+    /// Screen (which queries the OCR store instead of the FTS index) and Files
+    /// (the file index).
     var kind: SearchIndex.Kind? {
         switch self {
-        case .all, .screen: nil
+        case .all, .screen, .files: nil
         case .transcripts: .segment
         case .summaries: .summary
         case .notes: .notes

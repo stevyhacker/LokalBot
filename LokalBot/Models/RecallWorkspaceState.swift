@@ -42,10 +42,14 @@ struct RecallWorkspaceState {
     /// rows. Activity has no result rows to bound, so a selected Activity
     /// source stays; otherwise "How long was I in Figma today?" lost the only
     /// tool that answers it whenever the question also matched a result.
-    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>) {
+    /// Files has no per-row bound yet either, so a selected Files source stays
+    /// when file rows were among the results.
+    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>, hadFiles: Bool = false) {
         let keepsActivity = sources.contains(.today)
+        let keepsFiles = hadFiles && sources.contains(.files)
         selectEvidence(meetingIDs: meetingIDs, screenIDs: screenIDs)
         if keepsActivity { sources.insert(.today) }
+        if keepsFiles { sources.insert(.files) }
     }
 
     /// An explicit source choice supersedes any earlier temporary narrowing.
@@ -103,7 +107,8 @@ extension RecallSearch {
     struct Result: Sendable {
         var meetings: [MeetingRecallGroup] = []
         var screens: [ScreenRecallGroup] = []
-        /// More meetings or screen sources matched than are listed.
+        var files: [FileSearchHit] = []
+        /// More meetings, screen sources or files matched than are listed.
         var isTruncated = false
 
         /// Pass one group more than `displayLimit` so a cut list is detected.
@@ -115,6 +120,11 @@ extension RecallSearch {
         mutating func setScreens(_ groups: [ScreenRecallGroup]) {
             isTruncated = isTruncated || groups.count > displayLimit
             screens = Array(groups.prefix(displayLimit))
+        }
+
+        mutating func setFiles(_ hits: [FileSearchHit]) {
+            isTruncated = isTruncated || hits.count > displayLimit
+            files = Array(hits.prefix(displayLimit))
         }
     }
 
@@ -174,8 +184,15 @@ extension RecallSearch {
         let screenFilter = filter
         let url = app.activityStore.databaseURL
         let facet = state.facet
-        let searchMeetings = state.sources.contains(.meetings) && facet != .screen
+        let searchMeetings = state.sources.contains(.meetings) && facet != .screen && facet != .files
         let searchScreens = state.sources.contains(.screen) && (facet == .all || facet == .screen)
+        let searchFiles = state.sources.contains(.files) && (facet == .all || facet == .files)
+            && app.settings.fileSearchEnabled && app.fileSearch.isAvailable
+        // Files match words first; the query vector (shared with meeting and
+        // screen search) adds meaning below.
+        let fileWords = searchFiles
+            ? await app.fileSearch.search(query, queryVector: nil, interval: interval, limit: displayLimit + 1)
+            : []
         var result = await ActivityStore.readInBackground(at: url) { store in
             var result = Result()
             if searchMeetings {
@@ -203,7 +220,15 @@ extension RecallSearch {
             return result
         }
         guard !Task.isCancelled else { return Result() }
+        result.setFiles(fileWords)
         onLexical?(result)
+        if searchFiles, app.settings.semanticSearchEnabled,
+           let vector = await app.embeddingIndex.queryVector(query) {
+            guard !Task.isCancelled else { return Result() }
+            result.setFiles(await app.fileSearch.search(query, queryVector: vector, interval: interval,
+                                                        limit: displayLimit + 1))
+        }
+        guard !Task.isCancelled else { return Result() }
         guard app.settings.semanticSearchEnabled else { return result }
         if searchMeetings, state.facet == .all, app.embeddingIndex.hasEmbeddings {
             let semantic = await app.embeddingIndex.search(query, limit: 200, meetingIDs: meetingIDs,

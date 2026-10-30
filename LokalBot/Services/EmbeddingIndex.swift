@@ -1174,6 +1174,13 @@ final class EmbeddingIndex {
         return vectors
     }
 
+    /// The query's search vector, for searches outside this index (Files).
+    /// Shares the cache with meeting and screen search, so one typed query is
+    /// embedded once. Nil when the embedder is not available.
+    func queryVector(_ query: String, priority: InferencePriority = .interactive) async -> [Float]? {
+        await embedQuery(query, prefix: Self.queryPrefix, priority: priority)
+    }
+
     /// A failed or cancelled embedding is not kept, so the next search retries.
     private func embedQuery(_ query: String, prefix: String,
                             priority: InferencePriority) async -> [Float]? {

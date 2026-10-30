@@ -971,7 +971,11 @@ final class AppState: ObservableObject {
         searchIndex: searchIndex,
         embeddingIndex: embeddingIndex,
         activityStore: activityStore,
-        settings: { [store = settingsStore] in store.current })
+        settings: { [store = settingsStore] in store.current },
+        files: { [weak self] in
+            guard let self, self.settings.fileSearchEnabled, self.fileSearch.isAvailable else { return nil }
+            return self.fileSearch
+        })
 
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
     /// and a tool-calling agent over the live meeting list + search indexes.
@@ -2965,6 +2969,15 @@ final class AppState: ObservableObject {
         screenshots.stop()
         applyTrackingSetting()
         PermissionManager.shared.refresh()
+    }
+
+    /// A `[file:ID]` citation → open the file at its passage, if it is still
+    /// in the Files index.
+    func openFileCitation(_ id: Int64) {
+        guard settings.fileSearchEnabled else { return }
+        Task { @MainActor in
+            if let hit = await fileSearch.hit(segment: id) { FileSearchOpener.open(hit, query: nil) }
+        }
     }
 
     /// Search hit → open the meeting; transcript hits seek the player.

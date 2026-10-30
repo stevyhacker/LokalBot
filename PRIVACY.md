@@ -1,6 +1,6 @@
 # LokalBot Privacy Policy
 
-Effective: October 26, 2026
+Effective: October 30, 2026
 
 LokalBot is a local-first application for macOS, with Windows and Linux in
 alpha. It has no LokalBot account, analytics service, advertising SDK, or
@@ -36,6 +36,9 @@ LokalBot can store the following under its Application Support directory:
 - opt-in Agent Mode sessions and the agent runtime;
 - facts, preferences, goals, and principles you ask Ask to remember about
   you, encrypted;
+- an index of the folders you choose to search under Files: file paths,
+  their text, and vectors of what they say or show (see [Files you
+  choose](#files-you-choose));
 - conversations downloaded from email accounts you connect, encrypted (see
   **Email** under [Network access](#network-access)); and
 - preferences, diagnostic logs, and encryption keys.
@@ -301,6 +304,8 @@ The app may make these outbound connections:
   Qwen3 forced aligner (about 1 GB) that times each word; alignment and speaker
   processing remain on this Mac. Remembering voices also uses the local
   Pyannote models, which download on first use like the speaker models.
+  Turning on Files downloads EmbeddingGemma 2's image and audio projector
+  (555 MB), pinned and checked like the other models.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
@@ -538,6 +543,45 @@ including the Limited Use requirements.
   LokalBot's access; you can also remove it at
   [myaccount.google.com/permissions](https://myaccount.google.com/permissions).
   Deleting LokalBot's library folder removes all downloaded mail.
+
+## Files you choose
+
+Files (Settings → Personal Context → Files) searches folders on your Mac by
+what is in them. It is off until you turn it on after a notice, and it reads
+nothing until you choose a folder. Its engine is
+[DigUp](https://github.com/ARahim3/DigUp)'s, which runs inside LokalBot.
+
+- **What LokalBot reads.** Only the folders you list. In them it reads
+  pictures and screenshots, PDFs page by page (scanned pages as pictures),
+  and documents such as txt, md, rtf, doc, docx, odt, and html. It skips
+  hidden files and folders, app bundles, caches, the insides of code projects
+  except their screenshots, folders that look like datasets, and iCloud files
+  that are not downloaded; it never downloads them. Recordings and video are
+  not read yet. A folder you remove from the list is dropped from the index
+  at the next pass. LokalBot never changes, moves, or uploads your files.
+- **How it is used.** An on-device model (EmbeddingGemma 2, with its image
+  and audio projector) turns each picture, page, and passage into a vector;
+  Apple's Vision reads the text in screenshots. Ask and Quick Recall search
+  those vectors and the extracted text when the Files source is selected, and
+  the Ask assistant can call `search_files` to read the passages that matched.
+  Reading happens in passes when something in the folders changes, and pauses
+  while a meeting records, in Low Power Mode, and while the Mac is warm. The
+  model runs only while new or changed files are read.
+- **Where it is kept.** In `files-index.noindex` in the library: each indexed
+  file's path, size, and dates, the text LokalBot extracted from it, short
+  excerpts, a photo's EXIF capture date, and the vectors. It is not
+  encrypted beyond your disk's own encryption, because it holds text that
+  the files themselves already hold unencrypted in the folders you chose.
+- **Who receives it.** No one, by default: searching and indexing run on your
+  Mac. If you ask Ask a question with Files selected and your Think model is
+  a remote server, the passages `search_files` returns go to that server, as
+  meeting and screen text do, and only to an origin you approved (see
+  **Optional remote inference** under [Network access](#network-access)).
+  External agents using the CLI or MCP can't read Files.
+- **How long it is kept, and deleting it.** The index follows the folders:
+  a file you delete or move out of them leaves the index at the next pass.
+  Turning Files off deletes the whole index at once. Deleting LokalBot's
+  library folder removes it too.
 
 ## Permissions
 
@@ -1073,7 +1117,7 @@ platform differences:
   settings-change access or `setup`, `config` and `secret` commands, and
   personal context is read only from a library that came from a Mac, because
   the app has no Personal Context page or setting for it yet.
-- **Mac-only features.** Personal Context, email, selection actions, meeting note export,
+- **Mac-only features.** Personal Context, email, Files, selection actions, meeting note export,
   daily memory notes, spoken summaries and coding-agent sessions are not in the
   Windows and Linux app yet, so none of their data is collected there.
 - **Network access** is limited to model and runtime downloads you request
