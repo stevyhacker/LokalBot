@@ -44,6 +44,9 @@ final class AgentSessionTabs: ObservableObject {
     private var loadingHistory = false
     private var canPersist = true
     private var runtimeTransitionInProgress = false
+    /// Handed-off tasks waiting for an agent to free up, oldest first.
+    private(set) var pendingHandoffStarts: [UUID] = []
+    private var handoffStartTask: Task<Void, Never>?
 
     convenience init(settings: @escaping () -> AppSettings, storage: StorageManager,
                      thinkExecution: ThinkExecution? = nil) {
@@ -66,6 +69,7 @@ final class AgentSessionTabs: ObservableObject {
                 controller.attachments = record.attachments
                 controller.restoreQueue(record.queuedPrompts)
                 controller.restoreSources(record.sources)
+                controller.allowsLibraryLookups = record.handoff != nil
                 tabs.append(Tab(id: record.id, number: nextNumber, controller: controller, record: record))
                 nextNumber += 1
             }
@@ -89,14 +93,116 @@ final class AgentSessionTabs: ObservableObject {
         return selectedTab.controller
     }
 
-    @discardableResult func addSession() -> Tab {
+    @discardableResult func addSession(select: Bool = true) -> Tab {
         let controller = makeController()
         let record = AgentTaskRecord(id: UUID(), workspace: controller.workspace)
         let tab = Tab(id: record.id, number: nextNumber, controller: controller, record: record)
         nextNumber += 1
-        tabs.append(tab); selectedID = tab.id
+        tabs.append(tab)
+        if select { selectedID = tab.id }
         observe(tab); persistSoon()
         return tab
+    }
+
+    // MARK: - Handoffs
+
+    /// Adds one task per handoff, skipping actions that already have a task,
+    /// without changing the selected task. Each prompt waits in its task's
+    /// composer. With `start`, tasks are sent as agents free up, at most
+    /// `maximumLiveSessions` working at once. `againIfArchived` hands an
+    /// action off again when its only task is archived. Returns the new
+    /// tasks' IDs.
+    @discardableResult func handOff(_ handoffs: [AgentHandoff], start: Bool,
+                                    againIfArchived: Bool = false) -> [UUID] {
+        var added: [UUID] = []
+        for handoff in handoffs where !hasTask(for: handoff.source, againIfArchived: againIfArchived) {
+            let tab = addSession(select: false)
+            tab.controller.draft = handoff.prompt
+            tab.controller.attachments = handoff.attachments
+            tab.controller.allowsLibraryLookups = handoff.source != nil
+            if let folder = handoff.folder {
+                // Best effort: the agent can still make the folder itself.
+                try? FileManager.default.createDirectory(
+                    at: tab.controller.workspace.appendingPathComponent(folder, isDirectory: true),
+                    withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            }
+            guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { continue }
+            tabs[index].record.handoff = handoff.source
+            let title = handoff.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            tabs[index].record.title = title.isEmpty ? nil : String(title.prefix(120))
+            added.append(tab.id)
+        }
+        guard !added.isEmpty else { return [] }
+        persist()
+        if start {
+            pendingHandoffStarts += added
+            startPendingHandoffs()
+        }
+        return added
+    }
+
+    private func hasTask(for source: AgentHandoffSource?, againIfArchived: Bool) -> Bool {
+        guard let source else { return false }
+        return tabs.contains { $0.record.handoff == source && !(againIfArchived && $0.record.isArchived) }
+    }
+
+    /// Sends a task's composer the way its Send button does. A draft edited
+    /// while the model warmed up is left for the person to send.
+    @discardableResult func sendDraft(of id: UUID) async -> Bool {
+        guard let tab = tabs.first(where: { $0.id == id }) else { return false }
+        let controller = tab.controller
+        let original = controller.draft
+        let sources = controller.attachments
+        let prompt = original.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !prompt.isEmpty else { return false }
+        guard await start(id) else { return false }
+        guard controller.draft == original, controller.attachments == sources else { return false }
+        controller.draft = ""; controller.attachments = []
+        let sent = await controller.send(prompt: prompt, attachments: sources)
+        if !sent, controller.draft.isEmpty, controller.attachments.isEmpty {
+            controller.draft = original; controller.attachments = sources
+        }
+        persist()
+        return sent
+    }
+
+    /// Starts waiting handoffs while an agent is free. It runs again whenever
+    /// a task's state changes, so the next one starts as an agent finishes.
+    private func startPendingHandoffs() {
+        guard handoffStartTask == nil, !pendingHandoffStarts.isEmpty else { return }
+        handoffStartTask = Task { [weak self] in
+            await self?.drainPendingHandoffs()
+            self?.handoffStartTask = nil
+        }
+    }
+
+    private func drainPendingHandoffs() async {
+        while let id = pendingHandoffStarts.first, !Task.isCancelled {
+            guard let tab = tabs.first(where: { $0.id == id }), !tab.record.isArchived,
+                  !tab.controller.hasLiveRuntime,
+                  !tab.controller.draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                // Archived, already started by hand, or emptied: nothing to send.
+                pendingHandoffStarts.removeFirst()
+                continue
+            }
+            guard hasRuntimeSlot(for: id) else { return }
+            pendingHandoffStarts.removeFirst()
+            await sendDraft(of: id)
+        }
+    }
+
+    /// True when `start(id)` can run without stopping a busy agent: fewer
+    /// than the maximum are live, or an idle one can be parked.
+    private func hasRuntimeSlot(for id: UUID) -> Bool {
+        tabs.filter({ $0.controller.hasLiveRuntime }).count < Self.maximumLiveSessions
+            || parkableIdleTab(excluding: id) != nil
+    }
+
+    private func parkableIdleTab(excluding id: UUID) -> Tab? {
+        tabs.first {
+            $0.id != id && $0.controller.state == .ready && !$0.controller.isSending
+                && ($0.controller.items.isEmpty || $0.controller.activeSessionFile != nil)
+        }
     }
 
     func select(_ id: UUID) {
@@ -203,10 +309,9 @@ final class AgentSessionTabs: ObservableObject {
         defer { runtimeTransitionInProgress = false }
         if tab.controller.state == .ready || tab.controller.state == .running { return true }
         if tabs.filter({ $0.controller.hasLiveRuntime }).count >= Self.maximumLiveSessions {
-            guard let idle = tabs.first(where: {
-                $0.id != id && $0.controller.state == .ready && !$0.controller.isSending
-                    && ($0.controller.items.isEmpty || $0.controller.activeSessionFile != nil)
-            }) else { error = AgentSavedSessionOpenError.maximumLiveSessions.localizedDescription; return false }
+            guard let idle = parkableIdleTab(excluding: id) else {
+                error = AgentSavedSessionOpenError.maximumLiveSessions.localizedDescription; return false
+            }
             guard await idle.controller.park() else {
                 error = "An idle task is still saving. Try starting this task again in a moment."
                 return false
@@ -297,6 +402,8 @@ final class AgentSessionTabs: ObservableObject {
     func close(_ id: UUID) async { await setArchived(id, true) }
 
     func shutdownAll() async {
+        pendingHandoffStarts.removeAll()
+        handoffStartTask?.cancel(); handoffStartTask = nil
         persist()
         let controllers = tabs.map(\.controller)
         saveTask?.cancel(); saveTask = nil
@@ -324,7 +431,12 @@ final class AgentSessionTabs: ObservableObject {
             .dropFirst(4).sink { [weak self] in self?.persistSoon() }.store(in: &set)
         controller.$queuedPrompts.dropFirst().sink { [weak self] _ in self?.persistSoon() }.store(in: &set)
         controller.$state.dropFirst().sink { [weak self] state in
-            guard let self, state == .running || state == .ready,
+            guard let self else { return }
+            if !self.pendingHandoffStarts.isEmpty {
+                // The publisher fires before the state changes; look once it has.
+                Task { @MainActor [weak self] in self?.startPendingHandoffs() }
+            }
+            guard state == .running || state == .ready,
                   let index = self.tabs.firstIndex(where: { $0.id == tab.id }) else { return }
             self.tabs[index].record.modifiedAt = Date()
             self.persistSoon()

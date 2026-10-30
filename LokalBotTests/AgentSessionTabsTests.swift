@@ -274,6 +274,120 @@ final class AgentSessionTabsTests: XCTestCase {
         await sessions.shutdownAll()
     }
 
+    func testHandOffDraftsOneTaskPerActionWithoutChangingSelection() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        let selected = sessions.selectedID
+        let handoffs = makeHandoffs(count: 2)
+
+        let added = sessions.handOff(handoffs, start: false)
+
+        XCTAssertEqual(added.count, 2)
+        XCTAssertEqual(sessions.selectedID, selected)
+        let tabs = added.compactMap { id in sessions.tabs.first { $0.id == id } }
+        XCTAssertEqual(tabs.map { $0.title }, ["Action 1", "Action 2"])
+        XCTAssertEqual(tabs.map { $0.controller.draft }, ["Work on action 1", "Work on action 2"])
+        XCTAssertEqual(tabs.map { $0.record.handoff }, handoffs.map(\.source))
+        for (tab, handoff) in zip(tabs, handoffs) {
+            let folder = tab.controller.workspace.appendingPathComponent(try XCTUnwrap(handoff.folder))
+            var isDirectory: ObjCBool = false
+            XCTAssertTrue(FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory))
+            XCTAssertTrue(isDirectory.boolValue)
+        }
+        XCTAssertTrue(sessions.handOff(handoffs, start: false).isEmpty, "an action gets one task")
+        XCTAssertTrue(factory.plans.isEmpty, "a drafted handoff waits for Send")
+        await sessions.shutdownAll()
+
+        let restored = AgentSessionTabs { factory.makeController() }
+        XCTAssertEqual(restored.tabs.filter { $0.record.handoff != nil }.map { $0.controller.draft },
+                       ["Work on action 1", "Work on action 2"])
+        XCTAssertTrue(restored.handOff(handoffs, start: false).isEmpty, "handed-off actions are remembered")
+        XCTAssertTrue(factory.plans.isEmpty)
+
+        await restored.setArchived(added[0], true)
+        XCTAssertTrue(restored.handOff(handoffs, start: false).isEmpty, "an archived task still counts")
+        let again = restored.handOff(handoffs, start: false, againIfArchived: true)
+        XCTAssertEqual(again.count, 1, "asked again, only the archived action gets a new task")
+        XCTAssertEqual(restored.tabs.first { $0.id == again.first }?.record.handoff, handoffs[0].source)
+        await restored.shutdownAll()
+    }
+
+    func testStartedHandoffsKeepFourAgentsWorkingAndStartTheNextAsOneStops() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        let acknowledged = #"{"type":"response","id":"p1","command":"prompt","success":true}"#
+
+        let added = sessions.handOff(makeHandoffs(count: 5), start: true)
+
+        XCTAssertEqual(added.count, 5)
+        // Controllers are made when tasks are added: the first transport is the initial task's.
+        for number in 1...4 {
+            let transport = factory.transports[number]
+            try await waitUntil { transport.sentLines.contains { $0.contains("Work on action \(number)") } }
+            transport.inject(acknowledged)
+        }
+        try await waitUntil { sessions.pendingHandoffStarts == [added[4]] }
+        XCTAssertEqual(factory.plans.count, 4)
+        XCTAssertEqual(sessions.tabs.filter { $0.controller.hasLiveRuntime }.count, 4)
+        let fifth = try XCTUnwrap(sessions.tabs.first { $0.id == added[4] })
+        XCTAssertEqual(fifth.controller.draft, "Work on action 5")
+
+        await sessions.tabs.first { $0.id == added[0] }?.controller.shutdown()
+
+        try await waitUntil { factory.transports[5].sentLines.contains { $0.contains("Work on action 5") } }
+        factory.transports[5].inject(acknowledged)
+        try await waitUntil { sessions.pendingHandoffStarts.isEmpty && fifth.controller.draft.isEmpty }
+        XCTAssertEqual(factory.plans.count, 5)
+        XCTAssertEqual(sessions.tabs.filter { $0.controller.hasLiveRuntime }.count, 4)
+        await sessions.shutdownAll()
+    }
+
+    func testStartedHandoffSkipsATaskSentOrClearedByHand() async throws {
+        let factory = Factory(root: root)
+        let sessions = AgentSessionTabs { factory.makeController() }
+        for _ in 0..<4 {
+            let tab = sessions.addSession()
+            _ = await sessions.start(tab.id)
+            factory.transports.last?.inject(#"{"type":"agent_start"}"#)
+        }
+        try await waitUntil { sessions.tabs.filter { $0.controller.state == .running }.count == 4 }
+
+        let added = sessions.handOff(makeHandoffs(count: 2), start: true)
+
+        XCTAssertEqual(sessions.pendingHandoffStarts, added)
+        sessions.tabs.first { $0.id == added[0] }?.controller.draft = ""
+        try await waitUntil { sessions.pendingHandoffStarts == [added[1]] }
+        XCTAssertEqual(factory.plans.count, 4, "no agent is free yet")
+
+        await sessions.tabs.first { $0.controller.state == .running }?.controller.shutdown()
+
+        // The second handoff's controller is the last one made.
+        let transport = try XCTUnwrap(factory.transports.last)
+        try await waitUntil { transport.sentLines.contains { $0.contains("Work on action 2") } }
+        transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
+        try await waitUntil { sessions.pendingHandoffStarts.isEmpty }
+        XCTAssertEqual(factory.plans.count, 5, "only the task that still had its prompt starts")
+        XCTAssertFalse(factory.transports[factory.transports.count - 2].sentLines.contains { $0.contains("Work on action 1") })
+        await sessions.shutdownAll()
+    }
+
+    private func makeHandoffs(count: Int) -> [AgentHandoff] {
+        let meetingID = UUID()
+        return (1...count).map { number in
+            AgentHandoff(source: AgentHandoffSource(meetingID: meetingID, actionID: "action-\(number)"),
+                         title: "Action \(number)", prompt: "Work on action \(number)",
+                         attachments: [], folder: "handoffs/2026-10-27-demo/\(number)-action-\(number)")
+        }
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async throws {
+        for _ in 0..<500 {
+            if condition() { return }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTFail("condition never became true")
+    }
+
 
     private func writeSession(
         id: String,

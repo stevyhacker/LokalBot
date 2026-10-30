@@ -359,6 +359,17 @@ struct LokalBotApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
+        Window(app.settings.appLanguage.localized("Hand Off"), id: "window-handoff") {
+            WindowHandoffView()
+                .environmentObject(app)
+                .brandTinted()
+                .appTextSizeRoot(app.settings.textSize)
+                .appLanguageRoot(app.settingsStore)
+        }
+        .windowResizability(.contentSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultPosition(.center)
+
         // An agent's `setup start` request.
         Window(app.settings.appLanguage.localized("Set Up with Your Agent"), id: "agent-setup") {
             AgentSetupView()
