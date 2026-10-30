@@ -609,6 +609,9 @@ grant optional permissions until you approve them:
   When it is already granted, Autocomplete also uses it to place suggestions
   in fields that report no caret position and to read the focused window's
   text (see below); it never asks for it.
+- Files and Folders access (Desktop, Documents, Downloads, external and
+  network drives), only when a folder you choose under Files lives there;
+  macOS asks the first time LokalBot reads it.
 
 On a fresh install, LokalBot asks through a notification before it records a
 detected meeting. You can switch to automatic recording or turn auto-record
