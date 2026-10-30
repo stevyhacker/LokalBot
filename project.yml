@@ -47,6 +47,9 @@ packages:
   LaunchAtLogin:
     url: https://github.com/sindresorhus/LaunchAtLogin-Modern
     from: "1.1.0"
+  DigUp:
+    url: https://github.com/ARahim3/DigUp
+    revision: dc2651ad8299160bbe91e972f857e1a1599a8419  # DigUpKit only (MIT): file crawling, reading, index and search
 
 # Shared application body. Both `LokalBot` (prod) and `LokalBot Dev` build the
 # SAME sources from this template and differ only in identity-bearing settings
@@ -131,6 +134,8 @@ targetTemplates:
         product: Logging
       - package: LaunchAtLogin
         product: LaunchAtLogin
+      - package: DigUp
+        product: DigUpKit
       # Embed the self-contained CLI into Contents/Helpers/ and code-sign it
       # on copy (hardened runtime during a notarised archive). It's a target
       # dependency so it's built first; `link: false` because a tool is

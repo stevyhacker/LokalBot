@@ -1288,6 +1288,12 @@ final class EmbeddingIndex {
         }
     }
 
+    /// The verified text model, downloading it first if needed. The media
+    /// embedder for Files loads the same file next to its projector.
+    static func preparedModel(storage: StorageManager) async throws -> URL {
+        try await ensureModel(storage: storage)
+    }
+
     private static func ensureModel(storage: StorageManager) async throws -> URL {
         let storageRoot = storage.rootURL
         let key = storageRoot.appendingPathComponent("models/\(modelFile)")

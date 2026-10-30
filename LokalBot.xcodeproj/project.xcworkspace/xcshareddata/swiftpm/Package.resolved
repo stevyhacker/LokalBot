@@ -1,5 +1,5 @@
 {
-  "originHash" : "1f49aabc9ee0810dbabd1210ae9e21673345e3edaf0ce99b038c1d861ac72a45",
+  "originHash" : "e939b4695fd54da1a3a875874a4cc430daeaf62106d3533569ee0be3f7ad3b0a",
   "pins" : [
     {
       "identity" : "async-http-client",
@@ -17,6 +17,14 @@
       "state" : {
         "revision" : "e1caa19077dda4b00441142ef57da3db02acd466",
         "version" : "1.4.2"
+      }
+    },
+    {
+      "identity" : "digup",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ARahim3/DigUp",
+      "state" : {
+        "revision" : "dc2651ad8299160bbe91e972f857e1a1599a8419"
       }
     },
     {

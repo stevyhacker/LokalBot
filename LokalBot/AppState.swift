@@ -162,6 +162,10 @@ final class AppState: ObservableObject {
             if oldValue.semanticSearchEnabled, !settings.semanticSearchEnabled {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
+            if settings.fileSearchEnabled != oldValue.fileSearchEnabled
+                || settings.fileSearchFolders != oldValue.fileSearchFolders {
+                applyFileSearchSetting()
+            }
             if interactive {
                 if Self.dictationLifecycleChanged(from: oldValue, to: settings) {
                     dictation.applySettings()
@@ -711,6 +715,16 @@ final class AppState: ObservableObject {
         controller.canSync = { [weak self] in self?.libraryReady == true }
         return controller
     }()
+    /// Files: the folders the person chose, searched by what is in them.
+    /// Nothing is read until Files is turned on and a folder is chosen.
+    private(set) lazy var fileSearch: FileSearchService = {
+        let service = FileSearchService.live(storage: storage)
+        service.isRecording = { [weak self] in
+            guard let self else { return false }
+            return self.recording.isRecording || self.recording.isStarting
+        }
+        return service
+    }()
     private var cachedSearchIndex: SearchIndex?
     var searchIndex: SearchIndex {
         if let cachedSearchIndex { return cachedSearchIndex }
@@ -1090,6 +1104,7 @@ final class AppState: ObservableObject {
     /// and (re)point the live transcriber at the active meeting folder.
     private func meetingRecordingStateDidChange(active: Bool) {
         guard interactive else { return }
+        if settings.fileSearchEnabled { fileSearch.conditionsDidChange() }
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
@@ -1418,6 +1433,7 @@ final class AppState: ObservableObject {
             if self.settings.semanticSearchEnabled {
                 self.reindexEmbeddingLibraryInBackground(merged)
             }
+            self.applyFileSearchSetting()
             self.libraryLoadTask = nil
             if let pending = self.pendingRecordingStart {
                 self.pendingRecordingStart = nil
@@ -1610,6 +1626,7 @@ final class AppState: ObservableObject {
             memoryRoutines.stop()
             dreaming.stop()
             email.stop()
+            if settings.fileSearchEnabled { fileSearch.stop() }
             chat.stop()
             dictation.stop()
             cotyping.stop()
@@ -1621,6 +1638,7 @@ final class AppState: ObservableObject {
             await LlamaServer.embedder.stop()
             await LlamaServer.cotyping.stop()
             await GraniteSpeechEngine.shared.shutdown()
+            await FileMediaEmbedderRuntime.shared.shutdown()
             return true
         }
         terminationCleanupTask = task
@@ -2615,6 +2633,14 @@ final class AppState: ObservableObject {
         )) { [weak self] message in
             self?.lastError = message
         }
+    }
+
+    /// Starts, re-reads or stops Files. Headless runs and the UI test host
+    /// never read the chosen folders.
+    func applyFileSearchSetting() {
+        guard HeadlessCommand.requested == nil, !Self.isUITesting, libraryReady else { return }
+        guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
+        fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders))
     }
 
     func applyDreamingSetting() {
