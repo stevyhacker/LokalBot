@@ -1,0 +1,17 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 20,
+      "speaker": "them",
+      "text": "We want the meeting summaries flowing into our CRM within the quarter."
+    },
+    {
+      "start": 20,
+      "end": 40,
+      "speaker": "me",
+      "text": "The export API covers it. I'll share the schema and a sandbox key today."
+    }
+  ]
+}
