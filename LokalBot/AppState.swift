@@ -625,6 +625,18 @@ final class AppState: ObservableObject {
     private(set) lazy var personalContextAccess = PersonalContextAccessManager(
         gate: PersonalContextAccessGate(root: storage.rootURL),
         claims: { [weak self] in self?.personalModel.readableClaims() })
+    /// File search for agents: a fourth read grant, with the chosen folders
+    /// kept in a copy the CLI reads while Files is on.
+    private(set) lazy var filesAccess = FilesAccessManager(
+        gate: FilesAccessGate(root: storage.rootURL),
+        folders: { [weak self] in
+            guard let self, self.settings.fileSearchEnabled else { return nil }
+            return self.settings.fileSearchFolders
+        })
+    /// The one switch over the four read grants, with a box for each.
+    private(set) lazy var agentReadAccess = AgentReadAccess(
+        meetings: agentAccess, screenMemory: screenMemoryAccess, personalContext: personalContextAccess,
+        files: filesAccess, root: storage.rootURL)
     /// Terminal settings access is another separate grant. Its control
     /// socket exists only while the grant is on.
     private(set) lazy var settingsControl = SettingsControlAccessManager(
@@ -1396,6 +1408,7 @@ final class AppState: ObservableObject {
         agentAccess.start()
         screenMemoryAccess.start()
         personalContextAccess.start()
+        filesAccess.start()
         settingsApprovals.announce = { request in RecordingNotifier.shared.settingsApprovalRequested(request) }
         settingsApprovals.withdraw = { request in RecordingNotifier.shared.withdrawSettingsApproval(request.id) }
         settingsControl.start()
@@ -2714,6 +2727,8 @@ final class AppState: ObservableObject {
     /// never read the chosen folders.
     func applyFileSearchSetting() {
         guard HeadlessCommand.requested == nil, !Self.isUITesting, libraryReady else { return }
+        // The folders agents may search follow the folders Files reads.
+        filesAccess.refresh()
         guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
         fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders))
     }

@@ -105,7 +105,7 @@ final class MCPServerIntegrationTests: XCTestCase {
         for tool in [
             "get_briefing", "list_meetings", "get_meeting", "search_meetings", "ask_library",
             "search_screen", "get_timeline", "get_recent_activity", "get_app_usage",
-            "get_screenshot_detail", "get_personal_context",
+            "get_screenshot_detail", "get_personal_context", "search_files",
         ] {
             XCTAssertTrue(output[1].contains("\"\(tool)\""), tool)
         }

@@ -438,6 +438,9 @@ targets:
     dependencies:
       - package: ArgumentParser
         product: ArgumentParser
+      # search-files and search_files read the Files index with DigUp's search.
+      - package: DigUp
+        product: DigUpKit
     settings:
       base:
         SWIFT_VERSION: "5.10"
