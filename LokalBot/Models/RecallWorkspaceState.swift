@@ -1,5 +1,14 @@
 import Foundation
 
+/// Ask's query and retrieval state for the session. Only Ask observes it:
+/// AppState does not relay its changes, so a keystroke in the query field
+/// re-renders Ask rather than every AppState observer.
+@MainActor
+final class RecallWorkspace: ObservableObject {
+    @Published var query = ""
+    @Published var state = RecallWorkspaceState()
+}
+
 /// Shared, session-lived navigation state. Opening evidence does not discard
 /// the selected filters, attachments, result or unfinished question.
 struct RecallWorkspaceState {

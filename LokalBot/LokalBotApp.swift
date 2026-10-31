@@ -241,14 +241,21 @@ private struct MigrationRecoveryView: View {
 }
 
 struct LokalBotApp: App {
-    @StateObject private var app: AppState
+    /// Held, not observed: the scenes and menus read `scene`, and each window
+    /// root observes AppState itself. Created once, as the App is.
+    private let app: AppState
+    @StateObject private var scene: AppSceneState
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         let appState = AppState()
-        _app = StateObject(wrappedValue: appState)
+        app = appState
+        _scene = StateObject(wrappedValue: AppSceneState(app: appState))
         AppDelegate.appState = appState
     }
+
+    private var language: AppLanguage { scene.values.language }
+    private var textSize: AppTextSize { scene.values.textSize }
 
     var body: some Scene {
         Window("LokalBot", id: "main") {
@@ -257,25 +264,25 @@ struct LokalBotApp: App {
         .defaultSize(width: 1180, height: 740)
         .commands {
             SidebarCommands()
-            AgentCommands(app: app)
-            CommandMenu(app.settings.appLanguage.localized("Recording")) {
-                Button(app.settings.appLanguage.localized(app.isRecording ? "Stop Recording" : "Start Recording")) {
+            AgentCommands(app: app, language: language, active: scene.values.agentActive)
+            CommandMenu(language.localized("Recording")) {
+                Button(language.localized(scene.values.isRecording ? "Stop Recording" : "Start Recording")) {
                     app.isRecording
                         ? app.stopRecording()
                         : app.startRecording(context: app.recordingContext(for: app.detector.activeApp), source: "command")
                 }
                 .keyboardShortcut("r", modifiers: [.command, .shift])
 
-                Button(app.settings.appLanguage.localized("Import Recording…")) {
+                Button(language.localized("Import Recording…")) {
                     RecordingImportPanel.choose(into: app)
                 }
 
                 Divider()
 
-                Button(app.settings.appLanguage.localized(
-                    app.dictation.state.isRecording
+                Button(language.localized(
+                    scene.values.isDictating
                         ? "Stop & Compose Dictation"
-                        : app.dictation.isStarting || app.dictation.state.isWorking
+                        : scene.values.isDictationBusy
                             ? "Cancel Dictation" : "Start Dictation"
                 )) {
                     app.dictation.toggle(source: "command")
@@ -283,7 +290,7 @@ struct LokalBotApp: App {
 #if DEBUG
                 Divider()
 
-                Button(app.settings.appLanguage.localized("Record Capture Trace (60 s)")) {
+                Button(language.localized("Record Capture Trace (60 s)")) {
                     app.startCaptureTraceRecording()
                 }
 #endif
@@ -291,68 +298,68 @@ struct LokalBotApp: App {
             // ⌘K opens the command palette. Registered at the app level so it
             // works from anywhere; the palette window is opened via openWindow.
             CommandGroup(after: .toolbar) {
-                Button(app.settings.appLanguage.localized("Command Palette…")) {
+                Button(language.localized("Command Palette…")) {
                     WindowAccess.shared.open("palette")
                 }
                 .keyboardShortcut("k", modifiers: [.command])
 
-                Button(app.settings.appLanguage.localized("Ask…")) {
+                Button(language.localized("Ask…")) {
                     app.openQuickRecall()
                 }
             }
             CommandGroup(before: .textEditing) {
-                Button(app.settings.appLanguage.localized(app.navSection == .agent ? "Find in Task…" : "Find in Meeting…")) {
+                Button(language.localized(scene.values.agentActive ? "Find in Task…" : "Find in Meeting…")) {
                     if app.navSection == .agent { app.agentSessions.findRequest += 1 } else { app.requestSelectedMeetingSearch() }
                 }
                 .keyboardShortcut("f", modifiers: .command)
-                .disabled(app.navSection != .agent && !app.canSearchSelectedMeeting)
+                .disabled(!scene.values.agentActive && !scene.values.canSearchSelectedMeeting)
             }
             // Keep the standard Settings shortcut inside the main workspace.
             CommandGroup(replacing: .appSettings) {
-                Button(app.settings.appLanguage.localized("Settings…")) {
+                Button(language.localized("Settings…")) {
                     app.openSettings()
                 }
                 .keyboardShortcut(",", modifiers: .command)
             }
         }
 
-        Window(app.settings.appLanguage.localized("Welcome to LokalBot"), id: "onboarding") {
+        Window(language.localized("Welcome to LokalBot"), id: "onboarding") {
             OnboardingView()
                 .environmentObject(app)
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
 
         // The ⌘K command palette. A lightweight, keyboard-first launcher that
         // records, navigates, and opens recent meetings without the sidebar.
-        Window(app.settings.appLanguage.localized("Command Palette"), id: "palette") {
+        Window(language.localized("Command Palette"), id: "palette") {
             CommandPaletteView()
                 .environmentObject(app)
                 .brandTinted()
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
-        Window(app.settings.appLanguage.localized("Ask"), id: "quick-recall") {
+        Window(language.localized("Ask"), id: "quick-recall") {
             QuickRecallView()
                 .environmentObject(app)
                 .brandTinted()
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
-        Window(app.settings.appLanguage.localized("Selection actions"), id: "selection-actions") {
+        Window(language.localized("Selection actions"), id: "selection-actions") {
             SelectionActionsView()
                 .environmentObject(app)
                 .brandTinted()
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
@@ -360,22 +367,22 @@ struct LokalBotApp: App {
         .defaultPosition(.center)
 
         // An agent's `setup start` request.
-        Window(app.settings.appLanguage.localized("Set Up with Your Agent"), id: "agent-setup") {
+        Window(language.localized("Set Up with Your Agent"), id: "agent-setup") {
             AgentSetupView()
                 .environmentObject(app)
                 .brandTinted()
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
         // Terminal requests that need the person: one card per request.
-        Window(app.settings.appLanguage.localized("Approve Settings Change"), id: "settings-approval") {
+        Window(language.localized("Approve Settings Change"), id: "settings-approval") {
             SettingsApprovalView()
                 .environmentObject(app)
                 .brandTinted()
-                .appTextSizeRoot(app.settings.textSize)
+                .appTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
@@ -386,10 +393,10 @@ struct LokalBotApp: App {
             MenuBarView(dictation: app.dictation)
                 .environmentObject(app)
                 .brandTinted()
-                .menuBarTextSizeRoot(app.settings.textSize)
+                .menuBarTextSizeRoot(textSize)
                 .appLanguageRoot(app.settingsStore)
         } label: {
-            MenuBarLabel(app: app, dictation: app.dictation)
+            MenuBarLabel(scene: scene, recording: app.recording, dictation: app.dictation)
                 .appLanguageRoot(app.settingsStore)
         }
         .menuBarExtraStyle(.window)
@@ -400,7 +407,7 @@ struct LokalBotApp: App {
         MainWindowView()
             .environmentObject(app)
             .brandTinted()
-            .appTextSizeRoot(app.settings.textSize)
+            .appTextSizeRoot(textSize)
             .appLanguageRoot(app.settingsStore)
     }
 }

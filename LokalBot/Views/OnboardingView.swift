@@ -249,7 +249,7 @@ struct OnboardingView: View {
                 Text(model).font(AppFont.scaled(.callout)).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(app.modelRoles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))
+            ModelRoleStatusText(roles: app.modelRoles, role: role)
         }.workspacePanel()
     }
 
@@ -270,5 +270,15 @@ struct OnboardingView: View {
             Text("You can browse, search and edit your existing local library immediately. Setup does not delete any content or change existing remote-server approvals.")
                 .workspaceTextRole(.trust)
         }
+    }
+}
+
+/// Download progress reaches only this label: AppState does not relay it.
+private struct ModelRoleStatusText: View {
+    @ObservedObject var roles: ModelRoles
+    let role: ModelRole
+
+    var body: some View {
+        Text(roles.snapshot[role].label).font(.scaled(.callout).weight(.semibold))
     }
 }
