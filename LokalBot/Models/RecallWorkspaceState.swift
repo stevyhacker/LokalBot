@@ -51,10 +51,14 @@ struct RecallWorkspaceState {
     /// rows. Activity has no result rows to bound, so a selected Activity
     /// source stays; otherwise "How long was I in Figma today?" lost the only
     /// tool that answers it whenever the question also matched a result.
-    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>) {
+    /// Files has no per-row bound yet either, so a selected Files source stays
+    /// when file rows were among the results.
+    mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>, hadFiles: Bool = false) {
         let keepsActivity = sources.contains(.today)
+        let keepsFiles = hadFiles && sources.contains(.files)
         selectEvidence(meetingIDs: meetingIDs, screenIDs: screenIDs)
         if keepsActivity { sources.insert(.today) }
+        if keepsFiles { sources.insert(.files) }
     }
 
     /// An explicit source choice supersedes any earlier temporary narrowing.
@@ -112,8 +116,12 @@ extension RecallSearch {
     struct Result: Sendable {
         var meetings: [MeetingRecallGroup] = []
         var screens: [ScreenRecallGroup] = []
-        /// More meetings or screen sources matched than are listed.
+        var files: [FileSearchHit] = []
+        /// More meetings, screen sources or files matched than are listed.
         var isTruncated = false
+        /// The share of the query's words each keyword screen hit holds, for
+        /// ranking it with meaning matches (`ScreenSearch`).
+        var screenCoverage: [Int64: Double] = [:]
 
         /// Pass one group more than `displayLimit` so a cut list is detected.
         mutating func setMeetings(_ groups: [MeetingRecallGroup]) {
@@ -125,6 +133,20 @@ extension RecallSearch {
             isTruncated = isTruncated || groups.count > displayLimit
             screens = Array(groups.prefix(displayLimit))
         }
+
+        mutating func setFiles(_ hits: [FileSearchHit]) {
+            isTruncated = isTruncated || hits.count > displayLimit
+            files = Array(hits.prefix(displayLimit))
+        }
+    }
+
+    /// Keyword screen matches as source sessions, and what ranking them with
+    /// meaning matches needs (`ScreenSearch.coverage`): whether every word of
+    /// the query matched, and which hits are saved moments.
+    struct KeywordScreens: Sendable {
+        var groups: [ScreenRecallGroup]
+        var matchedAll: Bool
+        var saved: Set<Int64>
     }
 
     /// Keyword screen matches (relaxed when the strict query finds nothing)
@@ -132,7 +154,13 @@ extension RecallSearch {
     /// One group more than `displayLimit` is returned so a cut list shows.
     static func keywordScreenGroups(in store: ActivityStore, query: String,
                                     filter: ScreenSearchFilter) -> [ScreenRecallGroup] {
+        keywordScreens(in: store, query: query, filter: filter).groups
+    }
+
+    static func keywordScreens(in store: ActivityStore, query: String,
+                               filter: ScreenSearchFilter) -> KeywordScreens {
         var hits = store.searchOCR(query, limit: 2_000, filter: filter, groupResults: false, deferringSnippets: true)
+        let matchedAll = !hits.isEmpty
         if hits.isEmpty {
             hits = store.searchOCR(query, limit: 2_000, matchAll: false, dropStopWords: true,
                                    filter: filter, groupResults: false, deferringSnippets: true)
@@ -147,7 +175,9 @@ extension RecallSearch {
         }
         hits += saved.map { ActivityStore.OCRHit(snapshotID: $0.snapshotID, ts: $0.ts, app: $0.app,
                                                 windowTitle: $0.windowTitle, snippet: $0.note) }
-        return readableScreenGroups(hits, query: query, limit: displayLimit + 1, fill: store.fillOCRSnippets)
+        return KeywordScreens(
+            groups: readableScreenGroups(hits, query: query, limit: displayLimit + 1, fill: store.fillOCRSnippets),
+            matchedAll: matchedAll, saved: Set(saved.map(\.snapshotID)))
     }
 
     /// `screenGroups(readableScreens(fill(hits), query:), limit:)`, filling
@@ -252,8 +282,15 @@ extension RecallSearch {
         let screenFilter = filter
         let url = app.activityStore.databaseURL
         let facet = state.facet
-        let searchMeetings = state.sources.contains(.meetings) && facet != .screen
+        let searchMeetings = state.sources.contains(.meetings) && facet != .screen && facet != .files
         let searchScreens = state.sources.contains(.screen) && (facet == .all || facet == .screen)
+        let searchFiles = state.sources.contains(.files) && (facet == .all || facet == .files)
+            && app.settings.fileSearchEnabled && app.fileSearch.isAvailable
+        // Files match words first; the query vector (shared with meeting and
+        // screen search) adds meaning below.
+        let fileWords = searchFiles
+            ? await app.fileSearch.search(query, queryVector: nil, interval: interval, limit: displayLimit + 1)
+            : []
         var result = await ActivityStore.readInBackground(at: url) { store in
             var result = Result()
             if searchMeetings {
@@ -262,11 +299,27 @@ extension RecallSearch {
                 result.setMeetings(groups(readable(hits, query: query), limit: displayLimit + 1))
             }
             guard !Task.isCancelled, searchScreens else { return result }
-            result.setScreens(keywordScreenGroups(in: store, query: query, filter: screenFilter))
+            let keyword = keywordScreens(in: store, query: query, filter: screenFilter)
+            // Counted on the hits that made the list, whose snippets are filled.
+            var coverage = ScreenSearch.coverage(query: query, hits: keyword.groups.flatMap(\.matches),
+                                                 matchedAll: keyword.matchedAll) {
+                store.ocrText(snapshotID: $0)
+            }
+            for id in keyword.saved { coverage[id] = 1 }
+            result.screenCoverage = coverage
+            result.setScreens(keyword.groups)
             return result
         }
         guard !Task.isCancelled else { return Result() }
+        result.setFiles(fileWords)
         onLexical?(result)
+        if searchFiles, app.settings.semanticSearchEnabled,
+           let vector = await app.embeddingIndex.queryVector(query) {
+            guard !Task.isCancelled else { return Result() }
+            result.setFiles(await app.fileSearch.search(query, queryVector: vector, interval: interval,
+                                                        limit: displayLimit + 1))
+        }
+        guard !Task.isCancelled else { return Result() }
         guard app.settings.semanticSearchEnabled else { return result }
         if searchMeetings, state.facet == .all, app.embeddingIndex.hasEmbeddings {
             let semantic = await app.embeddingIndex.search(query, limit: 200, meetingIDs: meetingIDs,
@@ -283,23 +336,16 @@ extension RecallSearch {
                                              limit: displayLimit + 1))
         }
         if searchScreens {
-            let semantic = await app.embeddingIndex.searchScreen(query, filter: filter, limit: 200,
-                                                                 priority: .interactive)
+            // Text and picture vectors on one scale, ranked with the keyword
+            // hits (`ScreenSearch`). With no vectors yet the keyword results stay.
+            let meanings = await app.embeddingIndex.screenMeanings(query, filter: filter, priority: .interactive)
             guard !Task.isCancelled else { return Result() }
-            let hits = result.screens.flatMap(\.matches)
-            let keywordByID = Dictionary(hits.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
-            let semanticByID = Dictionary(semantic.map { ($0.snapshotID, $0) }, uniquingKeysWith: { first, _ in first })
-            let ranked = ScreenSearchRanker.fuse(keyword: hits, semantic: semantic, limit: 2_000)
-            result.setScreens(screenGroups(ranked.compactMap { match in
-                if let hit = keywordByID[match.snapshotID] { return hit }
-                guard let hit = semanticByID[match.snapshotID],
-                      let shot = app.activityStore.screenshot(id: match.snapshotID) else { return nil }
-                guard let excerpt = RecallPassage.excerpt(hit.text, query: query) else { return nil }
-                var result = ActivityStore.OCRHit(snapshotID: shot.id, ts: shot.ts, app: shot.app,
-                                                   windowTitle: shot.windowTitle, snippet: excerpt)
-                result.isSemantic = true
-                return result
-            }, limit: displayLimit + 1))
+            if !meanings.isEmpty {
+                let ranked = ScreenSearch.ranked(
+                    query: query, keyword: result.screens.flatMap(\.matches), coverage: result.screenCoverage,
+                    meanings: meanings, limit: 2_000, screenshot: { app.activityStore.screenshot(id: $0) })
+                result.setScreens(screenGroups(ranked, limit: displayLimit + 1))
+            }
         }
         return result
     }

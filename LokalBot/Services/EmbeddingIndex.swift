@@ -143,64 +143,6 @@ final class EmbeddingRequestGate {
     }
 }
 
-/// Deterministic reciprocal-rank fusion for lexical + semantic screen search.
-/// It intentionally consumes only stable snapshot IDs: metadata is resolved
-/// through `ActivityStore.screenshot(id:)`, avoiding stale duplicated rows.
-enum ScreenSearchRanker {
-    struct RankedSnapshot: Identifiable, Equatable, Sendable {
-        let snapshotID: Int64
-        let score: Double
-        let keywordRank: Int?
-        let semanticRank: Int?
-
-        var id: Int64 { snapshotID }
-    }
-
-    static func fuse(
-        keyword: [ActivityStore.OCRHit],
-        semantic: [EmbeddingIndex.ScreenHit],
-        limit: Int = 40,
-        rankConstant: Double = 60
-    ) -> [RankedSnapshot] {
-        guard limit > 0 else { return [] }
-        let constant = max(1, rankConstant)
-        var keywordRanks: [Int64: Int] = [:]
-        var semanticRanks: [Int64: Int] = [:]
-
-        for (offset, hit) in keyword.enumerated() where keywordRanks[hit.snapshotID] == nil {
-            keywordRanks[hit.snapshotID] = offset + 1
-        }
-        for (offset, hit) in semantic.enumerated() where semanticRanks[hit.snapshotID] == nil {
-            semanticRanks[hit.snapshotID] = offset + 1
-        }
-
-        let snapshotIDs = Set(keywordRanks.keys).union(semanticRanks.keys)
-        return snapshotIDs.map { snapshotID in
-            let keywordRank = keywordRanks[snapshotID]
-            let semanticRank = semanticRanks[snapshotID]
-            let score = [keywordRank, semanticRank].compactMap { $0 }.reduce(0.0) {
-                $0 + 1.0 / (constant + Double($1))
-            }
-            return RankedSnapshot(
-                snapshotID: snapshotID,
-                score: score,
-                keywordRank: keywordRank,
-                semanticRank: semanticRank)
-        }.sorted { lhs, rhs in
-            if lhs.score != rhs.score { return lhs.score > rhs.score }
-            // Prefer lexical evidence only for equal fused relevance, never
-            // ahead of a higher-ranked semantic-only capture.
-            let lhsLexical = lhs.keywordRank != nil
-            let rhsLexical = rhs.keywordRank != nil
-            if lhsLexical != rhsLexical { return lhsLexical }
-            let lhsBest = min(lhs.keywordRank ?? .max, lhs.semanticRank ?? .max)
-            let rhsBest = min(rhs.keywordRank ?? .max, rhs.semanticRank ?? .max)
-            if lhsBest != rhsBest { return lhsBest < rhsBest }
-            return lhs.snapshotID < rhs.snapshotID
-        }.prefix(limit).map { $0 }
-    }
-}
-
 /// M6 semantic layer (design §4.1): transcript/summary chunks embedded with
 /// EmbeddingGemma 2 GGUF, served by the second llama-server instance.
 /// Vectors live in SQLite; query = brute-force cosine (normalized dot) —
@@ -316,6 +258,9 @@ final class EmbeddingIndex {
     /// query, and search again when only a filter or a trailing space changes.
     /// The model is fixed for an index version, so the last vector stays valid.
     private var lastQueryEmbedding: (input: String, vector: [Float])?
+    /// Called when screens are searched by meaning, so picture vectors
+    /// (`ScreenImageEmbeddings`) can start once they are wanted.
+    var screenSearchByMeaningDidStart: (() -> Void)?
 
     /// Turns texts into vectors. The app sends them to the embedder
     /// llama-server; tests pass a recorder instead.
@@ -943,6 +888,106 @@ final class EmbeddingIndex {
         return hits.filter { live.contains($0.snapshotID) }
     }
 
+    /// A capture's best meaning match for a query, and what search shows for it.
+    struct ScreenMeaningMatch: Sendable {
+        let meaning: ScreenSearchRanking.Meaning
+        let ts: Date
+        let app: String
+        /// The capture's text, when it has a text vector.
+        let text: String?
+    }
+
+    /// Screens have been searched by meaning on this library.
+    var isScreenSearchInUse: Bool { screenSearchInUse || hasScreenEmbeddings }
+
+    /// Every screen vector, text and picture, scored against the query on one
+    /// scale (`ScreenSearchRanking.meaning`), then limited to `filter`. The
+    /// scale comes from all vectors, so a date or app filter never changes how
+    /// far a capture stands out.
+    func screenMeanings(
+        _ query: String,
+        filter: ScreenSearchFilter = .all,
+        priority: InferencePriority = .background
+    ) async -> [Int64: ScreenMeaningMatch] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, database != nil else { return [:] }
+        if let ids = filter.snapshotIDs, ids.isEmpty { return [:] }
+        screenSearchInUse = true
+        if screenReindexFlight == nil {
+            Task { [weak self] in await self?.reindexScreenText() }
+        }
+        screenSearchByMeaningDidStart?()
+        guard !Task.isCancelled,
+              let queryVector = await embedQuery(trimmed, prefix: Self.screenQueryPrefix, priority: priority)
+        else { return [:] }
+        let url = databaseURL
+        let worker = Task.detached(priority: .userInitiated) { () -> [Int64: ScreenMeaningMatch] in
+            guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return [:] }
+            return Self.screenMeanings(database: database, queryVector: queryVector, filter: filter)
+        }
+        return await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+    }
+
+    nonisolated static func screenMeanings(
+        database: SQLiteDatabase, queryVector: [Float], filter: ScreenSearchFilter
+    ) -> [Int64: ScreenMeaningMatch] {
+        struct Row {
+            let snapshotID: Int64
+            let ts: Date
+            let app: String
+            let text: String?
+            let modality: ScreenSearchRanking.Modality
+            let cosine: Float
+        }
+        var scorer = VectorScorer(queryVector)
+        let byteCount = scorer.byteCount
+        func read(_ statement: OpaquePointer, modality: ScreenSearchRanking.Modality) -> Row? {
+            guard let app = sqlite3_column_text(statement, 2),
+                  let blob = sqlite3_column_blob(statement, 4),
+                  Int(sqlite3_column_bytes(statement, 4)) == byteCount else { return nil }
+            let text = sqlite3_column_text(statement, 3).map { String(cString: $0) }
+            return Row(snapshotID: sqlite3_column_int64(statement, 0),
+                       ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                       app: String(cString: app), text: text, modality: modality,
+                       cosine: scorer.score(blob))
+        }
+        var rows: [Row] = database.query("""
+            SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.text, embedded.vec
+            FROM screen_embeddings AS embedded
+            JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
+            WHERE embedded.model_id = ?1
+              AND EXISTS (SELECT 1 FROM ocr_metadata AS ocr WHERE ocr.snapshot_id = embedded.snapshot_id)
+            """, bind: [indexVersion]) { read($0, modality: .text) }
+        if database.hasRow("""
+            SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_image_embeddings'
+            """) {
+            rows += database.query("""
+                SELECT embedded.snapshot_id, shot.ts, shot.app, NULL, embedded.vec
+                FROM screen_image_embeddings AS embedded
+                JOIN screenshots AS shot ON shot.id = embedded.snapshot_id
+                WHERE embedded.model_id = ?1 AND shot.path != ''
+                """, bind: [ScreenImageEmbeddings.modelID]) { read($0, modality: .image) }
+        }
+        let meanings = ScreenSearchRanking.meaning(rows.map {
+            ScreenSearchRanking.Score(snapshotID: $0.snapshotID, modality: $0.modality, cosine: $0.cosine)
+        })
+        var texts: [Int64: String] = [:]
+        var places: [Int64: (ts: Date, app: String)] = [:]
+        for row in rows {
+            if let text = row.text { texts[row.snapshotID] = text }
+            places[row.snapshotID] = (row.ts, row.app)
+        }
+        var matches: [Int64: ScreenMeaningMatch] = [:]
+        for (id, meaning) in meanings {
+            guard let place = places[id] else { continue }
+            if let ids = filter.snapshotIDs, !ids.contains(id) { continue }
+            if let interval = filter.interval, !(place.ts >= interval.start && place.ts < interval.end) { continue }
+            if let app = filter.app, app.caseInsensitiveCompare(place.app) != .orderedSame { continue }
+            matches[id] = ScreenMeaningMatch(meaning: meaning, ts: place.ts, app: place.app, text: texts[id])
+        }
+        return matches
+    }
+
     func search(_ query: String, limit: Int = 10,
                 meetingIDs: Set<UUID>? = nil,
                 priority: InferencePriority = .background) async -> [Hit] {
@@ -1248,6 +1293,13 @@ final class EmbeddingIndex {
         return vectors
     }
 
+    /// The query's search vector, for searches outside this index (Files).
+    /// Shares the cache with meeting and screen search, so one typed query is
+    /// embedded once. Nil when the embedder is not available.
+    func queryVector(_ query: String, priority: InferencePriority = .interactive) async -> [Float]? {
+        await embedQuery(query, prefix: Self.queryPrefix, priority: priority)
+    }
+
     /// A failed or cancelled embedding is not kept, so the next search retries.
     private func embedQuery(_ query: String, prefix: String,
                             priority: InferencePriority) async -> [Float]? {
@@ -1360,6 +1412,12 @@ final class EmbeddingIndex {
             let norm = sqrt(vector.reduce(0) { $0 + $1 * $1 })
             return norm > 0 ? vector.map { $0 / norm } : vector
         }
+    }
+
+    /// The verified text model, downloading it first if needed. The media
+    /// embedder for Files loads the same file next to its projector.
+    static func preparedModel(storage: StorageManager) async throws -> URL {
+        try await ensureModel(storage: storage)
     }
 
     private static func ensureModel(storage: StorageManager) async throws -> URL {

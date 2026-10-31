@@ -162,6 +162,14 @@ final class AppState: ObservableObject {
             if oldValue.semanticSearchEnabled, !settings.semanticSearchEnabled {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
+            if settings.fileSearchEnabled != oldValue.fileSearchEnabled
+                || settings.fileSearchFolders != oldValue.fileSearchFolders {
+                applyFileSearchSetting()
+            }
+            if settings.semanticSearchEnabled != oldValue.semanticSearchEnabled
+                || settings.effectiveScreenContextCaptureMode != oldValue.effectiveScreenContextCaptureMode {
+                applyScreenImageSetting()
+            }
             if interactive {
                 if Self.dictationLifecycleChanged(from: oldValue, to: settings) {
                     dictation.applySettings()
@@ -729,6 +737,16 @@ final class AppState: ObservableObject {
         controller.canSync = { [weak self] in self?.libraryReady == true }
         return controller
     }()
+    /// Files: the folders the person chose, searched by what is in them.
+    /// Nothing is read until Files is turned on and a folder is chosen.
+    private(set) lazy var fileSearch: FileSearchService = {
+        let service = FileSearchService.live(storage: storage)
+        service.isRecording = { [weak self] in
+            guard let self else { return false }
+            return self.recording.isRecording || self.recording.isStarting
+        }
+        return service
+    }()
     private var cachedSearchIndex: SearchIndex?
     var searchIndex: SearchIndex {
         if let cachedSearchIndex { return cachedSearchIndex }
@@ -749,8 +767,44 @@ final class AppState: ObservableObject {
             storage: storage,
             embedder: UITestRuntime.isUnitTesting ? EmbeddingIndex.unavailableEmbedder : nil)
         for meetingID in excludedMeetingIDs { created.noteDeletion(meetingID) }
+        created.screenSearchByMeaningDidStart = { [weak self] in
+            guard let self, self.screenImagesWanted else { return }
+            self.screenImages.resume()
+        }
         cachedEmbeddingIndex = created
         return created
+    }
+
+    /// Picture vectors for retained screen captures, made on the media
+    /// embedder Files uses. Wanted only with search by meaning and Text +
+    /// visual context; headless runs and test hosts never make them.
+    private var cachedScreenImages: ScreenImageEmbeddings?
+    var screenImages: ScreenImageEmbeddings {
+        if let cachedScreenImages { return cachedScreenImages }
+        let created = ScreenImageEmbeddings.live(
+            storage: storage, databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"))
+        created.isEnabled = { [weak self] in self?.screenImagesWanted ?? false }
+        created.isInUse = { [weak self] in self?.embeddingIndex.isScreenSearchInUse ?? false }
+        created.pauseReason = { [weak self] in
+            guard let self else { return nil }
+            return FileSearchService.PauseReason.current(
+                isRecording: self.recording.isRecording || self.recording.isStarting)
+        }
+        cachedScreenImages = created
+        return created
+    }
+
+    private var screenImagesWanted: Bool {
+        settings.semanticSearchEnabled && settings.effectiveScreenContextCaptureMode.capturesPixels
+            && !UITestRuntime.isUnitTesting && !Self.isUITesting && HeadlessCommand.requested == nil
+    }
+
+    private func applyScreenImageSetting() {
+        if screenImagesWanted {
+            screenImages.conditionsDidChange()
+        } else {
+            cachedScreenImages?.stop()
+        }
     }
     private(set) lazy var screenshots = ScreenshotService(
         store: activityStore, storage: storage, sampler: sampler,
@@ -976,7 +1030,11 @@ final class AppState: ObservableObject {
         searchIndex: searchIndex,
         embeddingIndex: embeddingIndex,
         activityStore: activityStore,
-        settings: { [store = settingsStore] in store.current })
+        settings: { [store = settingsStore] in store.current },
+        files: { [weak self] in
+            guard let self, self.settings.fileSearchEnabled, self.fileSearch.isAvailable else { return nil }
+            return self.fileSearch
+        })
 
     /// Chat assistant (the "Chat" section). Reuses the summariser's `TextEngine`
     /// and a tool-calling agent over the live meeting list + search indexes.
@@ -1109,6 +1167,8 @@ final class AppState: ObservableObject {
     /// and (re)point the live transcriber at the active meeting folder.
     private func meetingRecordingStateDidChange(active: Bool) {
         guard interactive else { return }
+        if settings.fileSearchEnabled { fileSearch.conditionsDidChange() }
+        if screenImagesWanted { screenImages.conditionsDidChange() }
         if settings.cotypingEnabled {
             cotyping.meetingRecordingStateChanged(active: active)
         }
@@ -1438,6 +1498,7 @@ final class AppState: ObservableObject {
             if self.settings.semanticSearchEnabled {
                 self.reindexEmbeddingLibraryInBackground(merged)
             }
+            self.applyFileSearchSetting()
             self.libraryLoadTask = nil
             if let pending = self.pendingRecordingStart {
                 self.pendingRecordingStart = nil
@@ -1495,6 +1556,7 @@ final class AppState: ObservableObject {
             self.embeddingBackfillTask = nil
             self.embeddingBackfill = nil
             await self.embeddingIndex.resumeScreenBackfill()
+            if self.screenImagesWanted { self.screenImages.resume() }
         }
         embeddingBackfillTask = (token, task)
     }
@@ -1504,6 +1566,7 @@ final class AppState: ObservableObject {
     private func screenTextDidArrive() {
         guard settings.semanticSearchEnabled else { return }
         embeddingIndex.screenTextDidArrive()
+        if screenImagesWanted { screenImages.capturesDidArrive() }
     }
 
     private func reindexEmbeddingInBackground(_ meeting: Meeting) {
@@ -1636,6 +1699,8 @@ final class AppState: ObservableObject {
             memoryRoutines.stop()
             dreaming.stop()
             email.stop()
+            if settings.fileSearchEnabled { fileSearch.stop() }
+            cachedScreenImages?.stop()
             chat.stop()
             dictation.stop()
             cotyping.stop()
@@ -1647,6 +1712,7 @@ final class AppState: ObservableObject {
             await LlamaServer.embedder.stop()
             await LlamaServer.cotyping.stop()
             await GraniteSpeechEngine.shared.shutdown()
+            await FileMediaEmbedderRuntime.shared.shutdown()
             return true
         }
         terminationCleanupTask = task
@@ -2644,6 +2710,14 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Starts, re-reads or stops Files. Headless runs and the UI test host
+    /// never read the chosen folders.
+    func applyFileSearchSetting() {
+        guard HeadlessCommand.requested == nil, !Self.isUITesting, libraryReady else { return }
+        guard settings.fileSearchEnabled || fileSearch.configuration.enabled else { return }
+        fileSearch.apply(.init(enabled: settings.fileSearchEnabled, folders: settings.fileSearchFolders))
+    }
+
     func applyDreamingSetting() {
         let snapshot = settings
         dreaming.stop()
@@ -2969,6 +3043,15 @@ final class AppState: ObservableObject {
         screenshots.stop()
         applyTrackingSetting()
         PermissionManager.shared.refresh()
+    }
+
+    /// A `[file:ID]` citation → open the file at its passage, if it is still
+    /// in the Files index.
+    func openFileCitation(_ id: Int64) {
+        guard settings.fileSearchEnabled else { return }
+        Task { @MainActor in
+            if let hit = await fileSearch.hit(segment: id) { FileSearchOpener.open(hit, query: nil) }
+        }
     }
 
     /// Search hit → open the meeting; transcript hits seek the player.

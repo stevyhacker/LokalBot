@@ -11,9 +11,9 @@ final class LlamaServerIsolationTests: XCTestCase {
 
     func testReleasePortsNeverMove() {
         XCTAssertEqual(LlamaServerRole.allCases.map { $0.port(for: .release) },
-                       [17_872, 17_873, 17_874, 17_875])
+                       [17_872, 17_873, 17_874, 17_875, 17_876])
         XCTAssertEqual(LlamaServerRole.allCases.map(\.releasePort),
-                       [17_872, 17_873, 17_874, 17_875])
+                       [17_872, 17_873, 17_874, 17_875, 17_876])
     }
 
     func testEveryAppCopyGetsItsOwnPorts() {
