@@ -69,6 +69,7 @@ final class ActivityStore {
                     FOREIGN KEY(snapshot_id) REFERENCES screenshots(id) ON DELETE CASCADE);
                 CREATE INDEX IF NOT EXISTS idx_screenshot_ts ON screenshots(ts);
                 CREATE INDEX IF NOT EXISTS idx_screenshot_app_ts ON screenshots(app, ts);
+                CREATE INDEX IF NOT EXISTS idx_screenshot_path ON screenshots(path) WHERE path != '';
                 CREATE INDEX IF NOT EXISTS idx_screen_bookmarks_created
                     ON screen_bookmarks(created_at);
                 CREATE TABLE IF NOT EXISTS coding_agent_bursts (
@@ -173,11 +174,17 @@ final class ActivityStore {
     /// An earlier migration version could create the six-column FTS table but
     /// leave `snapshot_id = 0`. Repair those rows idempotently by capture time;
     /// FTS row IDs are not screenshot IDs because empty OCR was never inserted.
+    /// Runs at every launch. Once `ocr_metadata` mirrors the FTS identities
+    /// (every insert writes both), its index finds unlinked rows without
+    /// reading every capture's text, which the FTS table stores first.
     private func backfillUnlinkedOCRRows(_ database: SQLiteDatabase) throws {
+        let unlinked = database.hasRow("SELECT 1 FROM sqlite_master WHERE name = 'ocr_metadata'")
+            ? "rowid IN (SELECT rowid FROM ocr_metadata WHERE snapshot_id <= 0)"
+            : "CAST(snapshot_id AS INTEGER) <= 0"
         let rows: [(rowID: Int64, timestamp: Double, app: String)] = try database
             .queryChecked("""
                 SELECT rowid, CAST(ts AS REAL), app FROM ocr_fts
-                WHERE CAST(snapshot_id AS INTEGER) <= 0
+                WHERE \(unlinked)
                 ORDER BY rowid
                 """) { statement in
                 guard let app = sqlite3_column_text(statement, 2) else { return nil }
@@ -289,6 +296,21 @@ final class ActivityStore {
         var similarityGroupID: Int64?
         var captureCount: Int
         var isSemantic = false
+        /// Set only on hits from `searchOCR(deferringSnippets: true)` until
+        /// `fillOCRSnippets` replaces the empty `snippet`.
+        var pendingSnippet: SnippetSource?
+
+        /// The FTS row a deferred snippet is read from, and how it is marked.
+        struct SnippetSource: Hashable, Sendable {
+            enum Marking: Hashable, Sendable {
+                /// FTS `snippet()` for this MATCH expression.
+                case fullText(String)
+                /// Built from the stored text around these substring terms.
+                case substring([String])
+            }
+            let rowID: Int64
+            let marking: Marking
+        }
 
         init(snapshotID: Int64, ts: Date, app: String, windowTitle: String = "",
              snippet: String, similarityGroupID: Int64? = nil, captureCount: Int = 1) {
@@ -490,25 +512,81 @@ final class ActivityStore {
     /// FTS search over screen text (and window titles). `matchAll: false`
     /// relaxes a natural-language query to OR'd content keywords — same
     /// rescue the meeting search uses.
+    /// `deferringSnippets` returns hits with empty snippets for
+    /// `fillOCRSnippets`, so a caller showing only some hits marks only those.
     func searchOCR(_ query: String, limit: Int = 40,
                    matchAll: Bool = true, dropStopWords: Bool = false,
-                   filter: ScreenSearchFilter = .all, groupResults: Bool = true) -> [OCRHit] {
+                   filter: ScreenSearchFilter = .all, groupResults: Bool = true,
+                   deferringSnippets: Bool = false) -> [OCRHit] {
         guard limit > 0 else { return [] }
         // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
         if CJKSearch.containsCJK(query) {
             return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
-                                      filter: filter, groupResults: groupResults, cjkRowsOnly: false)
+                                      filter: filter, groupResults: groupResults, cjkRowsOnly: false,
+                                      deferringSnippets: deferringSnippets)
         }
         guard let match = SearchIndex.ftsQuery(from: query, matchAll: matchAll,
                                                dropStopWords: dropStopWords) else { return [] }
         let hits = runOCRSearch(matchCondition: "ocr_fts MATCH ?1", bindings: [match],
-                                rankExpression: "ocr_fts.rank",
-                                snippetExpression: "snippet(ocr_fts, 0, '«', '»', '…', 14)",
-                                limit: limit, filter: filter, groupResults: groupResults)
+                                rankExpression: "ocr_fts.rank", marking: .fullText(match),
+                                limit: limit, filter: filter, groupResults: groupResults,
+                                deferringSnippets: deferringSnippets)
         guard hits.isEmpty else { return hits }
         // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
         return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
-                                  filter: filter, groupResults: groupResults, cjkRowsOnly: true)
+                                  filter: filter, groupResults: groupResults, cjkRowsOnly: true,
+                                  deferringSnippets: deferringSnippets)
+    }
+
+    /// Fills the snippets `searchOCR(deferringSnippets: true)` left empty, in
+    /// one query per marking. Building a snippet tokenizes the row's whole
+    /// text, which cost more than ranking when every match got one.
+    func fillOCRSnippets(_ hits: [OCRHit]) -> [OCRHit] {
+        var filled = hits
+        let pending = Dictionary(grouping: hits.indices.filter { hits[$0].pendingSnippet != nil }) {
+            hits[$0].pendingSnippet!.marking
+        }
+        guard !pending.isEmpty, let database else { return hits }
+        for (marking, indices) in pending {
+            for start in stride(from: 0, to: indices.count, by: 500) {
+                let chunk = Array(indices[start..<min(start + 500, indices.count)])
+                var bindings: [Any] = []
+                let snippetColumn: String
+                var condition = ""
+                switch marking {
+                case .fullText(let match):
+                    bindings.append(match)
+                    snippetColumn = "snippet(ocr_fts, 0, '«', '»', '…', 14)"
+                    condition = "ocr_fts MATCH ?1 AND "
+                case .substring:
+                    snippetColumn = "ocr_fts.text"
+                }
+                let rowIDs = chunk.map { index -> String in
+                    bindings.append(hits[index].pendingSnippet!.rowID)
+                    return "?\(bindings.count)"
+                }.joined(separator: ",")
+                var snippets: [Int64: String] = [:]
+                database.withStatement(
+                    "SELECT ocr_fts.rowid, \(snippetColumn) FROM ocr_fts WHERE \(condition)ocr_fts.rowid IN (\(rowIDs))",
+                    bind: bindings
+                ) { statement in
+                    while sqlite3_step(statement) == SQLITE_ROW {
+                        guard let text = sqlite3_column_text(statement, 1) else { continue }
+                        snippets[sqlite3_column_int64(statement, 0)] = String(cString: text)
+                    }
+                }
+                for index in chunk {
+                    let raw = snippets[hits[index].pendingSnippet!.rowID] ?? ""
+                    if case .substring(let terms) = marking {
+                        filled[index].snippet = CJKSearch.snippet(in: raw, terms: terms) ?? String(raw.prefix(72))
+                    } else {
+                        filled[index].snippet = raw
+                    }
+                    filled[index].pendingSnippet = nil
+                }
+            }
+        }
+        return filled
     }
 
     /// Substring counterpart of the FTS search, for text the tokenizer cannot
@@ -517,7 +595,7 @@ final class ActivityStore {
     /// nothing without MATCH.
     private func substringSearchOCR(_ query: String, limit: Int, matchAll: Bool, dropStopWords: Bool,
                                     filter: ScreenSearchFilter, groupResults: Bool,
-                                    cjkRowsOnly: Bool) -> [OCRHit] {
+                                    cjkRowsOnly: Bool, deferringSnippets: Bool) -> [OCRHit] {
         let terms = SearchIndex.substringTerms(query, matchAll: matchAll, dropStopWords: dropStopWords)
         guard !terms.isEmpty else { return [] }
         var bindings: [Any] = []
@@ -536,19 +614,39 @@ final class ActivityStore {
         return runOCRSearch(matchCondition: match, bindings: bindings,
                             rankExpression: "-(" + termMatches.map { "IFNULL(\($0), 0)" }
                                 .joined(separator: " + ") + ")",
-                            snippetExpression: "ocr_fts.text",
-                            limit: limit, filter: filter, groupResults: groupResults) { text in
-            CJKSearch.snippet(in: text, terms: terms) ?? String(text.prefix(72))
-        }
+                            marking: .substring(terms),
+                            limit: limit, filter: filter, groupResults: groupResults,
+                            deferringSnippets: deferringSnippets)
     }
 
     /// The screen search query, grouped into scenes unless `groupResults` is
     /// false. `matchCondition` and `bindings` select the rows, and
-    /// `rankExpression` orders them (lower first) ahead of recency.
+    /// `rankExpression` orders them (lower first) ahead of recency. Snippets
+    /// are built afterwards for the rows returned only.
     private func runOCRSearch(matchCondition: String, bindings matchBindings: [Any],
-                              rankExpression: String, snippetExpression: String,
+                              rankExpression: String, marking: OCRHit.SnippetSource.Marking,
                               limit: Int, filter: ScreenSearchFilter, groupResults: Bool,
-                              snippet makeSnippet: (String) -> String = { $0 }) -> [OCRHit] {
+                              deferringSnippets: Bool) -> [OCRHit] {
+        let hits = rankedOCRHits(matchCondition: matchCondition, bindings: matchBindings,
+                                 rankExpression: rankExpression, marking: marking,
+                                 limit: limit, filter: filter, groupResults: groupResults)
+        return deferringSnippets ? hits : fillOCRSnippets(hits)
+    }
+
+    private func rankedOCRHits(matchCondition: String, bindings matchBindings: [Any],
+                               rankExpression: String, marking: OCRHit.SnippetSource.Marking,
+                               limit: Int, filter: ScreenSearchFilter, groupResults: Bool) -> [OCRHit] {
+        func hit(_ statement: OpaquePointer, rowID: Int64, groupID: Int64, captureCount: Int = 1) -> OCRHit {
+            var result = OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
+                                ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
+                                app: String(cString: sqlite3_column_text(statement, 2)),
+                                windowTitle: String(cString: sqlite3_column_text(statement, 3)),
+                                snippet: "",
+                                similarityGroupID: groupID > 0 ? groupID : nil,
+                                captureCount: captureCount)
+            result.pendingSnippet = .init(rowID: rowID, marking: marking)
+            return result
+        }
         var conditions = [
             matchCondition,
             "CAST(ocr_fts.snapshot_id AS INTEGER) > 0",
@@ -572,20 +670,15 @@ final class ActivityStore {
             if !groupResults {
                 return try requiredDatabase().queryChecked("""
                     SELECT CAST(ocr_fts.snapshot_id AS INTEGER), CAST(ocr_fts.ts AS REAL),
-                           ocr_fts.app, ocr_fts.window_title, \(snippetExpression),
+                           ocr_fts.app, ocr_fts.window_title, ocr_fts.rowid,
                            shot.similarity_group
                     FROM ocr_fts JOIN screenshots AS shot ON shot.id = CAST(ocr_fts.snapshot_id AS INTEGER)
                     WHERE \(conditions.joined(separator: " AND "))
                     ORDER BY \(rankExpression), CAST(ocr_fts.ts AS REAL) DESC, shot.id
                     LIMIT \(limit)
                     """, bind: bindings) { statement in
-                    OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
-                           ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
-                           app: String(cString: sqlite3_column_text(statement, 2)),
-                           windowTitle: String(cString: sqlite3_column_text(statement, 3)),
-                           snippet: makeSnippet(String(cString: sqlite3_column_text(statement, 4))),
-                           similarityGroupID: sqlite3_column_int64(statement, 5) > 0
-                               ? sqlite3_column_int64(statement, 5) : nil)
+                    hit(statement, rowID: sqlite3_column_int64(statement, 4),
+                        groupID: sqlite3_column_int64(statement, 5))
                 }
             }
             return try requiredDatabase().queryChecked("""
@@ -594,7 +687,7 @@ final class ActivityStore {
                            CAST(ocr_fts.ts AS REAL) AS captured_at,
                            ocr_fts.app AS app,
                            ocr_fts.window_title AS window_title,
-                           \(snippetExpression) AS snippet_text,
+                           ocr_fts.rowid AS fts_rowid,
                            \(rankExpression) AS match_rank,
                            shot.similarity_group AS similarity_group_id,
                            CASE
@@ -623,22 +716,15 @@ final class ActivityStore {
                     FROM candidates
                 )
                 SELECT snapshot_id, captured_at, app, window_title,
-                       snippet_text, similarity_group_id, capture_count
+                       fts_rowid, similarity_group_id, capture_count
                 FROM grouped
                 WHERE evidence_rank = 1
                 ORDER BY match_rank, captured_at DESC, snapshot_id
                 LIMIT \(limit)
                 """, bind: bindings) { statement in
-                OCRHit(snapshotID: sqlite3_column_int64(statement, 0),
-                       ts: Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)),
-                       app: String(cString: sqlite3_column_text(statement, 2)),
-                       windowTitle: String(cString: sqlite3_column_text(statement, 3)),
-                       snippet: makeSnippet(String(cString: sqlite3_column_text(statement, 4))),
-                       similarityGroupID: {
-                           let groupID = sqlite3_column_int64(statement, 5)
-                           return groupID > 0 ? groupID : nil
-                       }(),
-                       captureCount: Int(sqlite3_column_int64(statement, 6)))
+                hit(statement, rowID: sqlite3_column_int64(statement, 4),
+                    groupID: sqlite3_column_int64(statement, 5),
+                    captureCount: Int(sqlite3_column_int64(statement, 6)))
             }
         } catch {
             lokalbotLog("OCR search failed: \(error.localizedDescription)")
@@ -1078,9 +1164,11 @@ final class ActivityStore {
     /// Clear only the row whose file was successfully removed. This avoids
     /// losing the sole reference to an encrypted file when filesystem cleanup
     /// fails (permissions, transient volume error, and so on).
+    /// Retention calls this once per expired capture on the main actor; the
+    /// partial path index keeps each call from scanning every capture row.
     func clearScreenshotPath(_ path: String) throws {
         try requiredDatabase().runChecked(
-            "UPDATE screenshots SET path = '' WHERE path = ?1", bind: [path])
+            "UPDATE screenshots SET path = '' WHERE path = ?1 AND path != ''", bind: [path])
     }
 
     @discardableResult
@@ -1460,6 +1548,8 @@ final class ActivitySampler: ObservableObject {
 
     private let store: ActivityStore
     private let accessibilityReader: ScreenAccessibilityReader
+    /// Used instead when no site is excluded, so a sample needs no page address.
+    private let windowReader: ScreenAccessibilityReader
     /// Injected by AppState; apps matching these are logged as "Private".
     var excludedApps: () -> [String] = { [] }
     var excludedDomains: () -> [String] = { [] }
@@ -1483,11 +1573,13 @@ final class ActivitySampler: ObservableObject {
     init(
         store: ActivityStore,
         notificationCenter: NotificationCenter = .default,
-        accessibilityReader: ScreenAccessibilityReader = .metadataOnly
+        accessibilityReader: ScreenAccessibilityReader = .metadataOnly,
+        windowReader: ScreenAccessibilityReader = .windowOnly
     ) {
         self.store = store
         self.notificationCenter = notificationCenter
         self.accessibilityReader = accessibilityReader
+        self.windowReader = windowReader
     }
 
     var hasTerminationObserver: Bool { terminationObserver != nil }
@@ -1543,9 +1635,10 @@ final class ActivitySampler: ObservableObject {
         let processID = frontmost.processIdentifier
         let isExcluded = ScreenshotCaptureLayout.isExcluded(
             appName: appName, bundleIdentifier: frontmost.bundleIdentifier, excludedApps: excludedApps())
+        let reader = ScreenContextPrivacy.hasDomainRules(excludedDomains()) ? accessibilityReader : windowReader
         let accessibility = isExcluded
             ? ScreenAccessibilityCaptureResult(snapshot: nil, timedOut: false)
-            : await accessibilityReader.capture(processID: processID)
+            : await reader.capture(processID: processID)
         guard !isPaused, generation == samplingGeneration else { return }
         guard environment.workspace.frontmostApplication()?.processIdentifier == processID else {
             closeCurrentBlock()

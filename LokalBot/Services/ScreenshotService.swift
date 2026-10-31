@@ -307,6 +307,17 @@ enum ScreenshotWindowFocusValidation {
     }
 }
 
+/// Set on the main actor right before a recheck starts, read on the
+/// reader's worker; captures run one at a time.
+final class RecheckNodeLimit: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Int?
+    var value: Int? {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+}
+
 /// Immutable inputs passed across the main-actor/worker boundary. `CGImage` is
 /// an immutable Core Foundation value and is safe to read concurrently, but it
 /// is not annotated `Sendable` by every supported SDK, so the wrapper records
@@ -319,6 +330,8 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
     let accessibleText: String
     let accessibilityRedactionCount: Int
     let stageOnly: Bool
+    /// The app and window the image shows; empty when unknown.
+    let source: String
 
     init(
         image: CGImage,
@@ -327,7 +340,8 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
         fileURL: URL,
         accessibleText: String = "",
         accessibilityRedactionCount: Int = 0,
-        stageOnly: Bool = false
+        stageOnly: Bool = false,
+        source: String = ""
     ) {
         self.image = image
         self.trigger = trigger
@@ -336,6 +350,7 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
         self.accessibleText = accessibleText
         self.accessibilityRedactionCount = max(0, accessibilityRedactionCount)
         self.stageOnly = stageOnly
+        self.source = source
     }
 }
 
@@ -366,6 +381,8 @@ struct ScreenshotProcessingDependencies: @unchecked Sendable {
 actor ScreenshotProcessingWorker {
     struct StoredCapture: Sendable {
         let contentHash: Data
+        /// `ScreenPerceptualHash` of the full image, for visual grouping.
+        let perceptualHash: UInt64
         let text: String
         let textSource: String
         let hasPixels: Bool
@@ -381,6 +398,12 @@ actor ScreenshotProcessingWorker {
 
     private let dependencies: ScreenshotProcessingDependencies
     private var lastContentHash: Data?
+    /// The last stored capture, for skipping a frame of the same window that
+    /// differs only by a blinking caret or similar: same text, and at most
+    /// `nearDuplicateDistance` bits apart visually. About 7% of a real
+    /// library's captures were such frames, each encoded, written and indexed.
+    private var lastStored: (contentHash: Data, source: String, text: String, perceptualHash: UInt64)?
+    static let nearDuplicateDistance = 2
 
     init(dependencies: ScreenshotProcessingDependencies = .live) {
         self.dependencies = dependencies
@@ -418,6 +441,13 @@ actor ScreenshotProcessingWorker {
             textSource = ocr.count > 0 ? "ocr_redacted" : "ocr"
         }
 
+        let perceptualHash = ScreenPerceptualHash.hash(of: request.image)
+        if request.trigger != .manual, !request.source.isEmpty, let lastStored,
+           lastStored.source == request.source, lastStored.text == text,
+           (lastStored.perceptualHash ^ perceptualHash).nonzeroBitCount <= Self.nearDuplicateDistance {
+            lastContentHash = contentHash
+            return .unchanged
+        }
         let redactionCount = accessibilityRedactions + ocr.count
         // If extracted text reveals a credential, retain only its deterministic
         // redacted form. Dropping the entire pixel payload is safer than trying
@@ -437,8 +467,10 @@ actor ScreenshotProcessingWorker {
             }
         }
         lastContentHash = contentHash
+        lastStored = (contentHash, request.source, text, perceptualHash)
         return .stored(StoredCapture(
             contentHash: contentHash,
+            perceptualHash: perceptualHash,
             text: text,
             textSource: textSource,
             hasPixels: hasPixels,
@@ -452,6 +484,9 @@ actor ScreenshotProcessingWorker {
     func discardStored(contentHash: Data) {
         if lastContentHash == contentHash {
             lastContentHash = nil
+        }
+        if lastStored?.contentHash == contentHash {
+            lastStored = nil
         }
     }
 }
@@ -541,18 +576,20 @@ enum ScreenPerceptualHash {
 /// away from SwiftUI's executor.
 enum ScreenshotImageProcessing {
     /// Hash the downscaled pixels before HEIC/OCR. Only byte-identical frames
-    /// are suppressed; the much coarser perceptual hash is persisted later for
-    /// visual grouping and must never discard changed OCR evidence.
+    /// are suppressed here; the much coarser perceptual hash must never discard
+    /// changed OCR evidence, so the worker uses it only between captures whose
+    /// text is identical.
     static func contentHash(of image: CGImage) -> Data {
-        var input = Data()
+        var hasher = SHA256()
         var width = UInt64(image.width).littleEndian
         var height = UInt64(image.height).littleEndian
-        withUnsafeBytes(of: &width) { input.append(contentsOf: $0) }
-        withUnsafeBytes(of: &height) { input.append(contentsOf: $0) }
-        if let pixels = image.dataProvider?.data {
-            input.append(pixels as Data)
+        withUnsafeBytes(of: &width) { hasher.update(bufferPointer: $0) }
+        withUnsafeBytes(of: &height) { hasher.update(bufferPointer: $0) }
+        // Hash the pixels in place rather than copying ~6 MB into a buffer.
+        if let pixels = image.dataProvider?.data, let bytes = CFDataGetBytePtr(pixels) {
+            hasher.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: CFDataGetLength(pixels)))
         }
-        return Data(SHA256.hash(data: input))
+        return Data(hasher.finalize())
     }
 
     static func recognizeText(in image: CGImage) -> String {
@@ -639,6 +676,11 @@ final class ScreenshotService: ObservableObject {
     private let now: () -> Date
     private let sampler: ActivitySampler
     private let accessibilityReader: ScreenAccessibilityReader
+    /// The capture's own read sets how many elements its recheck inspects.
+    private let recheckNodeLimit = RecheckNodeLimit()
+    private lazy var privacyRecheckReader = ScreenAccessibilityReader.privacyRecheck { [recheckNodeLimit] in
+        recheckNodeLimit.value
+    }
     private let processingWorker = ScreenshotProcessingWorker()
     private let eventMonitor = ScreenContextEventMonitor()
     private var timer: Timer?
@@ -989,7 +1031,9 @@ final class ScreenshotService: ObservableObject {
             lokalbotLog("shot skip: consent or screen recording access changed during capture")
             return
         }
-        let currentAccessibility = await accessibilityReader.capture(processID: frontmostProcessID)
+        // The recheck needs no text, only what the privacy checks below read.
+        recheckNodeLimit.value = accessibilitySnapshot.inspectedNodes
+        let currentAccessibility = await privacyRecheckReader.capture(processID: frontmostProcessID)
         mark("recheck")
         guard captureIsAuthorized(consent),
               environment.workspace.frontmostApplication()?.processIdentifier == frontmostProcessID,
@@ -1019,7 +1063,8 @@ final class ScreenshotService: ObservableObject {
             fileURL: file,
             accessibleText: accessibleText,
             accessibilityRedactionCount: accessibilityRedactionCount,
-            stageOnly: true))
+            stageOnly: true,
+            source: "\(frontApp)\u{1f}\(storedWindowTitle)"))
         mark("process")
 
         guard case .stored(let stored) = outcome else {
@@ -1051,7 +1096,7 @@ final class ScreenshotService: ObservableObject {
                 trigger: trigger.rawValue,
                 textSource: stored.textSource,
                 ocr: stored.text,
-                perceptualHash: ScreenPerceptualHash.hash(of: image),
+                perceptualHash: stored.perceptualHash,
                 sourceURL: sourceURL ?? "",
                 documentName: documentName ?? "",
                 meetingID: meetingID ?? "",
