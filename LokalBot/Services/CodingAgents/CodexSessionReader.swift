@@ -146,13 +146,13 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
     /// thread or a window holding no work.
     func transcript(in interval: DateInterval) -> CodingAgentTranscript? {
         guard !isSubagent, !sessionID.isEmpty else { return nil }
-        let events = events.compactMap { stored in
+        let inWindow = events.compactMap { stored in
             interval.contains(stored.at) ? CodingAgentEvent(at: stored.at, kind: stored.kind) : nil
         }
-        guard events.contains(where: { !$0.isAnnotation }) else { return nil }
+        guard inWindow.contains(where: { !$0.isAnnotation }) else { return nil }
         return CodingAgentTranscript(
             agent: .codex, sessionID: sessionID, workingDirectory: workingDirectory, branch: branch,
-            consultedLokalBot: consultedLokalBot, events: events)
+            consultedLokalBot: consultedLokalBot, events: inWindow)
     }
 
     private mutating func append(_ kind: CodingAgentEvent.Kind, at: Date) {

@@ -218,9 +218,9 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
                 break
             }
         }
-        let titles = titles
+        let written = titles
         title = ["custom", "agent", "ai", "summary"].lazy
-            .compactMap { titles[$0].flatMap(CodingAgentText.title) }.first
+            .compactMap { written[$0].flatMap(CodingAgentText.title) }.first
         events = CodingAgentBurstBuilder.compactingActivity(events)
     }
 
